@@ -111,7 +111,7 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
     <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div
         ref={autoScroll ? stick.scrollRef : undefined}
-        style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1rem' }}
+        style={{ flex: 1, overflowY: 'auto', padding: 'var(--fi-transcript-pad, 1.25rem 1rem)' }}
       >
         <div
           ref={autoScroll ? stick.contentRef : undefined}

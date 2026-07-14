@@ -96,10 +96,13 @@ export const AutoResizeTextarea = forwardRef<
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
     const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows),
-    );
+    // CONV-MOBILE-RECLAIM-1: an EMPTY textarea is always one row. scrollHeight
+    // includes the rendered placeholder, so a long placeholder that wraps on a
+    // narrow composer inflated the idle box to 2-3 rows of nothing.
+    const newRows =
+      value === ''
+        ? 1
+        : Math.max(1, Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows));
 
     setRows(newRows);
     // Restore rows imperatively too: when newRows equals the previous render's

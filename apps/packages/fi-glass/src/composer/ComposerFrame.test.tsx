@@ -89,7 +89,7 @@ describe('<ComposerFrame> slots', () => {
     expect(slot('footer')).toBeNull();
   });
 
-  it('renders footerStart as the footer\'s first child, inside the footer slot', () => {
+  it('renders footerStart inside the footer slot, led by the rail disclosure toggle', () => {
     render(
       <ComposerFrame
         footerStart={<button>persona</button>}
@@ -103,7 +103,14 @@ describe('<ComposerFrame> slots', () => {
     expect(start).not.toBeNull();
     expect(start!.className).toBe('rail');
     expect(start!.parentElement).toBe(slot('footer'));
-    expect(slot('footer')!.firstElementChild).toBe(start);
+    // CONV-MOBILE-RECLAIM-1: the compact-mode disclosure toggle leads the
+    // footer (display:none on wide containers) and announces its state; the
+    // rail follows it and starts collapsed.
+    const toggle = slot('footer')!.firstElementChild!;
+    expect(toggle.getAttribute('aria-label')).toBe('Más opciones');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-controls')).toBe(start!.id);
+    expect(toggle.nextElementSibling).toBe(start);
   });
 
   it('mounts the footer for a footerStart even when there is no footer content', () => {

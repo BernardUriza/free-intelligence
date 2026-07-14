@@ -7,9 +7,11 @@ var messageStyles = {
     base: "space-y-0.5",
     padding: "px-4"
   },
-  // Message row
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // ~10px/14px padding so content dominates the viewport; desktop keeps the
+  // original 12px/16px.
   message: {
-    base: "group relative py-3 px-4 -mx-4 transition-colors duration-150",
+    base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150",
     user: "bg-transparent hover:bg-white/[0.02]",
     assistant: "bg-white/[0.02] hover:bg-white/[0.04]",
     borderRadius: "rounded-lg"
@@ -27,13 +29,15 @@ var messageStyles = {
     name: "text-[13px] font-medium text-slate-300",
     time: "text-[11px] text-slate-500 tabular-nums"
   },
-  // Content
+  // Content. CONV-MOBILE-RECLAIM-1: phones read at 16px/1.5 (WCAG-comfortable)
+  // and drop the 2rem avatar indent — the header row already attributes the
+  // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: "text-[14px] leading-relaxed",
+    base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]",
     user: "text-slate-200",
     assistant: "text-slate-100",
-    indent: "pl-8"
-    // Align with avatar
+    indent: "pl-8 max-md:pl-0"
+    // Align with avatar (desktop only)
   },
   // Actions toolbar
   actions: {
@@ -312,7 +316,51 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3 } from "react";
+import { memo as memo3, useState as useState3 } from "react";
+
+// src/messages/messageActionsStyle.ts
+import { useEffect as useEffect3 } from "react";
+var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+var MESSAGE_ACTIONS_STYLE_ID = "fi-msg-actions-style";
+var CSS = `
+.${FI_MSG_ACTIONS_CLASS} {
+  margin-top: 0.25rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    opacity: 1;
+  }
+}
+@media (pointer: coarse) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    display: none;
+  }
+  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
+    display: block;
+  }
+}
+`;
+function ensureMessageActionsStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(MESSAGE_ACTIONS_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = MESSAGE_ACTIONS_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useMessageActionsStyle() {
+  useEffect3(() => {
+    ensureMessageActionsStyle();
+  }, []);
+}
+
+// src/messages/MessageBubble.tsx
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
@@ -321,23 +369,34 @@ var MessageBubble = memo3(function MessageBubble2({
   reasoning,
   badge,
   actions,
+  isLatest = false,
   className,
   ariaLabel
 }) {
+  useMessageActionsStyle();
   const { message: styles } = messageStyles;
   const isUser = role === "user";
+  const [actionsOpen, setActionsOpen] = useState3(false);
+  const onBubbleClick = (e) => {
+    if (!actions) return;
+    if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
+    setActionsOpen((v) => !v);
+  };
   return /* @__PURE__ */ jsxs3(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
+      "data-fi-last-message": isLatest || void 0,
+      "data-fi-actions-open": actionsOpen || void 0,
+      onClick: onBubbleClick,
       children: [
-        header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
         reasoning && /* @__PURE__ */ jsx4("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
         badge && /* @__PURE__ */ jsx4("div", { className: "mt-2", children: badge }),
-        actions
+        actions != null && actions !== false && /* @__PURE__ */ jsx4("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
       ]
     }
   );
@@ -517,6 +576,7 @@ function MessageList({
 export {
   CollapsibleText,
   CopyButton,
+  FI_MSG_ACTIONS_CLASS,
   MessageAuthorHeader,
   MessageBubble,
   MessageContent,
@@ -525,8 +585,10 @@ export {
   MessageModelBadge,
   defaultMessageBadge,
   defaultMessageHeader,
+  ensureMessageActionsStyle,
   markdownStyles,
   messageStyles,
-  normalizeStreamedMarkdown
+  normalizeStreamedMarkdown,
+  useMessageActionsStyle
 };
 //# sourceMappingURL=index.js.map

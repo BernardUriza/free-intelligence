@@ -21,7 +21,7 @@ declare const messageStyles: {
         readonly padding: "px-4";
     };
     readonly message: {
-        readonly base: "group relative py-3 px-4 -mx-4 transition-colors duration-150";
+        readonly base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150";
         readonly user: "bg-transparent hover:bg-white/[0.02]";
         readonly assistant: "bg-white/[0.02] hover:bg-white/[0.04]";
         readonly borderRadius: "rounded-lg";
@@ -38,10 +38,10 @@ declare const messageStyles: {
         readonly time: "text-[11px] text-slate-500 tabular-nums";
     };
     readonly content: {
-        readonly base: "text-[14px] leading-relaxed";
+        readonly base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]";
         readonly user: "text-slate-200";
         readonly assistant: "text-slate-100";
-        readonly indent: "pl-8";
+        readonly indent: "pl-8 max-md:pl-0";
     };
     readonly actions: {
         readonly container: "\n      absolute top-2 right-2\n      flex items-center gap-0.5\n      opacity-0 group-hover:opacity-100\n      transition-opacity duration-150\n      bg-slate-800/95 backdrop-blur-sm rounded-md p-0.5\n      border border-slate-700/50 shadow-lg\n    ";
@@ -163,12 +163,21 @@ interface MessageBubbleProps {
     badge?: ReactNode;
     /** Hover action toolbar (e.g. copy, speak). */
     actions?: ReactNode;
+    /** Marks the thread's last message: on touch its actions stay visible without
+     * a tap (CONV-MOBILE-RECLAIM-1). */
+    isLatest?: boolean;
     /** Extra classes appended to the article. */
     className?: string;
     /** Accessible label for the article. */
     ariaLabel?: string;
 }
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
+
+declare const FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+/** Inject the idempotent message-actions stylesheet (no-op on the server / if present). */
+declare function ensureMessageActionsStyle(): void;
+/** Ensure the message-actions stylesheet is present for the component's lifetime. */
+declare function useMessageActionsStyle(): void;
 
 interface MessageImagesProps {
     images: MessageImage[] | undefined;
@@ -248,4 +257,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, defaultMessageBadge, defaultMessageHeader, markdownStyles, messageStyles, normalizeStreamedMarkdown };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };

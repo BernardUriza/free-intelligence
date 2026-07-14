@@ -273,10 +273,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
     const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
-    );
+    const newRows = value === "" ? 1 : Math.max(1, Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows));
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
@@ -359,11 +356,46 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
+import { useEffect as useEffect3, useId as useId2, useState as useState3 } from "react";
+import { SlidersHorizontal } from "lucide-react";
+
+// src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media (pointer: coarse), (max-width: 768px) {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect2(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/composer/ComposerFrame.tsx
+import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 
 // src/composer/useComposerImages.ts
-import { useCallback as useCallback2, useRef as useRef2, useState as useState3 } from "react";
+import { useCallback as useCallback2, useRef as useRef2, useState as useState4 } from "react";
 var COMPOSER_IMAGE_MEDIA_TYPES = [
   "image/jpeg",
   "image/png",
@@ -382,9 +414,9 @@ import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment, useEffect as useEffect3, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect4, useRef as useRef4, useState as useState5 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -397,16 +429,16 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
-  const [open, setOpen] = useState4(false);
+  const [open, setOpen] = useState5(false);
   const triggerRef = useRef4(null);
-  const [position, setPosition] = useState4({ top: 0, left: 0 });
-  useEffect3(() => {
+  const [position, setPosition] = useState5({ top: 0, left: 0 });
+  useEffect4(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect3(() => {
+  useEffect4(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -416,7 +448,7 @@ function ActionMenu({
   }, [open]);
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
-  return /* @__PURE__ */ jsxs5(Fragment2, { children: [
+  return /* @__PURE__ */ jsxs5(Fragment3, { children: [
     /* @__PURE__ */ jsx6(
       "button",
       {
@@ -435,7 +467,7 @@ function ActionMenu({
       }
     ),
     open && typeof document !== "undefined" && createPortal(
-      /* @__PURE__ */ jsxs5(Fragment2, { children: [
+      /* @__PURE__ */ jsxs5(Fragment3, { children: [
         /* @__PURE__ */ jsx6(
           "div",
           {
@@ -509,7 +541,7 @@ function ActionMenu({
               return action.wrapperClassName ? /* @__PURE__ */ jsxs5("div", { className: action.wrapperClassName, children: [
                 divider,
                 item
-              ] }, action.id) : /* @__PURE__ */ jsxs5(Fragment, { children: [
+              ] }, action.id) : /* @__PURE__ */ jsxs5(Fragment2, { children: [
                 divider,
                 item
               ] }, action.id);
@@ -527,7 +559,7 @@ import { jsx as jsx7 } from "react/jsx-runtime";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -553,7 +585,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs6(Fragment3, { children: [
+    return /* @__PURE__ */ jsxs6(Fragment4, { children: [
       /* @__PURE__ */ jsx8("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
       /* @__PURE__ */ jsx8(
         "div",
@@ -594,7 +626,7 @@ function ChatWidgetContainer(props) {
 
 // src/shell/ChatWidgetHeader.tsx
 import { X as X2, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment4, jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -629,7 +661,7 @@ function ChatWidgetHeader({
         subtitle && /* @__PURE__ */ jsx9("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx9("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs7(Fragment4, { children: [
+    /* @__PURE__ */ jsx9("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs7(Fragment5, { children: [
       showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx9("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx9(Search, { className: "h-4 w-4" }) }),
       mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx9("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs7("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
         /* @__PURE__ */ jsx9("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
@@ -716,10 +748,10 @@ var RecordingButton = forwardRef2(
 
 // src/voice/recording/PulseRings.tsx
 import { motion } from "framer-motion";
-import { Fragment as Fragment5, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 function PingRings({ color = "yellow-500" }) {
   const bgClass = `rec-pulse-bg-${color}`;
-  return /* @__PURE__ */ jsxs8(Fragment5, { children: [
+  return /* @__PURE__ */ jsxs8(Fragment6, { children: [
     /* @__PURE__ */ jsx11(
       "div",
       {
@@ -742,7 +774,7 @@ function ConcentricRings({ color = "yellow-500" }) {
     { scale: 1.5, opacity: 0.3, delay: 0.2 },
     { scale: 1.7, opacity: 0.2, delay: 0.4 }
   ];
-  return /* @__PURE__ */ jsx11(Fragment5, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsx11(Fragment6, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
     motion.div,
     {
       className: `rec-pulse-concentric ${borderClass}`,
@@ -772,7 +804,7 @@ function VADRings({
     { baseScale: 1.4, opacityBase: 0.4 },
     { baseScale: 1.6, opacityBase: 0.2 }
   ];
-  return /* @__PURE__ */ jsx11(Fragment5, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
+  return /* @__PURE__ */ jsx11(Fragment6, { children: rings.map((ring, i) => /* @__PURE__ */ jsx11(
     motion.div,
     {
       className: "rec-pulse-vad",
@@ -958,40 +990,6 @@ function VoiceMicButton({
 
 // src/voice/SpeakButton.tsx
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
-
-// src/shell/touchTarget.ts
-import { useEffect as useEffect4 } from "react";
-var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
-var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
-function ensureTouchTargetStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = TOUCH_TARGET_STYLE_ID;
-  el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
-      .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-      }
-    }
-  `;
-  document.head.appendChild(el);
-}
-function useTouchTargetStyle() {
-  useEffect4(() => {
-    ensureTouchTargetStyle();
-  }, []);
-}
-function withTouchTarget(className) {
-  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
-}
-
-// src/voice/SpeakButton.tsx
 import { jsx as jsx15 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
@@ -1023,16 +1021,16 @@ import { Mic as Mic2, MicOff, Square as Square4, Loader2 as Loader27 } from "luc
 import { jsx as jsx19 } from "react/jsx-runtime";
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef6, useState as useState5 } from "react";
+import { useCallback as useCallback3, useRef as useRef6, useState as useState6 } from "react";
 
 // src/voice/useDictation.ts
-import { useCallback as useCallback5, useState as useState8 } from "react";
+import { useCallback as useCallback5, useState as useState9 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState6, useRef as useRef7, useCallback as useCallback4 } from "react";
+import { useState as useState7, useRef as useRef7, useCallback as useCallback4 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState7, useRef as useRef8, useEffect as useEffect8 } from "react";
+import { useState as useState8, useRef as useRef8, useEffect as useEffect8 } from "react";
 
 // src/voice/audioArtifact.ts
 var AUDIO_QUEUE_DEFAULTS = {
@@ -1047,17 +1045,17 @@ var AUDIO_QUEUE_DEFAULTS = {
 import { useMemo as useMemo2 } from "react";
 
 // src/voice/useDurableRecording.ts
-import { useState as useState9, useRef as useRef9, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState10, useRef as useRef9, useCallback as useCallback6, useEffect as useEffect9 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState10, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState11, useEffect as useEffect10, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect11, useState as useState12 } from "react";
+import { useEffect as useEffect11, useState as useState13 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState11, useCallback as useCallback8 } from "react";
+import { useState as useState12, useCallback as useCallback8 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -1076,12 +1074,12 @@ import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState13, useEffect as useEffect12 } from "react";
+import { useState as useState14, useEffect as useEffect12 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef10, useState as useState14 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef10, useState as useState15 } from "react";
 
 // src/shell/ChatToolbar.tsx
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
@@ -1258,7 +1256,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx24, jsxs as jsxs18 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -1305,23 +1303,23 @@ function ChatFilePreview({
       /* @__PURE__ */ jsx24("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs18("div", { className: "flex items-center gap-2 fi-text-xs", children: [
         /* @__PURE__ */ jsx24("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs18(Fragment6, { children: [
+        isUploading && /* @__PURE__ */ jsxs18(Fragment7, { children: [
           /* @__PURE__ */ jsx24("span", { children: "-" }),
           /* @__PURE__ */ jsx24("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isAwaitingUser && /* @__PURE__ */ jsxs18(Fragment6, { children: [
+        isAwaitingUser && /* @__PURE__ */ jsxs18(Fragment7, { children: [
           /* @__PURE__ */ jsx24("span", { children: "-" }),
           /* @__PURE__ */ jsx24("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs18(Fragment6, { children: [
+        isProcessing && /* @__PURE__ */ jsxs18(Fragment7, { children: [
           /* @__PURE__ */ jsx24("span", { children: "-" }),
           /* @__PURE__ */ jsx24("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs18(Fragment6, { children: [
+        isCompleted && /* @__PURE__ */ jsxs18(Fragment7, { children: [
           /* @__PURE__ */ jsx24("span", { children: "-" }),
           /* @__PURE__ */ jsx24("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs18(Fragment6, { children: [
+        isError && error && /* @__PURE__ */ jsxs18(Fragment7, { children: [
           /* @__PURE__ */ jsx24("span", { children: "-" }),
           /* @__PURE__ */ jsx24("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
@@ -1350,7 +1348,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx25, jsxs as jsxs19 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -1400,10 +1398,10 @@ function ChatStartScreen({
         /* @__PURE__ */ jsx25("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx25("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs19(Fragment7, { children: [
+    /* @__PURE__ */ jsx25("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs19(Fragment8, { children: [
       /* @__PURE__ */ jsx25("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs19(Fragment7, { children: [
+    ] }) : /* @__PURE__ */ jsxs19(Fragment8, { children: [
       /* @__PURE__ */ jsx25(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),

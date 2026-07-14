@@ -65,7 +65,7 @@ export function TranscriptMessages({
   collapseToggleClassName,
 }: TranscriptMessagesProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--fi-transcript-gap, 1rem)' }}>
       {messages.map((m, i) => {
         const traceTurn =
           showPersistedTrace && m.role === 'assistant' ? persistedTraceTurn(m) : null;
@@ -94,6 +94,7 @@ export function TranscriptMessages({
                 renderActions?.(m) ??
                 (showCopyAction ? <CopyButton content={m.content} /> : undefined)
               }
+              isLatest={i === messages.length - 1}
               className={resolveBubbleClass(m)}
             >
               {/* Attached images render above the text (OG118-IMAGE-UPLOAD-1),
@@ -133,7 +134,7 @@ export function TranscriptMessages({
           `agentPanelProps.classNames.card`); `data-fi-live-trace` is the hook
           for a consumer that wants to dress the rail itself. */}
       {isStreaming && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--fi-transcript-gap, 1rem)' }}>
           <div data-fi-live-trace="" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
             <AgentPanel turn={turn} {...agentPanelProps} />
           </div>

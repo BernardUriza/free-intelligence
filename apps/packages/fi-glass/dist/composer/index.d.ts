@@ -103,8 +103,11 @@ interface ComposerFrameProps {
     footerClassName?: string;
     footerStyle?: CSSProperties;
     footerStartClassName?: string;
+    /** Accessible label for the compact-mode rail disclosure toggle
+     * (CONV-MOBILE-RECLAIM-1). Only rendered when `footerStart` is filled. */
+    railToggleLabel?: string;
 }
-declare function ComposerFrame({ children, header, footer, footerStart, className, style, headerClassName, footerClassName, footerStyle, footerStartClassName, }: ComposerFrameProps): react.JSX.Element;
+declare function ComposerFrame({ children, header, footer, footerStart, className, style, headerClassName, footerClassName, footerStyle, footerStartClassName, railToggleLabel, }: ComposerFrameProps): react.JSX.Element;
 
 /** Media types the pipeline accepts end-to-end (mirrors the server allowlist). */
 declare const COMPOSER_IMAGE_MEDIA_TYPES: readonly ["image/jpeg", "image/png", "image/webp", "image/gif"];

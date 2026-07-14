@@ -37,10 +37,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
     const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
-    );
+    const newRows = value === "" ? 1 : Math.max(1, Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows));
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
@@ -123,8 +120,18 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
+import { useEffect as useEffect3, useId as useId2, useState as useState2 } from "react";
+import { SlidersHorizontal } from "lucide-react";
+
+// src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
-import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/composer/ComposerFrame.tsx
+import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
 var CSS = `
 [data-fi-composer-slot="header"] {
@@ -149,6 +156,64 @@ var CSS = `
 .fi-surface-above-composer:empty {
   display: none;
 }
+/* CONV-MOBILE-RECLAIM-1 \u2014 compact composer on narrow containers.
+ *
+ * Wide (desktop) is byte-identical: the rail toggle stays display:none and the
+ * body/footer keep their stacked anatomy. At <=420px container width the frame
+ * becomes ONE wrapping flex row \u2014 [toggle] [textarea] [mic] [send] \u2014 and the
+ * footer-start rail (persona chip, call, attach) collapses behind the toggle,
+ * expanding as its own full-width row under the input. Send stays the single
+ * always-visible primary action; the textarea still grows to maxRows. */
+.fi-composer-rail-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+}
+.fi-composer-rail-toggle[aria-expanded="true"] {
+  color: var(--glass-chat-accent-text, #6ee7b7);
+  background: rgba(255, 255, 255, 0.06);
+}
+@container fi-composer (max-width: 420px) {
+  [data-fi-composer-frame] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.375rem;
+  }
+  [data-fi-composer-slot="header"] {
+    flex: 1 1 100%;
+    order: -2;
+    margin-bottom: 0;
+  }
+  [data-fi-composer-slot="footer"] {
+    display: contents;
+  }
+  /* The body (whatever wrapper the consumer's Composer renders) becomes the
+     row's flexing member so the textarea shares the line with toggle/mic/send. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .fi-composer-rail-toggle {
+    display: inline-flex;
+    order: -1;
+  }
+  [data-fi-composer-slot="footer-start"] {
+    flex: 1 1 100%;
+    order: 5;
+    flex-wrap: wrap;
+    margin-right: 0;
+  }
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
+    display: none;
+  }
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
@@ -159,7 +224,7 @@ function ensureComposerFrameStyle() {
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect2(() => {
+  useEffect3(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -174,29 +239,64 @@ function ComposerFrame({
   headerClassName,
   footerClassName,
   footerStyle,
-  footerStartClassName
+  footerStartClassName,
+  railToggleLabel = "M\xE1s opciones"
 }) {
   useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs2("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx3("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
-    children,
-    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs2(
-      "div",
-      {
-        className: footerClassName,
-        style: footerStyle,
-        "data-fi-composer-slot": "footer",
-        children: [
-          filled(footerStart) && /* @__PURE__ */ jsx3("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
-          footer
-        ]
-      }
-    )
-  ] });
+  const [railOpen, setRailOpen] = useState2(false);
+  const railId = useId2();
+  const hasRail = filled(footerStart);
+  return /* @__PURE__ */ jsxs2(
+    "div",
+    {
+      className,
+      style,
+      "data-fi-composer-frame": "",
+      "data-fi-rail": hasRail ? railOpen ? "open" : "closed" : void 0,
+      children: [
+        filled(header) && /* @__PURE__ */ jsx3("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+        children,
+        (filled(footer) || hasRail) && /* @__PURE__ */ jsxs2(
+          "div",
+          {
+            className: footerClassName,
+            style: footerStyle,
+            "data-fi-composer-slot": "footer",
+            children: [
+              hasRail && /* @__PURE__ */ jsxs2(Fragment, { children: [
+                /* @__PURE__ */ jsx3(
+                  "button",
+                  {
+                    type: "button",
+                    className: withTouchTarget("fi-composer-rail-toggle"),
+                    "aria-label": railToggleLabel,
+                    "aria-expanded": railOpen,
+                    "aria-controls": railId,
+                    onClick: () => setRailOpen((v) => !v),
+                    children: /* @__PURE__ */ jsx3(SlidersHorizontal, { size: 18, "aria-hidden": true })
+                  }
+                ),
+                /* @__PURE__ */ jsx3(
+                  "div",
+                  {
+                    id: railId,
+                    className: footerStartClassName,
+                    "data-fi-composer-slot": "footer-start",
+                    children: footerStart
+                  }
+                )
+              ] }),
+              footer
+            ]
+          }
+        )
+      ]
+    }
+  );
 }
 
 // src/composer/useComposerImages.ts
-import { useCallback, useRef as useRef2, useState as useState2 } from "react";
+import { useCallback, useRef as useRef2, useState as useState3 } from "react";
 var COMPOSER_IMAGE_MEDIA_TYPES = [
   "image/jpeg",
   "image/png",
@@ -247,7 +347,7 @@ async function downscale(file) {
 var nextDraftId = 0;
 function useComposerImages(options = {}) {
   const { maxImages = DEFAULT_MAX_IMAGES, onError } = options;
-  const [drafts, setDrafts] = useState2([]);
+  const [drafts, setDrafts] = useState3([]);
   const draftsRef = useRef2(drafts);
   draftsRef.current = drafts;
   const onErrorRef = useRef2(onError);
@@ -421,9 +521,9 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment, useEffect as useEffect3, useRef as useRef4, useState as useState3 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect4, useRef as useRef4, useState as useState4 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment2, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -436,16 +536,16 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
-  const [open, setOpen] = useState3(false);
+  const [open, setOpen] = useState4(false);
   const triggerRef = useRef4(null);
-  const [position, setPosition] = useState3({ top: 0, left: 0 });
-  useEffect3(() => {
+  const [position, setPosition] = useState4({ top: 0, left: 0 });
+  useEffect4(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect3(() => {
+  useEffect4(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -455,7 +555,7 @@ function ActionMenu({
   }, [open]);
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
-  return /* @__PURE__ */ jsxs4(Fragment2, { children: [
+  return /* @__PURE__ */ jsxs4(Fragment3, { children: [
     /* @__PURE__ */ jsx5(
       "button",
       {
@@ -474,7 +574,7 @@ function ActionMenu({
       }
     ),
     open && typeof document !== "undefined" && createPortal(
-      /* @__PURE__ */ jsxs4(Fragment2, { children: [
+      /* @__PURE__ */ jsxs4(Fragment3, { children: [
         /* @__PURE__ */ jsx5(
           "div",
           {
@@ -548,7 +648,7 @@ function ActionMenu({
               return action.wrapperClassName ? /* @__PURE__ */ jsxs4("div", { className: action.wrapperClassName, children: [
                 divider,
                 item
-              ] }, action.id) : /* @__PURE__ */ jsxs4(Fragment, { children: [
+              ] }, action.id) : /* @__PURE__ */ jsxs4(Fragment2, { children: [
                 divider,
                 item
               ] }, action.id);

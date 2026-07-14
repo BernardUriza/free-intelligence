@@ -18,9 +18,11 @@ export const messageStyles = {
     padding: 'px-4',
   },
 
-  // Message row
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // ~10px/14px padding so content dominates the viewport; desktop keeps the
+  // original 12px/16px.
   message: {
-    base: 'group relative py-3 px-4 -mx-4 transition-colors duration-150',
+    base: 'group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150',
     user: 'bg-transparent hover:bg-white/[0.02]',
     assistant: 'bg-white/[0.02] hover:bg-white/[0.04]',
     borderRadius: 'rounded-lg',
@@ -41,12 +43,14 @@ export const messageStyles = {
     time: 'text-[11px] text-slate-500 tabular-nums',
   },
 
-  // Content
+  // Content. CONV-MOBILE-RECLAIM-1: phones read at 16px/1.5 (WCAG-comfortable)
+  // and drop the 2rem avatar indent — the header row already attributes the
+  // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: 'text-[14px] leading-relaxed',
+    base: 'text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]',
     user: 'text-slate-200',
     assistant: 'text-slate-100',
-    indent: 'pl-8', // Align with avatar
+    indent: 'pl-8 max-md:pl-0', // Align with avatar (desktop only)
   },
 
   // Actions toolbar
