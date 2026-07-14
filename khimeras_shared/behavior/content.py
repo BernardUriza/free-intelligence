@@ -15,6 +15,7 @@ next request, no redeploy.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import structlog
@@ -24,7 +25,16 @@ from khimeras_shared.prompts import load_prompt as _load_prompt
 
 log = structlog.get_logger()
 
-_GUIDANCE_ROOT = Path(__file__).resolve().parent.parent.parent / "shared" / "personas" / "guidance"
+# Repo-adjacent by default (works in both container images: WORKDIR /app with
+# khimeras_shared/ and shared/ side by side). KHIMERAS_GUIDANCE_ROOT overrides
+# for the day khimeras_shared ships as an installed package and "adjacent
+# shared/" stops existing (cruel-critic 2026-07-14, IMPORTANTE #2).
+_GUIDANCE_ROOT = Path(
+    os.environ.get(
+        "KHIMERAS_GUIDANCE_ROOT",
+        str(Path(__file__).resolve().parent.parent.parent / "shared" / "personas" / "guidance"),
+    )
+)
 
 _CACHE: PromptCache = {}
 

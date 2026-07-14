@@ -21,6 +21,7 @@ from khimeras_shared.behavior.presets.patterns import (
     _SERIOUS_PATTERNS,
 )
 from khimeras_shared.behavior.presets.types import PresetMode, PresetModifier, PresetSelection
+from khimeras_shared.behavior.synthesis import detect_synthesis
 from khimeras_shared.behavior.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
@@ -79,9 +80,7 @@ def classify_preset(
     # MULTI_DOMAIN_SYNTHESIS (Phase 2.5): user is making a cross-domain conceptual
     # connection that the model probably wasn't trained to compare directly.
     # Trigger forces the LLM to research before challenging — see
-    # synthesis_detector.py and the modifier guidance for behavior contract.
-    from khimeras_shared.behavior.synthesis import detect_synthesis
-
+    # synthesis.py and the modifier guidance for behavior contract.
     synthesis = detect_synthesis(current_message)
     if synthesis.activated:
         modifiers.append(PresetModifier.MULTI_DOMAIN_SYNTHESIS)

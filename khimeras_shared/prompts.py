@@ -20,7 +20,11 @@ import structlog
 
 log = structlog.get_logger()
 
-# name -> (mtime_ns, content)
+# FULL PATH (str) -> (mtime_ns, content). Keyed by path, NOT by name: callers
+# like behavior.content share one cache across many dirs (one per persona), and
+# container images give every file the SAME mtime (az acr build tars a fresh
+# checkout) — a name-only key + equal mtimes served one persona's prose to
+# another (cruel-critic 2026-07-14, GRAVE #1).
 PromptCache = dict[str, tuple[int, str]]
 
 
@@ -42,13 +46,14 @@ def load_prompt(prompts_dir: Path, name: str, cache: PromptCache) -> str:
             available = []
         raise FileNotFoundError(f"prompt {name!r} not found at {path}. Available: {available[:20]}")
     mtime_ns = path.stat().st_mtime_ns
-    cached = cache.get(name)
+    cache_key = str(path)
+    cached = cache.get(cache_key)
     if cached is not None and cached[0] == mtime_ns:
         return cached[1]
     text = path.read_text(encoding="utf-8")
     if text.endswith("\n"):
         text = text[:-1]
-    cache[name] = (mtime_ns, text)
+    cache[cache_key] = (mtime_ns, text)
     log.info("prompt_loaded", name=name, length=len(text), reload=cached is not None)
     return text
 
