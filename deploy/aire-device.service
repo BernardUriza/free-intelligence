@@ -10,6 +10,7 @@ WorkingDirectory=/opt/aire
 Environment=AIRE_HOST=127.0.0.1
 Environment=AIRE_PORT=9099
 Environment=DEVICE_ID=app-demo-device-01
+EnvironmentFile=-/etc/aire/env
 ExecStart=/usr/bin/python3 /opt/aire/demo_device.py
 Restart=always
 RestartSec=2
