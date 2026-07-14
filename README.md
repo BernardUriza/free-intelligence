@@ -129,7 +129,8 @@ their code, nobody has both:
    any language        ──►  POST /messages
                             Claude Agent SDK   ──►  transcript  →  Postgres
                             (disposable
-                             container)        ──►  the work    →  git
+                             container)        ──►  the work    →  artifacts,
+                                                                   fetched by hand
 ```
 
 Three things, and only one of them is AIRE:
@@ -137,7 +138,10 @@ Three things, and only one of them is AIRE:
 - **The memory** — the transcript, in your Postgres. *The only irreplaceable
   piece: delete the container and AIRE lives on; delete the database and AIRE
   is dead.*
-- **The work** — what the agent produces, in git. Separate on purpose.
+- **The work** — what the agent produces, on its workdir. **AIRE doesn't touch
+  git** — like EC-GPS, whose artifacts were downloaded by hand for analysis; at
+  this level that IS the design. If git ever enters, it's a user-layer MCP with
+  the user's own account, configured from outside.
 - **The body** — the container. It's born, it works, it dies. It stores nothing
   because that's not its job. (The droplet is the body of the *chassis* phase;
   the memory will never depend on its disk.)

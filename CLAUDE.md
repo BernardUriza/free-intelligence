@@ -22,7 +22,7 @@ exactly what we discovered:
 | The song | The architecture |
 |---|---|
 | ***"with no defined shape and no color"*** | The container **stores nothing**. The bodiless agent. It's the tagline. |
-| ***"oxygen, nitrogen and argon"*** | The three: **the memory** (Postgres), **the work** (git), **the body** (the container, borrowed). |
+| ***"oxygen, nitrogen and argon"*** | The three: **the memory** (Postgres), **the work** (artifacts, fetched by hand — no git, not yet), **the body** (the container, borrowed). |
 | ***"I was passing, how curious, into the gaseous state"*** | The day this was born: it started as a VM —body, disk, SSH, IP— and kept deflating until no matter was left. |
 | ***"this room is too small for the things I dream"*** | The original question was *"what's the difference between EC2 and an Azure VM?"*. The room was that question. |
 | ***"I became human again. Don't miss the funeral."*** | **In the song, getting the body back is death.** Same here: **AIRE dies the day its memory depends on a body again** — on a disk that gets wiped after 30 days, on a machine that must be kept alive, on a database that belongs to someone else. |
@@ -131,8 +131,13 @@ going to contradict anything here, verify it first the same way.
    - That's why none of the six repos surveyed would do: they're all API-first.
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
-3. **The memory (transcript) goes to Postgres. The work (the files) goes to git.**
-   Separated on purpose.
+3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE
+   doesn't touch git.** Not yet: AIRE is not defined as a code agent. EC-GPS never
+   used git either — when the service created artifacts, they were downloaded by hand
+   for analysis, and **at this level that is the design, not a gap.** If git ever
+   enters, it enters as a **tool configured FROM OUTSIDE, at the user layer** — an
+   MCP wired in via the API with the *user's own account* (personal or work), never
+   as an identity baked into the server.
 4. **The container stores nothing.** `CLAUDE_CONFIG_DIR=/tmp`.
 
 ## What NOT to write — it already exists
@@ -190,8 +195,9 @@ It's what the official cookbook does **not** ship:
   **No mapping table needed** from external id to SDK id.
 - **`session_store` and `enable_file_checkpointing` are INCOMPATIBLE.** The SDK raises
   `ValueError` (`session_store_validation.py`): *"checkpoints are local-disk only and
-  would diverge from the mirrored transcript."* → **Scratch-vs-permanent is solved with
-  git (branches, `git mv`), not with `rewind_files()`.**
+  would diverge from the mirrored transcript."* → **No `rewind_files()`. The workdir is
+  scratch; artifacts worth keeping are fetched by hand (decision #3).** The day git
+  exists as a user-layer MCP, branches would take that role — not yet.
 - **`session_store` is a mirror, not a replacement.** The subprocess keeps writing the
   JSONL to disk; the adapter receives **a secondary copy**. On resume, the SDK loads
   from the store and materializes it into a temp dir with `CLAUDE_CONFIG_DIR`.
@@ -204,7 +210,8 @@ It's what the official cookbook does **not** ship:
   **Memory Tool** (`memory_20250818`, distilled facts, client-side → your same database).
 - **`SandboxSettings`** confines the agent (bash sandbox, `excludedCommands: ["git"]`).
   The "container that doesn't self-modify" is **config, not infra**.
-- **`Stop` hook** → that's where the `git commit && push` goes when each job closes.
+- **`Stop` hook** → where end-of-job actions go. (The old `git commit && push` idea is
+  parked until git exists as a user-layer MCP — see backlog #12; today: nothing.)
 - **`max_budget_usd`** → hard spend cap per query.
 
 ## Discarded routes (don't re-propose them)
