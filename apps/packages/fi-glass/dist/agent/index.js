@@ -3893,11 +3893,12 @@ function AgentSidebarItem({
   actions,
   disabled = false,
   editing = false,
+  toggleable = false,
   ariaLabel,
   className
 }) {
   useSidebarItemStyle();
-  const interactive = !disabled && !selected && !editing;
+  const interactive = !disabled && !editing && (toggleable || !selected);
   const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx41("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
   return /* @__PURE__ */ jsxs31(
     "div",
