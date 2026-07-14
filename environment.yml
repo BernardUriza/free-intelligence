@@ -90,7 +90,12 @@ dependencies:
   - pgvector-python>=0.4.0
   - structlog>=24.1.0
   - typer>=0.9.0
-  - pillow>=10.0.0
+  # pillow floor 12.3.0: PYSEC-2026-2253..2257 (5 CVEs) live in <=12.2.0,
+  # all fixed in 12.3.0 (verified against OSV 2026-07-14).
+  - pillow>=12.3.0
+  # setuptools floor 83: PYSEC-2026-3447 lives in 81.0.0 (the version the CI
+  # env resolved as tooling); 83.0.0 is the fixed line.
+  - setuptools>=83
   - azure-storage-blob>=12.19.0
   - openai>=1.30.0
   - fastapi>=0.115
