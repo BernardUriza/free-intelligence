@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from khimeras_shared.remind_marker import (
     RemindRequest,
+    compute_next_occurrence,
     parse_remind,
     persist_remind,
     resolve_remind_when,
@@ -168,3 +169,43 @@ async def test_persist_swallows_a_storage_failure():
     req = RemindRequest(when_raw="+1h", description="algo")
 
     assert await persist_remind(req, memory=memory, channel_id="C1", guild_id=None, created_by="U1") is None
+
+
+# ---------------------------------------------------------------------------
+# Ownership + recurrence (the drain loop's contract)
+# ---------------------------------------------------------------------------
+
+
+async def test_persist_stamps_the_owning_persona():
+    """The row belongs to the persona that scheduled it — nobody else drains it."""
+    memory = MagicMock()
+    memory.save_reminder = AsyncMock(return_value=5)
+    req = RemindRequest(when_raw="+1h", description="algo")
+
+    await persist_remind(req, memory=memory, channel_id="C1", guild_id="G1", created_by="U1", persona_id="vultur")
+
+    assert memory.save_reminder.await_args.kwargs["persona_id"] == "vultur"
+
+
+def test_compute_next_occurrence_none_for_one_shot():
+    assert compute_next_occurrence(time.time(), "none") is None
+
+
+def test_compute_next_occurrence_daily_lands_in_the_future():
+    now = time.time()
+    nxt = compute_next_occurrence(now - 60, "daily", now=now)
+
+    assert nxt is not None
+    assert nxt > now
+    assert nxt - now < 86400 + 120
+
+
+def test_compute_next_occurrence_skips_missed_periods():
+    """RESISTANCE: a bot down for 3 days must NOT re-fire a daily 3x on wake —
+    the next occurrence is the next FUTURE one, not the next stale slot."""
+    now = time.time()
+    nxt = compute_next_occurrence(now - 3 * 86400, "daily", now=now)
+
+    assert nxt is not None
+    assert nxt > now
+    assert nxt - now < 86400 + 120

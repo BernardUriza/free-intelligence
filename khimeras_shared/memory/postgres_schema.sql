@@ -165,6 +165,11 @@ CREATE TABLE IF NOT EXISTS reminders (
     ack_retry_count   INTEGER NOT NULL DEFAULT 0,
     delivered_at      DOUBLE PRECISION
 );
+-- persona_id (2026-07-14): the reminder belongs to the persona that scheduled it,
+-- so each persona-bot in the gateway drains ONLY its own rows — Vultur must never
+-- deliver the reminder Insult agendó. NULL = legacy row (pre-column), claimed by
+-- nobody in particular; the drain treats it as unowned and skips it.
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS persona_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_reminders_pending ON reminders(delivered, remind_at);
 CREATE INDEX IF NOT EXISTS idx_reminders_snooze_msg ON reminders(snooze_msg_id);
 CREATE INDEX IF NOT EXISTS idx_reminders_ack_pending

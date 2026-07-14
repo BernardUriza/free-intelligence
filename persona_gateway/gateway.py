@@ -42,9 +42,15 @@ from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
+from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
-from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
+from khimeras_shared.remind_marker import (
+    compute_next_occurrence,
+    parse_remind,
+    persist_remind,
+    strip_reminds,
+)
 from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
@@ -62,6 +68,11 @@ from shared.personas.addressing import any_alias_is_addressee, opens_addressing_
 
 SPEAK_EMOJI = "🔊"
 
+# Engine-side prompts (not a persona's voice) live as CONTENT under
+# `khimeras_shared/prompts_md/` and hot-reload on mtime — same house and loader
+# the fact extractor uses. P0: never an inline model-facing string.
+_PROMPT_CACHE: PromptCache = {}
+
 # Durable research jobs: how often each persona-bot drains its queued jobs, and
 # the generous read timeout a deep-research runner turn gets (WebSearch + long
 # reasoning) — the job IS the heavy case, so it does not share the interactive
@@ -76,6 +87,16 @@ RESEARCH_MAX_RETRIES = 2
 # real frequency — this loop just wakes to see what's due.
 AGENDA_CHECK_SECONDS = 600.0
 AGENDA_TIMEOUT_S = 360.0
+
+# Reminders: the [REMIND:] row persisted at turn time is DEAD until something
+# fires it. Each persona-bot drains ONLY the rows it owns (persona_id) on this
+# cadence — 30s keeps "recuérdamelo a las 8" honest to the minute. A reminder
+# more than MAX_LATENESS late is retired unsent: nobody wants yesterday's
+# "saca la ropa" at 3am because the bot was down (and a send that keeps failing
+# stops retrying instead of looping forever).
+REMINDER_CHECK_SECONDS = 30.0
+REMINDER_TIMEOUT_S = 90.0
+REMINDER_MAX_LATENESS_S = 86400.0
 
 # Automatic fact extraction (the `source='auto'` backstop behind the persona's
 # in-band [REMEMBER:] marker). Falsy model → the runner picks its own judge-model
@@ -245,6 +266,8 @@ class PersonaClient(discord.Client):
             self._research_drain.start()
         if not self._agenda_check.is_running():
             self._agenda_check.start()
+        if not self._reminder_drain.is_running():
+            self._reminder_drain.start()
 
     @tasks.loop(seconds=RESEARCH_DRAIN_SECONDS)
     async def _research_drain(self) -> None:
@@ -400,6 +423,146 @@ class PersonaClient(discord.Client):
             )
         except Exception:
             log.exception("agenda_deliver_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
+
+    @tasks.loop(seconds=REMINDER_CHECK_SECONDS)
+    async def _reminder_drain(self) -> None:
+        """Fire THIS persona's due reminders — the promise ("te lo recuerdo a las
+        8") finally kept. Rows are owned by the persona that scheduled them, so a
+        sibling never delivers someone else's reminder and no reminder is sent
+        twice by two live bots. One bad row (channel gone, no permissions) is
+        logged and skipped; the rest of the batch still lands."""
+        try:
+            due = await self.memory.get_pending_reminders(time.time(), persona_id=self.persona.persona_id)
+        except Exception:
+            log.exception("reminder_drain_fetch_failed", persona_id=self.persona.persona_id)
+            return
+        for reminder in due:
+            try:
+                await self._deliver_reminder(reminder)
+            except Exception:
+                log.exception(
+                    "reminder_deliver_failed",
+                    reminder_id=reminder.get("id"),
+                    persona_id=self.persona.persona_id,
+                )
+
+    async def _deliver_reminder(self, reminder: dict) -> None:
+        reminder_id = reminder["id"]
+        channel = self.get_channel(int(reminder["channel_id"]))
+        if channel is None:
+            await self._close_reminder(reminder)
+            log.warning(
+                "reminder_channel_gone",
+                reminder_id=reminder_id,
+                channel_id=reminder["channel_id"],
+                persona_id=self.persona.persona_id,
+            )
+            return
+        lateness = time.time() - float(reminder["remind_at"])
+        if lateness > REMINDER_MAX_LATENESS_S:
+            await self._close_reminder(reminder)
+            log.warning(
+                "reminder_retired_stale",
+                reminder_id=reminder_id,
+                persona_id=self.persona.persona_id,
+                lateness_s=int(lateness),
+            )
+            return
+
+        body = await self._reminder_text(reminder)
+        mentions = " ".join(
+            f"<@{uid.strip()}>" for uid in (reminder.get("mention_user_ids") or "").split(",") if uid.strip()
+        )
+        text = f"{mentions} {body}".strip() if mentions else body
+        pieces = chunk(text)
+        tag = f"\n-# {VERSION_TAG}"
+        if pieces and len(pieces[-1]) + len(tag) <= 2000:
+            pieces[-1] += tag
+        try:
+            for piece in pieces:
+                await channel.send(piece)
+        except Exception:
+            # Transient (rate limit, blip) → the row stays pending and the next
+            # tick retries. Permanent (channel deleted, permissions revoked) →
+            # the staleness guard above retires it. Either way the loop lives and
+            # the rest of the batch is delivered.
+            log.exception(
+                "reminder_send_failed",
+                reminder_id=reminder_id,
+                channel_id=reminder["channel_id"],
+                persona_id=self.persona.persona_id,
+            )
+            return
+
+        await self._close_reminder(reminder)
+        try:
+            await self.memory.store(
+                reminder["channel_id"],
+                str(self.user.id) if self.user else "0",
+                self.persona.display_name,
+                "assistant",
+                text,
+                for_user_id=reminder["created_by"],
+                guild_id=reminder.get("guild_id"),
+                channel_name=None,
+            )
+        except Exception:
+            log.exception("reminder_store_failed", reminder_id=reminder_id)
+        log.info(
+            "reminder_delivered",
+            reminder_id=reminder_id,
+            persona_id=self.persona.persona_id,
+            channel_id=reminder["channel_id"],
+            recurring=reminder.get("recurring"),
+            lateness_s=int(lateness),
+        )
+
+    async def _close_reminder(self, reminder: dict) -> None:
+        """Retire the row so it never fires twice: a recurring reminder is rolled
+        forward to its next future occurrence, a one-shot is marked delivered."""
+        reminder_id = reminder["id"]
+        recurring = reminder.get("recurring") or "none"
+        next_at = compute_next_occurrence(float(reminder["remind_at"]), recurring)
+        if next_at is None:
+            await self.memory.mark_reminder_delivered(reminder_id)
+            return
+        await self.memory.update_reminder_time(reminder_id, next_at)
+        log.info(
+            "reminder_rescheduled",
+            reminder_id=reminder_id,
+            persona_id=self.persona.persona_id,
+            recurring=recurring,
+            next_at=next_at,
+        )
+
+    async def _reminder_text(self, reminder: dict) -> str:
+        """The reminder in the persona's own voice, via the runner. A plain
+        fallback is ALWAYS returned when the runner is down or answers empty —
+        the user gets the content of their reminder no matter what."""
+        description = reminder["description"]
+        fallback = f"⏰ Recordatorio: {description}"
+        try:
+            prompt = load_prompt(SHARED_PROMPTS_DIR, "reminder_delivery", _PROMPT_CACHE).format(description=description)
+            resp = await self.agent_client.chat(
+                "",
+                [{"role": "user", "content": prompt}],
+                channel_id=f"reminder-{reminder['id']}",
+                user_id=reminder["created_by"],
+                persona_id=self.persona.persona_id,
+                timeout_s=REMINDER_TIMEOUT_S,
+            )
+            text = strip_delivery_markers((resp.text or "").strip())
+        except Exception:
+            log.exception(
+                "reminder_voice_failed",
+                reminder_id=reminder["id"],
+                persona_id=self.persona.persona_id,
+            )
+            return fallback
+        if not text:
+            log.info("reminder_voice_empty", reminder_id=reminder["id"], persona_id=self.persona.persona_id)
+            return fallback
+        return text
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         """🔊 on one of THIS persona's own messages → speak it in the persona's
@@ -857,6 +1020,8 @@ class PersonaClient(discord.Client):
                     channel_id=channel_id,
                     guild_id=guild_id,
                     created_by=user_id,
+                    # Ownership stamp: only THIS persona's drain loop fires it.
+                    persona_id=self.persona.persona_id,
                 )
                 log.info(
                     "remind_saved",

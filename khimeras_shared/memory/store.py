@@ -242,6 +242,7 @@ class MemoryStore:
         mention_user_ids: str = "",
         recurring: str = "none",
         requires_ack: bool = False,
+        persona_id: str | None = None,
     ) -> int:
         return await self._reminders.save_reminder(
             channel_id,
@@ -252,10 +253,11 @@ class MemoryStore:
             mention_user_ids,
             recurring,
             requires_ack=requires_ack,
+            persona_id=persona_id,
         )
 
-    async def get_pending_reminders(self, now: float) -> list[dict]:
-        return await self._reminders.get_pending_reminders(now)
+    async def get_pending_reminders(self, now: float, persona_id: str | None = None) -> list[dict]:
+        return await self._reminders.get_pending_reminders(now, persona_id=persona_id)
 
     async def set_ack_metadata(self, reminder_id: int, ack_msg_id: int, delivered_at: float) -> None:
         await self._reminders.set_ack_metadata(reminder_id, ack_msg_id, delivered_at)

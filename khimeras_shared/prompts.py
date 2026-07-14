@@ -27,6 +27,11 @@ log = structlog.get_logger()
 # another (cruel-critic 2026-07-14, GRAVE #1).
 PromptCache = dict[str, tuple[int, str]]
 
+# The ENGINE's own prompt dir (fact extraction, consolidation judge, reminder
+# delivery): prompts whose audience is a utility model reasoning ABOUT the user,
+# never a persona's voice. Persona prose lives under `shared/personas/`.
+SHARED_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts_md"
+
 
 def load_prompt(prompts_dir: Path, name: str, cache: PromptCache) -> str:
     """Read `<prompts_dir>/<name>.md` and return its text content.

@@ -14,22 +14,24 @@ module:
 - `resolve_remind_when(when_raw)`: resolve the `<when>` segment to a Unix ts
 - `persist_remind(memory, request, ...)`: persist the row via
   `memory.save_reminder` — best-effort, never raises
+- `compute_next_occurrence(remind_at, recurring)`: recurrence math for the
+  gateway's drain loop (daily/weekly/monthly), skipping missed occurrences
 
 The temporal `<when>` parse is fully self-contained here (relative deltas +
 absolute ISO 8601, `datetime`/`zoneinfo` only) — it depends on NO dead module,
 so it is resurrected rather than degraded to a raw `when_raw`.
 
-Note (honest scope): the DELIVERY loop that fires a persisted reminder is NOT in
-this milestone — this module only PERSISTS the row. Until the gateway grows a
-reminder-drain loop, a saved reminder sits in Postgres unfired.
+Delivery lives in `persona_gateway.gateway.PersonaClient._reminder_drain`: the
+persona that scheduled the row (persona_id) is the one that fires it.
 """
 
 from __future__ import annotations
 
+import calendar
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -38,6 +40,11 @@ log = structlog.get_logger()
 
 REMIND_PATTERN = re.compile(r"\[REMIND:([^\]]*)\]", re.IGNORECASE)
 MAX_DESCRIPTION_LEN = 300
+
+# How many periods a recurring reminder may skip forward to catch up with `now`
+# before we give up and stop it. ~3 years of dailies; a gap that big means the
+# row is abandoned, not late.
+_MAX_RECURRENCE_CATCHUP = 1200
 
 _MEXICO_CITY = ZoneInfo("America/Mexico_City")
 
@@ -80,10 +87,13 @@ _RECURRING_ALIASES = {
     "mensual": "monthly",
 }
 
+_RECURRING_DELTAS = {"daily": 1, "weekly": 7}
+
 __all__ = [
     "MAX_DESCRIPTION_LEN",
     "REMIND_PATTERN",
     "RemindRequest",
+    "compute_next_occurrence",
     "parse_remind",
     "persist_remind",
     "resolve_remind_when",
@@ -185,6 +195,39 @@ def resolve_remind_when(when_raw: str) -> float | None:
     return _parse_absolute(when)
 
 
+def compute_next_occurrence(remind_at: float, recurring: str, *, now: float | None = None) -> float | None:
+    """Next fire time for a recurring reminder, or None when it doesn't recur.
+
+    Advances PAST `now` instead of returning the single next slot: a bot that
+    was down for three days must not re-fire a daily reminder three times in
+    three consecutive ticks (each tick would find it still overdue). One
+    delivery, then the schedule resumes in the future.
+    """
+    if recurring not in _RECURRING_DELTAS and recurring != "monthly":
+        return None
+    reference = time.time() if now is None else now
+    dt = datetime.fromtimestamp(remind_at, tz=_MEXICO_CITY)
+    for _ in range(_MAX_RECURRENCE_CATCHUP):
+        dt = _advance_one_period(dt, recurring)
+        if dt.timestamp() > reference:
+            return dt.timestamp()
+    log.warning("remind_recurrence_catchup_exhausted", remind_at=remind_at, recurring=recurring)
+    return None
+
+
+def _advance_one_period(dt: datetime, recurring: str) -> datetime:
+    days = _RECURRING_DELTAS.get(recurring)
+    if days is not None:
+        return dt + timedelta(days=days)
+    month = dt.month + 1
+    year = dt.year
+    if month > 12:
+        month = 1
+        year += 1
+    max_day = calendar.monthrange(year, month)[1]
+    return dt.replace(year=year, month=month, day=min(dt.day, max_day))
+
+
 async def persist_remind(
     request: RemindRequest,
     *,
@@ -192,14 +235,17 @@ async def persist_remind(
     channel_id: str,
     guild_id: str | None,
     created_by: str,
+    persona_id: str | None = None,
 ) -> int | None:
     """Persist the reminder row via `memory.save_reminder`. Best-effort.
 
     Resolves `<when>` to a timestamp; an unparseable time is logged and skipped
-    (returns None) — the visible turn already carried the persona's ack, and
-    there is no reminder-delivery loop yet to fire it regardless. A storage
-    failure is logged and swallowed; nothing here ever raises. Returns the
-    reminder id on success, else None.
+    (returns None) — the visible turn already carried the persona's ack. A
+    storage failure is logged and swallowed; nothing here ever raises. Returns
+    the reminder id on success, else None.
+
+    `persona_id` stamps ownership: only that persona's gateway loop will deliver
+    the row. Omitting it leaves the reminder unowned — no one drains it.
     """
     remind_at = resolve_remind_when(request.when_raw)
     if remind_at is None:
@@ -219,6 +265,7 @@ async def persist_remind(
             remind_at=remind_at,
             mention_user_ids=created_by,
             recurring=request.recurring,
+            persona_id=persona_id,
         )
     except Exception:
         log.exception(

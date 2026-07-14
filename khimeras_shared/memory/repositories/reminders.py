@@ -45,14 +45,15 @@ class RemindersRepository(BaseRepository):
         mention_user_ids: str = "",
         recurring: str = "none",
         requires_ack: bool = False,
+        persona_id: str | None = None,
     ) -> int:
         """Insert a new reminder. Returns its ID. Raises on DB failure because
         callers need to surface "I couldn't save your reminder" to the user."""
         try:
             reminder_id = await self._fetchval(
                 "INSERT INTO reminders (channel_id, guild_id, created_by, description, remind_at, "
-                "mention_user_ids, recurring, delivered, created_at, requires_ack) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9) RETURNING id",
+                "mention_user_ids, recurring, delivered, created_at, requires_ack, persona_id) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9, $10) RETURNING id",
                 channel_id,
                 guild_id,
                 created_by,
@@ -62,12 +63,14 @@ class RemindersRepository(BaseRepository):
                 recurring,
                 time.time(),
                 1 if requires_ack else 0,
+                persona_id,
             )
             reminder_id = int(reminder_id or 0)
             log.info(
                 "reminder_saved",
                 reminder_id=reminder_id,
                 channel_id=channel_id,
+                persona_id=persona_id,
                 description=description[:80],
                 remind_at=remind_at,
                 requires_ack=requires_ack,
@@ -77,14 +80,29 @@ class RemindersRepository(BaseRepository):
             log.error("reminder_save_failed", channel_id=channel_id, error=str(e))
             raise
 
-    async def get_pending_reminders(self, now: float) -> list[dict]:
-        """Reminders that are due (remind_at <= now) and not yet delivered."""
-        rows = await self._fetch(
-            "SELECT id, channel_id, guild_id, created_by, description, remind_at, "
-            "mention_user_ids, recurring, requires_ack FROM reminders "
-            "WHERE delivered = 0 AND remind_at <= $1 ORDER BY remind_at ASC",
-            now,
-        )
+    async def get_pending_reminders(self, now: float, persona_id: str | None = None) -> list[dict]:
+        """Reminders that are due (remind_at <= now) and not yet delivered.
+
+        When `persona_id` is given, only THAT persona's rows are returned — the
+        same ownership contract as `research_jobs`/`agendas`: every persona-bot
+        drains its own queue, so Vultur never delivers what Insult agendó (and a
+        reminder is never delivered N times, once per live persona-bot).
+        """
+        if persona_id is None:
+            rows = await self._fetch(
+                "SELECT id, channel_id, guild_id, created_by, description, remind_at, "
+                "mention_user_ids, recurring, requires_ack, persona_id FROM reminders "
+                "WHERE delivered = 0 AND remind_at <= $1 ORDER BY remind_at ASC",
+                now,
+            )
+        else:
+            rows = await self._fetch(
+                "SELECT id, channel_id, guild_id, created_by, description, remind_at, "
+                "mention_user_ids, recurring, requires_ack, persona_id FROM reminders "
+                "WHERE delivered = 0 AND remind_at <= $1 AND persona_id = $2 ORDER BY remind_at ASC",
+                now,
+                persona_id,
+            )
         return [
             {
                 "id": r["id"],
@@ -96,6 +114,7 @@ class RemindersRepository(BaseRepository):
                 "mention_user_ids": r["mention_user_ids"],
                 "recurring": r["recurring"],
                 "requires_ack": bool(r["requires_ack"]) if r["requires_ack"] is not None else False,
+                "persona_id": r["persona_id"],
             }
             for r in rows
         ]
