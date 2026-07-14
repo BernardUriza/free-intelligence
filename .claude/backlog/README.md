@@ -20,3 +20,4 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 | [B3-FIGLASS-UX-DISTRIBUTION-1 — distribution contracts (tokens/semantic/cards/scroll/CQ)](b3-figlass-ux-distribution.md) | Done — 6/6 shipped (#306-312) | 2026-06-30 |
 | [OG118-SESSION-DELETE-CASCADE-1 — borrar conversación debe borrar su sesión nativa del store](og118-session-store-delete-cascade.md) | Proposed | 2026-07-13 |
 | [AIREBACKEND-1 — el backend propio siempre-arriba y observable (SSH/API), vs ClaudeCode/Codex](fi-runner-aire-backend.md) | Proposed | 2026-07-13 |
+| [CONV-CONCURRENCY-1 — pin/título pierden en last-write-wins entre dispositivos](og118-conv-concurrency.md) | Proposed | 2026-07-13 |
