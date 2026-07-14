@@ -371,6 +371,34 @@ body {
   color: #475569;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
+/* CONV-ORGANIZE-1: Fijados/Chats group labels inside the conversation section,
+   and the collapsible Archivados section under it. */
+.og-sidebar-group-label {
+  display: block;
+  padding: 0.4rem 0.4rem 0.1rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.og-sidebar-archived {
+  flex: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.og-sidebar-archived .og-sidebar-list {
+  flex: none;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.og-sidebar-archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
 
 .og-auth-banner {
   margin-bottom: 0.75rem;

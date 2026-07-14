@@ -239,6 +239,16 @@ export function Og118AgentChat() {
               console.error('[og118] rename failed', e),
             )
           }
+          onPin={(id, pinned) =>
+            void lib.pinConversation(id, pinned).catch((e) =>
+              console.error('[og118] pin failed', e),
+            )
+          }
+          onArchive={(id, archived) =>
+            void lib.archiveConversation(id, archived).catch((e) =>
+              console.error('[og118] archive failed', e),
+            )
+          }
           disabled={conversation.isStreaming}
         />
         </>
