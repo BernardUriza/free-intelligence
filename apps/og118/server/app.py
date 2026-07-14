@@ -877,6 +877,11 @@ class ConversationRecordRequest(BaseModel):
     updatedAt: str
     messages: list[dict]
     preview: str
+    # CONV-ORGANIZE-1 organization flags (ISO timestamps). Optional + dumped with
+    # exclude_none, so unpinning/unarchiving = the client omits the field and the
+    # upsert drops it from the stored record.
+    pinnedAt: str | None = None
+    archivedAt: str | None = None
     schemaVersion: int
 
 
