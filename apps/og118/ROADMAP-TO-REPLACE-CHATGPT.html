@@ -54,6 +54,7 @@
     letter-spacing: 0.03em;
   }
   .badge-human { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-done { background: rgba(52,211,153,0.15); color: #34d399; }
   .badge-tech { background: rgba(96,165,250,0.15); color: #60a5fa; }
   .badge-pointer { background: rgba(100,116,139,0.2); color: #94a3b8; }
 
@@ -166,9 +167,9 @@
       <span class="section-title">Átomos humanos — decisiones y sentidos de Bernard</span>
       <span class="section-badge badge-human">PRÓXIMO ACTOR: BERNARD</span>
     </div>
-    <label class="item"><input type="checkbox">
-      <div class="item-body"><div class="item-text">AUDIO-HUMAN-SMOKE — veredicto audible del audio durable (RC blocker, el ÚNICO check abierto de 47)</div>
-      <div class="item-note">Regla 17: el metric es proxy, los oídos son ground truth. La mitad mecánica quedó re-verificada 07-08 con mic real. Falta: grabar → pausar → play del preview audible → reanudar → pausar → preview con AMBOS segmentos → stop → transcribir, y que el TTS suene bien. Absorbe el re-smoke de FIGLASS-17/18. Runbook: GATE4-HUMAN-SMOKE-RUNBOOK.md.</div></div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">AUDIO-HUMAN-SMOKE — veredicto audible del audio durable (era el ÚNICO RC blocker de 47 checks)</div>
+      <div class="item-note">CERRADO 2026-07-14 por veredicto de Bernard: corrió el smoke interactivo de voz COMPLETO (12/12, abajo) con éxito — preview audible con ambos segmentos, TTS suena bien. Absorbía el re-smoke de FIGLASS-17/18. RC status: <strong style="color:#34d399">47/47 — sin blockers</strong>. Follow-up que dejó: responsividad mobile-first de los controles de voz (sección técnico).</div></div>
       <span class="item-tag">RC-blocker</span></label>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">DD-001 — ¿og118 responde con la misma calidad que ChatGPT? (veredicto de daily-driver)</div>
@@ -199,47 +200,47 @@
   <!-- SMOKE INTERACTIVO -->
   <div class="section">
     <div class="section-header">
-      <span class="section-title">Smoke interactivo de voz (B3-VOICE-OG118-6) — márcalo mientras lo corres</span>
-      <span class="section-badge badge-human">12 PASOS</span>
+      <span class="section-title">Smoke interactivo de voz (B3-VOICE-OG118-6) — ejecutado por Bernard</span>
+      <span class="section-badge badge-done">PASS 12/12 · 2026-07-14</span>
     </div>
-    <div class="progress-bar-wrap"><div class="progress-bar" style="width:0%"></div></div>
-    <div class="progress-label" id="smoke-progress">0/12 completados</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" style="width:100%"></div></div>
+    <div class="progress-label" id="smoke-progress">12/12 completados</div>
 
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Presionar micrófono → pide permiso de mic solo al iniciar</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Presionar micrófono → pide permiso de mic solo al iniciar</div></div>
       <span class="item-tag">smoke-1</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Grabar unos segundos → barras vivas (visualizador reactivo)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Grabar unos segundos → barras vivas (visualizador reactivo)</div></div>
       <span class="item-tag">smoke-2</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Pausar → fila paused en el header del composer, preview reproducible de lo grabado</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Pausar → fila paused en el header del composer, preview reproducible de lo grabado</div></div>
       <span class="item-tag">smoke-3</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Reanudar → continúa el mismo artifact (no uno nuevo)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Reanudar → continúa el mismo artifact (no uno nuevo)</div></div>
       <span class="item-tag">smoke-4</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Detener → draft con AMBOS segmentos dentro de la caja del composer</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Detener → draft con AMBOS segmentos dentro de la caja del composer</div></div>
       <span class="item-tag">smoke-5</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Reproducir el draft → se ESCUCHA bien (splice sin cortes raros)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Reproducir el draft → se ESCUCHA bien (splice sin cortes raros)</div></div>
       <span class="item-tag">smoke-6</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Refrescar la página → draft sigue ahí (IndexedDB durable)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Refrescar la página → draft sigue ahí (IndexedDB durable)</div></div>
       <span class="item-tag">smoke-7</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Transcribir → texto correcto cae en el composer (grabación corta ≥2s devuelve texto no vacío)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Transcribir → texto correcto cae en el composer (grabación corta ≥2s devuelve texto no vacío)</div></div>
       <span class="item-tag">smoke-8</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Artifact transcrito pasa a archivado "enviado al chat" (no se borra)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Artifact transcrito pasa a archivado "enviado al chat" (no se borra)</div></div>
       <span class="item-tag">smoke-9</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">TTS: botón Escuchar en mensaje assistant suena bien (veredicto de oídos)</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">TTS: botón Escuchar en mensaje assistant suena bien (veredicto de oídos)</div></div>
       <span class="item-tag">smoke-10</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Copy / sidebar / transcript / Markdown / focus recovery intactos</div></div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Copy / sidebar / transcript / Markdown / focus recovery intactos</div></div>
       <span class="item-tag">smoke-11</span></label>
-    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
-      <div class="item-body"><div class="item-text">Consola devtools limpia durante toda la sesión (sin errores rojos)</div>
+    <label class="item"><input type="checkbox" checked onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text done">Consola devtools limpia durante toda la sesión (sin errores rojos)</div>
       <div class="item-note">Este de paso cierra los re-checks pendientes de consola live: figlass-a11y (id/name del textarea, fix en main) y confirma/refuta el warning de ScriptProcessorNode.</div></div>
       <span class="item-tag">smoke-12</span></label>
   </div>
@@ -248,8 +249,12 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">Técnico abierto — trabajo de Claude, no bloquea el daily driver</span>
-      <span class="section-badge badge-tech">2 ITEMS</span>
+      <span class="section-badge badge-tech">3 ITEMS</span>
     </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">VOICE-CONTROLS-MOBILE-1 — mejorar aún más la responsividad de los controles de voz con filosofía mobile-first</div>
+      <div class="item-note">Follow-up del smoke PASS 12/12 (Bernard, 2026-07-14). Mobile-first de verdad: los controles de voz (mic, paused row, draft player, equalizer de Resonance) se diseñan primero para el container más chico y crecen hacia desktop — no al revés. Marco existente que gobierna: .claude/rules/mobile-viewport-ux.md (chrome &lt;18%, composer idle ≤64px, targets ≥44px, container queries fi-composer 420px/340px, safe-area-inset-*). Framework-first: lo reusable sube a fi-glass, og118 solo consume tokens.</div></div>
+      <span class="item-tag">VOICE-CONTROLS-MOBILE-1</span></label>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">[P2] Warning de ScriptProcessorNode deprecado en consola durante grabación</div>
       <div class="item-note">Atribución ya corregida: NO es el visualizer de fi-glass (usa AnalyserNode, grep vacío) — viene de RecordRTC internamente. Rutas: upgrade/patch de RecordRTC, o migrar la captura a MediaRecorder/AudioWorklet. Gated tras el smoke-12 (confirmar que el warning sigue).</div></div>
@@ -272,7 +277,7 @@
       <span class="item-tag">backlog</span></label>
   </div>
 
-  <footer>free-intelligence · og118 pendientes v2 · creado 2026-07-14 al congelar <a href="ROADMAP-LEGACY-2026-06-11_07-14.html">el legacy</a> (2026-06-11 → 07-14) · items cerrados que el legacy mostraba abiertos y NO se arrastraron: B3-REPO-TYPES-1 (regla react-type-resolution, 06-19) · B3-OG118-MOBILE-1 (drawer responsive, 06-30) · B3-VOICE-FIGLASS-19 (PR #244) · papelería (DROPPED 06-23, ToS)</footer>
+  <footer>free-intelligence · og118 pendientes v2 · creado 2026-07-14 al congelar <a href="ROADMAP-LEGACY-2026-06-11_07-14.html">el legacy</a> (2026-06-11 → 07-14) · items cerrados que el legacy mostraba abiertos y NO se arrastraron: B3-REPO-TYPES-1 (regla react-type-resolution, 06-19) · B3-OG118-MOBILE-1 (drawer responsive, 06-30) · B3-VOICE-FIGLASS-19 (PR #244) · papelería (DROPPED 06-23, ToS) · <strong style="color:#34d399">UPDATE 2026-07-14: smoke de voz PASS 12/12 (Bernard) → AUDIO-HUMAN-SMOKE cerrado, RC 47/47 sin blockers</strong> · follow-up nuevo: VOICE-CONTROLS-MOBILE-1</footer>
 </div>
 
 <script>
