@@ -68,6 +68,16 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 RATE_LIMIT_LINES_PER_MIN = int(os.environ.get("AIRE_RATE_LIMIT", "120"))
 MAX_LINE_BYTES = 4096
 
+# The device whitelist (backlog #18, learned from Carlos/EC-GPS). Its source of
+# truth is a Postgres table `aire_device` in the OWNER's database — NOT a file on
+# the mortal droplet disk (that is the exact "the whitelist disappeared" failure).
+# Enforcement requires the daemon to READ it: the SECOND sanctioned exception to
+# [[write-only-daemon]] (the first is session_store.load for resume), authorized
+# by Bernard 2026-07-14. Loopback is always exempt (it is us). Enforcement is OFF
+# by default (advisory): flipping AIRE_WHITELIST_ENFORCE=1 turns the gate on —
+# with an empty table that denies everyone, so populate it FIRST.
+WHITELIST_ENFORCE = os.environ.get("AIRE_WHITELIST_ENFORCE") == "1"
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS aire_log (
   seq  bigserial PRIMARY KEY,
@@ -154,6 +164,79 @@ class Pen:
 PEN = Pen(DSN) if DSN else None
 
 
+class Whitelist:
+    """The device roster, deathless in the owner's Postgres (`aire_device`). The
+    daemon owns every write (via the ALLOW/REVOKE verbs) so the in-memory cache
+    never needs polling — it is updated in lockstep with each write and reloaded
+    once on startup. The table is created as role `aire` so the console's reader
+    (`aire_reader`) can see the roster ([[write-only-daemon]] DDL rule)."""
+
+    DDL = """
+    CREATE TABLE IF NOT EXISTS aire_device (
+      ip       text PRIMARY KEY,
+      note     text,
+      added_at timestamptz NOT NULL DEFAULT now()
+    );
+    """
+
+    def __init__(self, dsn: str) -> None:
+        self.dsn = dsn
+        self.ips: set[str] = set()
+        self.ready = False
+
+    async def _conn(self):
+        import asyncpg
+
+        return await asyncpg.connect(self.dsn)
+
+    async def load(self) -> None:
+        conn = await self._conn()
+        try:
+            await conn.execute(self.DDL)
+            rows = await conn.fetch("SELECT ip FROM aire_device")
+            self.ips = {r["ip"] for r in rows}
+            self.ready = True
+        finally:
+            await conn.close()
+
+    async def add(self, ip: str, note: str) -> None:
+        conn = await self._conn()
+        try:
+            await conn.execute(
+                "INSERT INTO aire_device (ip, note) VALUES ($1, $2) "
+                "ON CONFLICT (ip) DO UPDATE SET note = EXCLUDED.note",
+                ip,
+                note or None,
+            )
+        finally:
+            await conn.close()
+        self.ips.add(ip)
+
+    async def remove(self, ip: str) -> None:
+        conn = await self._conn()
+        try:
+            await conn.execute("DELETE FROM aire_device WHERE ip = $1", ip)
+        finally:
+            await conn.close()
+        self.ips.discard(ip)
+
+    def allows(self, ip: str) -> bool:
+        return ip in self.ips
+
+
+WHITELIST = Whitelist(DSN) if DSN else None
+
+
+def _valid_ip(ip: str) -> bool:
+    import ipaddress
+
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
+        return False
+
+
 def append(line: str) -> None:
     append_file(line)
     if PEN is not None:
@@ -222,6 +305,46 @@ def mkdir_verb(msg: str, addr: str) -> str:
     return f"CREATED {path}"
 
 
+async def allow_verb(msg: str, addr: str) -> str:
+    """`ALLOW <token> <ip> [note]` → add a device to the deathless whitelist. The
+    action itself is appended to the log (`ALLOWED-DEVICE`, token redacted) — the
+    roster's changes are events like everything else."""
+    parts = msg.split(maxsplit=3)
+    if len(parts) < 3:
+        append(f"{_now()} {addr} ALLOW-REJECTED bad-syntax")
+        return "REJECTED usage: ALLOW <token> <ip> [note]"
+    token, ip = parts[1], parts[2]
+    note = parts[3] if len(parts) > 3 else ""
+    if not VERB_TOKEN or not secrets_mod.compare_digest(token, VERB_TOKEN):
+        append(f"{_now()} {addr} ALLOW-DENIED")
+        return "DENIED"
+    if not _valid_ip(ip):
+        append(f"{_now()} {addr} ALLOW-REJECTED bad-ip")
+        return "REJECTED not an IP"
+    if WHITELIST is None:
+        return "ERROR no database (whitelist needs AIRE_DATABASE_URL)"
+    await WHITELIST.add(ip, note)
+    append(f"{_now()} {addr} ALLOWED-DEVICE {ip}")
+    return f"ALLOWED {ip}"
+
+
+async def revoke_verb(msg: str, addr: str) -> str:
+    """`REVOKE <token> <ip>` → remove a device from the whitelist."""
+    parts = msg.split()
+    if len(parts) != 3:
+        append(f"{_now()} {addr} REVOKE-REJECTED bad-syntax")
+        return "REJECTED usage: REVOKE <token> <ip>"
+    token, ip = parts[1], parts[2]
+    if not VERB_TOKEN or not secrets_mod.compare_digest(token, VERB_TOKEN):
+        append(f"{_now()} {addr} REVOKE-DENIED")
+        return "DENIED"
+    if WHITELIST is None:
+        return "ERROR no database"
+    await WHITELIST.remove(ip)
+    append(f"{_now()} {addr} REVOKED-DEVICE {ip}")
+    return f"REVOKED {ip}"
+
+
 async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     peer = writer.get_extra_info("peername")
     addr = f"{peer[0]}:{peer[1]}" if peer else "?"
@@ -230,6 +353,21 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
     if not exempt and not BUCKET.allow(ip):
         # Over budget before saying anything: hang up WITHOUT appending, or the
         # flood would still reach the log through its own rejections.
+        writer.close()
+        await writer.wait_closed()
+        return
+    # The whitelist gate (backlog #18). Advisory unless AIRE_WHITELIST_ENFORCE=1.
+    # When enforcing, an un-listed device leaves a visible DENIED-DEVICE line —
+    # that is the cure for Carlos's failure #1 (a forgotten device goes mute; now
+    # you SEE it knocking) — then gets hung up on.
+    if (
+        WHITELIST_ENFORCE
+        and not exempt
+        and WHITELIST is not None
+        and WHITELIST.ready
+        and not WHITELIST.allows(ip)
+    ):
+        append(f"{_now()} {addr} DENIED-DEVICE")
         writer.close()
         await writer.wait_closed()
         return
@@ -266,6 +404,12 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
                 reply = mkdir_verb(msg, addr)
                 writer.write((reply + "\n").encode())
                 await writer.drain()
+            elif msg.startswith("ALLOW "):
+                writer.write((await allow_verb(msg, addr) + "\n").encode())
+                await writer.drain()
+            elif msg.startswith("REVOKE "):
+                writer.write((await revoke_verb(msg, addr) + "\n").encode())
+                await writer.drain()
             else:
                 append(f"{_now()} {addr} {msg}")
     finally:
@@ -278,6 +422,13 @@ async def main() -> None:
     server = await asyncio.start_server(handle, HOST, PORT)
     if PEN is not None:
         asyncio.create_task(PEN.run())
+    if WHITELIST is not None:
+        try:
+            await WHITELIST.load()
+            append(f"{_now()} - WHITELIST loaded {len(WHITELIST.ips)} devices "
+                   f"(enforce={'on' if WHITELIST_ENFORCE else 'off'})")
+        except Exception as exc:  # noqa: BLE001 - a DB hiccup must not stop the daemon
+            append(f"{_now()} - WHITELIST-LOAD-ERROR {exc!r}")
     append(f"{_now()} - LISTENING {HOST}:{PORT}")
     print(f"AIRE listener listening on {HOST}:{PORT} → {LOG}", flush=True)
     async with server:

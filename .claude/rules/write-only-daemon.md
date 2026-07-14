@@ -53,10 +53,21 @@ Kreps's "The Log" (already this repo's law) names the log as the integration
 point between the producing system and its consumers — separating the repos makes
 that boundary physical.
 
-## The one sanctioned exception (when the engine wakes)
+## The sanctioned exceptions (bounded, not waiter reads)
 
-The SDK's `session_store` protocol requires `load()` for `resume` — the agent
-reading **its own memory** to continue a session. That is not a waiter read (it
-serves no view); it is part of the write path's contract with the SDK, and it is
-the ONLY read this repo may ever perform. If Bernard vetoes even this, resume
-moves out of scope — his call, flagged when the engine phase starts.
+A "read" here means a **waiter read** — a `SELECT` that serves a human-facing
+view. Those all live in the front. But the write path has two reads that are part
+of its own contract, not views, and are explicitly allowed:
+
+1. **`session_store.load()` for `resume`** — the agent reading **its own memory**
+   to continue a session. Serves no view; it is the SDK's write-path contract.
+2. **The device whitelist load** (`aire_device`, backlog #18) — the daemon reading
+   the roster it must ENFORCE at the socket. Authorized by Bernard 2026-07-14 when
+   he chose "the whitelist lives in Postgres" over a mortal file. It is not a view
+   either: it gates writes, it does not display anything. The daemon owns every
+   write to the table (the ALLOW/REVOKE verbs), so the read is a startup load kept
+   in lockstep with those writes — no polling, no query per connection.
+
+Neither is a waiter read. If Bernard vetoes either, that feature moves out of
+scope — his call. Any THIRD read that serves a view is a violation; it belongs in
+the front.
