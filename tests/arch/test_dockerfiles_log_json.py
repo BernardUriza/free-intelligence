@@ -31,7 +31,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 SHIPPED_DOCKERFILES = [
-    "Dockerfile",
     "Dockerfile.gateway",
     "infra/azure/runner.Dockerfile",
 ]

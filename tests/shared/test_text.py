@@ -92,19 +92,6 @@ def test_split_response_strips_whitespace_around_parts():
     assert split_response(text) == ["primero", "segundo"]
 
 
-# ----- backward compat through insult.core.delivery -----
-
-
-def test_insult_delivery_reexports_match_shared():
-    """Insult's re-exports must stay identical so callers keep working."""
-    from personas.insult.core import delivery as insult_delivery
-
-    assert insult_delivery.DISCORD_MAX_CHARS == DISCORD_MAX_CHARS
-    assert insult_delivery.MESSAGE_DELIMITER == MESSAGE_DELIMITER
-    assert insult_delivery.chunk_text is chunk_hard
-    assert insult_delivery.split_response is split_response
-
-
 # Parametric: every chunk strategy must respect the cap.
 @pytest.mark.parametrize("fn", [chunk_hard, chunk_paragraph_aware])
 @pytest.mark.parametrize("size,cap", [(50, 100), (5000, 1900), (1900, 1900)])

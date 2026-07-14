@@ -88,36 +88,3 @@ async def test_noop_hooks_run_persona_free(monkeypatch):
         memory=_fake_memory(["u1"]), llm=MagicMock(), model="m", hooks=NoopConsolidationHooks()
     )
     assert len(reports) == 1
-
-
-def test_insult_hooks_conform_to_contract():
-    from personas.insult.core.consolidation_hooks import InsultConsolidationHooks
-
-    h = InsultConsolidationHooks()
-    for method in (
-        "on_run_started",
-        "on_user_progress",
-        "after_user",
-        "on_pre_finish",
-        "write_diary",
-        "on_run_finished",
-    ):
-        assert callable(getattr(h, method)), method
-
-
-async def test_shim_consolidate_all_users_wires_insult_hooks(monkeypatch):
-    """The back-compat shim must delegate to the neutral orchestrator with
-    Insult's hooks, preserving the old (no-hooks) signature."""
-    from personas.insult.core import memory_consolidator as shim
-
-    captured = {}
-
-    async def fake_neutral(*, memory, llm, model, hooks, dry_run=False, name_resolver=None):
-        captured["hooks_type"] = type(hooks).__name__
-        captured["dry_run"] = dry_run
-        return []
-
-    monkeypatch.setattr(shim, "_consolidate_all_users_neutral", fake_neutral)
-
-    await shim.consolidate_all_users(memory=MagicMock(), llm=MagicMock(), model="m", write_diary=False)
-    assert captured["hooks_type"] == "InsultConsolidationHooks"

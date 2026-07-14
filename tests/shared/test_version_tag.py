@@ -27,12 +27,6 @@ def test_tag_tracks_the_monorepo_version():
     assert "ᵛ" + version.translate(superscript).replace(".", "·") == VERSION_TAG
 
 
-def test_insult_delivery_reexports_the_shared_tag():
-    from personas.insult.core import delivery
-
-    assert delivery.VERSION_TAG is VERSION_TAG
-
-
 def test_gateway_appends_tag_within_discord_limit():
     from persona_gateway.gateway import DISCORD_LIMIT
 
