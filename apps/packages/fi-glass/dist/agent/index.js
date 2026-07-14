@@ -589,7 +589,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect20, useState as useState20 } from "react";
+import { useEffect as useEffect21, useState as useState20 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -1905,7 +1905,7 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3, useState as useState16 } from "react";
+import { memo as memo3, useEffect as useEffect17, useRef as useRef12, useState as useState16 } from "react";
 
 // src/messages/messageActionsStyle.ts
 import { useEffect as useEffect16 } from "react";
@@ -1951,6 +1951,7 @@ function useMessageActionsStyle() {
 
 // src/messages/MessageBubble.tsx
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+var ACTIONS_OPEN_EVENT = "fi-msg-actions-open";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -1966,10 +1967,25 @@ var MessageBubble = memo3(function MessageBubble2({
   const { message: styles } = messageStyles;
   const isUser = role === "user";
   const [actionsOpen, setActionsOpen] = useState16(false);
+  const selfToken = useRef12({});
+  useEffect17(() => {
+    if (!actionsOpen) return;
+    const onOtherOpen = (e) => {
+      if (e.detail !== selfToken.current) setActionsOpen(false);
+    };
+    document.addEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+  }, [actionsOpen]);
   const onBubbleClick = (e) => {
     if (!actions) return;
     if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
-    setActionsOpen((v) => !v);
+    const next = !actionsOpen;
+    setActionsOpen(next);
+    if (next) {
+      document.dispatchEvent(
+        new CustomEvent(ACTIONS_OPEN_EVENT, { detail: selfToken.current })
+      );
+    }
   };
   return /* @__PURE__ */ jsxs16(
     "article",
@@ -2433,10 +2449,10 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef as forwardRef2,
-  useEffect as useEffect17,
+  useEffect as useEffect18,
   useId as useId2,
   useImperativeHandle,
-  useRef as useRef12,
+  useRef as useRef13,
   useState as useState17
 } from "react";
 import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
@@ -2453,13 +2469,13 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
   name,
   ...props
 }, ref) {
-  const textareaRef = useRef12(null);
+  const textareaRef = useRef13(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState17(1);
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect17(() => {
+  useEffect18(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -2550,7 +2566,7 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect18, useId as useId3, useState as useState18 } from "react";
+import { useEffect as useEffect19, useId as useId3, useState as useState18 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Fragment as Fragment5, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
@@ -2634,6 +2650,22 @@ var CSS2 = `
   [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
     display: none;
   }
+  /* A control marked data-fi-rail-keep survives the collapse \u2014 the contract for
+     "this is live and the user must keep reaching it" (e.g. the hang-up button
+     of an ACTIVE voice call). The closed rail then stays rendered inline on the
+     input row but shows ONLY the kept controls. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) {
+    display: flex;
+    flex: 0 0 auto;
+    order: 0;
+    margin-right: 0;
+  }
+  /* !important on purpose: slotted controls (e.g. ComposerActions' trigger)
+     carry inline display styles that outrank any selector \u2014 and the collapse
+     contract must win over a control's own presentation. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) > :not([data-fi-rail-keep]) {
+    display: none !important;
+  }
 }
 `;
 function ensureComposerFrameStyle() {
@@ -2645,7 +2677,7 @@ function ensureComposerFrameStyle() {
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect18(() => {
+  useEffect19(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -2717,7 +2749,7 @@ function ComposerFrame({
 }
 
 // src/composer/ComposerImageAttachments.tsx
-import { useRef as useRef13 } from "react";
+import { useRef as useRef14 } from "react";
 import { X } from "lucide-react";
 import { jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
 function ComposerImageChips({
@@ -2781,7 +2813,7 @@ function ComposerImageChips({
   );
 }
 function useImagePicker(onFiles) {
-  const inputRef = useRef13(null);
+  const inputRef = useRef14(null);
   const input = /* @__PURE__ */ jsx33(
     "input",
     {
@@ -2805,7 +2837,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment6, useEffect as useEffect19, useRef as useRef14, useState as useState19 } from "react";
+import { Fragment as Fragment6, useEffect as useEffect20, useRef as useRef15, useState as useState19 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment7, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 function ActionMenu({
@@ -2821,15 +2853,15 @@ function ActionMenu({
   triggerAttribute
 }) {
   const [open, setOpen] = useState19(false);
-  const triggerRef = useRef14(null);
+  const triggerRef = useRef15(null);
   const [position, setPosition] = useState19({ top: 0, left: 0 });
-  useEffect19(() => {
+  useEffect20(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect19(() => {
+  useEffect20(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -3281,7 +3313,7 @@ function AgentConversationSurface(props) {
     clearUnsentText
   } = conversation;
   const [input, setInput] = useState20("");
-  useEffect20(() => {
+  useEffect21(() => {
     if (!unsentText) return;
     setInput((current) => current.trim() ? current : unsentText);
     clearUnsentText();
@@ -3352,13 +3384,13 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect22,
+  useEffect as useEffect23,
   useState as useState21
 } from "react";
 import { Menu } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect21 } from "react";
+import { useEffect as useEffect22 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
 var CSS3 = `
 .fi-agent-workspace {
@@ -3417,7 +3449,7 @@ function ensureDensityStyle() {
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect21(() => {
+  useEffect22(() => {
     ensureDensityStyle();
   }, []);
 }
@@ -3471,10 +3503,10 @@ function AgentWorkspaceShell({
   const open = useCallback12(() => setIsOpen(true), []);
   const close = useCallback12(() => setIsOpen(false), []);
   const toggle = useCallback12(() => setIsOpen((v) => !v), []);
-  useEffect22(() => {
+  useEffect23(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect22(() => {
+  useEffect23(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3487,7 +3519,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect22(() => {
+  useEffect23(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -3629,12 +3661,12 @@ function AgentWorkspaceShell({
 // src/agent/AgentSidebarItem.tsx
 import {
   useCallback as useCallback13,
-  useRef as useRef15,
+  useRef as useRef16,
   useState as useState22
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect23 } from "react";
+import { useEffect as useEffect24 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -3762,7 +3794,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect23(() => {
+  useEffect24(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -3804,7 +3836,7 @@ function DestructiveActionSlot(props) {
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState22(false);
   const [draft, setDraft] = useState22("");
-  const cancelledRef = useRef15(false);
+  const cancelledRef = useRef16(false);
   const start = useCallback13(() => {
     cancelledRef.current = false;
     setDraft(value);
@@ -3951,7 +3983,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect24 } from "react";
+import { useEffect as useEffect25 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -4010,7 +4042,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect24(() => {
+  useEffect25(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

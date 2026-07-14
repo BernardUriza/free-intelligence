@@ -18,9 +18,13 @@
  *   actions  → hover toolbar (copy, TTS…)     (omit to hide)
  */
 
-import { memo, useState, type MouseEvent, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { messageStyles } from './styles';
 import { FI_MSG_ACTIONS_CLASS, useMessageActionsStyle } from './messageActionsStyle';
+
+/** Broadcast channel for the touch actions-reveal: opening one bubble's actions
+ * closes every other open bubble (one contextual toolbar at a time). */
+const ACTIONS_OPEN_EVENT = 'fi-msg-actions-open';
 
 export interface MessageBubbleProps {
   /** Drives alignment/background (user vs assistant). */
@@ -62,10 +66,26 @@ export const MessageBubble = memo(function MessageBubble({
   // collapses them on coarse pointers). Interactive descendants keep their own
   // clicks — a link/button tap must never double as a toggle.
   const [actionsOpen, setActionsOpen] = useState(false);
+  // Identity token for the mutual-exclusion broadcast (stable per instance).
+  const selfToken = useRef({});
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const onOtherOpen = (e: Event) => {
+      if ((e as CustomEvent).detail !== selfToken.current) setActionsOpen(false);
+    };
+    document.addEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+  }, [actionsOpen]);
   const onBubbleClick = (e: MouseEvent<HTMLElement>) => {
     if (!actions) return;
     if ((e.target as HTMLElement).closest('a, button, input, textarea, [role="button"]')) return;
-    setActionsOpen((v) => !v);
+    const next = !actionsOpen;
+    setActionsOpen(next);
+    if (next) {
+      document.dispatchEvent(
+        new CustomEvent(ACTIONS_OPEN_EVENT, { detail: selfToken.current }),
+      );
+    }
   };
 
   return (

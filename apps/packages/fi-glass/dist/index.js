@@ -331,7 +331,7 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3, useState as useState3 } from "react";
+import { memo as memo3, useEffect as useEffect4, useRef as useRef2, useState as useState3 } from "react";
 
 // src/messages/messageActionsStyle.ts
 import { useEffect as useEffect3 } from "react";
@@ -377,6 +377,7 @@ function useMessageActionsStyle() {
 
 // src/messages/MessageBubble.tsx
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+var ACTIONS_OPEN_EVENT = "fi-msg-actions-open";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -392,10 +393,25 @@ var MessageBubble = memo3(function MessageBubble2({
   const { message: styles } = messageStyles;
   const isUser = role === "user";
   const [actionsOpen, setActionsOpen] = useState3(false);
+  const selfToken = useRef2({});
+  useEffect4(() => {
+    if (!actionsOpen) return;
+    const onOtherOpen = (e) => {
+      if (e.detail !== selfToken.current) setActionsOpen(false);
+    };
+    document.addEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+  }, [actionsOpen]);
   const onBubbleClick = (e) => {
     if (!actions) return;
     if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
-    setActionsOpen((v) => !v);
+    const next = !actionsOpen;
+    setActionsOpen(next);
+    if (next) {
+      document.dispatchEvent(
+        new CustomEvent(ACTIONS_OPEN_EVENT, { detail: selfToken.current })
+      );
+    }
   };
   return /* @__PURE__ */ jsxs3(
     "article",
@@ -592,10 +608,10 @@ function MessageList({
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
-  useEffect as useEffect4,
+  useEffect as useEffect5,
   useId as useId2,
   useImperativeHandle,
-  useRef as useRef2,
+  useRef as useRef3,
   useState as useState4
 } from "react";
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
@@ -612,13 +628,13 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   name,
   ...props
 }, ref) {
-  const textareaRef = useRef2(null);
+  const textareaRef = useRef3(null);
   useImperativeHandle(ref, () => textareaRef.current);
   const [rows, setRows] = useState4(1);
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -709,7 +725,7 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect5, useId as useId3, useState as useState5 } from "react";
+import { useEffect as useEffect6, useId as useId3, useState as useState5 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
@@ -793,6 +809,22 @@ var CSS2 = `
   [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
     display: none;
   }
+  /* A control marked data-fi-rail-keep survives the collapse \u2014 the contract for
+     "this is live and the user must keep reaching it" (e.g. the hang-up button
+     of an ACTIVE voice call). The closed rail then stays rendered inline on the
+     input row but shows ONLY the kept controls. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) {
+    display: flex;
+    flex: 0 0 auto;
+    order: 0;
+    margin-right: 0;
+  }
+  /* !important on purpose: slotted controls (e.g. ComposerActions' trigger)
+     carry inline display styles that outrank any selector \u2014 and the collapse
+     contract must win over a control's own presentation. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) > :not([data-fi-rail-keep]) {
+    display: none !important;
+  }
 }
 `;
 function ensureComposerFrameStyle() {
@@ -804,7 +836,7 @@ function ensureComposerFrameStyle() {
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect5(() => {
+  useEffect6(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -876,7 +908,7 @@ function ComposerFrame({
 }
 
 // src/composer/useComposerImages.ts
-import { useCallback as useCallback2, useRef as useRef3, useState as useState6 } from "react";
+import { useCallback as useCallback2, useRef as useRef4, useState as useState6 } from "react";
 var COMPOSER_IMAGE_MEDIA_TYPES = [
   "image/jpeg",
   "image/png",
@@ -928,9 +960,9 @@ var nextDraftId = 0;
 function useComposerImages(options = {}) {
   const { maxImages = DEFAULT_MAX_IMAGES, onError } = options;
   const [drafts, setDrafts] = useState6([]);
-  const draftsRef = useRef3(drafts);
+  const draftsRef = useRef4(drafts);
   draftsRef.current = drafts;
-  const onErrorRef = useRef3(onError);
+  const onErrorRef = useRef4(onError);
   onErrorRef.current = onError;
   const addFiles = useCallback2(
     async (files) => {
@@ -1013,7 +1045,7 @@ function useComposerImages(options = {}) {
 }
 
 // src/composer/ComposerImageAttachments.tsx
-import { useRef as useRef4 } from "react";
+import { useRef as useRef5 } from "react";
 import { X } from "lucide-react";
 import { jsx as jsx12, jsxs as jsxs9 } from "react/jsx-runtime";
 function ComposerImageChips({
@@ -1077,7 +1109,7 @@ function ComposerImageChips({
   );
 }
 function useImagePicker(onFiles) {
-  const inputRef = useRef4(null);
+  const inputRef = useRef5(null);
   const input = /* @__PURE__ */ jsx12(
     "input",
     {
@@ -1101,7 +1133,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment3, useEffect as useEffect6, useRef as useRef5, useState as useState7 } from "react";
+import { Fragment as Fragment3, useEffect as useEffect7, useRef as useRef6, useState as useState7 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment4, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function ActionMenu({
@@ -1117,15 +1149,15 @@ function ActionMenu({
   triggerAttribute
 }) {
   const [open, setOpen] = useState7(false);
-  const triggerRef = useRef5(null);
+  const triggerRef = useRef6(null);
   const [position, setPosition] = useState7({ top: 0, left: 0 });
-  useEffect6(() => {
+  useEffect7(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect6(() => {
+  useEffect7(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -1915,9 +1947,9 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect7, useMemo, useRef as useRef6, useSyncExternalStore } from "react";
+import { useEffect as useEffect8, useMemo, useRef as useRef7, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
-  const cbRef = useRef6(opts);
+  const cbRef = useRef7(opts);
   cbRef.current = opts;
   const controller = useMemo(
     () => createAudioPlayer({
@@ -1929,7 +1961,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect7(() => () => controller.dispose(), [controller]);
+  useEffect8(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1953,7 +1985,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect8 } from "react";
+import { useEffect as useEffect9 } from "react";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1968,7 +2000,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect8(() => {
+  useEffect9(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2017,7 +2049,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect9 } from "react";
+import { useEffect as useEffect10 } from "react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
@@ -2116,7 +2148,7 @@ function RichAudioPlayer({
     currentTime
   } = player;
   const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
-  useEffect9(() => {
+  useEffect10(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2124,7 +2156,7 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect9(() => {
+  useEffect10(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
@@ -2351,7 +2383,7 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef7, useState as useState8 } from "react";
+import { useCallback as useCallback3, useRef as useRef8, useState as useState8 } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
@@ -2366,8 +2398,8 @@ function useVoice(adapter, opts = {}) {
   const [isUserMessage, setIsUserMessage] = useState8(false);
   const [currentVoice, setCurrentVoice] = useState8("nova");
   const [currentText, setCurrentText] = useState8("");
-  const inFlight = useRef7(false);
-  const clipCache = useRef7(/* @__PURE__ */ new Map());
+  const inFlight = useRef8(false);
+  const clipCache = useRef8(/* @__PURE__ */ new Map());
   const synthesizeCached = useCallback3(
     async (text, voice) => {
       const cache = clipCache.current;
@@ -2481,7 +2513,7 @@ function useVoice(adapter, opts = {}) {
 import { useCallback as useCallback5, useState as useState11 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState9, useRef as useRef8, useCallback as useCallback4 } from "react";
+import { useState as useState9, useRef as useRef9, useCallback as useCallback4 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -2576,12 +2608,12 @@ function useRecorder(config) {
   const [fullAudioBlob, setFullAudioBlob] = useState9(null);
   const [fullAudioUrl, setFullAudioUrl] = useState9(null);
   const [currentStream, setCurrentStream] = useState9(null);
-  const recorderRef = useRef8(null);
-  const continuousRecorderRef = useRef8(null);
-  const currentStreamRef = useRef8(null);
-  const recordingTimerRef = useRef8(null);
-  const fullAudioUrlRef = useRef8(null);
-  const chunkNumberRef = useRef8(0);
+  const recorderRef = useRef9(null);
+  const continuousRecorderRef = useRef9(null);
+  const currentStreamRef = useRef9(null);
+  const recordingTimerRef = useRef9(null);
+  const fullAudioUrlRef = useRef9(null);
+  const chunkNumberRef = useRef9(0);
   const startRecording = useCallback4(async () => {
     try {
       chunkNumberRef.current = 0;
@@ -2736,7 +2768,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState10, useRef as useRef9, useEffect as useEffect10 } from "react";
+import { useState as useState10, useRef as useRef10, useEffect as useEffect11 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -2766,11 +2798,11 @@ function useAudioAnalysis(stream, config) {
   } = config;
   const [audioLevel, setAudioLevel] = useState10(0);
   const [bands, setBands] = useState10([]);
-  const analyserRef = useRef9(null);
-  const audioContextRef = useRef9(null);
-  const animationFrameRef = useRef9(null);
+  const analyserRef = useRef10(null);
+  const audioContextRef = useRef10(null);
+  const animationFrameRef = useRef10(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect10(() => {
+  useEffect11(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -3011,7 +3043,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState12, useRef as useRef10, useCallback as useCallback6, useEffect as useEffect11 } from "react";
+import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect12 } from "react";
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -3128,19 +3160,19 @@ function useDurableRecording(opts) {
   const [isAtCapacity, setIsAtCapacity] = useState12(false);
   const [isStarting, setIsStarting] = useState12(false);
   const [pausedPreviewBlob, setPausedPreviewBlob] = useState12(null);
-  const recorderRef = useRef10(null);
-  const streamRef = useRef10(null);
-  const timerRef = useRef10(null);
-  const startTimeRef = useRef10(0);
-  const pausedElapsedRef = useRef10(0);
-  const artifactRef = useRef10(null);
-  const segmentsRef = useRef10([]);
-  const rtcCtorRef = useRef10(null);
-  const pauseOpRef = useRef10(Promise.resolve());
-  useEffect11(() => {
+  const recorderRef = useRef11(null);
+  const streamRef = useRef11(null);
+  const timerRef = useRef11(null);
+  const startTimeRef = useRef11(0);
+  const pausedElapsedRef = useRef11(0);
+  const artifactRef = useRef11(null);
+  const segmentsRef = useRef11([]);
+  const rtcCtorRef = useRef11(null);
+  const pauseOpRef = useRef11(Promise.resolve());
+  useEffect12(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect11(() => {
+  useEffect12(() => {
     store.list().then((stored) => {
       const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
@@ -3399,7 +3431,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState13, useEffect as useEffect12, useCallback as useCallback7 } from "react";
+import { useState as useState13, useEffect as useEffect13, useCallback as useCallback7 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState13([]);
@@ -3413,7 +3445,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect12(() => {
+  useEffect13(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback7(
@@ -3522,7 +3554,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect13, useState as useState15 } from "react";
+import { useEffect as useEffect14, useState as useState15 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -3698,7 +3730,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState15(true);
-  useEffect13(() => {
+  useEffect14(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -3761,7 +3793,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState16, useEffect as useEffect14 } from "react";
+import { useState as useState16, useEffect as useEffect15 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -3783,7 +3815,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState16(null);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -4169,7 +4201,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect15, useMemo as useMemo3, useRef as useRef11, useState as useState17 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect16, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -4365,7 +4397,7 @@ function useResonanceCallLoop(params) {
     debug = false,
     onEvent
   } = params;
-  const getAudioLevelRef = useRef11(getAudioLevel);
+  const getAudioLevelRef = useRef12(getAudioLevel);
   getAudioLevelRef.current = getAudioLevel;
   const cueEnabled = audioCues?.enabled ?? false;
   const cuePlayer = useMemo3(
@@ -4374,19 +4406,19 @@ function useResonanceCallLoop(params) {
     [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
   );
   const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
-  const cueApplyRef = useRef11(void 0);
+  const cueApplyRef = useRef12(void 0);
   cueApplyRef.current = cueController?.applyTransition;
-  const cueSeqRef = useRef11(0);
-  useEffect15(() => {
+  const cueSeqRef = useRef12(0);
+  useEffect16(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect15(() => () => {
+  useEffect16(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState17("idle");
   const [lastTranscript, setLastTranscript] = useState17();
   const [lastAssistantText, setLastAssistantText] = useState17();
-  const adaptersRef = useRef11(adapters);
+  const adaptersRef = useRef12(adapters);
   adaptersRef.current = adapters;
   const pushDebug = useCallback9(
     (record) => {
@@ -4462,10 +4494,10 @@ function useResonanceCallLoop(params) {
     });
     return ctrl;
   }, [pushDebug]);
-  const stateRef = useRef11(state);
+  const stateRef = useRef12(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -4480,15 +4512,15 @@ function useResonanceCallLoop(params) {
       gate.reset();
     };
   }, [enabled, gate, controller, bargeInPolicy]);
-  const autoResumeTimer = useRef11(void 0);
-  const sleepTimer = useRef11(void 0);
+  const autoResumeTimer = useRef12(void 0);
+  const sleepTimer = useRef12(void 0);
   const clearTimer = (t) => {
     if (t.current) {
       clearTimeout(t.current);
       t.current = void 0;
     }
   };
-  useEffect15(() => {
+  useEffect16(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -4510,7 +4542,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect15(() => () => {
+  useEffect16(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
@@ -5516,9 +5548,9 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect16,
+  useEffect as useEffect17,
   useId as useId4,
-  useRef as useRef12,
+  useRef as useRef13,
   useState as useState19
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
@@ -5550,13 +5582,13 @@ function PersonaSelector({
 }) {
   const [isOpen, setIsOpen] = useState19(false);
   const [position, setPosition] = useState19({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef12(null);
-  const contentRef = useRef12(null);
+  const triggerRef = useRef13(null);
+  const contentRef = useRef13(null);
   const reactId = useId4();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback12(() => setIsOpen(false), []);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -5568,7 +5600,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -5588,7 +5620,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;

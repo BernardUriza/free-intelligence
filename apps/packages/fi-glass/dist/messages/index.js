@@ -316,7 +316,7 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3, useState as useState3 } from "react";
+import { memo as memo3, useEffect as useEffect4, useRef as useRef2, useState as useState3 } from "react";
 
 // src/messages/messageActionsStyle.ts
 import { useEffect as useEffect3 } from "react";
@@ -362,6 +362,7 @@ function useMessageActionsStyle() {
 
 // src/messages/MessageBubble.tsx
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+var ACTIONS_OPEN_EVENT = "fi-msg-actions-open";
 var MessageBubble = memo3(function MessageBubble2({
   role,
   children,
@@ -377,10 +378,25 @@ var MessageBubble = memo3(function MessageBubble2({
   const { message: styles } = messageStyles;
   const isUser = role === "user";
   const [actionsOpen, setActionsOpen] = useState3(false);
+  const selfToken = useRef2({});
+  useEffect4(() => {
+    if (!actionsOpen) return;
+    const onOtherOpen = (e) => {
+      if (e.detail !== selfToken.current) setActionsOpen(false);
+    };
+    document.addEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+    return () => document.removeEventListener(ACTIONS_OPEN_EVENT, onOtherOpen);
+  }, [actionsOpen]);
   const onBubbleClick = (e) => {
     if (!actions) return;
     if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
-    setActionsOpen((v) => !v);
+    const next = !actionsOpen;
+    setActionsOpen(next);
+    if (next) {
+      document.dispatchEvent(
+        new CustomEvent(ACTIONS_OPEN_EVENT, { detail: selfToken.current })
+      );
+    }
   };
   return /* @__PURE__ */ jsxs3(
     "article",

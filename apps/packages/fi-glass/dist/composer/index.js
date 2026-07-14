@@ -213,6 +213,22 @@ var CSS = `
   [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
     display: none;
   }
+  /* A control marked data-fi-rail-keep survives the collapse \u2014 the contract for
+     "this is live and the user must keep reaching it" (e.g. the hang-up button
+     of an ACTIVE voice call). The closed rail then stays rendered inline on the
+     input row but shows ONLY the kept controls. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) {
+    display: flex;
+    flex: 0 0 auto;
+    order: 0;
+    margin-right: 0;
+  }
+  /* !important on purpose: slotted controls (e.g. ComposerActions' trigger)
+     carry inline display styles that outrank any selector \u2014 and the collapse
+     contract must win over a control's own presentation. */
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"]:has([data-fi-rail-keep]) > :not([data-fi-rail-keep]) {
+    display: none !important;
+  }
 }
 `;
 function ensureComposerFrameStyle() {
