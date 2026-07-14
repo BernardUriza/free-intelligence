@@ -43,11 +43,12 @@ memory. To contradict anything here, verify it first the same way.
    backlog #15). The one sanctioned exception here is the SDK's
    `session_store.load()` for resume (the agent reading its own memory). Full law:
    [`.claude/rules/write-only-daemon.md`](.claude/rules/write-only-daemon.md).
-   **Two things the front makes THIS repo's problem:** (a) it connects with the
-   pen's own write-capable credential — the fix, an `aire_reader` role, is minted
-   from this side; (b) its console is **public and unauthenticated**, which is
-   harmless over `aire_log` and a data leak the moment the engine here creates
-   `claude_session_store`. Do not wake the engine into a public console.
+   **The one thing the front makes THIS repo's problem:** the reader (`aire_reader`,
+   `GRANT SELECT` only) sees *future* tables through
+   `ALTER DEFAULT PRIVILEGES FOR ROLE aire`. So the engine must create
+   `claude_session_store` **as `aire`** — as any other role, and the console goes
+   blind to it. (The console itself is now behind HTTP Basic and connects with a
+   credential that cannot write; the daemon keeps the pen alone.)
 
 ## Reuse, don't rewrite
 

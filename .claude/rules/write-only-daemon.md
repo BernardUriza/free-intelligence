@@ -18,20 +18,27 @@ the repo that gets cloned to the daemon's body. Toward Postgres it **only append
 3. **The daemon owns the DDL.** `CREATE TABLE` for what it writes lives here; the
    front treats the schema as a read-only contract. A schema change is an API
    change between the two repos — coordinate it, never surprise the reader.
-4. **The pen's credential is the daemon's alone.** `AIRE_DATABASE_URL` (role
-   `aire`) grants **write** privileges — that is what makes it the pen. Today the
-   front connects with **that same credential**, and holds itself back with four
-   walls in its own code. That is a stopgap, and it was learned the hard way: a
-   read-only *transaction mode* is not a read-only *credential*, and a role that
-   can write can always take the privilege back (`SET TRANSACTION READ WRITE` did
-   exactly that on 2026-07-13, and a `'pwned'` row reached `aire_log` at
-   `seq 2641` — it is still there, because the log is append-only and correcting
-   means appending, not erasing).
-   **The daemon's side of the fix: mint `aire_reader` (`GRANT SELECT`, nothing
-   else) and hand the front THAT.** It needs the Postgres server admin; the `aire`
-   role has `rolcreaterole = false` (verified). Until then, the front runs with a
-   credential more powerful than its job, and that is written down rather than
-   pretended away.
+4. **The pen's credential is the daemon's alone — one law, two credentials.**
+   `AIRE_DATABASE_URL` here (role `aire`, `~/.secrets/aire-postgres.txt`) grants
+   **write**: that is what makes it the pen. The front gets a different one —
+   **`aire_reader`** (`GRANT SELECT` and nothing else,
+   `~/.secrets/aire-postgres-readonly.txt`). **Never hand the front this repo's
+   credential**; its own attack suite refuses to run if it ever finds itself
+   holding the pen.
+
+   This is not belt-and-braces, it is *the* wall — learned the hard way: a
+   read-only **transaction mode** is not a read-only **credential**, and a role
+   that can write can always take the privilege back. `SET TRANSACTION READ WRITE`
+   did exactly that on 2026-07-13, defeating four walls of application code, and a
+   `'pwned'` row reached `aire_log` at `seq 2641`. It is still there — the log is
+   append-only, and correcting means appending, not erasing.
+
+   **The DDL consequence, and it is this repo's job:** the reader's grant on
+   *future* tables rides on
+   `ALTER DEFAULT PRIVILEGES FOR ROLE aire IN SCHEMA public GRANT SELECT ON TABLES TO aire_reader`.
+   It is already set. So `claude_session_store` will be readable the day the engine
+   creates it — **as long as the daemon creates it as `aire`.** Create a table as
+   any other role and the waiter goes blind to it.
 
 ## Why
 
