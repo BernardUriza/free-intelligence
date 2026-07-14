@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+.claude
+npm-debug.log
+README.md
+CLAUDE.md
+.env*
