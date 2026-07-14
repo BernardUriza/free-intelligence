@@ -172,6 +172,9 @@ $pid = (Get-NetTCPConnection -LocalPort 9000 -ErrorAction SilentlyContinue).Owni
 if ($pid) { Stop-Process -Id $pid -Force }
 ```
 
+### Mobile Viewport UX
+Content dominates on mobile: non-content chrome <18% of viewport, composer idle ≤64px, 12px gutters, secondary controls behind progressive disclosure, touch targets ≥44px. Full budgets, breakpoints and tokens: [.claude/rules/mobile-viewport-ux.md](rules/mobile-viewport-ux.md)
+
 ### Visual Verification Required
 ```bash
 # After any UI change, MUST verify:
