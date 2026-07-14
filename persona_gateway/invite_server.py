@@ -69,6 +69,13 @@ class InviteRequest(BaseModel):
         default=None,
         description="Summon source label for telemetry/instruction framing. Omitted → insult_rest.",
     )
+    trigger_message_id: str | None = Field(
+        default=None,
+        description=(
+            "Discord message id that triggered the summon. The persona reacts to it "
+            "when its reply carries [REACT:] markers; omitted → reactions are dropped."
+        ),
+    )
 
 
 class InviteResponse(BaseModel):
@@ -146,6 +153,7 @@ def build_invite_app(
                 channel_name=req.channel_name,
                 reason=req.reason,
                 invited_by=req.invited_by or "insult_rest",
+                trigger_message_id=req.trigger_message_id,
             )
         )
         app.state.background_tasks.add(task)

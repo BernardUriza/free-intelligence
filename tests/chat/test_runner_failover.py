@@ -9,7 +9,7 @@ request, so the user saw voice B for no reason. This pins the new policy:
   (``RunnerDownError`` → ``runner_down``).
 - A ``PersonaTurnError`` (``persona_error``) NEVER fails over — honest
   degradation instead (the resistance case that guards the regression).
-- Failover requires REAL ALICE availability: ``execute_invoke_alice`` returns
+- Failover requires REAL ALICE availability: ``summon_persona`` returns
   True only on a 202 from her container. A non-202 → honest degradation, never
   a silent drop.
 """
@@ -144,7 +144,7 @@ async def test_runner_down_with_alice_available_failover(monkeypatch):
     """RunnerDownError + ALICE accepts (202) → StageStop, delivery_mode set,
     no in-character error sent (ALICE delivers async)."""
     invoke = AsyncMock(return_value=True)
-    monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", invoke)
+    monkeypatch.setattr("demux_ai.summon.summon_persona", invoke)
 
     ctx = _mk_llm_ctx(chat_exc=RunnerDownError("runner 503"))
 
@@ -161,7 +161,7 @@ async def test_runner_down_with_alice_unavailable_degrades(monkeypatch):
     """RunnerDownError but ALICE's /invite is NOT accepted → honest
     degradation (StageFailure + user notice), NOT a silent drop."""
     invoke = AsyncMock(return_value=False)
-    monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", invoke)
+    monkeypatch.setattr("demux_ai.summon.summon_persona", invoke)
 
     ctx = _mk_llm_ctx(chat_exc=RunnerDownError("runner 503"))
 
@@ -176,7 +176,7 @@ async def test_persona_error_never_invites_alice(monkeypatch):
     """THE regression guard: a live runner rejecting the turn (4xx →
     PersonaTurnError) must NOT invoke ALICE — degrade honestly."""
     invoke = AsyncMock(return_value=True)
-    monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", invoke)
+    monkeypatch.setattr("demux_ai.summon.summon_persona", invoke)
 
     ctx = _mk_llm_ctx(chat_exc=PersonaTurnError("runner 422"))
 
@@ -189,7 +189,7 @@ async def test_persona_error_never_invites_alice(monkeypatch):
 @pytest.mark.asyncio
 async def test_failover_disabled_never_invites_alice(monkeypatch):
     invoke = AsyncMock(return_value=True)
-    monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", invoke)
+    monkeypatch.setattr("demux_ai.summon.summon_persona", invoke)
 
     ctx = _mk_llm_ctx(chat_exc=RunnerDownError("runner 503"), alice_failover_enabled=False)
 

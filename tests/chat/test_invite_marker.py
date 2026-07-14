@@ -57,9 +57,9 @@ class TestStripInvites:
 
 class TestFireInvite:
     @pytest.mark.asyncio
-    async def test_calls_execute_invoke_alice_with_reason(self, monkeypatch):
+    async def test_calls_summon_persona_with_reason(self, monkeypatch):
         mock = AsyncMock(return_value=True)
-        monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", mock)
+        monkeypatch.setattr("demux_ai.summon.summon_persona", mock)
         ok = await fire_invite(
             "lectura corta del sábado",
             channel_id="1489180895264116736",
@@ -73,10 +73,25 @@ class TestFireInvite:
         assert kwargs["channel_id"] == "1489180895264116736"
 
     @pytest.mark.asyncio
+    async def test_forwards_trigger_message_id(self, monkeypatch):
+        """The summoned persona reacts to the message that triggered the turn —
+        the id must survive the fire_invite hop onto the wire."""
+        mock = AsyncMock(return_value=True)
+        monkeypatch.setattr("demux_ai.summon.summon_persona", mock)
+        await fire_invite(
+            "ven",
+            channel_id="1",
+            guild_id=None,
+            channel_name=None,
+            trigger_message_id="1526655478313127987",
+        )
+        assert mock.call_args.kwargs["trigger_message_id"] == "1526655478313127987"
+
+    @pytest.mark.asyncio
     async def test_failure_is_swallowed_not_raised(self, monkeypatch):
         """RESISTANCE: a dead gateway must never blow up the delivered turn."""
         mock = AsyncMock(side_effect=RuntimeError("gateway down"))
-        monkeypatch.setattr("personas.insult.core.alice_tool.execute_invoke_alice", mock)
+        monkeypatch.setattr("demux_ai.summon.summon_persona", mock)
         ok = await fire_invite("ven", channel_id="1", guild_id=None, channel_name=None)
         assert ok is False
 

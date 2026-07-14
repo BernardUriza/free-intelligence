@@ -162,7 +162,7 @@ def test_every_counted_event_has_a_live_emitter():
     root = Path(metrics.__file__).resolve().parents[3]  # …/personas/insult/core/metrics.py → repo root
     sources = [
         (path, path.read_text(encoding="utf-8", errors="ignore"))
-        for pkg in ("personas", "shared", "khimeras_shared")
+        for pkg in ("personas", "shared", "khimeras_shared", "demux_ai", "persona_gateway")
         for path in (root / pkg).rglob("*.py")
         if path.name != "metrics.py"
     ]

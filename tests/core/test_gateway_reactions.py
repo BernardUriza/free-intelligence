@@ -107,3 +107,66 @@ async def test_invite_path_never_leaks_marker_without_trigger_message():
     sent = " ".join(str(c) for c in channel.send.call_args_list)
     assert "Llego al hilo." in sent
     assert "REACT" not in sent
+
+
+def _invite_channel():
+    """A Messageable channel for the respond_to_invite path (spec'd so the
+    isinstance(channel, discord.abc.Messageable) gate passes)."""
+    channel = MagicMock(spec=discord.TextChannel)
+    channel.send = AsyncMock()
+    channel.typing = MagicMock(return_value=_Typing())
+    channel.fetch_message = AsyncMock()
+    return channel
+
+
+async def test_invite_with_trigger_message_id_reacts_to_that_message():
+    """The 2026-07-14 bug: a routed Vultur turn emitted [REACT:] and the
+    reactions died because the invite carried no target. With the trigger id
+    on the wire, the persona reacts to the summoning message."""
+    client = _client("Buena elección, Brian Gilbert nivel.[REACT:🦅,🎬]")
+    client.memory.get_recent = AsyncMock(return_value=[])
+    channel = _invite_channel()
+    trigger = MagicMock()
+    channel.fetch_message.return_value = trigger
+    with (
+        patch.object(client, "get_channel", return_value=channel),
+        patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add,
+    ):
+        await client.respond_to_invite(
+            channel_id="1489180895264116736",
+            guild_id="G1",
+            channel_name="general",
+            reason="bernard2389: «que opina Vultur?»",
+            invited_by="host_router",
+            trigger_message_id="1526655478313127987",
+        )
+        await asyncio.sleep(0)
+    channel.fetch_message.assert_awaited_once_with(1526655478313127987)
+    mock_add.assert_awaited_once_with(trigger, ["🦅", "🎬"])
+    sent = " ".join(str(c) for c in channel.send.call_args_list)
+    assert "REACT" not in sent
+
+
+async def test_invite_trigger_fetch_failure_degrades_to_text_only():
+    """RESISTANCE: a deleted/unfetchable trigger message must not kill the
+    turn — the reply still sends, the marker still never leaks."""
+    client = _client("Llego igual.[REACT:🦅]")
+    client.memory.get_recent = AsyncMock(return_value=[])
+    channel = _invite_channel()
+    channel.fetch_message.side_effect = discord.NotFound(MagicMock(status=404), "gone")
+    with (
+        patch.object(client, "get_channel", return_value=channel),
+        patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add,
+    ):
+        await client.respond_to_invite(
+            channel_id="1489180895264116736",
+            guild_id="G1",
+            channel_name="general",
+            reason="ven",
+            trigger_message_id="42",
+        )
+        await asyncio.sleep(0)
+    mock_add.assert_not_awaited()
+    sent = " ".join(str(c) for c in channel.send.call_args_list)
+    assert "Llego igual." in sent
+    assert "REACT" not in sent

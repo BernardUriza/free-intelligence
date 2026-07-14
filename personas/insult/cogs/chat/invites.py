@@ -7,7 +7,7 @@ This module:
 - `parse_invite(text)`: extract the invite reason (one invite per turn)
 - `strip_invites(text)`: remove the markers before sending to Discord
 - `fire_invite(reason, ...)`: POST the persona gateway's `/invite` via
-  `execute_invoke_alice`, best-effort in the background
+  `demux_ai.summon.summon_persona`, best-effort in the background
 
 Why a marker and not a structured tool call: every Insult turn runs on the
 persona-runner (a Claude Code agent whose tool universe is its own), and
@@ -70,21 +70,25 @@ async def fire_invite(
     channel_name: str | None,
     persona_id: str | None = None,
     invited_by: str | None = None,
+    trigger_message_id: str | None = None,
 ) -> bool:
     """POST the gateway `/invite` for this channel. Best-effort: failures are
     logged, never raised — the user-visible turn already delivered. ``persona_id``
     picks the summoned sibling (gateway default: alice, the legacy wire contract);
-    ``invited_by`` labels the summon source for gateway telemetry."""
-    from personas.insult.core.alice_tool import execute_invoke_alice
+    ``invited_by`` labels the summon source for gateway telemetry;
+    ``trigger_message_id`` is the Discord message the summoned persona may react
+    to (without it the gateway drops any [REACT:] the persona emits)."""
+    from demux_ai.summon import summon_persona
 
     try:
-        ok = await execute_invoke_alice(
+        ok = await summon_persona(
             {"reason": reason},
             channel_id=channel_id,
             guild_id=guild_id,
             channel_name=channel_name,
             persona_id=persona_id,
             invited_by=invited_by,
+            trigger_message_id=trigger_message_id,
         )
     except Exception:
         log.exception("invite_marker_fire_failed", channel_id=channel_id, reason_preview=reason[:80])

@@ -31,6 +31,7 @@ from personas.insult.composition import build_llm_router_cutover_route, build_ro
 
 def _make_ctx(text: str = "eres un buitre no-cis entonces", persona_id: str | None = None) -> TurnCtx:
     msg = MagicMock()
+    msg.id = 1526655478313127987
     msg.channel.id = 111
     msg.author.id = 222
     msg.author.display_name = "tester"
@@ -68,6 +69,7 @@ async def test_sibling_decision_summons_and_stops(monkeypatch):
     kwargs = fire.call_args.kwargs
     assert kwargs["persona_id"] == "vultur"
     assert kwargs["invited_by"] == "host_router"
+    assert kwargs["trigger_message_id"] == "1526655478313127987"
     assert "tester" in fire.call_args.args[0]
     assert "buitre no-cis" in fire.call_args.args[0]
 

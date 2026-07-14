@@ -1,25 +1,28 @@
-"""Insult → ALICE bridge — the `/invite` HTTP handler.
+"""Host-side sibling summon — the persona-gateway `/invite` client.
 
-`execute_invoke_alice` fires an HTTP POST to ALICE's `/invite` endpoint in
-the background. ALICE replies asynchronously into the same channel — Insult
-doesn't wait, doesn't block, doesn't get her answer back. Both bots see
-each other's outputs via the shared `messages` table on subsequent turns.
+`summon_persona` fires an HTTP POST to the persona gateway's `/invite`
+endpoint in the background. The summoned persona replies asynchronously into
+the same channel — the caller doesn't wait, doesn't block, doesn't get the
+answer back. All personas see each other's outputs via the shared `messages`
+table on subsequent turns.
 
-Two callers, both marker/policy driven (there is no Anthropic tool-use
-definition anymore — the agent runner returns no tool_calls, so the old
-``INVOKE_ALICE_TOOL`` schema was dead and got deleted):
+This is HOST functionality (summoning a persona is routing, not persona
+behavior), which is why it lives in `demux_ai` and not inside any persona
+package. Moved out of `personas/insult/core/alice_tool.py` (2026-07-14): the
+client was never ALICE-specific — it summons ANY gateway persona via
+`persona_id` — and the plumbing pipeline is host code that got stranded in the
+Insult package during the demux.
 
-- the `[INVITE: reason]` marker path (``cogs/chat/invites.py``) — the
-  canonical way Insult summons ALICE;
-- the runner-down failover in ``_stage_call_llm`` — ALICE takes the turn
-  when Insult's brain is unreachable.
+Callers, all marker/policy driven (there is no Anthropic tool-use definition —
+the agent runner returns no tool_calls):
 
-Design note: this is the inverse of LiteLLM-style multi-LLM routing.
-We're NOT picking between Anthropic and OpenAI for the SAME turn. We're
-letting two specialized bots co-inhabit the conversation, each
-generating their own turn when summoned. The /histerical-search of
-2026-05-13 found this is the pattern that production AI tools converged
-on (Cursor + Claude Code + Codex composed, not unified).
+- the `[INVITE: reason]` marker path (``personas/insult/cogs/chat/invites.py``);
+- the LLM router cutover stage (implicit turns routed to a sibling);
+- the runner-down failover in ``_stage_call_llm``.
+
+Env contract (names are legacy wire config, renaming them is an Azure ops
+change tracked separately): ``ALICE_INVITE_URL`` points at the gateway's
+`/invite`; ``INSULT_TO_ALICE_TOKEN`` is the shared bearer token.
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ import structlog
 log = structlog.get_logger()
 
 
-async def execute_invoke_alice(
+async def summon_persona(
     tool_input: dict,
     *,
     channel_id: str,
@@ -40,13 +43,14 @@ async def execute_invoke_alice(
     channel_name: str | None = None,
     persona_id: str | None = None,
     invited_by: str | None = None,
+    trigger_message_id: str | None = None,
 ) -> bool:
-    """Fire-and-forget POST to ALICE's /invite endpoint.
+    """Fire-and-forget POST to the gateway's /invite endpoint.
 
     Returns True if the request was accepted (202), False otherwise.
-    Errors are logged but don't propagate to the caller — ALICE failing
-    to wake up is not a reason to fail Insult's turn. The user already
-    got Insult's response; ALICE arriving late is acceptable, ALICE not
+    Errors are logged but don't propagate to the caller — a sibling failing
+    to wake up is not a reason to fail the current turn. The user already
+    got a response; the sibling arriving late is acceptable, the sibling not
     arriving at all is also acceptable (just suboptimal).
     """
     url = os.environ.get("ALICE_INVITE_URL", "http://localhost:8788/invite")
@@ -82,6 +86,8 @@ async def execute_invoke_alice(
         payload["persona_id"] = persona_id
     if invited_by:
         payload["invited_by"] = invited_by
+    if trigger_message_id:
+        payload["trigger_message_id"] = trigger_message_id
 
     try:
         # follow_redirects=True because Azure Container Apps internal ingress

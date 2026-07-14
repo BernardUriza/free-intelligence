@@ -447,6 +447,7 @@ async def _stage_llm_router_cutover(ctx: TurnCtx) -> None:
         channel_name=ctx.channel_name,
         persona_id=decision.target,
         invited_by="host_router",
+        trigger_message_id=str(ctx.message.id),
     )
     if not accepted:
         log.warning(
@@ -835,7 +836,7 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
 
         if decision.attempt_alice:
             try:
-                from personas.insult.core.alice_tool import execute_invoke_alice
+                from demux_ai.summon import summon_persona
 
                 guild_id = str(ctx.guild_id) if ctx.guild_id else None
                 fallover_reason = (
@@ -856,11 +857,12 @@ async def _stage_call_llm(ctx: TurnCtx) -> None:
                         "muestra; sé honesta: dilo y responde solo a lo que sí tienes "
                         "en texto."
                     )
-                ok = await execute_invoke_alice(
+                ok = await summon_persona(
                     {"reason": fallover_reason},
                     channel_id=ctx.channel_id,
                     guild_id=guild_id,
                     channel_name=ctx.channel_name,
+                    trigger_message_id=str(ctx.message.id),
                 )
                 if ok:
                     # Real ALICE (her own container) accepted the turn (202) —
@@ -1067,6 +1069,7 @@ async def _stage_post_llm_mutations(ctx: TurnCtx) -> None:
                 channel_id=ctx.channel_id,
                 guild_id=str(ctx.guild_id) if ctx.guild_id else None,
                 channel_name=ctx.channel_name,
+                trigger_message_id=str(ctx.message.id),
             ),
             name=f"invite_marker:{ctx.channel_id}",
         )

@@ -550,6 +550,7 @@ class PersonaClient(discord.Client):
         channel_name: str | None,
         reason: str,
         invited_by: str = "insult_rest",
+        trigger_message_id: str | None = None,
     ) -> None:
         """Entry point for the gateway's ported /invite handler.
 
@@ -591,6 +592,22 @@ class PersonaClient(discord.Client):
             invited_by=invited_by,
             reason_preview=reason[:100],
         )
+        # The summoner's wire carries the Discord message that triggered this
+        # turn so the persona's [REACT:] markers land on it. Without a resolved
+        # target, _run_and_deliver strips the markers and the reactions die
+        # (the 2026-07-14 "Vultur no dejó reacciones" bug). Best-effort: an
+        # unfetchable message (deleted, no perms) degrades to text-only.
+        react_to: discord.Message | None = None
+        if trigger_message_id:
+            try:
+                react_to = await channel.fetch_message(int(trigger_message_id))
+            except (discord.HTTPException, ValueError):
+                log.warning(
+                    "persona_gateway_invite_trigger_fetch_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    trigger_message_id=trigger_message_id,
+                )
         await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
@@ -599,6 +616,7 @@ class PersonaClient(discord.Client):
             channel_name=channel_name,
             messages=messages,
             turn_kind="invite",
+            react_to=react_to,
         )
 
     async def _run_and_deliver(
@@ -659,6 +677,13 @@ class PersonaClient(discord.Client):
                 task.add_done_callback(self._bg_tasks.discard)
                 log.info(
                     "persona_gateway_reactions_fired",
+                    persona_id=self.persona.persona_id,
+                    emojis=reactions,
+                    turn_kind=turn_kind,
+                )
+            else:
+                log.warning(
+                    "persona_gateway_reactions_dropped_no_target",
                     persona_id=self.persona.persona_id,
                     emojis=reactions,
                     turn_kind=turn_kind,

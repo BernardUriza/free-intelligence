@@ -39,4 +39,4 @@ def test_alice_package_imports_cleanly():
 
 def test_insult_to_alice_bridge_imports_cleanly():
     """Insult's side of the bridge loads."""
-    from personas.insult.core.alice_tool import execute_invoke_alice  # noqa: F401
+    from demux_ai.summon import summon_persona  # noqa: F401

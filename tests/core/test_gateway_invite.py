@@ -42,6 +42,20 @@ def test_invite_happy_path_schedules_with_args():
     assert kwargs["channel_id"] == PAYLOAD["channel_id"]
     assert kwargs["reason"] == PAYLOAD["reason"]
     assert kwargs["invited_by"] == "insult_rest"
+    assert kwargs["trigger_message_id"] is None
+
+
+def test_invite_forwards_trigger_message_id():
+    """The wire carries the summoning message id so the persona's [REACT:]
+    markers land on it instead of being dropped (2026-07-14 Vultur bug)."""
+    client = _ready_client()
+    app = build_invite_app({INVITE_PERSONA_ID: client}, TOKEN)
+    payload = {**PAYLOAD, "trigger_message_id": "1526655478313127987"}
+    with TestClient(app) as http:
+        r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 202
+    kwargs = client.respond_to_invite.call_args.kwargs
+    assert kwargs["trigger_message_id"] == "1526655478313127987"
 
 
 def test_invite_missing_token_is_401():
