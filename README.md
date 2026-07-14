@@ -44,6 +44,35 @@ each one came back `active`. Runbooks: [`infra/`](infra/README.md)
 (provisioning + the $20/mo budget law) and [`deploy/`](deploy/README.md)
 (the CI/CD contract).
 
+## Two doors to the same brain
+
+The droplet answers to **two** kinds of caller, and they are not the same door:
+
+| | **The SSH door** | **The AIRE door** |
+|---|---|---|
+| How | `ssh -t` + `tmux` + the `claude` CLI | `POST /projects/{p}/sessions/{s}/messages` (SSE) |
+| Who | a human, in a terminal | your apps |
+| Surface | the Claude Code TUI, live, remote | events; the front renders them |
+| Memory | the droplet's disk (`~/.claude`) — **mortal** | Postgres, in the owner's database — **deathless** |
+| Casita | `workspaces/<name>/` | `workspaces/<project>/` (same idea, engine-owned) |
+
+**The SSH door** is the "my Mac, but in the cloud" experience: the real Claude
+Code interface running in NYC, painted to your terminal. Long tasks must run
+under **tmux** or they die with your laptop's SSH (the ritual and the `Ctrl-b`
+collision are in the playbook's `long-running-remote-agent-tmux` rule):
+
+```bash
+ssh -t -i ~/.ssh/aire_vm root@<IP> \
+  "tmux new -A -s libro 'cd /opt/aire/workspaces/libro && set -a; . /etc/aire/env; set +a; exec /root/.local/bin/claude'"
+# Ctrl-q detaches (it keeps working); the same command re-attaches.
+```
+
+**Honest caveat — the SSH door is NOT deathless.** Its transcript lives on the
+droplet's disk, so killing the box loses that conversation (the artifacts on
+`workspaces/` too — fetch them by hand, EC-GPS style). Only sessions that come
+in through the AIRE door mirror their memory to Postgres. Wiring the SSH door
+into the same store is backlog #17.
+
 ## Where the shape comes from
 
 EC-GPS: a GPS-tracking machine that has printed money for two decades with a
