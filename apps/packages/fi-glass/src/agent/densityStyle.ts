@@ -40,6 +40,19 @@ const CSS = `
   --fi-radius-section: 12px;
   --fi-touch-target: 44px;
 }
+/* CONV-MOBILE-RECLAIM-1 — the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media (max-width: 768px) {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
 .fi-density-comfortable {
   --fi-section-gap: 0.5rem;
   --fi-sidebar-gap: 0.5rem;

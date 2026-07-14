@@ -26,7 +26,10 @@ export interface SurfaceLayout {
 
 export function useSurfaceLayout(layout: AgentConversationSurfaceLayout): SurfaceLayout {
   const isMobileViewport = useMediaQuery('(max-width: 768px)');
-  const contentInset = isMobileViewport ? 'calc(100% - 16px)' : 'calc(100% - 60px)';
+  // CONV-MOBILE-RECLAIM-1: on phones the regions already own a 12px gutter via
+  // --fi-transcript-pad / --fi-composer-bar-px, so an extra inset here would
+  // double-charge the viewport. Full width below the breakpoint.
+  const contentInset = isMobileViewport ? '100%' : 'calc(100% - 60px)';
   const rootStyle: CSSProperties =
     layout === 'contained'
       ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }

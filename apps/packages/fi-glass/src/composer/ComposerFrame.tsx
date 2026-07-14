@@ -36,7 +36,9 @@
  */
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
+import { withTouchTarget } from '../shell/touchTarget';
 
 const COMPOSER_FRAME_STYLE_ID = 'fi-composer-frame-style';
 
@@ -62,6 +64,64 @@ const CSS = `
  * ghost row of margin above the box. Collapse it when it renders empty. */
 .fi-surface-above-composer:empty {
   display: none;
+}
+/* CONV-MOBILE-RECLAIM-1 — compact composer on narrow containers.
+ *
+ * Wide (desktop) is byte-identical: the rail toggle stays display:none and the
+ * body/footer keep their stacked anatomy. At <=420px container width the frame
+ * becomes ONE wrapping flex row — [toggle] [textarea] [mic] [send] — and the
+ * footer-start rail (persona chip, call, attach) collapses behind the toggle,
+ * expanding as its own full-width row under the input. Send stays the single
+ * always-visible primary action; the textarea still grows to maxRows. */
+.fi-composer-rail-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+}
+.fi-composer-rail-toggle[aria-expanded="true"] {
+  color: var(--glass-chat-accent-text, #6ee7b7);
+  background: rgba(255, 255, 255, 0.06);
+}
+@container fi-composer (max-width: 420px) {
+  [data-fi-composer-frame] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.375rem;
+  }
+  [data-fi-composer-slot="header"] {
+    flex: 1 1 100%;
+    order: -2;
+    margin-bottom: 0;
+  }
+  [data-fi-composer-slot="footer"] {
+    display: contents;
+  }
+  /* The body (whatever wrapper the consumer's Composer renders) becomes the
+     row's flexing member so the textarea shares the line with toggle/mic/send. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .fi-composer-rail-toggle {
+    display: inline-flex;
+    order: -1;
+  }
+  [data-fi-composer-slot="footer-start"] {
+    flex: 1 1 100%;
+    order: 5;
+    flex-wrap: wrap;
+    margin-right: 0;
+  }
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
+    display: none;
+  }
 }
 `;
 
@@ -101,6 +161,9 @@ export interface ComposerFrameProps {
   footerClassName?: string;
   footerStyle?: CSSProperties;
   footerStartClassName?: string;
+  /** Accessible label for the compact-mode rail disclosure toggle
+   * (CONV-MOBILE-RECLAIM-1). Only rendered when `footerStart` is filled. */
+  railToggleLabel?: string;
 }
 
 const filled = (slot: ReactNode) => slot != null && slot !== false;
@@ -116,26 +179,54 @@ export function ComposerFrame({
   footerClassName,
   footerStyle,
   footerStartClassName,
+  railToggleLabel = 'Más opciones',
 }: ComposerFrameProps) {
   useComposerFrameStyle();
+  // Compact-mode rail disclosure (CONV-MOBILE-RECLAIM-1). Collapsed on every
+  // mount (no persistence — Ockham); the toggle itself only becomes visible
+  // when the fi-composer container is narrow, so desktop never sees it.
+  const [railOpen, setRailOpen] = useState(false);
+  const railId = useId();
+  const hasRail = filled(footerStart);
   return (
-    <div className={className} style={style} data-fi-composer-frame="">
+    <div
+      className={className}
+      style={style}
+      data-fi-composer-frame=""
+      data-fi-rail={hasRail ? (railOpen ? 'open' : 'closed') : undefined}
+    >
       {filled(header) && (
         <div className={headerClassName} data-fi-composer-slot="header">
           {header}
         </div>
       )}
       {children}
-      {(filled(footer) || filled(footerStart)) && (
+      {(filled(footer) || hasRail) && (
         <div
           className={footerClassName}
           style={footerStyle}
           data-fi-composer-slot="footer"
         >
-          {filled(footerStart) && (
-            <div className={footerStartClassName} data-fi-composer-slot="footer-start">
-              {footerStart}
-            </div>
+          {hasRail && (
+            <>
+              <button
+                type="button"
+                className={withTouchTarget('fi-composer-rail-toggle')}
+                aria-label={railToggleLabel}
+                aria-expanded={railOpen}
+                aria-controls={railId}
+                onClick={() => setRailOpen((v) => !v)}
+              >
+                <SlidersHorizontal size={18} aria-hidden />
+              </button>
+              <div
+                id={railId}
+                className={footerStartClassName}
+                data-fi-composer-slot="footer-start"
+              >
+                {footerStart}
+              </div>
+            </>
           )}
           {footer}
         </div>

@@ -18,8 +18,9 @@
  *   actions  → hover toolbar (copy, TTS…)     (omit to hide)
  */
 
-import { memo, type ReactNode } from 'react';
+import { memo, useState, type MouseEvent, type ReactNode } from 'react';
 import { messageStyles } from './styles';
+import { FI_MSG_ACTIONS_CLASS, useMessageActionsStyle } from './messageActionsStyle';
 
 export interface MessageBubbleProps {
   /** Drives alignment/background (user vs assistant). */
@@ -34,6 +35,9 @@ export interface MessageBubbleProps {
   badge?: ReactNode;
   /** Hover action toolbar (e.g. copy, speak). */
   actions?: ReactNode;
+  /** Marks the thread's last message: on touch its actions stay visible without
+   * a tap (CONV-MOBILE-RECLAIM-1). */
+  isLatest?: boolean;
   /** Extra classes appended to the article. */
   className?: string;
   /** Accessible label for the article. */
@@ -47,11 +51,22 @@ export const MessageBubble = memo(function MessageBubble({
   reasoning,
   badge,
   actions,
+  isLatest = false,
   className,
   ariaLabel,
 }: MessageBubbleProps) {
+  useMessageActionsStyle();
   const { message: styles } = messageStyles;
   const isUser = role === 'user';
+  // Touch reveal: tapping the row toggles its actions (messageActionsStyle
+  // collapses them on coarse pointers). Interactive descendants keep their own
+  // clicks — a link/button tap must never double as a toggle.
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const onBubbleClick = (e: MouseEvent<HTMLElement>) => {
+    if (!actions) return;
+    if ((e.target as HTMLElement).closest('a, button, input, textarea, [role="button"]')) return;
+    setActionsOpen((v) => !v);
+  };
 
   return (
     <article
@@ -62,8 +77,11 @@ export const MessageBubble = memo(function MessageBubble({
       className={`fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ''}`}
       role="article"
       aria-label={ariaLabel}
+      data-fi-last-message={isLatest || undefined}
+      data-fi-actions-open={actionsOpen || undefined}
+      onClick={onBubbleClick}
     >
-      {header && <div className="flex items-center gap-2 mb-1">{header}</div>}
+      {header && <div className="flex items-center gap-1.5 mb-0.5">{header}</div>}
 
       {reasoning && <div className="mt-3 mb-3">{reasoning}</div>}
 
@@ -71,7 +89,9 @@ export const MessageBubble = memo(function MessageBubble({
 
       {badge && <div className="mt-2">{badge}</div>}
 
-      {actions}
+      {actions != null && actions !== false && (
+        <div className={FI_MSG_ACTIONS_CLASS}>{actions}</div>
+      )}
     </article>
   );
 });

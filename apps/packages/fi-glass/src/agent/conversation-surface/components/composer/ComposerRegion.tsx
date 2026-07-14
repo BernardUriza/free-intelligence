@@ -192,9 +192,10 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
         // phone's home indicator overlaps once the app runs full-bleed
         // (`viewport-fit=cover` / an installed standalone PWA). env() resolves
         // to 0px everywhere else, so the desktop padding is unchanged.
-        padding: '0.75rem 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px))',
-        paddingLeft: 'calc(1rem + env(safe-area-inset-left, 0px))',
-        paddingRight: 'calc(1rem + env(safe-area-inset-right, 0px))',
+        paddingTop: 'var(--fi-composer-bar-pt, 0.75rem)',
+        paddingBottom: 'calc(var(--fi-composer-bar-pb, 1.25rem) + env(safe-area-inset-bottom, 0px))',
+        paddingLeft: 'calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-left, 0px))',
+        paddingRight: 'calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-right, 0px))',
         borderTop: '1px solid rgba(255,255,255,0.06)',
       }}
     >

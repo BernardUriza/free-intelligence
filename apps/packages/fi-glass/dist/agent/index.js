@@ -589,7 +589,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect19, useState as useState18 } from "react";
+import { useEffect as useEffect20, useState as useState20 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -1566,7 +1566,7 @@ function useMediaQuery(query, options) {
 // src/agent/conversation-surface/hooks/useSurfaceLayout.ts
 function useSurfaceLayout(layout) {
   const isMobileViewport = useMediaQuery("(max-width: 768px)");
-  const contentInset = isMobileViewport ? "calc(100% - 16px)" : "calc(100% - 60px)";
+  const contentInset = isMobileViewport ? "100%" : "calc(100% - 60px)";
   const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
   return { rootStyle, contentInset };
 }
@@ -1627,9 +1627,11 @@ var messageStyles = {
     base: "space-y-0.5",
     padding: "px-4"
   },
-  // Message row
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // ~10px/14px padding so content dominates the viewport; desktop keeps the
+  // original 12px/16px.
   message: {
-    base: "group relative py-3 px-4 -mx-4 transition-colors duration-150",
+    base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150",
     user: "bg-transparent hover:bg-white/[0.02]",
     assistant: "bg-white/[0.02] hover:bg-white/[0.04]",
     borderRadius: "rounded-lg"
@@ -1647,13 +1649,15 @@ var messageStyles = {
     name: "text-[13px] font-medium text-slate-300",
     time: "text-[11px] text-slate-500 tabular-nums"
   },
-  // Content
+  // Content. CONV-MOBILE-RECLAIM-1: phones read at 16px/1.5 (WCAG-comfortable)
+  // and drop the 2rem avatar indent — the header row already attributes the
+  // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: "text-[14px] leading-relaxed",
+    base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]",
     user: "text-slate-200",
     assistant: "text-slate-100",
-    indent: "pl-8"
-    // Align with avatar
+    indent: "pl-8 max-md:pl-0"
+    // Align with avatar (desktop only)
   },
   // Actions toolbar
   actions: {
@@ -1901,7 +1905,51 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3 } from "react";
+import { memo as memo3, useState as useState16 } from "react";
+
+// src/messages/messageActionsStyle.ts
+import { useEffect as useEffect16 } from "react";
+var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+var MESSAGE_ACTIONS_STYLE_ID = "fi-msg-actions-style";
+var CSS = `
+.${FI_MSG_ACTIONS_CLASS} {
+  margin-top: 0.25rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    opacity: 1;
+  }
+}
+@media (pointer: coarse) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    display: none;
+  }
+  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
+    display: block;
+  }
+}
+`;
+function ensureMessageActionsStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(MESSAGE_ACTIONS_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = MESSAGE_ACTIONS_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useMessageActionsStyle() {
+  useEffect16(() => {
+    ensureMessageActionsStyle();
+  }, []);
+}
+
+// src/messages/MessageBubble.tsx
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
@@ -1910,23 +1958,34 @@ var MessageBubble = memo3(function MessageBubble2({
   reasoning,
   badge,
   actions,
+  isLatest = false,
   className,
   ariaLabel
 }) {
+  useMessageActionsStyle();
   const { message: styles } = messageStyles;
   const isUser = role === "user";
+  const [actionsOpen, setActionsOpen] = useState16(false);
+  const onBubbleClick = (e) => {
+    if (!actions) return;
+    if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
+    setActionsOpen((v) => !v);
+  };
   return /* @__PURE__ */ jsxs16(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
+      "data-fi-last-message": isLatest || void 0,
+      "data-fi-actions-open": actionsOpen || void 0,
+      onClick: onBubbleClick,
       children: [
-        header && /* @__PURE__ */ jsx22("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        header && /* @__PURE__ */ jsx22("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
         reasoning && /* @__PURE__ */ jsx22("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
         badge && /* @__PURE__ */ jsx22("div", { className: "mt-2", children: badge }),
-        actions
+        actions != null && actions !== false && /* @__PURE__ */ jsx22("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
       ]
     }
   );
@@ -2125,7 +2184,7 @@ function TranscriptMessages({
   showLessLabel,
   collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+  return /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
       return /* @__PURE__ */ jsxs20(Fragment4, { children: [
@@ -2137,6 +2196,7 @@ function TranscriptMessages({
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
             actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx27(CopyButton, { content: m.content }) : void 0),
+            isLatest: i === messages.length - 1,
             className: resolveBubbleClass(m),
             children: [
               /* @__PURE__ */ jsx27(MessageImages, { images: m.images }),
@@ -2157,7 +2217,7 @@ function TranscriptMessages({
         )
       ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "1rem" }, children: [
+    isStreaming && /* @__PURE__ */ jsxs20("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
       /* @__PURE__ */ jsx27("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx27(AgentPanel, { turn, ...agentPanelProps }) }),
       turn.text && /* @__PURE__ */ jsx27(
         MessageBubble,
@@ -2298,7 +2358,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
         "div",
         {
           ref: autoScroll ? stick.scrollRef : void 0,
-          style: { flex: 1, overflowY: "auto", padding: "1.25rem 1rem" },
+          style: { flex: 1, overflowY: "auto", padding: "var(--fi-transcript-pad, 1.25rem 1rem)" },
           children: /* @__PURE__ */ jsxs22(
             "div",
             {
@@ -2373,11 +2433,11 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef as forwardRef2,
-  useEffect as useEffect16,
+  useEffect as useEffect17,
   useId as useId2,
   useImperativeHandle,
   useRef as useRef12,
-  useState as useState16
+  useState as useState17
 } from "react";
 import { jsx as jsx30, jsxs as jsxs23 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
@@ -2395,11 +2455,11 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
 }, ref) {
   const textareaRef = useRef12(null);
   useImperativeHandle(ref, () => textareaRef.current);
-  const [rows, setRows] = useState16(1);
+  const [rows, setRows] = useState17(1);
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect16(() => {
+  useEffect17(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -2407,10 +2467,7 @@ var AutoResizeTextarea = forwardRef2(function AutoResizeTextarea2({
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
     const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
-    );
+    const newRows = value === "" ? 1 : Math.max(1, Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows));
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
@@ -2493,10 +2550,11 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect17 } from "react";
-import { jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+import { useEffect as useEffect18, useId as useId3, useState as useState18 } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { Fragment as Fragment5, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS = `
+var CSS2 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -2519,17 +2577,75 @@ var CSS = `
 .fi-surface-above-composer:empty {
   display: none;
 }
+/* CONV-MOBILE-RECLAIM-1 \u2014 compact composer on narrow containers.
+ *
+ * Wide (desktop) is byte-identical: the rail toggle stays display:none and the
+ * body/footer keep their stacked anatomy. At <=420px container width the frame
+ * becomes ONE wrapping flex row \u2014 [toggle] [textarea] [mic] [send] \u2014 and the
+ * footer-start rail (persona chip, call, attach) collapses behind the toggle,
+ * expanding as its own full-width row under the input. Send stays the single
+ * always-visible primary action; the textarea still grows to maxRows. */
+.fi-composer-rail-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+}
+.fi-composer-rail-toggle[aria-expanded="true"] {
+  color: var(--glass-chat-accent-text, #6ee7b7);
+  background: rgba(255, 255, 255, 0.06);
+}
+@container fi-composer (max-width: 420px) {
+  [data-fi-composer-frame] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.375rem;
+  }
+  [data-fi-composer-slot="header"] {
+    flex: 1 1 100%;
+    order: -2;
+    margin-bottom: 0;
+  }
+  [data-fi-composer-slot="footer"] {
+    display: contents;
+  }
+  /* The body (whatever wrapper the consumer's Composer renders) becomes the
+     row's flexing member so the textarea shares the line with toggle/mic/send. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .fi-composer-rail-toggle {
+    display: inline-flex;
+    order: -1;
+  }
+  [data-fi-composer-slot="footer-start"] {
+    flex: 1 1 100%;
+    order: 5;
+    flex-wrap: wrap;
+    margin-right: 0;
+  }
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
+    display: none;
+  }
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect17(() => {
+  useEffect18(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -2544,25 +2660,60 @@ function ComposerFrame({
   headerClassName,
   footerClassName,
   footerStyle,
-  footerStartClassName
+  footerStartClassName,
+  railToggleLabel = "M\xE1s opciones"
 }) {
   useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs24("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx32("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
-    children,
-    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs24(
-      "div",
-      {
-        className: footerClassName,
-        style: footerStyle,
-        "data-fi-composer-slot": "footer",
-        children: [
-          filled(footerStart) && /* @__PURE__ */ jsx32("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
-          footer
-        ]
-      }
-    )
-  ] });
+  const [railOpen, setRailOpen] = useState18(false);
+  const railId = useId3();
+  const hasRail = filled(footerStart);
+  return /* @__PURE__ */ jsxs24(
+    "div",
+    {
+      className,
+      style,
+      "data-fi-composer-frame": "",
+      "data-fi-rail": hasRail ? railOpen ? "open" : "closed" : void 0,
+      children: [
+        filled(header) && /* @__PURE__ */ jsx32("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+        children,
+        (filled(footer) || hasRail) && /* @__PURE__ */ jsxs24(
+          "div",
+          {
+            className: footerClassName,
+            style: footerStyle,
+            "data-fi-composer-slot": "footer",
+            children: [
+              hasRail && /* @__PURE__ */ jsxs24(Fragment5, { children: [
+                /* @__PURE__ */ jsx32(
+                  "button",
+                  {
+                    type: "button",
+                    className: withTouchTarget("fi-composer-rail-toggle"),
+                    "aria-label": railToggleLabel,
+                    "aria-expanded": railOpen,
+                    "aria-controls": railId,
+                    onClick: () => setRailOpen((v) => !v),
+                    children: /* @__PURE__ */ jsx32(SlidersHorizontal, { size: 18, "aria-hidden": true })
+                  }
+                ),
+                /* @__PURE__ */ jsx32(
+                  "div",
+                  {
+                    id: railId,
+                    className: footerStartClassName,
+                    "data-fi-composer-slot": "footer-start",
+                    children: footerStart
+                  }
+                )
+              ] }),
+              footer
+            ]
+          }
+        )
+      ]
+    }
+  );
 }
 
 // src/composer/ComposerImageAttachments.tsx
@@ -2654,9 +2805,9 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment5, useEffect as useEffect18, useRef as useRef14, useState as useState17 } from "react";
+import { Fragment as Fragment6, useEffect as useEffect19, useRef as useRef14, useState as useState19 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment6, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -2669,16 +2820,16 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
-  const [open, setOpen] = useState17(false);
+  const [open, setOpen] = useState19(false);
   const triggerRef = useRef14(null);
-  const [position, setPosition] = useState17({ top: 0, left: 0 });
-  useEffect18(() => {
+  const [position, setPosition] = useState19({ top: 0, left: 0 });
+  useEffect19(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect18(() => {
+  useEffect19(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -2688,7 +2839,7 @@ function ActionMenu({
   }, [open]);
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
-  return /* @__PURE__ */ jsxs26(Fragment6, { children: [
+  return /* @__PURE__ */ jsxs26(Fragment7, { children: [
     /* @__PURE__ */ jsx34(
       "button",
       {
@@ -2707,7 +2858,7 @@ function ActionMenu({
       }
     ),
     open && typeof document !== "undefined" && createPortal(
-      /* @__PURE__ */ jsxs26(Fragment6, { children: [
+      /* @__PURE__ */ jsxs26(Fragment7, { children: [
         /* @__PURE__ */ jsx34(
           "div",
           {
@@ -2781,7 +2932,7 @@ function ActionMenu({
               return action.wrapperClassName ? /* @__PURE__ */ jsxs26("div", { className: action.wrapperClassName, children: [
                 divider,
                 item
-              ] }, action.id) : /* @__PURE__ */ jsxs26(Fragment5, { children: [
+              ] }, action.id) : /* @__PURE__ */ jsxs26(Fragment6, { children: [
                 divider,
                 item
               ] }, action.id);
@@ -2836,7 +2987,7 @@ import { ImagePlus } from "lucide-react";
 
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader212, Square as Square5 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -2856,7 +3007,7 @@ function ComposerControls({
   stopButtonClassName
 }) {
   const stopping = isStreaming && onStop != null;
-  return /* @__PURE__ */ jsxs27(Fragment7, { children: [
+  return /* @__PURE__ */ jsxs27(Fragment8, { children: [
     micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx36(
       AudioVisualizer,
       {
@@ -2936,7 +3087,7 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
-import { Fragment as Fragment8, jsx as jsx38, jsxs as jsxs28 } from "react/jsx-runtime";
+import { Fragment as Fragment9, jsx as jsx38, jsxs as jsxs28 } from "react/jsx-runtime";
 function ComposerRegion({ surface, state, contentInset }) {
   const {
     input,
@@ -3004,7 +3155,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     ] : [],
     ...composerActions ?? []
   ];
-  const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
+  const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs28(Fragment9, { children: [
     images ? imagePicker.input : null,
     /* @__PURE__ */ jsx38(
       ComposerActions,
@@ -3018,11 +3169,11 @@ function ComposerRegion({ surface, state, contentInset }) {
       }
     )
   ] }) : null;
-  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
+  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs28(Fragment9, { children: [
     imageChips,
     composerHeader
   ] }) : void 0;
-  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs28(Fragment8, { children: [
+  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs28(Fragment9, { children: [
     attachButton,
     composerFooterStart
   ] }) : void 0;
@@ -3055,9 +3206,10 @@ function ComposerRegion({ surface, state, contentInset }) {
         // phone's home indicator overlaps once the app runs full-bleed
         // (`viewport-fit=cover` / an installed standalone PWA). env() resolves
         // to 0px everywhere else, so the desktop padding is unchanged.
-        padding: "0.75rem 1rem calc(1.25rem + env(safe-area-inset-bottom, 0px))",
-        paddingLeft: "calc(1rem + env(safe-area-inset-left, 0px))",
-        paddingRight: "calc(1rem + env(safe-area-inset-right, 0px))",
+        paddingTop: "var(--fi-composer-bar-pt, 0.75rem)",
+        paddingBottom: "calc(var(--fi-composer-bar-pb, 1.25rem) + env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-left, 0px))",
+        paddingRight: "calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-right, 0px))",
         borderTop: "1px solid rgba(255,255,255,0.06)"
       },
       children: /* @__PURE__ */ jsxs28("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
@@ -3128,8 +3280,8 @@ function AgentConversationSurface(props) {
     unsentText,
     clearUnsentText
   } = conversation;
-  const [input, setInput] = useState18("");
-  useEffect19(() => {
+  const [input, setInput] = useState20("");
+  useEffect20(() => {
     if (!unsentText) return;
     setInput((current) => current.trim() ? current : unsentText);
     clearUnsentText();
@@ -3200,15 +3352,15 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect21,
-  useState as useState19
+  useEffect as useEffect22,
+  useState as useState21
 } from "react";
 import { Menu } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect20 } from "react";
+import { useEffect as useEffect21 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
-var CSS2 = `
+var CSS3 = `
 .fi-agent-workspace {
   --fi-space-1: 0.25rem;
   --fi-space-2: 0.5rem;
@@ -3217,6 +3369,19 @@ var CSS2 = `
   --fi-space-5: 1.5rem;
   --fi-radius-section: 12px;
   --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media (max-width: 768px) {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
 }
 .fi-density-comfortable {
   --fi-section-gap: 0.5rem;
@@ -3248,11 +3413,11 @@ function ensureDensityStyle() {
   if (document.getElementById(DENSITY_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = DENSITY_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect20(() => {
+  useEffect21(() => {
     ensureDensityStyle();
   }, []);
 }
@@ -3300,16 +3465,16 @@ function AgentWorkspaceShell({
 }) {
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
-  const [isOpen, setIsOpen] = useState19(false);
+  const [isOpen, setIsOpen] = useState21(false);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
   const open = useCallback12(() => setIsOpen(true), []);
   const close = useCallback12(() => setIsOpen(false), []);
   const toggle = useCallback12(() => setIsOpen((v) => !v), []);
-  useEffect21(() => {
+  useEffect22(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect21(() => {
+  useEffect22(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3322,7 +3487,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect21(() => {
+  useEffect22(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const rootStyle = {
@@ -3465,11 +3630,11 @@ function AgentWorkspaceShell({
 import {
   useCallback as useCallback13,
   useRef as useRef15,
-  useState as useState20
+  useState as useState22
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect22 } from "react";
+import { useEffect as useEffect23 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -3479,7 +3644,7 @@ var FI_ITEM_ACTION_CLASS = "fi-item-action";
 var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
 var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
 var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
-var CSS3 = `
+var CSS4 = `
 .${FI_SIDEBAR_ITEM_CLASS} {
   display: flex;
   align-items: flex-start;
@@ -3593,17 +3758,17 @@ function ensureSidebarItemStyle() {
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_ITEM_STYLE_ID;
-  el.textContent = CSS3;
+  el.textContent = CSS4;
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect22(() => {
+  useEffect23(() => {
     ensureSidebarItemStyle();
   }, []);
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment9, jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
+import { Fragment as Fragment10, jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -3637,8 +3802,8 @@ function DestructiveActionSlot(props) {
   return /* @__PURE__ */ jsx41(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
-  const [editing, setEditing] = useState20(false);
-  const [draft, setDraft] = useState20("");
+  const [editing, setEditing] = useState22(false);
+  const [draft, setDraft] = useState22("");
   const cancelledRef = useRef15(false);
   const start = useCallback13(() => {
     cancelledRef.current = false;
@@ -3769,7 +3934,7 @@ function EditableResourceItem({
       title: titleNode,
       subtitle,
       meta,
-      actions: !rename.editing && /* @__PURE__ */ jsxs31(Fragment9, { children: [
+      actions: !rename.editing && /* @__PURE__ */ jsxs31(Fragment10, { children: [
         /* @__PURE__ */ jsx41(
           ItemActionSlot,
           {
@@ -3786,7 +3951,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect23 } from "react";
+import { useEffect as useEffect24 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -3794,7 +3959,7 @@ var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
 var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
 var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
-var CSS4 = `
+var CSS5 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
   display: flex;
   flex-direction: column;
@@ -3841,11 +4006,11 @@ function ensureSidebarSectionStyle() {
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_SECTION_STYLE_ID;
-  el.textContent = CSS4;
+  el.textContent = CSS5;
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect23(() => {
+  useEffect24(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

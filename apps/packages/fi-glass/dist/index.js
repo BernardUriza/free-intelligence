@@ -19,9 +19,11 @@ var messageStyles = {
     base: "space-y-0.5",
     padding: "px-4"
   },
-  // Message row
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // ~10px/14px padding so content dominates the viewport; desktop keeps the
+  // original 12px/16px.
   message: {
-    base: "group relative py-3 px-4 -mx-4 transition-colors duration-150",
+    base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150",
     user: "bg-transparent hover:bg-white/[0.02]",
     assistant: "bg-white/[0.02] hover:bg-white/[0.04]",
     borderRadius: "rounded-lg"
@@ -39,13 +41,15 @@ var messageStyles = {
     name: "text-[13px] font-medium text-slate-300",
     time: "text-[11px] text-slate-500 tabular-nums"
   },
-  // Content
+  // Content. CONV-MOBILE-RECLAIM-1: phones read at 16px/1.5 (WCAG-comfortable)
+  // and drop the 2rem avatar indent — the header row already attributes the
+  // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: "text-[14px] leading-relaxed",
+    base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]",
     user: "text-slate-200",
     assistant: "text-slate-100",
-    indent: "pl-8"
-    // Align with avatar
+    indent: "pl-8 max-md:pl-0"
+    // Align with avatar (desktop only)
   },
   // Actions toolbar
   actions: {
@@ -327,7 +331,51 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3 } from "react";
+import { memo as memo3, useState as useState3 } from "react";
+
+// src/messages/messageActionsStyle.ts
+import { useEffect as useEffect3 } from "react";
+var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+var MESSAGE_ACTIONS_STYLE_ID = "fi-msg-actions-style";
+var CSS = `
+.${FI_MSG_ACTIONS_CLASS} {
+  margin-top: 0.25rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    opacity: 1;
+  }
+}
+@media (pointer: coarse) {
+  .${FI_MSG_ACTIONS_CLASS} {
+    display: none;
+  }
+  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
+    display: block;
+  }
+}
+`;
+function ensureMessageActionsStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(MESSAGE_ACTIONS_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = MESSAGE_ACTIONS_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useMessageActionsStyle() {
+  useEffect3(() => {
+    ensureMessageActionsStyle();
+  }, []);
+}
+
+// src/messages/MessageBubble.tsx
 import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var MessageBubble = memo3(function MessageBubble2({
   role,
@@ -336,23 +384,34 @@ var MessageBubble = memo3(function MessageBubble2({
   reasoning,
   badge,
   actions,
+  isLatest = false,
   className,
   ariaLabel
 }) {
+  useMessageActionsStyle();
   const { message: styles } = messageStyles;
   const isUser = role === "user";
+  const [actionsOpen, setActionsOpen] = useState3(false);
+  const onBubbleClick = (e) => {
+    if (!actions) return;
+    if (e.target.closest('a, button, input, textarea, [role="button"]')) return;
+    setActionsOpen((v) => !v);
+  };
   return /* @__PURE__ */ jsxs3(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
       role: "article",
       "aria-label": ariaLabel,
+      "data-fi-last-message": isLatest || void 0,
+      "data-fi-actions-open": actionsOpen || void 0,
+      onClick: onBubbleClick,
       children: [
-        header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-2 mb-1", children: header }),
+        header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
         reasoning && /* @__PURE__ */ jsx4("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
         badge && /* @__PURE__ */ jsx4("div", { className: "mt-2", children: badge }),
-        actions
+        actions != null && actions !== false && /* @__PURE__ */ jsx4("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
       ]
     }
   );
@@ -533,11 +592,11 @@ function MessageList({
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
-  useEffect as useEffect3,
+  useEffect as useEffect4,
   useId as useId2,
   useImperativeHandle,
   useRef as useRef2,
-  useState as useState3
+  useState as useState4
 } from "react";
 import { jsx as jsx9, jsxs as jsxs7 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
@@ -555,11 +614,11 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
 }, ref) {
   const textareaRef = useRef2(null);
   useImperativeHandle(ref, () => textareaRef.current);
-  const [rows, setRows] = useState3(1);
+  const [rows, setRows] = useState4(1);
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect3(() => {
+  useEffect4(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -567,10 +626,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     const computed = window.getComputedStyle(textarea);
     const parsed = parseFloat(computed.lineHeight);
     const lineHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 20;
-    const newRows = Math.max(
-      1,
-      Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows)
-    );
+    const newRows = value === "" ? 1 : Math.max(1, Math.min(Math.ceil(textarea.scrollHeight / lineHeight), maxRows));
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
@@ -653,10 +709,11 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect4 } from "react";
-import { jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
+import { useEffect as useEffect5, useId as useId3, useState as useState5 } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS = `
+var CSS2 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -679,17 +736,75 @@ var CSS = `
 .fi-surface-above-composer:empty {
   display: none;
 }
+/* CONV-MOBILE-RECLAIM-1 \u2014 compact composer on narrow containers.
+ *
+ * Wide (desktop) is byte-identical: the rail toggle stays display:none and the
+ * body/footer keep their stacked anatomy. At <=420px container width the frame
+ * becomes ONE wrapping flex row \u2014 [toggle] [textarea] [mic] [send] \u2014 and the
+ * footer-start rail (persona chip, call, attach) collapses behind the toggle,
+ * expanding as its own full-width row under the input. Send stays the single
+ * always-visible primary action; the textarea still grows to maxRows. */
+.fi-composer-rail-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+}
+.fi-composer-rail-toggle[aria-expanded="true"] {
+  color: var(--glass-chat-accent-text, #6ee7b7);
+  background: rgba(255, 255, 255, 0.06);
+}
+@container fi-composer (max-width: 420px) {
+  [data-fi-composer-frame] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.375rem;
+  }
+  [data-fi-composer-slot="header"] {
+    flex: 1 1 100%;
+    order: -2;
+    margin-bottom: 0;
+  }
+  [data-fi-composer-slot="footer"] {
+    display: contents;
+  }
+  /* The body (whatever wrapper the consumer's Composer renders) becomes the
+     row's flexing member so the textarea shares the line with toggle/mic/send. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+  .fi-composer-rail-toggle {
+    display: inline-flex;
+    order: -1;
+  }
+  [data-fi-composer-slot="footer-start"] {
+    flex: 1 1 100%;
+    order: 5;
+    flex-wrap: wrap;
+    margin-right: 0;
+  }
+  [data-fi-composer-frame][data-fi-rail="closed"] [data-fi-composer-slot="footer-start"] {
+    display: none;
+  }
+}
 `;
 function ensureComposerFrameStyle() {
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect4(() => {
+  useEffect5(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -704,29 +819,64 @@ function ComposerFrame({
   headerClassName,
   footerClassName,
   footerStyle,
-  footerStartClassName
+  footerStartClassName,
+  railToggleLabel = "M\xE1s opciones"
 }) {
   useComposerFrameStyle();
-  return /* @__PURE__ */ jsxs8("div", { className, style, "data-fi-composer-frame": "", children: [
-    filled(header) && /* @__PURE__ */ jsx11("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
-    children,
-    (filled(footer) || filled(footerStart)) && /* @__PURE__ */ jsxs8(
-      "div",
-      {
-        className: footerClassName,
-        style: footerStyle,
-        "data-fi-composer-slot": "footer",
-        children: [
-          filled(footerStart) && /* @__PURE__ */ jsx11("div", { className: footerStartClassName, "data-fi-composer-slot": "footer-start", children: footerStart }),
-          footer
-        ]
-      }
-    )
-  ] });
+  const [railOpen, setRailOpen] = useState5(false);
+  const railId = useId3();
+  const hasRail = filled(footerStart);
+  return /* @__PURE__ */ jsxs8(
+    "div",
+    {
+      className,
+      style,
+      "data-fi-composer-frame": "",
+      "data-fi-rail": hasRail ? railOpen ? "open" : "closed" : void 0,
+      children: [
+        filled(header) && /* @__PURE__ */ jsx11("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+        children,
+        (filled(footer) || hasRail) && /* @__PURE__ */ jsxs8(
+          "div",
+          {
+            className: footerClassName,
+            style: footerStyle,
+            "data-fi-composer-slot": "footer",
+            children: [
+              hasRail && /* @__PURE__ */ jsxs8(Fragment2, { children: [
+                /* @__PURE__ */ jsx11(
+                  "button",
+                  {
+                    type: "button",
+                    className: withTouchTarget("fi-composer-rail-toggle"),
+                    "aria-label": railToggleLabel,
+                    "aria-expanded": railOpen,
+                    "aria-controls": railId,
+                    onClick: () => setRailOpen((v) => !v),
+                    children: /* @__PURE__ */ jsx11(SlidersHorizontal, { size: 18, "aria-hidden": true })
+                  }
+                ),
+                /* @__PURE__ */ jsx11(
+                  "div",
+                  {
+                    id: railId,
+                    className: footerStartClassName,
+                    "data-fi-composer-slot": "footer-start",
+                    children: footerStart
+                  }
+                )
+              ] }),
+              footer
+            ]
+          }
+        )
+      ]
+    }
+  );
 }
 
 // src/composer/useComposerImages.ts
-import { useCallback as useCallback2, useRef as useRef3, useState as useState4 } from "react";
+import { useCallback as useCallback2, useRef as useRef3, useState as useState6 } from "react";
 var COMPOSER_IMAGE_MEDIA_TYPES = [
   "image/jpeg",
   "image/png",
@@ -777,7 +927,7 @@ async function downscale(file) {
 var nextDraftId = 0;
 function useComposerImages(options = {}) {
   const { maxImages = DEFAULT_MAX_IMAGES, onError } = options;
-  const [drafts, setDrafts] = useState4([]);
+  const [drafts, setDrafts] = useState6([]);
   const draftsRef = useRef3(drafts);
   draftsRef.current = drafts;
   const onErrorRef = useRef3(onError);
@@ -951,9 +1101,9 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect5, useRef as useRef5, useState as useState5 } from "react";
+import { Fragment as Fragment3, useEffect as useEffect6, useRef as useRef5, useState as useState7 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment3, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -966,16 +1116,16 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
-  const [open, setOpen] = useState5(false);
+  const [open, setOpen] = useState7(false);
   const triggerRef = useRef5(null);
-  const [position, setPosition] = useState5({ top: 0, left: 0 });
-  useEffect5(() => {
+  const [position, setPosition] = useState7({ top: 0, left: 0 });
+  useEffect6(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect5(() => {
+  useEffect6(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -985,7 +1135,7 @@ function ActionMenu({
   }, [open]);
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
-  return /* @__PURE__ */ jsxs10(Fragment3, { children: [
+  return /* @__PURE__ */ jsxs10(Fragment4, { children: [
     /* @__PURE__ */ jsx13(
       "button",
       {
@@ -1004,7 +1154,7 @@ function ActionMenu({
       }
     ),
     open && typeof document !== "undefined" && createPortal(
-      /* @__PURE__ */ jsxs10(Fragment3, { children: [
+      /* @__PURE__ */ jsxs10(Fragment4, { children: [
         /* @__PURE__ */ jsx13(
           "div",
           {
@@ -1078,7 +1228,7 @@ function ActionMenu({
               return action.wrapperClassName ? /* @__PURE__ */ jsxs10("div", { className: action.wrapperClassName, children: [
                 divider,
                 item
-              ] }, action.id) : /* @__PURE__ */ jsxs10(Fragment2, { children: [
+              ] }, action.id) : /* @__PURE__ */ jsxs10(Fragment3, { children: [
                 divider,
                 item
               ] }, action.id);
@@ -1252,10 +1402,10 @@ var RecordingButton = forwardRef2(
 
 // src/voice/recording/PulseRings.tsx
 import { motion } from "framer-motion";
-import { Fragment as Fragment4, jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
+import { Fragment as Fragment5, jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
 function PingRings({ color = "yellow-500" }) {
   const bgClass = `rec-pulse-bg-${color}`;
-  return /* @__PURE__ */ jsxs11(Fragment4, { children: [
+  return /* @__PURE__ */ jsxs11(Fragment5, { children: [
     /* @__PURE__ */ jsx16(
       "div",
       {
@@ -1278,7 +1428,7 @@ function ConcentricRings({ color = "yellow-500" }) {
     { scale: 1.5, opacity: 0.3, delay: 0.2 },
     { scale: 1.7, opacity: 0.2, delay: 0.4 }
   ];
-  return /* @__PURE__ */ jsx16(Fragment4, { children: rings.map((ring, i) => /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsx16(Fragment5, { children: rings.map((ring, i) => /* @__PURE__ */ jsx16(
     motion.div,
     {
       className: `rec-pulse-concentric ${borderClass}`,
@@ -1308,7 +1458,7 @@ function VADRings({
     { baseScale: 1.4, opacityBase: 0.4 },
     { baseScale: 1.6, opacityBase: 0.2 }
   ];
-  return /* @__PURE__ */ jsx16(Fragment4, { children: rings.map((ring, i) => /* @__PURE__ */ jsx16(
+  return /* @__PURE__ */ jsx16(Fragment5, { children: rings.map((ring, i) => /* @__PURE__ */ jsx16(
     motion.div,
     {
       className: "rec-pulse-vad",
@@ -1765,7 +1915,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect6, useMemo, useRef as useRef6, useSyncExternalStore } from "react";
+import { useEffect as useEffect7, useMemo, useRef as useRef6, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef6(opts);
   cbRef.current = opts;
@@ -1779,7 +1929,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect6(() => () => controller.dispose(), [controller]);
+  useEffect7(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1803,7 +1953,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect7 } from "react";
+import { useEffect as useEffect8 } from "react";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -1818,7 +1968,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect7(() => {
+  useEffect8(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -1867,7 +2017,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect8 } from "react";
+import { useEffect as useEffect9 } from "react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
@@ -1966,7 +2116,7 @@ function RichAudioPlayer({
     currentTime
   } = player;
   const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
-  useEffect8(() => {
+  useEffect9(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -1974,7 +2124,7 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect8(() => {
+  useEffect9(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
@@ -2201,7 +2351,7 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef7, useState as useState6 } from "react";
+import { useCallback as useCallback3, useRef as useRef7, useState as useState8 } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
@@ -2209,13 +2359,13 @@ var TTS_CACHE_MAX_CLIPS = 8;
 var clipKey = (text, voice) => `${voice}\0${text}`;
 function useVoice(adapter, opts = {}) {
   const { onError } = opts;
-  const [isOpen, setIsOpen] = useState6(false);
-  const [isLoading, setIsLoading] = useState6(false);
-  const [audioUrl, setAudioUrl] = useState6(null);
-  const [voiceName, setVoiceName] = useState6("nova");
-  const [isUserMessage, setIsUserMessage] = useState6(false);
-  const [currentVoice, setCurrentVoice] = useState6("nova");
-  const [currentText, setCurrentText] = useState6("");
+  const [isOpen, setIsOpen] = useState8(false);
+  const [isLoading, setIsLoading] = useState8(false);
+  const [audioUrl, setAudioUrl] = useState8(null);
+  const [voiceName, setVoiceName] = useState8("nova");
+  const [isUserMessage, setIsUserMessage] = useState8(false);
+  const [currentVoice, setCurrentVoice] = useState8("nova");
+  const [currentText, setCurrentText] = useState8("");
   const inFlight = useRef7(false);
   const clipCache = useRef7(/* @__PURE__ */ new Map());
   const synthesizeCached = useCallback3(
@@ -2328,10 +2478,10 @@ function useVoice(adapter, opts = {}) {
 }
 
 // src/voice/useDictation.ts
-import { useCallback as useCallback5, useState as useState9 } from "react";
+import { useCallback as useCallback5, useState as useState11 } from "react";
 
 // src/voice/useRecorder.ts
-import { useState as useState7, useRef as useRef8, useCallback as useCallback4 } from "react";
+import { useState as useState9, useRef as useRef8, useCallback as useCallback4 } from "react";
 
 // src/voice/makeRecorder.ts
 async function makeRecorder(stream, onChunk, opts) {
@@ -2421,11 +2571,11 @@ function useRecorder(config) {
     externalStream = null,
     deviceId = null
   } = config;
-  const [isRecording, setIsRecording] = useState7(false);
-  const [recordingTime, setRecordingTime] = useState7(0);
-  const [fullAudioBlob, setFullAudioBlob] = useState7(null);
-  const [fullAudioUrl, setFullAudioUrl] = useState7(null);
-  const [currentStream, setCurrentStream] = useState7(null);
+  const [isRecording, setIsRecording] = useState9(false);
+  const [recordingTime, setRecordingTime] = useState9(0);
+  const [fullAudioBlob, setFullAudioBlob] = useState9(null);
+  const [fullAudioUrl, setFullAudioUrl] = useState9(null);
+  const [currentStream, setCurrentStream] = useState9(null);
   const recorderRef = useRef8(null);
   const continuousRecorderRef = useRef8(null);
   const currentStreamRef = useRef8(null);
@@ -2586,7 +2736,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState8, useRef as useRef9, useEffect as useEffect9 } from "react";
+import { useState as useState10, useRef as useRef9, useEffect as useEffect10 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -2614,13 +2764,13 @@ function useAudioAnalysis(stream, config) {
     isActive,
     bandCount = 24
   } = config;
-  const [audioLevel, setAudioLevel] = useState8(0);
-  const [bands, setBands] = useState8([]);
+  const [audioLevel, setAudioLevel] = useState10(0);
+  const [bands, setBands] = useState10([]);
   const analyserRef = useRef9(null);
   const audioContextRef = useRef9(null);
   const animationFrameRef = useRef9(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect9(() => {
+  useEffect10(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -2662,8 +2812,8 @@ function useAudioAnalysis(stream, config) {
 // src/voice/useDictation.ts
 function useDictation(adapter, opts = {}) {
   const { timeSliceMs = 3e4, deviceId = null, onTranscriptUpdate, onError } = opts;
-  const [liveTranscript, setLiveTranscript] = useState9("");
-  const [isTranscribing, setIsTranscribing] = useState9(false);
+  const [liveTranscript, setLiveTranscript] = useState11("");
+  const [isTranscribing, setIsTranscribing] = useState11(false);
   const handleChunk = useCallback5(
     async (blob, chunkNumber) => {
       if (!adapter?.transcribe) return;
@@ -2861,7 +3011,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState10, useRef as useRef10, useCallback as useCallback6, useEffect as useEffect10 } from "react";
+import { useState as useState12, useRef as useRef10, useCallback as useCallback6, useEffect as useEffect11 } from "react";
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -2972,12 +3122,12 @@ function useDurableRecording(opts) {
     onSaved,
     onError
   } = opts;
-  const [artifact, setArtifact] = useState10(null);
-  const [recordingTime, setRecordingTime] = useState10(0);
-  const [currentStream, setCurrentStream] = useState10(null);
-  const [isAtCapacity, setIsAtCapacity] = useState10(false);
-  const [isStarting, setIsStarting] = useState10(false);
-  const [pausedPreviewBlob, setPausedPreviewBlob] = useState10(null);
+  const [artifact, setArtifact] = useState12(null);
+  const [recordingTime, setRecordingTime] = useState12(0);
+  const [currentStream, setCurrentStream] = useState12(null);
+  const [isAtCapacity, setIsAtCapacity] = useState12(false);
+  const [isStarting, setIsStarting] = useState12(false);
+  const [pausedPreviewBlob, setPausedPreviewBlob] = useState12(null);
   const recorderRef = useRef10(null);
   const streamRef = useRef10(null);
   const timerRef = useRef10(null);
@@ -2987,10 +3137,10 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef10([]);
   const rtcCtorRef = useRef10(null);
   const pauseOpRef = useRef10(Promise.resolve());
-  useEffect10(() => {
+  useEffect11(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect10(() => {
+  useEffect11(() => {
     store.list().then((stored) => {
       const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
@@ -3249,11 +3399,11 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState11, useEffect as useEffect11, useCallback as useCallback7 } from "react";
+import { useState as useState13, useEffect as useEffect12, useCallback as useCallback7 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
-  const [artifacts, setArtifacts] = useState11([]);
-  const [isLoading, setIsLoading] = useState11(true);
+  const [artifacts, setArtifacts] = useState13([]);
+  const [isLoading, setIsLoading] = useState13(true);
   const loadFromStore = useCallback7(async () => {
     try {
       const stored = await store.list();
@@ -3263,7 +3413,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect11(() => {
+  useEffect12(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback7(
@@ -3372,11 +3522,11 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect12, useState as useState13 } from "react";
+import { useEffect as useEffect13, useState as useState15 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState12, useCallback as useCallback8 } from "react";
+import { useState as useState14, useCallback as useCallback8 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -3419,8 +3569,8 @@ function AudioQueueItem({
   onGetPlaybackUrl,
   className = ""
 }) {
-  const [playing, setPlaying] = useState12(false);
-  const [audioEl, setAudioEl] = useState12(null);
+  const [playing, setPlaying] = useState14(false);
+  const [audioEl, setAudioEl] = useState14(null);
   const handlePlay = useCallback8(async () => {
     if (!onGetPlaybackUrl) return;
     if (playing && audioEl) {
@@ -3547,8 +3697,8 @@ function AudioQueuePanel({
     clearTranscribed,
     getPlaybackUrl
   } = queue;
-  const [showNotice, setShowNotice] = useState13(true);
-  useEffect12(() => {
+  const [showNotice, setShowNotice] = useState15(true);
+  useEffect13(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -3611,7 +3761,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState14, useEffect as useEffect13 } from "react";
+import { useState as useState16, useEffect as useEffect14 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -3632,8 +3782,8 @@ function AudioDraftPlayer({
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
-  const [playbackUrl, setPlaybackUrl] = useState14(null);
-  useEffect13(() => {
+  const [playbackUrl, setPlaybackUrl] = useState16(null);
+  useEffect14(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -4019,7 +4169,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect14, useMemo as useMemo3, useRef as useRef11, useState as useState15 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect15, useMemo as useMemo3, useRef as useRef11, useState as useState17 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -4227,15 +4377,15 @@ function useResonanceCallLoop(params) {
   const cueApplyRef = useRef11(void 0);
   cueApplyRef.current = cueController?.applyTransition;
   const cueSeqRef = useRef11(0);
-  useEffect14(() => {
+  useEffect15(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect14(() => () => {
+  useEffect15(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
-  const [state, setState] = useState15("idle");
-  const [lastTranscript, setLastTranscript] = useState15();
-  const [lastAssistantText, setLastAssistantText] = useState15();
+  const [state, setState] = useState17("idle");
+  const [lastTranscript, setLastTranscript] = useState17();
+  const [lastAssistantText, setLastAssistantText] = useState17();
   const adaptersRef = useRef11(adapters);
   adaptersRef.current = adapters;
   const pushDebug = useCallback9(
@@ -4315,7 +4465,7 @@ function useResonanceCallLoop(params) {
   const stateRef = useRef11(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -4338,7 +4488,7 @@ function useResonanceCallLoop(params) {
       t.current = void 0;
     }
   };
-  useEffect14(() => {
+  useEffect15(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -4360,7 +4510,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect14(() => () => {
+  useEffect15(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
@@ -4396,16 +4546,16 @@ function useResonanceCallLoop(params) {
 import { useCallback as useCallback11 } from "react";
 
 // src/shell/useChatWidgetState.ts
-import { useState as useState16, useCallback as useCallback10 } from "react";
+import { useState as useState18, useCallback as useCallback10 } from "react";
 function useChatWidgetState({
   initialOpen,
   initialMode
 }) {
-  const [isOpen, setIsOpen] = useState16(initialOpen);
-  const [viewMode, setViewMode] = useState16(initialMode);
-  const [isHistoryOpen, setIsHistoryOpen] = useState16(false);
-  const [conversationStarted, setConversationStarted] = useState16(false);
-  const [isStartingConversation, _setIsStartingConversation] = useState16(false);
+  const [isOpen, setIsOpen] = useState18(initialOpen);
+  const [viewMode, setViewMode] = useState18(initialMode);
+  const [isHistoryOpen, setIsHistoryOpen] = useState18(false);
+  const [conversationStarted, setConversationStarted] = useState18(false);
+  const [isStartingConversation, _setIsStartingConversation] = useState18(false);
   const open = useCallback10(() => {
     setIsOpen(true);
   }, []);
@@ -4630,7 +4780,7 @@ import { Loader2 as Loader213 } from "lucide-react";
 
 // src/shell/ChatWidgetContainer.tsx
 import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment5, jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
 function ChatWidgetContainer(props) {
   const { mode, title, children, embedded = false, onModeChange } = props;
   const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
@@ -4656,7 +4806,7 @@ function ChatWidgetContainer(props) {
     ] });
   }
   if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs21(Fragment5, { children: [
+    return /* @__PURE__ */ jsxs21(Fragment6, { children: [
       /* @__PURE__ */ jsx29("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
       /* @__PURE__ */ jsx29(
         "div",
@@ -4697,7 +4847,7 @@ function ChatWidgetContainer(props) {
 
 // src/shell/ChatWidgetHeader.tsx
 import { X as X2, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
 var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
 var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
 function ChatWidgetHeader({
@@ -4732,7 +4882,7 @@ function ChatWidgetHeader({
         subtitle && /* @__PURE__ */ jsx30("p", { className: "chat-header-subtitle", children: subtitle })
       ] })
     ] }),
-    /* @__PURE__ */ jsx30("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs22(Fragment6, { children: [
+    /* @__PURE__ */ jsx30("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs22(Fragment7, { children: [
       showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx30("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx30(Search, { className: "h-4 w-4" }) }),
       mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx30("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs22("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
         /* @__PURE__ */ jsx30("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
@@ -4925,7 +5075,7 @@ import {
   CheckCircle,
   AlertCircle as AlertCircle4
 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
@@ -4972,23 +5122,23 @@ function ChatFilePreview({
       /* @__PURE__ */ jsx32("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
       /* @__PURE__ */ jsxs24("div", { className: "flex items-center gap-2 fi-text-xs", children: [
         /* @__PURE__ */ jsx32("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs24(Fragment7, { children: [
+        isUploading && /* @__PURE__ */ jsxs24(Fragment8, { children: [
           /* @__PURE__ */ jsx32("span", { children: "-" }),
           /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
-        isAwaitingUser && /* @__PURE__ */ jsxs24(Fragment7, { children: [
+        isAwaitingUser && /* @__PURE__ */ jsxs24(Fragment8, { children: [
           /* @__PURE__ */ jsx32("span", { children: "-" }),
           /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
         ] }),
-        isProcessing && /* @__PURE__ */ jsxs24(Fragment7, { children: [
+        isProcessing && /* @__PURE__ */ jsxs24(Fragment8, { children: [
           /* @__PURE__ */ jsx32("span", { children: "-" }),
           /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: "Procesando..." })
         ] }),
-        isCompleted && /* @__PURE__ */ jsxs24(Fragment7, { children: [
+        isCompleted && /* @__PURE__ */ jsxs24(Fragment8, { children: [
           /* @__PURE__ */ jsx32("span", { children: "-" }),
           /* @__PURE__ */ jsx32("span", { className: "chat-file-status-indexed", children: "Indexado" })
         ] }),
-        isError && error && /* @__PURE__ */ jsxs24(Fragment7, { children: [
+        isError && error && /* @__PURE__ */ jsxs24(Fragment8, { children: [
           /* @__PURE__ */ jsx32("span", { children: "-" }),
           /* @__PURE__ */ jsx32("span", { className: "fi-text-error truncate", title: error, children: error })
         ] })
@@ -5017,7 +5167,7 @@ function ChatFilePreview({
 
 // src/shell/ChatStartScreen.tsx
 import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment8, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
+import { Fragment as Fragment9, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
 function ChatStartScreen({
   isAuthenticated,
   userName,
@@ -5067,10 +5217,10 @@ function ChatStartScreen({
         /* @__PURE__ */ jsx33("span", { children: "Datos encriptados localmente" })
       ] })
     ] }),
-    /* @__PURE__ */ jsx33("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs25(Fragment8, { children: [
+    /* @__PURE__ */ jsx33("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs25(Fragment9, { children: [
       /* @__PURE__ */ jsx33("div", { className: "chat-start-spinner" }),
       "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs25(Fragment8, { children: [
+    ] }) : /* @__PURE__ */ jsxs25(Fragment9, { children: [
       /* @__PURE__ */ jsx33(MessageSquareText, { className: "w-5 h-5" }),
       "Comenzar conversaci\xF3n"
     ] }) }),
@@ -5366,14 +5516,14 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect15,
-  useId as useId3,
+  useEffect as useEffect16,
+  useId as useId4,
   useRef as useRef12,
-  useState as useState17
+  useState as useState19
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment9, jsx as jsx37, jsxs as jsxs27 } from "react/jsx-runtime";
+import { Fragment as Fragment10, jsx as jsx37, jsxs as jsxs27 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -5398,15 +5548,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState17(false);
-  const [position, setPosition] = useState17({ top: 0, left: 0, width: 0 });
+  const [isOpen, setIsOpen] = useState19(false);
+  const [position, setPosition] = useState19({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef12(null);
   const contentRef = useRef12(null);
-  const reactId = useId3();
+  const reactId = useId4();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback12(() => setIsOpen(false), []);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -5418,7 +5568,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -5438,7 +5588,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -5477,7 +5627,7 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx37(Fragment9, { children: renderLoading() }) : /* @__PURE__ */ jsx37("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx37(Fragment10, { children: renderLoading() }) : /* @__PURE__ */ jsx37("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
@@ -5604,6 +5754,7 @@ export {
   CopyButton,
   DEFAULT_MAX_IMAGES,
   DEFAULT_VAD_CONFIG,
+  FI_MSG_ACTIONS_CLASS,
   FI_TOUCH_TARGET_CLASS,
   FloatingButton,
   MessageAuthorHeader,
@@ -5640,6 +5791,7 @@ export {
   dispatchEffect,
   effectForState,
   ensureComposerFrameStyle,
+  ensureMessageActionsStyle,
   ensureTouchTargetStyle,
   formatArtifactDuration,
   formatArtifactSize,
@@ -5672,6 +5824,7 @@ export {
   useDurableRecording,
   useImagePicker,
   useMediaQuery,
+  useMessageActionsStyle,
   useRecorder,
   useResonanceCallLoop,
   useTouchTargetStyle,

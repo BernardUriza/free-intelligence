@@ -6,6 +6,13 @@ export { MessageContent, type MessageContentProps } from './MessageContent';
 export { normalizeStreamedMarkdown } from './normalizeStreamedMarkdown';
 export { CopyButton, type CopyButtonProps } from './CopyButton';
 export { MessageBubble, type MessageBubbleProps } from './MessageBubble';
+// CONV-MOBILE-RECLAIM-1: the actions-reveal sheet (hover on fine pointers,
+// last-message/tap on touch) — exported for consumers composing bubbles by hand.
+export {
+  ensureMessageActionsStyle,
+  useMessageActionsStyle,
+  FI_MSG_ACTIONS_CLASS,
+} from './messageActionsStyle';
 // OG118-IMAGE-UPLOAD-1: the images attached to a message, rendered in its bubble.
 export { MessageImages, type MessageImagesProps } from './MessageImages';
 // The default "who said this" row — rendered automatically off `message.author`.
