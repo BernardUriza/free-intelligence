@@ -303,6 +303,9 @@ export function Og118AgentChat() {
                 <button
                   type="button"
                   className={`og-resonance-call-btn${resonance.isActive ? ' og-resonance-call-btn-active' : ''}`}
+                  // A LIVE call must keep its hang-up reachable even when the
+                  // compact composer collapses the rail (fi-glass rail-keep contract).
+                  {...(resonance.isActive ? { 'data-fi-rail-keep': '' } : {})}
                   data-ref="og118-resonance-call"
                   aria-pressed={resonance.isActive}
                   aria-label={resonance.isActive ? 'Colgar la llamada' : 'Llamar por voz (Resonance)'}
