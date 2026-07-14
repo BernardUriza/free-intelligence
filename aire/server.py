@@ -11,13 +11,22 @@ the SAME turn and the SAME event stream:
 And `?mode=` picks the dial: `complete` (bare substitute) or `agent` (enhancer
 that executes tools).
 
-NO AUTHENTICATION yet — on purpose, and said upfront: this is local. The
-official server's Bearer pattern plugs in later; until it does, this is not
-exposed beyond localhost.
+AUTHENTICATION — the LLM door (``AIRE_AUTH_TOKEN``). Every turn burns real
+Anthropic tokens, so every route except ``/health`` is gated by a long secret
+only Bernard holds. Two ways in, one per audience:
+
+- an app sends ``Authorization: Bearer <token>`` (the cookbook's pattern);
+- a browser opens any URL once with ``?token=<token>`` — the server sets an
+  ``aire_token`` cookie and redirects to the clean URL, so the page (and the
+  ``<form>`` POSTs it makes) keep working without the secret in every link.
+
+Unset token = fail CLOSED (503): a forgotten env var must never mean an open
+LLM. Comparison is constant-time.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 from collections.abc import AsyncIterator
@@ -35,8 +44,37 @@ from .names import InvalidName, clean
 from .store import create_postgres_session_store
 
 DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
+AUTH_TOKEN = os.environ.get("AIRE_AUTH_TOKEN", "")
 
 app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
+
+
+def _presented_token(request: Request) -> str:
+    header = request.headers.get("authorization", "")
+    if header.lower().startswith("bearer "):
+        return header[7:].strip()
+    return request.query_params.get("token") or request.cookies.get("aire_token") or ""
+
+
+@app.middleware("http")
+async def llm_door(request: Request, call_next: Any) -> Any:
+    if request.url.path == "/health":
+        return await call_next(request)
+    if not AUTH_TOKEN:
+        return JSONResponse({"detail": "AIRE_AUTH_TOKEN is not configured"}, status_code=503)
+    if not hmac.compare_digest(_presented_token(request), AUTH_TOKEN):
+        return JSONResponse({"detail": "unauthorized"}, status_code=401)
+    if request.query_params.get("token"):
+        clean_q = "&".join(f"{k}={v}" for k, v in request.query_params.items() if k != "token")
+        response = RedirectResponse(
+            request.url.path + (f"?{clean_q}" if clean_q else ""), status_code=303
+        )
+        response.set_cookie(
+            "aire_token", AUTH_TOKEN, httponly=True, secure=False, samesite="lax",
+            max_age=60 * 60 * 24 * 30,
+        )
+        return response
+    return await call_next(request)
 
 _engine: Engine | None = None
 

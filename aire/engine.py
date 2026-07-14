@@ -137,6 +137,9 @@ class Engine:
             "session_store": self.session_store,
             "session_store_flush": "eager",  # no loss window if the process dies
         }
+        budget = os.environ.get("AIRE_MAX_BUDGET_USD")
+        if budget:
+            kwargs["max_budget_usd"] = float(budget)
         # session_id=<uuid> SETS the id of a session being BORN; resume=<uuid>
         # RECOVERS an existing one. They are mutually exclusive: passing session_id
         # on a continuation does NOT resume — it starts a new session, clobbering
