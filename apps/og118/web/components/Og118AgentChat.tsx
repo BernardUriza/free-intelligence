@@ -42,6 +42,7 @@ import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
 import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
+import { SignOutButton } from './AuthGate';
 import { Og118ProjectsSection } from './projects';
 import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
 import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
@@ -239,7 +240,18 @@ export function Og118AgentChat() {
               console.error('[og118] rename failed', e),
             )
           }
+          onPin={(id, pinned) =>
+            void lib.pinConversation(id, pinned).catch((e) =>
+              console.error('[og118] pin failed', e),
+            )
+          }
+          onArchive={(id, archived) =>
+            void lib.archiveConversation(id, archived).catch((e) =>
+              console.error('[og118] archive failed', e),
+            )
+          }
           disabled={conversation.isStreaming}
+          accountSlot={<SignOutButton />}
         />
         </>
       )}

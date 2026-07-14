@@ -146,12 +146,33 @@ body {
   .og-elemento-label {
     display: none;
   }
+  /* Cap the persona chip so +, chip, call, mic and send share ONE row on a
+     phone-width composer instead of orphaning the call button on a wrap line.
+     The chip's inner spans already truncate. */
   .og-element-switch {
-    max-width: 100%;
+    max-width: 7rem;
   }
-  /* The rail is icon-only on a narrow composer; the send button keeps priority. */
+  /* The rail is icon-only on a narrow composer; the send button keeps priority.
+     Icon-only still means a full 44px touch target (B3-FIGLASS-MOBILE-2), not a
+     37×26 chip orphaned on its own wrap line. */
   .og-resonance-call-label {
     display: none;
+  }
+  .og-resonance-call-btn {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+}
+@container fi-composer (max-width: 340px) {
+  /* Ultra-narrow (320px-class): the atomic-number badge yields so the persona
+     name and every 44px control stay on as few tidy lines as possible. */
+  .og-element-switch .og-element-badge {
+    display: none;
+  }
+  .og-element-switch {
+    max-width: 5.5rem;
   }
 }
 /* The call control is SECONDARY to send: an outlined chip, not a filled pill
@@ -259,6 +280,7 @@ body {
 .og-projects {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   background: rgba(10, 14, 22, 0.4);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -321,7 +343,12 @@ body {
 }
 .og-sidebar {
   width: 100%;
-  height: 100%;
+  /* flex:1 (not height:100%): the sidebar shares the shell column with the
+     element strip and the projects card — a hard 100% height crushes those
+     siblings to nothing in the mobile drawer. min-height:0 keeps the inner
+     list scrollable instead of overflowing the column. */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -364,12 +391,45 @@ body {
    header to `AgentSidebarSection` (1C). og118 re-tints via the --glass-chat-* /
    --fi-section-* tokens — only the rail chrome (border/background), the "+ Nuevo"
    button, the scrollable list and the privacy note stay app-specific here. */
+.og-sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.85rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
 .og-sidebar-privacy {
   margin: 0;
-  padding: 0.6rem 0.85rem;
   font-size: 0.7rem;
   color: #475569;
+}
+/* CONV-ORGANIZE-1: Fijados/Chats group labels inside the conversation section,
+   and the collapsible Archivados section under it. */
+.og-sidebar-group-label {
+  display: block;
+  padding: 0.4rem 0.4rem 0.1rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.og-sidebar-archived {
+  flex: none;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.og-sidebar-archived .og-sidebar-list {
+  flex: none;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.og-sidebar-archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
 }
 
 .og-auth-banner {

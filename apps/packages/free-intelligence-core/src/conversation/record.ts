@@ -29,6 +29,14 @@ export interface ConversationRecord {
   messages: ChatMessage[];
   /** Snippet of the last non-empty message, for the sidebar. */
   preview: string;
+  /** ISO 8601 timestamp of when the user pinned this conversation. Absent ⇒ not
+   * pinned. A timestamp (not a boolean) so the pinned section orders by
+   * last-pinned first without a separate counter. */
+  pinnedAt?: string;
+  /** ISO 8601 timestamp of when the user archived this conversation. Absent ⇒
+   * active. Archiving is the reversible alternative to delete: the record keeps
+   * its messages and moves to the archived section. */
+  archivedAt?: string;
   /** Schema version of this record, for forward migrations. */
   schemaVersion: number;
 }
@@ -40,4 +48,6 @@ export interface ConversationSummary {
   createdAt: string;
   updatedAt: string;
   preview: string;
+  pinnedAt?: string;
+  archivedAt?: string;
 }

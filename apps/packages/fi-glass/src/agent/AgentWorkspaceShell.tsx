@@ -247,6 +247,12 @@ export function AgentWorkspaceShell({
         willChange: 'transform',
         containerType: 'inline-size',
         containerName: 'fi-sidebar',
+        // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
+        // translucent glass panel (fine over the static desktop rail), but as an
+        // off-canvas layer even 3% translucency lets large bright conversation
+        // text ghost through and the list loses contrast. Token-overridable.
+        background: 'var(--fi-drawer-bg, rgb(10, 14, 22))',
+        boxShadow: 'var(--fi-drawer-shadow, 0 0 40px rgba(0, 0, 0, 0.55))',
         // The drawer is fixed to the physical top, so its own content also needs
         // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
         boxSizing: 'border-box',

@@ -25,7 +25,15 @@ from pathlib import Path
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
-SUMMARY_FIELDS = ("id", "title", "createdAt", "updatedAt", "preview")
+SUMMARY_FIELDS = (
+    "id",
+    "title",
+    "createdAt",
+    "updatedAt",
+    "preview",
+    "pinnedAt",
+    "archivedAt",
+)
 
 
 def valid_conversation_id(conversation_id: str) -> bool:
@@ -60,7 +68,9 @@ class ConversationStore:
                 record = json.loads(path.read_text("utf-8"))
             except (json.JSONDecodeError, OSError):
                 continue
-            summaries.append({k: record.get(k) for k in SUMMARY_FIELDS})
+            summaries.append(
+                {k: record[k] for k in SUMMARY_FIELDS if record.get(k) is not None}
+            )
         summaries.sort(key=lambda s: s.get("updatedAt") or "", reverse=True)
         return summaries
 

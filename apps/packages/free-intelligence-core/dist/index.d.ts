@@ -801,6 +801,14 @@ interface ConversationRecord {
     messages: ChatMessage[];
     /** Snippet of the last non-empty message, for the sidebar. */
     preview: string;
+    /** ISO 8601 timestamp of when the user pinned this conversation. Absent ⇒ not
+     * pinned. A timestamp (not a boolean) so the pinned section orders by
+     * last-pinned first without a separate counter. */
+    pinnedAt?: string;
+    /** ISO 8601 timestamp of when the user archived this conversation. Absent ⇒
+     * active. Archiving is the reversible alternative to delete: the record keeps
+     * its messages and moves to the archived section. */
+    archivedAt?: string;
     /** Schema version of this record, for forward migrations. */
     schemaVersion: number;
 }
@@ -811,6 +819,8 @@ interface ConversationSummary {
     createdAt: string;
     updatedAt: string;
     preview: string;
+    pinnedAt?: string;
+    archivedAt?: string;
 }
 
 /**
@@ -904,7 +914,38 @@ declare function resolveConversationTitle(messages: ChatMessage[], prev?: {
  * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
  */
 declare function renameConversationRecord(record: ConversationRecord, rawTitle: string, now?: string): ConversationRecord;
+/**
+ * Pin or unpin a record. Pinning stamps `pinnedAt` (the pinned section orders by
+ * last-pinned first) and lifts the record out of the archive — a pin is an
+ * explicit "keep this in front of me", incompatible with archived. Unpinning
+ * drops the field entirely. `updatedAt` is deliberately NOT touched: pinning is
+ * organization, not content, and must not fake recency in the active list.
+ */
+declare function setConversationPinned(record: ConversationRecord, pinned: boolean, now?: string): ConversationRecord;
+/**
+ * Archive or unarchive a record. Archiving stamps `archivedAt` and clears any
+ * pin (an archived conversation cannot stay in the pinned section). Unarchiving
+ * drops the field and the record rejoins the active list at its own
+ * `updatedAt` — which, like pinning, is deliberately not touched.
+ */
+declare function setConversationArchived(record: ConversationRecord, archived: boolean, now?: string): ConversationRecord;
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
+/** The sidebar's three sections, each already in display order. */
+interface OrganizedConversations {
+    /** Pinned, last-pinned first. */
+    pinned: ConversationSummary[];
+    /** Neither pinned nor archived, most recently updated first. */
+    active: ConversationSummary[];
+    /** Archived, most recently archived first. */
+    archived: ConversationSummary[];
+}
+/**
+ * Split summaries into the pinned / active / archived sections every sidebar
+ * renders. Pure and total: a summary lands in exactly one section (`archivedAt`
+ * wins over a stray `pinnedAt`, though the pin/archive transformers never
+ * produce that state). ISO 8601 timestamps sort lexicographically.
+ */
+declare function organizeConversationSummaries(summaries: ConversationSummary[]): OrganizedConversations;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, foldAssistantTurn, initialAgentTurnState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };

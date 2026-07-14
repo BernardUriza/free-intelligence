@@ -154,3 +154,36 @@ def test_absurd_body_rejected_from_content_length_before_parsing(
 def test_a_normal_body_passes_the_wall(client: TestClient, as_account) -> None:
     """The wall cuts the absurd, never the legitimate: a real record still saves."""
     assert _put(client, _record("conv-1")).status_code == 200
+
+
+def test_pin_archive_flags_roundtrip_and_surface_in_summaries(
+    client: TestClient, as_account
+) -> None:
+    """CONV-ORGANIZE-1: pinnedAt/archivedAt persist through the upsert and reach
+    the sidebar's light summaries (the client organizes sections from them)."""
+    pinned = _record("conv-pin")
+    pinned["pinnedAt"] = "2026-07-13T00:00:00Z"
+    archived = _record("conv-arch")
+    archived["archivedAt"] = "2026-07-13T01:00:00Z"
+    assert _put(client, pinned).status_code == 200
+    assert _put(client, archived).status_code == 200
+
+    assert client.get("/conversations/conv-pin").json()["pinnedAt"] == "2026-07-13T00:00:00Z"
+    by_id = {c["id"]: c for c in client.get("/conversations").json()["conversations"]}
+    assert by_id["conv-pin"]["pinnedAt"] == "2026-07-13T00:00:00Z"
+    assert by_id["conv-arch"]["archivedAt"] == "2026-07-13T01:00:00Z"
+    # Absent flags stay absent — summaries never carry null placeholders.
+    assert "archivedAt" not in by_id["conv-pin"]
+    assert "pinnedAt" not in by_id["conv-arch"]
+
+
+def test_unpin_upsert_drops_the_stored_flag(client: TestClient, as_account) -> None:
+    """Unpinning = the client re-puts the record WITHOUT the field; exclude_none
+    must drop it from the stored JSON, not fossilize the old timestamp."""
+    pinned = _record("conv-1")
+    pinned["pinnedAt"] = "2026-07-13T00:00:00Z"
+    assert _put(client, pinned).status_code == 200
+    assert _put(client, _record("conv-1")).status_code == 200
+    assert "pinnedAt" not in client.get("/conversations/conv-1").json()
+    convs = client.get("/conversations").json()["conversations"]
+    assert "pinnedAt" not in convs[0]

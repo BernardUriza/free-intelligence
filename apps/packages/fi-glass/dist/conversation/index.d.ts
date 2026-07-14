@@ -131,6 +131,12 @@ interface ConversationLibraryState {
     /** Rename a conversation; an empty/whitespace title reverts to the auto-derived
      * one. A custom title survives future message persists. Throws if `id` is gone. */
     renameConversation: (id: string, title: string) => Promise<void>;
+    /** Pin (`true`) or unpin (`false`) a conversation. Pinning lifts it out of the
+     * archive; the pinned section orders by last-pinned first. Throws if `id` is gone. */
+    pinConversation: (id: string, pinned: boolean) => Promise<void>;
+    /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
+     * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
+    archiveConversation: (id: string, archived: boolean) => Promise<void>;
     /** Persist the active conversation's messages (no-op for an empty thread). */
     persist: (messages: ChatMessage[]) => Promise<void>;
     /** Re-read the summary list from storage. */

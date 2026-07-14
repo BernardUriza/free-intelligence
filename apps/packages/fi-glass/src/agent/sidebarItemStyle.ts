@@ -108,6 +108,17 @@ const CSS = `
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
   }
+  /* Touch has no hover to reveal actions, so they are always visible — but
+     inline they steal the row's width (3 × 44px targets left a ~90px title on a
+     390px phone). Wrap them to their own right-aligned line under the body
+     instead: full-width readable title, intact 44px targets. */
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .${FI_ITEM_BODY_CLASS} {
+    flex: 1 1 100%;
+  }
 }
 @container fi-sidebar (max-width: 220px) {
   .${FI_SIDEBAR_ITEM_CLASS} {

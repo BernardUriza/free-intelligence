@@ -3392,6 +3392,12 @@ function AgentWorkspaceShell({
     willChange: "transform",
     containerType: "inline-size",
     containerName: "fi-sidebar",
+    // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
+    // translucent glass panel (fine over the static desktop rail), but as an
+    // off-canvas layer even 3% translucency lets large bright conversation
+    // text ghost through and the list loses contrast. Token-overridable.
+    background: "var(--fi-drawer-bg, rgb(10, 14, 22))",
+    boxShadow: "var(--fi-drawer-shadow, 0 0 40px rgba(0, 0, 0, 0.55))",
     // The drawer is fixed to the physical top, so its own content also needs
     // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
     boxSizing: "border-box",
@@ -3549,6 +3555,17 @@ var CSS3 = `
 @media (pointer: coarse) {
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
+  }
+  /* Touch has no hover to reveal actions, so they are always visible \u2014 but
+     inline they steal the row's width (3 \xD7 44px targets left a ~90px title on a
+     390px phone). Wrap them to their own right-aligned line under the body
+     instead: full-width readable title, intact 44px targets. */
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .${FI_ITEM_BODY_CLASS} {
+    flex: 1 1 100%;
   }
 }
 @container fi-sidebar (max-width: 220px) {
