@@ -547,6 +547,23 @@ async def chat_stream(
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
+            # OG118-EXTERNAL-CORPUS-GAP-1: the external engine has no rag_store
+            # tools and the proxy carries no corpus, so an active project would
+            # be ignored SILENTLY — the user believes the persona sees their
+            # documents. Refuse LOUD instead (same pattern as images below).
+            if req.corpus_id:
+                yield _sse(
+                    {
+                        "type": "error",
+                        "message": (
+                            f"El elemento {element.display_name} corre en un motor externo "
+                            "y no puede ver los documentos de tu proyecto. Quita el "
+                            "proyecto activo o cambia de elemento."
+                        ),
+                    }
+                )
+                yield _sse({"type": "done"})
+                return
             # The external-engine proxy is a text contract — it has no channel
             # for image blocks. Refuse LOUD (an in-stream error the shell shows)
             # instead of silently answering without the picture.

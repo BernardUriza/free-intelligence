@@ -13,6 +13,7 @@ system prompt. No active project → no binding, byte-identical to before.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 import app as app_module
 from fastapi.testclient import TestClient
@@ -57,3 +58,32 @@ def test_chat_stream_corpus_is_optional(monkeypatch) -> None:
 
     assert resp.status_code == 200
     assert (spy.seen["context"] or {}).get("corpus_id") is None
+
+
+def test_external_element_refuses_active_corpus_in_stream(monkeypatch, project_registry) -> None:
+    """OG118-EXTERNAL-CORPUS-GAP-1: the external engine has no rag_store tools and
+    the proxy carries no corpus, so an active project would be ignored SILENTLY.
+    The route must refuse LOUD (in-stream error) instead of proxying the turn."""
+    spy = _SpyRunner()
+    external_element = SimpleNamespace(
+        id="element-008-o-oxigeno",
+        display_label="8 · O · Oxígeno",
+        display_name="Oxígeno",
+        symbol="O",
+        engine_label="Vultur",
+        engine_binding=SimpleNamespace(is_external=True, persona_id="vultur"),
+    )
+    monkeypatch.setattr(app_module, "_runner_and_element", lambda token: (spy, external_element))
+    client = TestClient(app_module.app)
+    pid = project_registry.create("legacy-bearer", "P")["id"]
+
+    resp = client.post(
+        "/chat/stream",
+        json={"message": "¿cuánto cuesta el cuaderno?", "element": "oxigeno", "corpus_id": pid},
+    )
+
+    assert resp.status_code == 200
+    body = resp.text
+    assert '"type": "error"' in body
+    assert "no puede ver los documentos" in body  # the human-readable refusal
+    assert spy.seen == {}  # neither the runner nor the external proxy ran
