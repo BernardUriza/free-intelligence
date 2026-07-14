@@ -16,27 +16,23 @@ East US 2).
 | App name | `aire-front` | — |
 | Secret | `aire-database-url` | injected at runtime, never in an image layer |
 
-## The console is PUBLIC and has NO authentication
+## The two secrets
 
-Stated plainly rather than buried: **anyone who finds that URL can read the entire
-database** — every line the daemon has ever appended, and every table it creates
-from now on. It cannot *write* (see
-[`../.claude/rules/read-only-waiter.md`](../.claude/rules/read-only-waiter.md)),
-but reading is precisely what a console is for.
+The ingress is public, and that is fine, because the console is not.
 
-This was a deliberate call by Bernard on 2026-07-13 ("external — lo quiero ver
-ya") on a database that today holds one table of simulated GPS heartbeats. **It
-stops being an acceptable trade the moment `claude_session_store` appears**: that
-table is the transcript of real agent conversations, and an unauthenticated
-`/sql` console over it is a data leak with a URL.
+| Secret | Holds | Source |
+|---|---|---|
+| `aire-database-url` | `aire_reader` — `GRANT SELECT`, nothing else | `~/.secrets/aire-postgres-readonly.txt` |
+| `aire-console-password` | the HTTP Basic password on every page | `~/.secrets/aire-console-password.txt` |
 
-**Auth is backlog #5, and it is a blocker for the engine phase, not a nice-to-have.**
-Until it lands, either keep the database boring or flip the ingress:
+**Never put `~/.secrets/aire-postgres.txt` here.** That is the daemon's pen — a
+write-capable credential — and `npm run attack` will refuse to run if it ever finds
+itself holding it.
 
-```bash
-az containerapp ingress enable -n aire-front -g insult-rg \
-  --type internal --target-port 3000 --transport auto
-```
+The app **fails closed**: without `AIRE_CONSOLE_PASSWORD` it answers `503` and
+serves nothing. A missing variable must never be why a database ends up public.
+`/api/health` is the one route that skips auth (a probe cannot carry a credential),
+and it discloses nothing but its own liveness.
 
 ## Build the image
 
@@ -51,17 +47,19 @@ az acr build -r insultacr -t aire-front:$(git rev-parse --short HEAD) -t aire-fr
 ## Create the app (once)
 
 ```bash
-DSN=$(grep '^AIRE_DATABASE_URL=' ~/.secrets/aire-postgres.txt | cut -d= -f2-)
+DSN=$(grep '^AIRE_DATABASE_URL=' ~/.secrets/aire-postgres-readonly.txt | cut -d= -f2-)
+PW=$(grep '^AIRE_CONSOLE_PASSWORD=' ~/.secrets/aire-console-password.txt | cut -d= -f2-)
 
 az containerapp create \
   -n aire-front -g insult-rg \
   --environment prod-env \
   --image insultacr.azurecr.io/aire-front:latest \
   --registry-server insultacr.azurecr.io \
-  --secrets "aire-database-url=$DSN" \
+  --secrets "aire-database-url=$DSN" "aire-console-password=$PW" \
   --env-vars "AIRE_DATABASE_URL=secretref:aire-database-url" \
+             "AIRE_CONSOLE_PASSWORD=secretref:aire-console-password" \
   --target-port 3000 \
-  --ingress internal \
+  --ingress external \
   --min-replicas 0 --max-replicas 2 \
   --cpu 0.5 --memory 1Gi
 ```

@@ -29,19 +29,28 @@ against memory. To contradict it, verify it the same way.
 
 ## The security posture — read this before touching `lib/db.ts`
 
-**A read-only transaction mode is not a read-only credential.** This app connects
-with `aire`, the *pen's own* credential, which owns write privileges. Four walls
-keep it from using them, and the fourth is load-bearing: it blocks the
-`SET TRANSACTION READ WRITE` that dissolves the other three.
+**A read-only transaction mode is not a read-only credential.** Learned by
+breaking it: the first version of the read path relied only on transaction modes,
+and `SET TRANSACTION READ WRITE` took the privilege straight back — a real
+`'pwned'` row reached `aire_log` at `seq 2641`, and it is still there, because
+append-only means the scar stays too.
 
-The walls, and the story of how the first version was breached (a real `'pwned'`
-row landed in `aire_log` at `seq 2641`), are in the rule. **The claim "this cannot
-write" is only ever backed by `npm run attack`** — 13 write attempts against the
-real database, all of which must be refused. Run it after every change to the read
-path; do not reason about it.
+So the wall is now **the credential**:
 
-The real fix — an `aire_reader` role with `GRANT SELECT` and nothing else — is
-backlog #1 and needs the Postgres server admin.
+- The app connects as **`aire_reader`** (`GRANT SELECT`, nothing else) —
+  `~/.secrets/aire-postgres-readonly.txt`. **Never** hand this repo
+  `~/.secrets/aire-postgres.txt`: that is the daemon's pen.
+- **`npm run attack` refuses to run** unless it arrived as a role that cannot
+  INSERT. Point it at the pen and it stops dead — *"the waiter is holding the
+  pen"* — instead of printing a comforting wall of "blocked". That guard exists so
+  a stray env var cannot silently undo the fix.
+- The four walls in `lib/db.ts` remain as **defence in depth**, not as the
+  defence.
+- The console is behind **HTTP Basic** (`middleware.ts`) and **fails closed**: no
+  `AIRE_CONSOLE_PASSWORD` → `503`, serves nothing.
+
+**The claim "this cannot write" is only ever backed by `npm run attack`.** Run it
+after every change to the read path; do not reason about it.
 
 ## Verified facts (don't re-discover them)
 

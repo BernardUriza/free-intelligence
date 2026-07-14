@@ -20,20 +20,47 @@ append-only table is the frontier between them.
 4. **Every claim that "it cannot write" is proven by `npm run attack`, not by
    reading the code.** See below: the code lied once already.
 
-## The walls, and why there are four
+## The wall that cannot be argued with: the credential
 
-A read-only *transaction mode* is not a read-only *credential*. This is the whole
-lesson, and it was learned by breaking it:
+**`aire_reader` — `GRANT SELECT`, and nothing else.** The app arrives as a role
+that does not *have* the `INSERT` privilege, so there is nothing for an attacker
+to re-enable. `npm run attack` refuses to run at all unless it connected as such a
+role, and says so:
+
+```
+connected as 'aire_reader' — reads aire_log, CANNOT insert into it.
+the credential itself is the wall; what follows is defence in depth.
+```
+
+Point `AIRE_DATABASE_URL` at the pen's credential and the suite does not print a
+comforting wall of "blocked" — it stops dead: *"the waiter is holding the pen."*
+That check exists so this fix cannot be silently reverted by a stray env var.
+
+Credential: `~/.secrets/aire-postgres-readonly.txt`. **Never** give this repo
+`~/.secrets/aire-postgres.txt` — that is the daemon's pen.
+
+Tables the daemon creates *later* are covered without anyone remembering to act:
+
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE aire IN SCHEMA public GRANT SELECT ON TABLES TO aire_reader;
+```
+
+## The four walls behind it, and why they are still there
+
+**A read-only *transaction mode* is not a read-only *credential*.** That is the
+whole lesson, and it was learned by breaking it:
 
 On 2026-07-13 the first version of the read path set
 `default_transaction_read_only=on` on the connection and declared the console
 safe. It was not. That setting is a **default**, and the `aire` role — the pen's
-own credential — **owns write privileges**. A plain `SET TRANSACTION READ WRITE`
+own credential — **owned write privileges**. A plain `SET TRANSACTION READ WRITE`
 took them straight back, the `INSERT` after it went through, and a row of garbage
-(`'pwned'`) landed in the production log at `seq 2641`. The wall was real; the
-credential walked around it.
+(`'pwned'`) landed in the production log at `seq 2641`. It is still there: the log
+is append-only, and to correct is to append, not to erase.
 
-So the console now stands behind four:
+The credential fix above makes that attack impossible. The four walls below stay
+anyway — defence in depth, and the thing that keeps a future local run (pointed at
+some other database by a tired hand) from doing damage:
 
 | # | Wall | Stops |
 |---|------|-------|
@@ -47,36 +74,47 @@ was**: `pg` speaks the simple query protocol when a query has no parameters, and
 the simple protocol runs multiple statements in one transaction. What `asyncpg`
 refused for free, `pg` hands to an attacker.
 
-Wall 4 is the load-bearing one *while the credential can write*. Remove it and
-walls 1–2 can be switched off by the very SQL they contain.
+Wall 4 was the load-bearing one *while the credential could write*. It no longer
+carries the building — but it still catches the tired hand.
 
-## The real fix (not yet done)
+**Proof the credential is the real wall, not the walls:** with every wall bypassed
+(raw `psql`, no app, no transaction mode), `aire_reader` still cannot write —
+including via the exact attack that defeated the walls:
 
-**A credential that cannot write:** role `aire_reader`, `GRANT SELECT` on the
-schema, nothing else. Then `SET TRANSACTION READ WRITE` buys an attacker
-precisely nothing, and the four walls become the belt behind the braces rather
-than the only thing holding the trousers up.
-
-It needs the Postgres server admin (`devadmin` on `development-pg-n66dz`), which
-the `aire` role does not have (`rolcreaterole = false`, verified). Until then, the
-front runs with the pen's own credential, and **that is a known, written-down
-weakness, not a solved problem.**
-
-```sql
--- run as the server admin, once
-CREATE ROLE aire_reader LOGIN PASSWORD '<generated>';
-GRANT CONNECT ON DATABASE aire TO aire_reader;
-GRANT USAGE ON SCHEMA public TO aire_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO aire_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO aire_reader;
+```
+$ psql "$AIRE_READER_DSN"
+aire=> SELECT count(*) FROM aire_log;        -- 6137
+aire=> BEGIN; SET TRANSACTION READ WRITE;
+aire=> INSERT INTO aire_log (line) VALUES ('pwned-again');
+ERROR:  permission denied for table aire_log
+aire=> DROP TABLE aire_log;
+ERROR:  must be owner of table aire_log
+aire=> CREATE TABLE evil (a int);
+ERROR:  permission denied for schema public
 ```
 
-The day that lands, `npm run attack` must **still pass with the four walls
-deleted**. That is the test that the real fix is real.
+## The door
+
+The console is **HTTP Basic behind TLS** (`middleware.ts`), and it **fails
+closed**: with `AIRE_CONSOLE_PASSWORD` unset the app answers `503` and serves
+nothing. An unset variable must never be the reason a database ends up public.
+
+It guards the **app**, not the deployment — it holds identically under `docker
+run`, `next start` and Container Apps. A console that is private only because the
+infrastructure happens to be configured right is one `az` flag away from public.
+
+`/api/health` is the single unauthenticated route (a liveness probe cannot carry a
+credential), so it is also the one route that gives nothing away: it reports that
+it can read, never *what*. It used to answer with the table names and their row
+counts — that is the schema, published to anyone who asked.
+
+Password: `~/.secrets/aire-console-password.txt`.
 
 ## How to apply
 
 - Touching `lib/db.ts`? Run `npm run attack` before you believe anything.
 - Adding a page? It reads through `lib/db.ts`, or it does not read.
+- Adding a route that must skip auth? Almost certainly no. If truly yes, it may
+  not disclose the schema, the data, or the existence of either.
 - Tempted to cache a derived table in Postgres? That is a write. Derive it at
   render time, or ask `aire-server` to own it.

@@ -58,7 +58,36 @@ if (one !== 1) {
   console.error("The database did not answer SELECT 1. Refusing to report on walls that were never tested.");
   process.exit(1);
 }
-console.log("database reachable — the engine-level walls are in play\n");
+
+// The wall that cannot be argued with: a credential that LACKS the privilege.
+// Everything below this line is defence in depth; THIS is the defence. Ask the
+// database — not the config, not a comment — whether the role we arrived as is
+// even allowed to write. If it is, someone has handed the waiter the pen's
+// credential again, and the thirteen "blocked" lines that follow would be a
+// statement about this repo's code rather than about the database's permissions.
+const [priv] = (
+  await console_(`
+    SELECT current_user AS role,
+           has_table_privilege(current_user, 'aire_log', 'INSERT') AS can_insert,
+           has_table_privilege(current_user, 'aire_log', 'SELECT') AS can_select
+  `)
+).rows as unknown as { role: string; can_insert: boolean; can_select: boolean }[];
+
+if (!priv.can_select) {
+  console.error(`FAILED — connected as '${priv.role}', which cannot even read aire_log.`);
+  process.exit(1);
+}
+if (priv.can_insert) {
+  console.error(
+    `\nFAILED — connected as '${priv.role}', a role that IS ALLOWED TO INSERT into aire_log.\n` +
+      "  The waiter is holding the pen. Point AIRE_DATABASE_URL at aire_reader\n" +
+      "  (~/.secrets/aire-postgres-readonly.txt), not at the daemon's credential.\n" +
+      "  The four walls in lib/db.ts are defence in depth — they are not the defence.\n",
+  );
+  process.exit(1);
+}
+console.log(`connected as '${priv.role}' — reads aire_log, CANNOT insert into it.`);
+console.log("the credential itself is the wall; what follows is defence in depth.\n");
 
 const breached: string[] = [];
 

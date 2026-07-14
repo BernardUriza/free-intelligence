@@ -9,10 +9,8 @@ Read-only, server-rendered, live on Azure Container Apps:
 > it printed money for two decades. `aire-server` is the daemon. This is the
 > console.
 
-> ⚠️ **That URL is public and has no authentication.** Anyone who finds it reads
-> the whole database. It cannot write — but the day `claude_session_store` lands,
-> an open console over real transcripts is a leak with a URL. Auth is
-> [backlog #5](.claude/backlog/README.md) and it blocks the engine phase.
+Behind HTTP Basic (`~/.secrets/aire-console-password.txt`), connecting as a
+Postgres role that **holds `GRANT SELECT` and nothing else**.
 
 ## What it does
 
@@ -31,35 +29,41 @@ appears in the sidebar with no code change here.
 ## It cannot write — and that is tested, not asserted
 
 This repo reads a database it does not own. The transcript is **append-only**
-(`aire-server`'s law), so the front is forbidden from writing — and the
-prohibition is enforced four times over, because the first version of it was
-defeated in about a minute and a row of garbage landed in production.
+(`aire-server`'s law), so the front is forbidden from writing.
+
+The wall is **the credential**: the app connects as `aire_reader`, a Postgres role
+holding `GRANT SELECT` and nothing else. There is no privilege for an attacker to
+re-enable. Four more walls sit behind it in `lib/db.ts` as defence in depth —
+because the *first* version of this had only those walls, and they fell in about a
+minute (`SET TRANSACTION READ WRITE` took the privilege straight back, and a row of
+garbage reached production; it is still in `aire_log` at `seq 2641`, because
+append-only means the scar stays too).
 
 ```bash
 npm run attack
-#   blocked  plain DELETE             NotARead
+# connected as 'aire_reader' — reads aire_log, CANNOT insert into it.
+# the credential itself is the wall; what follows is defence in depth.
 #   blocked  disarm the transaction   NotARead
-#   blocked  disarm, then write       NotARead
 #   blocked  data-modifying CTE       error
 #   … PASSED — 13 write attempts, all refused, aire_log untouched.
 ```
 
-The four walls, and the story of how the first one fell:
+Hand it the pen's credential by mistake and it does not print a comforting wall of
+"blocked" — it stops dead: *"the waiter is holding the pen."* The whole story:
 [`.claude/rules/read-only-waiter.md`](.claude/rules/read-only-waiter.md).
-
-**Known weakness, written down rather than hidden:** the app still connects with
-the pen's own credential (`aire`, which *can* write). The real fix is a role that
-`GRANT SELECT`s and nothing else — it needs the Postgres server admin. See the
-[backlog](.claude/backlog/README.md).
 
 ## Run it
 
 ```bash
-export AIRE_DATABASE_URL='postgresql://…'   # the pen's DSN; the reader only SELECTs
+export AIRE_DATABASE_URL=$(grep '^AIRE_DATABASE_URL=' ~/.secrets/aire-postgres-readonly.txt | cut -d= -f2-)
+export AIRE_CONSOLE_PASSWORD=$(grep '^AIRE_CONSOLE_PASSWORD=' ~/.secrets/aire-console-password.txt | cut -d= -f2-)
 npm install
-npm run dev            # http://localhost:3000
+npm run dev            # http://localhost:3000 — it will ask for the password
 npm run attack         # prove it cannot write
 ```
+
+Without `AIRE_CONSOLE_PASSWORD` the app **refuses to serve** (503). It fails
+closed: an unset variable must never be why a database ends up public.
 
 ## Ship it
 
@@ -69,7 +73,10 @@ into an image layer).
 
 ```bash
 docker build -t aire-front .
-docker run -p 3000:3000 -e AIRE_DATABASE_URL='…' aire-front
+docker run -p 3000:3000 \
+  -e AIRE_DATABASE_URL='postgresql://aire_reader:…' \
+  -e AIRE_CONSOLE_PASSWORD='…' \
+  aire-front
 ```
 
 Azure Container Apps runbook — the app, the secret, the ingress:
