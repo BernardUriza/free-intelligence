@@ -30,6 +30,7 @@ store.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -37,10 +38,15 @@ from typing import TYPE_CHECKING, Protocol
 import anthropic
 import structlog
 
+from khimeras_shared.behavior.vulnerability import matched_signal_groups
+from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+
 if TYPE_CHECKING:
     from khimeras_shared.memory import MemoryStore
 
 log = structlog.get_logger()
+
+_PROMPT_CACHE: PromptCache = {}
 
 # 90 days in seconds — retention window for soft-deleted facts before the
 # hard-purge query removes them. 90d is long enough that a misclassified DELETE
@@ -75,6 +81,104 @@ CONSOLIDATION_MIN_DESTROY_TO_CAP = 1
 # amnesiac. Those rows were relabeled to 'manual'. Do NOT introduce a new source
 # string without first adding it to fi_core's FactSource enum.
 CURATED_SOURCES = frozenset({"manual", "agent"})
+
+# CLINICAL GUARD (defense in depth). The judge prompt BEGS the model never to
+# delete health/trauma facts; a prompt is a plea, not a guarantee — a small model
+# on a bad day will still hand back `{"op":"DELETE","id":17}` for "tiene CPTSD".
+# So the applier REFUSES it in code: a destructive op (DELETE, or an UPDATE that
+# consumes the fact into a merge) on a clinical fact is rejected and logged,
+# regardless of what the judge asked for. Non-clinical ops in the same plan still
+# apply — the guard protects the cluster, it does not freeze consolidation.
+CLINICAL_CATEGORIES = frozenset(
+    {
+        "health",
+        "salud",
+        "medical",
+        "medico",
+        "médico",
+        "mental_health",
+        "salud_mental",
+        "trauma",
+        "safety",
+        "seguridad",
+        "medication",
+        "medicacion",
+        "medicación",
+        "diagnosis",
+        "diagnostico",
+        "diagnóstico",
+    }
+)
+
+# Text-level net, on top of `behavior.vulnerability`'s signal groups (diagnoses,
+# psychiatric meds, clinicians, hospitalization, self-harm, chronic comorbidity):
+# the plainly-medical vocabulary those groups don't carry.
+_CLINICAL_TEXT_RE = re.compile(
+    r"(?i)\b("
+    r"diagn[oó]stic\w*|diagnos\w*|"
+    r"medicaci[oó]n|medicament\w*|f[aá]rmac\w*|pastill\w*|dosis|mg\b|receta\w*|"
+    r"tratamiento\w*|terapia\w*|therapy|"
+    r"enfermedad\w*|padecimient\w*|s[ií]ntoma\w*|cr[oó]nic\w*|"
+    r"vih|hiv|hepatitis|c[aá]ncer|cancer|diabet\w*|epileps\w*|"
+    r"depresi[oó]n|ansiedad|anxiety|depress\w*|"
+    r"abuso|abuse|violaci[oó]n|maltrat\w*|"
+    r"cl[ií]nica|hospital\w*|imss|consulta m[eé]dica|"
+    r"alerg\w*|antirretrovir\w*|arv\b"
+    r")"
+)
+
+
+def is_clinical_fact(fact: dict) -> str | None:
+    """Reason string when the fact is clinical/traumatic, else None.
+
+    Deliberately over-inclusive: a false positive costs one redundant fact kept
+    forever; a false negative costs someone's diagnosis (the 2026-06-03 P0).
+    """
+    category = (fact.get("category") or "").strip().lower()
+    if category in CLINICAL_CATEGORIES:
+        return f"category={category}"
+    text = fact.get("fact") or ""
+    groups = matched_signal_groups([fact])
+    if groups:
+        return f"vulnerability_signal={','.join(groups)}"
+    if _CLINICAL_TEXT_RE.search(text):
+        return "clinical_text"
+    return None
+
+
+def filter_clinical_destruction(plan: list[dict], by_id: dict[int, dict]) -> tuple[list[dict], list[dict]]:
+    """Strip every destructive op that would touch a clinical fact.
+
+    Returns `(safe_plan, blocked_ops)`. A blocked DELETE becomes a NOOP; a blocked
+    UPDATE (merge) is dropped and each of its `merge_ids` becomes a NOOP, so the
+    plan still references every input fact exactly once (fi-core's contract) and
+    nothing clinical is destroyed. Everything else passes through untouched — a
+    plan may still fold "le gusta el café" into one line.
+    """
+    safe: list[dict] = []
+    blocked: list[dict] = []
+    for op in plan:
+        kind = op.get("op")
+        if kind == "DELETE":
+            fact = by_id.get(op.get("id"))
+            reason = is_clinical_fact(fact) if fact else None
+            if reason:
+                blocked.append(op)
+                safe.append({"op": "NOOP", "id": op["id"], "reason": f"clinical_guard: {reason}"})
+                continue
+        elif kind == "UPDATE":
+            merge_ids = op.get("merge_ids", [])
+            hits = [(fid, is_clinical_fact(by_id[fid])) for fid in merge_ids if fid in by_id]
+            clinical = [(fid, r) for fid, r in hits if r]
+            if clinical:
+                blocked.append(op)
+                for fid in merge_ids:
+                    reason = dict(clinical).get(fid) or "merged with a clinical fact"
+                    safe.append({"op": "NOOP", "id": fid, "reason": f"clinical_guard: {reason}"})
+                continue
+        safe.append(op)
+    return safe, blocked
+
 
 # Output cap for the judge LLM. The plan must reference every input fact id in
 # exactly one op (NOOP/DELETE/UPDATE), and each op carries a short reason string
@@ -187,9 +291,16 @@ async def _call_judge(
 
     Shape B per memory:[[mcp-shape-b-canonical]]. fi-core
     (``build_consolidation_prompt`` + ``parse_consolidation_result``) owns the
-    prompt content, the JSON parser, op-shape validation, and implicit-NOOP
-    backfill. This function only orchestrates: build → execute via
-    ``llm.utility_call`` (RunnerJudgeClient in prod, mock in tests) → parse.
+    fact RENDER, the JSON parser, op-shape validation, and implicit-NOOP backfill.
+    This function only orchestrates: build → execute via ``llm.utility_call``
+    (RunnerJudgeClient in prod, mock in tests) → parse.
+
+    EXCEPT the system prompt: fi-core ships a Mem0-style curator that deletes
+    whenever "another fact covers the same ground" and caps merges at 25 words.
+    That is the prompt that buried Alex's CPTSD/quetiapina/psiquiatra cluster.
+    The CONSERVATIVE judge — default-NOOP, "NEVER DELETE health/identity/trauma",
+    no word cap — is OURS, lives as CONTENT in
+    ``prompts_md/memory_consolidator_judge.md``, and overrides fi-core's.
     """
     from fi_core.persona.mcp_server import (
         build_consolidation_prompt,
@@ -203,7 +314,7 @@ async def _call_judge(
 
     try:
         response = await llm.utility_call(
-            prompt_spec["system_prompt"],
+            load_prompt(SHARED_PROMPTS_DIR, "memory_consolidator_judge", _PROMPT_CACHE),
             [{"role": "user", "content": prompt_spec["user_text"]}],
             model=model,
             max_tokens=prompt_spec["max_tokens"],
@@ -303,6 +414,18 @@ async def consolidate_user_facts(
     # malformed ops, and backfilled implicit NOOPs — `plan` is ready to apply.
     valid_plan = plan
 
+    # CLINICAL GUARD: whatever the judge asked, a health/trauma fact is NOT
+    # destroyable. Blocked ops become NOOPs; the rest of the plan survives.
+    by_id = {f["id"]: f for f in facts}
+    valid_plan, blocked = filter_clinical_destruction(valid_plan, by_id)
+    if blocked:
+        log.warning(
+            "consolidator_clinical_destruction_blocked",
+            user_id=user_id,
+            blocked=len(blocked),
+            ops=[{"op": o["op"], "id": o.get("id"), "merge_ids": o.get("merge_ids")} for o in blocked[:10]],
+        )
+
     # SAFETY CAP: reject any plan that would destroy too much of the user's
     # memory in one pass. This is the hard backstop against a judge model
     # decimating substantive facts (the 2026-06-03 Alex P0). Counts DELETE ops
@@ -330,7 +453,6 @@ async def consolidate_user_facts(
 
     if dry_run:
         # Build the report without touching the DB.
-        by_id = {f["id"]: f for f in facts}
         for op in valid_plan:
             kind = op["op"]
             if kind == "NOOP":
@@ -381,7 +503,6 @@ async def consolidate_user_facts(
     # Apply the plan transactionally — the repo wraps every UPDATE/INSERT plus
     # the audit-log writes in a single asyncpg transaction so a crash mid-plan
     # can't leave user_facts and fact_consolidation_log out of sync.
-    by_id = {f["id"]: f for f in facts}
     try:
         report.ops = await memory._facts.apply_consolidation_plan(user_id, by_id, valid_plan, run_ts, _op_factory)
     except Exception as e:
