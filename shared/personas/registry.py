@@ -48,9 +48,26 @@ class Persona:
     gateway_enabled: bool = True
 
 
-# Insult is NOT here — it is the omnipresent host, not a sibling persona.
 # Future bots: add an entry, nothing else to change.
 PERSONAS: dict[str, Persona] = {
+    # Insult — registrado 2026-07-14, el día del castigo. Dejó de ser "el
+    # sistema" (personas/insult murió, 37k líneas) y volvió a ser lo que sus
+    # hermanos siempre fueron: UNA persona = DNA en insult.md + esta entrada.
+    # Mention-gated vía gateway por ahora; su omnipresencia regresa cuando el
+    # host nuevo (demux_ai) sea dueño de la recepción. CUTOVER: el token entra
+    # al env del gateway SOLO después del scale-to-0 del Container App
+    # discord-bot viejo — nunca dos bots vivos con un token.
+    "insult": Persona(
+        persona_id="insult",
+        display_name="Insult",
+        persona_file="insult.md",
+        token_env="INSULT_DISCORD_TOKEN",
+        bot_user_id="1488415576551325906",  # GET /users/@me con su token, 2026-07-14
+        aliases=[],  # mention-only: "insult" como palabra suelta es FP-trampa (es/en)
+        avatar=None,
+        tts_voice="onyx",
+        gateway_enabled=True,
+    ),
     "vultur": Persona(
         persona_id="vultur",
         display_name="Vultur Analytica",
