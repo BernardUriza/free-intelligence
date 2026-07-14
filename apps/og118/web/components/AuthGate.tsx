@@ -17,6 +17,7 @@
 import { useAuth0 } from '@auth0/auth0-react';
 
 import { isAuth0Mode } from '@/lib/authMode';
+import { useOg118Identity } from '@/lib/og118Identity';
 
 function Screen({ children }: { children: React.ReactNode }) {
   return (
@@ -104,6 +105,39 @@ function Auth0SignOut() {
 export function SignOutButton() {
   if (!isAuth0Mode) return null;
   return <Auth0SignOut />;
+}
+
+/**
+ * The anti-zombie banner: the id session says "signed in" but the access token
+ * can no longer be minted (refresh token expired/revoked), so cloud sync is
+ * dead and the app silently fell back to local data. Says so, with the one
+ * action that fixes it. Renders nothing while the session is healthy.
+ */
+function Auth0SessionExpired() {
+  const { tokenFailed } = useOg118Identity();
+  const { loginWithRedirect } = useAuth0();
+  if (!tokenFailed) return null;
+  return (
+    <div className="og-auth-banner" data-ref="og118-session-expired">
+      <span className="og-auth-banner-label">
+        Tu sesión expiró — tus chats en la nube no están sincronizando.
+      </span>
+      <div className="og-auth-banner-row">
+        <button
+          type="button"
+          className="og-session-relogin"
+          onClick={() => void loginWithRedirect()}
+        >
+          Volver a entrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function SessionExpiredBanner() {
+  if (!isAuth0Mode) return null;
+  return <Auth0SessionExpired />;
 }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {

@@ -416,6 +416,29 @@ body {
   font-size: 0.7rem;
   color: #475569;
 }
+/* CONV-SEARCH-1: the sidebar chat search. */
+.og-sidebar-search {
+  margin: 0.15rem 0.5rem 0;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--glass-chat-text, #e2e8f0);
+  font-size: 0.82rem;
+  outline: none;
+}
+.og-sidebar-search:focus {
+  border-color: var(--og-accent, #34d399);
+}
+.og-sidebar-search::placeholder {
+  color: #64748b;
+}
+.og-sidebar-noresults {
+  margin: 0;
+  padding: 0.4rem;
+  font-size: 0.78rem;
+  color: #64748b;
+}
 /* CONV-ORGANIZE-1: Fijados/Chats group labels inside the conversation section,
    and the collapsible Archivados section under it. */
 .og-sidebar-group-label {
@@ -445,6 +468,16 @@ body {
   cursor: pointer;
 }
 
+.og-session-relogin {
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--og-accent, #34d399);
+  background: transparent;
+  color: var(--og-accent, #34d399);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
 .og-auth-banner {
   margin-bottom: 0.75rem;
   padding: 0.75rem;

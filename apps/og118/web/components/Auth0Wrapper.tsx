@@ -28,10 +28,15 @@ function TokenSync({ children }: { children: React.ReactNode }) {
   // fetches (GET /projects) wait on this so they don't fire before the token lands
   // and 401 (the token sync is async; isAuthenticated/userId go true first).
   const [tokenReady, setTokenReady] = useState(false);
+  // The session-zombie signal: the id session says "signed in" but the access
+  // token can no longer be minted (refresh token expired/revoked). Drives the
+  // SessionExpiredBanner instead of a silent fallback to local data.
+  const [tokenFailed, setTokenFailed] = useState(false);
   useEffect(() => {
     if (!isAuthenticated) {
       clearToken();
       setTokenReady(false);
+      setTokenFailed(false);
       return;
     }
     let cancelled = false;
@@ -43,15 +48,18 @@ function TokenSync({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setToken(token);
           setTokenReady(true);
+          setTokenFailed(false);
         }
       } catch (err) {
         // The login gate (isAuthenticated/id_token) stays true even when the
         // API access-token fetch fails (consent/audience/scope), so a silent
         // catch leaves the app loaded but every API call 401s with no signal.
-        // Surface it: clear the stale token AND log the real cause.
+        // Surface it: clear the stale token, flag the failure for the UI, AND
+        // log the real cause. The interval retries; success clears the flag.
         if (!cancelled) {
           clearToken();
           setTokenReady(false);
+          setTokenFailed(true);
         }
         console.error('[og118] Auth0 access-token sync failed:', err);
       }
@@ -68,14 +76,16 @@ function TokenSync({ children }: { children: React.ReactNode }) {
   // data. Null until authenticated.
   const userId = isAuthenticated ? user?.sub ?? null : null;
   return (
-    <Og118IdentityProvider value={{ userId, tokenReady }}>{children}</Og118IdentityProvider>
+    <Og118IdentityProvider value={{ userId, tokenReady, tokenFailed }}>
+      {children}
+    </Og118IdentityProvider>
   );
 }
 
 export function Auth0Wrapper({ children }: { children: React.ReactNode }) {
   if (!isAuth0Mode) {
     return (
-      <Og118IdentityProvider value={{ userId: null, tokenReady: true }}>
+      <Og118IdentityProvider value={{ userId: null, tokenReady: true, tokenFailed: false }}>
         {children}
       </Og118IdentityProvider>
     );

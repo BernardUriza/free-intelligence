@@ -115,3 +115,29 @@ describe('Auth0Wrapper token sync', () => {
     expect(getToken()).toBeNull();
   });
 });
+
+describe('SessionExpiredBanner', () => {
+  it('renders the re-login action only when the token sync failed', async () => {
+    mockAuth.isAuthenticated = true;
+    vi.stubEnv('NEXT_PUBLIC_OG118_AUTH_MODE', 'auth0');
+    vi.resetModules();
+    const { SessionExpiredBanner } = await import('../AuthGate');
+    const { Og118IdentityProvider } = await import('@/lib/og118Identity');
+
+    const { rerender } = render(
+      <Og118IdentityProvider value={{ userId: 'u1', tokenReady: true, tokenFailed: false }}>
+        <SessionExpiredBanner />
+      </Og118IdentityProvider>,
+    );
+    expect(screen.queryByText(/sesión expiró/)).toBeNull();
+
+    rerender(
+      <Og118IdentityProvider value={{ userId: 'u1', tokenReady: false, tokenFailed: true }}>
+        <SessionExpiredBanner />
+      </Og118IdentityProvider>,
+    );
+    expect(screen.getByText(/sesión expiró/)).toBeInTheDocument();
+    screen.getByRole('button', { name: 'Volver a entrar' }).click();
+    expect(mockAuth.loginWithRedirect).toHaveBeenCalled();
+  });
+});

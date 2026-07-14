@@ -24,9 +24,21 @@ export interface Og118Identity {
    * legacy token, if any, is read synchronously).
    */
   tokenReady: boolean;
+  /**
+   * True when the token sync FAILED (refresh token expired/revoked): the user
+   * still looks signed in (the id session is valid) but every API call 401s.
+   * Distinguishes "syncing" (tokenReady false, transient) from "needs
+   * re-login", so the UI says so instead of silently falling back to local
+   * data — the session-zombie fake-green.
+   */
+  tokenFailed: boolean;
 }
 
-const Og118IdentityContext = createContext<Og118Identity>({ userId: null, tokenReady: true });
+const Og118IdentityContext = createContext<Og118Identity>({
+  userId: null,
+  tokenReady: true,
+  tokenFailed: false,
+});
 
 export const Og118IdentityProvider = Og118IdentityContext.Provider;
 
