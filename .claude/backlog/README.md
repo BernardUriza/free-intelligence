@@ -5,7 +5,7 @@
 | # | Item | Status |
 |---|------|--------|
 | **1** | **A read-only Postgres role.** The app connects as `aire` — the pen's own credential, which CAN write. Four walls in `lib/db.ts` stop it, but the honest posture is a credential that simply lacks the privilege: `CREATE ROLE aire_reader … GRANT SELECT`. Needs the server admin (`devadmin` on `development-pg-n66dz`); `aire` has `rolcreaterole = false` (verified). **The day it lands, `npm run attack` must still pass with the four walls deleted** — that is the proof the fix is real. SQL in [`.claude/rules/read-only-waiter.md`](../rules/read-only-waiter.md). | **Proposed — blocked on the admin credential** |
-| 2 | Clean up the garbage row a failed security test left in production: `aire_log`, `seq 2641`, `line = 'pwned'`. It is a write, so it belongs to `aire-server` (the pen), not here. Bernard's call — the log is append-only by law. | Proposed |
+| 2 | ~~Clean up the garbage row a failed security test left in production (`aire_log`, `seq 2641`, `'pwned'`).~~ **Dropped 2026-07-13 by Bernard: the row stays.** The law is append-only — *to correct is to append, not to erase* — and deleting the evidence of the day the lock failed would be the first mutation of a log that has never been mutated. It survives as an honest scar. (The monster does not even render it: a one-token line does not classify as an event.) | **Dropped — on purpose** |
 
 ## The console
 
