@@ -41,6 +41,8 @@ from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
+from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
+from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
 from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.tts import (
@@ -743,6 +745,56 @@ class PersonaClient(discord.Client):
             except Exception:
                 log.exception(
                     "agenda_save_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                )
+        # Reminder: the persona accepted "recuérdame X" and emitted
+        # [REMIND: when | what]. Persist the row and strip the marker so only the
+        # in-character ack reaches Discord. Before this the marker leaked RAW into
+        # the channel and the intent died unstored (P0 2026-07-14).
+        remind_request = parse_remind(text)
+        if remind_request:
+            text = strip_reminds(text)
+            try:
+                reminder_id = await persist_remind(
+                    remind_request,
+                    memory=self.memory,
+                    channel_id=channel_id,
+                    guild_id=guild_id,
+                    created_by=user_id,
+                )
+                log.info(
+                    "remind_saved",
+                    persona_id=self.persona.persona_id,
+                    reminder_id=reminder_id,
+                    channel_id=channel_id,
+                    when_raw=remind_request.when_raw[:40],
+                )
+            except Exception:
+                # The ack text still sends; only the row didn't land.
+                log.exception(
+                    "remind_save_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                )
+        # Fact learning: the persona marked something durable about the user with
+        # [REMEMBER: ...]. Persist it (source='agent', pure INSERT — never a
+        # snapshot replace) and strip the marker.
+        remember_facts = parse_remembers(text)
+        if remember_facts:
+            text = strip_remembers(text)
+            try:
+                saved = await persist_remembers(self.memory, user_id, remember_facts)
+                log.info(
+                    "remember_saved",
+                    persona_id=self.persona.persona_id,
+                    user_id=user_id,
+                    count=saved,
+                    channel_id=channel_id,
+                )
+            except Exception:
+                log.exception(
+                    "remember_save_failed",
                     persona_id=self.persona.persona_id,
                     channel_id=channel_id,
                 )

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from khimeras_shared.agenda_marker import strip_agenda
 from khimeras_shared.reactions import strip_reactions
+from khimeras_shared.remember_marker import strip_remembers
+from khimeras_shared.remind_marker import strip_reminds
 from khimeras_shared.research_marker import strip_research
 
 __all__ = ["strip_delivery_markers"]
@@ -23,4 +25,4 @@ __all__ = ["strip_delivery_markers"]
 def strip_delivery_markers(text: str) -> str:
     """Remove ALL in-band markers from text about to be delivered with no live
     turn to act on them. Order-independent (each strip targets its own marker)."""
-    return strip_agenda(strip_research(strip_reactions(text or ""))).strip()
+    return strip_remembers(strip_reminds(strip_agenda(strip_research(strip_reactions(text or ""))))).strip()
