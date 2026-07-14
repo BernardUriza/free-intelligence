@@ -1,6 +1,6 @@
 # Elementos externos ignoran el Project activo (corpus nunca llega al engine remoto)
 
-Status: Proposed
+Status: In progress — ruta 1 (aviso honesto in-stream) shipped 2026-07-14; ruta 2 (RAG server-side) pendiente de greenlight
 Proposed: 2026-07-14 by Claude (hallazgo colateral de PROJ-AUTOSEARCH-1)
 
 ## What it is
@@ -35,4 +35,7 @@ queden explícitamente fuera.
 
 ## Status / next step
 
-No construido. Desbloquea: greenlight de Bernard sobre la ruta.
+Ruta 1 shipped (2026-07-14): la rama external de `/chat/stream` rechaza LOUD
+(error in-stream, mismo patrón que imágenes) cuando llega `corpus_id` con
+elemento externo — la mentira silenciosa quedó muerta. Ruta 2 (RAG server-side
+antes del proxy) sigue pendiente de greenlight de Bernard.
