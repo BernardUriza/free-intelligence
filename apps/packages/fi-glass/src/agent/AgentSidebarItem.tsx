@@ -206,6 +206,12 @@ export interface AgentSidebarItemProps {
   disabled?: boolean;
   /** When the row is being edited in place: non-interactive, no hover-select. */
   editing?: boolean;
+  /**
+   * Fire `onSelect` even when the row is already selected, so the consumer can
+   * treat the click as a toggle-off (an active-project row deselects). Default
+   * false — a selected row is inert (re-clicking the open conversation is a no-op).
+   */
+  toggleable?: boolean;
   ariaLabel?: string;
   className?: string;
 }
@@ -219,11 +225,12 @@ export function AgentSidebarItem({
   actions,
   disabled = false,
   editing = false,
+  toggleable = false,
   ariaLabel,
   className,
 }: AgentSidebarItemProps) {
   useSidebarItemStyle();
-  const interactive = !disabled && !selected && !editing;
+  const interactive = !disabled && !editing && (toggleable || !selected);
   const titleNode =
     typeof title === 'string' ? <span className={FI_ITEM_TITLE_CLASS}>{title}</span> : title;
   return (

@@ -26,7 +26,7 @@ export interface Og118ProjectsSectionProps {
   projects: Og118Project[];
   activeProjectId: string | null;
   onCreate: (name: string) => void;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onDelete: (id: string) => void;
   /** Disable mutations while a turn streams. */
   disabled?: boolean;

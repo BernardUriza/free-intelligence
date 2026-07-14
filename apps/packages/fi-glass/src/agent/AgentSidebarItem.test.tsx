@@ -56,6 +56,17 @@ describe('AgentSidebarItem', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('fires onSelect on a selected row when toggleable (active-project deselect)', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<AgentSidebarItem selected toggleable onSelect={onSelect} title="t" />);
+    const row = screen.getByRole('button');
+    await user.click(row);
+    row.focus();
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledTimes(2);
+  });
+
   it('renders subtitle and meta only when present', () => {
     const { rerender } = render(
       <AgentSidebarItem selected={false} onSelect={vi.fn()} title="t" subtitle="hola" meta="12:00" />,

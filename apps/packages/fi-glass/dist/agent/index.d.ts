@@ -672,10 +672,16 @@ interface AgentSidebarItemProps {
     disabled?: boolean;
     /** When the row is being edited in place: non-interactive, no hover-select. */
     editing?: boolean;
+    /**
+     * Fire `onSelect` even when the row is already selected, so the consumer can
+     * treat the click as a toggle-off (an active-project row deselects). Default
+     * false — a selected row is inert (re-clicking the open conversation is a no-op).
+     */
+    toggleable?: boolean;
     ariaLabel?: string;
     className?: string;
 }
-declare function AgentSidebarItem({ selected, onSelect, title, subtitle, meta, actions, disabled, editing, ariaLabel, className, }: AgentSidebarItemProps): react.JSX.Element;
+declare function AgentSidebarItem({ selected, onSelect, title, subtitle, meta, actions, disabled, editing, toggleable, ariaLabel, className, }: AgentSidebarItemProps): react.JSX.Element;
 interface EditableResourceItemProps {
     title: string;
     selected: boolean;
