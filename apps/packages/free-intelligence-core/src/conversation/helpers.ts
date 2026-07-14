@@ -214,6 +214,32 @@ export function summarizeConversation(
   };
 }
 
+/** Lowercase + strip diacritics, so "métodos" matches "metodos" (es-MX). */
+function normalizeForSearch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Filter summaries by a free-text query over title + preview (CONV-SEARCH-1).
+ * Case- and diacritic-insensitive; every whitespace-separated term must match
+ * somewhere (AND semantics). An empty/whitespace query returns the input
+ * untouched. Pure — feed the result to {@link organizeConversationSummaries}.
+ */
+export function filterConversationSummaries(
+  summaries: ConversationSummary[],
+  query: string,
+): ConversationSummary[] {
+  const terms = normalizeForSearch(query).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return summaries;
+  return summaries.filter((s) => {
+    const haystack = normalizeForSearch(`${s.title} ${s.preview}`);
+    return terms.every((t) => haystack.includes(t));
+  });
+}
+
 /** The sidebar's three sections, each already in display order. */
 export interface OrganizedConversations {
   /** Pinned, last-pinned first. */

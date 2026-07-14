@@ -15,6 +15,7 @@ export {
   createConversationRecord,
   summarizeConversation,
   organizeConversationSummaries,
+  filterConversationSummaries,
   deriveConversationTitle,
   deriveConversationPreview,
   resolveConversationTitle,

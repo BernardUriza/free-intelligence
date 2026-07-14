@@ -258,6 +258,17 @@ function summarizeConversation(record) {
     ...record.archivedAt ? { archivedAt: record.archivedAt } : {}
   };
 }
+function normalizeForSearch(text) {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function filterConversationSummaries(summaries, query) {
+  const terms = normalizeForSearch(query).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return summaries;
+  return summaries.filter((s) => {
+    const haystack = normalizeForSearch(`${s.title} ${s.preview}`);
+    return terms.every((t) => haystack.includes(t));
+  });
+}
 function organizeConversationSummaries(summaries) {
   const pinned = [];
   const active = [];
@@ -278,6 +289,7 @@ export {
   createConversationRecord,
   deriveConversationPreview,
   deriveConversationTitle,
+  filterConversationSummaries,
   foldAssistantTurn,
   initialAgentTurnState,
   makeUserMessage,
