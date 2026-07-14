@@ -43,6 +43,7 @@ import asyncio
 import os
 import re
 import secrets as secrets_mod
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,6 +57,16 @@ WORKSPACES = Path(
 )
 VERB_TOKEN = os.environ.get("AIRE_VERB_TOKEN", "")
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+# The port is open to the internet by design (EC-GPS: devices push, no auth to
+# report). That makes the pen a WRITE AMPLIFIER: every accepted line lands in the
+# owner's Postgres. Without a ceiling, a stranger with a for-loop fills the disk
+# AND inflates the bill. So: a token bucket per peer IP — generous for a real
+# device (a keep-alive every 2s is 30/min), fatal for a flood. Loopback is exempt
+# (it is us). Enforced per LINE, not per connection: reconnecting does not reset
+# the bucket.
+RATE_LIMIT_LINES_PER_MIN = int(os.environ.get("AIRE_RATE_LIMIT", "120"))
+MAX_LINE_BYTES = 4096
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS aire_log (
@@ -149,6 +160,38 @@ def append(line: str) -> None:
         PEN.write(line)
 
 
+class Bucket:
+    """Token bucket per peer IP: `RATE_LIMIT_LINES_PER_MIN` lines a minute,
+    refilled continuously. State lives per IP (not per connection) so a flooder
+    cannot reset it by reconnecting. Idle IPs are evicted so the dict cannot
+    become its own memory leak."""
+
+    def __init__(self, rate_per_min: int) -> None:
+        self.rate = rate_per_min / 60.0
+        self.burst = float(rate_per_min)
+        self._tokens: dict[str, float] = {}
+        self._seen: dict[str, float] = {}
+
+    def allow(self, ip: str) -> bool:
+        now = time.monotonic()
+        if len(self._seen) > 10_000:
+            cutoff = now - 3600
+            for stale in [k for k, t in self._seen.items() if t < cutoff]:
+                self._tokens.pop(stale, None)
+                self._seen.pop(stale, None)
+        last = self._seen.get(ip, now)
+        tokens = min(self.burst, self._tokens.get(ip, self.burst) + (now - last) * self.rate)
+        self._seen[ip] = now
+        if tokens < 1.0:
+            self._tokens[ip] = tokens
+            return False
+        self._tokens[ip] = tokens - 1.0
+        return True
+
+
+BUCKET = Bucket(RATE_LIMIT_LINES_PER_MIN)
+
+
 def mkdir_verb(msg: str, addr: str) -> str:
     """The first verb. `MKDIR <token> <name>` → a fresh session casita under
     ``workspaces/``, named ``{timestamp}_{uuid4}_{name}`` — every session is
@@ -182,7 +225,16 @@ def mkdir_verb(msg: str, addr: str) -> str:
 async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     peer = writer.get_extra_info("peername")
     addr = f"{peer[0]}:{peer[1]}" if peer else "?"
+    ip = peer[0] if peer else "?"
+    exempt = ip.startswith("127.") or ip == "::1"
+    if not exempt and not BUCKET.allow(ip):
+        # Over budget before saying anything: hang up WITHOUT appending, or the
+        # flood would still reach the log through its own rejections.
+        writer.close()
+        await writer.wait_closed()
+        return
     append(f"{_now()} {addr} CONNECT")
+    throttled = False
     try:
         while True:
             try:
@@ -196,6 +248,16 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
                 append(f"{_now()} {addr} OVERLONG-LINE dropped")
                 break
             if not raw:  # the device closed the connection
+                break
+            if len(raw) > MAX_LINE_BYTES:
+                append(f"{_now()} {addr} OVERSIZED-LINE dropped")
+                break
+            if not exempt and not BUCKET.allow(ip):
+                # ONE line about it (the first), then silence: a rate-limit notice
+                # per flooded line would BE the flood.
+                if not throttled:
+                    append(f"{_now()} {addr} RATE-LIMITED")
+                    throttled = True
                 break
             msg = raw.decode(errors="replace").rstrip("\r\n")
             if not msg:
