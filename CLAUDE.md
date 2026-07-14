@@ -36,10 +36,18 @@ memory. To contradict anything here, verify it first the same way.
    *user's own account* (personal or work), never as an identity baked into the server.
 4. **The container stores nothing.** `CLAUDE_CONFIG_DIR=/tmp`.
 5. **This repo is WRITE-ONLY toward the database.** Every read — rendering,
-   analytics, dashboards, session browsing — lives in a separate front repo (the
-   PHP of EC-GPS, planned as Next.js; backlog #15). The one sanctioned exception
-   is the SDK's `session_store.load()` for resume (the agent reading its own
-   memory). Full law: [`.claude/rules/write-only-daemon.md`](.claude/rules/write-only-daemon.md).
+   analytics, dashboards, session browsing — lives in the front repo, which now
+   EXISTS: [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed)
+   (the PHP of EC-GPS, Next.js SSR,
+   [live](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io);
+   backlog #15). The one sanctioned exception here is the SDK's
+   `session_store.load()` for resume (the agent reading its own memory). Full law:
+   [`.claude/rules/write-only-daemon.md`](.claude/rules/write-only-daemon.md).
+   **Two things the front makes THIS repo's problem:** (a) it connects with the
+   pen's own write-capable credential — the fix, an `aire_reader` role, is minted
+   from this side; (b) its console is **public and unauthenticated**, which is
+   harmless over `aire_log` and a data leak the moment the engine here creates
+   `claude_session_store`. Do not wake the engine into a public console.
 
 ## Reuse, don't rewrite
 

@@ -5,3 +5,6 @@ __pycache__/
 aire.log
 aire.log.pre-kill-*
 *.tmp.json
+# A waiter's output has no business in the daemon's repo — the monster moved to
+# aire-front at f40e21a, and only its rendered HTML was left behind.
+monster.html

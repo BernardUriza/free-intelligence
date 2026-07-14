@@ -107,6 +107,7 @@ missing glue around the SDK, callable from any language.
 | The pen — log mirrored to Postgres | ✅ Live behind `AIRE_DATABASE_URL` |
 | Postgres session store (`aire/store.py`) | ✅ SDK conformance suite green (local) |
 | Engine + streaming SSR/SSE (`aire/engine.py`, `server.py`, `render.py`) | Written, runs locally, no auth yet |
+| The console — [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed), the read half | ✅ **Live** on Container Apps ([open it](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io)) — tables, browse, SQL console, the monster. **Public, no auth** |
 | **The tracer that proves the thesis** — chapter 1 → kill the process → chapter 2 remembers | ⏳ **Next** (backlog #5) |
 | The broom (retention, backups, metrics) | Backlog |
 

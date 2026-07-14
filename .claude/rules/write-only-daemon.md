@@ -9,12 +9,29 @@ the repo that gets cloned to the daemon's body. Toward Postgres it **only append
    analytics, browsing, dashboards, or debugging tools. The daemon holds the pen
    ([[log-is-the-truth]]); it never holds the menu.
 2. **Every reader is a waiter, and every waiter lives in the front repo** — the
-   PHP-of-EC-GPS layer, planned as a separate Next.js project (backlog #15). The
-   first tenant is the monster (the DFG view), evicted from here at commit
-   `f40e21a` and parked in `~/Documents/aire-front-seed/` until that repo exists.
+   PHP-of-EC-GPS layer. **It exists**: [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed)
+   (Next.js SSR, [live on Container Apps](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io),
+   backlog #15). The first tenant was the monster (the DFG view), evicted from
+   here at commit `f40e21a` and now served there.
+   **Its half of this law is [`read-only-waiter`](https://github.com/BernardUriza/aire-front-seed/blob/main/.claude/rules/read-only-waiter.md)** —
+   one law, two repos: this one only appends, that one only reads.
 3. **The daemon owns the DDL.** `CREATE TABLE` for what it writes lives here; the
    front treats the schema as a read-only contract. A schema change is an API
    change between the two repos — coordinate it, never surprise the reader.
+4. **The pen's credential is the daemon's alone.** `AIRE_DATABASE_URL` (role
+   `aire`) grants **write** privileges — that is what makes it the pen. Today the
+   front connects with **that same credential**, and holds itself back with four
+   walls in its own code. That is a stopgap, and it was learned the hard way: a
+   read-only *transaction mode* is not a read-only *credential*, and a role that
+   can write can always take the privilege back (`SET TRANSACTION READ WRITE` did
+   exactly that on 2026-07-13, and a `'pwned'` row reached `aire_log` at
+   `seq 2641` — it is still there, because the log is append-only and correcting
+   means appending, not erasing).
+   **The daemon's side of the fix: mint `aire_reader` (`GRANT SELECT`, nothing
+   else) and hand the front THAT.** It needs the Postgres server admin; the `aire`
+   role has `rolcreaterole = false` (verified). Until then, the front runs with a
+   credential more powerful than its job, and that is written down rather than
+   pretended away.
 
 ## Why
 
