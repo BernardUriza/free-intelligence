@@ -23,10 +23,11 @@ REGION="${REGION:-nyc3}"
 SIZE="${SIZE:-s-1vcpu-512mb-10gb}"     # cheapest (~$4/mo); fallback s-1vcpu-1gb (~$6/mo)
 IMAGE="ubuntu-24-04-x64"
 SSH_KEY="$HOME/.ssh/aire_vm"           # key pair dedicated to this droplet
-# NOTE: the repo is PRIVATE — an HTTPS clone fails on a fresh droplet. The live
-# droplet uses origin git@github.com:BernardUriza/aire-server.git with the
-# read-only deploy key at /root/.ssh/github_deploy (see infra/README.md).
-REPO_URL="https://github.com/BernardUriza/aire-server"
+# The repo is PRIVATE — the droplet clones over SSH with the read-only deploy
+# key, installed below at /root/.ssh/github_deploy from ~/.secrets/.
+DEPLOY_KEY="$HOME/.secrets/aire-github-deploy-key.txt"
+PEN_SECRET="$HOME/.secrets/aire-postgres.txt"
+REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"
 
 echo "==> AIRE provision (DigitalOcean)"
@@ -100,6 +101,23 @@ for i in $(seq 1 10); do
   if $SSH "root@${IP}" true 2>/dev/null; then break; fi
   echo "    waiting for sshd… ($i/10)"; sleep 6
 done
+
+echo "    [local] installing the GitHub deploy key (private repo)…"
+if [[ ! -f "$DEPLOY_KEY" ]]; then
+  echo "ERROR: $DEPLOY_KEY missing — the private repo cannot be cloned without it." >&2
+  exit 1
+fi
+scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$DEPLOY_KEY" "root@${IP}:/root/.ssh/github_deploy"
+$SSH "root@${IP}" 'chmod 600 /root/.ssh/github_deploy
+grep -q "^Host github.com$" /root/.ssh/config 2>/dev/null || printf "Host github.com\n  IdentityFile /root/.ssh/github_deploy\n  StrictHostKeyChecking accept-new\n" >> /root/.ssh/config'
+
+if [[ -f "$PEN_SECRET" ]]; then
+  echo "    [local] installing the pen secret (/etc/aire/env)…"
+  DSN="$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET" | cut -d= -f2-)"
+  $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; printf 'AIRE_DATABASE_URL=%s\n' '$DSN' > /etc/aire/env"
+else
+  echo "    [local] no $PEN_SECRET — listener will run file-only (no pen)."
+fi
 
 $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' <<'REMOTE'
 set -euo pipefail
