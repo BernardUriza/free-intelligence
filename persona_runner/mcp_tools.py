@@ -228,7 +228,7 @@ async def get_disclosure_log(args: dict) -> dict:
     {"user_id": str, "query": str, "top_k": int},
 )
 async def deep_memory(args: dict) -> dict:
-    from personas.insult.core.deep_memory import query_user_memory
+    from khimeras_shared.deep_memory import query_user_memory
 
     user_id = (args.get("user_id") or "").strip()
     query = (args.get("query") or "").strip()
@@ -275,7 +275,7 @@ async def deep_memory(args: dict) -> dict:
     {"title": str, "html_content": str, "user_id": str},
 )
 async def publish_html_artifact(args: dict) -> dict:
-    from personas.insult.core.html_artifacts import insert_artifact
+    from khimeras_shared.html_artifacts import insert_artifact
 
     title = (args.get("title") or "").strip()
     html_content = args.get("html_content") or ""

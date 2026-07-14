@@ -48,36 +48,19 @@ RUN npm install -g --silent @playwright/mcp \
  && npx -y playwright install --with-deps chromium \
  && chmod -R a+rX /opt/playwright-browsers
 
-# Copy shared/, khimeras_shared/ and personas/insult/ — runner needs:
-#   - shared/* for chunking, retry, logging setup
-#   - khimeras_shared/* for the neutral capabilities the demux (PR #26, Etapa 3)
-#     pulled out of insult/: runner.agent_client, persona.app contracts, prompts
-#     loader, memory/vectors/style/corpus, memory_consolidation. The runner
-#     imports `from personas.insult.*` which now transitively imports
-#     `from khimeras_shared.*` — OMITTING this dir makes the agent loop 502 with
-#     `ModuleNotFoundError: No module named 'khimeras_shared'` on EVERY turn
-#     (prod P0, 2026-06-16: PR #26 shipped without this COPY → all Insult turns
-#     fell over to ALICE for ~2h while /health stayed green on the plumbing).
-#   - persona_runner/* — the shared runner service (FastAPI + workspace_renderer),
-#     top-level package since v4.21.118 (moved out of personas/insult/agent/: the
-#     runner serves ALL Claude personas via persona_id, it is not Insult behavior)
-#   - personas/insult/core/memory/* for asyncpg repos that the renderer queries
-# personas/alice/ is NOT copied — runner is bot-agnostic; only the workspace
-# matters at agent-loop time. personas/__init__.py is copied so `personas`
-# is an importable package (the runner still imports `from personas.insult.core.*`
-# for flows/presets/routing/deep_memory).
+# Copy the runner's real import graph (post-castigo 2026-07-14 — `personas/`
+# no existe; el engine conductual vive en khimeras_shared.behavior):
+#   - shared/* for chunking, logging setup, and the persona registry/DNA
+#   - khimeras_shared/* for runner.agent_client, prompts loader,
+#     memory/vectors/style/corpus, memory_consolidation, deep_memory,
+#     html_artifacts, and behavior/ (presets+flows+vulnerability engine that
+#     persona_runner.{model_routing,router_runtime} import)
+#   - persona_runner/* — the shared runner service (FastAPI + workspace_renderer)
+#   - demux_ai/* — routing seeds (host_llm, summon) reachable by lazy imports
 COPY shared/ shared/
 COPY khimeras_shared/ khimeras_shared/
 COPY persona_runner/ persona_runner/
-# demux_ai/ — PR-4b slice 3 wired the gpt-4.1 host degrader into the persona's
-# composition root (`build_host_degrader_port` defers `from demux_ai.host_degrader
-# import HostDegrader`). The import is gated behind `host_router_enabled` (False in
-# prod, so it never runs today), but the file MUST be in the image so flipping the
-# flag live doesn't 502 with `ModuleNotFoundError: No module named 'demux_ai'`.
-# Enforced by tests/arch/test_runner_dockerfile_copies_imports.py.
 COPY demux_ai/ demux_ai/
-COPY personas/__init__.py personas/__init__.py
-COPY personas/insult/ personas/insult/
 
 # Persona file lives in the repo (not in workspace mount) so it ships
 # with the image. Renderer NEVER overwrites it.

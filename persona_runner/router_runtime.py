@@ -57,8 +57,7 @@ from typing import Any
 import asyncpg
 import structlog
 
-from persona_runner.model_routing import ModelChoice, OpusBudget, select_model
-from personas.insult.core.flows.types import (
+from khimeras_shared.behavior.flows.model.types import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,
@@ -70,7 +69,8 @@ from personas.insult.core.flows.types import (
     StyleFlavor,
     UserState,
 )
-from personas.insult.core.presets import classify_preset
+from khimeras_shared.behavior.presets import classify_preset
+from persona_runner.model_routing import ModelChoice, OpusBudget, select_model
 
 log = structlog.get_logger()
 

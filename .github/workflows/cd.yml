@@ -95,15 +95,18 @@ jobs:
           }
 
           GW_SHA=$(running_tag persona-gateway app)
+          RUNNER_SHA=$(running_tag persona-runner app)
 
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
-          # persona-runner CD GATED (2026-07-14, el castigo): personas/ fue
-          # BORRADO del repo, pero el paquete conda fi-runner todavía importa
-          # `personas.insult.core.*` adentro de la imagen — el fix es cross-repo
-          # (free-intelligence). La revisión corriendo no se toca; cuando
-          # fi-runner suelte ese import, restaurar el build aquí.
-          BUILD_RUNNER="false"
+          # Gate del castigo LEVANTADO el mismo día (2026-07-14): el "fi-runner
+          # importa personas.insult" era un comentario fósil del Dockerfile — el
+          # grep del paquete conda instalado dio CERO. Los importadores reales
+          # eran persona_runner/{model_routing,router_runtime,mcp_tools}.py, ya
+          # repunteados a khimeras_shared.{behavior,deep_memory,html_artifacts}.
+          BUILD_RUNNER=$(changed "$RUNNER_SHA" \
+            environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
+            persona.md infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
 
           {
             echo "build_gw=$BUILD_GW"
@@ -115,7 +118,7 @@ jobs:
           echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| persona-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| persona-runner | GATED (fi-runner importa personas.insult) | false |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
 
       # --- Builds (only what changed) ---
 
