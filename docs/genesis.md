@@ -56,13 +56,37 @@ AWS's elegance; you need a body that doesn't shut down.
 AIRE is that machine piece by piece — the mapping table lives in the
 [README](../README.md#where-the-shape-comes-from). The Perl parser turned a
 fixed-format GPRS packet into a row with a regex; AIRE's turns a prompt into a session
-that reasons. Same skeleton; the parsing step became intelligence. And the only
-evolution over EC-GPS: its magic is **welded to a mortal body** (if the droplet dies,
-`gps_logs` dies and the business dies with it); AIRE **rips the body away from the
-memory** — `gps_logs` becomes Postgres, in the owner's database. Hence *"no body to
-lose"*. (EC-GPS never used git either: when the service produced artifacts, they were
-downloaded by hand for analysis. AIRE inherits that too — see decision #3 in
-`CLAUDE.md`.)
+that reasons. Same skeleton; the parsing step became intelligence. (EC-GPS never used
+git either: when the service produced artifacts, they were downloaded by hand for
+analysis. AIRE inherits that too — see decision #3 in `CLAUDE.md`.)
+
+### What evolved from the blueprint — two things, not one
+
+**1. The memory without a body.** EC-GPS's magic is **welded to a mortal body**: if
+the droplet dies, `gps_logs` dies and the business dies with it. AIRE **rips the body
+away from the memory** — `gps_logs` becomes Postgres, in the owner's database. Hence
+*"no body to lose"*. Proven by the kill test (2026-07-13): the droplet was destroyed
+and re-provisioned; the table never noticed — the old body's last line and the new
+body's first sit on consecutive rows.
+
+**2. The parser without a shape.** In EC-GPS the chassis was generic but the
+generality **died in the parser**: the Perl knew exactly one thing, GPS packets. A new
+domain (a POS, a sensor) meant writing a new parser — the transform always had a fixed
+shape. What AIRE puts between the `accept()` and the `INSERT` is a transform that
+already contains **every area of knowledge**: the same brain reasons over a biology
+simulation, a market scan, or a GPS packet without a single new line of code. The
+song's *"no defined shape"* goes one level deeper than plumbing — it is a **shapeless
+mind**.
+
+And that is why the **session casitas** (the `workspaces/{timestamp}_{uuid}_{name}`
+folders the MKDIR verb creates) are architecture, not hygiene: a universal brain
+without rooms would be a soup — one domain bleeding into another. The folder is the
+domain boundary; each casita gets its own memory thread in Postgres
+(`project_key`/`session_id`). One brain, one room per discipline: a **multifolder
+mind**. Bernard's phrase *"my personal Mac, but in the cloud"* was more literal than
+it sounded — the analogy was never the hardware, it was the **owner of the folders**.
+On his Mac, the multifolder brain is him and `Documents` holds his casitas; on the
+droplet, it is AIRE.
 
 ## The science — the log is the truth, the view is a cache
 
