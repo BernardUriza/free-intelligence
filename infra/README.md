@@ -18,6 +18,10 @@ East US 2).
 
 ## The two secrets
 
+**To just get in, read the [Get in](../README.md#get-in) section of the README** —
+it has the one-liner and what to do when the door won't open. This file is for the
+deployment; that one is for the door.
+
 The ingress is public, and that is fine, because the console is not.
 
 | Secret | Holds | Source |

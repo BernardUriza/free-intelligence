@@ -9,8 +9,48 @@ Read-only, server-rendered, live on Azure Container Apps:
 > it printed money for two decades. `aire-server` is the daemon. This is the
 > console.
 
-Behind a login page (`~/.secrets/aire-console-password.txt`), connecting as a
-Postgres role that **holds `GRANT SELECT` and nothing else**.
+Behind a login page, connecting as a Postgres role that **holds `GRANT SELECT`
+and nothing else**.
+
+## Get in
+
+The password is **not in this repo and never will be** — it lives in
+`~/.secrets/`. One line puts it on the clipboard and opens the door:
+
+```bash
+grep '^AIRE_CONSOLE_PASSWORD=' ~/.secrets/aire-console-password.txt | cut -d= -f2- | tr -d '\n' | pbcopy
+open https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io
+```
+
+Paste, Enter. The session lasts a week; **sign out** is at the bottom of the
+sidebar.
+
+Any URL you were trying to reach survives the login — `/monster` sends you to
+`/login?next=/monster` and lands you back on `/monster` afterwards.
+
+<details>
+<summary>When it doesn't let you in</summary>
+
+| What you see | What it means | What to do |
+|---|---|---|
+| **`503` — "refuses to serve without a door"** | `AIRE_CONSOLE_PASSWORD` is unset on the container. The app **fails closed on purpose**: a missing variable must never be why a database ends up public. | Set the secret (below) and restart the revision. |
+| **"Wrong password"** | The password on the container and the one in `~/.secrets/` have drifted. | Re-set both from the same value (below). |
+| **The page loads but says "The database is unreachable"** | The door is fine; the database is not. The console never writes, so this is never *its* fault — check the daemon's Postgres. | `curl .../api/health` → `degraded` confirms it. |
+| **You are logged out for no reason** | The password was rotated. **That is the design:** the session cookie is signed *with* the password, so changing it kills every outstanding cookie. | Log in again with the new one. |
+
+**Rotate the password** (kills every live session, which is the point):
+
+```bash
+NEW=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 28)
+sed -i '' "s|^AIRE_CONSOLE_PASSWORD=.*|AIRE_CONSOLE_PASSWORD=$NEW|" ~/.secrets/aire-console-password.txt
+az containerapp secret set -n aire-front -g insult-rg --secrets "aire-console-password=$NEW"
+az containerapp revision restart -n aire-front -g insult-rg \
+  --revision $(az containerapp show -n aire-front -g insult-rg --query properties.latestRevisionName -o tsv)
+```
+
+The secret lives in Container Apps and in `~/.secrets/`. **Never in this repo,
+never in an image layer, never in a workflow literal.**
+</details>
 
 ## What it does
 
