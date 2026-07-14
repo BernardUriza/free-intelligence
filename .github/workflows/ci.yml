@@ -21,13 +21,36 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
-  # The read path is only ever "safe" because this passes. It needs the real
-  # database — a mocked Postgres cannot tell you whether Postgres refuses a write.
-  # Skipped on forks, where the secret is absent, rather than faked green.
   attack:
     name: Prove it cannot write
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+
+    # A DISPOSABLE Postgres, not AIRE's. Two reasons, and the second is the one
+    # that matters:
+    #
+    #   1. AIRE_DATABASE_URL is the PEN's credential — it can write. Handing it to
+    #      CI would widen the blast radius of the very credential this repo's whole
+    #      law is about keeping away from readers.
+    #   2. The `postgres` superuser here can write to `aire_log` just as `aire` can
+    #      in production. That is the POINT: the suite must prove the walls contain
+    #      a credential that IS allowed to write. A read-only role would make the
+    #      test pass for the wrong reason.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aire
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      AIRE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aire
+
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -35,6 +58,28 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+
+      # The daemon owns the DDL (aire-server's law); CI only needs a table shaped
+      # like the one it writes, with a row the attacks can try to destroy.
+      - name: Give the attacks something to destroy
+        run: |
+          psql "$AIRE_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+            CREATE TABLE aire_log (
+              seq  bigserial PRIMARY KEY,
+              at   timestamptz NOT NULL DEFAULT now(),
+              line text NOT NULL
+            );
+            INSERT INTO aire_log (line) VALUES
+              ('2026-01-01T00:00:00 127.0.0.1:1 app-ci KEEPALIVE seq=1'),
+              ('2026-01-01T00:00:01 127.0.0.1:1 app-ci MESSAGE POS lat=0 lon=0');
+          SQL
+
       - run: npm run attack
-        env:
-          AIRE_DATABASE_URL: ${{ secrets.AIRE_DATABASE_URL }}
+
+      # The suite says aire_log is untouched. Verify that from OUTSIDE the code
+      # under test — a read path that could write could also lie about it.
+      - name: Confirm from outside that nothing was written
+        run: |
+          ROWS=$(psql "$AIRE_DATABASE_URL" -tAc "SELECT count(*) FROM aire_log")
+          echo "aire_log holds $ROWS rows (expected 2)"
+          test "$ROWS" = "2"

@@ -46,6 +46,20 @@ const ATTACKS: [string, string][] = [
   ["COPY from a file", "COPY aire_log FROM '/etc/passwd'"],
 ];
 
+// Prove there is a database on the other end BEFORE trusting a single "blocked".
+// Wall 4 (the regex) refuses most of these without ever opening a connection, so
+// a run with no reachable Postgres reports nine cheerful `blocked NotARead` lines
+// and proves NOTHING — the walls that actually matter (1, 2 and 3 live in the
+// engine) were never exercised. That is the exact fake-green this file exists to
+// kill, and it shipped once: CI printed a wall of "blocked" against an empty
+// AIRE_DATABASE_URL.
+const [{ one }] = (await console_("SELECT 1 AS one")).rows as unknown as { one: number }[];
+if (one !== 1) {
+  console.error("The database did not answer SELECT 1. Refusing to report on walls that were never tested.");
+  process.exit(1);
+}
+console.log("database reachable — the engine-level walls are in play\n");
+
 const breached: string[] = [];
 
 for (const [name, sql] of ATTACKS) {
