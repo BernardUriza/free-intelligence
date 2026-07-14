@@ -1,0 +1,18 @@
+[Unit]
+Description=AIRE demo device — un GPS simulado que le manda mensajes al daemon
+After=aire-listener.service
+Requires=aire-listener.service
+
+[Service]
+Type=simple
+User=aire
+WorkingDirectory=/opt/aire
+Environment=AIRE_HOST=127.0.0.1
+Environment=AIRE_PORT=9099
+Environment=DEVICE_ID=app-demo-device-01
+ExecStart=/usr/bin/python3 /opt/aire/demo_device.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

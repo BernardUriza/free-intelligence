@@ -1,0 +1,17 @@
+[Unit]
+Description=AIRE listener — el daemon que escucha (append-only log, sin IA)
+After=network.target
+
+[Service]
+Type=simple
+User=aire
+WorkingDirectory=/opt/aire
+Environment=AIRE_LOG=/opt/aire/aire.log
+Environment=AIRE_HOST=127.0.0.1
+Environment=AIRE_PORT=9099
+ExecStart=/usr/bin/python3 -m aire.listener
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
