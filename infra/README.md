@@ -53,8 +53,10 @@ bootstrap. It does, in order:
    into `/opt/aire` (or `git reset --hard origin/main` if it already exists),
    copies the `deploy/aire-listener.service` and `deploy/aire-device.service`
    units to `/etc/systemd/system/`, `daemon-reload`, `enable --now`, and
-   **verifies with `systemctl is-active`** (if a service doesn't come back
-   `active`, the script fails — no fake-green).
+   **verifies each unit individually with `systemctl is-active`** (if a
+   service doesn't come back `active`, the script fails — no fake-green;
+   note the multi-unit form of `is-active` exits 0 if *at least one* is
+   active, which is why the check is per-unit).
 6. Prints the IP, the SSH command and the two secrets commands below.
 
 When it finishes you'll see something like:

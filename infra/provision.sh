@@ -133,8 +133,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now aire-listener aire-device
 
 echo "    [remote] verifying real state…"
-sleep 1
-systemctl is-active aire-listener aire-device
+sleep 3
+# is-active with multiple units exits 0 if AT LEAST ONE is active — check each
+# unit on its own so a dead one actually fails the bootstrap.
+for u in aire-listener aire-device; do
+  if ! systemctl --quiet is-active "$u"; then
+    echo "$u is NOT active"
+    systemctl status "$u" --no-pager || true
+    exit 1
+  fi
+  echo "$u active"
+done
 REMOTE
 
 echo "    bootstrap OK — services reported 'active'."

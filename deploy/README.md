@@ -46,10 +46,11 @@ And runs, inside the box:
 ```bash
 cd /opt/aire && git fetch --all && git reset --hard origin/main \
   && systemctl restart aire-listener aire-device \
-  && sleep 1 && systemctl is-active aire-listener aire-device
+  && sleep 3 && for u in aire-listener aire-device; do systemctl --quiet is-active "$u" || exit 1; done
 ```
 
-`systemctl is-active` exits non-zero if any service is not `active`, and that
+Each unit is checked **individually** (`systemctl is-active` with multiple
+units exits 0 if *at least one* is active — a fake-green), and a dead unit
 **breaks the job**: the CI confirms the deploy against the real state, not
 against "the push went out".
 
