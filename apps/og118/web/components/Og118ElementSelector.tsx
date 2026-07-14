@@ -35,7 +35,7 @@ function atomicBadge(el: Og118Element, selected: boolean) {
   const label = el.atomicNumber > 0 ? `${el.atomicNumber} · ${el.symbol}` : el.symbol;
   return (
     <span
-      className={`inline-flex min-w-[2.2rem] justify-center rounded px-1.5 py-0.5 text-xs font-semibold font-mono ${
+      className={`og-element-badge inline-flex min-w-[2.2rem] justify-center rounded px-1.5 py-0.5 text-xs font-semibold font-mono ${
         selected ? 'bg-emerald-500/30 text-emerald-100' : 'bg-white/10 text-slate-200'
       }`}
     >

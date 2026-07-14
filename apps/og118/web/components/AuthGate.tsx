@@ -38,7 +38,7 @@ function Screen({ children }: { children: React.ReactNode }) {
 }
 
 function Auth0Gate({ children }: { children: React.ReactNode }) {
-  const { isLoading, isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
+  const { isLoading, isAuthenticated, loginWithRedirect } = useAuth0();
 
   if (isLoading) {
     return <Screen>Cargando…</Screen>;
@@ -65,31 +65,45 @@ function Auth0Gate({ children }: { children: React.ReactNode }) {
       </Screen>
     );
   }
+  return <>{children}</>;
+}
+
+/**
+ * The signed-in account line + sign-out, rendered where the layout gives it a
+ * home (the sidebar footer) instead of the old `position: fixed` pill that
+ * floated over the conversation on every viewport.
+ */
+function Auth0SignOut() {
+  const { isAuthenticated, logout, user } = useAuth0();
+  if (!isAuthenticated) return null;
   return (
-    <>
-      {children}
-      <button
-        type="button"
-        aria-label="Cerrar sesión"
-        onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-        style={{
-          position: 'fixed',
-          top: 12,
-          right: 12,
-          zIndex: 50,
-          fontSize: '0.72rem',
-          padding: '0.3rem 0.7rem',
-          borderRadius: 9999,
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(255,255,255,0.06)',
-          color: '#cbd5e1',
-          cursor: 'pointer',
-        }}
-      >
-        Salir{user?.email ? ` · ${user.email}` : ''}
-      </button>
-    </>
+    <button
+      type="button"
+      aria-label="Cerrar sesión"
+      onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+      style={{
+        display: 'block',
+        maxWidth: '100%',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        fontSize: '0.72rem',
+        padding: '0.3rem 0.7rem',
+        borderRadius: 9999,
+        border: '1px solid rgba(255,255,255,0.15)',
+        background: 'rgba(255,255,255,0.06)',
+        color: '#cbd5e1',
+        cursor: 'pointer',
+      }}
+    >
+      Salir{user?.email ? ` · ${user.email}` : ''}
+    </button>
   );
+}
+
+export function SignOutButton() {
+  if (!isAuth0Mode) return null;
+  return <Auth0SignOut />;
 }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {

@@ -63,7 +63,7 @@ describe('AuthGate', () => {
     expect(screen.queryByText('chat-app')).toBeNull();
   });
 
-  it('auth0 mode, authenticated: renders children + a logout affordance', async () => {
+  it('auth0 mode, authenticated: renders children (the gate adds no overlay)', async () => {
     mockAuth.isAuthenticated = true;
     mockAuth.user = { email: 'mama@papeleria.mx' };
     const AuthGate = await load('auth0', 'AuthGate');
@@ -73,7 +73,22 @@ describe('AuthGate', () => {
       </AuthGate>,
     );
     expect(screen.getByText('chat-app')).toBeInTheDocument();
-    expect(screen.getByLabelText('Cerrar sesión')).toBeInTheDocument();
+    // The logout affordance moved out of the gate: it renders where the layout
+    // gives it a home (SignOutButton in the sidebar footer), not as a floating
+    // pill over the conversation.
+    expect(screen.queryByLabelText('Cerrar sesión')).toBeNull();
+  });
+
+  it('SignOutButton: renders the logout affordance with the account email', async () => {
+    mockAuth.isAuthenticated = true;
+    mockAuth.user = { email: 'mama@papeleria.mx' };
+    vi.stubEnv('NEXT_PUBLIC_OG118_AUTH_MODE', 'auth0');
+    vi.resetModules();
+    const { SignOutButton } = await import('../AuthGate');
+    render(<SignOutButton />);
+    const btn = screen.getByLabelText('Cerrar sesión');
+    expect(btn).toBeInTheDocument();
+    expect(btn.textContent).toContain('mama@papeleria.mx');
   });
 });
 

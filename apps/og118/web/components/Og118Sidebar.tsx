@@ -62,6 +62,9 @@ export interface Og118SidebarProps {
   /** True when the server store is authoritative (signed in) — the storage note
    * and delete-confirm copy must tell the truth about where the data lives. */
   cloud?: boolean;
+  /** Account controls (e.g. the sign-out button) rendered in the sidebar footer,
+   * next to the storage note — the layout home that replaced the floating pill. */
+  accountSlot?: React.ReactNode;
 }
 
 export function shortTime(iso: string): string {
@@ -89,6 +92,7 @@ export function Og118Sidebar({
   onArchive,
   disabled = false,
   cloud = false,
+  accountSlot,
 }: Og118SidebarProps) {
   // B3-FIGLASS-MOBILE-2 — the "Nuevo chat" affordance inherits the framework 44×44
   // touch minimum; the rows inherit it from EditableResourceItem's action slots.
@@ -235,11 +239,14 @@ export function Og118Sidebar({
         </AgentSidebarSection>
       )}
 
-      <p className="og-sidebar-privacy">
-        {cloud
-          ? 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.'
-          : 'Guardado localmente en este navegador.'}
-      </p>
+      <div className="og-sidebar-foot">
+        <p className="og-sidebar-privacy">
+          {cloud
+            ? 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.'
+            : 'Guardado localmente en este navegador.'}
+        </p>
+        {accountSlot}
+      </div>
     </aside>
   );
 }

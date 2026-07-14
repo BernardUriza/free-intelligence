@@ -42,6 +42,7 @@ import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
 import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
+import { SignOutButton } from './AuthGate';
 import { Og118ProjectsSection } from './projects';
 import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
 import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
@@ -250,6 +251,7 @@ export function Og118AgentChat() {
             )
           }
           disabled={conversation.isStreaming}
+          accountSlot={<SignOutButton />}
         />
         </>
       )}
