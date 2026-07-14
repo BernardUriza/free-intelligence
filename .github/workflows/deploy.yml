@@ -40,6 +40,8 @@ jobs:
           cd /opt/aire
           git fetch --all
           git reset --hard origin/main
+          install -m 644 deploy/aire-listener.service deploy/aire-device.service /etc/systemd/system/
+          systemctl daemon-reload
           systemctl restart aire-listener aire-device
           sleep 3
           # is-active with multiple units exits 0 if AT LEAST ONE is active —
