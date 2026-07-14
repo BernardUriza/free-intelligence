@@ -96,10 +96,13 @@ grep MESSAGE /opt/aire/aire.log                 # the device's events
 
 ## Notes / risks
 
-- **Origin over HTTPS, not SSH.** The clone uses
-  `https://github.com/BernardUriza/aire-server` (public repo) → the CI's
-  `git fetch`/`reset --hard` needs no deploy key on the droplet. If the repo
-  goes private, switch the origin to SSH and add a deploy key.
+- **The repo is PRIVATE → the droplet clones over SSH with a deploy key.**
+  Verified on the live droplet: `origin` is
+  `git@github.com:BernardUriza/aire-server.git`, using the read-only deploy
+  key at `/root/.ssh/github_deploy` (wired via `/root/.ssh/config`). The
+  `REPO_URL` in `provision-do.sh` (HTTPS) only works for a public repo — a
+  fresh droplet for this private repo needs the deploy key installed and the
+  SSH origin set before the CI's `git fetch`/`reset --hard` can run.
 - **Size fallback.** If `s-1vcpu-512mb-10gb` isn't available in the region,
   export `SIZE=s-1vcpu-1gb` (~$6/mo) before running the script.
 - **The `deploy/*.service` units are written by another agent.** The bootstrap

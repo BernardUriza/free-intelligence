@@ -23,6 +23,9 @@ REGION="${REGION:-nyc3}"
 SIZE="${SIZE:-s-1vcpu-512mb-10gb}"     # cheapest (~$4/mo); fallback s-1vcpu-1gb (~$6/mo)
 IMAGE="ubuntu-24-04-x64"
 SSH_KEY="$HOME/.ssh/aire_vm"           # key pair dedicated to this droplet
+# NOTE: the repo is PRIVATE — an HTTPS clone fails on a fresh droplet. The live
+# droplet uses origin git@github.com:BernardUriza/aire-server.git with the
+# read-only deploy key at /root/.ssh/github_deploy (see infra/README.md).
 REPO_URL="https://github.com/BernardUriza/aire-server"
 REMOTE_DIR="/opt/aire"
 
