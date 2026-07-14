@@ -1,0 +1,60 @@
+name: costwatch
+
+on:
+  schedule:
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  costwatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check DigitalOcean spend and inventory against the $20/mo budget
+        env:
+          DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          BUDGET_USD: "20"
+          WARN_USD: "10"
+        run: |
+          set -euo pipefail
+          if [[ -z "${DO_TOKEN}" ]]; then
+            echo "::error::DO_API_TOKEN secret is missing — the watchdog is blind"
+            exit 1
+          fi
+          api() { curl -sfS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/$1"; }
+
+          echo "== spend =="
+          BALANCE_JSON="$(api customers/my/balance)"
+          USAGE="$(jq -r '.month_to_date_usage' <<<"$BALANCE_JSON")"
+          echo "month-to-date usage: \$${USAGE} (warn \$${WARN_USD}, budget \$${BUDGET_USD})"
+
+          echo "== inventory =="
+          FAIL=0
+          DROPLETS="$(api 'droplets?per_page=200' | jq -r '.droplets[] | "\(.name) \(.size_slug)"')"
+          echo "droplets:"; echo "${DROPLETS:-  (none)}"
+          if [[ "$DROPLETS" != "aire-droplet s-1vcpu-512mb-10gb" ]]; then
+            echo "::error::droplet inventory drifted — expected exactly one aire-droplet s-1vcpu-512mb-10gb"
+            FAIL=1
+          fi
+          for res in volumes snapshots reserved_ips load_balancers databases; do
+            N="$(api "$res?per_page=200" | jq -r --arg k "$res" '.[$k] | length')"
+            echo "$res: $N"
+            if [[ "$N" != "0" ]]; then
+              echo "::error::unexpected $res in the account ($N) — nothing besides the droplet is budgeted"
+              FAIL=1
+            fi
+          done
+          BACKUPS="$(api 'droplets?per_page=200' | jq -r '.droplets[0].features | index("backups") // "off"')"
+          if [[ "$BACKUPS" != "off" ]]; then
+            echo "::error::droplet backups are enabled (+20%/mo) — not budgeted"
+            FAIL=1
+          fi
+
+          echo "== verdict =="
+          if awk -v u="$USAGE" -v b="$BUDGET_USD" 'BEGIN{exit !(u+0 >= b+0)}'; then
+            echo "::error::month-to-date \$${USAGE} REACHED the \$${BUDGET_USD} budget"
+            FAIL=1
+          elif awk -v u="$USAGE" -v w="$WARN_USD" 'BEGIN{exit !(u+0 >= w+0)}'; then
+            echo "::error::month-to-date \$${USAGE} crossed the \$${WARN_USD} early-warning line"
+            FAIL=1
+          fi
+          [[ "$FAIL" == "0" ]] && echo "OK — spend \$${USAGE}, inventory clean" || exit 1

@@ -94,6 +94,16 @@ tail -f /opt/aire/aire.log | grep KEEPALIVE     # the device's heartbeats, live
 grep MESSAGE /opt/aire/aire.log                 # the device's events
 ```
 
+## Budget — $20/month HARD
+
+The whole DO budget is **$20 USD/month**; the budgeted inventory is exactly one
+`s-1vcpu-512mb-10gb` droplet (~$4/mo, backups off) and nothing else. Enforced by
+`.github/workflows/costwatch.yml` (daily cron; fails red → GitHub email if
+month-to-date usage crosses $10/$20, if the inventory drifts, or if backups get
+enabled — needs the `DO_API_TOKEN` repo secret) plus a billing alert in the DO
+control panel. Full law: [`.claude/rules/do-budget.md`](../.claude/rules/do-budget.md).
+No paid resource gets created without Bernard's explicit go.
+
 ## Notes / risks
 
 - **The repo is PRIVATE → the droplet clones over SSH with a deploy key.**
