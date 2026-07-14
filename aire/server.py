@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse
 from sse_starlette.event import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
-from .engine import DEFAULT_MODE, MODES, Engine
+from .engine import DEFAULT_MODE, MODES, BudgetExceeded, Engine
 from .names import InvalidName, clean
 from .store import create_postgres_session_store
 
@@ -122,8 +122,14 @@ async def post_message(project: str, session: str, request: Request) -> Any:
 
 async def _events(project: str, session: str, message: str, mode: str) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
-    async for ev in engine.run_stream(project, session, message, mode):
-        yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
+    try:
+        async for ev in engine.run_stream(project, session, message, mode):
+            yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
+    except BudgetExceeded as exc:
+        # The spend ceiling was hit BEFORE the turn touched the API. Tell the
+        # caller in-stream (the connection is already an event stream, so a 402
+        # header is no longer possible) instead of a silent stall.
+        yield ServerSentEvent(event="error", data=json.dumps({"error": "budget_exceeded", "detail": str(exc)}))
     yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": mode}))
 
 

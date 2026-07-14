@@ -33,10 +33,30 @@ from .keys import sdk_session_uuid
 WORKSPACES = Path(__file__).resolve().parent.parent / "workspaces"
 
 SYSTEM_PROMPT = (
-    "You are an agent working inside AIRE. Your work appears, live, on an HTML "
-    "page the server keeps writing as you think. Use your tools whenever they "
-    "help: every call is painted onto the page."
+    "You are an agent working inside AIRE, a service that mirrors your session to "
+    "the owner's database and streams your work as events. Use your tools whenever "
+    "they help. Files you create live in this session's workspace directory."
 )
+
+# The client pool is a HOT CACHE, not memory: each entry is a live `claude`
+# subprocess. On a small box, an unbounded pool is an OOM waiting to happen, so it
+# is capped and evicted LRU. Evicting a session loses nothing — its transcript is
+# in Postgres; the next turn rebuilds the client with resume= (the whole point of
+# the store). Idle clients are also reaped by age.
+POOL_MAX = int(os.environ.get("AIRE_POOL_MAX", "8"))
+POOL_IDLE_S = float(os.environ.get("AIRE_POOL_IDLE_S", "900"))
+
+# The SDK's max_budget_usd caps ONE turn. That is not a spend ceiling: a leaked
+# Bearer (or a runaway loop) can fire unlimited $1 turns. AIRE_MAX_SPEND_USD is a
+# cumulative backstop over the process lifetime — when crossed, turns are refused
+# BEFORE they reach the API. Unset → no ceiling (dev). It resets on restart; a
+# calendar-day cap is a later refinement.
+MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
+
+
+class BudgetExceeded(Exception):
+    """Raised when the cumulative spend ceiling is hit — the server maps it to a
+    402 so the caller learns why, instead of a silent stall."""
 
 # The modes: the dial that makes AIRE both substitute AND enhancer.
 #   complete → no tools, no agentic loop → the substitute for the raw API.
@@ -92,7 +112,38 @@ class Engine:
         self.session_store = session_store
         self._pool: dict[str, ClaudeSDKClient] = {}
         self._locks: dict[str, asyncio.Lock] = {}
+        self._used: dict[str, float] = {}  # pool_key → last-use monotonic ts (LRU)
         self._pool_lock = asyncio.Lock()
+        self._spend_usd = 0.0  # cumulative, process lifetime — the global backstop
+
+    async def _close_client(self, pool_key: str) -> None:
+        """Evict one client: close its subprocess, drop its pool/lru/lock state.
+        Loses nothing — the transcript is in Postgres; the next turn resumes."""
+        client = self._pool.pop(pool_key, None)
+        self._used.pop(pool_key, None)
+        self._locks.pop(pool_key, None)
+        if client is not None:
+            try:
+                await client.__aexit__(None, None, None)
+            except Exception:  # noqa: BLE001 - best-effort teardown
+                pass
+
+    async def _evict(self, now: float) -> None:
+        """Reap idle clients, then LRU-trim to POOL_MAX. Never evict a client
+        whose lock is held (a turn is in flight on it)."""
+        def busy(k: str) -> bool:
+            lock = self._locks.get(k)
+            return lock is not None and lock.locked()
+
+        for key in [k for k, t in self._used.items() if now - t > POOL_IDLE_S and not busy(k)]:
+            await self._close_client(key)
+        while len(self._pool) > POOL_MAX:
+            idle = sorted(
+                (t, k) for k, t in self._used.items() if not busy(k)
+            )
+            if not idle:
+                break  # everything left is mid-turn; let it be
+            await self._close_client(idle[0][1])
 
     def _cwd(self, project: str) -> Path:
         ws = WORKSPACES / project
@@ -154,6 +205,8 @@ class Engine:
     async def _client_for(self, project: str, session: str, mode: str) -> tuple[ClaudeSDKClient, asyncio.Lock]:
         pool_key = f"{project}/{session}"
         async with self._pool_lock:
+            now = time.monotonic()
+            await self._evict(now)
             client = self._pool.get(pool_key)
             if client is None:
                 resuming = await self.has_session(project, session)
@@ -161,6 +214,7 @@ class Engine:
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
                 self._pool[pool_key] = client
+            self._used[pool_key] = now
             lock = self._locks.setdefault(pool_key, asyncio.Lock())
         return client, lock
 
@@ -170,10 +224,19 @@ class Engine:
         """One turn, live. Emits {"type": "text"|"tool_call"|"result", ...} as it
         happens. The transcript mirrors itself to Postgres (session_store) — the
         agent's memory AND the page's memory are THE SAME transcript."""
+        if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
+            raise BudgetExceeded(
+                f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}"
+            )
         client, lock = await self._client_for(project, session, mode)
         async with lock:  # serializes turns on the same client (not concurrency-safe)
             await client.query(prompt)
             async for event in self._drain(client):
+                if event.get("type") == "result":
+                    usage = getattr(event.get("result"), "usage", None) or {}
+                    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
+                    if cost:
+                        self._spend_usd += float(cost)
                 yield event
 
     @staticmethod
@@ -216,6 +279,8 @@ class Engine:
                     if type(block).__name__ != "ToolResultBlock":
                         continue
                     use_id = getattr(block, "tool_use_id", None)
+                    if use_id is None:
+                        continue
                     idx = by_id.get(use_id)
                     if idx is not None:
                         raw_err = getattr(block, "is_error", None)
@@ -240,8 +305,8 @@ class Engine:
         }
 
     async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
-        """What the agent remembers, which is the same thing the page repaints.
-        The transcript does not live in the HTTP connection: it lives in Postgres."""
+        """What the agent remembers. The transcript does not live in the HTTP
+        connection: it lives in Postgres (the front renders it, not this repo)."""
         return await self.session_store.load(self.session_key(project, session)) or []
 
     async def aclose(self) -> None:
@@ -253,3 +318,4 @@ class Engine:
                     pass
             self._pool.clear()
             self._locks.clear()
+            self._used.clear()

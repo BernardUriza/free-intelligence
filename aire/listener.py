@@ -67,6 +67,14 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 # the bucket.
 RATE_LIMIT_LINES_PER_MIN = int(os.environ.get("AIRE_RATE_LIMIT", "120"))
 MAX_LINE_BYTES = 4096
+# The open port has no upstream connection cap (ufw allows it from anywhere,
+# fail2ban only watches sshd). Without a ceiling a connection flood — NOT a line
+# flood, which the bucket already stops — exhausts fds/RAM on the 512MB box. Cap
+# total concurrent connections, and per-IP so one peer cannot hog them all.
+MAX_CONNECTIONS = int(os.environ.get("AIRE_MAX_CONNECTIONS", "256"))
+MAX_CONNECTIONS_PER_IP = int(os.environ.get("AIRE_MAX_CONN_PER_IP", "16"))
+# asyncpg with no timeout hangs a verb (or the boot load) on a slow Postgres.
+DB_TIMEOUT_S = int(os.environ.get("AIRE_DB_TIMEOUT", "10"))
 
 # The device whitelist (backlog #18, learned from Carlos/EC-GPS). Its source of
 # truth is a Postgres table `aire_device` in the OWNER's database — NOT a file on
@@ -133,28 +141,29 @@ class Pen:
         import asyncpg
 
         delay = 2
+        # A batch that failed to insert is HELD here and retried first on
+        # reconnect — never re-queued to the TAIL, which would reorder the log in
+        # Postgres (the front reads ORDER BY seq; order must match the events).
+        pending: list[str] = []
         while True:
             try:
-                conn = await asyncpg.connect(self.dsn)
+                conn = await asyncpg.connect(self.dsn, timeout=DB_TIMEOUT_S)
                 await conn.execute(SCHEMA)
                 self._mark(healthy=True)
                 delay = 2
                 while True:
-                    batch = [await self.queue.get()]
-                    while len(batch) < 500:
-                        try:
-                            batch.append(self.queue.get_nowait())
-                        except asyncio.QueueEmpty:
-                            break
-                    try:
-                        await conn.executemany(
-                            "INSERT INTO aire_log (line) VALUES ($1)",
-                            [(line,) for line in batch],
-                        )
-                    except Exception:
-                        for line in batch:
-                            self.write(line)
-                        raise
+                    if not pending:
+                        pending = [await self.queue.get()]
+                        while len(pending) < 500:
+                            try:
+                                pending.append(self.queue.get_nowait())
+                            except asyncio.QueueEmpty:
+                                break
+                    await conn.executemany(
+                        "INSERT INTO aire_log (line) VALUES ($1)",
+                        [(line,) for line in pending],
+                    )
+                    pending = []  # cleared ONLY on a successful insert
             except Exception as exc:
                 self._mark(healthy=False, detail=repr(exc))
                 await asyncio.sleep(delay)
@@ -187,7 +196,7 @@ class Whitelist:
     async def _conn(self):
         import asyncpg
 
-        return await asyncpg.connect(self.dsn)
+        return await asyncpg.connect(self.dsn, timeout=DB_TIMEOUT_S)
 
     async def load(self) -> None:
         conn = await self._conn()
@@ -198,6 +207,17 @@ class Whitelist:
             self.ready = True
         finally:
             await conn.close()
+
+    async def refresh(self) -> None:
+        """Reload the roster from the truth (Postgres), tolerating a DB blip. Used
+        both on startup and periodically, so a device added out-of-band (a direct
+        SQL insert, the front — anything that is NOT this daemon's own ALLOW verb)
+        is picked up without a restart. Solves the stale-cache footgun: the table
+        is the truth, this set is a derived cache that must not drift."""
+        try:
+            await self.load()
+        except Exception as exc:  # noqa: BLE001 - a blip must not wipe a good cache
+            append(f"{_now()} - WHITELIST-REFRESH-ERROR {exc!r}")
 
     async def add(self, ip: str, note: str) -> None:
         conn = await self._conn()
@@ -275,6 +295,45 @@ class Bucket:
 BUCKET = Bucket(RATE_LIMIT_LINES_PER_MIN)
 
 
+class ConnLimiter:
+    """Caps concurrent connections, total and per IP. The token bucket stops a
+    LINE flood; this stops a CONNECTION flood (many sockets, each sending little)
+    from exhausting fds/RAM on the small box."""
+
+    def __init__(self, total: int, per_ip: int) -> None:
+        self.total = total
+        self.per_ip = per_ip
+        self.n = 0
+        self.by_ip: dict[str, int] = {}
+
+    def acquire(self, ip: str) -> bool:
+        if self.n >= self.total or self.by_ip.get(ip, 0) >= self.per_ip:
+            return False
+        self.n += 1
+        self.by_ip[ip] = self.by_ip.get(ip, 0) + 1
+        return True
+
+    def release(self, ip: str) -> None:
+        self.n = max(0, self.n - 1)
+        left = self.by_ip.get(ip, 0) - 1
+        if left <= 0:
+            self.by_ip.pop(ip, None)
+        else:
+            self.by_ip[ip] = left
+
+
+CONNS = ConnLimiter(MAX_CONNECTIONS, MAX_CONNECTIONS_PER_IP)
+
+
+async def _safe_wait(writer: asyncio.StreamWriter) -> None:
+    """`wait_closed()` can raise on an already-broken socket; a rejected flooder
+    must not leave an unretrieved-task traceback in the journal."""
+    try:
+        await writer.wait_closed()
+    except Exception:  # noqa: BLE001 - teardown of a dead socket is best-effort
+        pass
+
+
 def mkdir_verb(msg: str, addr: str) -> str:
     """The first verb. `MKDIR <token> <name>` → a fresh session casita under
     ``workspaces/``, named ``{timestamp}_{uuid4}_{name}`` — every session is
@@ -350,72 +409,87 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
     addr = f"{peer[0]}:{peer[1]}" if peer else "?"
     ip = peer[0] if peer else "?"
     exempt = ip.startswith("127.") or ip == "::1"
-    if not exempt and not BUCKET.allow(ip):
-        # Over budget before saying anything: hang up WITHOUT appending, or the
-        # flood would still reach the log through its own rejections.
+    # Connection cap FIRST (before any await/append): reject a flood silently.
+    if not exempt and not CONNS.acquire(ip):
         writer.close()
-        await writer.wait_closed()
+        await _safe_wait(writer)
         return
-    # The whitelist gate (backlog #18). Advisory unless AIRE_WHITELIST_ENFORCE=1.
-    # When enforcing, an un-listed device leaves a visible DENIED-DEVICE line —
-    # that is the cure for Carlos's failure #1 (a forgotten device goes mute; now
-    # you SEE it knocking) — then gets hung up on.
-    if (
-        WHITELIST_ENFORCE
-        and not exempt
-        and WHITELIST is not None
-        and WHITELIST.ready
-        and not WHITELIST.allows(ip)
-    ):
-        append(f"{_now()} {addr} DENIED-DEVICE")
-        writer.close()
-        await writer.wait_closed()
-        return
-    append(f"{_now()} {addr} CONNECT")
-    throttled = False
     try:
-        while True:
-            try:
-                raw = await reader.readline()
-            except ValueError:
-                # A line longer than asyncio's 64KiB buffer with no newline. The
-                # port is open to the internet by design (EC-GPS: devices push),
-                # so a peer that never sends \n is EXPECTED input, not a bug —
-                # drop that peer instead of letting the exception escape the task
-                # and print an unhandled traceback into the journal.
-                append(f"{_now()} {addr} OVERLONG-LINE dropped")
-                break
-            if not raw:  # the device closed the connection
-                break
-            if len(raw) > MAX_LINE_BYTES:
-                append(f"{_now()} {addr} OVERSIZED-LINE dropped")
-                break
-            if not exempt and not BUCKET.allow(ip):
-                # ONE line about it (the first), then silence: a rate-limit notice
-                # per flooded line would BE the flood.
-                if not throttled:
-                    append(f"{_now()} {addr} RATE-LIMITED")
-                    throttled = True
-                break
-            msg = raw.decode(errors="replace").rstrip("\r\n")
-            if not msg:
-                continue
-            if msg.startswith("MKDIR"):
-                reply = mkdir_verb(msg, addr)
-                writer.write((reply + "\n").encode())
-                await writer.drain()
-            elif msg.startswith("ALLOW "):
-                writer.write((await allow_verb(msg, addr) + "\n").encode())
-                await writer.drain()
-            elif msg.startswith("REVOKE "):
-                writer.write((await revoke_verb(msg, addr) + "\n").encode())
-                await writer.drain()
-            else:
-                append(f"{_now()} {addr} {msg}")
+        if not exempt and not BUCKET.allow(ip):
+            # Over budget before saying anything: hang up WITHOUT appending, or the
+            # flood would still reach the log through its own rejections.
+            writer.close()
+            await _safe_wait(writer)
+            return
+        # The whitelist gate (backlog #18). Advisory unless AIRE_WHITELIST_ENFORCE=1.
+        # FAIL CLOSED: when enforcing, a non-loopback peer is denied unless the
+        # roster is loaded AND lists it. A DB blip at boot (ready=False) must NOT
+        # silently open the gate — a security control that self-disables on a
+        # hiccup is worse than none. The DENIED-DEVICE line also cures Carlos's
+        # failure #1 (a forgotten device goes mute; now you SEE it knocking).
+        if WHITELIST_ENFORCE and not exempt and (
+            WHITELIST is None or not WHITELIST.ready or not WHITELIST.allows(ip)
+        ):
+            append(f"{_now()} {addr} DENIED-DEVICE")
+            writer.close()
+            await _safe_wait(writer)
+            return
+        append(f"{_now()} {addr} CONNECT")
+        throttled = False
+        try:
+            while True:
+                try:
+                    raw = await reader.readline()
+                except ValueError:
+                    # A line longer than asyncio's 64KiB buffer with no newline.
+                    # The port is open by design (EC-GPS: devices push), so a peer
+                    # that never sends \n is EXPECTED input, not a bug — drop it
+                    # instead of letting the exception escape the task.
+                    append(f"{_now()} {addr} OVERLONG-LINE dropped")
+                    break
+                if not raw:  # the device closed the connection
+                    break
+                if len(raw) > MAX_LINE_BYTES:
+                    append(f"{_now()} {addr} OVERSIZED-LINE dropped")
+                    break
+                if not exempt and not BUCKET.allow(ip):
+                    # ONE line about it (the first), then silence: a rate-limit
+                    # notice per flooded line would BE the flood.
+                    if not throttled:
+                        append(f"{_now()} {addr} RATE-LIMITED")
+                        throttled = True
+                    break
+                msg = raw.decode(errors="replace").rstrip("\r\n")
+                if not msg:
+                    continue
+                if msg.startswith("MKDIR"):
+                    reply = mkdir_verb(msg, addr)
+                    writer.write((reply + "\n").encode())
+                    await writer.drain()
+                elif msg.startswith("ALLOW "):
+                    writer.write((await allow_verb(msg, addr) + "\n").encode())
+                    await writer.drain()
+                elif msg.startswith("REVOKE "):
+                    writer.write((await revoke_verb(msg, addr) + "\n").encode())
+                    await writer.drain()
+                else:
+                    append(f"{_now()} {addr} {msg}")
+        finally:
+            append(f"{_now()} {addr} DISCONNECT")
+            writer.close()
+            await _safe_wait(writer)
     finally:
-        append(f"{_now()} {addr} DISCONNECT")
-        writer.close()
-        await writer.wait_closed()
+        if not exempt:
+            CONNS.release(ip)
+
+
+async def _whitelist_refresher(interval: int = 60) -> None:
+    """Keep the in-memory roster in lockstep with the truth (Postgres) — picks up
+    devices added out-of-band (a direct SQL insert) without a restart."""
+    while True:
+        await asyncio.sleep(interval)
+        if WHITELIST is not None:
+            await WHITELIST.refresh()
 
 
 async def main() -> None:
@@ -429,6 +503,11 @@ async def main() -> None:
                    f"(enforce={'on' if WHITELIST_ENFORCE else 'off'})")
         except Exception as exc:  # noqa: BLE001 - a DB hiccup must not stop the daemon
             append(f"{_now()} - WHITELIST-LOAD-ERROR {exc!r}")
+            if WHITELIST_ENFORCE:
+                # Fail-closed is enforced in handle(); say so loudly at boot.
+                append(f"{_now()} - WHITELIST enforce=on but roster UNLOADED "
+                       "→ denying all non-loopback until it loads")
+        asyncio.create_task(_whitelist_refresher())
     append(f"{_now()} - LISTENING {HOST}:{PORT}")
     print(f"AIRE listener listening on {HOST}:{PORT} → {LOG}", flush=True)
     async with server:
