@@ -94,22 +94,18 @@ jobs:
             fi
           }
 
-          BOT_SHA=$(running_tag discord-bot app)
           GW_SHA=$(running_tag persona-gateway app)
-          RUNNER_SHA=$(running_tag persona-runner app)
 
-          BUILD_BOT=$(changed "$BOT_SHA" \
-            environment.yml personas/ shared/ khimeras_shared/ demux_ai/ persona.md \
-            scripts/canary_probe.py Dockerfile)
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway)
-          BUILD_RUNNER=$(changed "$RUNNER_SHA" \
-            environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
-            personas/__init__.py personas/insult/ persona.md \
-            infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
+          # persona-runner CD GATED (2026-07-14, el castigo): personas/ fue
+          # BORRADO del repo, pero el paquete conda fi-runner todavía importa
+          # `personas.insult.core.*` adentro de la imagen — el fix es cross-repo
+          # (free-intelligence). La revisión corriendo no se toca; cuando
+          # fi-runner suelte ese import, restaurar el build aquí.
+          BUILD_RUNNER="false"
 
           {
-            echo "build_bot=$BUILD_BOT"
             echo "build_gw=$BUILD_GW"
             echo "build_runner=$BUILD_RUNNER"
           } >> "$GITHUB_OUTPUT"
@@ -118,17 +114,10 @@ jobs:
           echo "new sha: \`$NEW_SHA\` (force=$FORCE)" >> "$GITHUB_STEP_SUMMARY"
           echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| insult-bot (discord-bot + jobs) | \`${BOT_SHA:0:7}\` | $BUILD_BOT |" >> "$GITHUB_STEP_SUMMARY"
           echo "| persona-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-runner | GATED (fi-runner importa personas.insult) | false |" >> "$GITHUB_STEP_SUMMARY"
 
       # --- Builds (only what changed) ---
-
-      - name: Build insult-bot image
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        run: |
-          az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image insult-bot:${{ env.NEW_SHA }} --image insult-bot:latest .
 
       - name: Build persona-gateway image
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
@@ -146,29 +135,6 @@ jobs:
 
       # --- Deploys (only what was rebuilt) ---
 
-      - name: Deploy discord-bot
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        run: |
-          az containerapp update --name discord-bot --resource-group "$RG" \
-            --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
-
-      - name: Update fact-consolidation job image
-        # Same image as the bot, separate cron. Sync whenever the bot image rebuilds.
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        run: |
-          az containerapp job update --name fact-consolidation --resource-group "$RG" \
-            --image "$ACR/insult-bot:${{ env.NEW_SHA }}"
-
-      - name: Update insult-canary job image (if it exists)
-        # Same image as the bot. No-op until the hourly canary job is created by hand
-        # (infra/azure/canary-job.sh — resurrected 2026-07-08, phase 3.5 close-out).
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        continue-on-error: true
-        run: |
-          az containerapp job update --name insult-canary --resource-group "$RG" \
-            --image "$ACR/insult-bot:${{ env.NEW_SHA }}" 2>/dev/null \
-            || echo "insult-canary job not provisioned yet — skipping image sync"
-
       - name: Deploy persona-gateway
         # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
         if: ${{ steps.detect.outputs.build_gw == 'true' }}
@@ -183,24 +149,6 @@ jobs:
         run: |
           az containerapp update --name persona-runner --resource-group "$RG" \
             --image "$ACR/persona-runner:${{ env.NEW_SHA }}"
-
-      - name: Verify discord-bot health
-        if: ${{ steps.detect.outputs.build_bot == 'true' }}
-        run: |
-          echo "Waiting 30s for the new revision to start..."
-          sleep 30
-          az containerapp show -n discord-bot -g "$RG" --query "properties.latestRevisionName" -o tsv
-          BOT_LOGS=$(az containerapp logs show -n discord-bot -g "$RG" --tail 30 2>&1 || true)
-          echo "$BOT_LOGS" | tail -10
-          if echo "$BOT_LOGS" | grep -q "bot_ready"; then
-            echo "OK discord-bot: bot_ready event present"
-          elif echo "$BOT_LOGS" | grep -q "critical\|CRITICAL\|Traceback"; then
-            echo "FAIL discord-bot: crash detected on startup"
-            echo "$BOT_LOGS" | grep -E "critical|CRITICAL|Traceback|Error" || true
-            exit 1
-          else
-            echo "WARN discord-bot: could not confirm bot_ready, check manually"
-          fi
 
       - name: Verify persona-gateway health
         if: ${{ steps.detect.outputs.build_gw == 'true' }}

@@ -1,1 +1,0 @@
-Shape: LAYERED. Build up to a payoff through short stitched fragments. 3-5 sentences total. Each one stands alone — short, sharp. Use hard line breaks between thoughts, NOT comma-glued continuous prose. The TOTAL length is a paragraph; the TEXTURE is staccato. Set up. Develop. Land. Think Alvarado's short-sentence-stacked column rhythm, not a wall of analytical text.

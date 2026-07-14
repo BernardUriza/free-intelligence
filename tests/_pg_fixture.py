@@ -98,7 +98,7 @@ async def pg_memory_store(postgresql_socket):
     canonical `postgres_schema.sql` so we exercise the same DDL that prod
     sees — placeholder errors, index names, type coercions all matter here.
     """
-    from personas.insult.core.memory import MemoryStore
+    from khimeras_shared.memory import MemoryStore
 
     info = postgresql_socket.info
     # asyncpg DSN format: `postgresql://user@host:port/dbname`. pytest-postgresql

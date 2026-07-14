@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.22.39"
+version = "4.22.40"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -46,41 +46,13 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["personas"]
+source = ["persona_gateway", "demux_ai", "khimeras_shared", "shared"]
 omit = [
-    "personas/insult/__main__.py",  # CLI entry point
-    "personas/insult/bot.py",       # Discord lifecycle (requires real bot)
-    "personas/insult/app.py",       # DI container (requires real deps)
-    "personas/insult/config.py",    # Pydantic settings singleton
-    "personas/insult/core/llm.py",  # API client (integration test territory)
-    "personas/insult/core/memory.py",  # SQLite I/O (integration test territory)
-    "personas/insult/core/backup.py",  # Azure Blob Storage I/O
-    "personas/insult/cogs/utility.py",  # Discord commands (requires real bot context)
-    "personas/insult/cogs/chat/ports.py",  # Pure Protocol interface (TYPE_CHECKING-only import, no runtime body)
-    "personas/insult/cogs/voice.py",    # Voice TTS (requires real Discord + Azure OpenAI)
-    "personas/insult/core/proactive.py",  # Proactive messaging (requires real bot + LLM, integration test territory)
-    "personas/insult/core/vectors.py",  # sqlite-vec + sentence-transformers I/O (vector search)
-    "personas/insult/core/metrics.py",  # Azure Blob I/O (dashboard export)
-    "personas/insult/core/debug_server.py",  # aiohttp debug endpoints (integration test territory)
-    "persona_runner/mcp_tools.py",  # F4: in-process MCP tools (live PG required, integration test territory)
-    "persona_runner/runner.py",  # FastAPI service + Claude Agent SDK (live SDK + PG required)
-    "persona_runner/workspace_renderer.py",  # PG → markdown projector (live PG + filesystem required)
-    "personas/insult/core/siesta/coordination/pg_state.py",  # F4: Siesta coordination via PG (live PG required, tests in test_siesta_pg_state.py skip without POSTGRES_URL)
-    "personas/insult/core/siesta/coordination/blob_metadata.py",  # DEPRECATED v3.9.46 — Azure blob metadata I/O kept only for legacy tests
-    "personas/insult/core/siesta/coordination/poller.py",  # Periodic asyncio task wrapping pg_state.read_snapshot (integration test territory)
-    "personas/insult/core/html_artifacts.py",  # Live PG required; tests in test_html_artifacts.py skip without POSTGRES_URL
-    "personas/insult/core/deep_memory.py",  # Live PG + Azure OpenAI embeddings required; tests in test_deep_memory.py exercise pure helpers only
-    "personas/insult/tasks/*.py",  # Background task orchestrators (reminders/proactive/summaries/watchdog) — require live bot + LLM + PG, integration test territory (same criterion as core/proactive.py)
-    "persona_runner/router_runtime.py",  # Agent routing runtime — live Claude Agent SDK + PG required (same criterion as agent/runner.py)
-    # personas/alice — same omit criteria as personas/insult equivalents
-    "personas/alice/__main__.py",   # CLI entry point
-    "personas/alice/bot.py",        # Discord lifecycle (requires real bot)
-    "personas/alice/app.py",        # DI container (requires real deps)
-    "personas/alice/config.py",     # Pydantic settings singleton
-    "personas/alice/core/llm.py",   # API client (integration test territory)
-    "personas/alice/core/memory.py",  # Postgres I/O (integration test territory)
-    "personas/alice/core/metrics.py",  # Azure Blob I/O (dashboard export)
-    "personas/alice/api/server.py",  # FastAPI /invite endpoint (requires real bot)
+    "persona_gateway/boot.py",      # Discord lifecycle glue (requires real bots)
+    "persona_gateway/__main__.py",  # CLI entry point
+    "demux_ai/__main__.py",         # CLI entry point
+    "khimeras_shared/memory/*",     # Postgres I/O (integration test territory)
+    "khimeras_shared/vectors.py",   # sentence-transformers I/O
 ]
 
 [tool.coverage.report]

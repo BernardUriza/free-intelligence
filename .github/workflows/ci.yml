@@ -182,7 +182,7 @@ jobs:
         # CVE-2025-3000 (torch <=2.12.0): memory corruption via torch.jit.script.
         # LOW severity, NO patched version published (GitHub advisory: patched=null
         # as of 2026-06-10). torch is purely transitive (fi-core embeddings stack) —
-        # zero `import torch` / `torch.jit` anywhere in personas/insult/, personas/alice/ or shared/
+        # zero `import torch` / `torch.jit` anywhere in the surviving packages
         # (verified by grep), so the vector does not apply. Surfaced fresh on
         # 2026-06-10 22:26Z and broke main CI right after the PR-D merge (the PR
         # branch run at 18:07Z predated the advisory). Authorized by Bernard
@@ -293,4 +293,4 @@ jobs:
 
       - name: Run bandit
         shell: bash -leo pipefail {0}
-        run: bandit -r personas/insult/ personas/alice/ -c pyproject.toml
+        run: bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml

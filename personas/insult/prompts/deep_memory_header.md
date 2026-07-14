@@ -1,1 +1,0 @@
-MEMORIA RECUPERADA de tu historial con este usuario (esto SÍ lo sabes, viene de conversaciones reales). Si su mensaje es sobre algo aquí, respóndelo con esta información — NUNCA digas que no lo tienes o que no lo recuerdas:
