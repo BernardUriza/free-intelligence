@@ -2,106 +2,124 @@
 
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope
 
-> Claude Code, exposed as a web page. No frontend. And it never forgets a thing.
+> A daemon listening on a port, on an always-on Linux box you can SSH into and
+> watch. The 25-year-old skeleton — with the parser turned into intelligence.
 
-A server that wraps the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
-**mirrors** each session's memory into **your** database, and **renders the agent
-working — on the server.**
+AIRE is being built in two layers, deliberately in this order:
 
-You hit it with a browser and there's Claude, writing. You never built a UI.
+1. **The chassis — running today on a DigitalOcean droplet.** A bare TCP daemon
+   that accepts connections and appends every line to a greppable log. No AI in
+   it, on purpose.
+2. **The intelligence — in the repo, waking up next.** An HTTP server that wraps
+   the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
+   mirrors each session's memory into **your** Postgres, and renders the agent
+   working — on the server.
 
-## The thesis: the server IS the interface
+## What is breathing right now (the droplet)
 
-Everyone else exposes the SDK as an **API** and leaves the frontend to you
-(agent-webkit gives you React hooks; the cookbook gives you JSON over SSE). AIRE does
-the opposite: **it returns HTML, rendered on the server, that keeps writing itself**
-as the agent thinks.
+An Ubuntu 24.04 droplet (`s-1vcpu-512mb`, ~$4/mo, `nyc3`) runs two systemd
+units 24/7:
 
-```
-GET /projects/avatar
-→ a page. With the agent working. Live.
-```
+- **`aire-listener`** (`aire/listener.py`) — the daemon: `accept()` → read
+  lines → append to `/opt/aire/aire.log`, append-only, with timestamp and peer.
+- **`aire-device`** (`demo_device.py`) — a simulated GPS device: a `KEEPALIVE`
+  heartbeat every ~2s, plus random `MESSAGE` events (position, speed, panic,
+  geofence).
 
-No React. No npm. No build. No frontend. It's what you see in your terminal when you
-use Claude Code — but in a browser, without having written a single line of client code.
+The whole point of this phase is the experience of watching a living daemon:
 
-And as a free consequence: the page where you view your sessions **is not another
-project**. It's the same server. The memory is yours, the table is yours, the HTML is
-yours.
-
-## And the broom
-
-The SDK **never deletes** from your store, and Claude Code **does delete from its own**:
-after 30 days, silently, with no warning and no recovery
-([#59248](https://github.com/anthropics/claude-code/issues/59248) 👍13,
-[#62476](https://github.com/anthropics/claude-code/issues/62476) 👍11,
-[#61952](https://github.com/anthropics/claude-code/issues/61952): *"two months of work
-I paid for, gone"*).
-
-It's a **Blackwall**: a wall at day 30, and nothing remains on the other side.
-
-> **It's your garbage, and you decide when it goes out.**
-
-Retention you control. Sessions you can pin. Archiving instead of destruction.
-Backups. Nobody serves this: not Anthropic, not claude-mem (86k ⭐), not mem0, not Letta.
-
-```http
-POST /projects/avatar/sessions/manuscript/messages
-Authorization: Bearer <token>
-
-{ "prompt": "write chapter 2" }
+```bash
+ssh -i ~/.ssh/aire_vm root@<IP> 'tail -f /opt/aire/aire.log | grep KEEPALIVE'
 ```
 
-It answers with an SSE stream, event by event. And chapter 2 remembers chapter 1 —
-even if the container that wrote chapter 1 has been dead for three days.
+If the keep-alives are flowing, the air is still blowing. That heartbeat check
+is a ritual here (the `/soplo` command).
 
-From a cron, from TypeScript, from a button, from your phone. Nobody needs Python,
-or to know the SDK exists.
+And the raw surface is deliberate. A droplet — not a PaaS, not serverless — is
+also **the Linux curriculum**: SSH, `systemctl`, `journalctl`, the FHS
+(`/opt/aire`), a port bound by a real process. The managed paths hide the OS;
+this project chose the one path where you're forced to meet it. The friction is
+the value.
 
-## The name is the architecture
+Deploys are **never done by hand**: every push to `main` that touches the code
+makes GitHub Actions SSH into the droplet, `git reset --hard origin/main`,
+restart both units and verify **each one individually** came back `active` —
+a dead unit breaks the job. See [`infra/`](infra/README.md) (provisioning,
+one-time) and [`deploy/`](deploy/README.md) (the CI/CD contract).
 
-| | |
-|---|---|
-| **Reflector** | The SDK calls its persistence hook a *mirror*: it reflects the transcript to an external store. AIRE is that mirror, pointed at your Postgres. |
-| **Envelope** | The HTTP envelope that contains the agent. You don't import it: **you talk to it**. |
+> Azure was the first target and is discarded: the whole burstable B-series was
+> blocked at subscription level. DigitalOcean turned out to be truer to the
+> blueprint anyway — a droplet, root, a systemd unit, done.
 
-## The gap it fills
+## Where the shape comes from
 
-The Agent SDK's `SessionStore` is the official hook for getting the memory off disk
-and into a database. And the SDK **never deletes from your store** — its docstring
-delegates the cleanup to you in writing:
+This started with an innocent question — *"what's the difference between an EC2
+and a VM?"* — whose answer was a machine already seen working for years at a
+GPS-tracking company (EC-GPS): receivers push positions over GPRS to a **Perl
+daemon** on an always-on Linux droplet, the daemon writes every packet to an
+append-only `gps_logs` table, and a replaceable PHP console only **reads** it.
+That skeleton has printed money for two decades.
 
-> *"Retention is the adapter's responsibility — implement TTL, object-storage lifecycle
-> policies, or scheduled cleanup according to your compliance requirements."*
+AIRE is that machine, piece by piece:
 
-In other words: **two** things are needed. The **mirror** and the **broom**. Nobody
-has both.
+| EC-GPS | AIRE today | AIRE next |
+|---|---|---|
+| GPS receivers push over GPRS | demo device pushes over TCP | apps push prompts over HTTP |
+| Perl daemon on a port | `aire/listener.py` on :9099 | the engine that owns the SDK |
+| writes `gps_logs`, append-only | appends to `aire.log` | mirrors the transcript to Postgres |
+| PHP console reads and displays | `ssh` + `grep` | SSR paints the agent working, live |
+
+Same skeleton; the parsing step becomes reasoning. The log and the socket are
+eternal — AI is just the *transform* (the repo's law:
+[`log-is-the-truth`](.claude/rules/log-is-the-truth.md)).
+
+## Where it's going: a substitute AND an enhancer of the Claude API
+
+AIRE is a substitute for the **Claude API** — not the SDK, not Claude.ai, the
+API. Your apps stop calling `api.anthropic.com` and call AIRE: same slot (an
+HTTP endpoint, not a library you import), but with two things the raw API will
+never give you, selected by `?mode=`:
+
+- **`complete`** — the substitute: a bare turn, no tools.
+- **`agent`** — the enhancer: a full Claude Code session that executes tools.
+
+And unlike the stateless API, **AIRE remembers and lets itself be watched**:
+
+```
+Accept: text/html          → a server-rendered page that writes itself as the agent thinks
+Accept: text/event-stream  → the raw events, for your apps
+```
+
+No React, no npm, no build, no frontend. `GET /projects/avatar` → a page, with
+the agent working, live. The first consumer is fi-runner (free-intelligence):
+its apps call AIRE over HTTP instead of owning the SDK themselves.
+
+### Why the memory MUST leave the process
+
+In AIRE's very first live session, the agent answered on the streaming page,
+reported its cost — and a page reload **erased the conversation**. Gone. That is
+the exact failure this project exists to kill, and it's also what Claude Code
+does to everyone at day 30: transcripts deleted silently, no recovery
+([#59248](https://github.com/anthropics/claude-code/issues/59248),
+[#62476](https://github.com/anthropics/claude-code/issues/62476),
+[#61952](https://github.com/anthropics/claude-code/issues/61952)).
+
+The SDK's `SessionStore` hook is the official cure — mirror the transcript to
+your own database — and its docstring delegates retention to you in writing:
+
+> *"Retention is the adapter's responsibility — implement TTL, object-storage
+> lifecycle policies, or scheduled cleanup according to your compliance
+> requirements."*
+
+So two things are needed: the **mirror** and the **broom**. Verified by reading
+their code, nobody has both:
 
 | | Mirrors to a DB | Reusable HTTP server | Housekeeping |
 |---|---|---|---|
-| [`claude-cookbooks/hosting`](https://github.com/anthropics/claude-cookbooks/tree/main/claude_agent_sdk/hosting) (official) | ❌ in-RAM dict + disk | ⚠️ single project (`cwd="/app"`) | ❌ |
+| [`claude-cookbooks/hosting`](https://github.com/anthropics/claude-cookbooks/tree/main/claude_agent_sdk/hosting) (official) | ❌ in-RAM dict + disk | ⚠️ single project | ❌ |
 | [Agno](https://github.com/agno-agi/agno) (41k ⭐) | ❌ in-RAM dict + disk | ✅ | ❌ |
-| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ Postgres/SQLite | ❌ internal lib of their app | ❌ |
+| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ | ❌ internal lib | ❌ |
 | **AIRE** | ✅ | ✅ | ✅ |
-
-Verified **by reading their code**, not their documentation:
-
-- The cookbook and Agno keep the session mapping in an in-RAM `dict` and the transcript
-  on **local disk** → they lose the memory when the container dies.
-- ArcReel **does** wire the `SessionStore` (`DbSessionStore`, SQLAlchemy) — but it's an
-  internal library of their product, under **AGPL**, not a service you can talk to from
-  other projects.
-- **None of the three sweeps.** Zero `ttl`, zero `retention`, zero `cleanup`, zero
-  archiving. They accumulate forever.
-
-AIRE is the mirror **and** the broom, behind an HTTP endpoint anyone can call.
-
-## What it is NOT
-
-- **Not a VM runner.** The container stores nothing, so it doesn't need to survive.
-- **Not a library.** You don't import it; you call it over HTTP from any language.
-- **It doesn't reimplement the SDK.** The agentic loop, the tools, the subagents, the
-  permissions and the sandbox already belong to the SDK. AIRE is the missing glue.
 
 ## Architecture
 
@@ -116,33 +134,37 @@ AIRE is the mirror **and** the broom, behind an HTTP endpoint anyone can call.
 
 Three things, and only one of them is AIRE:
 
-- **The memory** — the transcript, in your Postgres. *The only irreplaceable piece:
-  delete the container and AIRE lives on; delete the database and AIRE is dead.*
+- **The memory** — the transcript, in your Postgres. *The only irreplaceable
+  piece: delete the container and AIRE lives on; delete the database and AIRE
+  is dead.*
 - **The work** — what the agent produces, in git. Separate on purpose.
 - **The body** — the container. It's born, it works, it dies. It stores nothing
-  because that's not its job.
+  because that's not its job. (The droplet is the body of the *chassis* phase;
+  the memory will never depend on its disk.)
 
-## It's your garbage
+## What it is NOT
 
-The SDK never deletes: **memory accumulates forever.** That's not a defect — it's what
-keeps you from losing context. But someone has to sweep, and that someone is you (the
-SDK says so explicitly).
+- **Not a VM runner.** The droplet hosts the daemon; the memory must never
+  need it to survive.
+- **Not a library.** You don't import it; you call it over HTTP from any
+  language.
+- **It doesn't reimplement the SDK.** The agentic loop, tools, subagents,
+  permissions and sandbox belong to the SDK. AIRE is the missing glue.
 
-And since the garbage is **yours**, living in **your** database, you can do anything
-with it:
+## Status — honest
 
-- **Retention** — per-project TTL, archive cold sessions, purge what's useless.
-- **Scheduled backups** — it's Postgres. It's `pg_dump` and a cron job.
-- **Auditing** — what you asked, what it did, what it cost. It's a `SELECT`.
-- **A page to see it all** — because the table is yours.
+| Layer | State |
+|---|---|
+| Droplet + listener + device + CI/CD | ✅ **Live**, heartbeats accumulating 24/7 |
+| Engine (SDK owner, `complete`/`agent` modes) | Written (`aire/engine.py`), local only |
+| Streaming SSR + SSE (`aire/server.py`, `aire/render.py`) | Written, local only, no auth yet |
+| Postgres mirror (`aire/store.py`, official adapter) | Copied and adapted, local only |
+| **The tracer that proves the thesis** — chapter 1 → kill the process → chapter 2 remembers | ⏳ **Next** (backlog #5) |
+| The broom (retention, backups, metrics) | Backlog |
 
-None of this is possible when the memory lives on the provider's side.
-
-## Status
-
-The skeleton is in the repo — the bare TCP listener + demo device (the tracer), and
-the engine / server / SSR / Postgres store. What's missing is tracked in
-[`.claude/backlog/`](.claude/backlog/).
+The full roadmap lives in [`.claude/backlog/`](.claude/backlog/). The deep
+context — the spirit, the genesis, the verified SDK facts, the discarded
+routes — lives in [`CLAUDE.md`](CLAUDE.md).
 
 ## License
 
