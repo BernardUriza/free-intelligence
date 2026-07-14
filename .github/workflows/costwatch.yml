@@ -8,6 +8,11 @@ on:
 jobs:
   costwatch:
     runs-on: ubuntu-latest
+    # Job-level env, NOT `if: secrets.X != ''` on the steps: the `secrets` context
+    # is not available in a step's `if`, so such a guard evaluates empty, skips the
+    # step, and the watchdog reports green while checking nothing.
+    env:
+      AIRE_VM_HOST: ${{ secrets.AIRE_VM_HOST }}
     steps:
       - name: Check DigitalOcean spend and inventory against the $20/mo budget
         env:
@@ -20,11 +25,15 @@ jobs:
             echo "::error::DO_API_TOKEN secret is missing — the watchdog is blind"
             exit 1
           fi
-          api() { curl -sfS -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/$1"; }
+          # --retry: a transient DO API blip must NOT fail the job. A watchdog that
+          # cries wolf is a watchdog nobody reads on the day it is right.
+          api() {
+            curl -sfS --retry 3 --retry-delay 5 --retry-all-errors \
+              -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/$1"
+          }
 
           echo "== spend =="
-          BALANCE_JSON="$(api customers/my/balance)"
-          USAGE="$(jq -r '.month_to_date_usage' <<<"$BALANCE_JSON")"
+          USAGE="$(api customers/my/balance | jq -r '.month_to_date_usage')"
           echo "month-to-date usage: \$${USAGE} (warn \$${WARN_USD}, budget \$${BUDGET_USD})"
 
           echo "== inventory =="
@@ -58,3 +67,57 @@ jobs:
             FAIL=1
           fi
           [[ "$FAIL" == "0" ]] && echo "OK — spend \$${USAGE}, inventory clean" || exit 1
+
+      # The $20 cap only ever watched DigitalOcean, where spend is frozen at $4. The
+      # thing that actually GROWS is the pen's table in Azure Postgres, and port 9099
+      # lets anyone on the internet feed it (accepted risk, see the unit's comment).
+      # The broom is the only thing holding that back — so the broom gets a watchdog.
+      # Checked over SSH, never with a SELECT: this repo is write-only toward the
+      # database (.claude/rules/write-only-daemon.md).
+      - name: Install SSH key
+        if: env.AIRE_VM_HOST != ''
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AIRE_VM_SSH_KEY }}
+
+      - name: Check the broom is sweeping and the disk is not filling
+        if: env.AIRE_VM_HOST != ''
+        env:
+          DISK_PCT_MAX: "80"
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "root@${AIRE_VM_HOST}" DISK_PCT_MAX="${DISK_PCT_MAX}" bash -s <<'REMOTE'
+          set -euo pipefail
+          FAIL=0
+
+          DISK_PCT="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
+          echo "disk used: ${DISK_PCT}% (max ${DISK_PCT_MAX}%)"
+          if (( DISK_PCT >= DISK_PCT_MAX )); then
+            echo "::error::droplet disk at ${DISK_PCT}% — the log is filling the box"
+            FAIL=1
+          fi
+
+          if systemctl --quiet is-active aire-sweep.timer; then
+            echo "aire-sweep.timer active"
+          else
+            echo "::error::aire-sweep.timer is NOT active — nothing is sweeping aire_log"
+            FAIL=1
+          fi
+
+          # A timer that fires but whose sweep CRASHES every night is a silent
+          # non-sweep: check the unit's last exit, not just the timer's liveness.
+          # An oneshot that has never run reports Result=success, which is fine —
+          # the SWEEP lines below are what prove it actually swept.
+          RESULT="$(systemctl show aire-sweep.service -p Result --value)"
+          echo "last sweep result: ${RESULT}"
+          if [[ "$RESULT" != "success" ]]; then
+            echo "::error::last aire-sweep run did not succeed (Result=${RESULT})"
+            journalctl -u aire-sweep --no-pager -n 20 || true
+            FAIL=1
+          fi
+
+          echo "last SWEEP lines:"
+          grep SWEEP /opt/aire/aire.log | tail -3 || echo "  (none yet — timer has not fired)"
+          exit "$FAIL"
+          REMOTE

@@ -27,6 +27,18 @@ not documentation.
    `doctl balance get` (month-to-date) and the inventory sweep
    (`droplets/volumes/snapshots/reserved-ips/load-balancers/databases`).
 
+## Azure Postgres is the OTHER cloud — the pen writes there
+
+The $20 cap governs DigitalOcean, where spend is frozen at $4. The component that
+actually **grows** is the pen's `aire_log` table in **Azure Postgres**, fed by a
+port open to the internet (accepted risk, see `deploy/aire-listener.service`). It
+is capped by the **broom** (`aire/sweep.py` + `aire-sweep.timer`, 30-day
+retention) and by **logrotate** on the file. `costwatch` verifies both nightly
+over SSH — a dead broom, a crashing sweep, or a disk past 80% goes red.
+
+**Never watch only the cloud where the spend is frozen.** The blind spot always
+opens over the thing that grows.
+
 ## Enforcement (the parts that alarm on their own)
 
 - **`.github/workflows/costwatch.yml`** — daily cron: fails RED (→ GitHub
