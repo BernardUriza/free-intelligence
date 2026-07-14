@@ -31,12 +31,16 @@ jobs:
           AIRE_VM_HOST: ${{ secrets.AIRE_VM_HOST }}
         run: |
           set -euo pipefail
-          ssh -o StrictHostKeyChecking=accept-new "azureuser@${AIRE_VM_HOST}" bash -s <<'REMOTE'
+          if [[ -z "${AIRE_VM_HOST}" ]]; then
+            echo "no host secret yet — skipping deploy"
+            exit 0
+          fi
+          ssh -o StrictHostKeyChecking=accept-new "root@${AIRE_VM_HOST}" bash -s <<'REMOTE'
           set -euo pipefail
           cd /opt/aire
           git fetch --all
           git reset --hard origin/main
-          sudo systemctl restart aire-listener aire-device
+          systemctl restart aire-listener aire-device
           sleep 1
           systemctl is-active aire-listener aire-device
           REMOTE

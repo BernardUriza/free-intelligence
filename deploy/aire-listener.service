@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=azureuser
+User=root
 WorkingDirectory=/opt/aire
 Environment=AIRE_LOG=/opt/aire/aire.log
 Environment=AIRE_PORT=9099

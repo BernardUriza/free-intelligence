@@ -5,7 +5,7 @@ Requires=aire-listener.service
 
 [Service]
 Type=simple
-User=azureuser
+User=root
 WorkingDirectory=/opt/aire
 Environment=AIRE_HOST=127.0.0.1
 Environment=AIRE_PORT=9099
