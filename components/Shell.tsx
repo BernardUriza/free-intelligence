@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signOut } from "../lib/actions.ts";
 import { tables, type Table } from "../lib/db.ts";
 
 /**
@@ -51,6 +52,10 @@ export default async function Shell({
         <Link href="/sql" className={active === "~sql" ? "on" : ""}>
           sql console
         </Link>
+
+        <form action={signOut} className="out">
+          <button>sign out</button>
+        </form>
       </nav>
       <main>{children}</main>
     </div>

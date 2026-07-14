@@ -1,73 +1,54 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { COOKIE, valid } from "./lib/session.ts";
 
 /**
- * The door. Everything behind it is a read of the owner's database, so there is
- * no such thing as a page here that a stranger may see.
+ * The door. Everything behind it is a read of the owner's database, so there is no
+ * such thing as a page here that a stranger may see.
  *
- * HTTP Basic over TLS, deliberately, instead of the platform's built-in auth:
- * this guards the APP, not the deployment. It holds identically under `docker
- * run`, under `next start`, and behind Container Apps — a console that is only
- * private because the infrastructure happens to be configured right is a console
- * one `az` flag away from being public.
+ * It guards the APP, not the deployment — it holds identically under `docker run`,
+ * `next start` and Container Apps. A console that is private only because the
+ * infrastructure happens to be configured right is one `az` flag away from public.
+ *
+ * It was HTTP Basic for exactly one deploy. The browser's native prompt cannot be
+ * styled, cannot be logged out of, and is a hostile little box on a phone — and it
+ * broke automated navigation outright (`ERR_INVALID_AUTH_CREDENTIALS`). A login is
+ * a page, like every other page here: server-rendered HTML, no client JavaScript.
  *
  * `/api/health` is the single exception, because a liveness probe cannot carry a
- * credential — so it is also the one route that must give nothing away. It
- * reports that the process is up and reading; it does NOT report the schema.
+ * credential — so it is also the one route that must give nothing away. It reports
+ * that it can read; it never reports WHAT.
  */
 
-// ASCII only, and not as a style note: an HTTP header is a ByteString. The em-dash
-// this repo uses everywhere else is codepoint 8212, and putting one in here made
-// every request throw a TypeError inside the middleware — a 500 where a 401 belongs,
-// which means no browser ever showed a login prompt. Typography is not free here.
-const REALM = 'Basic realm="AIRE front - the waiter", charset="UTF-8"';
-
-/** Compare in constant time. A byte-by-byte early return leaks the password one
- *  character at a time to anyone patient enough to measure the reply. */
-function sameSecret(a: string, b: string): boolean {
-  const left = new TextEncoder().encode(a);
-  const right = new TextEncoder().encode(b);
-  // Fold the length difference into the result instead of returning early on it.
-  let diff = left.length ^ right.length;
-  for (let i = 0; i < Math.max(left.length, right.length); i++) {
-    diff |= (left[i] ?? 0) ^ (right[i] ?? 0);
-  }
-  return diff === 0;
-}
-
-function locked(): NextResponse {
-  return new NextResponse("Authentication required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": REALM },
-  });
-}
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const expected = process.env.AIRE_CONSOLE_PASSWORD;
 
   // No password configured = the console is wide open. Fail CLOSED, loudly. The
-  // alternative — serve everything because a variable is unset — is how a database
-  // ends up on the public internet by omission.
+  // alternative — serving everything because a variable is unset — is how a
+  // database ends up on the public internet by omission.
   if (!expected) {
     return new NextResponse(
       "AIRE_CONSOLE_PASSWORD is not set. The console refuses to serve without a door.",
-      { status: 503 },
+      { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } },
     );
   }
 
-  const header = request.headers.get("authorization") ?? "";
-  if (!header.startsWith("Basic ")) return locked();
+  const { pathname, search } = request.nextUrl;
+  const signedIn = await valid(request.cookies.get(COOKIE)?.value, expected);
 
-  let decoded: string;
-  try {
-    decoded = atob(header.slice(6));
-  } catch {
-    return locked();
+  if (pathname === "/login") {
+    // Already in? Don't show the door to someone standing inside the room.
+    if (signedIn) return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.next();
   }
 
-  const password = decoded.slice(decoded.indexOf(":") + 1);
-  if (!sameSecret(password, expected)) return locked();
+  if (signedIn) return NextResponse.next();
 
-  return NextResponse.next();
+  // Remember where they were going, so signing in lands them there and not on a
+  // generic home page they did not ask for.
+  const login = new URL("/login", request.url);
+  const wanted = pathname + search;
+  if (wanted !== "/") login.searchParams.set("next", wanted);
+  return NextResponse.redirect(login);
 }
 
 export const config = {

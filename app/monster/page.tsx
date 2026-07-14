@@ -1,15 +1,16 @@
 import Shell from "../../components/Shell.tsx";
-import { logLines } from "../../lib/db.ts";
-import { buildGraph, H, shape, span, splitEdge, W } from "../../lib/monster.ts";
+import { graph } from "../../lib/db.ts";
+import { H, shape, W } from "../../lib/monster.ts";
 
 export const dynamic = "force-dynamic";
 
-/** The monster, served next to the tables it derives from. The SVG is rendered on
- *  the server — inline markup, no charting library, no client JavaScript. */
+/** The monster, served next to the tables it derives from. Postgres does the
+ *  counting; this page does the geometry. The SVG is server-rendered markup — no
+ *  charting library, no client JavaScript. */
 export default async function MonsterPage() {
-  const lines = await logLines();
+  const g = await graph();
 
-  if (lines.length === 0) {
+  if (g.nodes.length === 0) {
     return (
       <Shell active="~monster">
         <h1>The monster 🌬️</h1>
@@ -20,17 +21,24 @@ export default async function MonsterPage() {
     );
   }
 
-  const graph = buildGraph(lines);
-  const { nodes, edges } = shape(graph);
-  const transitions = [...graph.edges.entries()].sort((a, b) => b[1] - a[1]);
+  const { nodes, edges } = shape(g);
+  const transitions = [...g.edges].sort((a, b) => b.count - a.count);
 
   return (
     <Shell active="~monster">
       <h1>The monster 🌬️</h1>
       <p className="sub">
-        Directly-follows graph of <code>aire_log</code> — {graph.total.toLocaleString("en-US")}{" "}
-        events, {span(lines)}. A node is an event type; an edge means “this followed that”,
-        fatter = more often. The truth lives in Postgres; this page is a waiter.
+        Directly-follows graph of <code>aire_log</code> — {g.total.toLocaleString("en-US")}{" "}
+        events, {g.span}. A node is an event type; an edge means “this followed that”,
+        fatter = more often. Postgres does the counting; this page only draws it.
+        {g.windowed && (
+          <>
+            <br />
+            Reading the <b>last {g.scanned.toLocaleString("en-US")} lines</b> of the log, not
+            all of it — the figure of a system now, not its average since the beginning of
+            time.
+          </>
+        )}
       </p>
 
       <div className="panel">
@@ -115,16 +123,13 @@ export default async function MonsterPage() {
               </tr>
             </thead>
             <tbody>
-              {transitions.map(([key, count]) => {
-                const [from, to] = splitEdge(key);
-                return (
-                  <tr key={key}>
-                    <td>{from}</td>
-                    <td>{to}</td>
-                    <td>{count.toLocaleString("en-US")}</td>
-                  </tr>
-                );
-              })}
+              {transitions.map((e) => (
+                <tr key={`${e.from}->${e.to}`}>
+                  <td>{e.from}</td>
+                  <td>{e.to}</td>
+                  <td>{e.count.toLocaleString("en-US")}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

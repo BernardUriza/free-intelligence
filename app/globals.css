@@ -321,3 +321,65 @@ summary {
   color: var(--ink-2);
   cursor: pointer;
 }
+
+.gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+.gate form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 28px;
+}
+.gate h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.gate .sub {
+  margin: 0 0 6px;
+}
+.gate input[type="password"] {
+  width: 100%;
+  background: var(--page);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: 14px/1.5 inherit;
+}
+.gate button {
+  width: 100%;
+  padding: 10px;
+}
+.gate .wrong {
+  margin: 0;
+  color: var(--hot);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+nav .out {
+  margin: 24px 18px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+nav .out button {
+  width: 100%;
+  background: none;
+  color: var(--muted);
+  border: 1px solid var(--hairline);
+  padding: 6px;
+  font: 600 12px/1 inherit;
+}
+nav .out button:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}

@@ -7,21 +7,25 @@
  * transaction" succeeded: inside a transaction opened READ ONLY, on a connection
  * carrying `default_transaction_read_only=on`, a plain `SET TRANSACTION READ
  * WRITE` was accepted and the INSERT after it went through. A real row of garbage
- * landed in the production log (`aire_log`, seq 2641, `'pwned'`).
+ * landed in the production log (`aire_log`, seq 2641, `'pwned'`). It is still
+ * there — the log is append-only, so the scar stays too.
  *
- * The lesson generalises past this repo: a read-only *transaction mode* is not a
- * read-only *credential*. While the role can write, it can always take the
+ * The lesson generalises past this repo: **a read-only transaction MODE is not a
+ * read-only CREDENTIAL.** While the role can write, it can always take the
  * privilege back.
  *
- * Run after touching `lib/db.ts`, and before believing any sentence that claims
- * this console cannot write:
+ * So the first thing this file does is not an attack at all — it ASKS THE DATABASE
+ * whether the role it arrived as is even allowed to write. If it is, the thirteen
+ * "blocked" lines below would be a statement about this repo's code rather than
+ * about the database's permissions, and the suite refuses to print them. That
+ * guard is what stops the credential fix from being silently reverted by a stray
+ * env var.
  *
- *     export AIRE_DATABASE_URL=...
+ *     export AIRE_DATABASE_URL=$(grep '^AIRE_DATABASE_URL=' ~/.secrets/aire-postgres-readonly.txt | cut -d= -f2-)
  *     npm run attack
  *
- * The day the credential is `aire_reader` (GRANT SELECT and nothing more), every
- * case here must STILL pass with the walls in `lib/db.ts` deleted. That is the
- * test that the real fix is real.
+ * Run it after touching `lib/db.ts`, and before believing any sentence that claims
+ * this console cannot write.
  */
 
 import { console_, pool } from "../lib/db.ts";

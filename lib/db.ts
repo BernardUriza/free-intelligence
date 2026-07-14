@@ -1,36 +1,38 @@
 /**
  * The waiter's hands — the only module that touches Postgres, and it may only read.
  *
- * The daemon (`aire-server`) holds the pen; this repo holds the menu. That
- * separation is not enforced by good intentions: it is enforced four times over,
- * because on 2026-07-13 a version of this file that enforced it only ONCE was
- * defeated in about a minute, and a row of garbage landed in the production log.
+ * The daemon (`aire-server`) holds the pen; this repo holds the menu.
  *
- * What defeated it: `default_transaction_read_only` is a *default*, not a lock.
- * The `aire` role owns write privileges, so a plain `SET TRANSACTION READ WRITE`
- * takes them straight back and every write after it goes through. Verified, not
- * reasoned about — see `scripts/attack.ts`, which re-runs the whole assault.
+ * THE WALL IS THE CREDENTIAL. The app connects as `aire_reader`: a role holding
+ * `GRANT SELECT` and nothing else, so there is no write privilege for anyone to
+ * re-enable. `scripts/attack.ts` refuses to run at all unless it arrived as such a
+ * role — hand this app the daemon's credential and the suite stops dead rather
+ * than printing a comforting wall of "blocked".
  *
- * And node-postgres makes it WORSE than the Python driver did: `pg` speaks the
- * simple query protocol when a query carries no parameters, and the simple
- * protocol happily runs `SET TRANSACTION READ WRITE; DELETE FROM aire_log` as
- * one round trip. What asyncpg refused for free, `pg` hands to an attacker.
- *
- * Hence four walls, each covering the previous one's hole:
+ * The four walls below are DEFENCE IN DEPTH, not the defence. They exist because
+ * the first version of this file had ONLY them, and they fell in about a minute:
+ * `default_transaction_read_only` is a *default*, not a lock, and the pen's role
+ * took the privilege straight back with `SET TRANSACTION READ WRITE`. A row of
+ * garbage reached the production log and is still there (`aire_log`, seq 2641) —
+ * append-only means the scar stays too.
  *
  *   1. `default_transaction_read_only=on` on the connection.
  *   2. an explicit `BEGIN … READ ONLY` around the statement.
  *   3. the extended query protocol (always pass `values`), so ONE statement per
- *      round trip — this is what kills the `SET …; DELETE …` combo.
+ *      round trip — node-postgres speaks the SIMPLE protocol when a query carries
+ *      no parameters, and the simple protocol runs `SET …; DELETE …` as one round
+ *      trip. What asyncpg refused for free, `pg` hands to an attacker.
  *   4. the statement must BEGIN a read — no `SET`, so walls 1 and 2 cannot be
  *      disarmed in the first place.
  *
- * None of this is the real fix. The real fix is a credential that CANNOT write:
- * role `aire_reader`, `GRANT SELECT`, nothing else. Then `SET TRANSACTION READ
- * WRITE` buys an attacker precisely nothing and these four walls become the belt
- * behind the braces. It needs the Postgres server admin — see the backlog.
+ * And a fifth thing that is not about writes at all: `statement_timeout`. Wall 4
+ * only checks that a statement *begins* a read, so `SELECT pg_sleep(3600)` sails
+ * through it — and with `max: 4`, four of those freeze the WHOLE app (every page
+ * needs a connection for the sidebar), not just the console. A runaway `ORDER BY`
+ * over a million rows does the same thing without any malice at all.
  */
 
+import { cache } from "react";
 import { Pool, type PoolClient } from "pg";
 
 const READS_ONLY = /^\s*(?:select|with|explain|table|values|show)\b/i;
@@ -72,7 +74,11 @@ export function pool(): Pool {
     const local = /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString);
     globalThis.__airePool = new Pool({
       connectionString,
-      options: "-c default_transaction_read_only=on",
+      // `statement_timeout` is not paranoia, it is the difference between a slow
+      // page and a dead app: `SELECT pg_sleep(3600)` passes wall 4 (it *begins* a
+      // read), holds a connection, and four of them exhaust `max`. Postgres kills
+      // the query and hands the connection back instead.
+      options: "-c default_transaction_read_only=on -c statement_timeout=15000",
       max: 4,
       // `sslmode=require` in the DSN means "encrypt" but NOT "check who you are
       // talking to" — pg's legacy default accepts any certificate, which is a
@@ -117,8 +123,14 @@ function quote(identifier: string): string {
  * actually holds it, not as some model in this repo imagines it. A table the
  * daemon adds tomorrow (`claude_session_store`) shows up here with no code change:
  * that is the whole point of reading the catalog instead of hardcoding a schema.
+ *
+ * Wrapped in React's `cache()` because EVERY page renders `<Shell>`, which needs
+ * this list for the sidebar — and the page itself may want it too. Without the
+ * dedupe, `/` ran the whole thing TWICE per request, and each run is a `count(*)`
+ * per table: two full scans of a log that grows by 2,500 rows an hour. `cache()`
+ * collapses them to one call per request; the next request gets fresh numbers.
  */
-export async function tables(): Promise<Table[]> {
+export const tables = cache(async function tables(): Promise<Table[]> {
   const listed = await read<{ name: string; size: string }>(`
     SELECT c.relname AS name,
            pg_size_pretty(pg_total_relation_size(c.oid)) AS size
@@ -136,7 +148,7 @@ export async function tables(): Promise<Table[]> {
     out.push({ name, size, rows: Number(count) });
   }
   return out;
-}
+});
 
 export async function columns(table: string): Promise<Column[]> {
   const found = await read<{
@@ -228,13 +240,132 @@ export async function console_(sql: string, limit = 200) {
   return { headers: trimmed.length > 0 ? Object.keys(trimmed[0]) : [], rows: trimmed };
 }
 
-/** The monster's feed. Kept here so `db` stays the only module holding a cursor —
- *  the DFG view derives, it does not connect. */
-export async function logLines(): Promise<{ seq: number; line: string }[]> {
-  const rows = await read<{ seq: string; line: string }>(
-    "SELECT seq, line FROM aire_log ORDER BY seq",
+export type Graph = {
+  nodes: { name: string; count: number }[];
+  edges: { from: string; to: string; count: number }[];
+  total: number;
+  span: string;
+  /** Rows the graph actually looked at, and whether that was the whole log. A
+   *  window that is not shown to the reader is a lie about what they are seeing. */
+  scanned: number;
+  windowed: boolean;
+};
+
+/** The monster reads the tail of the log, not all of it. At 6.3 µs/row the whole
+ *  scan stays under `statement_timeout` until roughly 2.4M rows — which the log
+ *  reaches in about 40 days — and a graph of "everything since the beginning of
+ *  time" is not more informative than a graph of the recent past anyway: it just
+ *  averages away the era you actually care about. Bounded, predictable, honest. */
+export const MONSTER_WINDOW = 200_000;
+
+/**
+ * The monster's directly-follows graph — **counted in Postgres, not in Node.**
+ *
+ * The first version pulled every row of `aire_log` into memory and folded it in
+ * JavaScript. Measured, not guessed: 413 bytes of heap per row, against a log
+ * growing 2,493 rows/hour. At thirty days that is 1.8M rows → **709 MB of heap in
+ * a 1 GB container, and 235 seconds per page view** — before `buildGraph`
+ * allocated a second array of 1.8M strings on top. The page was a scheduled OOM.
+ *
+ * The database was always the right place to count. `lead()` over the classified
+ * events gives every "B followed A" pair and `GROUP BY` collapses them: what
+ * crosses the wire is ~50 aggregate rows no matter how large the log gets.
+ *
+ * **That fixed the memory and left the clock.** The obvious classifier — one regex
+ * with lookahead per line — cost 98 µs/row, so the scan would have blown
+ * `statement_timeout` at ~153k rows: SIXTY-ONE HOURS away. Moving the work to SQL
+ * without measuring it would have shipped the same bomb with a shorter fuse.
+ *
+ * So the classifier takes the format seriously. The daemon writes
+ * `TS IP:PORT app EVENT [SUBTYPE] …`, which means the event is **token 4** — two
+ * anchored regexes on short tokens instead of one lookahead across the whole line.
+ * 6.3 µs/row, a **15× speedup**, verified identical to the slow path on the live
+ * log (same nodes, same edges, same counts). Lines that do NOT follow the format
+ * (garbage arriving on the open port — 36 rows out of 7,800) fall through to the
+ * slow regex, so nothing is lost; they are simply too rare to pay for.
+ *
+ * Bonus the move buys for free: the edge arrives as two COLUMNS, `a` and `b`. The
+ * old code packed `from` and `to` into one map key and split it apart again — with
+ * a separator that had to be a NUL byte, because node names contain spaces
+ * (`MESSAGE POS`). It worked, and it was invisible: every editor rendered that NUL
+ * as an ordinary space, one keystroke from silently breaking every `MESSAGE *` edge.
+ */
+export async function graph(): Promise<Graph> {
+  const rows = await read<{ shape: string; a: string | null; b: string | null; n: string }>(
+    `
+    WITH windowed AS (
+      SELECT seq, line FROM aire_log ORDER BY seq DESC LIMIT $1
+    ),
+    parsed AS (
+      SELECT seq, line,
+             split_part(line, ' ', 4) AS t4,
+             split_part(line, ' ', 5) AS t5
+      FROM windowed
+    ),
+    classified AS (
+      SELECT seq,
+        CASE
+          WHEN t4 ~ '^[A-Z][A-Z0-9-]*$'
+           AND split_part(line, ' ', 2) !~ '^[A-Z][A-Z0-9-]*$'
+           AND split_part(line, ' ', 3) !~ '^[A-Z][A-Z0-9-]*$'
+            THEN CASE WHEN t4 = 'MESSAGE' AND t5 ~ '^[A-Z][A-Z0-9-]*$'
+                      THEN 'MESSAGE ' || t5
+                      ELSE t4 END
+          ELSE (
+            SELECT CASE
+                     WHEN m IS NULL THEN
+                       CASE WHEN array_length(regexp_split_to_array(btrim(line), '\\s+'), 1) > 2
+                            THEN 'OTHER' END
+                     WHEN m[1] = 'MESSAGE' AND m[2] IS NOT NULL THEN 'MESSAGE ' || m[2]
+                     ELSE m[1]
+                   END
+            FROM (
+              SELECT regexp_match(line,
+                '(?:^|\\s)([A-Z][A-Z0-9-]*)(?=\\s|$)(?:\\s([A-Z][A-Z0-9-]*)(?=\\s|$))?') AS m
+            ) z
+          )
+        END AS kind
+      FROM parsed
+    ),
+    events AS (SELECT seq, kind FROM classified WHERE kind IS NOT NULL),
+    pairs  AS (SELECT kind AS a, lead(kind) OVER (ORDER BY seq) AS b FROM events)
+    SELECT 'node' AS shape, kind AS a, NULL::text AS b, count(*)::text AS n
+      FROM events GROUP BY kind
+    UNION ALL
+    SELECT 'edge', a, b, count(*)::text
+      FROM pairs WHERE b IS NOT NULL GROUP BY a, b
+    UNION ALL
+    SELECT 'meta', NULL, NULL, count(*)::text FROM windowed
+    `,
+    [MONSTER_WINDOW],
   );
-  return rows.map((r) => ({ seq: Number(r.seq), line: r.line }));
+
+  const nodes = rows
+    .filter((r) => r.shape === "node")
+    .map((r) => ({ name: r.a as string, count: Number(r.n) }))
+    .sort((x, y) => y.count - x.count);
+
+  const edges = rows
+    .filter((r) => r.shape === "edge")
+    .map((r) => ({ from: r.a as string, to: r.b as string, count: Number(r.n) }));
+
+  const scanned = Number(rows.find((r) => r.shape === "meta")?.n ?? 0);
+  const total = nodes.reduce((sum, n) => sum + n.count, 0);
+
+  // The span is the log's own text, not `at`, so it reads exactly as the daemon
+  // wrote it — and it describes THE WINDOW, not the log, or the page would claim
+  // to show a history it never looked at. Two index lookups, not a scan.
+  const [ends] = await read<{ first: string | null; last: string | null }>(
+    `
+    WITH windowed AS (SELECT seq, line FROM aire_log ORDER BY seq DESC LIMIT $1)
+    SELECT (SELECT split_part(line, ' ', 1) FROM windowed ORDER BY seq ASC  LIMIT 1) AS first,
+           (SELECT split_part(line, ' ', 1) FROM windowed ORDER BY seq DESC LIMIT 1) AS last
+    `,
+    [MONSTER_WINDOW],
+  );
+  const span = ends?.first && ends?.last ? `${ends.first} → ${ends.last} UTC` : "";
+
+  return { nodes, edges, total, span, scanned, windowed: scanned >= MONSTER_WINDOW };
 }
 
 export function where(): { host: string; database: string } {

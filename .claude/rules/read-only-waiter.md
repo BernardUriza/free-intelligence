@@ -95,9 +95,29 @@ ERROR:  permission denied for schema public
 
 ## The door
 
-The console is **HTTP Basic behind TLS** (`middleware.ts`), and it **fails
-closed**: with `AIRE_CONSOLE_PASSWORD` unset the app answers `503` and serves
-nothing. An unset variable must never be the reason a database ends up public.
+A **login page** (`app/login/page.tsx`) and a **signed session cookie**
+(`lib/session.ts`) — server-rendered HTML and a Server Action, no client
+JavaScript, like every other page here.
+
+It was HTTP Basic for exactly one deploy. The browser's native prompt cannot be
+styled, cannot be **logged out of**, is hostile on a phone, and broke automated
+navigation outright (`ERR_INVALID_AUTH_CREDENTIALS` — it defeated this repo's own
+Chrome-DevTools verification). A login is a page, like everything else.
+
+- **The cookie is signed, not stored.** HMAC-SHA-256 over its own expiry, keyed
+  with the console password. No session table, no state in the container (the
+  daemon's law, kept here too), and a restart logs nobody out. **Change the
+  password and every outstanding cookie dies** — which is what changing a password
+  should mean.
+- `httpOnly` (a stray XSS cannot read it), `secure` in production, `sameSite=lax`.
+- **Fails closed**: with `AIRE_CONSOLE_PASSWORD` unset the app answers `503` and
+  serves nothing. An unset variable must never be why a database ends up public.
+- **The `?next=` redirect is validated.** `//evil.com`, `/\evil.com` and
+  `https://evil.com` all collapse to `/`. An open redirect turns a login page into
+  a phishing tool: the URL people are told to trust is the one that sends them
+  elsewhere.
+- Sign-out is a **POST**, never a link — a GET that changes state can be fired by
+  any `<img>` on any page.
 
 It guards the **app**, not the deployment — it holds identically under `docker
 run`, `next start` and Container Apps. A console that is private only because the

@@ -9,7 +9,7 @@ Read-only, server-rendered, live on Azure Container Apps:
 > it printed money for two decades. `aire-server` is the daemon. This is the
 > console.
 
-Behind HTTP Basic (`~/.secrets/aire-console-password.txt`), connecting as a
+Behind a login page (`~/.secrets/aire-console-password.txt`), connecting as a
 Postgres role that **holds `GRANT SELECT` and nothing else**.
 
 ## What it does

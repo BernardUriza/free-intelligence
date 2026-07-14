@@ -46,11 +46,35 @@ So the wall is now **the credential**:
   a stray env var cannot silently undo the fix.
 - The four walls in `lib/db.ts` remain as **defence in depth**, not as the
   defence.
-- The console is behind **HTTP Basic** (`middleware.ts`) and **fails closed**: no
-  `AIRE_CONSOLE_PASSWORD` → `503`, serves nothing.
+- The console is behind a **login page** with a signed session cookie
+  (`app/login`, `lib/session.ts`, `middleware.ts`) and **fails closed**: no
+  `AIRE_CONSOLE_PASSWORD` → `503`, serves nothing. Not HTTP Basic — the native
+  prompt cannot be styled, cannot be logged out of, and breaks Chrome-DevTools
+  verification (`ERR_INVALID_AUTH_CREDENTIALS`).
 
 **The claim "this cannot write" is only ever backed by `npm run attack`.** Run it
 after every change to the read path; do not reason about it.
+
+## Performance is a correctness problem here, not a polish problem
+
+The log grows **~2,500 rows/hour**. Anything that scales with its size is a bomb
+with a date on it, and two of them shipped before they were caught:
+
+- **The monster loaded the whole log into Node** (413 bytes of heap/row → 709 MB
+  in a 1 GB container within 30 days). Counting now happens in Postgres and only
+  ~50 aggregate rows cross the wire.
+- **The obvious SQL rewrite was also a bomb**: one regex-with-lookahead per line
+  costs 98 µs/row, which blows `statement_timeout` in 61 hours. It classifies on
+  token position instead — 6.3 µs/row, proven identical against the live log.
+- **`statement_timeout=15s` is load-bearing.** Wall 4 only checks a statement
+  *begins* a read, so `SELECT pg_sleep(3600)` sails through it — and four of those
+  exhaust `max: 4` and freeze the WHOLE app, since every page needs a connection
+  for the sidebar.
+- **`tables()` is wrapped in React `cache()`** because every page renders `<Shell>`.
+  Without it, `/` ran two `count(*)` full scans per request.
+
+**Measure before you believe a fix.** Both of the above looked correct and were
+not; the numbers came from running them, not from reading them.
 
 ## Verified facts (don't re-discover them)
 
