@@ -37,6 +37,7 @@ from discord.ext import tasks
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
 from khimeras_shared.attachments import process_attachments
 from khimeras_shared.facts import extract_facts, merge_facts_additive
+from khimeras_shared.guidance import guidance_for_turn
 from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
@@ -525,6 +526,18 @@ class PersonaClient(discord.Client):
             text_blocks = [{"type": "text", "text": ask}] if ask else []
             user_content = [*text_blocks, *attachment_blocks]
         messages = [*format_context(recent), {"role": "user", "content": user_content}]
+        # The guardian: classify THIS turn against the user's accumulated facts and
+        # send the persona's guidance on the wire. Without it the vulnerable-user
+        # overlay never reaches the model — a user with a clinical cluster gets the
+        # raw abrasive register (P0, live from the purge until 2026-07-14). Every
+        # fault inside returns None: a turn without guidance is a normal turn.
+        guidance = await guidance_for_turn(
+            memory=self.memory,
+            user_id=user_id,
+            current_message=ask,
+            recent_messages=format_context(recent),
+            persona_id=self.persona.persona_id,
+        )
         await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
@@ -533,6 +546,7 @@ class PersonaClient(discord.Client):
             channel_name=channel_name,
             messages=messages,
             react_to=message,
+            behavioral_guidance=guidance,
         )
         # A mention carries a REAL user ask — the only turn worth mining for
         # facts. Runs AFTER delivery, in the background, so the extraction's LLM
@@ -711,6 +725,7 @@ class PersonaClient(discord.Client):
         messages: list[dict],
         turn_kind: str = "mention",
         react_to: discord.Message | None = None,
+        behavioral_guidance: str | None = None,
     ) -> None:
         """Shared tail for mention + invite: runner call → post → persist.
 
@@ -741,6 +756,7 @@ class PersonaClient(discord.Client):
                 channel_id=channel_id,
                 user_id=user_id,
                 persona_id=self.persona.persona_id,
+                behavioral_guidance=behavioral_guidance,
             )
         finally:
             _typing_stop.set()
