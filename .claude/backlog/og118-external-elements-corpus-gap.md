@@ -1,6 +1,6 @@
 # Elementos externos ignoran el Project activo (corpus nunca llega al engine remoto)
 
-Status: In progress — ruta 1 (aviso honesto in-stream) shipped 2026-07-14; ruta 2 (RAG server-side) pendiente de greenlight
+Status: Done 2026-07-14 — ruta 1 (aviso honesto) shipped y luego SUPERSEDIDA por ruta 2 (RAG server-side, greenlight de Bernard vía /ultra-lord): los elementos externos SÍ ven los documentos del Project
 Proposed: 2026-07-14 by Claude (hallazgo colateral de PROJ-AUTOSEARCH-1)
 
 ## What it is
@@ -35,7 +35,10 @@ queden explícitamente fuera.
 
 ## Status / next step
 
-Ruta 1 shipped (2026-07-14): la rama external de `/chat/stream` rechaza LOUD
-(error in-stream, mismo patrón que imágenes) cuando llega `corpus_id` con
-elemento externo — la mentira silenciosa quedó muerta. Ruta 2 (RAG server-side
-antes del proxy) sigue pendiente de greenlight de Bernard.
+Done. Ruta 1 (rechazo LOUD) vivió unas horas y fue supersedida el mismo día por
+ruta 2 con greenlight de Bernard: la rama external de `/chat/stream` hace RAG
+server-side (`rag.search(corpus_id, message, top_k=4)`) y antepone los chunks al
+`user_text` del proxy — el elemento externo fundamenta su respuesta en los
+documentos del Project sin que el engine remoto conozca og118. Corpus sin hits →
+texto intacto; fallo de retrieval → error honesto in-stream (nunca responder sin
+los documentos que el usuario cree en juego).
