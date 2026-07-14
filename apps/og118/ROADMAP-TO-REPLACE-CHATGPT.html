@@ -249,8 +249,12 @@
   <div class="section">
     <div class="section-header">
       <span class="section-title">Técnico abierto — trabajo de Claude, no bloquea el daily driver</span>
-      <span class="section-badge badge-tech">3 ITEMS</span>
+      <span class="section-badge badge-tech">4 ITEMS</span>
     </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">FIGLASS-PROJECTS-PAGE-1 — Projects como PÁGINA (paridad claude.ai): grid de cards + workspace de detalle</div>
+      <div class="item-note">Ordenado por Bernard 2026-07-14; specs MEDIDOS de la superficie real de claude.ai (sesión viva, DevTools) y registrados en .claude/backlog/figlass-projects-page.md. Índice /projects (grid md:2-col, cards 404px con título/desc clamp-3/updated, search, sort, CTA) + detalle /project/{id} (breadcrumb, composer arriba, Recents, rail 352px: Instructions + Context con capacity meter y doc-cards 148×120). 8 primitivas genéricas suben a fi-glass (ResourceCardGrid, WorkspaceDetailLayout, RailPanelStack, CapacityMeter, DocCard…), og118 solo rutas+wiring. Orden de build: (1) server — 4 gaps de datos (GET documents, description/updated_at, project_id en conversaciones, dato de capacidad); (2) fi-glass primitivas+tests; (3) og118 rutas. Decisiones de Bernard pendientes en el backlog item: ¿página reemplaza o convive con el sidebar? ¿instructions per-project en fase 1?</div></div>
+      <span class="item-tag">FIGLASS-PROJECTS-PAGE-1</span></label>
     <label class="item"><input type="checkbox">
       <div class="item-body"><div class="item-text">VOICE-CONTROLS-MOBILE-1 — mejorar aún más la responsividad de los controles de voz con filosofía mobile-first</div>
       <div class="item-note">Follow-up del smoke PASS 12/12 (Bernard, 2026-07-14). Mobile-first de verdad: los controles de voz (mic, paused row, draft player, equalizer de Resonance) se diseñan primero para el container más chico y crecen hacia desktop — no al revés. Marco existente que gobierna: .claude/rules/mobile-viewport-ux.md (chrome &lt;18%, composer idle ≤64px, targets ≥44px, container queries fi-composer 420px/340px, safe-area-inset-*). Framework-first: lo reusable sube a fi-glass, og118 solo consume tokens.</div></div>
