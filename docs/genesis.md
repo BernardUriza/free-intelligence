@@ -111,6 +111,6 @@ data engineering.** Verified against canonical literature (some of it peer-revie
 
 The consequences for this repo are law, not commentary — they live in
 [`.claude/rules/log-is-the-truth.md`](../.claude/rules/log-is-the-truth.md): the
-append-only transcript in Postgres is the only truth; the SSR view and the in-RAM pool
+append-only transcript in Postgres is the only truth; the front's views and the in-RAM pool
 are derived caches; the engine is the listening daemon (Reactor / C10K) and AI is just
 the *transform* between the `accept()` and the `INSERT`.

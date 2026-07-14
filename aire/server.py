@@ -1,27 +1,22 @@
-"""The server IS the interface — and it is a SUBSTITUTE for the Claude API.
+"""AIRE's HTTP surface — events only, NEVER a view.
 
 Your apps stop calling `api.anthropic.com` and call AIRE. Same slot (an HTTP
-endpoint, not a library you import), but AIRE remembers (Postgres) and lets
-itself be watched (SSR). A single route serves both audiences, because it is
-the SAME turn and the SAME event stream:
+endpoint, not a library you import), but AIRE remembers (Postgres). This
+server emits **no HTML, ever** — Bernard's law, twice over:
 
-    Accept: text/html          → the page that writes itself   (you, watching)
-    Accept: text/event-stream  → the raw events                (your apps)
+- [[write-only-daemon]]: every reader/view is a waiter and every waiter lives
+  in the front repo (`aire-front`). This repo holds the pen, not the menu.
+- The daemon's only mouths are `/health` (JSON) and the message endpoint
+  (SSE events). Rendering those events into pixels is the front's job.
 
-And `?mode=` picks the dial: `complete` (bare substitute) or `agent` (enhancer
-that executes tools).
+`?mode=` picks the dial: `complete` (bare substitute for the raw API) or
+`agent` (enhancer that executes tools inside the session's casita).
 
 AUTHENTICATION — the LLM door (``AIRE_AUTH_TOKEN``). Every turn burns real
-Anthropic tokens, so every route except ``/health`` is gated by a long secret
-only Bernard holds. Two ways in, one per audience:
-
-- an app sends ``Authorization: Bearer <token>`` (the cookbook's pattern);
-- a browser opens any URL once with ``?token=<token>`` — the server sets an
-  ``aire_token`` cookie and redirects to the clean URL, so the page (and the
-  ``<form>`` POSTs it makes) keep working without the secret in every link.
-
-Unset token = fail CLOSED (503): a forgotten env var must never mean an open
-LLM. Comparison is constant-time.
+Anthropic tokens, so everything except ``/health`` is gated by a long secret
+only Bernard holds: ``Authorization: Bearer <token>``. Unset token = fail
+CLOSED (503): a forgotten env var must never mean an open LLM. Comparison is
+constant-time.
 """
 
 from __future__ import annotations
@@ -34,11 +29,10 @@ from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from sse_starlette.event import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
-from . import render
 from .engine import DEFAULT_MODE, MODES, Engine
 from .names import InvalidName, clean
 from .store import create_postgres_session_store
@@ -53,7 +47,7 @@ def _presented_token(request: Request) -> str:
     header = request.headers.get("authorization", "")
     if header.lower().startswith("bearer "):
         return header[7:].strip()
-    return request.query_params.get("token") or request.cookies.get("aire_token") or ""
+    return ""
 
 
 @app.middleware("http")
@@ -64,17 +58,8 @@ async def llm_door(request: Request, call_next: Any) -> Any:
         return JSONResponse({"detail": "AIRE_AUTH_TOKEN is not configured"}, status_code=503)
     if not hmac.compare_digest(_presented_token(request), AUTH_TOKEN):
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    if request.query_params.get("token"):
-        clean_q = "&".join(f"{k}={v}" for k, v in request.query_params.items() if k != "token")
-        response = RedirectResponse(
-            request.url.path + (f"?{clean_q}" if clean_q else ""), status_code=303
-        )
-        response.set_cookie(
-            "aire_token", AUTH_TOKEN, httponly=True, secure=False, samesite="lax",
-            max_age=60 * 60 * 24 * 30,
-        )
-        return response
     return await call_next(request)
+
 
 _engine: Engine | None = None
 
@@ -122,55 +107,17 @@ async def health() -> JSONResponse:
         )
 
 
-@app.get("/")
-async def index() -> RedirectResponse:
-    return RedirectResponse("/projects/aire/sessions/hello")
-
-
-@app.get("/projects/{project}/sessions/{session}", response_class=HTMLResponse)
-async def session_page(project: str, session: str, mode: str | None = None) -> HTMLResponse:
-    project, session = safe_names(project, session)
-    mode = safe_mode(mode)
-    engine = await get_engine()
-    entries = await engine.load_transcript(project, session)
-    return HTMLResponse(render.landing(project, session, mode, entries))
-
-
 @app.post("/projects/{project}/sessions/{session}/messages")
 async def post_message(project: str, session: str, request: Request) -> Any:
     project, session = safe_names(project, session)
-    message, mode = await _read_body(request)
-    mode = safe_mode(mode)
+    body = await request.json()
+    message = str(body.get("message", body.get("prompt", ""))).strip()
+    mode = safe_mode(body.get("mode"))
     # An empty message is NOT a turn: sending it to the SDK is a real query that
     # spends money for nothing. The edge cuts it before it touches the agent.
     if not message:
-        return RedirectResponse(f"/projects/{project}/sessions/{session}?mode={mode}", status_code=303)
-    if "text/event-stream" in request.headers.get("accept", ""):
-        return EventSourceResponse(_events(project, session, message, mode))
-    return StreamingResponse(
-        _html(project, session, message, mode),
-        media_type="text/html; charset=utf-8",
-        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"},
-    )
-
-
-async def _read_body(request: Request) -> tuple[str, str | None]:
-    """A `<form>` posts urlencoded; an app posts JSON. Both get in."""
-    if request.headers.get("content-type", "").startswith("application/json"):
-        body = await request.json()
-        return str(body.get("message", body.get("prompt", ""))).strip(), body.get("mode")
-    form = await request.form()
-    return str(form.get("message", "")).strip(), form.get("mode")  # type: ignore[return-value]
-
-
-async def _html(project: str, session: str, message: str, mode: str) -> AsyncIterator[bytes]:
-    yield render.head(project, session, mode, message)
-    engine = await get_engine()
-    async for ev in engine.run_stream(project, session, message, mode):
-        chunk = render.event(ev)
-        if chunk:
-            yield chunk
-    yield render.foot(project, session, mode)
+        raise HTTPException(status_code=422, detail="empty message")
+    return EventSourceResponse(_events(project, session, message, mode))
 
 
 async def _events(project: str, session: str, message: str, mode: str) -> AsyncIterator[ServerSentEvent]:

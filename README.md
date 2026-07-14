@@ -12,8 +12,9 @@ AIRE is being built in two layers, deliberately in this order:
    it, on purpose.
 2. **The intelligence — in the repo, waking up next.** An HTTP server that wraps
    the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
-   mirrors each session's memory into **your** Postgres, and renders the agent
-   working — on the server.
+   mirrors each session's memory into **your** Postgres, and speaks only
+   events (SSE) — the daemon never returns HTML; every view lives in the
+   front repo.
 
 ## What is breathing right now (the droplet)
 
@@ -54,7 +55,7 @@ machine, piece by piece — full story in [`docs/genesis.md`](docs/genesis.md):
 | GPS receivers push over GPRS | demo device pushes over TCP | apps push prompts over HTTP |
 | Perl daemon on a port | `aire/listener.py` on :9099 | the engine that owns the SDK |
 | writes `gps_logs`, append-only | appends to `aire.log` (+ the pen → Postgres) | mirrors the transcript to Postgres |
-| PHP console reads and displays | `ssh` + `grep` | SSR paints the agent working, live |
+| PHP console reads and displays | `ssh` + `grep` | aire-front (separate repo) paints it |
 
 Same skeleton; the parsing step becomes reasoning. The log and the socket are
 eternal — AI is just the *transform* (the repo's law:
@@ -68,8 +69,8 @@ endpoint, not a library), plus what the raw API will never give you:
 - **`?mode=complete`** — the substitute: a bare turn, no tools.
 - **`?mode=agent`** — the enhancer: a full Claude Code session that executes tools.
 - **It remembers** (transcript mirrored to your Postgres, survives any container)
-  and **lets itself be watched** (`Accept: text/html` → a server-rendered page
-  that writes itself; `Accept: text/event-stream` → raw events for your apps).
+  and **lets itself be watched** — through the front repo, which renders the
+  daemon's raw SSE events; the daemon itself never returns HTML.
 
 First consumer: fi-runner (free-intelligence) calls AIRE over HTTP instead of
 owning the SDK. Why nobody else fills this gap — the mirror, the broom, the
@@ -106,7 +107,7 @@ missing glue around the SDK, callable from any language.
 | Droplet + listener + device + CI/CD + costwatch | ✅ **Live**, heartbeats accumulating 24/7 |
 | The pen — log mirrored to Postgres | ✅ Live behind `AIRE_DATABASE_URL` |
 | Postgres session store (`aire/store.py`) | ✅ SDK conformance suite green (local) |
-| Engine + streaming SSR/SSE (`aire/engine.py`, `server.py`, `render.py`) | Written, runs locally, no auth yet |
+| Engine + SSE events (`aire/engine.py`, `server.py`) | ✅ **Live** on the droplet :8088, Bearer-gated, budget-capped |
 | The console — [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed), the read half | ✅ **Live** on Container Apps ([open it](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io)) — tables, browse, SQL console, the monster. Behind HTTP Basic, reading as `aire_reader` (`GRANT SELECT` only) |
 | **The tracer that proves the thesis** — chapter 1 → kill the process → chapter 2 remembers | ⏳ **Next** (backlog #5) |
 | The broom (retention, backups, metrics) | Backlog |

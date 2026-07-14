@@ -20,12 +20,15 @@ memory. To contradict anything here, verify it first the same way.
 1. **AIRE is a SERVICE, not a library.** You don't import it: you call it over HTTP.
    The SDK lives in one place, the Postgres credentials live in one place, any
    language can talk to it.
-0. **THE SERVER IS THE INTERFACE — SSR, not a JSON API.** The central thesis. AIRE
-   **returns server-rendered HTML that keeps writing itself** as the agent thinks
-   (streaming HTML, not one-shot SSR). `GET /projects/avatar` → a page, with the agent
-   working, live. No React, no npm, no build. This covers the LIVE page — painted
-   from the engine's in-flight events, not from a database read. Browsing and
-   analyzing STORED sessions is the front repo's job (decision #5).
+0. **THE DAEMON HAS NO FACE — it never returns HTML. Not one byte, not ever.**
+   Bernard's settled conclusion (re-affirmed 2026-07-14 after an SSR page briefly
+   shipped here and scared him — that surface was reverted the same hour). The old
+   "the server is the interface / streaming SSR" thesis is DEAD in this repo: the
+   daemon's only mouths are `/health` (JSON) and the message endpoint (SSE events).
+   **Every human-facing view — live or stored — lives in the front repo**
+   ([`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed), which
+   EXISTS and is live), which may render the daemon's SSE stream however it wants.
+   Do not re-propose SSR-from-the-daemon (Art. 7).
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
 3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE

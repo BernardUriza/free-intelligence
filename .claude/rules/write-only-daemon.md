@@ -8,6 +8,10 @@ the repo that gets cloned to the daemon's body. Toward Postgres it **only append
 1. **No read operations on the database in this repo.** No `SELECT` for rendering,
    analytics, browsing, dashboards, or debugging tools. The daemon holds the pen
    ([[log-is-the-truth]]); it never holds the menu.
+1b. **No HTML, ever.** The daemon never returns a view — not SSR, not a landing
+   page, not a rendered transcript. JSON health + SSE events are its only mouths.
+   Violated once (2026-07-14: an SSR page served `load_transcript` from here);
+   reverted the same hour. The front renders; the daemon speaks events.
 2. **Every reader is a waiter, and every waiter lives in the front repo** — the
    PHP-of-EC-GPS layer. **It exists**: [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed)
    (Next.js SSR, [live on Container Apps](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io),
