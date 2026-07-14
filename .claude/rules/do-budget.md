@@ -34,8 +34,9 @@ not documentation.
   **$20** (budget), if the droplet inventory drifts from the budgeted one, if
   any volume/snapshot/reserved-IP/LB/DB appears, or if backups get enabled.
   Reads the `DO_API_TOKEN` repo secret.
-- **DO billing alert** (control panel, Billing → Billing alerts) — DO's own
-  email when month-to-date crosses the threshold; independent of GitHub.
+- **DO billing alert — SET at $10** (2026-07-13, control panel → Billing →
+  Settings, team `382aae`): DO emails when the monthly balance reaches $10.00;
+  independent of GitHub. Verified enabled on the rendered panel.
 - DO has **no native hard cap** — nothing stops spend automatically; these
   alarms + prohibition 1 are the cap.
 
