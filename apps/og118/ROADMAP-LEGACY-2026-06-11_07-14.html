@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>og118 → Reemplazar ChatGPT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #0a0f1e;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; font-weight: 700; color: #34d399; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+
+  .objective {
+    border: 1px solid rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.06);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #a7f3d0;
+    line-height: 1.6;
+  }
+  .objective strong { color: #34d399; }
+
+  .rc-status {
+    border: 1px solid rgba(251,191,36,0.35);
+    background: rgba(251,191,36,0.07);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    font-size: 0.9rem;
+    color: #fde68a;
+    line-height: 1.6;
+  }
+  .rc-status strong { color: #fbbf24; }
+  .rc-status .rc-head { font-size: 1rem; letter-spacing: 0.02em; }
+  .rc-status ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+  .rc-status code { background: rgba(255,255,255,0.06); padding: 0.05rem 0.35rem; border-radius: 4px; }
+
+  .section {
+    margin-bottom: 1.75rem;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 0.75rem 1.25rem;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .section-title { font-size: 0.9rem; font-weight: 600; }
+  .section-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .badge-done { background: rgba(52,211,153,0.15); color: #34d399; }
+  .badge-active { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .badge-pending { background: rgba(100,116,139,0.2); color: #94a3b8; }
+  .badge-blocked { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .item:last-child { border-bottom: none; }
+  .item:hover { background: rgba(255,255,255,0.03); }
+
+  .item input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    position: relative;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .item input[type="checkbox"]:checked {
+    background: #34d399;
+    border-color: #34d399;
+  }
+  .item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px; top: 0px;
+    width: 6px; height: 10px;
+    border: 2px solid #0a0f1e;
+    border-top: none; border-left: none;
+    transform: rotate(45deg);
+  }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+  }
+  .item-text.done { color: #475569; text-decoration: line-through; }
+  .item-note {
+    font-size: 0.75rem;
+    color: #475569;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+  }
+  .item-tag {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: #64748b;
+    font-family: monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .gate-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .gate-dot {
+    width: 8px; height: 8px;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+  .dot-green { background: #34d399; }
+  .dot-yellow { background: #fbbf24; }
+  .dot-gray { background: #475569; }
+
+  .progress-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 1rem 1.25rem 0.75rem;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #34d399, #059669);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .progress-label {
+    font-size: 0.72rem;
+    color: #475569;
+    padding: 0 1.25rem 0.75rem;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #334155;
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div style="border:1px solid rgba(248,113,113,0.4); background:rgba(248,113,113,0.08); border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.5rem; font-size:0.9rem; color:#fca5a5; line-height:1.6">
+    <strong style="color:#f87171">🪦 LEGACY — congelado 2026-07-14.</strong> Este archivo es el registro histórico completo (2026-06-11 → 07-14). NO se actualiza más. El checklist vivo, limpio y con solo lo pendiente es <a href="ROADMAP-TO-REPLACE-CHATGPT.html" style="color:#34d399">ROADMAP-TO-REPLACE-CHATGPT.html</a>.
+  </div>
+
+  <h1>og118 → Reemplazar ChatGPT</h1>
+  <p class="subtitle">Actualizado 2026-07-14 · <strong style="color:#34d399">og118 ES EL DAILY DRIVER</strong> (desde 07-10: venció Pro de ChatGPT, app.og118.ai LIVE). Jornada 07-11→07-14: <strong>27 PRs más</strong> — contrato de stream como SSOT cross-language (#345) + autoría en el bubble (#346) + provenance del modelo "Powered by" (#348/#350) · imágenes adjuntas (#349) + un solo "+" para adjuntar (#353) · móvil nativo: full-bleed shell (#344) + viewport reclaim 18.6%→7.5% (#363/#364) · organización de chats: fijar/archivar (#362) + búsqueda en sidebar + banner anti-zombi (#366) · Projects RAG con elementos externos: search-first (#367), rechazo LOUD→RAG server-side (#368/#370), deselect (#369) · P0 watchdog ya no mata turnos vivos ni se come el prompt (#355) · memoria nativa SDK cableada y desactivada el mismo día (#357–#359) · aurity oficialmente LEGACY, deploy manual-only (#354/#356) · NORTH.md (#371)</p>
+
+  <div class="objective">
+    <strong>Objetivo dual:</strong> (1) Dejar de pagar ChatGPT — og118 es el daily driver de Bernard para conversación + voz + agencia. (2) og118 es el <strong>canary de fi-glass</strong> — cada dolor que surge en og118 sube como primitiva al framework para que los próximos shells lo hereden gratis.
+  </div>
+
+  <div class="rc-status">
+    <div class="rc-head"><strong>Release Candidate Status</strong> — <code>RC-BLOCKED-BY-HUMAN-SMOKE</code> (2026-07-08)</div>
+    <div>Checks completados: <strong>46/47</strong> · P0 abiertos: <strong>0</strong> · P1 autónomos abiertos: <strong>0</strong></div>
+    <div style="margin-top:0.5rem">Cerrado desde el 06-30: <strong>VOICE-GATEWAY-AUTH-SMOKE</strong> — endpoints TTS/STT apuntaban al Cognitive regional (sin tts/whisper) en vez del gateway susurro; fix en GitHub vars/secrets + ACA, <strong>verificado live con JWT Auth0 real</strong> (qa-tts-502 / qa-stt-502 abajo).</div>
+    <div style="margin-top:0.5rem">Pendiente único — requiere oídos reales, no se marca DONE sin smoke vivo (Art. 2):</div>
+    <ul>
+      <li><strong>AUDIO-HUMAN-SMOKE</strong> — veredicto audible de Bernard sobre el audio durable (preview con ambos segmentos audible, TTS suena bien). La mitad MECÁNICA quedó re-verificada 2026-07-08 con mic real en la anatomía nueva: grabar → pausar (fila paused en el header del composer) → reanudar → stop → draft dentro de la caja → play avanza 0:02/0:05 → descartar limpia el slot. Falta solo el juicio perceptual (Regla 17: el metric es proxy, los oídos son ground truth).</li>
+    </ul>
+    <div style="margin-top:0.5rem">Próximo actor: <strong>Bernard</strong> (oídos + daily-driver). Runbook ejecutable: <code>GATE4-HUMAN-SMOKE-RUNBOOK.md</code>.</div>
+  </div>
+
+  <!-- GATES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Gates de producción</span>
+      <span class="section-badge badge-active">EN CURSO</span>
+    </div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 0 — Inventario read-only ✓</div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 1 — Validación local + container ✓</div>
+    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 2 — CI/CD staging cloud (SWA + ACA) — PR #214+#215 merged, smoke estructural PASS, smoke interactivo pendiente</div>
+    <div class="gate-row"><span class="gate-dot dot-green"></span> Gate 3 — Auth real (Auth0) — backend dual mode LIVE + frontend login SHIPPED + verificado e2e; falta solo smoke humano staging-host + flip opcional auth0-only</div>
+    <div class="gate-row"><span class="gate-dot dot-yellow"></span> Gate 4 — Cutover público — <strong>app.og118.ai LIVE en prod</strong> (TLS válido, Auth0 callbacks, CORS, mismo backend/chats, 2026-07-10). Falta solo el apex og118.ai (hoy = landing) — decisión de Bernard, DNS ya en Cloudflare</div>
+  </div>
+
+  <!-- SMOKE INTERACTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Smoke interactivo B3-VOICE-OG118-6</span>
+      <span class="section-badge badge-active">LISTO PARA BERNARD</span>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar" style="width:0%"></div></div>
+    <div class="progress-label" id="smoke-progress">0/12 completados</div>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Presionar micrófono → pide permiso de mic solo al iniciar</div></div>
+      <span class="item-tag">smoke-1</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Grabar unos segundos → barras vivas (visualizador reactivo)</div></div>
+      <span class="item-tag">smoke-2</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Pausar → audio se congela, botón cambia a Resume</div></div>
+      <span class="item-tag">smoke-3</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Reanudar → continúa el mismo artifact (no uno nuevo)</div></div>
+      <span class="item-tag">smoke-4</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Detener → artifact aparece en AudioQueuePanel con privacidad notice</div></div>
+      <span class="item-tag">smoke-5</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Reproducir audio local del artifact → se escucha</div></div>
+      <span class="item-tag">smoke-6</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Refrescar la página → artifact sigue en cola (IndexedDB durable)</div></div>
+      <span class="item-tag">smoke-7</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Transcribir → texto cae en el composer (composerAppend)</div>
+      <div class="item-note">Si falla: ver si es MIME (backend espera webm, recibe wav) → B3-VOICE-BACKEND-2</div></div>
+      <span class="item-tag">smoke-8</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Artifact transcrito desaparece de la cola (clearTranscribed / deleteArtifact)</div></div>
+      <span class="item-tag">smoke-9</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">TTS: botón Speak en mensaje assistant sigue funcionando</div></div>
+      <span class="item-tag">smoke-10</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Copy / sidebar / transcript / Markdown / focus recovery intactos</div></div>
+      <span class="item-tag">smoke-11</span></label>
+
+    <label class="item"><input type="checkbox" onchange="updateProgress('smoke',this)">
+      <div class="item-body"><div class="item-text">Consola devtools limpia durante toda la sesión (sin errores rojos)</div></div>
+      <span class="item-tag">smoke-12</span></label>
+  </div>
+
+  <!-- BACKEND STT -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Backend STT — contrato MIME real</span>
+      <span class="section-badge badge-done">MERGEADO</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">/stt/transcribe acepta audio/wav, webm, mp3, ogg, flac — MIME validado, extensión derivada</div>
+      <div class="item-note">B3-VOICE-BACKEND-2 · PR #216 · mergeado 2026-06-12 · staging live /health=200</div></div>
+      <span class="item-tag">B3-VOICE-BACKEND-2</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Backend devuelve texto no vacío para grabaciones cortas (≥ 2 seg)</div></div>
+      <span class="item-tag">contract</span></label>
+  </div>
+
+  <!-- UX TRANSITIONS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">UX de voz — Estados de transición</span>
+      <span class="section-badge badge-done">PR #217 MERGEADO</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Estado 'stopping' — spinner ámbar entre Stop y artifact en cola (~500ms)</div>
+      <div class="item-note">fi-glass AudioArtifactState + useDurableRecording + AudioQueueItem · PR #217</div></div>
+      <span class="item-tag">B3-VOICE-UX</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">isStarting — mic button busy mientras getUserMedia en vuelo</div>
+      <div class="item-note">fi-glass useDurableRecording + og118 ComposerMicSlot · PR #217</div></div>
+      <span class="item-tag">B3-VOICE-UX</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-10 — AudioDraftPlayer inline en el compositor</div>
+      <div class="item-note">Mini-reproductor inline (play + waveform + delete + Transcribir) al parar, patrón WhatsApp. fi-glass AudioDraftPlayer + AudioQueuePanel.excludeIds. PR #226 · verificado visualmente con DevTools · pendiente CI + merge + deploy.</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-10</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-11 — AudioDraftPlayer polish and playback fix</div>
+      <div class="item-note">PR #229 merged (848c8895) + SWA deployed. Smoke automatizado PASS: gap player→composer 18.6px (fi-surface-above-composer), consola limpia, red 9/9×200, delete borra artifact de IndexedDB + player se desmonta, textarea full-width sin regresión. Pendiente verificación humana de audio (play/pause/transcribe con grabación real).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-11</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-12 — ChatGPT-parity conversation UX: pin-to-bottom + collapse + fade-in</div>
+      <div class="item-note">PR #230 merged (3c3a8549) + SWA deployed + smoke staging PASS: pin a 1px al cargar, ScrollToBottomButton aparece al scrollear arriba y regresa con spring, mensaje real de 4.5k chars clampeado a 264px con mask fade + expande con "Mostrar más" (ARIA), fade-in fi-msg-show computado en bubbles, consola limpia. og118 heredó las 3 capabilities sin tocar el consumer. Nits LOW del Gatekeeper (const nombrada + focus-visible ring) en PR #231.</div></div>
+      <span class="item-tag">B3-FIGLASS-12</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-13 — glass-chat page-depth preset: gradiente layered + burbujas glassy + watermark de marca</div>
+      <div class="item-note">PR #233 merged (036908be) + deploy SWA verde: fondo layered (glow radial re-tinteable + barrido navy), burbuja user translúcida esmeralda 32% + blur, watermark de marca opcional (fixed, 8%, z -1). Incluyó el composer floating-box de la sesión paralela (controles dentro de la caja frosted). og118 consume con puros tokens. Header/badge (#232) y hotfix csstype (#234) merged y deployed también.</div></div>
+      <span class="item-tag">B3-FIGLASS-13</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-14 — bubble geometry /chat parity: alineación + 85% cap + muescas</div>
+      <div class="item-note">PR #235 merged (e7744f8c) + deploy verde + verificado en el CSS servido de staging (margin auto, 85% cap, muescas 4px). User derecha / assistant izquierda, encogen a contenido (efecto WhatsApp). og118 heredó sin tocar consumer.</div></div>
+      <span class="item-tag">B3-FIGLASS-14</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-15 — composer collapsed height + viewport scroll container</div>
+      <div class="item-note">PR #236 merged (4fb19794) + CI 5/5 + deploy SWA verde (run 27444945964) + smoke staging PASS. Causa raíz: (1) lineHeight 20px hardcodeado en AutoResizeTextarea vs 24px real → textarea vacío computaba 2 rows; ahora mide el line-height computado con floor de 1 row. (2) overflow-y vivía en la columna de 760px → scrollbar a 320px del borde; ahora el scroll container es full-width y el cap 760 vive en wrappers internos. Smoke medido en staging: textarea vacío 24px (1 row), composer box 90px, scroller único full-width 1400px con barra a 0px del viewport, sin doble scroll, pin 1px al cargar, scroll arriba no arrastra, «Ir al final» regresa a 0px, consola limpia. 184/184 tests (5 nuevos).</div></div>
+      <span class="item-tag">B3-FIGLASS-15</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">B3-FIGLASS-16 — AutoResizeTextarea shrink on delete</div>
+      <div class="item-note">Destapado por el smoke de FIGLASS-15: el textarea crecía al escribir pero jamás encogía al borrar (atorado en 120px). Causa: el atributo rows del render anterior pone piso al scrollHeight → la medición nunca baja; jsdom (scrollHeight 0) lo ocultaba. Fix: reset rows=1 + height auto ANTES de medir, restore imperativo después. Tests con mock fiel al DOM (scrollHeight = max(líneas, rows) × lineHeight): grow 1→5, shrink 5→1, delete-all, maxRows tras ciclo, send reset — 189/189. PR #239 merged (bbf4d295) + deploy verde + smoke staging PASS: 24→120→24→24px (box 90→186→90→90), cero caja fantasma, consola limpia. El cap fluido calc(100% - 60px) ordenado por Bernard entró aparte en PR #238 (merged d0a85988 + smoke PASS: wrappers 1308px, barra sigue a 0px).</div></div>
+      <span class="item-tag">B3-FIGLASS-16</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-17 — draft player = primitivo TTS + paused state honesto</div>
+      <div class="item-note">Hallazgo P1 del audit DD-VOICE-LOOP-COMPLETE (screenshot anotado de Bernard): timer "--:--" en pausa (durationMs solo se escribía al stop), botón CirclePause disabled que parece control pero no hace nada, y 20 barras decorativas flex-1 estiradas de borde a borde bajo el cap fluido. Fix framework: pauseRecording persiste durationMs; AudioDraftPlayer reproduce vía RichAudioPlayer (el primitivo exacto del TTS: ±10s, scrubber, readout) con object URL resuelto por artifact y revocado al desmontar; paused = dot pulsante + tiempo real + Reanudar, cero pseudo-controles; glassmorphism (blur 24px). Bonus infra: @types/react fijado ^19.2.16 en fi-glass (hoisting lottery). PR #240 merged (082292c1) + deploy verde + smoke automatizado queued PASS: rich player + scrubber + "0:00 / 0:09" del wav real, play avanza a 0:02, glass aplicado, consola limpia. 190/190 tests. PENDIENTE para cerrar: smoke humano de Bernard (paused con mic real + playback audible).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-17</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-VOICE-FIGLASS-18 — pausa segmentada: el paused state reproduce lo grabado</div>
+      <div class="item-note">Veredicto humano del smoke de FIGLASS-17 (screenshot anotado de Bernard): la barra de pausa debe montar el player CON el audio ya grabado, no solo dot+tiempo. FIGLASS-17 era "honesto" porque RecordRTC no da blob parcial; este corte hace que el blob exista: pausar = stop real del recorder (entrega WAV del segmento) conservando vivo el stream del mic; reanudar = recorder nuevo; al stop los segmentos se splicean. Primitivo nuevo mergeWavBlobs (parse RIFF, concat PCM, header canónico; estricto: throws en mismatch). pausedPreviewBlob expuesto por useDurableRecording → AudioDraftPlayer lo monta en RichAudioPlayer con fallback honesto mientras splicea; guard: sin preview si los segmentos exceden maxBytesPerItem. Bonus: fix de durationMs (double-count post-resume) y artifactRef síncrono. og118 hereda con 1 prop. PR #242 merged (05bafc55, GO de Bernard) + deploy SWA verde + bundle confirmado en staging, consola limpia. 206/206 tests. Papercuts del smoke en PR #243 (MERGEADO 4898e812): header "0 B" (sumaba capacity pending-only en vez del set visible) + banner privacidad azul auto-hide 35s. PENDIENTE para cerrar: re-smoke humano (grabar→pausar→play del preview audible→reanudar→pausar→preview con ambos segmentos→stop→transcribir). Absorbe el checklist de FIGLASS-17.</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-18</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">B3-VOICE-FIGLASS-19 — archivar audios transcritos como sent-to-chat</div>
+      <div class="item-note">MERGEADO a main (PR #244, merge 71fcb7c8). Al transcribir, el artifact ya no se borra de la cola: pasa a estado archivado "enviado al chat". Cerró la pregunta abierta del lifecycle post-transcripción que el board listaba en la sección fi-glass (clearTranscribed automático vs manual). La branch feat/b3-voice-figlass-19-archive-sent quedó merged y debería borrarse (leftover).</div></div>
+      <span class="item-tag">B3-VOICE-FIGLASS-19</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-ICONS-1 — fi-glass/icons subpath + createIconRegistry upstream</div>
+      <div class="item-note">Pregunta de Bernard 2026-06-12: ¿fi-glass debería exponer el icon collection de aurity? Audit: fi-glass YA tiene sistema inyectable (AgentIconSet + resolveIcons + toolIcon en agent/icons.ts, StateIcons en voice) — mecanismo correcto, pero enterrado bajo agent/ sin subpath propio. La colección de aurity (lib/icons: medical/status/checkin/ui, 165 lucide) es VOCABULARIO de dominio clínico — NO sube al framework (sería sedimento consumer en la capa equivocada). Lo que sí sube: (1) subpath export fi-glass/icons re-exponiendo el sistema existente; (2) dynamic-icons.ts de aurity generalizado como createIconRegistry() (mapa key→LucideIcon con fallback) — aurity se vuelve consumer alimentando su mapa; (3) purga de @heroicons/react en aurity (2 iconos, 3 archivos legacy → lucide). Versiones lucide alineadas (^0.548.0, peerDep correcto). NO abrir hasta cerrar el smoke de FIGLASS-18.</div></div>
+      <span class="item-tag">B3-ICONS-1</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-REPO-TYPES-1 — stabilize React type resolution (hoisting lottery)</div>
+      <div class="item-note">Destapado al verificar FIGLASS-17 en worktree fresco: con shamefully-hoist=true y DOS @types/react en el lockfile (18.3.26/19.2.16), la copia hoisted al root es no determinista por install — el repo principal cayó en 19 y typechequeaba, un install fresco cayó en 18 y tiró 36 errores en archivos no tocados. Spec del coagent: auditar versiones reales de react/react-dom/@types/*; si todo el monorepo es React 19 → pnpm.overrides en root a la misma major; si hay mezcla 18/19 → NO override global ciego, cada package React declara sus devDependencies; correr typecheck/build de fi-glass, og118, aurity y consumidores. NO bloquea el smoke de voz; no abrir hasta cerrar FIGLASS-17 salvo que CI vuelva a fallar por types.</div></div>
+      <span class="item-tag">B3-REPO-TYPES-1</span></label>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">B3-OG118-MOBILE-1 — responsive sidebar collapse</div>
+      <div class="item-note">Hallazgo del smoke mobile (390×844): el sidebar desktop no colapsa → columna de chat ~222px y textarea 161px. Consumer/product responsive, NO regresión de FIGLASS-15 (100dvh OK, sin overflow horizontal ni doble scroll). Corte ordenado por el coagent como separado: sidebar colapsa o drawer en mobile, chat ocupa ancho útil, sin romper desktop, sin tocar fi-glass salvo que falte slot real.</div></div>
+      <span class="item-tag">B3-OG118-MOBILE-1</span></label>
+  </div>
+
+  <!-- REDISEÑO DEL COMPOSER 2026-07-08 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Rediseño del composer — anatomía única header/body/footer (2026-07-08 → 07-09)</span>
+      <span class="section-badge badge-done">5/5 COMPLETO</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Scrubber de audio temado + fix StrictMode del player engine</div>
+      <div class="item-note">PR #321 (merge 8b1ec0c2). Origen: "esta zona se ve rara" — el scrubber era el input range NATIVO del browser (accent-* solo tiñe, no re-dibuja). fi-glass ahora inyecta stylesheet propio (track 4px, fill currentColor vía --fi-audio-progress, thumb 12px); consumers eligen color con text-*. Bonus cazado al verificar: StrictMode disponía el controller memoizado de useAudioPlayer → todo load() era no-op silencioso (player muerto en dev); load() revive un engine disposed, con test de regresión. Verificado live: grabación real, duración carga, fill sigue el playhead.</div></div>
+      <span class="item-tag">#321</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">ComposerFrame — primitive de anatomía header/body/footer (COMPOSER-FRAME-1)</div>
+      <div class="item-note">PR #322 (merge cf04fc6d). Consenso investigado (ChatGPT, Claude.ai, Gemini, WhatsApp, Vercel AI Elements PromptInput): UNA tarjeta con header (drafts/previews), body (textarea, SIN wrapper — DOM byte-idéntico) y footer (controles). Spacing tokenizado (--fi-space-2). AgentConversationSurface lo adopta como no-op visual (computados idénticos, verificado live). El paso lo dictó el coagent: "crear la caja antes de ordenar lo que va dentro".</div></div>
+      <span class="item-tag">#322</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Draft de audio DENTRO del composer (header slot) + refactor conversation-surface</div>
+      <div class="item-note">PR #323 (merge 8d0cdfc4). El draft (y el estado paused) salen del stack de acreción aboveComposer y viven en el header del frame como fila sin chrome de tarjeta (AudioDraftPlayer variant="row") con separador sutil — patrón WhatsApp/Claude: el draft sobre el textarea al que cae su transcript. Incluye el refactor de la sesión paralela (monolito 710 líneas → orquestador 286 + conversation-surface/ 12 archivos), commiteado como cierre coherente (git.md: nunca amputar trabajo paralelo). E2E con mic real: draft renderiza en data-fi-composer-slot=header, fuera del stack externo.</div></div>
+      <span class="item-tag">#323</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Cruel-critic del arco: load por VALOR del source + guard de slot false</div>
+      <div class="item-note">PR #325 (merge 57a14192). GRAVE: RichAudioPlayer cargaba por identidad de objeto → cualquier re-render del padre reseteaba playback a 0 (y con autoPlay la re-arrancaba: ticks de streaming, polls de Resonance). Ahora keyea por valor (Blob por ref, url por string); probado live: draft siguió reproduciendo al abrir el dropdown ELEMENTO. IMPORTANT: slots del ComposerFrame trataban false como contenido (fila fantasma) — guard + test. Deuda registrada sin bloquear: key={i} en transcript (colapso se filtra entre conversaciones), error.message crudo en TurnErrorBanner, race de appends rápidos en useComposerAppend.</div></div>
+      <span class="item-tag">#325</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Chip ELEMENTO + botón Resonance al footer del frame — matar la barra suelta y el chip huérfano</div>
+      <div class="item-note">DONE 2026-07-09 (PR #335, merge). ComposerFrame ganó el slot footerStart que su propio docstring ya prometía ("tool chips left") pero el CSS negaba (justify-content:flex-end hardcodeado → 95% de riel muerto, medido 1306px con 66px de controles en staging). ELEMENTO + Resonance bajaron al footer izquierdo; Resonance es un MODO, no un banner: idle = chip outlined junto al mic, en llamada su equalizer + estado suben al header slot y el chip se vuelve "Colgar" rojo. La barra flotante og-resonance-bar (1308×46) murió. Bug de copy cazado: RESONANCE_LABEL mapeaba idle al label del propio botón → "Llamar (Resonance)  LLAMAR (RESONANCE)" duplicado. Retrocompat byte-idéntica (footerStart usa margin-right:auto, gana sobre justify-content sin cambiarlo — pinneado por test). BONUS del mismo PR: botón STOP real durante streaming (AgentHook.abort existía en fi-core, og118 tenía el AbortController, pero solo el watchdog de timeout lo llamaba — el usuario nunca podía cancelar; stop() conserva el texto parcial, paridad ChatGPT). 395/395 tests, 3 contratos mutation-tested, E2E en Chrome contra backend real (turno cancelado en 36/40, parcial preservado).</div></div>
+      <span class="item-tag">composer-footer</span></label>
+  </div>
+
+  <!-- JORNADA 2026-07-10: og118 ES EL DAILY DRIVER -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Jornada 2026-07-09/10 — de staging a reemplazo real de ChatGPT</span>
+      <span class="section-badge badge-done">7 PRs · verificados en el artefacto desplegado</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Dominio de producción app.og118.ai — TLS válido, mismo backend, mismos chats</div>
+      <div class="item-note">Disparador: venció la suscripción Pro de ChatGPT de Bernard → og118 pasa a daily driver YA. Descubierto que "staging" ya ERA prod-capable (un solo Container App desde main + Azure Files share; sin base de datos). En vez de duplicar infra: CNAME app → SWA (Cloudflare DNS-only, apex landing intacto), az staticwebapp hostname set, CORS del backend actualizado en caliente (OG118_ALLOWED_ORIGINS), Auth0 callbacks +https://app.og118.ai (3 campos, vía tag-input con teclado real, staging preservado). VERIFICADO live: app.og118.ai HTTP 200 + TLS Microsoft (hasta 2026-11), sirve la APP (no la landing), login Auth0 sin "Callback URL mismatch", CORS access-control-allow-origin correcto, control negativo (evil.example.com → 400). Azure topó en 14 SWA Free → una sola SWA sirve app+staging (mejor arquitectura, $0). Gate 4 apex og118.ai sigue siendo tuyo.</div></div>
+      <span class="item-tag">prod-domain</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Instalable en iPhone como app standalone — sin Capacitor, sin manifest, $0</div>
+      <div class="item-note">PR #336 (merge). "La app de iPhone" NUNCA existió (cero Capacitor/Xcode/dep — barrido de repo + repos vecinos); era un item OPEN del roadmap. Dos trampas verificadas contra el HTML servido: (1) NO manifest.json a propósito — iOS usa su scope para mantener standalone, Auth0 es otro origen, así que con manifest el login sale a un navegador cuyo storage no comparte con la app y vuelve sin sesión; apple-mobile-web-app-capable da standalone sin scope. (2) Next ≥15 no emite ese tag desde appleWebApp.capable (PR vercel/next.js#70363 lo cambió por mobile-web-app-capable que Safari ignora) → emitido vía metadata.other. safe-area-inset-* en fi-glass para el notch. Micrófono en standalone OK (WebKit 185448 FIXED iOS 13.4). FALTA: instalar desde Safari iOS + round-trip Auth0 (átomo físico de Bernard; certeza PROBABLE, no confirmada).</div></div>
+      <span class="item-tag">iphone-pwa</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">EL PLAN EN VIVO por fin se ve — el diferenciador del producto estaba roto en 3 capas</div>
+      <div class="item-note">"nunca se ve su plan en vivo como promete" → cazado en capas. (1) BACKEND (PR #338): el CLI de Claude Code trae builtins TaskCreate/TaskUpdate que ECLIPSAN al MCP fi_core_task_tracker; el agente planeaba con esos, llegaban con server:None y _plan_events los tiraba en silencio (10 tool_calls, 0 planes). Fix: bloquearlos en COMPANION_BLOCKED_BUILTINS + strict_mcp_config:True (sin él un Runner heredaba los MCP del host y abrió 8 pestañas OAuth en el navegador de Bernard). El diagnóstico clave: el modelo MENTÍA con "los MCP aún se conectan" — pedirle la tool por nombre exacto probó que la tubería estaba bien, era competencia de herramientas. (2) SUPERFICIE (PR #339): el AgentPanel montaba pero og118 no pasaba agentPanelProps → classNames.card='' → el plan se dibujaba como texto desnudo (background transparent, border 0). (3) POSICIÓN (PR #339): el panel se dibujaba ENCIMA de la respuesta y el autoscroll lo enterraba (medido y=-2921px); ahora sticky con el panel+respuesta en un wrapper compartido (la respuesta ES la pista del sticky). Antes 0 plan/0 steps; después plan 0/3 con paso RUNNING + QUEUED, tool_calls fi_core_task_tracker, anclado durante 3800px de scroll (relY constante). Verificado live en Chrome. 400/402 tests.</div></div>
+      <span class="item-tag">glassbox-plan</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Pulido visual de fi-glass — 5 defectos medidos, 1 falso positivo descartado</div>
+      <div class="item-note">PRs #340 + #341. Cada uno medido en la superficie renderizada, no a ojo (un 6º candidato, "burbujas de usuario estiradas", medido y DESCARTADO: un "Hola" se encoge a 144px). (1) remark-breaks: un reply llegó con 155 saltos simples y 20 dobles; CommonMark fundía los simples → todo en un &lt;p&gt; con frases pegadas ("inaceptable.Quiero"); ahora el salto simple es &lt;br&gt; (como ChatGPT/Claude.ai). (2) Glassmorphism REAL: box-shadow para elevación + backdrop-filter blur — este último costó DOS PRs porque lightningcss (minificador de Next 16) deduplica backdrop-filter + -webkit- dejando SÓLO -webkit- (que Chrome ignora) → el "glass" computaba none en producción; fix en #341: escribir SOLO la estándar, lightningcss reañade el webkit. Verificado en el bundle SERVIDO por app.og118.ai (mi error previo: verifiqué mi build local, no el de CI — fake-green corregido). (3) scrollbar tematizada. (4) acciones copy/speak 20→26px + contraste. (5) links emerald distintos del código ámbar. 402/402 tests.</div></div>
+      <span class="item-tag">visual-polish</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Dedup: dos árboles gemelos de useChat en aurity → una implementación con shims</div>
+      <div class="item-note">PR #329 (merge, +43/-1541). Refactor de aurity (no toca fi-glass). Estaba 20 commits detrás de main tras la jornada → rebaseado con update-branch, checks re-corridos contra main de hoy (5/5 verdes), luego merge. Art. 6 en estado puro: una fuente de verdad por superficie.</div></div>
+      <span class="item-tag">aurity-dedup</span></label>
+  </div>
+
+  <!-- JORNADA 2026-07-11 → 07-14 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Jornada 2026-07-11 → 07-14 — contratos, móvil nativo, Projects con elementos externos</span>
+      <span class="section-badge badge-done">27 PRs · #343–#371</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Contrato de stream del agente como SSOT cross-language + autoría + provenance del modelo</div>
+      <div class="item-note">PR #345: el contrato de eventos fi-runner → schema → TS es una sola fuente de verdad entre lenguajes. PR #346: el bubble dice QUIÉN respondió — antes firmaba todo como "og118" aunque respondiera Yodo; MessageAuthor entra a core y el fold EXIGE autor. PRs #348/#350: el chip "Powered by &lt;modelo&gt;" nunca se había renderizado y la ruta local mandaba respuestas sin provenance — el Runner ahora CONOCE su modelo y la provenance entra al contrato.</div></div>
+      <span class="item-tag">#345/#346/#348/#350</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Adjuntos: imágenes en el chat + un solo "+" para adjuntar (y el upload de aurity, roto desde la migración)</div>
+      <div class="item-note">PR #349 (OG118-IMAGE-UPLOAD-1): soporte de imágenes adjuntas en el chat. PR #353: menú único "+" para adjuntar (ActionMenu SSOT desde aurity, consolidado en #355) y de paso el fix del upload de aurity.</div></div>
+      <span class="item-tag">#349/#353</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Móvil nativo: full-bleed shell + viewport reclaim — el contenido manda (CONV-MOBILE-RECLAIM-1)</div>
+      <div class="item-note">PR #344: shell mobile-native (status bar full-bleed + burbujas full-width). PR #363: el PWA @390×844 gastaba 18.6% del viewport en composer (157px) + 32px de indent muerto por mensaje → chrome no-contenido a 7.5% (composer idle 63px), gutters 12px, acciones por-mensaje tras tap en touch, textarea vacío = 1 fila SIEMPRE. PR #364 (cruel-critic del arco): Colgar alcanzable en llamada viva + una sola fila de acciones abierta a la vez. Regla registrada: .claude/rules/mobile-viewport-ux.md (presupuestos duros: chrome &lt;18%, targets ≥44px).</div></div>
+      <span class="item-tag">#344/#363/#364</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Organización de chats: fijar + archivar (fi-glass level) + búsqueda en el sidebar + banner anti-zombi</div>
+      <div class="item-note">PR #362 (CONV-ORGANIZE-1): secciones Fijados / Chats / Archivados como primitiva de framework. PR #366: búsqueda de chats en el sidebar + sesión honesta (banner cuando la conversación no está guardada; test del surface en #352). Paridad ChatGPT de gestión de threads.</div></div>
+      <span class="item-tag">#362/#366</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Projects RAG × elementos externos: search-first + RAG server-side + deselect</div>
+      <div class="item-note">PR #367 (PROJ-AUTOSEARCH-1): la persona busca el corpus activo SIN pedir permiso (search-first policy). OG118-EXTERNAL-CORPUS-GAP-1 en dos rutas: #368 (ruta 1, rechazo LOUD del Project activo por elemento externo) superseded el mismo arco por #370 (ruta 2, RAG server-side — los elementos externos SÍ ven los documentos del Project). PR #369 (PROJECT-DESELECT-1): click en el proyecto activo lo des-selecciona. PR #347: la config del engine externo (OG118_EXTERNAL_RUNNER_URL/TOKEN) vive en el repo como var+secret del workflow, no solo a mano en el Container App (mata el drift).</div></div>
+      <span class="item-tag">#347/#367–#370</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">P0: un turno lento no es un turno muerto — y un fallo no puede comerse tu prompt</div>
+      <div class="item-note">PR #355. El watchdog revertía turnos VIVOS: el silencio es normal (engine externo = single-shot hasta 95s; un turno agentic real tardó 99s) y el revert BORRABA el prompt del usuario. Fix: heartbeat ping cada 15s del server + al fallar, el texto vuelve al composer. PR #351: el cap del body se aplica ANTES de leerlo y un guardado fallido deja de fallar en silencio.</div></div>
+      <span class="item-tag">#351/#355</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Memoria nativa del SDK (session store): cableada E2E y DESACTIVADA el mismo día</div>
+      <div class="item-note">PRs #357/#358/#359: ClaudeCodeBackend gana session_store (la traza de tools sobrevive al reinicio) + og118 lo inyecta + fix del project_key (derivación del SDK, no nombre inventado). Apagada el mismo día: duplicaba la conversación (dos capas de storage: la de la app vs la cruda de AIRE). La capacidad queda en fi-runner env-gated; reactivar = secret + deploy. Backlog: AIREBACKEND-1 (#361) + OG118-SESSION-DELETE-CASCADE-1 (#360) + CONV-CONCURRENCY-1 (#365).</div></div>
+      <span class="item-tag">#357–#361/#365</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">aurity = LEGACY oficial: build re-verdecido, pipeline manual-only, docs que dicen la verdad</div>
+      <div class="item-note">PR #354: el build de aurity llevaba ROJO desde el 20 de junio (faltaba declarar remark-breaks). PR #356: su infra Azure ya no existe → deploy-azure.yml pasa a manual-only y los docs lo dicen. El CÓDIGO no se borra: es la SSOT de la anatomía que fi-glass extrae (léela, no la ejecutes). PR #343: la description OpenGraph/Twitter todavía decía "coming soon". PR #371: NORTH.md — el contrato emocional de FI (Into The Beyond, Echoberyl).</div></div>
+      <span class="item-tag">#343/#354/#356/#371</span></label>
+  </div>
+
+  <!-- DAILY DRIVER -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Daily driver audit — ¿Puede Bernard reemplazar ChatGPT hoy?</span>
+      <span class="section-badge badge-pending">PENDIENTE SMOKE</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">og118 responde preguntas generales con la misma calidad que ChatGPT</div>
+      <div class="item-note">OPEN (juicio humano). RECONCILE 2026-06-28: chat streaming verificado live en staging.og118.ai (GATE4-CUTOVER-READINESS #2, 2026-06-28: turn enviado → respuesta real, persona concisa). Modelo = Claude vía CLAUDE_CODE_OAUTH_TOKEN. "Misma calidad que ChatGPT" sigue siendo veredicto de daily-driver humano de Bernard, no medible headless.</div></div>
+      <span class="item-tag">DD-001</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Dictado por voz → texto en composer → enviar → respuesta con TTS → flujo completo</div>
+      <div class="item-note">OPEN (solo juicio humano) — UPDATE 2026-07-08: el gateway susurro quedó CERRADO y verificado live con JWT Auth0 real (qa-tts-502/qa-stt-502). La mitad cliente re-verificada hoy en la anatomía nueva del composer (draft en el header slot, mic real, playback avanza). Lo que resta es el veredicto de daily-driver de Bernard usando el lazo completo en su día real.</div></div>
+      <span class="item-tag">DD-voice</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Contexto largo funciona (Bernard lleva sesiones largas de trabajo con el coagent)</div>
+      <div class="item-note">OPEN. RECONCILE 2026-06-28: continuidad multi-turn verificada (qa-pass-continuity, client-sent history #260), pero "sesión larga real" sigue siendo smoke humano de daily-driver, no corrido.</div></div>
+      <span class="item-tag">DD-context</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Sidebar de conversaciones: fácil crear / cambiar / borrar threads</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28: crear (new chat) + cambiar (lista del sidebar) + rename inline verificados live en staging (qa-pass-rename, 2026-06-27) + GATE4 #14 (renameConversation existe). Primitivas fi-glass AgentSidebarSection/sidebar-item (#284/#285/#286). Persistencia identity-scoped IndexedDB (#276, qa-pass-persist).</div></div>
+      <span class="item-tag">DD-nav</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Acceso desde móvil (PWA standalone instalable / browser móvil) sin regresiones</div>
+      <div class="item-note">SHIPPED, PENDIENTE VERIFICACIÓN EN DISPOSITIVO. 2026-07-09 (#336): og118 se instala en iPhone como app standalone, gratis, sin Capacitor. B3-OG118-MOBILE-1 (drawer responsive) cerrado el 06-30. Capacitor NUNCA existió en el repo (cero config/ios/xcodeproj/dep); free-provisioning caduca cada 7 días → descartado, una app Capacitor real cuesta $99/año.
+      DOS TRAMPAS, ambas verificadas contra el HTML servido, no contra la config: (1) NO se añade manifest.json a propósito — iOS usa su `scope` para mantener standalone, Auth0 es otro origen, así que con manifest el login sale del standalone a un navegador cuyo storage NO comparte con la app instalada y vuelve sin sesión; `apple-mobile-web-app-capable` da standalone sin scope. (2) Next ≥15 NO emite ese tag desde `appleWebApp.capable` (PR vercel/next.js#70363 lo cambió por `mobile-web-app-capable`, que Safari ignora) → se emite vía `metadata.other`.
+      Verificado live en staging.og118.ai: tag presente, 0 manifests, viewport-fit=cover, apple-touch-icon 180×180 HTTP 200, safe-area-inset-* en el chunk servido. Micrófono en standalone OK (WebKit 185448 FIXED, iOS 13.4).
+      🔵 FALTA: Bernard instala desde Safari iOS y comprueba el round-trip de Auth0 — único paso no verificable headless. Certeza de que el redirect sobrevive sin manifest: PROBABLE, no confirmada (la fuente, pwacompat#15, es de 2018 y el repo se archivó en 2025). Si rompe → Capacitor + Apple Developer Program ($99/año), donde el OAuth se resuelve nativo con ASWebAuthenticationSession.</div></div>
+      <span class="item-tag">DD-mobile</span></label>
+  </div>
+
+  <!-- FI-GLASS FRAMEWORK -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">fi-glass — Primitivas que og118 aún no empuja al framework</span>
+      <span class="section-badge badge-done">RESUELTO — las 3 ya en framework</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Post-transcription lifecycle: ¿clearTranscribed() debe ser automático o manual?</div>
+      <div class="item-note">RESUELTO. RECONCILE 2026-06-28: cerrado por B3-VOICE-FIGLASS-19 / PR #244 (merge 71fcb7c8, en main): al transcribir el artifact NO se borra — pasa a estado archivado "enviado al chat". El contrato del lifecycle vive en el framework, no parchado en og118.</div></div>
+      <span class="item-tag">figlass-queue</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Accessibility: form field sin id/name (warning actual) → fix en fi-glass AutoResizeTextarea</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28: B3-FIGLASS-A11Y-1 / commit 24cc558a (en main) — AutoResizeTextarea ahora rinde id={resolvedId} + name={resolvedName} (useId fallback) en composer/AutoResizeTextarea.tsx:123-124. Duplicado con qa-a11y-field (QA sweep) — colapsado: misma causa, mismo fix. Pendiente solo re-check de consola live (Auth0-gated, no corrido).</div></div>
+      <span class="item-tag">figlass-a11y</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">composerAppend/micSlotOverride: Gatekeeper marcó que deben ser genéricos — auditar si son consumer-specific o reusable</div>
+      <div class="item-note">RESUELTO (auditado). RECONCILE 2026-06-28: ambos YA son props genéricos del componente de framework fi-glass AgentConversationSurface (agent/AgentConversationSurface.tsx:189-199 composerAppend?:string + onComposerAppendConsumed + micSlotOverride?:ReactNode), no código consumer. og118 los pasa; cualquier shell los hereda. El contrato reusable ya subió al framework.</div></div>
+      <span class="item-tag">figlass-contract</span></label>
+  </div>
+
+  <!-- GATE 3 / GATE 4 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Gate 3 + 4 — Auth real + Cutover público</span>
+      <span class="section-badge badge-active">Gate 3 SHIPPED — Auth0 login LIVE en staging</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Gate 3: Reemplazar bearer speed-bump por auth real — Auth0 SHIPPED, login LIVE en staging</div>
+      <div class="item-note">Auth0 (tenant dedicado dev-1r4daup7ofj7q6gn; el shared con Ferboli). HECHO: (1) primitiva reusable fi_runner.auth (RS256/JWKS) PR #268; (2) ownership por cuenta + seam get_principal PR #269 (A no ve lo de B); (3) backend en OG118_AUTH_MODE=dual desplegado y VERIFICADO en staging (acepta bearer legacy O JWT Auth0 real; sin token→401, JWT basura→401); (4) apps Auth0 creadas (og118-spa client 9FxTp…, og118-api audience https://api.og118.ai); (5) frontend Auth0 SPA (Auth0Wrapper+AuthGate+authMode, flag-gated) PR #272; (6) cutover SWA bake NEXT_PUBLIC_OG118_AUTH_MODE=auth0 PR #273; (7) fix AuthGate inline styles (csstype) PR #274. VERIFICADO e2e: Google login → JWT (sub=google-oauth2|…, aud=https://api.og118.ai) → /chat/stream staging-backend → 200 + turn real. staging.og118.ai renderiza el login (screenshot). FALTA SOLO: smoke humano del click en staging-host (needs Bernard's Google) + flip opcional a auth0-only. Ver DEPLOY.md §Auth0.</div></div>
+      <span class="item-tag">gate-3</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">Gate 4: og118.ai apunta al SWA de producción + landing switch</div>
+      <div class="item-note">DNS ya está en Cloudflare. Falta flip del A/CNAME final. Bloqueado por Gate 3.</div></div>
+      <span class="item-tag">gate-4</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">ACA backend: el deploy de Azure Container Apps ya NO falla</div>
+      <div class="item-note">Resuelto esta sesión: múltiples deploys verdes (corpus-binding, permisos rag store, volumen, dual mode). La falla histórica "en todos los merges" ya no se reproduce.</div></div>
+      <span class="item-tag">infra-aca</span></label>
+  </div>
+
+  <!-- CONTINUIDAD SIN STORE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Continuidad sin store — client-sent conversation history</span>
+      <span class="section-badge badge-done">MERGEADO A MAIN</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 perdía el hilo (México Mundial → "¡Felicidades! Who won?"): backend stateless + historial enviado por el cliente</div>
+      <div class="item-note">MERGEADO a main · PR #260 (71eef9bc feat + ba91bde5 fix). Nuevo nivel de fi-runner (sanitize_history + run_stream history=), core AgentSendMeta, fi-glass pasa el hilo confirmado, og118 quitó InMemoryConversationStore. 16 tests nuevos + E2E live en Chrome verificado. Trust boundary aplicado: solo roles user/assistant, drop de system/tool/metadata — "client-sent history is conversational context, not authorization context".</div></div>
+      <span class="item-tag">og118-continuity</span></label>
+  </div>
+
+  <!-- CANARY REAL: PAPELERÍA + PROJECTS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Canary real — Projects (el plan papelería quedó DESCARTADO)</span>
+      <span class="section-badge badge-pending">PAPELERÍA DROPPED 2026-06-23</span>
+    </div>
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done" style="text-decoration:line-through">Niños: tareas/investigaciones con Claude vía og118 staging (cuenta abierta, chat nuevo por tema)</div>
+      <div class="item-note">DROPPED 2026-06-23: og118 cloud autentica el modelo vía CLAUDE_CODE_OAUTH_TOKEN (suscripción Max de Bernard) = USO PERSONAL ONLY — servir a terceros por ese OAuth viola el ToS de Anthropic. La mamá usa su propia cuenta de Claude. El canary real es Bernard como daily driver. (Nota original 2026-06-19, superseded.)</div></div>
+      <span class="item-tag">canary-kids</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-core RAG: store multi-tenant por corpus_id + chunker + embedders + MCP (ingest/search/list/delete/stats)</div>
+      <div class="item-note">YA EXISTE (verificado 2026-06-19): fi-core/fi_core/rag/ (store_service.py RagStore, store_mcp_server.py, chunking.py). Reutilizar, NO reconstruir (Art. 6). Gotcha: chunker mide TOKENS, min_chunk_size=100 → texto corto = 0 chunks.</div></div>
+      <span class="item-tag">proj-core</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-runner: RagStoreClient (sin import de fi-core) + capability "rag_store" registrada</div>
+      <div class="item-note">YA EXISTE: fi-runner/fi_runner/rag_store.py + capabilities.py:106 rag_store(). El boundary correcto: og118 importa fi-runner, nunca fi-core.</div></div>
+      <span class="item-tag">proj-runner</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text done">fi-glass: ChatFilePreview + props de upload en ChatWidget + tipo UploadStatus</div>
+      <div class="item-note">YA EXISTE: fi-glass/src/shell/ChatFilePreview.tsx + types.ts (selecting→uploading→processing→indexed→error). El framework anticipó upload — og118 sería el PRIMER consumer en usarlo (valor canary: probar que el primitivo especulativo de verdad sirve).</div></div>
+      <span class="item-tag">proj-glass</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">TRACER: cablear capability "rag_store" en og118 server/runner.py + verificar que el agente puede search en un corpus</div>
+      <div class="item-note">DONE: runner.py:49 capabilities=["task_tracker", "rag_store"] + app.py importa fi_runner.rag_store.RagStoreClient (boundary correcto: og118 → fi-runner, nunca fi-core). Dockerfile + README cablean el backend HDF5 (stores-hdf5). PR #255 (fbb8a7f5) + #248 mergeados. NOTA git.md: #255 duplicó a #248 sin auditar PRs abiertos — lección registrada.</div></div>
+      <span class="item-tag">proj-tracer</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: endpoint POST /projects/{id}/upload → parse texto → RagStoreClient.ingest(corpus_id=project_id)</div>
+      <div class="item-note">DONE: app.py:335 @app.post("/projects/{project_id}/upload") → ingest texto al corpus (corpus_id=project_id), devuelve {corpus_id, doc_id, chunks}. PR #257 (e085f3ab) mergeado.</div></div>
+      <span class="item-tag">proj-upload</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: useChatUpload hook + file-picker UI (prototipo CON gate de extracción a fi-glass)</div>
+      <div class="item-note">DONE: web/lib/useOg118Projects.ts (hook de proyectos + upload lifecycle) + UI en el sidebar. PR #257/#258. Pendiente decidir si el hook de lifecycle (selecting→indexed) SUBE a fi-glass — framework-first-canary, gated tras uso real en la papelería.</div></div>
+      <span class="item-tag">proj-uploadui</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">og118 consumer: sección Projects en el sidebar (listar/crear/borrar/seleccionar proyecto activo)</div>
+      <div class="item-note">DONE: sección Projects local-first en el sidebar (corpus library). PR #258 (19ae6a96). Incluyó B3-FIGLASS-MOBILE-2 (93c50d8d): touch-target primitive + reveal-delete-on-touch.</div></div>
+      <span class="item-tag">proj-sidebar</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">GAP CANARY → fi-runner: binding de "corpus activo por turno" (el agente debe saber qué corpus_id usar)</div>
+      <div class="item-note">DONE en DOS capas. (1) FRAMEWORK: el binding subió ARRIBA a fi-runner (NO parchado en og118) como nivel configurable — fi_runner.active_corpus_binding, PR #256 (6a0aa374). (2) CONSUMER WIRING: og118 NO lo usaba — /chat/stream no mandaba corpus_id y el agente NUNCA buscaba en el corpus del proyecto activo (subías la lista escolar pero "¿cuánto cuesta el cuaderno?" no la consultaba). Cableado opt-in en PR #262: ChatRequest.corpus_id → run_stream(context=) → context_prompt=active_corpus_binding(); useOg118Agent(sessionId, activeCorpusId). TDD 65/65 server + 5/5 fi-runner + 26/26 web + build. E2E VERIFICADO en staging 2026-06-21: el bundle real manda corpus_id, el agente llamó list_documents Y search_documents scoped al corpus exacto del proyecto activo, y recuperó "$347 pesos" (dato fabricado que solo vive en el doc subido = prueba un-fakeable). Destapó un bug pre-existente del rag store en ACA (Permission denied fi_rag_store.h5.lock, WORKDIR root-owned vs user non-root) arreglado en PR #263 (FI_RAG_STORE_PATH → /opt/fi/data chowned). Projects funcional de verdad pre-Gate-3.</div></div>
+      <span class="item-tag">proj-corpusbind</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">DECIDIDO + IMPLEMENTADO: modelo account→projects→corpus per-project, corpus_id server-side</div>
+      <div class="item-note">RESUELTO (ADR PROJ-ACCOUNT-ADR-1.md). Slice auth-agnóstico: el corpus_id ya NO lo fabrica el cliente — el server lo mintea (POST /projects, PR #267) e ignora cualquier id del cliente. Ownership atado a la cuenta (PR #269): cada proyecto pertenece a principal.sub; A no puede listar/leer/subir/borrar lo de B (404). En bearer mode = cuenta única legacy (sin fricción); con Auth0 el ownership se vuelve real. El corpus_id ES el modelo de privacidad, ahora server-controlado.</div></div>
+      <span class="item-tag">proj-account</span></label>
+  </div>
+
+  <!-- QA STRESS TEST 2026-06-27 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">QA stress test — staging full-feature sweep (2026-06-27)</span>
+      <span class="section-badge badge-pending">2 P1 · 3 P2 PENDIENTES (reconciliado 2026-06-28)</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] TTS "Escuchar (Nova)" broken — /tts/synthesize returns 502, upstream Azure OpenAI provider returns 404</div>
+      <div class="item-note">CERRADO (verificado live). Causa raíz: los endpoints apuntaban al Cognitive regional (insult-openai, sin deployments tts/whisper) en vez del gateway susurro sus.bernarduriza.com. Fix en GitHub vars/secrets + ACA viva; round-trip verificado live con JWT Auth0 real por la UI de og118. (Historial del diagnóstico 06-28→06-30 en git blame de esta nota.)</div></div>
+      <span class="item-tag">qa-tts-502</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] STT "Transcribir" broken — /stt/transcribe returns 502, upstream provider returns 404 (NOT a MIME bug)</div>
+      <div class="item-note">CERRADO (verificado live). Misma causa raíz y mismo fix que qa-tts-502 (gateway susurro + vars/secrets + ACA); verificado live con JWT Auth0 real. La hipótesis MIME quedó refutada en el camino.</div></div>
+      <span class="item-tag">qa-stt-502</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] Glass-box reasoning not persisted in the transcript — the product differentiator vanishes after each turn</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28 (receipt): cerrado por B3-FIGLASS-TRACE-PERSISTENCE-1 / PR #289 (merge 85c6bfea, merged 2026-06-27, en main). Code receipt verificado en el árbol: free-intelligence-core/src/chat/message.ts (interface MessageTrace + ChatMessage.trace) + agent/transcript.ts (snapshotTrace al foldear el turno) + fi-glass agent/AgentConversationSurface.tsx (persistedTraceTurn re-renderiza el mismo AgentPanel del turno vivo bajo cada mensaje foldeado). sanitize preserva trace, dropea metadata (privacy boundary). GATE4 #7 = ✅ "verified live". La metadata sigue dropeada a propósito.</div></div>
+      <span class="item-tag">qa-glassbox-trace</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P1] No file-upload affordance exists in the UI — Projects RAG corpus is unreachable / permanently empty</div>
+      <div class="item-note">DONE. RECONCILE 2026-06-28 (receipt): cerrado por PROJECTS-DOCS-E2E / PR #290 (merge d4fddf99, merged 2026-06-28, en main). Code receipt verificado: og118/web/components/Og118ProjectsSection.tsx:114-133 monta el botón "+ Subir archivo (.txt / .md)" + ChatFilePreview (status/progress/error) + feedback "Indexado · N fragmentos"; transporte og118/web/lib/useOg118ProjectUpload.ts (file picker app-owned). Consume el primitivo especulativo fi-glass ChatFilePreview + UploadStatus (proj-glass). Smoke E2E (GATE4 #4): catalogo.txt → "Indexado · 1 fragmento" + RAG #5: search_documents → "$47 pesos" (dato solo en el doc). Deploy a staging integrado pendiente de re-probe pero el fix está en main con smoke observable.</div></div>
+      <span class="item-tag">qa-upload-ui</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] Project creation uses native window.prompt() — inconsistent with the polished inline rename</div>
+      <div class="item-note">CERRADO 2026-07-08. La creación reusa la MISMA máquina del rename (fi-glass useInlineRename + FI_RESOURCE_RENAME_INPUT_CLASS — Art. 6, cero primitives nuevos): "+ Nuevo" abre un input inline gemelo del rename (autofocus, placeholder), Enter crea (trimmed), Escape cancela, draft vacío cierra silencioso; funciona también desde el empty state (suprime el copy mientras editas). 4 tests nuevos (57/57) + verificado live en Chrome (input montado con borde esmeralda, focus, Escape restaura el empty-state).</div></div>
+      <span class="item-tag">qa-prompt-native</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] Stale legacy global localStorage key og118.projects = [] lingers beside the identity-scoped key</div>
+      <div class="item-note">CERRADO 2026-07-08. useOg118Projects barre las globals pre-scoping (og118.projects + og118.activeProjectId desnudas) al montar — decisión: barrer, no migrar, porque las keys scoped SIEMPRE llevan sufijo (signed-out = --legacy, #276) y Projects es server-owned (#292): la global no guarda nada de registro. Test unitario (deja intactas las scoped) + verificado live en el navegador real: las keys desnudas desaparecieron, solo quedan --google-oauth2|… y --legacy.</div></div>
+      <span class="item-tag">qa-stale-localstorage</span></label>
+
+    <label class="item"><input type="checkbox">
+      <div class="item-body"><div class="item-text">[P2] Deprecated ScriptProcessorNode used by the voice visualizer (console deprecation warning)</div>
+      <div class="item-note">OPEN (atribución corregida). RECONCILE 2026-06-28 (verificado): grep de ScriptProcessorNode/createScriptProcessor en fi-glass + og118 = VACÍO — el visualizer fi-glass usa AnalyserNode (voice/useAudioAnalysis.ts: createAnalyser + getByteFrequencyData), no ScriptProcessor. El warning probablemente proviene de la lib de grabación (RecordRTC) internamente, NO del código del visualizer. Sin fix landed y sin re-check de consola live (Auth0-gated) → se mantiene OPEN, pero el plan "migrar el visualizer a AudioWorkletNode" está mal dirigido: el visualizer ya no usa ScriptProcessor.</div></div>
+      <span class="item-tag">qa-scriptprocessor</span></label>
+
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">[P2] A11y: composer form field without id/name (console warning during recording)</div>
+      <div class="item-note">DONE — duplicado colapsado. RECONCILE 2026-06-28: misma causa y mismo fix que figlass-a11y (sección fi-glass arriba). Cerrado por B3-FIGLASS-A11Y-1 / commit 24cc558a (en main): AutoResizeTextarea.tsx:123-124 rinde id/name (useId fallback). No se doble-cuenta. Pendiente solo re-check de consola live (Auth0-gated).</div></div>
+      <span class="item-tag">qa-a11y-field</span></label>
+  </div>
+
+  <!-- QA STRESS TEST — VERIFIED PASSING -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">QA stress test — verified passing on staging (2026-06-27)</span>
+      <span class="section-badge badge-done">PASS — receipts en DevTools</span>
+    </div>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Auth0 Google login + JWT (aud=https://api.og118.ai) + allowlist (bernarduriza@) — session active, roles present</div></div>
+      <span class="item-tag">qa-pass-auth</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Auth0 silent-auth on hard reload — refresh token, no re-login prompt (fix a9ec3bc6 holds)</div></div>
+      <span class="item-tag">qa-pass-silentauth</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Agentic chat streaming — /chat/stream 200, SSE turn renders, concise persona</div></div>
+      <span class="item-tag">qa-pass-chat</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Multi-turn continuity — "4729 / turquesa" recalled across turns (client-sent history, #260)</div></div>
+      <span class="item-tag">qa-pass-continuity</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">RAG plumbing end-to-end at protocol level — corpus_id bound, agent tool-calls the corpus, honest empty answer (corpus unpopulatable only because of qa-upload-ui)</div></div>
+      <span class="item-tag">qa-pass-ragwire</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Conversation persistence across reload — IndexedDB durable, identity-scoped (#276)</div></div>
+      <span class="item-tag">qa-pass-persist</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Conversation inline rename + sidebar list + new chat lifecycle</div></div>
+      <span class="item-tag">qa-pass-rename</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Voice capture / live visualizer / draft artifact / local playback / IndexedDB queue (client-side half — only STT+TTS upstream are broken)</div></div>
+      <span class="item-tag">qa-pass-voicecapture</span></label>
+    <label class="item"><input type="checkbox" checked>
+      <div class="item-body"><div class="item-text done">Console clean during chat — the only runtime errors come from the broken voice endpoints (qa-tts-502 / qa-stt-502)</div></div>
+      <span class="item-tag">qa-pass-console</span></label>
+  </div>
+
+  <footer>free-intelligence · og118 roadmap · generado por Claude Code 2026-06-11 · canary + Projects 2026-06-19 · QA stress test 2026-06-27 · reconciliado vs main 2026-06-28 · UPDATE 2026-06-30: gateway susurro vivo · UPDATE 2026-07-08: qa-tts/stt-502 CERRADOS + rediseño composer #321–#325 · <strong>UPDATE 2026-07-10: og118 = DAILY DRIVER — venció Pro de ChatGPT, 7 PRs lo volvieron su reemplazo. #335 composer footer completo (ELEMENTO+Resonance) + botón STOP · #336 iPhone standalone PWA · #338 el plan en vivo por fin se ve (harness eclipsaba el MCP) · #339 panel con superficie + anclado · #340/#341 pulido visual 5/5 + glassmorphism real (backdrop-filter que lightningcss tiraba) · #329 aurity dedup · app.og118.ai LIVE en prod. Único bloqueo restante = smoke humano de Bernard (oídos + daily-driver + install iPhone + apex cutover)</strong> · <strong>UPDATE 2026-07-14: jornada 07-11→07-14, 27 PRs (#343–#371) — contratos SSOT (stream #345, autoría #346, provenance #348/#350) · adjuntos (imágenes #349, "+" único #353) · móvil nativo (#344) + viewport reclaim 7.5% (#363/#364) · fijar/archivar/buscar chats (#362/#366) · Projects × elementos externos con RAG server-side (#367–#370) · P0 watchdog (#355) · session store SDK cableado y apagado (#357–#359) · aurity LEGACY manual-only (#354/#356) · NORTH.md (#371). Papelería marcada DROPPED (ToS OAuth personal, 06-23)</strong></footer>
+</div>
+
+<script>
+  const sections = { smoke: { total: 12, prefix: 'smoke-progress' } };
+
+  function updateProgress(section, checkbox) {
+    const wrap = checkbox.closest('.section');
+    const all = wrap.querySelectorAll('input[type="checkbox"]');
+    const checked = [...all].filter(c => c.checked).length;
+    const bar = wrap.querySelector('.progress-bar');
+    const label = wrap.querySelector('.progress-label');
+    if (bar) bar.style.width = (checked / all.length * 100) + '%';
+    if (label) label.textContent = checked + '/' + all.length + ' completados';
+    // Strike text when checked
+    const itemText = checkbox.closest('.item').querySelector('.item-text');
+    if (itemText) {
+      itemText.classList.toggle('done', checkbox.checked);
+    }
+  }
+
+  // Wire all checkboxes to toggle strike-through
+  document.querySelectorAll('.item input[type="checkbox"]').forEach(cb => {
+    if (!cb.getAttribute('onchange')) {
+      cb.addEventListener('change', () => {
+        const itemText = cb.closest('.item').querySelector('.item-text');
+        if (itemText) itemText.classList.toggle('done', cb.checked);
+      });
+    }
+  });
+</script>
+</body>
+</html>
