@@ -160,6 +160,45 @@ export function renameConversationRecord(
   };
 }
 
+/**
+ * Pin or unpin a record. Pinning stamps `pinnedAt` (the pinned section orders by
+ * last-pinned first) and lifts the record out of the archive — a pin is an
+ * explicit "keep this in front of me", incompatible with archived. Unpinning
+ * drops the field entirely. `updatedAt` is deliberately NOT touched: pinning is
+ * organization, not content, and must not fake recency in the active list.
+ */
+export function setConversationPinned(
+  record: ConversationRecord,
+  pinned: boolean,
+  now?: string,
+): ConversationRecord {
+  if (pinned) {
+    const { archivedAt: _archivedAt, ...rest } = record;
+    return { ...rest, pinnedAt: now ?? new Date().toISOString() };
+  }
+  const { pinnedAt: _pinnedAt, ...rest } = record;
+  return rest;
+}
+
+/**
+ * Archive or unarchive a record. Archiving stamps `archivedAt` and clears any
+ * pin (an archived conversation cannot stay in the pinned section). Unarchiving
+ * drops the field and the record rejoins the active list at its own
+ * `updatedAt` — which, like pinning, is deliberately not touched.
+ */
+export function setConversationArchived(
+  record: ConversationRecord,
+  archived: boolean,
+  now?: string,
+): ConversationRecord {
+  if (archived) {
+    const { pinnedAt: _pinnedAt, ...rest } = record;
+    return { ...rest, archivedAt: now ?? new Date().toISOString() };
+  }
+  const { archivedAt: _archivedAt, ...rest } = record;
+  return rest;
+}
+
 /** Project a record to its light summary — excludes `messages`. */
 export function summarizeConversation(
   record: ConversationRecord,
@@ -170,5 +209,40 @@ export function summarizeConversation(
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     preview: record.preview,
+    ...(record.pinnedAt ? { pinnedAt: record.pinnedAt } : {}),
+    ...(record.archivedAt ? { archivedAt: record.archivedAt } : {}),
   };
+}
+
+/** The sidebar's three sections, each already in display order. */
+export interface OrganizedConversations {
+  /** Pinned, last-pinned first. */
+  pinned: ConversationSummary[];
+  /** Neither pinned nor archived, most recently updated first. */
+  active: ConversationSummary[];
+  /** Archived, most recently archived first. */
+  archived: ConversationSummary[];
+}
+
+/**
+ * Split summaries into the pinned / active / archived sections every sidebar
+ * renders. Pure and total: a summary lands in exactly one section (`archivedAt`
+ * wins over a stray `pinnedAt`, though the pin/archive transformers never
+ * produce that state). ISO 8601 timestamps sort lexicographically.
+ */
+export function organizeConversationSummaries(
+  summaries: ConversationSummary[],
+): OrganizedConversations {
+  const pinned: ConversationSummary[] = [];
+  const active: ConversationSummary[] = [];
+  const archived: ConversationSummary[] = [];
+  for (const s of summaries) {
+    if (s.archivedAt) archived.push(s);
+    else if (s.pinnedAt) pinned.push(s);
+    else active.push(s);
+  }
+  pinned.sort((a, b) => (b.pinnedAt ?? '').localeCompare(a.pinnedAt ?? ''));
+  active.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  archived.sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''));
+  return { pinned, active, archived };
 }

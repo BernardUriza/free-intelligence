@@ -231,14 +231,46 @@ function renameConversationRecord(record, rawTitle, now) {
     updatedAt: ts
   };
 }
+function setConversationPinned(record, pinned, now) {
+  if (pinned) {
+    const { archivedAt: _archivedAt, ...rest2 } = record;
+    return { ...rest2, pinnedAt: now ?? (/* @__PURE__ */ new Date()).toISOString() };
+  }
+  const { pinnedAt: _pinnedAt, ...rest } = record;
+  return rest;
+}
+function setConversationArchived(record, archived, now) {
+  if (archived) {
+    const { pinnedAt: _pinnedAt, ...rest2 } = record;
+    return { ...rest2, archivedAt: now ?? (/* @__PURE__ */ new Date()).toISOString() };
+  }
+  const { archivedAt: _archivedAt, ...rest } = record;
+  return rest;
+}
 function summarizeConversation(record) {
   return {
     id: record.id,
     title: record.title,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
-    preview: record.preview
+    preview: record.preview,
+    ...record.pinnedAt ? { pinnedAt: record.pinnedAt } : {},
+    ...record.archivedAt ? { archivedAt: record.archivedAt } : {}
   };
+}
+function organizeConversationSummaries(summaries) {
+  const pinned = [];
+  const active = [];
+  const archived = [];
+  for (const s of summaries) {
+    if (s.archivedAt) archived.push(s);
+    else if (s.pinnedAt) pinned.push(s);
+    else active.push(s);
+  }
+  pinned.sort((a, b) => (b.pinnedAt ?? "").localeCompare(a.pinnedAt ?? ""));
+  active.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  archived.sort((a, b) => (b.archivedAt ?? "").localeCompare(a.archivedAt ?? ""));
+  return { pinned, active, archived };
 }
 export {
   CONVERSATION_SCHEMA_VERSION,
@@ -249,9 +281,12 @@ export {
   foldAssistantTurn,
   initialAgentTurnState,
   makeUserMessage,
+  organizeConversationSummaries,
   renameConversationRecord,
   resolveConversationTitle,
   sanitizeConversationMessage,
+  setConversationArchived,
+  setConversationPinned,
   summarizeConversation
 };
 //# sourceMappingURL=index.js.map

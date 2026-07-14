@@ -120,3 +120,67 @@ describe('useConversationLibrary — renameConversation', () => {
     ).rejects.toThrow(/not found/);
   });
 });
+
+describe('useConversationLibrary — pin & archive (CONV-ORGANIZE-1)', () => {
+  it('pins a conversation and the flag survives the next message persist', async () => {
+    const lib = makeFakeLibrary();
+    const { result } = renderLib(lib);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    await act(async () => {
+      await result.current.persist([msg('first')]);
+    });
+    await act(async () => {
+      await result.current.pinConversation(ID, true);
+    });
+    expect(result.current.conversations[0].pinnedAt).toBe(
+      '2026-06-24T00:00:00.000Z',
+    );
+    // A new turn persists — organization flags must NOT be silently dropped.
+    await act(async () => {
+      await result.current.persist([msg('first'), msg('second')]);
+    });
+    expect(result.current.conversations[0].pinnedAt).toBe(
+      '2026-06-24T00:00:00.000Z',
+    );
+
+    await act(async () => {
+      await result.current.pinConversation(ID, false);
+    });
+    expect('pinnedAt' in result.current.conversations[0]).toBe(false);
+  });
+
+  it('archives (clearing any pin) and unarchives', async () => {
+    const lib = makeFakeLibrary();
+    const { result } = renderLib(lib);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    await act(async () => {
+      await result.current.persist([msg('hola')]);
+    });
+    await act(async () => {
+      await result.current.pinConversation(ID, true);
+    });
+    await act(async () => {
+      await result.current.archiveConversation(ID, true);
+    });
+    const archived = result.current.conversations[0];
+    expect(archived.archivedAt).toBe('2026-06-24T00:00:00.000Z');
+    expect('pinnedAt' in archived).toBe(false);
+
+    await act(async () => {
+      await result.current.archiveConversation(ID, false);
+    });
+    expect('archivedAt' in result.current.conversations[0]).toBe(false);
+  });
+
+  it('throws clearly when pinning a missing conversation', async () => {
+    const lib = makeFakeLibrary();
+    const { result } = renderLib(lib);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+
+    await expect(result.current.pinConversation('ghost', true)).rejects.toThrow(
+      /not found/,
+    );
+  });
+});

@@ -32,6 +32,8 @@ import {
   resolveConversationTitle,
   renameConversationRecord,
   sanitizeConversationMessage,
+  setConversationArchived,
+  setConversationPinned,
 } from '@free-intelligence/core';
 
 export interface UseConversationLibraryOptions {
@@ -61,6 +63,12 @@ export interface ConversationLibraryState {
   /** Rename a conversation; an empty/whitespace title reverts to the auto-derived
    * one. A custom title survives future message persists. Throws if `id` is gone. */
   renameConversation: (id: string, title: string) => Promise<void>;
+  /** Pin (`true`) or unpin (`false`) a conversation. Pinning lifts it out of the
+   * archive; the pinned section orders by last-pinned first. Throws if `id` is gone. */
+  pinConversation: (id: string, pinned: boolean) => Promise<void>;
+  /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
+   * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
+  archiveConversation: (id: string, archived: boolean) => Promise<void>;
   /** Persist the active conversation's messages (no-op for an empty thread). */
   persist: (messages: ChatMessage[]) => Promise<void>;
   /** Re-read the summary list from storage. */
@@ -157,6 +165,10 @@ export function useConversationLibrary(
         updatedAt: now,
         messages: clean,
         preview: deriveConversationPreview(clean),
+        // Organization flags ride along: persisting a new message must never
+        // silently unpin or unarchive the thread.
+        ...(prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {}),
+        ...(prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {}),
         schemaVersion: CONVERSATION_SCHEMA_VERSION,
       };
       await library.put(record);
@@ -189,8 +201,13 @@ export function useConversationLibrary(
     [library, activeId, idFactory],
   );
 
-  const renameConversation = useCallback(
-    async (id: string, title: string) => {
+  // Shared "get → pure transform → put → sync active → refresh" round-trip that
+  // rename/pin/archive all ride (the record-metadata mutation seam).
+  const transformConversation = useCallback(
+    async (
+      id: string,
+      transform: (record: ConversationRecord) => ConversationRecord,
+    ) => {
       const record = await library.get(id);
       if (!record) {
         // Stale summary (deleted elsewhere): refresh and surface clearly.
@@ -199,7 +216,7 @@ export function useConversationLibrary(
           `useConversationLibrary: conversation "${id}" not found`,
         );
       }
-      const next = renameConversationRecord(record, title, nowFn());
+      const next = transform(record);
       await library.put(next);
       if (id === activeId) {
         setActiveRecord(next);
@@ -207,7 +224,31 @@ export function useConversationLibrary(
       }
       await refresh();
     },
-    [library, activeId, nowFn, refresh],
+    [library, activeId, refresh],
+  );
+
+  const renameConversation = useCallback(
+    async (id: string, title: string) =>
+      transformConversation(id, (record) =>
+        renameConversationRecord(record, title, nowFn()),
+      ),
+    [transformConversation, nowFn],
+  );
+
+  const pinConversation = useCallback(
+    async (id: string, pinned: boolean) =>
+      transformConversation(id, (record) =>
+        setConversationPinned(record, pinned, nowFn()),
+      ),
+    [transformConversation, nowFn],
+  );
+
+  const archiveConversation = useCallback(
+    async (id: string, archived: boolean) =>
+      transformConversation(id, (record) =>
+        setConversationArchived(record, archived, nowFn()),
+      ),
+    [transformConversation, nowFn],
   );
 
   return {
@@ -220,6 +261,8 @@ export function useConversationLibrary(
     switchConversation,
     deleteConversation,
     renameConversation,
+    pinConversation,
+    archiveConversation,
     persist,
     refresh,
   };

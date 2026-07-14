@@ -69,14 +69,18 @@ export type {
   ConversationSummary,
   ConversationLibrary,
   CreateConversationRecordArgs,
+  OrganizedConversations,
 } from './conversation';
 export {
   CONVERSATION_SCHEMA_VERSION,
   createConversationRecord,
   summarizeConversation,
+  organizeConversationSummaries,
   deriveConversationTitle,
   deriveConversationPreview,
   resolveConversationTitle,
   renameConversationRecord,
+  setConversationPinned,
+  setConversationArchived,
   sanitizeConversationMessage,
 } from './conversation';

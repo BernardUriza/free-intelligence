@@ -12,10 +12,13 @@ import {
   CONVERSATION_SCHEMA_VERSION,
   createConversationRecord,
   summarizeConversation,
+  organizeConversationSummaries,
   deriveConversationTitle,
   deriveConversationPreview,
   resolveConversationTitle,
   renameConversationRecord,
+  setConversationPinned,
+  setConversationArchived,
   sanitizeConversationMessage,
 } from './helpers';
 
@@ -286,5 +289,63 @@ describe('sanitizeConversationMessage — the author survives persistence', () =
 
   it('omits author when the message has none', () => {
     expect('author' in sanitizeConversationMessage(msg('user', 'hola'))).toBe(false);
+  });
+});
+
+describe('pin/archive transformers + organize (CONV-ORGANIZE-1)', () => {
+  const LATER2 = '2026-07-13T00:00:00.000Z';
+  const base = () =>
+    createConversationRecord({ id: 'p1', messages: [msg('user', 'hola')], now: NOW });
+
+  it('pin stamps pinnedAt without touching updatedAt; unpin drops the field', () => {
+    const pinned = setConversationPinned(base(), true, LATER2);
+    expect(pinned.pinnedAt).toBe(LATER2);
+    expect(pinned.updatedAt).toBe(NOW);
+    const unpinned = setConversationPinned(pinned, false, LATER2);
+    expect('pinnedAt' in unpinned).toBe(false);
+    expect(unpinned.updatedAt).toBe(NOW);
+  });
+
+  it('archive stamps archivedAt and clears the pin; unarchive drops the field', () => {
+    const pinned = setConversationPinned(base(), true, LATER2);
+    const archived = setConversationArchived(pinned, true, LATER2);
+    expect(archived.archivedAt).toBe(LATER2);
+    expect('pinnedAt' in archived).toBe(false);
+    const restored = setConversationArchived(archived, false, LATER2);
+    expect('archivedAt' in restored).toBe(false);
+  });
+
+  it('pinning an archived record lifts it out of the archive', () => {
+    const archived = setConversationArchived(base(), true, LATER2);
+    const pinned = setConversationPinned(archived, true, LATER2);
+    expect('archivedAt' in pinned).toBe(false);
+    expect(pinned.pinnedAt).toBe(LATER2);
+  });
+
+  it('summarizeConversation carries the flags only when present', () => {
+    const plain = summarizeConversation(base());
+    expect('pinnedAt' in plain).toBe(false);
+    expect('archivedAt' in plain).toBe(false);
+    const pinned = summarizeConversation(setConversationPinned(base(), true, LATER2));
+    expect(pinned.pinnedAt).toBe(LATER2);
+  });
+
+  it('organizes into pinned (last-pinned first) / active (recent first) / archived', () => {
+    const sum = (
+      id: string,
+      updatedAt: string,
+      extra: { pinnedAt?: string; archivedAt?: string } = {},
+    ) => ({ id, title: id, createdAt: NOW, updatedAt, preview: '', ...extra });
+    const { pinned, active, archived } = organizeConversationSummaries([
+      sum('active-old', '2026-07-01T00:00:00.000Z'),
+      sum('pin-early', '2026-07-05T00:00:00.000Z', { pinnedAt: '2026-07-10T00:00:00.000Z' }),
+      sum('archived-1', '2026-07-09T00:00:00.000Z', { archivedAt: '2026-07-11T00:00:00.000Z' }),
+      sum('pin-late', '2026-07-02T00:00:00.000Z', { pinnedAt: '2026-07-12T00:00:00.000Z' }),
+      sum('active-new', '2026-07-08T00:00:00.000Z'),
+      sum('archived-2', '2026-07-03T00:00:00.000Z', { archivedAt: '2026-07-12T12:00:00.000Z' }),
+    ]);
+    expect(pinned.map((s) => s.id)).toEqual(['pin-late', 'pin-early']);
+    expect(active.map((s) => s.id)).toEqual(['active-new', 'active-old']);
+    expect(archived.map((s) => s.id)).toEqual(['archived-2', 'archived-1']);
   });
 });

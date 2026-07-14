@@ -164,7 +164,9 @@ import {
   deriveConversationPreview,
   resolveConversationTitle,
   renameConversationRecord,
-  sanitizeConversationMessage
+  sanitizeConversationMessage,
+  setConversationArchived,
+  setConversationPinned
 } from "@free-intelligence/core";
 function useConversationLibrary(library, options = {}) {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
@@ -239,6 +241,10 @@ function useConversationLibrary(library, options = {}) {
         updatedAt: now,
         messages: clean,
         preview: deriveConversationPreview(clean),
+        // Organization flags ride along: persisting a new message must never
+        // silently unpin or unarchive the thread.
+        ...prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {},
+        ...prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {},
         schemaVersion: CONVERSATION_SCHEMA_VERSION
       };
       await library.put(record);
@@ -268,8 +274,8 @@ function useConversationLibrary(library, options = {}) {
     },
     [library, activeId, idFactory]
   );
-  const renameConversation = useCallback(
-    async (id, title) => {
+  const transformConversation = useCallback(
+    async (id, transform) => {
       const record = await library.get(id);
       if (!record) {
         await refresh();
@@ -277,7 +283,7 @@ function useConversationLibrary(library, options = {}) {
           `useConversationLibrary: conversation "${id}" not found`
         );
       }
-      const next = renameConversationRecord(record, title, nowFn());
+      const next = transform(record);
       await library.put(next);
       if (id === activeId) {
         setActiveRecord(next);
@@ -285,7 +291,28 @@ function useConversationLibrary(library, options = {}) {
       }
       await refresh();
     },
-    [library, activeId, nowFn, refresh]
+    [library, activeId, refresh]
+  );
+  const renameConversation = useCallback(
+    async (id, title) => transformConversation(
+      id,
+      (record) => renameConversationRecord(record, title, nowFn())
+    ),
+    [transformConversation, nowFn]
+  );
+  const pinConversation = useCallback(
+    async (id, pinned) => transformConversation(
+      id,
+      (record) => setConversationPinned(record, pinned, nowFn())
+    ),
+    [transformConversation, nowFn]
+  );
+  const archiveConversation = useCallback(
+    async (id, archived) => transformConversation(
+      id,
+      (record) => setConversationArchived(record, archived, nowFn())
+    ),
+    [transformConversation, nowFn]
   );
   return {
     ready,
@@ -297,6 +324,8 @@ function useConversationLibrary(library, options = {}) {
     switchConversation,
     deleteConversation,
     renameConversation,
+    pinConversation,
+    archiveConversation,
     persist,
     refresh
   };
