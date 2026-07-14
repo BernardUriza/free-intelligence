@@ -9,6 +9,15 @@ User=root
 WorkingDirectory=/opt/aire
 Environment=AIRE_LOG=/opt/aire/aire.log
 Environment=AIRE_PORT=9099
+# ACCEPTED RISK (Bernard, 2026-07-13, /cruel-critic): 0.0.0.0 exposes 9099 to the
+# whole internet with no auth, no rate limit, and ufw inactive — proven by writing
+# a line into the log from a home IP. It is the EC-GPS model (devices push in), and
+# it stays open on purpose. What holds the blast radius:
+#   - logrotate (deploy/logrotate-aire) caps the file so nobody can fill the disk;
+#   - aire-sweep.timer caps the Postgres table so nobody can inflate the bill;
+#   - costwatch checks BOTH nightly and goes red if either stops.
+# Untrusted lines CAN land in the append-only log. Treat its contents as hostile
+# input downstream — the log is the truth about what ARRIVED, not about who sent it.
 Environment=AIRE_HOST=0.0.0.0
 EnvironmentFile=-/etc/aire/env
 ExecStart=/usr/bin/python3 -m aire.listener

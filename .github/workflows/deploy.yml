@@ -40,13 +40,16 @@ jobs:
           cd /opt/aire
           git fetch --all
           git reset --hard origin/main
-          install -m 644 deploy/aire-listener.service deploy/aire-device.service /etc/systemd/system/
+          install -m 644 deploy/aire-listener.service deploy/aire-device.service \
+                         deploy/aire-sweep.service deploy/aire-sweep.timer /etc/systemd/system/
+          install -m 644 deploy/logrotate-aire /etc/logrotate.d/aire
           systemctl daemon-reload
           systemctl restart aire-listener aire-device
+          systemctl enable --now aire-sweep.timer
           sleep 3
           # is-active with multiple units exits 0 if AT LEAST ONE is active —
           # check each unit on its own so a dead one actually breaks the job.
-          for u in aire-listener aire-device; do
+          for u in aire-listener aire-device aire-sweep.timer; do
             if ! systemctl --quiet is-active "$u"; then
               echo "$u is NOT active"
               systemctl status "$u" --no-pager || true
@@ -54,4 +57,8 @@ jobs:
             fi
             echo "$u active"
           done
+          # The broom is a pillar, not an extra — a bad logrotate config silently
+          # stops sweeping the disk the open port lets anyone fill.
+          logrotate --debug /etc/logrotate.d/aire >/dev/null
+          echo "logrotate config valid"
           REMOTE

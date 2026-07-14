@@ -1,0 +1,13 @@
+[Unit]
+Description=AIRE broom — delete aire_log rows past the retention window
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/aire
+Environment=AIRE_LOG=/opt/aire/aire.log
+Environment=AIRE_RETENTION_DAYS=30
+EnvironmentFile=-/etc/aire/env
+ExecStart=/usr/bin/python3 -m aire.sweep
