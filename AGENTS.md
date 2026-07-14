@@ -43,8 +43,27 @@ Piso de coverage: 75%. Itera hasta verde + ruff limpio antes de dar algo por hec
 
 - Nada "funciona" hasta que corriste el test y VISTE el verde. Pega la salida real
   de `pytest -q` en tu reporte; no narres un resultado que no ejecutaste.
+- Corre SIEMPRE la suite COMPLETA (`conda run -n discord-bot pytest -q`) antes de
+  dar algo por hecho, no solo tu archivo — un cambio puede romper a otro módulo.
 - Si el módulo bajo prueba parece tener un bug, **anótalo en tu reporte, no lo
   arregles** salvo que el prompt te lo pida explícitamente.
+
+## Falla en voz alta, nunca un default muerto silencioso
+
+Un valor por default que apunta a algo muerto (un host caído, una URL NXDOMAIN,
+una tabla que ya no existe) es un fake-green: el código "funciona" y entrega
+basura. Si una config OBLIGATORIA falta (una base URL, un token, un endpoint),
+**devuelve un error honesto** ("X no configurado") en vez de caer a un default
+que miente. Un error claro siempre le gana a una URL/valor que apunta a un
+cadáver.
+
+## Datos de infra en vivo (para no hardcodear cadáveres)
+
+- El FQDN viejo `*.nicecliff-10074f57.eastus.azurecontainerapps.io` está **MUERTO**
+  (NXDOMAIN) desde el recovery. El entorno vivo es `*.greendune-53f1f4af.eastus2`.
+- El Container App `discord-bot` (plomería vieja) está escalado a CERO tras el
+  cutover de Insult al gateway — no lo uses como host de nada.
+- Nunca hardcodees un FQDN como default: léelo de env y falla si falta.
 
 ## Estilo de tests
 
@@ -68,9 +87,14 @@ Prosa de la VOZ de una persona → `shared/personas/guidance/<persona_id>/`.
   trabajo staged de otro. Verifica con `git diff --cached --name-only` ANTES de
   commitear que no hay nada foráneo en el índice.
 - **NUNCA `git push`** — el humano revisa y pushea. Deja tus commits locales.
-- **Bump de versión en CADA commit**: sube el patch en `pyproject.toml` (`version`)
-  Y en `khimeras_shared/version.py` (`VERSION_TAG`, en superíndices unicode) —
-  los dos juntos, mismo commit.
+- **Bump de versión en CADA commit** — es OBLIGATORIO, hay un pre-commit hook que
+  RECHAZA el commit si no subes el patch en LOS DOS archivos juntos, mismo commit:
+  `pyproject.toml` (`version = "X.Y.Z"`) Y `khimeras_shared/version.py`
+  (`VERSION_TAG = "ᵛX·Y·Z"`, superíndices unicode: 0123456789→⁰¹²³⁴⁵⁶⁷⁸⁹, punto→·).
+  Si el hook falla, léelo, corrige, reintenta — no rodees el hook.
+- Si `git commit` falla con `.git/index.lock: Operation not permitted`, tu sandbox
+  no tiene acceso de escritura a `.git` — repórtalo y deja el trabajo sin commitear
+  (el humano lo cierra). No intentes rodearlo.
 - Mensajes en español, estilo del repo (`feat(...)`, `fix(...)`, `test(...)`).
 - No toques archivos fuera del alcance que te dieron.
 
