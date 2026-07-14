@@ -1,11 +1,11 @@
 [Unit]
-Description=AIRE demo device — un GPS simulado que le manda mensajes al daemon
+Description=AIRE demo device — simulador GPS que empuja KEEPALIVE + MESSAGE
 After=aire-listener.service
 Requires=aire-listener.service
 
 [Service]
 Type=simple
-User=aire
+User=azureuser
 WorkingDirectory=/opt/aire
 Environment=AIRE_HOST=127.0.0.1
 Environment=AIRE_PORT=9099
