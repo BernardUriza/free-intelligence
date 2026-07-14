@@ -1,11 +1,11 @@
-"""La tesis, hecha bytes: los eventos del agente, convertidos en HTML que el
-navegador va pintando conforme llegan.
+"""The thesis, made bytes: the agent's events, turned into HTML the browser
+keeps painting as they arrive.
 
-Sin React, sin npm, sin build, sin una línea de JavaScript. El navegador sabe
-renderizar HTML incremental desde 1996 — se le manda el `<head>`, y luego cada
-evento como un bloque más. La página se escribe sola porque la conexión sigue
-abierta. Ésta es la "watchability": el value-add de AIRE sobre la Claude API cruda
-— no solo te contesta, la ves pensar.
+No React, no npm, no build, not one line of JavaScript. Browsers have known how
+to render incremental HTML since 1996 — send the `<head>`, then each event as
+one more block. The page writes itself because the connection stays open. This
+is the "watchability": AIRE's value-add over the raw Claude API — it doesn't
+just answer you, you watch it think.
 """
 
 from __future__ import annotations
@@ -73,20 +73,20 @@ button{padding:.7rem 1.4rem;background:var(--say);color:#fff;border:0;border-rad
 """
 
 _markdown = mistune.create_markdown(escape=True)
-"""`escape=True`: el agente habla markdown, pero si escupe HTML crudo se escapa en
-vez de inyectarse. Su salida es texto de un modelo, no plantilla de confianza."""
+"""`escape=True`: the agent speaks markdown, but if it spits raw HTML it gets
+escaped instead of injected. Its output is model text, not a trusted template."""
 
 
-def _head(project: str, session: str, mode: str, ask: str | None, estado: str) -> str:
+def _head(project: str, session: str, mode: str, ask: str | None, status: str) -> str:
     title = f"{html.escape(project)}/{html.escape(session)} — AIRE"
-    asked = f'<div class="ask"><b>Le pediste</b>{html.escape(ask)}</div>' if ask else ""
+    asked = f'<div class="ask"><b>You asked</b>{html.escape(ask)}</div>' if ask else ""
     return (
-        "<!doctype html><html lang=es><meta charset=utf-8>"
+        "<!doctype html><html lang=en><meta charset=utf-8>"
         '<meta name=viewport content="width=device-width,initial-scale=1">'
         f"<title>{title}</title><style>{STYLE}</style>"
         '<div class=wrap><header>'
-        f'<div class=crumb>proyecto · {html.escape(project)} · modo <span class=mode>{html.escape(mode)}</span></div>'
-        f"<h1>{html.escape(session)} <span>— {html.escape(estado)}</span></h1>"
+        f'<div class=crumb>project · {html.escape(project)} · mode <span class=mode>{html.escape(mode)}</span></div>'
+        f"<h1>{html.escape(session)} <span>— {html.escape(status)}</span></h1>"
         f"{asked}</header><main>"
     )
 
@@ -96,7 +96,7 @@ def _text(delta: str) -> str:
 
 
 def _said(text: str) -> str:
-    return f'<div class="ask"><b>Le pediste</b>{html.escape(text)}</div>'
+    return f'<div class="ask"><b>You asked</b>{html.escape(text)}</div>'
 
 
 def _tool(name: str, raw: Any) -> str:
@@ -109,11 +109,11 @@ def _done(result: Any) -> str:
     usage = getattr(result, "usage", None) or {}
     cost = usage.get("total_cost_usd")
     rows = [
-        ("sesión", getattr(result, "session_id", None) or "—"),
-        ("herramientas", str(len(getattr(result, "tool_calls", ()) or ()))),
+        ("session", getattr(result, "session_id", None) or "—"),
+        ("tools", str(len(getattr(result, "tool_calls", ()) or ()))),
     ]
     if cost is not None:
-        rows.append(("costo", f"${cost:.4f}"))
+        rows.append(("cost", f"${cost:.4f}"))
     cells = "".join(f"<dt>{html.escape(k)}</dt><dd>{html.escape(str(v))}</dd>" for k, v in rows)
     return f'<dl class="done">{cells}</dl>'
 
@@ -121,19 +121,20 @@ def _done(result: Any) -> str:
 def _foot(project: str, session: str, mode: str) -> str:
     action = f"/projects/{html.escape(project)}/sessions/{html.escape(session)}/messages"
     return (
-        # El "pensando" se apaga sin JS: la cascada recibe este CSS DESPUÉS del
-        # elemento y gana. (Solo el stream lo usa; el landing en reposo no.)
+        # The "thinking" pulse turns off without JS: the cascade receives this CSS
+        # AFTER the element, so it wins. (Only the stream uses it; the idle
+        # landing page doesn't.)
         "<style>.pulse{display:none}</style></main>"
         f'<form method=post action="{action}"><input type=hidden name=mode value="{html.escape(mode)}">'
-        '<input type=text name=message placeholder="Sigue la conversación…" autofocus required>'
-        "<button>Enviar</button></form></div></html>"
+        '<input type=text name=message placeholder="Continue the conversation…" autofocus required>'
+        "<button>Send</button></form></div></html>"
     )
 
 
 def head(project: str, session: str, mode: str, ask: str | None = None) -> bytes:
     return (
-        _head(project, session, mode, ask, "el agente está trabajando")
-        + '<div class=pulse>· · · pensando</div>'
+        _head(project, session, mode, ask, "the agent is working")
+        + '<div class=pulse>· · · thinking</div>'
     ).encode()
 
 
@@ -154,9 +155,9 @@ def foot(project: str, session: str, mode: str) -> bytes:
 
 
 def transcript(entries: list[dict[str, Any]]) -> str:
-    """El transcript de Postgres → la conversación, re-pintada. Las entradas son
-    blobs opacos del CLI (el SDK solo garantiza type/uuid/timestamp), así que se lee
-    a la defensiva: lo que reconoce lo pinta, lo que no, lo ignora."""
+    """The Postgres transcript → the conversation, repainted. Entries are opaque
+    CLI blobs (the SDK only guarantees type/uuid/timestamp), so they are read
+    defensively: what it recognizes it paints, what it doesn't it ignores."""
     out: list[str] = []
     for entry in entries:
         message = entry.get("message") or {}
@@ -181,5 +182,5 @@ def transcript(entries: list[dict[str, Any]]) -> str:
 def landing(project: str, session: str, mode: str, entries: list[dict[str, Any]] | None = None) -> bytes:
     n = len(entries or [])
     history = transcript(entries or [])
-    estado = "sin memoria todavía" if not n else f"{n} entradas en memoria"
-    return (_head(project, session, mode, None, estado) + history + _foot(project, session, mode)).encode()
+    status = "no memory yet" if not n else f"{n} entries in memory"
+    return (_head(project, session, mode, None, status) + history + _foot(project, session, mode)).encode()

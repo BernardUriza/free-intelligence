@@ -1,19 +1,19 @@
-"""El servidor ES la interfaz — y es un SUSTITUTO de la Claude API.
+"""The server IS the interface — and it is a SUBSTITUTE for the Claude API.
 
-Tus apps dejan de llamar a `api.anthropic.com` y llaman a AIRE. Mismo slot (un
-endpoint HTTP, no una librería que importas), pero AIRE se acuerda (Postgres) y se
-deja mirar (SSR). Una sola ruta atiende a los dos públicos, porque es el MISMO
-turno y el MISMO stream de eventos:
+Your apps stop calling `api.anthropic.com` and call AIRE. Same slot (an HTTP
+endpoint, not a library you import), but AIRE remembers (Postgres) and lets
+itself be watched (SSR). A single route serves both audiences, because it is
+the SAME turn and the SAME event stream:
 
-    Accept: text/html          → la página que se escribe sola   (tú, mirando)
-    Accept: text/event-stream  → los eventos crudos              (tus apps)
+    Accept: text/html          → the page that writes itself   (you, watching)
+    Accept: text/event-stream  → the raw events                (your apps)
 
-Y el `?mode=` elige el dial: `complete` (sustituto pelón) o `agent` (mejorador que
-ejecuta tools).
+And `?mode=` picks the dial: `complete` (bare substitute) or `agent` (enhancer
+that executes tools).
 
-SIN AUTENTICACIÓN todavía — a propósito, y dicho de frente: esto es local. El
-patrón Bearer del server oficial se enchufa después; mientras no esté, no se
-expone fuera de localhost.
+NO AUTHENTICATION yet — on purpose, and said upfront: this is local. The
+official server's Bearer pattern plugs in later; until it does, this is not
+exposed beyond localhost.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from .store import create_postgres_session_store
 
 DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
 
-app = FastAPI(title="AIRE", description="Sustituto y mejorador de la Claude API")
+app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
 
 _engine: Engine | None = None
 
@@ -50,8 +50,8 @@ async def get_engine() -> Engine:
 
 
 def _drop_engine() -> None:
-    """El pool cacheado (store + clientes) muere con la base; que el próximo
-    request lo reconstruya contra la base ya viva."""
+    """The cached pool (store + clients) dies with the database; let the next
+    request rebuild it against the database once it's back up."""
     global _engine
     _engine = None
 
@@ -69,23 +69,24 @@ def safe_mode(mode: str | None) -> str:
 
 @app.get("/health")
 async def health() -> JSONResponse:
-    """Estado REAL de la memoria, incluida la base caída, sin reventar. Un health
-    que responde 500 con traceback no sirve para monitorear."""
+    """The REAL state of the memory, including a downed database, without
+    blowing up. A health endpoint that answers 500 with a traceback is useless
+    for monitoring."""
     try:
         engine = await get_engine()
         await engine.session_store.list_sessions("__health__")
-        return JSONResponse({"status": "ok", "memoria": "postgres", "modos": list(MODES)})
-    except Exception as exc:  # noqa: BLE001 — el health captura TODO, ése es su trabajo
+        return JSONResponse({"status": "ok", "memory": "postgres", "modes": list(MODES)})
+    except Exception as exc:  # noqa: BLE001 — health catches EVERYTHING, that's its job
         _drop_engine()
         return JSONResponse(
-            {"status": "degraded", "memoria": "unreachable", "detail": type(exc).__name__},
+            {"status": "degraded", "memory": "unreachable", "detail": type(exc).__name__},
             status_code=503,
         )
 
 
 @app.get("/")
 async def index() -> RedirectResponse:
-    return RedirectResponse("/projects/aire/sessions/hola")
+    return RedirectResponse("/projects/aire/sessions/hello")
 
 
 @app.get("/projects/{project}/sessions/{session}", response_class=HTMLResponse)
@@ -102,8 +103,8 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     project, session = safe_names(project, session)
     message, mode = await _read_body(request)
     mode = safe_mode(mode)
-    # Un mensaje vacío NO es un turno: mandarlo al SDK es un query real que gasta
-    # dinero por nada. El borde lo corta antes de tocar al agente.
+    # An empty message is NOT a turn: sending it to the SDK is a real query that
+    # spends money for nothing. The edge cuts it before it touches the agent.
     if not message:
         return RedirectResponse(f"/projects/{project}/sessions/{session}?mode={mode}", status_code=303)
     if "text/event-stream" in request.headers.get("accept", ""):
@@ -116,7 +117,7 @@ async def post_message(project: str, session: str, request: Request) -> Any:
 
 
 async def _read_body(request: Request) -> tuple[str, str | None]:
-    """Un `<form>` postea urlencoded; una app postea JSON. Los dos entran."""
+    """A `<form>` posts urlencoded; an app posts JSON. Both get in."""
     if request.headers.get("content-type", "").startswith("application/json"):
         body = await request.json()
         return str(body.get("message", body.get("prompt", ""))).strip(), body.get("mode")

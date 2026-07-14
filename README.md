@@ -2,143 +2,148 @@
 
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope
 
-> Claude Code, expuesto como una página web. Sin frontend. Sin que se le olvide nada.
+> Claude Code, exposed as a web page. No frontend. And it never forgets a thing.
 
-Un servidor que envuelve el [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
-**refleja** la memoria de cada sesión hacia **tu** base de datos, y **renderiza al agente
-trabajando — en el servidor.**
+A server that wraps the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
+**mirrors** each session's memory into **your** database, and **renders the agent
+working — on the server.**
 
-Le pegas con el navegador y ahí está Claude, escribiendo. No construiste una UI.
+You hit it with a browser and there's Claude, writing. You never built a UI.
 
-## La tesis: el servidor ES la interfaz
+## The thesis: the server IS the interface
 
-Todos los demás exponen el SDK como una **API** y te dejan construir el frontend
-(agent-webkit te da hooks de React; el cookbook te da JSON sobre SSE). AIRE hace lo
-contrario: **devuelve HTML, renderizado en el servidor, que se va escribiendo solo**
-conforme el agente piensa.
+Everyone else exposes the SDK as an **API** and leaves the frontend to you
+(agent-webkit gives you React hooks; the cookbook gives you JSON over SSE). AIRE does
+the opposite: **it returns HTML, rendered on the server, that keeps writing itself**
+as the agent thinks.
 
 ```
 GET /projects/avatar
-→ una página. Con el agente trabajando. En vivo.
+→ a page. With the agent working. Live.
 ```
 
-Sin React. Sin npm. Sin build. Sin frontend. Es lo que ves en tu terminal cuando usas
-Claude Code — pero en un navegador, y sin haber escrito una línea de cliente.
+No React. No npm. No build. No frontend. It's what you see in your terminal when you
+use Claude Code — but in a browser, without having written a single line of client code.
 
-Y como consecuencia gratis: la página donde ves tus sesiones **no es otro proyecto**. Es
-el mismo servidor. La memoria es tuya, la tabla es tuya, el HTML es tuyo.
+And as a free consequence: the page where you view your sessions **is not another
+project**. It's the same server. The memory is yours, the table is yours, the HTML is
+yours.
 
-## Y la escoba
+## And the broom
 
-El SDK **nunca borra** de tu store, y Claude Code **sí borra del tuyo**: a los 30 días,
-en silencio, sin aviso ni recuperación
+The SDK **never deletes** from your store, and Claude Code **does delete from its own**:
+after 30 days, silently, with no warning and no recovery
 ([#59248](https://github.com/anthropics/claude-code/issues/59248) 👍13,
 [#62476](https://github.com/anthropics/claude-code/issues/62476) 👍11,
-[#61952](https://github.com/anthropics/claude-code/issues/61952): *"dos meses de trabajo
-que pagué, se fueron"*).
+[#61952](https://github.com/anthropics/claude-code/issues/61952): *"two months of work
+I paid for, gone"*).
 
-Es una **Blackwall**: una pared en el día 30, y del otro lado no queda nada.
+It's a **Blackwall**: a wall at day 30, and nothing remains on the other side.
 
-> **Es tu basura, y tú decides cuándo se tira.**
+> **It's your garbage, and you decide when it goes out.**
 
-Retención que tú controlas. Sesiones que puedes fijar. Archivado en vez de destrucción.
-Backups. Nadie sirve esto: ni Anthropic, ni claude-mem (86k ⭐), ni mem0, ni Letta.
+Retention you control. Sessions you can pin. Archiving instead of destruction.
+Backups. Nobody serves this: not Anthropic, not claude-mem (86k ⭐), not mem0, not Letta.
 
 ```http
-POST /projects/avatar/sessions/manuscrito/messages
+POST /projects/avatar/sessions/manuscript/messages
 Authorization: Bearer <token>
 
-{ "prompt": "escribe el capítulo 2" }
+{ "prompt": "write chapter 2" }
 ```
 
-Te responde con un stream SSE, evento por evento. Y el capítulo 2 se acuerda del
-capítulo 1 — aunque el contenedor que escribió el capítulo 1 lleve tres días muerto.
+It answers with an SSE stream, event by event. And chapter 2 remembers chapter 1 —
+even if the container that wrote chapter 1 has been dead for three days.
 
-Desde un cron, desde TypeScript, desde un botón, desde tu teléfono. Nadie necesita
-Python, ni saber que el SDK existe.
+From a cron, from TypeScript, from a button, from your phone. Nobody needs Python,
+or to know the SDK exists.
 
-## El nombre es la arquitectura
+## The name is the architecture
 
 | | |
 |---|---|
-| **Reflector** | El SDK llama *mirror* a su gancho de persistencia: refleja el transcript a un store externo. AIRE es ese espejo, apuntando a tu Postgres. |
-| **Envelope** | El sobre HTTP que contiene al agente. No lo importas: **le hablas**. |
+| **Reflector** | The SDK calls its persistence hook a *mirror*: it reflects the transcript to an external store. AIRE is that mirror, pointed at your Postgres. |
+| **Envelope** | The HTTP envelope that contains the agent. You don't import it: **you talk to it**. |
 
-## El hueco que llena
+## The gap it fills
 
-El `SessionStore` del Agent SDK es el gancho oficial para sacar la memoria del disco y
-mandarla a una base de datos. Y el SDK **nunca borra de tu store** — su docstring te
-delega la limpieza por escrito:
+The Agent SDK's `SessionStore` is the official hook for getting the memory off disk
+and into a database. And the SDK **never deletes from your store** — its docstring
+delegates the cleanup to you in writing:
 
 > *"Retention is the adapter's responsibility — implement TTL, object-storage lifecycle
 > policies, or scheduled cleanup according to your compliance requirements."*
 
-O sea: hacen falta **dos** cosas. El **espejo** y la **escoba**. Nadie tiene las dos.
+In other words: **two** things are needed. The **mirror** and the **broom**. Nobody
+has both.
 
-| | Refleja a una DB | Servidor HTTP reutilizable | Housekeeping |
+| | Mirrors to a DB | Reusable HTTP server | Housekeeping |
 |---|---|---|---|
-| [`claude-cookbooks/hosting`](https://github.com/anthropics/claude-cookbooks/tree/main/claude_agent_sdk/hosting) (oficial) | ❌ dict en RAM + disco | ⚠️ un solo proyecto (`cwd="/app"`) | ❌ |
-| [Agno](https://github.com/agno-agi/agno) (41k ⭐) | ❌ dict en RAM + disco | ✅ | ❌ |
-| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ Postgres/SQLite | ❌ lib interna de su app | ❌ |
+| [`claude-cookbooks/hosting`](https://github.com/anthropics/claude-cookbooks/tree/main/claude_agent_sdk/hosting) (official) | ❌ in-RAM dict + disk | ⚠️ single project (`cwd="/app"`) | ❌ |
+| [Agno](https://github.com/agno-agi/agno) (41k ⭐) | ❌ in-RAM dict + disk | ✅ | ❌ |
+| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ Postgres/SQLite | ❌ internal lib of their app | ❌ |
 | **AIRE** | ✅ | ✅ | ✅ |
 
-Verificado **leyendo su código**, no su documentación:
+Verified **by reading their code**, not their documentation:
 
-- El cookbook y Agno guardan el mapeo de sesión en un `dict` **en RAM** y el transcript en
-  **disco local** → pierden la memoria cuando muere el contenedor.
-- ArcReel **sí** cablea el `SessionStore` (`DbSessionStore`, SQLAlchemy) — pero es una
-  librería interna de su producto, bajo **AGPL**, no un servicio al que le puedas hablar
-  desde otros proyectos.
-- **Ninguno de los tres barre.** Cero `ttl`, cero `retention`, cero `cleanup`, cero archivado.
-  Acumulan para siempre.
+- The cookbook and Agno keep the session mapping in an in-RAM `dict` and the transcript
+  on **local disk** → they lose the memory when the container dies.
+- ArcReel **does** wire the `SessionStore` (`DbSessionStore`, SQLAlchemy) — but it's an
+  internal library of their product, under **AGPL**, not a service you can talk to from
+  other projects.
+- **None of the three sweeps.** Zero `ttl`, zero `retention`, zero `cleanup`, zero
+  archiving. They accumulate forever.
 
-AIRE es el espejo **y** la escoba, detrás de un HTTP que cualquiera puede llamar.
+AIRE is the mirror **and** the broom, behind an HTTP endpoint anyone can call.
 
-## Qué NO es
+## What it is NOT
 
-- **No es un runner de VMs.** El contenedor no guarda nada, así que no necesita sobrevivir.
-- **No es una librería.** No se importa; se llama por HTTP desde cualquier lenguaje.
-- **No reimplementa el SDK.** El agentic loop, las herramientas, los subagentes, los
-  permisos y el sandbox ya son del SDK. AIRE es el pegamento que faltaba.
+- **Not a VM runner.** The container stores nothing, so it doesn't need to survive.
+- **Not a library.** You don't import it; you call it over HTTP from any language.
+- **It doesn't reimplement the SDK.** The agentic loop, the tools, the subagents, the
+  permissions and the sandbox already belong to the SDK. AIRE is the missing glue.
 
-## Arquitectura
+## Architecture
 
 ```
-   tus proyectos                AIRE                    lo permanente
+   your projects                AIRE                    the permanent
   ─────────────────      ──────────────────      ────────────────────────
-   cualquier lenguaje  ──►  POST /messages
+   any language        ──►  POST /messages
                             Claude Agent SDK   ──►  transcript  →  Postgres
-                            (contenedor
-                             desechable)       ──►  el trabajo  →  git
+                            (disposable
+                             container)        ──►  the work    →  git
 ```
 
-Tres cosas, y solo una es AIRE:
+Three things, and only one of them is AIRE:
 
-- **La memoria** — el transcript, en tu Postgres. *Es lo único irreemplazable:
-  borra el contenedor y AIRE sigue vivo; borra la base y AIRE murió.*
-- **La obra** — lo que el agente produce, en git. Separado a propósito.
-- **El cuerpo** — el contenedor. Nace, trabaja, muere. No guarda nada porque no le toca.
+- **The memory** — the transcript, in your Postgres. *The only irreplaceable piece:
+  delete the container and AIRE lives on; delete the database and AIRE is dead.*
+- **The work** — what the agent produces, in git. Separate on purpose.
+- **The body** — the container. It's born, it works, it dies. It stores nothing
+  because that's not its job.
 
-## Es tu basura
+## It's your garbage
 
-El SDK nunca borra: **la memoria se acumula para siempre.** Eso no es un defecto — es lo
-que hace que no pierdas contexto. Pero alguien tiene que barrer, y ese alguien eres tú
-(el SDK lo dice explícitamente).
+The SDK never deletes: **memory accumulates forever.** That's not a defect — it's what
+keeps you from losing context. But someone has to sweep, and that someone is you (the
+SDK says so explicitly).
 
-Y como la basura es **tuya**, y vive en **tu** base, se le puede hacer de todo:
+And since the garbage is **yours**, living in **your** database, you can do anything
+with it:
 
-- **Retención** — TTL por proyecto, archivar sesiones frías, purgar lo que no sirve.
-- **Backups programados** — es Postgres. Es `pg_dump` y una cron.
-- **Auditoría** — qué le pediste, qué hizo, cuánto costó. Es un `SELECT`.
-- **Una página para verlo todo** — porque la tabla es tuya.
+- **Retention** — per-project TTL, archive cold sessions, purge what's useless.
+- **Scheduled backups** — it's Postgres. It's `pg_dump` and a cron job.
+- **Auditing** — what you asked, what it did, what it cost. It's a `SELECT`.
+- **A page to see it all** — because the table is yours.
 
-Nada de esto es posible cuando la memoria vive del lado del proveedor.
+None of this is possible when the memory lives on the provider's side.
 
-## Estado
+## Status
 
-**Nada construido todavía.** Este repo empieza con el entendimiento, no con el código.
-Lo que falta está en [`.claude/backlog/`](.claude/backlog/).
+The skeleton is in the repo — the bare TCP listener + demo device (the tracer), and
+the engine / server / SSR / Postgres store. What's missing is tracked in
+[`.claude/backlog/`](.claude/backlog/).
 
-## Licencia
+## License
 
-Por definir.
+To be defined.

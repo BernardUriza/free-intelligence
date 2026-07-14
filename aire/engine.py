@@ -1,19 +1,19 @@
-"""AIRE es dueño del SDK.
+"""AIRE owns the SDK.
 
-Este archivo es una COPIA del motor de `ClaudeCodeBackend` de fi-runner —el que
-ya poseía el Claude Agent SDK: arranca el `ClaudeSDKClient`, corre el turn loop,
-drena los eventos tipados— despojado de toda dependencia a fi-runner, y con las
-dos cosas que hacen a AIRE lo que es:
+This file is a COPY of the `ClaudeCodeBackend` engine from fi-runner —the one
+that already owned the Claude Agent SDK: it boots the `ClaudeSDKClient`, runs
+the turn loop, drains the typed events— stripped of every fi-runner dependency,
+plus the two things that make AIRE what it is:
 
-- **MODOS.** `complete` (sin herramientas — el SUSTITUTO de la Messages API cruda)
-  y `agent` (con herramientas — el MEJORADOR: una sesión de Claude Code que ejecuta
-  tools). El SDK es el motor de UN modo, no la identidad de AIRE.
-- **MEMORIA propia.** El `session_store` de Postgres, dueño único, inyectado. La
-  Claude API es stateless; AIRE es "la Claude API pero que se acuerda".
+- **MODES.** `complete` (no tools — the SUBSTITUTE for the raw Messages API)
+  and `agent` (with tools — the ENHANCER: a Claude Code session that executes
+  tools). The SDK is the engine of ONE mode, not AIRE's identity.
+- **Its own MEMORY.** The Postgres `session_store`, sole owner, injected. The
+  Claude API is stateless; AIRE is "the Claude API, but it remembers".
 
-Lo que NO se hace: importar fi-runner. AIRE posee este código. Ésa es toda la
-diferencia con la versión que estuvo mal — antes AIRE *importaba* el motor y
-dependía de un repo que otro agente editaba; ahora lo posee.
+What is NOT done: importing fi-runner. AIRE owns this code. That is the whole
+difference from the version that went wrong — before, AIRE *imported* the engine
+and depended on a repo another agent was editing; now it owns it.
 """
 
 from __future__ import annotations
@@ -33,18 +33,18 @@ from .keys import sdk_session_uuid
 WORKSPACES = Path(__file__).resolve().parent.parent / "workspaces"
 
 SYSTEM_PROMPT = (
-    "Eres un agente que trabaja dentro de AIRE. Tu trabajo aparece, en vivo, en "
-    "una página HTML que el servidor va escribiendo conforme piensas. Usa tus "
-    "herramientas cuando te sirvan: cada llamada se pinta en la página."
+    "You are an agent working inside AIRE. Your work appears, live, on an HTML "
+    "page the server keeps writing as you think. Use your tools whenever they "
+    "help: every call is painted onto the page."
 )
 
-# Los modos: el dial que hace a AIRE sustituto Y mejorador.
-#   complete → sin herramientas, sin loop agéntico → el sustituto de la API cruda.
-#   agent    → herramientas + BYPASS → el mejorador que ejecuta tools.
-# OJO con BYPASS: concede TODAS las builtins EXCEPTO las de `disallowed` — la
-# allowlist es decorativa bajo ese modo, lo que de verdad contiene es `disallowed`.
-# `Bash` queda fuera; el confinamiento real del filesystem es `SandboxSettings`,
-# aún no puesto — `cwd` NO es una jaula.
+# The modes: the dial that makes AIRE both substitute AND enhancer.
+#   complete → no tools, no agentic loop → the substitute for the raw API.
+#   agent    → tools + BYPASS → the enhancer that executes tools.
+# CAREFUL with BYPASS: it grants ALL builtins EXCEPT those in `disallowed` — the
+# allowlist is decorative under that mode; what actually contains is `disallowed`.
+# `Bash` stays out; the real filesystem confinement is `SandboxSettings`, not yet
+# in place — `cwd` is NOT a cage.
 MODES: dict[str, dict[str, Any]] = {
     "complete": {
         "allowed_tools": [],
@@ -62,8 +62,8 @@ DEFAULT_MODE = "agent"
 
 @dataclass(frozen=True)
 class ToolCall:
-    """Una llamada a herramienta, tal como se pinta en la página. Copiada del
-    contrato de fi-runner, mínima: solo lo que la interfaz necesita mostrar."""
+    """A tool call, as painted onto the page. Copied from fi-runner's contract,
+    minimal: only what the interface needs to show."""
 
     name: str
     input: dict[str, Any] | None = None
@@ -81,11 +81,11 @@ class TurnResult:
 
 
 class Engine:
-    """El motor de AIRE: dueño del SDK, de los modos y de la memoria.
+    """AIRE's engine: owner of the SDK, the modes and the memory.
 
-    Un cliente `ClaudeSDKClient` vivo por sesión (pool = caché caliente). Un miss
-    no significa que la sesión murió: se reconstruye desde el store con `resume=`,
-    que es lo que vuelve a la memoria sobreviviente al reinicio del proceso.
+    One live `ClaudeSDKClient` per session (pool = hot cache). A miss does not
+    mean the session died: it is rebuilt from the store with `resume=`, which is
+    what makes the memory survive a process restart.
     """
 
     def __init__(self, session_store: Any) -> None:
@@ -100,9 +100,9 @@ class Engine:
         return ws
 
     def session_key(self, project: str, session: str) -> dict[str, str]:
-        """La llave del store. El `project_key` NO se inventa: el SDK lo deriva del
-        `cwd` (`project_key_for_directory`) cuando ESCRIBE el transcript, así que el
-        lado que LEE debe derivarlo igual o cada `load()` falla."""
+        """The store key. The `project_key` is NOT invented: the SDK derives it
+        from the `cwd` (`project_key_for_directory`) when it WRITES the transcript,
+        so the READING side must derive it the same way or every `load()` misses."""
         return {
             "project_key": project_key_for_directory(str(self._cwd(project))),
             "session_id": sdk_session_uuid(session),
@@ -118,9 +118,10 @@ class Engine:
         sdk_uuid = sdk_session_uuid(session)
         env = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
         if os.environ.get("AIRE_ISOLATE_CONFIG") == "1":
-            # En contenedor: sin Keychain, la credencial entra por env y
-            # CLAUDE_CONFIG_DIR=/tmp hace que el contenedor no guarde nada. En local
-            # NO se fuerza (la credencial viva del CLI vive en el Keychain de macOS).
+            # In a container: no Keychain, the credential comes in via env and
+            # CLAUDE_CONFIG_DIR=/tmp keeps the container from storing anything.
+            # NOT forced locally (the CLI's live credential lives in the macOS
+            # Keychain).
             cfg = Path("/tmp/aire-config") / project
             cfg.mkdir(parents=True, exist_ok=True)
             env["CLAUDE_CONFIG_DIR"] = str(cfg)
@@ -130,16 +131,17 @@ class Engine:
             "disallowed_tools": list(policy["disallowed_tools"]),
             "permission_mode": policy["permission_mode"],
             "cwd": str(self._cwd(project)),
-            "setting_sources": [],  # NO heredar el CLAUDE.md/settings de la máquina
-            "strict_mcp_config": True,  # NO heredar los MCP de la máquina anfitriona
+            "setting_sources": [],  # do NOT inherit the machine's CLAUDE.md/settings
+            "strict_mcp_config": True,  # do NOT inherit the host machine's MCP servers
             "env": env,
             "session_store": self.session_store,
-            "session_store_flush": "eager",  # sin ventana de pérdida si el proceso muere
+            "session_store_flush": "eager",  # no loss window if the process dies
         }
-        # session_id=<uuid> PONE el id de una sesión que NACE; resume=<uuid>
-        # RECUPERA una existente. Son mutuamente excluyentes: pasar session_id en una
-        # continuación NO resume, arranca una nueva pisando el id y perdiendo la
-        # memoria. Por eso preguntamos al store (has_session), no adivinamos del pool.
+        # session_id=<uuid> SETS the id of a session being BORN; resume=<uuid>
+        # RECOVERS an existing one. They are mutually exclusive: passing session_id
+        # on a continuation does NOT resume — it starts a new session, clobbering
+        # the id and losing the memory. That is why we ask the store (has_session)
+        # instead of guessing from the pool.
         if resuming:
             kwargs["resume"] = sdk_uuid
         else:
@@ -162,22 +164,22 @@ class Engine:
     async def run_stream(
         self, project: str, session: str, prompt: str, mode: str = DEFAULT_MODE
     ) -> AsyncIterator[dict[str, Any]]:
-        """Un turno, en vivo. Emite {"type": "text"|"tool_call"|"result", ...} según
-        ocurre. El transcript se refleja a Postgres solo (session_store) — la memoria
-        del agente Y la memoria de la página son EL MISMO transcript."""
+        """One turn, live. Emits {"type": "text"|"tool_call"|"result", ...} as it
+        happens. The transcript mirrors itself to Postgres (session_store) — the
+        agent's memory AND the page's memory are THE SAME transcript."""
         client, lock = await self._client_for(project, session, mode)
-        async with lock:  # serializa turnos en el mismo cliente (no es concurrency-safe)
+        async with lock:  # serializes turns on the same client (not concurrency-safe)
             await client.query(prompt)
             async for event in self._drain(client):
                 yield event
 
     @staticmethod
     async def _drain(client: ClaudeSDKClient) -> AsyncIterator[dict[str, Any]]:
-        """Drena la respuesta del SDK y la emite en vivo. Copiado del turn loop
-        probado de fi-runner: los tipos se identifican por `type(m).__name__`
-        (defensivo entre versiones del SDK), y el RESULTADO de una herramienta no
-        vuelve como mensaje del asistente sino como `ToolResultBlock` en un mensaje
-        de USUARIO — se emparejan por `tool_use_id`."""
+        """Drains the SDK's response and emits it live. Copied from fi-runner's
+        proven turn loop: types are identified via `type(m).__name__` (defensive
+        across SDK versions), and a tool's RESULT does not come back as an
+        assistant message but as a `ToolResultBlock` inside a USER message — they
+        are paired by `tool_use_id`."""
         parts: list[str] = []
         usage: dict[str, Any] | None = None
         session_id: str | None = None
@@ -235,8 +237,8 @@ class Engine:
         }
 
     async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
-        """Lo que el agente recuerda, que es lo mismo que la página vuelve a pintar.
-        El transcript no vive en la conexión HTTP: vive en Postgres."""
+        """What the agent remembers, which is the same thing the page repaints.
+        The transcript does not live in the HTTP connection: it lives in Postgres."""
         return await self.session_store.load(self.session_key(project, session)) or []
 
     async def aclose(self) -> None:

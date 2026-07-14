@@ -1,80 +1,79 @@
-# Deploy — AIRE en una VM de Azure (Ubuntu 24.04 LTS)
+# Deploy — AIRE on the daemon box (Ubuntu 24.04 LTS)
 
-CI/CD por GitHub Actions. **Nunca se despliega a mano.** Cada `push` a `main` que
-toca el código corre `.github/workflows/deploy.yml`, que entra por SSH a la VM,
-hace `git reset --hard origin/main`, reinicia los servicios systemd y **verifica
-que quedaron `active`** (si no, el CI falla — sin fake-green).
+CI/CD via GitHub Actions. **Never deploy by hand.** Every `push` to `main` that
+touches the code runs `.github/workflows/deploy.yml`, which SSHes into the box,
+does `git reset --hard origin/main`, restarts the systemd units and **verifies
+they came back `active`** (otherwise the CI fails — no fake-green).
 
-## El flujo, en dos fases
+> The box is a DigitalOcean droplet (the original Azure path was discarded — see
+> [`../infra/README.md`](../infra/README.md)). The droplet runs as **root**, so
+> the workflow connects as `root@` and restarts without `sudo`.
 
-### 1. Provisión — UNA sola vez, por VM
+## The flow, in two phases
 
-Se corre una vez en una VM Ubuntu 24.04 recién creada (usuario `azureuser`):
+### 1. Provisioning — ONCE per box
+
+Run once from your machine against DigitalOcean:
 
 ```bash
-sudo bash infra/provision.sh
+bash infra/provision-do.sh
 ```
 
-Lo que la provisión deja listo (contrato que este deploy asume):
+What provisioning leaves ready (the contract this deploy assumes):
 
-- Python 3.12 del sistema en `/usr/bin/python3` (viene con Ubuntu 24.04).
-- El repo clonado en `/opt/aire`, propiedad de `azureuser`, con `origin` →
-  `git@github.com:BernardUriza/aire-server.git`.
-- Las units copiadas a `/etc/systemd/system/` y habilitadas:
+- System Python 3.12 at `/usr/bin/python3` (ships with Ubuntu 24.04).
+- The repo cloned at `/opt/aire`, with `origin` →
+  `https://github.com/BernardUriza/aire-server`.
+- The units copied to `/etc/systemd/system/` and enabled:
   ```bash
-  sudo cp deploy/aire-listener.service deploy/aire-device.service /etc/systemd/system/
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now aire-listener aire-device
+  cp deploy/aire-listener.service deploy/aire-device.service /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now aire-listener aire-device
   ```
-- El puerto **9099/tcp** abierto en el NSG de Azure (para devices externos) — o
-  cerrado y solo `127.0.0.1` si únicamente corre el device demo local.
-- `azureuser` con `sudo` NOPASSWD para `systemctl restart aire-listener aire-device`
-  (el workflow hace `sudo systemctl restart` sin TTY).
+- Port **9099/tcp** reachable (for external devices) — or closed and
+  `127.0.0.1`-only if only the local demo device runs.
 
-> `infra/provision.sh` es el script idempotente de esta fase. Si aún no existe,
-> los pasos de arriba son su contenido mínimo.
+### 2. Continuous deploy — on every push
 
-### 2. Deploy continuo — en cada push
+`.github/workflows/deploy.yml` triggers on:
 
-`.github/workflows/deploy.yml` se dispara con:
-
-- `push` a `main` en las rutas `aire/**`, `demo_device.py`, `deploy/**`,
+- `push` to `main` touching the paths `aire/**`, `demo_device.py`, `deploy/**`,
   `.github/workflows/deploy.yml`.
-- `workflow_dispatch` (botón manual en la pestaña Actions).
+- `workflow_dispatch` (manual button in the Actions tab).
 
-Y ejecuta, dentro de la VM:
+And runs, inside the box:
 
 ```bash
 cd /opt/aire && git fetch --all && git reset --hard origin/main \
-  && sudo systemctl restart aire-listener aire-device \
+  && systemctl restart aire-listener aire-device \
   && sleep 1 && systemctl is-active aire-listener aire-device
 ```
 
-`systemctl is-active` sale con código ≠ 0 si algún servicio no está `active`, y
-eso **rompe el job**: el CI confirma el deploy contra el estado real, no contra
-"el push salió".
+`systemctl is-active` exits non-zero if any service is not `active`, and that
+**breaks the job**: the CI confirms the deploy against the real state, not
+against "the push went out".
 
-## Secrets de GitHub (repo → Settings → Secrets and variables → Actions)
+## GitHub secrets (repo → Settings → Secrets and variables → Actions)
 
-| Secret | Qué es |
+| Secret | What it is |
 |---|---|
-| `AIRE_VM_HOST` | IP pública o DNS de la VM (ej. `20.51.x.x` o `aire.eastus.cloudapp.azure.com`). |
-| `AIRE_VM_SSH_KEY` | Llave **privada** SSH (PEM completo) cuya pública está en `~azureuser/.ssh/authorized_keys` de la VM. |
+| `AIRE_VM_HOST` | Public IP or DNS of the box (e.g. `143.198.x.x`). |
+| `AIRE_VM_SSH_KEY` | **Private** SSH key (full PEM) whose public half is in the box's `authorized_keys`. |
 
-La llave se carga con `webfactory/ssh-agent@v0.9.0`; el host se acepta con
-`StrictHostKeyChecking=accept-new` (TOFU en el primer contacto).
+The key is loaded with `webfactory/ssh-agent@v0.9.0`; the host is accepted with
+`StrictHostKeyChecking=accept-new` (TOFU on first contact).
 
-## Verlo funcionar
+## Watch it work
 
 ```bash
-ssh azureuser@<IP>
-tail -f /opt/aire/aire.log | grep KEEPALIVE     # los latidos del device, en vivo
+ssh -i ~/.ssh/aire_vm root@<IP>
+tail -f /opt/aire/aire.log | grep KEEPALIVE     # the device's heartbeats, live
 ```
 
-Otros comandos útiles en la VM:
+Other useful commands on the box:
 
 ```bash
-systemctl status aire-listener aire-device       # estado de los servicios
-journalctl -u aire-listener -f                    # stdout del listener
-grep MESSAGE /opt/aire/aire.log                   # los eventos GPS random
+systemctl status aire-listener aire-device       # service state
+journalctl -u aire-listener -f                    # the listener's stdout
+grep MESSAGE /opt/aire/aire.log                   # the random GPS events
 ```

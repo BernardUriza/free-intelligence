@@ -1,8 +1,8 @@
-"""Un `project` / `session` viene de la URL: entrada hostil hasta probar lo
-contrario. Se usa para construir un path de filesystem (`workspaces/<project>`) y
-una llave de Postgres, así que un `..` o una barra lo sacan de su jaula. La
-defensa no es sanitizar (quitar los `..` y rezar): es un ALLOWLIST estrecho. Lo
-que no cabe, se rechaza — no se "arregla".
+"""A `project` / `session` comes from the URL: hostile input until proven
+otherwise. It is used to build a filesystem path (`workspaces/<project>`) and a
+Postgres key, so a `..` or a slash breaks it out of its cage. The defense is not
+sanitizing (stripping the `..` and praying): it is a narrow ALLOWLIST. Whatever
+doesn't fit is rejected — never "fixed".
 """
 
 from __future__ import annotations
@@ -13,10 +13,10 @@ _VALID = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
 class InvalidName(ValueError):
-    """El project/session no pasó el allowlist."""
+    """The project/session failed the allowlist."""
 
 
 def clean(kind: str, value: str) -> str:
     if not _VALID.match(value or ""):
-        raise InvalidName(f"{kind} inválido: {value!r} (permitido: letras, números, - y _, 1–64)")
+        raise InvalidName(f"invalid {kind}: {value!r} (allowed: letters, digits, - and _, 1–64)")
     return value

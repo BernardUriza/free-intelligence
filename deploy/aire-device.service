@@ -1,5 +1,5 @@
 [Unit]
-Description=AIRE demo device — simulador GPS que empuja KEEPALIVE + MESSAGE
+Description=AIRE demo device — GPS simulator pushing KEEPALIVE + MESSAGE
 After=aire-listener.service
 Requires=aire-listener.service
 

@@ -1,15 +1,15 @@
-"""app-demo-device — un dispositivo simulado (como un GPS).
+"""app-demo-device — a simulated device (like a GPS receiver).
 
-Abre una conexión TCP a AIRE y le manda, para siempre y al azar:
-- un **KEEPALIVE** cada ~2s — el latido, como el GPS diciendo "sigo vivo".
-- un **MESSAGE** random de vez en cuando — posición, velocidad, pánico, geocerca.
+Opens a TCP connection to AIRE and sends it, forever and at random:
+- a **KEEPALIVE** every ~2s — the heartbeat, like a GPS saying "still alive".
+- a random **MESSAGE** now and then — position, speed, panic, geofence.
 
-Es la app demo del enunciado: le anda mandando mensajes al servidor siempre
-abierto. No sabe nada de AIRE ni de IA — solo escribe líneas a un socket, igual
-que un receptor GPS empujando por GPRS.
+It is the demo app from the brief: it keeps sending messages to the always-open
+server. It knows nothing about AIRE or AI — it just writes lines to a socket,
+exactly like a GPS receiver pushing over GPRS.
 
-    python demo_device.py            # un device
-    DEVICE_ID=patrulla-07 python demo_device.py   # otro device, en paralelo
+    python demo_device.py                        # one device
+    DEVICE_ID=patrol-07 python demo_device.py    # another device, in parallel
 """
 
 from __future__ import annotations
@@ -26,24 +26,24 @@ EVENTS = [
     "POS lat=20.6736 lon=-103.3440",
     "POS lat=20.6598 lon=-103.3496",
     "SPEED 82kmh",
-    "SPEED 118kmh EXCESO",
+    "SPEED 118kmh OVERSPEED",
     "IGN on",
     "IGN off",
-    "PANIC boton-presionado",
-    "GEOFENCE salida zona-centro",
+    "PANIC button-pressed",
+    "GEOFENCE exit downtown-zone",
 ]
 
 
 async def main() -> None:
     _reader, writer = await asyncio.open_connection(HOST, PORT)
-    print(f"{DEVICE} conectado a AIRE {HOST}:{PORT}", flush=True)
+    print(f"{DEVICE} connected to AIRE {HOST}:{PORT}", flush=True)
     seq = 0
     try:
         while True:
             seq += 1
             writer.write(f"{DEVICE} KEEPALIVE seq={seq}\n".encode())
             await writer.drain()
-            if random.random() < 0.4:  # ~40% de los ticks lleva un mensaje real
+            if random.random() < 0.4:  # ~40% of ticks carry a real message
                 writer.write(f"{DEVICE} MESSAGE {random.choice(EVENTS)}\n".encode())
                 await writer.drain()
             await asyncio.sleep(2)

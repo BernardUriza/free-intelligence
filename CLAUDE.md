@@ -1,253 +1,261 @@
-# AIRE — contexto para agentes
+# AIRE — context for agents
 
-**A**rtificial **I**ntelligence **R**eflector **E**nvelope. Servidor HTTP que envuelve
-el Claude Agent SDK y refleja el transcript de sesiones a Postgres.
+**A**rtificial **I**ntelligence **R**eflector **E**nvelope. An HTTP server that wraps
+the Claude Agent SDK and mirrors each session's transcript to Postgres.
 
 ---
 
-## El espíritu (léelo antes que los hechos)
+## The spirit (read this before the facts)
 
-> *Aire,*
-> *soñé por un momento que era*
-> *aire: oxígeno, nitrógeno y argón*
-> ***sin forma definida ni color.***
-> *Fui aire volador.*
+> *Air,*
+> *for a moment I dreamed I was*
+> *air: oxygen, nitrogen and argon,*
+> ***with no defined shape and no color.***
+> *I was flying air.*
 >
-> — Mecano, «Aire» (J. M. Cano, 1984)
+> — Mecano, "Aire" (J. M. Cano, 1984; translated from the Spanish)
 
-El acrónimo llegó después. **El nombre ya existía, y era mejor.** La canción de 1984
-resultó ser la especificación del proyecto, y no por casualidad — porque describe
-exactamente lo que descubrimos:
+The acronym came later. **The name already existed, and it was better.** The 1984 song
+turned out to be the project's specification, and not by chance — because it describes
+exactly what we discovered:
 
-| La canción | La arquitectura |
+| The song | The architecture |
 |---|---|
-| ***«sin forma definida ni color»*** | El contenedor **no guarda nada**. El agente sin cuerpo. Es el tagline. |
-| ***«oxígeno, nitrógeno y argón»*** | Los tres: **la memoria** (Postgres), **la obra** (git), **el cuerpo** (el contenedor, prestado). |
-| ***«iba pasando, qué curioso, al estado gaseoso»*** | El día que nació esto: se empezó con una VM —cuerpo, disco, SSH, IP— y se fue desinflando hasta que no quedó materia. |
-| ***«este cuarto es muy pequeño para las cosas que sueño»*** | La pregunta original era *"¿qué diferencia hay entre EC2 y una VM de Azure?"*. El cuarto era esa pregunta. |
-| ***«me volví otra vez humano. No faltéis al funeral.»*** | **En la canción, recuperar el cuerpo es la muerte.** Y aquí igual: **AIRE muere el día que su memoria vuelve a depender de un cuerpo** — de un disco que se borra a los 30 días, de una máquina que hay que mantener viva, de una base que es de otro. |
+| ***"with no defined shape and no color"*** | The container **stores nothing**. The bodiless agent. It's the tagline. |
+| ***"oxygen, nitrogen and argon"*** | The three: **the memory** (Postgres), **the work** (git), **the body** (the container, borrowed). |
+| ***"I was passing, how curious, into the gaseous state"*** | The day this was born: it started as a VM —body, disk, SSH, IP— and kept deflating until no matter was left. |
+| ***"this room is too small for the things I dream"*** | The original question was *"what's the difference between EC2 and an Azure VM?"*. The room was that question. |
+| ***"I became human again. Don't miss the funeral."*** | **In the song, getting the body back is death.** Same here: **AIRE dies the day its memory depends on a body again** — on a disk that gets wiped after 30 days, on a machine that must be kept alive, on a database that belongs to someone else. |
 
-**Mientras siga siendo aire —sin forma, en la base del dueño, sin cuerpo que perder— no
-hay funeral.** Esa es la prueba de fuego de cualquier decisión de diseño en este repo:
+**As long as it stays air —shapeless, in the owner's database, with no body to lose—
+there is no funeral.** That is the litmus test for every design decision in this repo:
 
-> *¿Esto le devuelve un cuerpo al agente? Entonces no.*
+> *Does this give the agent a body back? Then no.*
 
-Por eso murieron la VM efímera, la VM eterna, Managed Agents y el disco persistente. Todas
-eran cuerpos.
+That's why the ephemeral VM, the eternal VM, Managed Agents and the persistent disk all
+died. They were all bodies.
 
-## La génesis — de dónde salió la forma (no se inventó aquí)
+## The genesis — where the shape came from (it wasn't invented here)
 
-La pregunta original —*"¿qué diferencia hay entre un EC2 y una VM?"*— tenía una respuesta
-que Bernard ya había visto trabajando años atrás, en una empresa de rastreo GPS: **EC-GPS**
-(`ec-gps.com`, de Carlos Feria Tapia, Zapopan). Su máquina de ingresos completa, hasta hoy,
-es esto:
+The original question —*"what's the difference between an EC2 and a VM?"*— had an answer
+Bernard had already seen working years earlier, at a GPS-tracking company: **EC-GPS**
+(`ec-gps.com`, run by Carlos Feria Tapia, Zapopan). Its entire revenue machine, to this
+day, is this:
 
-- Los **receptores GPS empujan** su posición por **GPRS** a un servidor siempre prendido.
-- Ese servidor —*"el centro de gestión"*— es un **daemon de Perl** escuchando en unos puertos,
-  que vivía en una **VM de Linux en un droplet**, mantenida por **SSH**.
-- El daemon **parsea** cada paquete y lo **escribe en una tabla append-only, `gps_logs`.**
-- El backend **PHP** (`/app`, la consola) es **el mesero**: solo **lee** `gps_logs` y la muestra
-  en un mapa. Nunca la escribe. Es reemplazable (GoDaddy, Vercel, da igual).
+- The **GPS receivers push** their position over **GPRS** to an always-on server.
+- That server —*"the management center"*— is a **Perl daemon** listening on a few ports,
+  living on a **Linux VM in a droplet**, maintained over **SSH**.
+- The daemon **parses** each packet and **writes it to an append-only table, `gps_logs`.**
+- The **PHP** backend (`/app`, the console) is **the waiter**: it only **reads** `gps_logs`
+  and shows it on a map. It never writes it. It is replaceable (GoDaddy, Vercel, doesn't
+  matter).
 
-Ésa es la respuesta al EC2-vs-VM: para un daemon-que-escucha, **un EC2 y una VM en un droplet
-son lo mismo** — un cuerpo Linux prendido 24/7 con un puerto abierto y SSH. No hace falta la
-elegancia de AWS; hace falta un cuerpo que no se apague.
+That is the answer to EC2-vs-VM: for a listening daemon, **an EC2 and a VM in a droplet
+are the same thing** — an always-on Linux body with an open port and SSH. You don't need
+AWS's elegance; you need a body that doesn't shut down.
 
-**AIRE es esa máquina, pieza por pieza** — no es una analogía, es el plano literal:
+**AIRE is that machine, piece by piece** — not an analogy, the literal blueprint:
 
-| EC-GPS (la máquina de Carlos FT) | AIRE |
+| EC-GPS (Carlos FT's machine) | AIRE |
 |---|---|
-| receptores GPS empujan por GPRS | apps empujan prompts por HTTP |
-| daemon de **Perl** escuchando en un puerto | el **engine** dueño del SDK (`aire/engine.py`) |
-| parsea y escribe `gps_logs` (append-only) | refleja el transcript al `session_store` (append-only, Postgres) |
-| el **mesero PHP** lee y muestra | el **SSR** lee y te lo pinta en vivo |
-| VM de Linux en droplet, SSH | el servidor always-on |
+| GPS receivers push over GPRS | apps push prompts over HTTP |
+| **Perl** daemon listening on a port | the **engine** that owns the SDK (`aire/engine.py`) |
+| parses and writes `gps_logs` (append-only) | mirrors the transcript to the `session_store` (append-only, Postgres) |
+| the **PHP waiter** reads and displays | the **SSR** reads and paints it for you, live |
+| Linux VM in a droplet, SSH | the always-on server |
 
-El parser de Perl convertía un paquete GPRS de formato fijo en un renglón con un regex. **El de
-AIRE convierte un prompt en una sesión que razona.** Mismo esqueleto; el paso de parseo se
-volvió inteligencia. Y la única evolución sobre EC-GPS: su magia está **soldada a un cuerpo
-mortal** (si el droplet muere, muere `gps_logs` y muere el negocio); AIRE le **arranca el cuerpo
-a la memoria** — `gps_logs` se vuelve Postgres, en la base del dueño. Por eso *"sin cuerpo que
-perder"*.
+The Perl parser turned a fixed-format GPRS packet into a row with a regex. **AIRE's
+turns a prompt into a session that reasons.** Same skeleton; the parsing step became
+intelligence. And the only evolution over EC-GPS: its magic is **welded to a mortal
+body** (if the droplet dies, `gps_logs` dies and the business dies with it); AIRE
+**rips the body away from the memory** — `gps_logs` becomes Postgres, in the owner's
+database. Hence *"no body to lose"*.
 
-## El mesero y la magia — el log es la verdad, la vista es un caché (respaldo científico)
+## The waiter and the magic — the log is the truth, the view is a cache (scientific backing)
 
-La distinción mesero-vs-magia **no es intuición: es el teorema central de la ingeniería de datos
-moderna.** Verificado en literatura canónica (algunas peer-reviewed) por `/histerical-search`:
+The waiter-vs-magic distinction **is not intuition: it is the central theorem of modern
+data engineering.** Verified against canonical literature (some of it peer-reviewed) by
+`/histerical-search`:
 
-- **Jay Kreps, «The Log»** (creador de Kafka, LinkedIn Eng): *el log es la abstracción de
-  almacenamiento más simple posible —append-only, totalmente ordenado por tiempo—* y **la tabla
-  es un caché / vista derivada del log.** No entiendes bases de datos, replicación, consenso ni
-  control de versiones sin entenderlo.
+- **Jay Kreps, "The Log"** (creator of Kafka, LinkedIn Eng): *the log is the simplest
+  possible storage abstraction —append-only, totally ordered by time—* and **the table
+  is a cache / derived view of the log.** You don't understand databases, replication,
+  consensus or version control without understanding it.
   <https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying>
-- **Pat Helland, «Immutability Changes Everything»** (ACM Queue / CIDR 2015): *"los contadores no
-  usan borradores"* — todo es append-only, y **«el contenido de la base de datos es un caché de
-  los últimos valores que están en los logs».** <https://queue.acm.org/detail.cfm?id=2884038>
-- **WAL / ARIES** (lo implementan Postgres, Oracle, MySQL): la durabilidad se logra escribiendo
-  primero a un **log append-only secuencial** — más rápido que el acceso aleatorio.
-- **Martin Fowler, Event Sourcing**: el **event store append-only es la única fuente de verdad**;
-  el estado es una vista derivada. Ejemplo canónico: el control de versiones (el log de commits es
-  la verdad; el working copy es derivado). <https://martinfowler.com/articles/201701-event-driven.html>
+- **Pat Helland, "Immutability Changes Everything"** (ACM Queue / CIDR 2015):
+  *"accountants don't use erasers"* — everything is append-only, and **"the contents of
+  the database are a caching of the latest values in the logs."**
+  <https://queue.acm.org/detail.cfm?id=2884038>
+- **WAL / ARIES** (implemented by Postgres, Oracle, MySQL): durability is achieved by
+  writing first to a sequential **append-only log** — faster than random access.
+- **Martin Fowler, Event Sourcing**: the **append-only event store is the single source
+  of truth**; state is a derived view. Canonical example: version control (the commit
+  log is the truth; the working copy is derived).
+  <https://martinfowler.com/articles/201701-event-driven.html>
 
-**Consecuencia dura para este repo** (es `[[log-es-la-verdad]]`, la regla del repo):
+**Hard consequence for this repo** (it is `[[log-is-the-truth]]`, the repo's law):
 
-- El **`session_store` (transcript append-only en Postgres) es LA VERDAD** — la magia. El **SSR /
-  `render.py` es la vista derivada** — el mesero. Por eso *matar el proceso → `GET` → repinta desde
-  Postgres* funciona: es event sourcing (reconstruir el estado reprocesando el log), no un truco.
-- **NUNCA** dejes que la vista renderizada, el pool en RAM, ni ningún caché se vuelvan la fuente de
-  verdad. El transcript append-only es la única verdad; todo lo demás se deriva de él.
-- El **engine es el daemon-que-escucha** (patrón Reactor / event loop, el problema C10K de 1999).
-  Lo único nuevo entre el `accept()` y el `INSERT` es que el parser ahora razona. La IA es el
-  *transform*; el log y el socket son eternos y no se tocan.
+- The **`session_store` (append-only transcript in Postgres) is THE TRUTH** — the magic.
+  The **SSR / `render.py` is the derived view** — the waiter. That's why *kill the
+  process → `GET` → repaint from Postgres* works: it is event sourcing (rebuilding state
+  by reprocessing the log), not a trick.
+- **NEVER** let the rendered view, the in-RAM pool, or any cache become the source of
+  truth. The append-only transcript is the only truth; everything else derives from it.
+- The **engine is the listening daemon** (Reactor pattern / event loop, the C10K problem
+  of 1999). The only new thing between the `accept()` and the `INSERT` is that the
+  parser now reasons. AI is the *transform*; the log and the socket are eternal and
+  untouchable.
 
 ---
 
-Todo lo de abajo fue **verificado contra el código fuente del SDK instalado**
-(`claude-agent-sdk` 0.2.116) o contra las docs oficiales — nunca contra memoria.
-Si vas a contradecir algo de aquí, verifícalo primero de la misma forma.
+Everything below was **verified against the source code of the installed SDK**
+(`claude-agent-sdk` 0.2.116) or the official docs — never against memory. If you're
+going to contradict anything here, verify it first the same way.
 
-## Las decisiones, ya tomadas
+## The decisions, already made
 
-1. **AIRE es un SERVICIO, no una librería.** No se importa: se llama por HTTP. Así el
-   SDK vive en un solo sitio, las credenciales de Postgres viven en un solo sitio, y
-   cualquier lenguaje puede hablarle.
-0. **EL SERVIDOR ES LA INTERFAZ — SSR, no una API JSON.** Ésta es la tesis central y lo
-   que separa a AIRE de todo lo demás. Los otros exponen el SDK como API y te dejan
-   construir el frontend (agent-webkit = hooks de React; el cookbook = JSON sobre SSE).
-   AIRE **devuelve HTML renderizado en el servidor, que se va escribiendo solo** conforme
-   el agente piensa. `GET /projects/avatar` → una página, con el agente trabajando, en
-   vivo. Sin React, sin npm, sin build, sin frontend.
-   - Consecuencia gratis: la "página para ver mis sesiones" **no es otro proyecto** — es
-     el mismo servidor.
-   - Reto técnico real: un agente no responde en un request (piensa, usa herramientas,
-     corrige). Hace falta **HTML en streaming**: la página llega inmediata y los eventos
-     del SDK la van pintando. No es SSR clásico de un solo disparo.
-   - Por eso ninguno de los seis repos encontrados servía: todos son API-first.
-2. **Una sola base, un `project_key` por proyecto.** El `SessionKey` del SDK ya trae
-   `project_key`; su docstring dice *"Multi-tenant deployments should set this."*
-3. **La memoria (transcript) va a Postgres. La obra (los archivos) va a git.** Separadas
-   a propósito.
-4. **El contenedor no guarda nada.** `CLAUDE_CONFIG_DIR=/tmp`.
+1. **AIRE is a SERVICE, not a library.** You don't import it: you call it over HTTP.
+   That way the SDK lives in a single place, the Postgres credentials live in a single
+   place, and any language can talk to it.
+0. **THE SERVER IS THE INTERFACE — SSR, not a JSON API.** This is the central thesis and
+   what separates AIRE from everything else. The others expose the SDK as an API and
+   leave the frontend to you (agent-webkit = React hooks; the cookbook = JSON over SSE).
+   AIRE **returns server-rendered HTML that keeps writing itself** as the agent thinks.
+   `GET /projects/avatar` → a page, with the agent working, live. No React, no npm, no
+   build, no frontend.
+   - Free consequence: the "page to view my sessions" **is not another project** — it's
+     the same server.
+   - Real technical challenge: an agent doesn't answer within one request (it thinks,
+     uses tools, corrects itself). This needs **streaming HTML**: the page arrives
+     immediately and the SDK's events keep painting it. It is not classic one-shot SSR.
+   - That's why none of the six repos surveyed would do: they're all API-first.
+2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
+   carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
+3. **The memory (transcript) goes to Postgres. The work (the files) goes to git.**
+   Separated on purpose.
+4. **The container stores nothing.** `CLAUDE_CONFIG_DIR=/tmp`.
 
-## Lo que NO hay que escribir — ya existe
+## What NOT to write — it already exists
 
-- **El store de Postgres**: `examples/session_stores/postgres_session_store.py` en
+- **The Postgres store**: `examples/session_stores/postgres_session_store.py` in
   [claude-agent-sdk-python](https://github.com/anthropics/claude-agent-sdk-python).
-  Usa asyncpg, PK `(project_key, session_id, subpath, seq)`. **Cópialo, no lo escribas.**
-  (Ya se cometió ese error una vez: se escribió a mano un store que ya existía.)
-- **El servidor HTTP**: `claude_agent_sdk/hosting/` en
+  Uses asyncpg, PK `(project_key, session_id, subpath, seq)`. **Copy it, don't write it.**
+  (That mistake was already made once: a store that already existed got written by hand.)
+- **The HTTP server**: `claude_agent_sdk/hosting/` in
   [claude-cookbooks](https://github.com/anthropics/claude-cookbooks) — FastAPI + SSE +
   `POST /sessions/{id}/messages` + Dockerfile + K8s + Modal.
-- **La suite de conformance**: `from claude_agent_sdk.testing import run_session_store_conformance`
-  — 14 contratos, viene dentro del paquete. Córrela contra cualquier store.
+- **The conformance suite**: `from claude_agent_sdk.testing import run_session_store_conformance`
+  — 14 contracts, ships inside the package. Run it against any store.
 
-## El contrato HTTP
+## The HTTP contract
 
-Lo que el server oficial (`claude-cookbooks/hosting/server.py`) **ya expone**, verificado
-leyendo su código:
+What the official server (`claude-cookbooks/hosting/server.py`) **already exposes**,
+verified by reading its code:
 
 ```http
 GET  /health
 POST /sessions/{session_id}/messages
-     Authorization: Bearer <AGENT_AUTH_TOKEN>    # sí tiene auth: _require_token + compare_digest
+     Authorization: Bearer <AGENT_AUTH_TOKEN>    # it does have auth: _require_token + compare_digest
      { "prompt": "..." }
      → text/event-stream  (event: message … event: done)
 ```
 
-Lo que **AIRE** expone, abriendo el eje que al cookbook le falta (tiene `cwd="/app"`
-hardcodeado → un solo proyecto):
+What **AIRE** exposes, opening the axis the cookbook lacks (it has `cwd="/app"`
+hardcoded → a single project):
 
 ```http
 POST /projects/{project}/sessions/{session}/messages
 ```
 
-Mapea 1:1 al `SessionKey` del SDK: `{project_key, session_id}`. El SDK exige que
-`session_id` sea **UUID** (lo valida), pero **sí deja fijarlo** → derívalo determinísticamente
-del nombre con `uuid5(NS, "avatar/manuscrito")`: nombres legibles afuera, UUIDs adentro,
-sin tabla de mapeo.
+Maps 1:1 to the SDK's `SessionKey`: `{project_key, session_id}`. The SDK requires
+`session_id` to be a **UUID** (it validates it), but it **does let you set it** → derive
+it deterministically from the name with `uuid5(NS, "avatar/manuscript")`: readable names
+outside, UUIDs inside, no mapping table.
 
-## Lo que SÍ hay que escribir (~150 líneas)
+## What DOES need writing (~150 lines)
 
-Es lo que el cookbook oficial **no** trae:
+It's what the official cookbook does **not** ship:
 
-1. Cablear `session_store=` en las `ClaudeAgentOptions` (el cookbook no lo hace: mira
-   su `_build_options()`).
-2. `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` por proyecto (tiene `cwd="/app"` hardcodeado).
-3. Aislamiento multi-tenant: `setting_sources=[]`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
-4. Manejar el evento `mirror_error` y deduplicar por `entry.uuid` en `append()`.
-5. Tirar su `_remember()` / `hosting_session_map.json` (el dict en RAM): con `session_id`
-   fijable + `uuid5`, no hace falta mapeo alguno.
+1. Wire `session_store=` into the `ClaudeAgentOptions` (the cookbook doesn't: look at
+   its `_build_options()`).
+2. `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` per project (it has `cwd="/app"` hardcoded).
+3. Multi-tenant isolation: `setting_sources=[]`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`.
+4. Handle the `mirror_error` event and deduplicate by `entry.uuid` in `append()`.
+5. Drop its `_remember()` / `hosting_session_map.json` (the in-RAM dict): with a
+   settable `session_id` + `uuid5`, no mapping is needed at all.
 
-## Hechos verificados del SDK (no los re-descubras)
+## Verified SDK facts (don't re-discover them)
 
-- **`session_id` SÍ se puede fijar.** `subprocess_cli.py:355` → `cmd.extend(["--session-id", ...])`.
-  **No hace falta una tabla de mapeo** de id externo a id del SDK.
-- **`session_store` y `enable_file_checkpointing` son INCOMPATIBLES.** El SDK lanza
+- **`session_id` CAN be set.** `subprocess_cli.py:355` → `cmd.extend(["--session-id", ...])`.
+  **No mapping table needed** from external id to SDK id.
+- **`session_store` and `enable_file_checkpointing` are INCOMPATIBLE.** The SDK raises
   `ValueError` (`session_store_validation.py`): *"checkpoints are local-disk only and
-  would diverge from the mirrored transcript."* → **El scratch/permanente se resuelve
-  con git (ramas, `git mv`), no con `rewind_files()`.**
-- **`session_store` es un espejo, no un reemplazo.** El subproceso sigue escribiendo el
-  JSONL a disco; el adapter recibe **una copia secundaria**. Al resumir, el SDK carga
-  del store y lo materializa en un temp dir con `CLAUDE_CONFIG_DIR`.
-- **`session_store_flush='eager'`** escribe cada entrada al momento → sin ventana de
-  pérdida si el contenedor muere. `'batched'` es más rápido pero puede perder.
-- **`continue_conversation` + `session_store` exige `list_sessions()`** implementado.
-- **Solo `append()` y `load()` son obligatorios** en el Protocol; los otros cuatro son
-  opcionales y el SDK los prueba en runtime.
-- **Hay dos memorias distintas**: `SessionStore` (transcript crudo) y la
-  **Memory Tool** (`memory_20250818`, hechos destilados, client-side → tu misma base).
-- **`SandboxSettings`** confina al agente (bash sandbox, `excludedCommands: ["git"]`).
-  El "contenedor que no se automodifica" es **config, no infra**.
-- **Hook `Stop`** → ahí va el `git commit && push` al cerrar cada job.
-- **`max_budget_usd`** → tope duro de gasto por query.
+  would diverge from the mirrored transcript."* → **Scratch-vs-permanent is solved with
+  git (branches, `git mv`), not with `rewind_files()`.**
+- **`session_store` is a mirror, not a replacement.** The subprocess keeps writing the
+  JSONL to disk; the adapter receives **a secondary copy**. On resume, the SDK loads
+  from the store and materializes it into a temp dir with `CLAUDE_CONFIG_DIR`.
+- **`session_store_flush='eager'`** writes each entry immediately → no loss window if
+  the container dies. `'batched'` is faster but can lose.
+- **`continue_conversation` + `session_store` requires `list_sessions()`** implemented.
+- **Only `append()` and `load()` are mandatory** in the Protocol; the other four are
+  optional and the SDK probes them at runtime.
+- **There are two distinct memories**: `SessionStore` (raw transcript) and the
+  **Memory Tool** (`memory_20250818`, distilled facts, client-side → your same database).
+- **`SandboxSettings`** confines the agent (bash sandbox, `excludedCommands: ["git"]`).
+  The "container that doesn't self-modify" is **config, not infra**.
+- **`Stop` hook** → that's where the `git commit && push` goes when each job closes.
+- **`max_budget_usd`** → hard spend cap per query.
 
-## Rutas descartadas (no las re-propongas)
+## Discarded routes (don't re-propose them)
 
-- **VM efímera con SSH** (el `air-lite` original): es el Agent SDK reinventado con
-  `boto3` + `paramiko`. Muerto.
-- **VM persistente ("never terminate")**: reinventa git como almacenamiento y paga renta
-  24/7 por un disco que es punto único de falla. Muerto.
-- **Managed Agents** (el hosted de Anthropic): la memoria vive **de su lado**, sin
-  `session_store`, no elegible para ZDR, y cobra **$0.08/hora de sesión** además de
-  tokens. Mata el dashboard y las queries propias. Muerto para este caso.
-- **Adoptar Agno AgentOS**: su `ClaudeAgent` **no pasa `session_store`** (0 ocurrencias
-  en su código) y guarda el mapeo en un `Dict` en RAM → pierde el `resume` al reiniciar.
-  Verificado leyendo `libs/agno/agno/agents/claude/agent.py`. Tiene el mismo agujero
-  que AIRE viene a tapar.
-- **Adoptar ArcReel**: es **AGPL-3.0** (viral) y su `DbSessionStore` es una librería
-  interna de su producto, no un servicio. No se puede llamar desde otros proyectos.
+- **Ephemeral VM with SSH** (the original `air-lite`): it's the Agent SDK reinvented
+  with `boto3` + `paramiko`. Dead.
+- **Persistent VM ("never terminate")**: reinvents git as storage and pays 24/7 rent for
+  a disk that is a single point of failure. Dead.
+- **Managed Agents** (Anthropic's hosted offering): the memory lives **on their side**,
+  no `session_store`, not eligible for ZDR, and it charges **$0.08 per session-hour** on
+  top of tokens. Kills the dashboard and your own queries. Dead for this use case.
+- **Adopting Agno AgentOS**: its `ClaudeAgent` **does not pass `session_store`**
+  (0 occurrences in its code) and keeps the mapping in an in-RAM `Dict` → loses `resume`
+  on restart. Verified by reading `libs/agno/agno/agents/claude/agent.py`. It has the
+  same hole AIRE exists to plug.
+- **Adopting ArcReel**: it's **AGPL-3.0** (viral) and its `DbSessionStore` is an internal
+  library of their product, not a service. It can't be called from other projects.
 
-## El estado del arte (verificado leyendo código, julio 2026)
+## The state of the art (verified by reading code, July 2026)
 
-**No es cierto que "nadie cablee el `session_store`"** — esa afirmación estuvo en este
-archivo y era **falsa**. La verdad, por ejes:
+**It is NOT true that "nobody wires the `session_store`"** — that claim was in this file
+and it was **false**. The truth, by axis:
 
-| | Refleja a una DB | Servidor HTTP reutilizable | Housekeeping |
+| | Mirrors to a DB | Reusable HTTP server | Housekeeping |
 |---|---|---|---|
-| `claude-cookbooks/hosting` (oficial) | ❌ dict en RAM + disco | ⚠️ un proyecto (`cwd="/app"`) | ❌ |
-| Agno (41k ⭐) | ❌ dict en RAM + disco | ✅ | ❌ |
-| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ `DbSessionStore`, SQLAlchemy (PG/SQLite) | ❌ lib interna | ❌ |
+| `claude-cookbooks/hosting` (official) | ❌ in-RAM dict + disk | ⚠️ single project (`cwd="/app"`) | ❌ |
+| Agno (41k ⭐) | ❌ in-RAM dict + disk | ✅ | ❌ |
+| [ArcReel](https://github.com/ArcReel/ArcReel) (3.2k ⭐, AGPL) | ✅ `DbSessionStore`, SQLAlchemy (PG/SQLite) | ❌ internal lib | ❌ |
 | **AIRE** | ✅ | ✅ | ✅ |
 
-ArcReel es la prueba de que el caso de uso es real: su producto es novela → personajes →
-escenas → video, y llegaron a la misma solución. Pero **ninguno de los tres barre**: cero
-`ttl`/`retention`/`cleanup`/`archive` en su código.
+ArcReel is proof the use case is real: their product is novel → characters → scenes →
+video, and they arrived at the same solution. But **none of the three sweeps**: zero
+`ttl`/`retention`/`cleanup`/`archive` in their code.
 
-## El housekeeping es un pilar, no un extra
+## Housekeeping is a pillar, not an extra
 
-El docstring del `SessionStore` **delega la retención al adapter, por escrito**:
+The `SessionStore` docstring **delegates retention to the adapter, in writing**:
 
 > *"The SDK **never deletes** from your store… Retention is the adapter's responsibility —
 > implement TTL, object-storage lifecycle policies, or scheduled cleanup according to your
 > compliance requirements (e.g. ZDR/HIPAA retention windows)."*
 
-Es decir: la memoria **acumula para siempre** por diseño, y limpiarla es trabajo del
-adapter. Nadie lo ha hecho. Ése es el hueco más limpio de AIRE.
+That is: the memory **accumulates forever** by design, and cleaning it is the adapter's
+job. Nobody has done it. That is AIRE's cleanest gap.
 
-## Cómo trabajar aquí
+## How to work here
 
-- **Verifica contra el código, no contra la doc ni contra tu memoria.** Esta sesión
-  produjo tres afirmaciones falsas que solo el código fuente desmintió.
-- **Bernard distingue aprender de construir.** Cuando está entendiendo algo, no te
-  adelantes a escribir código: se lo robas. Pregunta si no es obvio cuál de los dos modos
-  es el activo.
+- **English only.** Every byte committed to this repo is written in English — see
+  `.claude/rules/english-only.md`.
+- **Verify against the code, not the docs and not your memory.** One session produced
+  three false claims that only the source code disproved.
+- **Bernard distinguishes learning from building.** When he is understanding something,
+  don't rush ahead writing code: you would be stealing it from him. Ask if it isn't
+  obvious which of the two modes is active.

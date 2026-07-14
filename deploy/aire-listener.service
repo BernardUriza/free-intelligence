@@ -1,5 +1,5 @@
 [Unit]
-Description=AIRE listener — daemon TCP append-only (puerto 9099)
+Description=AIRE listener — append-only TCP daemon (port 9099)
 After=network-online.target
 Wants=network-online.target
 

@@ -1,18 +1,18 @@
-"""AIRE — el daemon que escucha. SIN inteligencia.
+"""AIRE — the daemon that listens. NO intelligence.
 
-El chasis eterno, desnudo: `accept()` → lee líneas → **append al log**. Es el
-daemon de EC-GPS —un servicio siempre prendido escuchando en un puerto TCP— sin
-el Perl y sin el cerebro. La IA (engine/render/store, que siguen en el repo) se
-sienta DESPUÉS, entre el `accept()` y el append. Hoy no está: a propósito.
+The eternal chassis, bare: `accept()` → read lines → **append to the log**. It is
+the EC-GPS daemon —an always-on service listening on a TCP port— without the Perl
+and without the brain. The AI (engine/render/store, still in the repo) sits
+AFTER, between the `accept()` and the append. Today it isn't here: on purpose.
 
-Cada línea que llega de un device se agrega, tal cual, a un log **append-only**
-(`aire.log`), con timestamp y el peer. Greppable, que es toda la meta:
+Every line arriving from a device is appended, as-is, to an **append-only** log
+(`aire.log`), with a timestamp and the peer. Greppable, which is the whole point:
 
-    tail -f aire.log | grep KEEPALIVE      # los latidos, en vivo
-    grep MESSAGE aire.log                   # los mensajes random del device
+    tail -f aire.log | grep KEEPALIVE      # the heartbeats, live
+    grep MESSAGE aire.log                   # the device's random messages
 
-El día que esto viva en una VM de Azure, "entrar por SSH y hacer grep" es
-literalmente eso — la experiencia de EC-GPS, recreada.
+The day this lives on a cloud box, "SSH in and grep" is literally that — the
+EC-GPS experience, recreated.
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ def _now() -> str:
 
 
 def append(line: str) -> None:
-    """Append-only: solo se agrega, nunca se reescribe (la ley del repo,
-    [[log-es-la-verdad]]). El log ES la verdad."""
+    """Append-only: entries are only added, never rewritten (the repo's law,
+    [[log-is-the-truth]]). The log IS the truth."""
     with LOG.open("a") as f:
         f.write(line + "\n")
         f.flush()
@@ -46,7 +46,7 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
     try:
         while True:
             raw = await reader.readline()
-            if not raw:  # el device cerró la conexión
+            if not raw:  # the device closed the connection
                 break
             msg = raw.decode(errors="replace").rstrip("\r\n")
             if msg:
@@ -59,7 +59,7 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
 async def main() -> None:
     server = await asyncio.start_server(handle, HOST, PORT)
     append(f"{_now()} - LISTENING {HOST}:{PORT}")
-    print(f"AIRE listener escuchando en {HOST}:{PORT} → {LOG}", flush=True)
+    print(f"AIRE listener listening on {HOST}:{PORT} → {LOG}", flush=True)
     async with server:
         await server.serve_forever()
 

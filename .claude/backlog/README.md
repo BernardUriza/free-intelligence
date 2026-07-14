@@ -1,38 +1,38 @@
 # Backlog — AIRE
 
-## El espejo (que la memoria no se pierda)
+## The mirror (so the memory is never lost)
 
-| # | Item | Estado |
+| # | Item | Status |
 |---|------|--------|
-| 1 | Copiar `postgres_session_store.py` oficial del SDK y correrle `run_session_store_conformance` (14 contratos) | Propuesto |
-| 2 | Traer `hosting/server.py` del cookbook oficial y **cablearle el `session_store`** (lo que no trae) | Propuesto |
-| 3 | `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` por proyecto (el cookbook lo tiene hardcodeado en `/app`) | Propuesto |
-| 4 | `uuid5` determinístico del nombre → adiós al `hosting_session_map.json` y al dict en RAM | Propuesto |
-| **5** | **Tracer: capítulo 1 → matar el contenedor → capítulo 2 lee el capítulo 1 desde Postgres** | **Propuesto** |
+| 1 | Copy the SDK's official `postgres_session_store.py` and run `run_session_store_conformance` against it (14 contracts) | Proposed |
+| 2 | Bring in `hosting/server.py` from the official cookbook and **wire the `session_store`** into it (which it lacks) | Proposed |
+| 3 | `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` per project (the cookbook hardcodes it to `/app`) | Proposed |
+| 4 | Deterministic `uuid5` from the name → goodbye `hosting_session_map.json` and the in-RAM dict | Proposed |
+| **5** | **Tracer: chapter 1 → kill the container → chapter 2 reads chapter 1 from Postgres** | **Proposed** |
 
-## La escoba (que la basura sea manejable)
+## The broom (so the garbage stays manageable)
 
-El SDK **nunca borra** y delega la retención al adapter por escrito. Nadie lo ha
-implementado — ni el cookbook, ni Agno, ni ArcReel. Es el hueco más limpio.
+The SDK **never deletes** and delegates retention to the adapter in writing. Nobody
+has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleanest gap.
 
-| # | Item | Estado |
+| # | Item | Status |
 |---|------|--------|
-| 6 | Retención: TTL por proyecto, archivar sesiones frías, purgar | Propuesto |
-| 7 | Backups programados (`pg_dump` + cron) | Propuesto |
-| 8 | Métricas: cuánto pesa cada proyecto, cuántas sesiones, cuánto costaron | Propuesto |
-| 9 | Compactación / resumen de sesiones viejas antes de archivarlas | Idea |
+| 6 | Retention: per-project TTL, archive cold sessions, purge | Proposed |
+| 7 | Scheduled backups (`pg_dump` + cron) | Proposed |
+| 8 | Metrics: how much each project weighs, how many sessions, what they cost | Proposed |
+| 9 | Compaction / summarization of old sessions before archiving them | Idea |
 
-## Lo que se abre porque la base es tuya
+## What opens up because the database is yours
 
-| # | Item | Estado |
+| # | Item | Status |
 |---|------|--------|
-| 10 | Página para ver tus sesiones (es un `SELECT`) | Propuesto |
-| 11 | Memory Tool (`memory_20250818`) → hechos destilados en la misma base | Propuesto |
-| 12 | Hook `Stop` → `git commit && push` del corpus al cerrar cada job | Propuesto |
-| 13 | Búsqueda semántica sobre las sesiones (pgvector) | Idea |
-| 14 | PR a Agno: añadirle `session_store` a su `ClaudeAgent` (41k ⭐, le faltan pocas líneas) | Idea |
+| 10 | A page to view your sessions (it's a `SELECT`) | Proposed |
+| 11 | Memory Tool (`memory_20250818`) → distilled facts in the same database | Proposed |
+| 12 | `Stop` hook → `git commit && push` of the corpus when each job closes | Proposed |
+| 13 | Semantic search over the sessions (pgvector) | Idea |
+| 14 | PR to Agno: add `session_store` to their `ClaudeAgent` (41k ⭐, it's only a few lines) | Idea |
 
 ---
 
-**El único que importa hoy es el #5.** Todo lo demás es plomería hasta que el capítulo 2
-se acuerde del capítulo 1.
+**The only one that matters today is #5.** Everything else is plumbing until chapter 2
+remembers chapter 1.
