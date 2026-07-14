@@ -27,6 +27,7 @@ SSH_KEY="$HOME/.ssh/aire_vm"           # key pair dedicated to this droplet
 # key, installed below at /root/.ssh/github_deploy from ~/.secrets/.
 DEPLOY_KEY="$HOME/.secrets/aire-github-deploy-key.txt"
 PEN_SECRET="$HOME/.secrets/aire-postgres.txt"
+VERB_TOKEN_FILE="$HOME/.secrets/aire-verb-token.txt"
 REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"
 
@@ -111,12 +112,20 @@ scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$DEPLOY_KEY" "root@${IP}:
 $SSH "root@${IP}" 'chmod 600 /root/.ssh/github_deploy
 grep -q "^Host github.com$" /root/.ssh/config 2>/dev/null || printf "Host github.com\n  IdentityFile /root/.ssh/github_deploy\n  StrictHostKeyChecking accept-new\n" >> /root/.ssh/config'
 
+echo "    [local] composing /etc/aire/env (pen DSN + verb token, if present)…"
+ENV_CONTENT=""
 if [[ -f "$PEN_SECRET" ]]; then
-  echo "    [local] installing the pen secret (/etc/aire/env)…"
-  DSN="$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET" | cut -d= -f2-)"
-  $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; printf 'AIRE_DATABASE_URL=%s\n' '$DSN' > /etc/aire/env"
+  ENV_CONTENT+="$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET")"$'\n'
 else
   echo "    [local] no $PEN_SECRET — listener will run file-only (no pen)."
+fi
+if [[ -f "$VERB_TOKEN_FILE" ]]; then
+  ENV_CONTENT+="$(grep '^AIRE_VERB_TOKEN=' "$VERB_TOKEN_FILE")"$'\n'
+else
+  echo "    [local] no $VERB_TOKEN_FILE — verbs (MKDIR) will be disabled."
+fi
+if [[ -n "$ENV_CONTENT" ]]; then
+  printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"
 fi
 
 $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' <<'REMOTE'

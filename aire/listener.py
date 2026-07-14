@@ -14,6 +14,18 @@ Every line arriving from a device is appended, as-is, to an **append-only** log
 The day this lives on a cloud box, "SSH in and grep" is literally that — the
 EC-GPS experience, recreated.
 
+The first verb (``AIRE_VERB_TOKEN``)
+------------------------------------
+``MKDIR <token> <name>`` asks the daemon to create a **session casita**: a fresh
+workspace folder ``workspaces/{timestamp}_{uuid4}_{name}`` where a future
+agent-mode session will live and work (files, runs, everything inside its own
+home). Every session is born new — the uniqueness is the point. The verb is
+gated by a long token that lives only on Bernard's Mac and in ``/etc/aire/env``;
+the port stays internet-open, but ordering requires the family password.
+Reporting (plain lines) needs no token, as before. Still no intelligence:
+command-as-event — the token-redacted command and its outcome are appended like
+any other line, and the client gets a one-line ACK (``CREATED <path>``).
+
 The pen (``AIRE_DATABASE_URL``)
 -------------------------------
 EC-GPS welds its ``gps_logs`` to the droplet's disk: if the box dies, the memory
@@ -29,6 +41,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
+import secrets as secrets_mod
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -36,6 +51,11 @@ LOG = Path(os.environ.get("AIRE_LOG", Path(__file__).resolve().parent.parent / "
 HOST = os.environ.get("AIRE_HOST", "0.0.0.0")
 PORT = int(os.environ.get("AIRE_PORT", "9099"))
 DSN = os.environ.get("AIRE_DATABASE_URL", "")
+WORKSPACES = Path(
+    os.environ.get("AIRE_WORKSPACES", Path(__file__).resolve().parent.parent / "workspaces")
+)
+VERB_TOKEN = os.environ.get("AIRE_VERB_TOKEN", "")
+NAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS aire_log (
@@ -129,6 +149,36 @@ def append(line: str) -> None:
         PEN.write(line)
 
 
+def mkdir_verb(msg: str, addr: str) -> str:
+    """The first verb. `MKDIR <token> <name>` → a fresh session casita under
+    ``workspaces/``, named ``{timestamp}_{uuid4}_{name}`` — every session is
+    born new, never reused. Command-as-event: the (token-REDACTED) command and
+    its result are appended to the log like any other line; the raw token never
+    touches the log, the file, or Postgres. The reply is the ACK the client
+    reads back, EC-GPS style."""
+    parts = msg.split()
+    if len(parts) != 3:
+        append(f"{_now()} {addr} MKDIR-REJECTED bad-syntax")
+        return "REJECTED usage: MKDIR <token> <name>"
+    _, token, name = parts
+    if not VERB_TOKEN or not secrets_mod.compare_digest(token, VERB_TOKEN):
+        append(f"{_now()} {addr} MKDIR-DENIED")
+        return "DENIED"
+    if not NAME_RE.match(name):
+        append(f"{_now()} {addr} MKDIR-REJECTED bad-name")
+        return "REJECTED name must match [A-Za-z0-9_-]{1,64}"
+    append(f"{_now()} {addr} MKDIR {name}")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    path = WORKSPACES / f"{stamp}_{uuid.uuid4()}_{name}"
+    try:
+        path.mkdir(parents=True, exist_ok=False)
+    except OSError as exc:
+        append(f"{_now()} - MKDIR-ERROR {exc!r}")
+        return "ERROR could not create"
+    append(f"{_now()} - FOLDER-CREATED {path}")
+    return f"CREATED {path}"
+
+
 async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
     peer = writer.get_extra_info("peername")
     addr = f"{peer[0]}:{peer[1]}" if peer else "?"
@@ -148,7 +198,13 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
             if not raw:  # the device closed the connection
                 break
             msg = raw.decode(errors="replace").rstrip("\r\n")
-            if msg:
+            if not msg:
+                continue
+            if msg.startswith("MKDIR"):
+                reply = mkdir_verb(msg, addr)
+                writer.write((reply + "\n").encode())
+                await writer.drain()
+            else:
                 append(f"{_now()} {addr} {msg}")
     finally:
         append(f"{_now()} {addr} DISCONNECT")
