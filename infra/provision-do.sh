@@ -124,8 +124,10 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 echo "    [remote] base packages (git, python3, asyncpg for the pen)…"
-apt-get update -qq
-apt-get install -y -qq git python3 python3-asyncpg >/dev/null
+# A fresh droplet's cloud-init holds the dpkg lock for a while — wait, don't race.
+APT="apt-get -o DPkg::Lock::Timeout=300"
+$APT update -qq
+$APT install -y -qq git python3 python3-asyncpg >/dev/null
 
 echo "    [remote] /etc/aire (out-of-band secrets, e.g. AIRE_DATABASE_URL)…"
 install -d -m 700 /etc/aire
