@@ -36,6 +36,7 @@ from discord.ext import tasks
 
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
 from khimeras_shared.attachments import process_attachments
+from khimeras_shared.facts import extract_facts, merge_facts_additive
 from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
@@ -45,6 +46,7 @@ from khimeras_shared.remember_marker import parse_remembers, persist_remembers, 
 from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
 from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
+from khimeras_shared.runner.judge_client import RunnerJudgeClient
 from khimeras_shared.tts import (
     DEFAULT_SUSURRO_URL,
     build_susurro_tts_client,
@@ -73,6 +75,14 @@ RESEARCH_MAX_RETRIES = 2
 # real frequency — this loop just wakes to see what's due.
 AGENDA_CHECK_SECONDS = 600.0
 AGENDA_TIMEOUT_S = 360.0
+
+# Automatic fact extraction (the `source='auto'` backstop behind the persona's
+# in-band [REMEMBER:] marker). Falsy model → the runner picks its own judge-model
+# default (Haiku class); FACTS_EXTRACTION_MODEL overrides it without a code change.
+FACTS_EXTRACTION_MODEL = os.environ.get("FACTS_EXTRACTION_MODEL") or None
+# How much of the channel tail the extractor reads. Matches the legacy backstop's
+# window (it slices the last 10 itself) with headroom for the current turn.
+FACTS_RECENT_WINDOW = 12
 
 # Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
 # `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
@@ -200,11 +210,16 @@ class PersonaClient(discord.Client):
         intents: discord.Intents,
         tts_client=None,
         auto_tts_min_chars: int = 0,
+        judge_client: RunnerJudgeClient | None = None,
     ) -> None:
         super().__init__(intents=intents)
         self.persona = persona
         self.memory = memory
         self.agent_client = agent_client
+        # One-shot LLM (runner /v1/judge) for the automatic fact-extraction
+        # backstop. None → extraction is simply off; the turn is unaffected and
+        # the in-band [REMEMBER:] marker still writes facts on its own.
+        self.judge_client = judge_client
         # TTS: this persona owns its OWN voice. None when susurro TTS env is unset
         # → 🔊 on its messages is silently skipped (voice off), never spoken by
         # Insult (Insult's VoiceCog skips sibling-authored messages).
@@ -519,6 +534,70 @@ class PersonaClient(discord.Client):
             messages=messages,
             react_to=message,
         )
+        # A mention carries a REAL user ask — the only turn worth mining for
+        # facts. Runs AFTER delivery, in the background, so the extraction's LLM
+        # round-trip never sits between the user and their reply.
+        self._spawn_fact_extraction(
+            user_id,
+            message.author.display_name,
+            [*recent[-FACTS_RECENT_WINDOW:], {"user_name": message.author.display_name, "content": ask}],
+        )
+
+    def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
+        """Fire-and-forget the fact backstop, tracked so the loop can't GC it."""
+        if self.judge_client is None or not user_id:
+            return
+        task = asyncio.create_task(self._extract_and_persist_facts(user_id, user_name, recent))
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
+
+    async def _extract_and_persist_facts(self, user_id: str, user_name: str, recent: list[dict]) -> None:
+        """Grow the user's longitudinal memory — ADD-only, best-effort.
+
+        The extractor sees a SUBSET of what is stored, but `save_facts` REPLACES
+        the whole `source='auto'` snapshot. So its output is UNIONED onto the
+        COMPLETE live auto set (`get_auto_facts`) before saving: the snapshot
+        written is always a SUPERSET of what was there, and extraction can only
+        ADD (P0 2026-06-03 — a raw `save_facts(extractor_output)` hard-deletes
+        every auto fact outside the extractor's view, every turn, no recovery).
+
+        Everything here is best-effort: a dead judge or a failed save is logged
+        and swallowed. The user already has their reply; memory growth must never
+        be able to break a delivered turn.
+        """
+        try:
+            existing = await self.memory.get_facts(user_id)
+            new_facts = await extract_facts(
+                self.judge_client,
+                FACTS_EXTRACTION_MODEL,
+                user_name,
+                existing,
+                recent,
+            )
+            all_auto = await self.memory.get_auto_facts(user_id)
+            merged, added = merge_facts_additive(all_auto, new_facts)
+            if not added:
+                log.info(
+                    "facts_extraction_nothing_new",
+                    persona_id=self.persona.persona_id,
+                    user_id=user_id,
+                    total_auto=len(merged),
+                )
+                return
+            await self.memory.save_facts(user_id, merged)
+            log.info(
+                "facts_extracted_additive",
+                persona_id=self.persona.persona_id,
+                user_id=user_id,
+                added=len(added),
+                total_auto=len(merged),
+            )
+        except Exception:
+            log.exception(
+                "facts_extraction_failed",
+                persona_id=self.persona.persona_id,
+                user_id=user_id,
+            )
 
     async def _process_attachments(self, message: discord.Message) -> list[dict]:
         """Image/document attachments of the summoning message → Anthropic blocks.
@@ -834,16 +913,18 @@ class PersonaClient(discord.Client):
             await self._speak(channel, text, reason="auto")
 
 
-def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int, str]:
+def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int, str, RunnerJudgeClient]:
     """Construct the deps shared by all persona-bots (same wiring as Insult).
 
     Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
     TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
     simply off (the gateway still runs); it is never delegated to Insult.
 
-    The last element is the `/invite` bearer token (INSULT_TO_ALICE_TOKEN) — the
-    same secret the legacy alice-bot endpoint used, so repointing the caller is a
-    no-op on the contract.
+    The `/invite` bearer token (INSULT_TO_ALICE_TOKEN) is the same secret the
+    legacy alice-bot endpoint used, so repointing the caller is a no-op on the
+    contract. The last element is the one-shot judge client (runner /v1/judge)
+    that drives the automatic fact-extraction backstop — same runner URL + token
+    as the turn client, a different endpoint.
     """
     config = PersonaRuntimeConfig.from_env()
 
@@ -860,6 +941,9 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     # a longer wait is honest UX; Insult's plumbing keeps its own 120s because
     # its timeout feeds the ALICE failover path.
     agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token, timeout_s=240.0)
+    # Same runner, different endpoint: /v1/judge for the one-shot fact extractor.
+    # Off the turn's critical path (background task), so its timeout is generous.
+    judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
 
     tts_client = build_susurro_tts_client(
         base_url=os.environ.get("SUSURRO_URL", DEFAULT_SUSURRO_URL),
@@ -875,7 +959,7 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
         auto_tts_min_chars=auto_tts_min_chars,
     )
     invite_token = config.insult_to_alice_token.get_secret_value()
-    return memory, agent_client, tts_client, auto_tts_min_chars, invite_token
+    return memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client
 
 
 def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
@@ -950,7 +1034,7 @@ async def _supervise_persona(persona_id: str, coro, boot: GatewayBootState) -> N
 
 
 async def _main() -> None:
-    memory, agent_client, tts_client, auto_tts_min_chars, invite_token = _build_shared()
+    memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = _build_shared()
 
     intents = discord.Intents.default()
     intents.message_content = True
@@ -969,6 +1053,7 @@ async def _main() -> None:
             intents=intents,
             tts_client=tts_client,
             auto_tts_min_chars=auto_tts_min_chars,
+            judge_client=judge_client,
         )
         tokens[persona.persona_id] = token
 

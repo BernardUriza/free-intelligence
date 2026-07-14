@@ -187,7 +187,8 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
         order.append("db_connect")
 
     memory = SimpleNamespace(connect=fake_connect, close=AsyncMock())
-    shared = (memory, object(), None, 0, TOKEN)
+    # (memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client)
+    shared = (memory, object(), None, 0, TOKEN, object())
     monkeypatch.setattr(gateway_mod, "_build_shared", lambda: shared)
 
     persona = SimpleNamespace(persona_id="alice", token_env="ALICE_DISCORD_TOKEN")
