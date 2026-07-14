@@ -135,7 +135,16 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
     append(f"{_now()} {addr} CONNECT")
     try:
         while True:
-            raw = await reader.readline()
+            try:
+                raw = await reader.readline()
+            except ValueError:
+                # A line longer than asyncio's 64KiB buffer with no newline. The
+                # port is open to the internet by design (EC-GPS: devices push),
+                # so a peer that never sends \n is EXPECTED input, not a bug —
+                # drop that peer instead of letting the exception escape the task
+                # and print an unhandled traceback into the journal.
+                append(f"{_now()} {addr} OVERLONG-LINE dropped")
+                break
             if not raw:  # the device closed the connection
                 break
             msg = raw.decode(errors="replace").rstrip("\r\n")
@@ -144,6 +153,7 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
     finally:
         append(f"{_now()} {addr} DISCONNECT")
         writer.close()
+        await writer.wait_closed()
 
 
 async def main() -> None:
