@@ -51,6 +51,32 @@ async def test_active_corpus_binding_folds_into_system_prompt():
 
 
 @pytest.mark.asyncio
+async def test_binding_carries_the_search_first_policy():
+    """With an active corpus the agent must search PROACTIVELY (og118 finding:
+    the persona asked '¿quieres que busque?' instead of just searching). The
+    addendum names search_documents, forbids asking permission, and resolves
+    every template placeholder."""
+    be = _CapturingBackend()
+    runner = _runner(be, context_prompt=active_corpus_binding())
+    await runner.run("¿qué vendemos?", context={"corpus_id": "project-papeleria"})
+    sp = be.calls[0]["system_prompt"]
+    assert "search_documents" in sp
+    assert "SEARCH FIRST" in sp
+    assert 'corpus_id="project-papeleria"' in sp
+    assert "{corpus}" not in sp and "{tool_hint}" not in sp  # placeholders resolved
+
+
+@pytest.mark.asyncio
+async def test_custom_tool_hint_is_interpolated():
+    be = _CapturingBackend()
+    runner = _runner(be, context_prompt=active_corpus_binding(tool_hint="my_search tool"))
+    await runner.run("hola", context={"corpus_id": "c1"})
+    sp = be.calls[0]["system_prompt"]
+    assert "my_search tool" in sp
+    assert "{tool_hint}" not in sp
+
+
+@pytest.mark.asyncio
 async def test_binding_does_not_touch_the_user_message():
     be = _CapturingBackend()
     runner = _runner(be, context_prompt=active_corpus_binding())
