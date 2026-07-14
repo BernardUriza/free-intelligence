@@ -14,7 +14,8 @@ export interface Og118ProjectRowProps {
   project: Og118Project;
   selected: boolean;
   disabled: boolean;
-  onSelect: (id: string) => void;
+  /** `null` deactivates the project — clicking the active row toggles it off. */
+  onSelect: (id: string | null) => void;
   onDelete: (id: string) => void;
 }
 
@@ -29,7 +30,8 @@ export function Og118ProjectRow({
     <AgentSidebarItem
       title={project.name}
       selected={selected}
-      onSelect={() => onSelect(project.id)}
+      toggleable
+      onSelect={() => onSelect(selected ? null : project.id)}
       disabled={disabled}
       ariaLabel={project.name}
       actions={

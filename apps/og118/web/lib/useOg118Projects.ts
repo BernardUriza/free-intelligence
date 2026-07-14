@@ -39,7 +39,7 @@ export interface UseOg118Projects {
   ready: boolean;
   /** Mints the corpus_id server-side (POST /projects), never client-side. */
   createProject: (name: string) => Promise<string>;
-  selectProject: (id: string) => void;
+  selectProject: (id: string | null) => void;
   /** Deletes server-side (DELETE /projects/{id}) AND the local cache. */
   deleteProject: (id: string) => Promise<void>;
 }
@@ -211,7 +211,7 @@ export function useOg118Projects(
     [writeProjects, writeActive],
   );
 
-  const selectProject = useCallback((id: string) => writeActive(id), [writeActive]);
+  const selectProject = useCallback((id: string | null) => writeActive(id), [writeActive]);
 
   const deleteProject = useCallback(
     async (id: string): Promise<void> => {

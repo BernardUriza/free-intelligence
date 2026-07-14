@@ -47,7 +47,7 @@ describe('Og118ProjectsSection (1B — shared sidebar item)', () => {
     expect(screen.getByRole('button', { name: 'Tareas escuela' })).toBeInTheDocument();
   });
 
-  it('marks the active project with aria-current and does not re-select it on click', async () => {
+  it('marks the active project with aria-current and deselects it on click (toggle-off)', async () => {
     const onSelect = vi.fn();
     render(
       <Og118ProjectsSection
@@ -61,7 +61,7 @@ describe('Og118ProjectsSection (1B — shared sidebar item)', () => {
     const activeRow = screen.getByRole('button', { name: 'Negocio de mamá' });
     expect(activeRow).toHaveAttribute('aria-current', 'true');
     await userEvent.click(activeRow);
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 
   it('fires onSelect when a non-active project row is clicked', async () => {
