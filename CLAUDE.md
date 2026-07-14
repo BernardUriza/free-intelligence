@@ -116,6 +116,9 @@ memory. To contradict anything here, verify it first the same way.
   [`.claude/rules/english-only.md`](.claude/rules/english-only.md).
 - **The log is the truth.** Touching memory or rendering? Read
   [`.claude/rules/log-is-the-truth.md`](.claude/rules/log-is-the-truth.md) first.
+- **The device verbs (MKDIR/ALLOW/REVOKE) and the whitelist** are a frozen
+  contract with a persistence model — see
+  [`.claude/rules/device-verb-protocol.md`](.claude/rules/device-verb-protocol.md).
 - **Verify against the code, not the docs and not your memory.** This repo already
   produced three false claims that only source code disproved.
 - **Bernard distinguishes learning from building.** When he is understanding something,

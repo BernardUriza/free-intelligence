@@ -28,6 +28,9 @@ SSH_KEY="$HOME/.ssh/aire_vm"           # key pair dedicated to this droplet
 DEPLOY_KEY="$HOME/.secrets/aire-github-deploy-key.txt"
 PEN_SECRET="$HOME/.secrets/aire-postgres.txt"
 VERB_TOKEN_FILE="$HOME/.secrets/aire-verb-token.txt"
+LLM_TOKEN_FILE="$HOME/.secrets/aire-llm-token.txt"
+OAUTH_FILE="$HOME/.secrets/og118-claude-oauth.txt"
+WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"
 
@@ -112,18 +115,33 @@ scp -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "$DEPLOY_KEY" "root@${IP}:
 $SSH "root@${IP}" 'chmod 600 /root/.ssh/github_deploy
 grep -q "^Host github.com$" /root/.ssh/config 2>/dev/null || printf "Host github.com\n  IdentityFile /root/.ssh/github_deploy\n  StrictHostKeyChecking accept-new\n" >> /root/.ssh/config'
 
-echo "    [local] composing /etc/aire/env (pen DSN + verb token, if present)…"
+# Compose /etc/aire/env from ALL operational secrets so a re-provision (the kill
+# test) resurrects the FULL droplet, not a half-configured one. Every knob set
+# out-of-band this session lives in a ~/.secrets/ file and is restored here:
+# the pen DSN, the verb token, the engine's Bearer + OAuth + budget, and the
+# whitelist enforcement flag. A missing file degrades that one feature, loudly.
+echo "    [local] composing /etc/aire/env from ~/.secrets/…"
 ENV_CONTENT=""
-if [[ -f "$PEN_SECRET" ]]; then
-  ENV_CONTENT+="$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET")"$'\n'
-else
-  echo "    [local] no $PEN_SECRET — listener will run file-only (no pen)."
+append_secret() {  # <file> <KEY=> <human-name>
+  if [[ -f "$1" ]]; then
+    local line; line="$(grep "^$2" "$1" | head -1)"
+    [[ -n "$line" ]] && ENV_CONTENT+="$line"$'\n'
+  else
+    echo "    [local] no $1 — $3 disabled."
+  fi
+}
+append_secret "$PEN_SECRET"        "AIRE_DATABASE_URL=" "the pen (Postgres mirror)"
+append_secret "$PEN_SECRET"        "AIRE_DSN="          "the engine store"  # if the file also carries AIRE_DSN
+# The engine reads AIRE_DSN; it is the same Postgres as the pen. Derive it from
+# the pen DSN when the file does not carry an explicit AIRE_DSN line.
+if [[ -f "$PEN_SECRET" ]] && ! grep -q '^AIRE_DSN=' "$PEN_SECRET"; then
+  ENV_CONTENT+="AIRE_DSN=$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET" | cut -d= -f2-)"$'\n'
 fi
-if [[ -f "$VERB_TOKEN_FILE" ]]; then
-  ENV_CONTENT+="$(grep '^AIRE_VERB_TOKEN=' "$VERB_TOKEN_FILE")"$'\n'
-else
-  echo "    [local] no $VERB_TOKEN_FILE — verbs (MKDIR) will be disabled."
-fi
+append_secret "$VERB_TOKEN_FILE"   "AIRE_VERB_TOKEN="   "the verbs (MKDIR/ALLOW/REVOKE)"
+append_secret "$LLM_TOKEN_FILE"    "AIRE_AUTH_TOKEN="   "the engine's LLM door"
+append_secret "$OAUTH_FILE"        "CLAUDE_CODE_OAUTH_TOKEN=" "the engine's Anthropic auth"
+append_secret "$WHITELIST_FILE"    "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
+ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'
 if [[ -n "$ENV_CONTENT" ]]; then
   printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"
 fi
@@ -132,13 +150,19 @@ $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' <<'REM
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-echo "    [remote] base packages (git, python3, asyncpg for the pen)…"
+echo "    [remote] base packages (git, python3, venv, asyncpg)…"
 # A fresh droplet's cloud-init holds the dpkg lock for a while — wait, don't race.
 APT="apt-get -o DPkg::Lock::Timeout=300"
 $APT update -qq
-$APT install -y -qq git python3 python3-asyncpg >/dev/null
+$APT install -y -qq git python3 python3-venv python3-asyncpg tmux >/dev/null
 
-echo "    [remote] /etc/aire (out-of-band secrets, e.g. AIRE_DATABASE_URL)…"
+echo "    [remote] swap (the Claude CLI is memory-hungry on a 512MB box)…"
+if [[ ! -f /swapfile ]]; then
+  fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile -q \
+    && swapon /swapfile && echo "/swapfile none swap sw 0 0" >> /etc/fstab
+fi
+
+echo "    [remote] /etc/aire (out-of-band secrets)…"
 install -d -m 700 /etc/aire
 
 echo "    [remote] repo at $REMOTE_DIR…"
@@ -149,18 +173,28 @@ else
   git clone "$REPO_URL" "$REMOTE_DIR"
 fi
 
-echo "    [remote] systemd units…"
-cp "$REMOTE_DIR/deploy/aire-listener.service" "$REMOTE_DIR/deploy/aire-device.service" /etc/systemd/system/
+echo "    [remote] python venv + deps (the engine)…"
+[[ -d "$REMOTE_DIR/.venv" ]] || python3 -m venv "$REMOTE_DIR/.venv"
+"$REMOTE_DIR/.venv/bin/pip" install -q --no-input -r "$REMOTE_DIR/requirements.txt"
 
-echo "    [remote] daemon-reload + enable --now…"
+echo "    [remote] Claude CLI (the engine's subprocess AND the SSH door)…"
+command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
+
+echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
+cp "$REMOTE_DIR/deploy/aire-listener.service" "$REMOTE_DIR/deploy/aire-device.service" \
+   "$REMOTE_DIR/deploy/aire-server.service" \
+   "$REMOTE_DIR/deploy/aire-sweep.service" "$REMOTE_DIR/deploy/aire-sweep.timer" /etc/systemd/system/
+cp "$REMOTE_DIR/deploy/logrotate-aire" /etc/logrotate.d/aire
+
+echo "    [remote] daemon-reload + enable --now (device stays disabled — it's retired)…"
 systemctl daemon-reload
-systemctl enable --now aire-listener aire-device
+systemctl enable --now aire-listener aire-server aire-sweep.timer
 
 echo "    [remote] verifying real state…"
 sleep 3
 # is-active with multiple units exits 0 if AT LEAST ONE is active — check each
 # unit on its own so a dead one actually fails the bootstrap.
-for u in aire-listener aire-device; do
+for u in aire-listener aire-server aire-sweep.timer; do
   if ! systemctl --quiet is-active "$u"; then
     echo "$u is NOT active"
     systemctl status "$u" --no-pager || true
