@@ -46,12 +46,12 @@ jobs:
           install -m 644 deploy/logrotate-aire /etc/logrotate.d/aire
           systemctl daemon-reload
           systemctl enable --now aire-server >/dev/null 2>&1 || true
-          systemctl restart aire-listener aire-device aire-server
+          systemctl restart aire-listener aire-server
           systemctl enable --now aire-sweep.timer
           sleep 3
           # is-active with multiple units exits 0 if AT LEAST ONE is active —
           # check each unit on its own so a dead one actually breaks the job.
-          for u in aire-listener aire-device aire-server aire-sweep.timer; do
+          for u in aire-listener aire-server aire-sweep.timer; do
             if ! systemctl --quiet is-active "$u"; then
               echo "$u is NOT active"
               systemctl status "$u" --no-pager || true

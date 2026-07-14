@@ -18,28 +18,36 @@ AIRE is being built in two layers, deliberately in this order:
 
 ## What is breathing right now (the droplet)
 
-An Ubuntu 24.04 droplet (`s-1vcpu-512mb`, ~$4/mo, `nyc3`) runs two systemd
+An Ubuntu 24.04 droplet (`s-1vcpu-512mb`, ~$4/mo, `nyc3`) runs these systemd
 units 24/7:
 
 - **`aire-listener`** (`aire/listener.py`) — the daemon: `accept()` → read
   lines → append to `/opt/aire/aire.log`; with `AIRE_DATABASE_URL` set, each
-  line is also mirrored to an append-only Postgres table (the pen).
-- **`aire-device`** (`demo_device.py`) — a simulated GPS device: a `KEEPALIVE`
-  heartbeat every ~2s, plus random `MESSAGE` events.
+  line is also mirrored to an append-only Postgres table (the pen). The `MKDIR`
+  verb (token-gated) creates session casitas.
+- **`aire-server`** (`aire/server.py`) — the engine's HTTP surface on :8088:
+  SSE events only, Bearer-gated, budget-capped.
+- **`aire-sweep.timer`** — the broom (30-day retention).
+- **`aire-device`** (`demo_device.py`) — the simulated GPS device that pushed
+  `KEEPALIVE` heartbeats. **Retired 2026-07-14**: it proved the chassis (24k
+  heartbeats, the kill test, the first casitas) and its job is done. The unit is
+  installed but `disabled`; `systemctl start aire-device` brings it back for a
+  demo. Real events (web `VISIT` beacons, `MKDIR` verbs) feed the log now.
 
 The whole point of this phase is the experience of watching a living daemon:
 
 ```bash
-ssh -i ~/.ssh/aire_vm root@<IP> 'tail -f /opt/aire/aire.log | grep KEEPALIVE'
+ssh -i ~/.ssh/aire_vm root@<IP> 'tail -f /opt/aire/aire.log'
 ```
 
-If the keep-alives are flowing, the air is still blowing (the `/soplo` ritual).
+If the daemon answers and the pen still writes, the air is still blowing (the
+`/soplo` ritual).
 And the raw surface is deliberate — a droplet instead of a PaaS is also **the
 Linux curriculum**: SSH, `systemctl`, `journalctl`, a port bound by a real
 process. The friction is the value.
 
 Deploys are **never done by hand**: every push to `main` touching the code makes
-GitHub Actions SSH in, reset to `origin/main`, restart both units and verify
+GitHub Actions SSH in, reset to `origin/main`, restart the units and verify
 each one came back `active`. Runbooks: [`infra/`](infra/README.md)
 (provisioning + the $20/mo budget law) and [`deploy/`](deploy/README.md)
 (the CI/CD contract).
@@ -133,7 +141,7 @@ missing glue around the SDK, callable from any language.
 
 | Layer | State |
 |---|---|
-| Droplet + listener + device + CI/CD + costwatch | ✅ **Live**, heartbeats accumulating 24/7 |
+| Droplet + listener + CI/CD + costwatch + broom | ✅ **Live** 24/7 (the demo device is retired — it proved the chassis) |
 | The pen — log mirrored to Postgres | ✅ Live behind `AIRE_DATABASE_URL` |
 | Postgres session store (`aire/store.py`) | ✅ SDK conformance suite green (local) |
 | Engine + SSE events (`aire/engine.py`, `server.py`) | ✅ **Live** on the droplet :8088, Bearer-gated, budget-capped |
