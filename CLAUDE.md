@@ -35,6 +35,71 @@ hay funeral.** Esa es la prueba de fuego de cualquier decisión de diseño en es
 Por eso murieron la VM efímera, la VM eterna, Managed Agents y el disco persistente. Todas
 eran cuerpos.
 
+## La génesis — de dónde salió la forma (no se inventó aquí)
+
+La pregunta original —*"¿qué diferencia hay entre un EC2 y una VM?"*— tenía una respuesta
+que Bernard ya había visto trabajando años atrás, en una empresa de rastreo GPS: **EC-GPS**
+(`ec-gps.com`, de Carlos Feria Tapia, Zapopan). Su máquina de ingresos completa, hasta hoy,
+es esto:
+
+- Los **receptores GPS empujan** su posición por **GPRS** a un servidor siempre prendido.
+- Ese servidor —*"el centro de gestión"*— es un **daemon de Perl** escuchando en unos puertos,
+  que vivía en una **VM de Linux en un droplet**, mantenida por **SSH**.
+- El daemon **parsea** cada paquete y lo **escribe en una tabla append-only, `gps_logs`.**
+- El backend **PHP** (`/app`, la consola) es **el mesero**: solo **lee** `gps_logs` y la muestra
+  en un mapa. Nunca la escribe. Es reemplazable (GoDaddy, Vercel, da igual).
+
+Ésa es la respuesta al EC2-vs-VM: para un daemon-que-escucha, **un EC2 y una VM en un droplet
+son lo mismo** — un cuerpo Linux prendido 24/7 con un puerto abierto y SSH. No hace falta la
+elegancia de AWS; hace falta un cuerpo que no se apague.
+
+**AIRE es esa máquina, pieza por pieza** — no es una analogía, es el plano literal:
+
+| EC-GPS (la máquina de Carlos FT) | AIRE |
+|---|---|
+| receptores GPS empujan por GPRS | apps empujan prompts por HTTP |
+| daemon de **Perl** escuchando en un puerto | el **engine** dueño del SDK (`aire/engine.py`) |
+| parsea y escribe `gps_logs` (append-only) | refleja el transcript al `session_store` (append-only, Postgres) |
+| el **mesero PHP** lee y muestra | el **SSR** lee y te lo pinta en vivo |
+| VM de Linux en droplet, SSH | el servidor always-on |
+
+El parser de Perl convertía un paquete GPRS de formato fijo en un renglón con un regex. **El de
+AIRE convierte un prompt en una sesión que razona.** Mismo esqueleto; el paso de parseo se
+volvió inteligencia. Y la única evolución sobre EC-GPS: su magia está **soldada a un cuerpo
+mortal** (si el droplet muere, muere `gps_logs` y muere el negocio); AIRE le **arranca el cuerpo
+a la memoria** — `gps_logs` se vuelve Postgres, en la base del dueño. Por eso *"sin cuerpo que
+perder"*.
+
+## El mesero y la magia — el log es la verdad, la vista es un caché (respaldo científico)
+
+La distinción mesero-vs-magia **no es intuición: es el teorema central de la ingeniería de datos
+moderna.** Verificado en literatura canónica (algunas peer-reviewed) por `/histerical-search`:
+
+- **Jay Kreps, «The Log»** (creador de Kafka, LinkedIn Eng): *el log es la abstracción de
+  almacenamiento más simple posible —append-only, totalmente ordenado por tiempo—* y **la tabla
+  es un caché / vista derivada del log.** No entiendes bases de datos, replicación, consenso ni
+  control de versiones sin entenderlo.
+  <https://engineering.linkedin.com/distributed-systems/log-what-every-software-engineer-should-know-about-real-time-datas-unifying>
+- **Pat Helland, «Immutability Changes Everything»** (ACM Queue / CIDR 2015): *"los contadores no
+  usan borradores"* — todo es append-only, y **«el contenido de la base de datos es un caché de
+  los últimos valores que están en los logs».** <https://queue.acm.org/detail.cfm?id=2884038>
+- **WAL / ARIES** (lo implementan Postgres, Oracle, MySQL): la durabilidad se logra escribiendo
+  primero a un **log append-only secuencial** — más rápido que el acceso aleatorio.
+- **Martin Fowler, Event Sourcing**: el **event store append-only es la única fuente de verdad**;
+  el estado es una vista derivada. Ejemplo canónico: el control de versiones (el log de commits es
+  la verdad; el working copy es derivado). <https://martinfowler.com/articles/201701-event-driven.html>
+
+**Consecuencia dura para este repo** (es `[[log-es-la-verdad]]`, la regla del repo):
+
+- El **`session_store` (transcript append-only en Postgres) es LA VERDAD** — la magia. El **SSR /
+  `render.py` es la vista derivada** — el mesero. Por eso *matar el proceso → `GET` → repinta desde
+  Postgres* funciona: es event sourcing (reconstruir el estado reprocesando el log), no un truco.
+- **NUNCA** dejes que la vista renderizada, el pool en RAM, ni ningún caché se vuelvan la fuente de
+  verdad. El transcript append-only es la única verdad; todo lo demás se deriva de él.
+- El **engine es el daemon-que-escucha** (patrón Reactor / event loop, el problema C10K de 1999).
+  Lo único nuevo entre el `accept()` y el `INSERT` es que el parser ahora razona. La IA es el
+  *transform*; el log y el socket son eternos y no se tocan.
+
 ---
 
 Todo lo de abajo fue **verificado contra el código fuente del SDK instalado**
