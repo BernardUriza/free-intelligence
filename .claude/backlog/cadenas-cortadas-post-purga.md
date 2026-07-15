@@ -43,3 +43,17 @@ necesita re-poblado frecuente. **Congelado**: los ingest scripts viven en git
 
 Cada "❄️" es reversible: la capa de datos existe, solo falta re-cablear el disparador
 a una ruta viva (runner/gateway). Ninguna es urgente a la escala actual.
+
+## 5. Job `fact-consolidation` — ❄️ CONGELADO POR SEGURIDAD (2026-07-15)
+
+**Era un riesgo real para Alex, no infra de bajo valor.** El ACA Job corría cada
+2 días (`0 7 */2 * *`) con la imagen PRE-PURGA `insult-bot:d6fa36c` y el comando
+`python -m personas.insult consolidate-facts` — o sea, el consolidador VIEJO, SIN
+el guard clínico (`filter_clinical_destruction` + prompt conservador) que se agregó
+hoy. Estaba podando los facts de Alex cada 48h con capacidad de borrar salud/trauma.
+
+**Congelado**: cron cambiado a `0 0 31 2 *` (31-feb, nunca se dispara). Reversible.
+**Re-hogar (follow-up)**: construir un entrypoint de consolidación en el sistema
+vivo (`khimeras_shared.memory_consolidation.consolidate_all_users`) + una imagen
+que lo corra, y recién entonces re-activar el cron. NUNCA re-activar apuntando a la
+imagen vieja.
