@@ -63,8 +63,10 @@ from khimeras_shared.corpus.pg_rag import (
 )
 from khimeras_shared.corpus.pg_rag import connect as _connect
 from khimeras_shared.corpus.pg_rag import embed_text
+from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 
 log = structlog.get_logger()
+_PROMPT_CACHE: PromptCache = {}
 
 # ─── Storage ───────────────────────────────────────────────────────────
 
@@ -234,9 +236,7 @@ async def build_user_memory_block(*, user_id: str, text: str | None) -> str | No
         hits=len(lines),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
     )
-    from personas.insult.core.prompts_loader import load_prompt
-
-    return load_prompt("deep_memory_header") + "\n" + "\n".join(lines)
+    return load_prompt(SHARED_PROMPTS_DIR, "deep_memory_header", _PROMPT_CACHE) + "\n" + "\n".join(lines)
 
 
 # ─── Incremental ingest (siesta consolidator hook, DM-6) ──────────────
