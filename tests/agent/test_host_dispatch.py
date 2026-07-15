@@ -28,6 +28,15 @@ async def test_routes_and_summons_the_chosen_persona():
     assert "bernard" in summon.await_args.args[0]["reason"]
 
 
+async def test_trigger_message_id_reaches_the_summon_for_reactions():
+    """The reaction anchor must ride through to /invite, else the routed turn's
+    [REACT:] markers drop (the post-cutover regression this fixes)."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="frugivoro", reason="llm_frugivoro")))
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        await dispatch.route_and_dispatch(router, channel_id="C1", text="receta vegana", trigger_message_id="m42")
+    assert summon.await_args.kwargs["trigger_message_id"] == "m42"
+
+
 async def test_router_exception_returns_none_and_summons_nobody():
     """RESISTANCE: a routing fault must never wedge the host or dispatch blind."""
     router = SimpleNamespace(route=AsyncMock(side_effect=RuntimeError("azure down")))

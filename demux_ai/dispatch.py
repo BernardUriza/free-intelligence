@@ -36,6 +36,7 @@ async def route_and_dispatch(
     guild_id: str | None = None,
     channel_name: str | None = None,
     context: str | None = None,
+    trigger_message_id: str | None = None,
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the router decision (for
     telemetry) or None if routing faulted.
@@ -63,6 +64,7 @@ async def route_and_dispatch(
         channel_name=channel_name,
         persona_id=target,
         invited_by="host",
+        trigger_message_id=trigger_message_id,
     )
     log.info(
         "host_dispatched",

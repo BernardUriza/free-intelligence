@@ -45,12 +45,16 @@ class HostDispatchLoop:
         text: str,
         now: float,
         author_name: str = "",
+        message_id: str | None = None,
     ) -> bool:
         """Feed one inbound message to the batcher. Returns True if accepted.
 
         Ignored (returns False, nothing batched): a bot author (never route another
         bot's output — the Insult↔Vultur loop guard applies to the host too) and a
         command-prefixed line (`!`/`/` are commands, not turns).
+
+        `message_id` rides through the batcher so the routed turn's [REACT:] markers
+        can anchor to the last message of the burst (else host-routed reactions drop).
         """
         if author_is_bot:
             return False
@@ -58,7 +62,7 @@ class HostDispatchLoop:
         if stripped.startswith(COMMAND_PREFIXES):
             return False
         key = f"{channel_id}:{author_id}"
-        self.batcher.add(key, text, now)
+        self.batcher.add(key, text, now, message_id)
         if author_name:
             self._names[key] = author_name
         return True
@@ -67,13 +71,14 @@ class HostDispatchLoop:
         """Flush every due batch and dispatch it. Returns the routing decisions
         (for telemetry/tests). One batch's dispatch fault never blocks the others."""
         decisions = []
-        for key, combined in self.batcher.pop_due(now):
+        for key, combined, message_id in self.batcher.pop_due(now):
             channel_id = key.split(":", 1)[0]
             decision = await route_and_dispatch(
                 self.router,
                 channel_id=channel_id,
                 text=combined,
                 user_name=self._names.pop(key, ""),
+                trigger_message_id=message_id,
             )
             decisions.append(decision)
         return decisions

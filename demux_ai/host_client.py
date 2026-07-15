@@ -26,7 +26,7 @@ from demux_ai.host_loop import HostDispatchLoop
 
 log = structlog.get_logger()
 
-HOST_TOKEN_ENV = "HOST_DISCORD_TOKEN"  # noqa: S105 — env-var NAME, not a secret
+HOST_TOKEN_ENV = "HOST_DISCORD_TOKEN"  # noqa: S105 # nosec B105 — env-var NAME, not a secret
 TICK_SECONDS = 1.0
 
 
@@ -47,6 +47,7 @@ class HostClient(discord.Client):
             text=message.content or "",
             now=now,
             author_name=getattr(message.author, "display_name", ""),
+            message_id=str(message.id),
         )
 
     async def on_ready(self) -> None:

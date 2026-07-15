@@ -20,10 +20,20 @@ from demux_ai.host_loop import HostDispatchLoop
 
 def _message(text: str, *, is_bot: bool = False) -> SimpleNamespace:
     return SimpleNamespace(
+        id=999,
         content=text,
         channel=SimpleNamespace(id=111),
         author=SimpleNamespace(id=222, bot=is_bot, display_name="bern"),
     )
+
+
+def test_ingest_threads_the_message_id_for_reactions():
+    """The message id must reach the batcher so the routed turn can anchor its
+    [REACT:] markers (the post-cutover reactions regression)."""
+    client = _client()
+    client._ingest(_message("reséñame Alien"), now=100.0)
+    due = client.dispatch_loop.batcher.pop_due(now=200.0)
+    assert due == [("111:222", "reséñame Alien", "999")]
 
 
 def _client() -> HostClient:
