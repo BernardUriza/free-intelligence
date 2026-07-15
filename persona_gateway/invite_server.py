@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import time
 from typing import TYPE_CHECKING
 
 import structlog
@@ -47,6 +48,11 @@ log = structlog.get_logger()
 # optional `persona_id` field (HOST 5/6 slice C) lets the LLM router cutover
 # summon any gateway persona through the same endpoint.
 INVITE_PERSONA_ID = "alice"
+
+# A persona is "mute-suspected" only if the last addressed message it saw is
+# older than this AND no reply followed. A single turn's runner call can take
+# ~120s; 180s leaves margin so an in-flight turn is never misread as mute.
+_MUTE_GRACE_SECONDS = 180.0
 
 
 class InviteRequest(BaseModel):
@@ -109,6 +115,32 @@ def build_invite_app(
     @app.get("/health")
     async def health() -> dict[str, object]:
         ready = _ready_personas()
+        now = time.time()
+
+        def _age(ts: float | None) -> float | None:
+            return None if ts is None else round(now - ts, 1)
+
+        # "Alive but mute" (#14): a persona that took an addressed message and
+        # produced no reply. serving:true can't see it; these can. Suspected when
+        # a message was seen more recently than a turn was delivered AND that
+        # message is older than the grace window (a turn's own runner call can
+        # take up to ~2 min — below the window it's just in flight, not mute).
+        liveness: dict[str, dict] = {}
+        mute_suspected: list[str] = []
+        for persona_id, client in personas.items():
+            seen = getattr(client, "last_message_seen", None)
+            delivered = getattr(client, "last_turn_delivered", None)
+            is_mute = (
+                seen is not None and (delivered is None or seen > delivered) and (now - seen) > _MUTE_GRACE_SECONDS
+            )
+            if is_mute:
+                mute_suspected.append(persona_id)
+            liveness[persona_id] = {
+                "last_message_age_s": _age(seen),
+                "last_turn_age_s": _age(delivered),
+                "mute_suspected": is_mute,
+            }
+
         return {
             "status": "ok",
             "service": "persona-gateway-invite",
@@ -117,6 +149,9 @@ def build_invite_app(
             "personas_expected": sorted(personas),
             "personas_down": sorted(state.personas_down),
             "db_connected": state.db_connected,
+            # The anti-boot-zombie signal: serving:true is NOT proof of answering.
+            "liveness": liveness,
+            "mute_suspected": sorted(mute_suspected),
         }
 
     @app.post("/invite", response_model=InviteResponse, status_code=status.HTTP_202_ACCEPTED)

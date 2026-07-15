@@ -111,6 +111,15 @@ class PersonaClient(discord.Client):
         # Strong refs to fire-and-forget tasks so the loop doesn't GC them (RUF006).
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
+        # Liveness signal for the "alive but mute" failure (#14). A persona can be
+        # logged in (serving:true) yet answer no one — the 2026-06-13 boot-zombie
+        # class. `serving` alone can't tell that apart; these two timestamps can:
+        # if a message was SEEN more recently than a turn was DELIVERED (past a
+        # grace window), the persona took an addressed message and produced no
+        # reply — mute. Both old = just no traffic (normal at low scale), NOT mute.
+        self.last_message_seen: float | None = None
+        self.last_turn_delivered: float | None = None
+
         # Injected services — the logic lives here, the client just delegates.
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
@@ -222,6 +231,10 @@ class PersonaClient(discord.Client):
             return  # bare @mention with no text and no readable attachment
 
         # Recent context BEFORE storing the current turn, so it isn't duplicated.
+        # An addressed message we're about to answer — mark it SEEN. If a reply
+        # never follows (mark_turn_delivered below), /health surfaces the mute.
+        self.last_message_seen = time.time()
+
         recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
 
         # Persist the user's turn (shared Postgres → every persona sees it).
@@ -264,6 +277,9 @@ class PersonaClient(discord.Client):
             react_to=message,
             behavioral_guidance=guidance,
         )
+        # Reply delivered — the persona is not mute. Stamp it so /health can tell
+        # "answered recently" from "took a message and went silent".
+        self.last_turn_delivered = time.time()
         # A mention carries a REAL user ask — the only turn worth mining for facts.
         # Runs AFTER delivery, in the background, so the extraction's LLM round-trip
         # never sits between the user and their reply.
