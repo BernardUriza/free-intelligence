@@ -1,0 +1,60 @@
+"""The host's Discord shell (#6, slice 4) — the testable seam of the glue.
+
+The network connection needs the real token (the cutover atom, untestable here).
+What IS testable: `_ingest` maps a Discord message onto the dispatch loop, and
+`run_host` stays DORMANT without a token so the shell never becomes a second
+omnipresent bot fighting Insult for reception.
+"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import discord
+
+from demux_ai import host_client
+from demux_ai.host_client import HOST_TOKEN_ENV, HostClient, build_host, run_host
+from demux_ai.host_loop import HostDispatchLoop
+
+
+def _message(text: str, *, is_bot: bool = False) -> SimpleNamespace:
+    return SimpleNamespace(
+        content=text,
+        channel=SimpleNamespace(id=111),
+        author=SimpleNamespace(id=222, bot=is_bot, display_name="bern"),
+    )
+
+
+def _client() -> HostClient:
+    loop = HostDispatchLoop(router=SimpleNamespace(route=MagicMock()))
+    return HostClient(loop, intents=discord.Intents.none())
+
+
+def test_ingest_maps_a_human_message_onto_the_loop():
+    client = _client()
+    accepted = client._ingest(_message("reséñame Alien"), now=100.0)
+    assert accepted is True
+    assert client.dispatch_loop.batcher.pending_keys() == ["111:222"]
+
+
+def test_ingest_ignores_a_bot_message():
+    """RESISTANCE: the host never batches another bot's output."""
+    client = _client()
+    assert client._ingest(_message("soy Vultur", is_bot=True), now=100.0) is False
+    assert client.dispatch_loop.batcher.pending_keys() == []
+
+
+def test_run_host_is_dormant_without_a_token(monkeypatch):
+    """RESISTANCE: no token → the shell does NOT connect (no second omnipresent
+    bot). It logs and returns instead of ever calling discord's .run()."""
+    monkeypatch.delenv(HOST_TOKEN_ENV, raising=False)
+    with patch.object(host_client, "build_host") as bh:
+        run_host(SimpleNamespace(), token=None)
+    bh.assert_not_called()
+
+
+def test_build_host_enables_message_content_intent():
+    """The host must read message text to route it — message_content intent on."""
+    client = build_host(SimpleNamespace())
+    assert client.intents.message_content is True
