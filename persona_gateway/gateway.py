@@ -1,223 +1,88 @@
 """Khimeras persona gateway — one Discord bot user per sibling persona.
 
-Each registered persona (Vultur, future ones) runs as its OWN Discord bot user
-(its own token) but they ALL share ONE brain: the persona-runner, called with a
-`persona_id`. This module is deliberately thin — it does NOT run Insult's preset/
-flow pipeline. The persona's `<id>.md` (loaded by the runner) defines behavior;
-the gateway only:
+Each registered persona (Vultur, Insult, ALICE, Frugívoro…) runs as its OWN
+Discord bot user (its own token) but they ALL share ONE brain: the persona-runner,
+called with a `persona_id`. This module is deliberately thin — it does NOT run a
+preset/flow pipeline. The persona's `<id>.md` (loaded by the runner) defines
+behavior; the gateway only:
 
   1. listens on each persona-bot's gateway,
   2. responds ONLY when that bot is addressed — @mention, its own role mention,
-     or a vocative text alias ("frugi, qué opinas"), the complement of Insult's
-     suppression gate (same shared predicate; never on its own, never to
-     another bot — mirrors the anti-self-invoke guard from Insult/ALICE),
+     or a vocative text alias ("frugi, qué opinas"),
   3. replays recent channel context + the cleaned message to the runner,
   4. posts the reply as that bot user (native name/avatar — no webhook),
-  5. persists both turns to the shared Postgres so Insult and the siblings see
-     one another's words.
+  5. persists both turns to the shared Postgres so the personas see one another.
 
 A single process hosts all persona-bots via `asyncio.gather`, sharing one
-MemoryStore + one AgentRunnerClient. Insult stays in its own process untouched.
+MemoryStore + one AgentRunnerClient.
+
+**Structure (post-modularization).** `PersonaClient` is the thin Discord adapter:
+event handlers + the turn orchestration, each delegating to an injected service —
+- reception predicates → `persona_gateway.routing`
+- reply delivery (chunk + tag + send) → `persona_gateway.delivery`
+- durable markers (research/agenda/remind/remember) → `persona_gateway.markers`
+- the three drain loops → `persona_gateway.workers`
+- background fact extraction → `persona_gateway.facts`
+- per-persona TTS → `persona_gateway.voice`
+- operator-tunable cadences/timeouts → `persona_gateway.config`
+Reactions (`[REACT:]`) stay in `_run_and_deliver` (they need the live message and
+`add_reactions`). Bootstrap (`_build_shared` … `_main`) lives at the bottom.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import io
 import os
-import re
 import time
-from collections.abc import Iterable
 
 import discord
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
 from khimeras_shared.attachments import process_attachments
-from khimeras_shared.facts import extract_facts, merge_facts_additive
 from khimeras_shared.guidance import guidance_for_turn
-from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
-from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from khimeras_shared.prompts import PromptCache
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
-from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
-from khimeras_shared.remind_marker import (
-    compute_next_occurrence,
-    parse_remind,
-    persist_remind,
-    strip_reminds,
-)
-from khimeras_shared.research_marker import parse_research, strip_research
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.tts import (
-    DEFAULT_SUSURRO_URL,
-    build_susurro_tts_client,
-    should_auto_tts,
-    split_for_tts,
-    synthesize_susurro_tts,
-)
-from khimeras_shared.version import VERSION_TAG
+from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
+from persona_gateway.config import CONFIG
+from persona_gateway.delivery import DISCORD_LIMIT, chunk, send_chunked
+from persona_gateway.facts import FactExtractor
+from persona_gateway.markers import MarkerRouter
+from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
+from persona_gateway.voice import VoiceService
+from persona_gateway.workers import AgendaWorker, ReminderWorker, ResearchWorker
 from shared.personas import Persona, gateway_personas
-from shared.personas.addressing import any_alias_is_addressee, opens_addressing_insult
+
+# Re-exports: the tests import these from `persona_gateway.gateway`, and the
+# reactions test monkeypatches `persona_gateway.gateway.add_reactions` — keep the
+# names resolvable on THIS module's namespace so both keep working after the split.
+__all__ = [
+    "DISCORD_LIMIT",
+    "PersonaClient",
+    "chunk",
+    "clean_mention",
+    "edit_summons",
+    "format_context",
+    "run",
+    "should_respond",
+]
 
 SPEAK_EMOJI = "🔊"
 
-# Engine-side prompts (not a persona's voice) live as CONTENT under
-# `khimeras_shared/prompts_md/` and hot-reload on mtime — same house and loader
-# the fact extractor uses. P0: never an inline model-facing string.
-_PROMPT_CACHE: PromptCache = {}
-
-# Durable research jobs: how often each persona-bot drains its queued jobs, and
-# the generous read timeout a deep-research runner turn gets (WebSearch + long
-# reasoning) — the job IS the heavy case, so it does not share the interactive
-# 120s default.
-RESEARCH_DRAIN_SECONDS = 45.0
-RESEARCH_TIMEOUT_S = 360.0
-RESEARCH_MAX_RETRIES = 2
-
-# Standing agendas (the autonomy trigger): each persona checks its due agendas on
-# this cadence and, if there's something genuinely new, posts a finding UNPROMPTED
-# in its own voice. The per-agenda `cadence_hours` (not this interval) throttles
-# real frequency — this loop just wakes to see what's due.
-AGENDA_CHECK_SECONDS = 600.0
-AGENDA_TIMEOUT_S = 360.0
-
-# Reminders: the [REMIND:] row persisted at turn time is DEAD until something
-# fires it. Each persona-bot drains ONLY the rows it owns (persona_id) on this
-# cadence — 30s keeps "recuérdamelo a las 8" honest to the minute. A reminder
-# more than MAX_LATENESS late is retired unsent: nobody wants yesterday's
-# "saca la ropa" at 3am because the bot was down (and a send that keeps failing
-# stops retrying instead of looping forever).
-REMINDER_CHECK_SECONDS = 30.0
-REMINDER_TIMEOUT_S = 90.0
-REMINDER_MAX_LATENESS_S = 86400.0
-
-# Automatic fact extraction (the `source='auto'` backstop behind the persona's
-# in-band [REMEMBER:] marker). Falsy model → the runner picks its own judge-model
-# default (Haiku class); FACTS_EXTRACTION_MODEL overrides it without a code change.
-FACTS_EXTRACTION_MODEL = os.environ.get("FACTS_EXTRACTION_MODEL") or None
-# How much of the channel tail the extractor reads. Matches the legacy backstop's
-# window (it slices the last 10 itself) with headroom for the current turn.
-FACTS_RECENT_WINDOW = 12
-
-# Runtime infra (Postgres DSN + runner URL/token) comes from the neutral
-# `PersonaRuntimeConfig` — env-backed, zero persona identity — so the gateway no
-# longer reaches into `personas.insult.config`. All fields default to empty, so
-# this import is safe at module top-level even when no `.env` is present (CI).
-
 log = structlog.get_logger()
 
-RECENT_LIMIT = 30  # how many prior channel messages to replay to the runner
-DISCORD_LIMIT = 1990  # leave headroom under Discord's 2000-char message cap
+# Engine-side prompt cache (mtime hot-reload) shared by this process's personas.
+_PROMPT_CACHE: PromptCache = {}
+
+# Bind timing for the /invite HTTP server (external protocol contract, not a knob).
 BIND_TIMEOUT_SECONDS = 15.0  # well under the ACA StartUp probe's failure budget
 BIND_POLL_SECONDS = 0.05
-
-
-def clean_mention(content: str, bot_id: int) -> str:
-    """Strip this bot's @mention(s) from the message text, leaving the ask.
-
-    Discord renders mentions as `<@id>` / `<@!id>`. We remove only THIS bot's
-    mention so "@Vultur reséñame Creep" → "reséñame Creep". Other mentions are
-    left intact (they may be meaningful context).
-    """
-    cleaned = re.sub(rf"<@!?{bot_id}>", "", content)
-    return cleaned.strip()
-
-
-def should_respond(
-    message: discord.Message,
-    bot_user: discord.abc.User | None,
-    aliases: Iterable[str] = (),
-) -> bool:
-    """A persona-bot answers iff a NON-bot author addressed it.
-
-    - `author.bot` guard: never auto-invoke, never answer another bot (prevents
-      Insult ↔ Vultur loops — same fix as Insult/ALICE v4.20.19).
-    - mention-gated: opt-in by design; the host (Insult) is the only omnipresent
-      one. A DIRECT user mention (`bot_user in message.mentions`) fires.
-    - ROLE mention of the bot's OWN role also fires: pinging the bot's
-      integration role (or a custom role assigned to the bot) is the classic "I
-      pinged the bot's role expecting it to ping the bot" gotcha — `<@&roleid>`,
-      not `<@userid>`, so it never landed in `message.mentions`. We honor it IFF
-      the mentioned role is one THIS bot actually carries, and NEVER @everyone
-      (its role id equals the guild id), so it stays mass-ping safe.
-    - VOCATIVE text alias of THIS persona also fires ("frugi, qué opinas") — the
-      complement of Insult's suppression gate. Both sides evaluate the SAME
-      predicate (``shared.personas.addressing``): before this, Insult muted on
-      any alias occurrence while the gateway needed a mention, so "dile a frugi
-      que…" got NO answer from anyone for 5 minutes (P0 2026-07-06 17:24Z). A
-      message that OPENS addressing Insult never alias-summons a sibling — the
-      head of the message wins, same as Insult's gate.
-    """
-    if bot_user is None or message.author.bot:
-        return False
-    if bot_user in message.mentions:
-        return True
-    guild = getattr(message, "guild", None)
-    if guild is not None:
-        own_role_ids = {r.id for r in getattr(guild.me, "roles", [])}
-        own_role_ids.discard(guild.id)  # @everyone — never a summon
-        if any(role.id in own_role_ids for role in getattr(message, "role_mentions", [])):
-            return True
-    content = message.content or ""
-    return not opens_addressing_insult(content) and any_alias_is_addressee(aliases, content)
-
-
-def edit_summons(
-    before: discord.Message,
-    after: discord.Message,
-    bot_user: discord.abc.User | None,
-    aliases: Iterable[str] = (),
-) -> bool:
-    """True when an edit ADDS an address to this persona (not-addressed →
-    addressed transition). An edit to a message the persona already answered
-    (addressed before AND after) never re-triggers it."""
-    return not should_respond(before, bot_user, aliases) and should_respond(after, bot_user, aliases)
-
-
-def format_context(recent: list[dict]) -> list[dict]:
-    """Turn stored rows into speaker-prefixed message dicts for the runner.
-
-    Mirrors how the Insult plumbing frames context: each line is
-    "Name: text" so the runner can attribute who said what. Role is kept as a
-    plain "user" turn — the runner reads it as channel context, not as its own
-    history (the persona-bot's own past replies are stored as role='assistant'
-    but here we only need the readable transcript)."""
-    out: list[dict] = []
-    for m in recent:
-        name = m.get("user_name") or "?"
-        content = (m.get("content") or "").strip()
-        if content:
-            out.append({"role": "user", "content": f"{name}: {content}"})
-    return out
-
-
-def chunk(text: str, limit: int = DISCORD_LIMIT) -> list[str]:
-    """Split a reply into Discord-sized pieces on paragraph/space boundaries."""
-    text = (text or "").strip()
-    if not text:
-        return []
-    if len(text) <= limit:
-        return [text]
-    parts: list[str] = []
-    remaining = text
-    while len(remaining) > limit:
-        cut = remaining.rfind("\n", 0, limit)
-        if cut < limit // 2:
-            cut = remaining.rfind(" ", 0, limit)
-        if cut < limit // 2:
-            cut = limit
-        parts.append(remaining[:cut].strip())
-        remaining = remaining[cut:].strip()
-    if remaining:
-        parts.append(remaining)
-    return parts
 
 
 class PersonaClient(discord.Client):
@@ -238,19 +103,23 @@ class PersonaClient(discord.Client):
         self.persona = persona
         self.memory = memory
         self.agent_client = agent_client
-        # One-shot LLM (runner /v1/judge) for the automatic fact-extraction
-        # backstop. None → extraction is simply off; the turn is unaffected and
-        # the in-band [REMEMBER:] marker still writes facts on its own.
+        # Exposed so tests/ops can inspect or toggle it; the None-check reads it
+        # LIVE at spawn time (see FactExtractor), so setting it None disables
+        # extraction on the next turn.
         self.judge_client = judge_client
-        # TTS: this persona owns its OWN voice. None when susurro TTS env is unset
-        # → 🔊 on its messages is silently skipped (voice off), never spoken by
-        # Insult (Insult's VoiceCog skips sibling-authored messages).
-        self.tts_client = tts_client
-        # Auto-speak replies at/above this length (0 = off, manual 🔊 only).
         self.auto_tts_min_chars = auto_tts_min_chars
-        # Strong refs to fire-and-forget reaction tasks so the event loop
-        # doesn't garbage-collect them mid-flight (RUF006).
+        # Strong refs to fire-and-forget tasks so the loop doesn't GC them (RUF006).
         self._bg_tasks: set[asyncio.Task[None]] = set()
+
+        # Injected services — the logic lives here, the client just delegates.
+        self._markers = MarkerRouter(persona, memory)
+        self._voice = VoiceService(persona, tts_client)
+        self._facts = FactExtractor(persona, memory, self._bg_tasks)
+        self._research = ResearchWorker(persona, memory, agent_client)
+        self._agenda = AgendaWorker(persona, memory, agent_client)
+        self._reminders = ReminderWorker(persona, memory, agent_client, _PROMPT_CACHE)
+
+    # --- lifecycle -----------------------------------------------------------
 
     async def on_ready(self) -> None:
         log.info(
@@ -260,368 +129,26 @@ class PersonaClient(discord.Client):
             bot_name=str(self.user) if self.user else None,
             guilds=len(self.guilds),
         )
-        # Start THIS persona's durable-research drain loop + standing-agenda loop
-        # (idempotent across reconnects — on_ready fires again after a resume).
-        if not self._research_drain.is_running():
-            self._research_drain.start()
-        if not self._agenda_check.is_running():
-            self._agenda_check.start()
-        if not self._reminder_drain.is_running():
-            self._reminder_drain.start()
+        # Start the drain loops idempotently (on_ready fires again after a resume).
+        for loop in (self._research_drain, self._agenda_check, self._reminder_drain):
+            if not loop.is_running():
+                loop.start()
 
-    @tasks.loop(seconds=RESEARCH_DRAIN_SECONDS)
+    # --- drain loops: thin shells over the injected workers ------------------
+
+    @tasks.loop(seconds=CONFIG.research_drain_seconds)
     async def _research_drain(self) -> None:
-        """Drain THIS persona's queued research jobs: run each on the runner
-        (WebSearch, long reasoning) and post the report back in this persona's own
-        voice — the deferred "te lo dejo aquí" made real. Crash-survivable: rows
-        persist, a job stuck 'running' after a restart is recovered by the stale
-        sweep below; the loop never overlaps itself (discord.ext.tasks)."""
-        try:
-            await self.memory.reset_stale_research_jobs(RESEARCH_TIMEOUT_S * 2)
-            jobs = await self.memory.get_pending_research_jobs(limit=2, persona_id=self.persona.persona_id)
-        except Exception:
-            log.exception("research_drain_fetch_failed", persona_id=self.persona.persona_id)
-            return
-        for job in jobs:
-            await self._run_research_job(job)
+        await self._research.drain(self)
 
-    async def _run_research_job(self, job: dict) -> None:
-        job_id = job["id"]
-        await self.memory.mark_research_running(job_id)
-        channel = self.get_channel(int(job["channel_id"]))
-        if channel is None:
-            log.warning("research_job_channel_gone", job_id=job_id, channel_id=job["channel_id"])
-            await self.memory.mark_research_failed(job_id)
-            return
-        try:
-            framing = (
-                "TAREA DE INVESTIGACIÓN DIFERIDA que TÚ aceptaste hace un rato en este canal. "
-                "Investígala a fondo AHORA (usa WebSearch/WebFetch si te sirve) y entrega el reporte "
-                "COMPLETO, en tu propia voz, como quien vuelve de la madriguera con lo que fue a buscar. "
-                "Este ES el 'después' que prometiste: NO vuelvas a diferir, NO prometas traerlo luego, "
-                "entrega el contenido ya. Petición original del usuario:\n\n"
-                f"{job['prompt']}"
-            )
-            resp = await self.agent_client.chat(
-                "",
-                [{"role": "user", "content": framing}],
-                # Isolated SDK session so the deep job never pollutes the channel's
-                # live interactive thread; the result still posts to the real channel.
-                channel_id=f"research-job-{job_id}",
-                user_id=job["created_by"],
-                persona_id=self.persona.persona_id,
-                timeout_s=RESEARCH_TIMEOUT_S,
-            )
-            # Deferred delivery: strip EVERY marker (a [REACT:] here has no live
-            # message to act on and would leak as raw text — 2026-07-11 bug).
-            result = strip_delivery_markers((resp.text or "").strip())
-            if not result:
-                raise RuntimeError("empty research result")
-        except Exception:
-            log.exception("research_job_run_failed", job_id=job_id, persona_id=self.persona.persona_id)
-            if job.get("retry_count", 0) < RESEARCH_MAX_RETRIES:
-                await self.memory.requeue_research_job(job_id)
-            else:
-                await self.memory.mark_research_failed(job_id)
-            return
-        try:
-            pieces = chunk(result)
-            tag = f"\n-# {VERSION_TAG}"
-            if pieces and len(pieces[-1]) + len(tag) <= 2000:
-                pieces[-1] += tag
-            for piece in pieces:
-                await channel.send(piece)
-            await self.memory.store(
-                job["channel_id"],
-                str(self.user.id) if self.user else "0",
-                self.persona.display_name,
-                "assistant",
-                result,
-                for_user_id=job["created_by"],
-                guild_id=job.get("guild_id"),
-                channel_name=None,
-                model_used=getattr(resp, "model_used", None),
-            )
-            await self.memory.mark_research_done(job_id, result)
-            log.info(
-                "research_job_delivered",
-                job_id=job_id,
-                persona_id=self.persona.persona_id,
-                chars=len(result),
-            )
-        except Exception:
-            log.exception("research_job_deliver_failed", job_id=job_id, persona_id=self.persona.persona_id)
-            await self.memory.mark_research_failed(job_id)
-
-    @tasks.loop(seconds=AGENDA_CHECK_SECONDS)
+    @tasks.loop(seconds=CONFIG.agenda_check_seconds)
     async def _agenda_check(self) -> None:
-        """The autonomy trigger: pursue THIS persona's due standing agendas and
-        post findings UNPROMPTED — the persona acting on its own goals without
-        being spoken to. Each agenda's `cadence_hours` throttles real frequency;
-        when the runner finds nothing new the persona stays QUIET (no spam)."""
-        import time as _t
+        await self._agenda.drain(self)
 
-        try:
-            agendas = await self.memory.get_due_agendas(_t.time(), limit=2, persona_id=self.persona.persona_id)
-        except Exception:
-            log.exception("agenda_check_fetch_failed", persona_id=self.persona.persona_id)
-            return
-        for agenda in agendas:
-            await self._run_agenda(agenda)
-
-    async def _run_agenda(self, agenda: dict) -> None:
-        import time as _t
-
-        agenda_id = agenda["id"]
-        channel = self.get_channel(int(agenda["channel_id"]))
-        if channel is None:
-            log.warning("agenda_channel_gone", agenda_id=agenda_id, channel_id=agenda["channel_id"])
-            await self.memory.mark_agenda_ran(agenda_id, _t.time())
-            return
-        try:
-            resp = await self.agent_client.chat(
-                "",
-                [{"role": "user", "content": frame_agenda_prompt(agenda["goal"])}],
-                channel_id=f"agenda-{agenda_id}",
-                user_id=agenda["created_by"],
-                persona_id=self.persona.persona_id,
-                timeout_s=AGENDA_TIMEOUT_S,
-            )
-            finding = strip_delivery_markers((resp.text or "").strip())
-        except Exception:
-            log.exception("agenda_run_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
-            # Do NOT mark ran on a transport failure — let it retry next cadence.
-            return
-        # Always mark ran (cadence advances); only POST when there's something new.
-        await self.memory.mark_agenda_ran(agenda_id, _t.time())
-        if is_nothing_new(finding):
-            log.info("agenda_nothing_new", agenda_id=agenda_id, persona_id=self.persona.persona_id)
-            return
-        try:
-            pieces = chunk(finding)
-            tag = f"\n-# {VERSION_TAG}"
-            if pieces and len(pieces[-1]) + len(tag) <= 2000:
-                pieces[-1] += tag
-            for piece in pieces:
-                await channel.send(piece)
-            await self.memory.store(
-                agenda["channel_id"],
-                str(self.user.id) if self.user else "0",
-                self.persona.display_name,
-                "assistant",
-                finding,
-                for_user_id=agenda["created_by"],
-                guild_id=agenda.get("guild_id"),
-                channel_name=None,
-                model_used=getattr(resp, "model_used", None),
-            )
-            log.info(
-                "agenda_finding_posted",
-                agenda_id=agenda_id,
-                persona_id=self.persona.persona_id,
-                chars=len(finding),
-            )
-        except Exception:
-            log.exception("agenda_deliver_failed", agenda_id=agenda_id, persona_id=self.persona.persona_id)
-
-    @tasks.loop(seconds=REMINDER_CHECK_SECONDS)
+    @tasks.loop(seconds=CONFIG.reminder_check_seconds)
     async def _reminder_drain(self) -> None:
-        """Fire THIS persona's due reminders — the promise ("te lo recuerdo a las
-        8") finally kept. Rows are owned by the persona that scheduled them, so a
-        sibling never delivers someone else's reminder and no reminder is sent
-        twice by two live bots. One bad row (channel gone, no permissions) is
-        logged and skipped; the rest of the batch still lands."""
-        try:
-            due = await self.memory.get_pending_reminders(time.time(), persona_id=self.persona.persona_id)
-        except Exception:
-            log.exception("reminder_drain_fetch_failed", persona_id=self.persona.persona_id)
-            return
-        for reminder in due:
-            try:
-                await self._deliver_reminder(reminder)
-            except Exception:
-                log.exception(
-                    "reminder_deliver_failed",
-                    reminder_id=reminder.get("id"),
-                    persona_id=self.persona.persona_id,
-                )
+        await self._reminders.drain(self)
 
-    async def _deliver_reminder(self, reminder: dict) -> None:
-        reminder_id = reminder["id"]
-        channel = self.get_channel(int(reminder["channel_id"]))
-        if channel is None:
-            await self._close_reminder(reminder)
-            log.warning(
-                "reminder_channel_gone",
-                reminder_id=reminder_id,
-                channel_id=reminder["channel_id"],
-                persona_id=self.persona.persona_id,
-            )
-            return
-        lateness = time.time() - float(reminder["remind_at"])
-        if lateness > REMINDER_MAX_LATENESS_S:
-            await self._close_reminder(reminder)
-            log.warning(
-                "reminder_retired_stale",
-                reminder_id=reminder_id,
-                persona_id=self.persona.persona_id,
-                lateness_s=int(lateness),
-            )
-            return
-
-        body = await self._reminder_text(reminder)
-        mentions = " ".join(
-            f"<@{uid.strip()}>" for uid in (reminder.get("mention_user_ids") or "").split(",") if uid.strip()
-        )
-        text = f"{mentions} {body}".strip() if mentions else body
-        pieces = chunk(text)
-        tag = f"\n-# {VERSION_TAG}"
-        if pieces and len(pieces[-1]) + len(tag) <= 2000:
-            pieces[-1] += tag
-        try:
-            for piece in pieces:
-                await channel.send(piece)
-        except Exception:
-            # Transient (rate limit, blip) → the row stays pending and the next
-            # tick retries. Permanent (channel deleted, permissions revoked) →
-            # the staleness guard above retires it. Either way the loop lives and
-            # the rest of the batch is delivered.
-            log.exception(
-                "reminder_send_failed",
-                reminder_id=reminder_id,
-                channel_id=reminder["channel_id"],
-                persona_id=self.persona.persona_id,
-            )
-            return
-
-        await self._close_reminder(reminder)
-        try:
-            await self.memory.store(
-                reminder["channel_id"],
-                str(self.user.id) if self.user else "0",
-                self.persona.display_name,
-                "assistant",
-                text,
-                for_user_id=reminder["created_by"],
-                guild_id=reminder.get("guild_id"),
-                channel_name=None,
-            )
-        except Exception:
-            log.exception("reminder_store_failed", reminder_id=reminder_id)
-        log.info(
-            "reminder_delivered",
-            reminder_id=reminder_id,
-            persona_id=self.persona.persona_id,
-            channel_id=reminder["channel_id"],
-            recurring=reminder.get("recurring"),
-            lateness_s=int(lateness),
-        )
-
-    async def _close_reminder(self, reminder: dict) -> None:
-        """Retire the row so it never fires twice: a recurring reminder is rolled
-        forward to its next future occurrence, a one-shot is marked delivered."""
-        reminder_id = reminder["id"]
-        recurring = reminder.get("recurring") or "none"
-        next_at = compute_next_occurrence(float(reminder["remind_at"]), recurring)
-        if next_at is None:
-            await self.memory.mark_reminder_delivered(reminder_id)
-            return
-        await self.memory.update_reminder_time(reminder_id, next_at)
-        log.info(
-            "reminder_rescheduled",
-            reminder_id=reminder_id,
-            persona_id=self.persona.persona_id,
-            recurring=recurring,
-            next_at=next_at,
-        )
-
-    async def _reminder_text(self, reminder: dict) -> str:
-        """The reminder in the persona's own voice, via the runner. A plain
-        fallback is ALWAYS returned when the runner is down or answers empty —
-        the user gets the content of their reminder no matter what."""
-        description = reminder["description"]
-        fallback = f"⏰ Recordatorio: {description}"
-        try:
-            prompt = load_prompt(SHARED_PROMPTS_DIR, "reminder_delivery", _PROMPT_CACHE).format(description=description)
-            resp = await self.agent_client.chat(
-                "",
-                [{"role": "user", "content": prompt}],
-                channel_id=f"reminder-{reminder['id']}",
-                user_id=reminder["created_by"],
-                persona_id=self.persona.persona_id,
-                timeout_s=REMINDER_TIMEOUT_S,
-            )
-            text = strip_delivery_markers((resp.text or "").strip())
-        except Exception:
-            log.exception(
-                "reminder_voice_failed",
-                reminder_id=reminder["id"],
-                persona_id=self.persona.persona_id,
-            )
-            return fallback
-        if not text:
-            log.info("reminder_voice_empty", reminder_id=reminder["id"], persona_id=self.persona.persona_id)
-            return fallback
-        return text
-
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        """🔊 on one of THIS persona's own messages → speak it in the persona's
-        own voice, posted by the persona bot with its own typing.
-
-        Guards: only the 🔊 emoji, never our own reaction, and ONLY our own
-        messages (a 🔊 on an Insult/human message belongs to Insult's VoiceCog —
-        we skip it so the two don't double-speak). Voice is off (no-op) when no
-        susurro TTS client was wired."""
-        if str(payload.emoji) != SPEAK_EMOJI:
-            return
-        if self.user is None or payload.user_id == self.user.id:
-            return
-        if self.tts_client is None:
-            return
-        channel = self.get_channel(payload.channel_id)
-        if channel is None:
-            with contextlib.suppress(discord.HTTPException):
-                channel = await self.fetch_channel(payload.channel_id)
-        if channel is None:
-            return
-        try:
-            message = await channel.fetch_message(payload.message_id)
-        except discord.HTTPException:
-            return
-        if message.author.id != self.user.id:
-            return  # not this persona's message — Insult owns its own 🔊
-        await self._speak(channel, message.content.strip(), reason="manual")
-
-    async def _speak(self, channel, text: str, *, reason: str) -> None:
-        """Synthesize ``text`` in this persona's voice and post it as audio.
-
-        The full text is split into ≤4096-char segments (the speech cap) so a long
-        reply is spoken IN FULL across several clips, never truncated. No-op when
-        TTS is off or the text is empty. ``reason`` ("manual" 🔊 / "auto" long
-        reply) is logged so the two paths stay distinguishable."""
-        if self.tts_client is None or not text:
-            return
-        segments = split_for_tts(text)
-        try:
-            async with channel.typing():
-                for idx, segment in enumerate(segments):
-                    audio = await synthesize_susurro_tts(
-                        self.tts_client,
-                        segment,
-                        voice=self.persona.tts_voice,
-                    )
-                    fname = f"{self.persona.persona_id}{'' if len(segments) == 1 else f'-{idx + 1}'}.mp3"
-                    await channel.send(file=discord.File(io.BytesIO(audio), filename=fname))
-            log.info(
-                "persona_gateway_tts_sent",
-                persona_id=self.persona.persona_id,
-                voice=self.persona.tts_voice,
-                chars=len(text),
-                segments=len(segments),
-                reason=reason,
-            )
-        except Exception:
-            log.exception("persona_gateway_tts_failed", persona_id=self.persona.persona_id, reason=reason)
+    # --- reception -----------------------------------------------------------
 
     async def on_message(self, message: discord.Message) -> None:
         if not should_respond(message, self.user, self.persona.aliases):
@@ -644,14 +171,39 @@ class PersonaClient(discord.Client):
         )
         await self._dispatch(after)
 
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        """🔊 on one of THIS persona's own messages → speak it in the persona's own
+        voice. Guards: only 🔊, never our own reaction, and ONLY our own messages
+        (a 🔊 on an Insult/human message belongs to Insult's VoiceCog). Voice off →
+        no-op."""
+        if str(payload.emoji) != SPEAK_EMOJI:
+            return
+        if self.user is None or payload.user_id == self.user.id:
+            return
+        if not self._voice.enabled:
+            return
+        channel = self.get_channel(payload.channel_id)
+        if channel is None:
+            with contextlib.suppress(discord.HTTPException):
+                channel = await self.fetch_channel(payload.channel_id)
+        if channel is None:
+            return
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except discord.HTTPException:
+            return
+        if message.author.id != self.user.id:
+            return  # not this persona's message — Insult owns its own 🔊
+        await self._voice.speak(channel, message.content.strip(), reason="manual")
+
     async def _dispatch(self, message: discord.Message) -> None:
         """Shared guarded entry for message + edit summons."""
         try:
             await self._handle(message)
         except Exception:
             log.exception("persona_gateway_turn_failed", persona_id=self.persona.persona_id)
-            # Never expose internals. The recovery send gets its own guard; if
-            # the channel is rate-limited a reaction (different bucket) survives.
+            # Never expose internals. The recovery send gets its own guard; if the
+            # channel is rate-limited a reaction (different bucket) survives.
             try:
                 await message.channel.send("…")
             except discord.HTTPException:
@@ -670,9 +222,9 @@ class PersonaClient(discord.Client):
             return  # bare @mention with no text and no readable attachment
 
         # Recent context BEFORE storing the current turn, so it isn't duplicated.
-        recent = await self.memory.get_recent(channel_id, RECENT_LIMIT)
+        recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
 
-        # Persist the user's turn (shared Postgres → Insult & siblings see it).
+        # Persist the user's turn (shared Postgres → every persona sees it).
         await self.memory.store(
             channel_id,
             user_id,
@@ -688,17 +240,18 @@ class PersonaClient(discord.Client):
         if attachment_blocks:
             text_blocks = [{"type": "text", "text": ask}] if ask else []
             user_content = [*text_blocks, *attachment_blocks]
-        messages = [*format_context(recent), {"role": "user", "content": user_content}]
+        context = format_context(recent)
+        messages = [*context, {"role": "user", "content": user_content}]
         # The guardian: classify THIS turn against the user's accumulated facts and
         # send the persona's guidance on the wire. Without it the vulnerable-user
         # overlay never reaches the model — a user with a clinical cluster gets the
-        # raw abrasive register (P0, live from the purge until 2026-07-14). Every
-        # fault inside returns None: a turn without guidance is a normal turn.
+        # raw abrasive register. Every fault inside returns None: a turn without
+        # guidance is a normal turn.
         guidance = await guidance_for_turn(
             memory=self.memory,
             user_id=user_id,
             current_message=ask,
-            recent_messages=format_context(recent),
+            recent_messages=context,
             persona_id=self.persona.persona_id,
         )
         await self._run_and_deliver(
@@ -711,70 +264,19 @@ class PersonaClient(discord.Client):
             react_to=message,
             behavioral_guidance=guidance,
         )
-        # A mention carries a REAL user ask — the only turn worth mining for
-        # facts. Runs AFTER delivery, in the background, so the extraction's LLM
-        # round-trip never sits between the user and their reply.
+        # A mention carries a REAL user ask — the only turn worth mining for facts.
+        # Runs AFTER delivery, in the background, so the extraction's LLM round-trip
+        # never sits between the user and their reply.
         self._spawn_fact_extraction(
             user_id,
             message.author.display_name,
-            [*recent[-FACTS_RECENT_WINDOW:], {"user_name": message.author.display_name, "content": ask}],
+            [*recent[-CONFIG.facts_recent_window :], {"user_name": message.author.display_name, "content": ask}],
         )
 
     def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
-        """Fire-and-forget the fact backstop, tracked so the loop can't GC it."""
-        if self.judge_client is None or not user_id:
-            return
-        task = asyncio.create_task(self._extract_and_persist_facts(user_id, user_name, recent))
-        self._bg_tasks.add(task)
-        task.add_done_callback(self._bg_tasks.discard)
-
-    async def _extract_and_persist_facts(self, user_id: str, user_name: str, recent: list[dict]) -> None:
-        """Grow the user's longitudinal memory — ADD-only, best-effort.
-
-        The extractor sees a SUBSET of what is stored, but `save_facts` REPLACES
-        the whole `source='auto'` snapshot. So its output is UNIONED onto the
-        COMPLETE live auto set (`get_auto_facts`) before saving: the snapshot
-        written is always a SUPERSET of what was there, and extraction can only
-        ADD (P0 2026-06-03 — a raw `save_facts(extractor_output)` hard-deletes
-        every auto fact outside the extractor's view, every turn, no recovery).
-
-        Everything here is best-effort: a dead judge or a failed save is logged
-        and swallowed. The user already has their reply; memory growth must never
-        be able to break a delivered turn.
-        """
-        try:
-            existing = await self.memory.get_facts(user_id)
-            new_facts = await extract_facts(
-                self.judge_client,
-                FACTS_EXTRACTION_MODEL,
-                user_name,
-                existing,
-                recent,
-            )
-            all_auto = await self.memory.get_auto_facts(user_id)
-            merged, added = merge_facts_additive(all_auto, new_facts)
-            if not added:
-                log.info(
-                    "facts_extraction_nothing_new",
-                    persona_id=self.persona.persona_id,
-                    user_id=user_id,
-                    total_auto=len(merged),
-                )
-                return
-            await self.memory.save_facts(user_id, merged)
-            log.info(
-                "facts_extracted_additive",
-                persona_id=self.persona.persona_id,
-                user_id=user_id,
-                added=len(added),
-                total_auto=len(merged),
-            )
-        except Exception:
-            log.exception(
-                "facts_extraction_failed",
-                persona_id=self.persona.persona_id,
-                user_id=user_id,
-            )
+        """Delegates to the fact backstop (kept as a method: tests call it).
+        Reads `self.judge_client` LIVE so a toggle to None disables it next turn."""
+        self._facts.spawn(self.judge_client, user_id, user_name, recent)
 
     async def _process_attachments(self, message: discord.Message) -> list[dict]:
         """Image/document attachments of the summoning message → Anthropic blocks.
@@ -783,8 +285,8 @@ class PersonaClient(discord.Client):
         png/jpg/gif/webp + text/pdf, in-character rejection notices). The blocks
         ride the final user message; `AgentRunnerClient` extracts them and the
         runner builds the multimodal SDK input — same E2E path Insult uses, so
-        siblings finally SEE images (P0 2026-07-07: "no llegó imagen a mi mesa
-        de disección"). Invite turns have no source message, so they carry none.
+        siblings finally SEE images (P0 2026-07-07). Invite turns have no source
+        message, so they carry none.
         """
         if not message.attachments or message.flags.voice:
             return []
@@ -812,12 +314,11 @@ class PersonaClient(discord.Client):
     ) -> None:
         """Entry point for the gateway's ported /invite handler.
 
-        Mirrors the legacy ``personas.alice.cogs.chat.respond_to_invite`` contract
-        but routes through the persona-runner (this persona's brain) instead of a
-        persona-local LLM. Insult's ``reason`` is injected as the FRESHEST turn —
-        instruction context, not a visible user message — so the persona reads the
-        thread and responds with the lens the reason asks for. No user turn is
-        stored (there is none; Insult already wrote the message that triggered it).
+        Routes through the persona-runner (this persona's brain). Insult's
+        ``reason`` is injected as the FRESHEST turn — instruction context, not a
+        visible user message — so the persona reads the thread and responds with
+        the lens the reason asks for. No user turn is stored (there is none; Insult
+        already wrote the message that triggered it).
         """
         channel = self.get_channel(int(channel_id))
         if channel is None:
@@ -831,7 +332,7 @@ class PersonaClient(discord.Client):
             )
             return
 
-        recent = await self.memory.get_recent(channel_id, RECENT_LIMIT)
+        recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
         if invited_by == "host_router":
             instruction = (
                 f"[El turno es tuyo: la conversación del canal es la que tú traías. Contexto: {reason}] "
@@ -850,11 +351,10 @@ class PersonaClient(discord.Client):
             invited_by=invited_by,
             reason_preview=reason[:100],
         )
-        # The summoner's wire carries the Discord message that triggered this
-        # turn so the persona's [REACT:] markers land on it. Without a resolved
-        # target, _run_and_deliver strips the markers and the reactions die
-        # (the 2026-07-14 "Vultur no dejó reacciones" bug). Best-effort: an
-        # unfetchable message (deleted, no perms) degrades to text-only.
+        # The summoner's wire carries the Discord message that triggered this turn
+        # so the persona's [REACT:] markers land on it. Without a resolved target,
+        # _run_and_deliver strips the markers and the reactions die (2026-07-14
+        # bug). Best-effort: an unfetchable message degrades to text-only.
         react_to: discord.Message | None = None
         if trigger_message_id:
             try:
@@ -890,16 +390,14 @@ class PersonaClient(discord.Client):
         react_to: discord.Message | None = None,
         behavioral_guidance: str | None = None,
     ) -> None:
-        """Shared tail for mention + invite: runner call → post → persist.
+        """Shared tail for mention + invite: runner call → react → markers → send.
 
         Typing keepalive is a fire-and-forget background task so the user sees
         "[persona] is typing…" during the long runner call. Deliberately NOT
         `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
-        killing the turn before the runner runs — anti-pattern #1). Instead: a
-        short-lived task that re-triggers typing every ~9s and stops when the
-        stop_event is set (after the runner responds).
+        killing the turn before the runner runs — anti-pattern #1): a short task
+        that re-triggers typing every ~9s until the stop_event is set.
         """
-        bot_id = self.user.id if self.user else 0
         _typing_stop = asyncio.Event()
 
         async def _typing_keepalive() -> None:
@@ -928,6 +426,9 @@ class PersonaClient(discord.Client):
                 await _typing_task
 
         text = (resp.text or "").strip()
+
+        # Reactions FIRST (they need the live `react_to` message and the
+        # module-level `add_reactions` the tests monkeypatch).
         reactions = parse_reactions(text)
         if reactions:
             text = strip_reactions(text)
@@ -948,129 +449,17 @@ class PersonaClient(discord.Client):
                     emojis=reactions,
                     turn_kind=turn_kind,
                 )
-        # Durable research job: the persona accepted a heavy research request and
-        # emitted [RESEARCH: ...]. Queue it (the drain loop runs it later and posts
-        # the report back in THIS persona's voice) and strip the marker so only the
-        # in-character ack ("va, me meto a la madriguera y te lo dejo aquí") is sent.
-        # The ack is now HONEST — the promise is backed by a real durable worker.
-        research_prompt = parse_research(text)
-        if research_prompt:
-            text = strip_research(text)
-            try:
-                job_id = await self.memory.save_research_job(
-                    channel_id=channel_id,
-                    guild_id=guild_id,
-                    created_by=user_id,
-                    prompt=research_prompt,
-                    persona_id=self.persona.persona_id,
-                )
-                log.info(
-                    "research_job_queued",
-                    persona_id=self.persona.persona_id,
-                    job_id=job_id,
-                    channel_id=channel_id,
-                    prompt_chars=len(research_prompt),
-                )
-            except Exception:
-                # The ack text still sends; the job just didn't queue. Better a
-                # persona who over-promised once than a silent drop of the request.
-                log.exception(
-                    "research_job_queue_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                )
-        # Standing agenda: the persona accepted a request to keep WATCHING something
-        # over time and emitted [AGENDA: ...]. Persist it (the agenda loop pursues it
-        # on its cadence and posts findings unprompted) and strip the marker.
-        agenda_goal = parse_agenda(text)
-        if agenda_goal:
-            text = strip_agenda(text)
-            try:
-                agenda_id = await self.memory.save_agenda(
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                    guild_id=guild_id,
-                    created_by=user_id,
-                    goal=agenda_goal,
-                )
-                log.info(
-                    "agenda_saved",
-                    persona_id=self.persona.persona_id,
-                    agenda_id=agenda_id,
-                    channel_id=channel_id,
-                    goal_chars=len(agenda_goal),
-                )
-            except Exception:
-                log.exception(
-                    "agenda_save_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                )
-        # Reminder: the persona accepted "recuérdame X" and emitted
-        # [REMIND: when | what]. Persist the row and strip the marker so only the
-        # in-character ack reaches Discord. Before this the marker leaked RAW into
-        # the channel and the intent died unstored (P0 2026-07-14).
-        remind_request = parse_remind(text)
-        if remind_request:
-            text = strip_reminds(text)
-            try:
-                reminder_id = await persist_remind(
-                    remind_request,
-                    memory=self.memory,
-                    channel_id=channel_id,
-                    guild_id=guild_id,
-                    created_by=user_id,
-                    # Ownership stamp: only THIS persona's drain loop fires it.
-                    persona_id=self.persona.persona_id,
-                )
-                log.info(
-                    "remind_saved",
-                    persona_id=self.persona.persona_id,
-                    reminder_id=reminder_id,
-                    channel_id=channel_id,
-                    when_raw=remind_request.when_raw[:40],
-                )
-            except Exception:
-                # The ack text still sends; only the row didn't land.
-                log.exception(
-                    "remind_save_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                )
-        # Fact learning: the persona marked something durable about the user with
-        # [REMEMBER: ...]. Persist it (source='agent', pure INSERT — never a
-        # snapshot replace) and strip the marker.
-        remember_facts = parse_remembers(text)
-        if remember_facts:
-            text = strip_remembers(text)
-            try:
-                saved = await persist_remembers(self.memory, user_id, remember_facts)
-                log.info(
-                    "remember_saved",
-                    persona_id=self.persona.persona_id,
-                    user_id=user_id,
-                    count=saved,
-                    channel_id=channel_id,
-                )
-            except Exception:
-                log.exception(
-                    "remember_save_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                )
+
+        # Durable markers (research/agenda/remind/remember): persist the side
+        # effects and strip them so only the in-character ack reaches Discord.
+        text = await self._markers.route(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
         if not text:
             return
 
-        pieces = chunk(text)
-        tag = f"\n-# {VERSION_TAG}"
-        if pieces and len(pieces[-1]) + len(tag) <= 2000:
-            pieces[-1] += tag
-        for piece in pieces:
-            await channel.send(piece)
-
+        await send_chunked(channel, text)
         await self.memory.store(
             channel_id,
-            str(bot_id),
+            str(self.user.id) if self.user else "0",
             self.persona.display_name,
             "assistant",
             text,
@@ -1088,10 +477,15 @@ class PersonaClient(discord.Client):
         )
 
         # Auto-TTS: a long reply ships a voice clip of the FULL text so you can
-        # listen instead of reading a wall. Gateway-only (the persona gateway has
-        # no Arbor path, so arbor_active=False); gated by auto_tts_min_chars (0=off).
-        if should_auto_tts(text, min_chars=self.auto_tts_min_chars, arbor_active=False):
-            await self._speak(channel, text, reason="auto")
+        # listen instead of reading a wall (gated by auto_tts_min_chars; 0=off).
+        if self._voice.should_auto_speak(text, self.auto_tts_min_chars):
+            await self._voice.speak(channel, text, reason="auto")
+
+
+# --- bootstrap: shared deps, the /invite server, and the process lifecycle ----
+# Kept in this module (not a separate app.py) because the boot-resilience test
+# monkeypatches these names on `persona_gateway.gateway` and drives `_main` —
+# moving them would break that regression guard for no structural gain.
 
 
 def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int, str, RunnerJudgeClient]:
@@ -1099,13 +493,10 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
 
     Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
     TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
-    simply off (the gateway still runs); it is never delegated to Insult.
-
-    The `/invite` bearer token (INSULT_TO_ALICE_TOKEN) is the same secret the
-    legacy alice-bot endpoint used, so repointing the caller is a no-op on the
-    contract. The last element is the one-shot judge client (runner /v1/judge)
-    that drives the automatic fact-extraction backstop — same runner URL + token
-    as the turn client, a different endpoint.
+    simply off. The `/invite` bearer token (INSULT_TO_ALICE_TOKEN) is the same
+    secret the legacy alice-bot endpoint used. The last element is the one-shot
+    judge client (runner /v1/judge) that drives the automatic fact-extraction
+    backstop — same runner URL + token as the turn client, a different endpoint.
     """
     config = PersonaRuntimeConfig.from_env()
 
@@ -1114,43 +505,31 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     runner_token = config.persona_runner_token.get_secret_value()
     if not (runner_url and runner_token):
         raise RuntimeError("persona gateway requires PERSONA_RUNNER_URL + token")
-    # timeout_s=240 (vs the 120 default): a sibling's FIRST turn — cold session +
-    # curated facts + behavioral guidance — measured 134.5s in prod (2026-07-06,
-    # frugivoro meal plan). The 120s default read-timeout hung up 14s before the
-    # runner finished, so the user got the "…" fallback while a complete reply
-    # died unread. Siblings are mention-gated with a typing keepalive running, so
-    # a longer wait is honest UX; Insult's plumbing keeps its own 120s because
-    # its timeout feeds the ALICE failover path.
-    agent_client = AgentRunnerClient(runner_url=runner_url, runner_token=runner_token, timeout_s=240.0)
-    # Same runner, different endpoint: /v1/judge for the one-shot fact extractor.
-    # Off the turn's critical path (background task), so its timeout is generous.
+    # first_turn_timeout_s=240 (vs the 120 default): a sibling's FIRST turn — cold
+    # session + curated facts + guidance — measured 134.5s in prod. The 120s
+    # default read-timeout hung up 14s before the runner finished; the user got
+    # the "…" fallback while a complete reply died unread.
+    agent_client = AgentRunnerClient(
+        runner_url=runner_url, runner_token=runner_token, timeout_s=CONFIG.first_turn_timeout_s
+    )
     judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
 
-    tts_client = build_susurro_tts_client(
-        base_url=os.environ.get("SUSURRO_URL", DEFAULT_SUSURRO_URL),
-        api_key=os.environ.get("SUSURRO_KEY", ""),
-    )
-    try:
-        auto_tts_min_chars = int(os.environ.get("AUTO_TTS_MIN_CHARS", "0"))
-    except ValueError:
-        auto_tts_min_chars = 0
+    tts_client = build_susurro_tts_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
     log.info(
         "persona_gateway_tts_configured",
         enabled=tts_client is not None,
-        auto_tts_min_chars=auto_tts_min_chars,
+        auto_tts_min_chars=CONFIG.auto_tts_min_chars,
     )
     invite_token = config.insult_to_alice_token.get_secret_value()
-    return memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client
+    return memory, agent_client, tts_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
 
 
 def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
     """Return `(server, serve_coro)` for the ported /invite endpoint.
 
     Port 8788 mirrors the legacy alice-bot so the Container App ingress targetPort
-    is unchanged. Bound to 0.0.0.0 for the ACA ingress. Always served (even with
-    no token) so the /health probe answers; /invite itself fail-closes (503) when
-    the token is unset. The caller awaits `_wait_until_bound(server)` before doing
-    anything that can block.
+    is unchanged. Always served (even with no token) so the /health probe answers;
+    /invite itself fail-closes (503) when the token is unset.
     """
     import uvicorn
 
@@ -1166,9 +545,9 @@ async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bo
     """Block until uvicorn is actually listening, not merely scheduled.
 
     `asyncio.create_task(server.serve())` yields a task, not a bound socket. Every
-    subsequent await — Postgres, Discord login — could otherwise run first and
-    hang with port 8788 still closed, which is precisely what the ACA StartUp
-    probe punishes. `server.started` flips only after the socket accepts.
+    subsequent await — Postgres, Discord login — could otherwise run first and hang
+    with port 8788 still closed, which is precisely what the ACA StartUp probe
+    punishes. `server.started` flips only after the socket accepts.
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:

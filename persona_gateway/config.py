@@ -1,0 +1,76 @@
+"""Operator-tunable config for the persona gateway.
+
+The cadences, timeouts, batch sizes and window limits that an operator might
+reasonably tune under prod load live HERE, as a single `pydantic-settings`
+`BaseSettings` (the repo's canonical config convention — same family as
+`khimeras_shared.persona.config.PersonaRuntimeConfig` and Insult's `Settings`).
+Reading them through env-typed fields beats a scatter of `os.environ.get`
+casts that silently mis-parse.
+
+What is DELIBERATELY NOT here (it stays a code constant in `gateway.py`): values
+that encode a fixed external contract, not a knob — Discord's 1990/2000 char cap,
+the bind-poll interval, the 🔊 emoji. The rule: if an operator would plausibly
+change it in prod without a code review, it's config; if it encodes an external
+protocol invariant, it stays a constant.
+
+`CONFIG` is instantiated once at import (all fields have defaults, so it is safe
+at module top-level even with no env — CI included). The `@tasks.loop` decorators
+read their interval off this instance at class-definition time, so env overrides
+must be present before import (always true in prod).
+"""
+
+from __future__ import annotations
+
+from pydantic_settings import BaseSettings
+
+from khimeras_shared.tts import DEFAULT_SUSURRO_URL
+
+
+class GatewayConfig(BaseSettings):
+    """Env-overridable operational knobs. Field name X ← env var `X` (case-insensitive)."""
+
+    # Durable research jobs: drain cadence, the generous read timeout a deep
+    # research turn gets (WebSearch + long reasoning — the job IS the heavy case,
+    # not the interactive 120s default), retry ceiling, and per-tick batch size.
+    research_drain_seconds: float = 45.0
+    research_timeout_s: float = 360.0
+    research_max_retries: int = 2
+    research_batch: int = 2
+
+    # Standing agendas: how often each persona wakes to see what's due (the
+    # per-agenda `cadence_hours` throttles real frequency, not this interval).
+    agenda_check_seconds: float = 600.0
+    agenda_timeout_s: float = 360.0
+    agenda_batch: int = 2
+
+    # Reminders: 30s keeps "recuérdamelo a las 8" honest to the minute; a reminder
+    # more than MAX_LATENESS late is retired unsent (nobody wants yesterday's 3am).
+    reminder_check_seconds: float = 30.0
+    reminder_timeout_s: float = 90.0
+    reminder_max_lateness_s: float = 86400.0
+
+    # How many prior channel messages to replay to the runner, and how much of the
+    # channel tail the automatic fact extractor reads (matches the legacy backstop's
+    # 10-message window with headroom for the current turn).
+    recent_limit: int = 30
+    facts_recent_window: int = 12
+
+    # Automatic fact extraction model (the source='auto' backstop). None → the
+    # runner picks its own judge default (Haiku class).
+    facts_extraction_model: str | None = None
+
+    # A sibling's FIRST turn (cold session + curated facts + guidance) measured
+    # 134.5s in prod; the 120s default read-timeout hung up 14s early and the user
+    # got the "…" fallback while a complete reply died unread. Siblings are
+    # mention-gated with a typing keepalive, so the longer wait is honest UX.
+    first_turn_timeout_s: float = 240.0
+
+    # Voice (susurro TTS). Auto-speak replies at/above N chars (0 = manual 🔊 only).
+    auto_tts_min_chars: int = 0
+    susurro_url: str = DEFAULT_SUSURRO_URL
+    susurro_key: str = ""
+
+    model_config = {"env_file": None, "extra": "ignore"}
+
+
+CONFIG = GatewayConfig()
