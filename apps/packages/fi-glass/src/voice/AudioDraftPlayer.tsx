@@ -77,6 +77,13 @@ export function AudioDraftPlayer({
   className = '',
 }: AudioDraftPlayerProps) {
   useTouchTargetStyle();
+  // In-composer row (og118 mobile canary): a voice-note preview never needs the
+  // ±10s skip / stop transport, and on a phone width those extra buttons push the
+  // primary action (Transcribir / Guardar) off-screen — the exact bug the mobile
+  // audit found. The row variant uses the COMPACT player (play + scrubber + one
+  // time readout) so the primary action always stays visible. The standalone
+  // card keeps the full transport where the width is there.
+  const compactPlayer = variant === 'row';
   const isPaused = artifact.state === 'paused';
   const isSaving = artifact.state === 'stopping';
   const isBusy =
@@ -131,6 +138,7 @@ export function AudioDraftPlayer({
           />
           <RichAudioPlayer
             source={pausedPreview}
+            compact={compactPlayer}
             className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
             buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
             iconClassName="w-4 h-4"
@@ -160,6 +168,7 @@ export function AudioDraftPlayer({
           {/* Playback through the SAME primitive the TTS player uses. */}
           <RichAudioPlayer
             source={playbackUrl ? { url: playbackUrl } : null}
+            compact={compactPlayer}
             className="fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0"
             buttonClassName="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
             iconClassName="w-4 h-4"

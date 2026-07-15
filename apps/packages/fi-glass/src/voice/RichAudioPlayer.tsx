@@ -107,7 +107,16 @@ export interface RichAudioPlayerProps {
   autoPlay?: boolean;
   /** Seconds the skip-back / skip-forward controls jump. Default 10. */
   skipSeconds?: number;
-  /** Show the mm:ss / mm:ss time readout. Default true. */
+  /**
+   * Compact transport for tight spaces (CONV-MOBILE-RECLAIM / voice-note preview
+   * in the mobile composer). Drops the skip-back / stop / skip-forward buttons —
+   * keeping only play-pause + scrubber + a SINGLE time readout — so the row fits
+   * a phone-width composer beside a primary action (Transcribir / Guardar)
+   * instead of pushing it off-screen. The full four-button transport (default)
+   * stays for the standalone TTS player where the width is available.
+   */
+  compact?: boolean;
+  /** Show the time readout. Default true. */
   showTime?: boolean;
   /** Called on a playback/load error. */
   onError?: (error: unknown, context: string) => void;
@@ -146,6 +155,7 @@ export function RichAudioPlayer({
   source,
   autoPlay = false,
   skipSeconds = 10,
+  compact = false,
   showTime = true,
   onError,
   onEnded,
@@ -200,6 +210,12 @@ export function RichAudioPlayer({
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
   )}`;
+  // Compact readout is a SINGLE value to save width in the mobile composer:
+  // the elapsed time while playing, else the clip length — never the dual
+  // "0:28 / 0:28" that crowds out the primary action on a phone.
+  const timeLabel = compact
+    ? formatPlaybackTime(isPlaying ? currentTime : duration)
+    : positionLabel;
 
   return (
     <div
@@ -208,15 +224,17 @@ export function RichAudioPlayer({
       role="group"
       aria-label="Controles de reproducción de audio"
     >
-      <button
-        type="button"
-        onClick={() => seekBy(-skipSeconds)}
-        disabled={!canSeek}
-        aria-label={`Retroceder ${skipSeconds} segundos`}
-        className={btnClass}
-      >
-        <RotateCcw className={iconClass} aria-hidden />
-      </button>
+      {!compact && (
+        <button
+          type="button"
+          onClick={() => seekBy(-skipSeconds)}
+          disabled={!canSeek}
+          aria-label={`Retroceder ${skipSeconds} segundos`}
+          className={btnClass}
+        >
+          <RotateCcw className={iconClass} aria-hidden />
+        </button>
+      )}
 
       <button
         type="button"
@@ -235,25 +253,29 @@ export function RichAudioPlayer({
         )}
       </button>
 
-      <button
-        type="button"
-        onClick={stop}
-        disabled={!hasSource}
-        aria-label="Detener audio"
-        className={btnClass}
-      >
-        <Square className={iconClass} aria-hidden />
-      </button>
+      {!compact && (
+        <button
+          type="button"
+          onClick={stop}
+          disabled={!hasSource}
+          aria-label="Detener audio"
+          className={btnClass}
+        >
+          <Square className={iconClass} aria-hidden />
+        </button>
+      )}
 
-      <button
-        type="button"
-        onClick={() => seekBy(skipSeconds)}
-        disabled={!canSeek}
-        aria-label={`Avanzar ${skipSeconds} segundos`}
-        className={btnClass}
-      >
-        <RotateCw className={iconClass} aria-hidden />
-      </button>
+      {!compact && (
+        <button
+          type="button"
+          onClick={() => seekBy(skipSeconds)}
+          disabled={!canSeek}
+          aria-label={`Avanzar ${skipSeconds} segundos`}
+          className={btnClass}
+        >
+          <RotateCw className={iconClass} aria-hidden />
+        </button>
+      )}
 
       <input
         type="range"
@@ -271,8 +293,12 @@ export function RichAudioPlayer({
       />
 
       {showTime ? (
-        <span data-fi-audio-time="" aria-hidden className="text-xs tabular-nums">
-          {positionLabel}
+        <span
+          data-fi-audio-time=""
+          aria-hidden
+          className="text-xs tabular-nums shrink-0"
+        >
+          {timeLabel}
         </span>
       ) : null}
 
