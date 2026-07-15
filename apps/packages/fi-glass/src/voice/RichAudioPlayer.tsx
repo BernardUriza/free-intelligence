@@ -96,6 +96,11 @@ function ensureAudioScrubberStyle(): void {
     input[data-fi-audio-progress]:disabled {
       opacity: 0.35;
     }
+    @media (pointer: coarse), (max-width: 768px) {
+      input[data-fi-audio-progress] {
+        height: 44px;
+      }
+    }
   `;
   document.head.appendChild(el);
 }
@@ -211,10 +216,12 @@ export function RichAudioPlayer({
     duration
   )}`;
   // Compact readout is a SINGLE value to save width in the mobile composer:
-  // the elapsed time while playing, else the clip length — never the dual
-  // "0:28 / 0:28" that crowds out the primary action on a phone.
+  // the current position once playback has moved (so pausing mid-clip keeps
+  // showing where you are, not jumping to the clip length), else the clip
+  // length at rest — never the dual "0:28 / 0:28" that crowds out the primary
+  // action on a phone.
   const timeLabel = compact
-    ? formatPlaybackTime(isPlaying ? currentTime : duration)
+    ? formatPlaybackTime(currentTime > 0 ? currentTime : duration)
     : positionLabel;
 
   return (

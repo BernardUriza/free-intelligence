@@ -2105,6 +2105,11 @@ function ensureAudioScrubberStyle() {
     input[data-fi-audio-progress]:disabled {
       opacity: 0.35;
     }
+    @media (pointer: coarse), (max-width: 768px) {
+      input[data-fi-audio-progress] {
+        height: 44px;
+      }
+    }
   `;
   document.head.appendChild(el);
 }
@@ -2166,7 +2171,7 @@ function RichAudioPlayer({
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
   )}`;
-  const timeLabel = compact ? formatPlaybackTime(isPlaying ? currentTime : duration) : positionLabel;
+  const timeLabel = compact ? formatPlaybackTime(currentTime > 0 ? currentTime : duration) : positionLabel;
   return /* @__PURE__ */ jsxs16(
     "div",
     {
