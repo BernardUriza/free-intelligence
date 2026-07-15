@@ -1,25 +1,21 @@
-"""CLI entry for the omnipresent host: ``python -m demux_ai host``.
+"""CLI: `python -m demux_ai host` starts the omnipresent host receiver.
 
 Recreated post-purga (the old one booted `personas.insult` and died with it). Now
-it starts the host receiver over the tested `HostDispatchLoop` + the gpt-4.1
-router. Dormant without ``HOST_DISCORD_TOKEN`` (the cutover atom).
+it starts the host over the tested `HostDispatchLoop` + the gpt-4.1 router. Dormant
+without ``HOST_DISCORD_TOKEN`` (the cutover atom). Plain-argv verb like
+`python -m persona_gateway run` (Art. 6) — Typer collapses a single command.
 """
 
 from __future__ import annotations
 
-import typer
+import sys
 
-app = typer.Typer(help="Khimeras demux host")
-
-
-@app.command()
-def host() -> None:
-    """Start the omnipresent host receiver (needs HOST_DISCORD_TOKEN)."""
+if __name__ == "__main__":
+    arg = sys.argv[1] if len(sys.argv) > 1 else "host"
+    if arg != "host":
+        print(f"unknown command: {arg}\nusage: python -m demux_ai host", file=sys.stderr)
+        sys.exit(2)
     from demux_ai.host_client import run_host
     from demux_ai.llm_shadow_router import DirectAzureLLMRouter
 
     run_host(DirectAzureLLMRouter())
-
-
-if __name__ == "__main__":
-    app()
