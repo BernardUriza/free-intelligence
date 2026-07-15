@@ -14,15 +14,14 @@ conda activate discord-bot                            # every shell
 All commands below assume the `discord-bot` env is active.
 
 ```bash
-# Run  (post-demux: Insult is a persona package under personas/)
-python -m personas.insult run              # Start the bot
-python -m personas.insult db-stats         # Show memory stats
-python -m personas.insult db-clean         # Clean old data
+# Run (post-purga 2026-07-14: personas/ está BORRADO; el sistema son 4 paquetes)
+python -m persona_gateway run              # el turn path de Discord (todas las personas)
+uvicorn persona_runner.runner:app          # el cerebro compartido (FastAPI /v1/turn)
 
-# Test
-pytest -v --cov                       # All tests + coverage report
-pytest tests/chat/test_chat_cog.py -v # Single test file (tests/ split: arch/ chat/ core/ integration/)
-pytest -k "test_detect_break" -v      # Single test by name
+# Test — SIEMPRE vía conda (el pytest/ruff del PATH está roto, versión incorrecta)
+conda run -n discord-bot pytest -v --cov            # todo + coverage
+conda run -n discord-bot pytest tests/agent/test_router_runtime.py -q  # un archivo
+conda run -n discord-bot pytest -k "test_disclosure" -v                # por nombre
 
 # Lint & Format
 ruff check . && ruff format .     # Lint + format (run before every commit)
@@ -39,53 +38,81 @@ Anaconda.org channel, declared in environment.yml's channels list.
 
 ## Architecture
 
-> **Post-demux tree (v4.21.39+)**: the flat `insult/` god-package was demuxed into
-> `personas/insult/` + `personas/alice/`, a light host `demux_ai/`, and shared
-> contracts `khimeras_shared/`. **Insult is now ONE persona, not the system.** The
-> inline paths in the flow descriptions below are now rooted at `personas/insult/`,
-> and `cogs/chat`, `core/{memory,presets,character,llm,flows}` are **packages** (not
-> single files). The canonical, current structure lives in
-> `.claude/rules/architecture.md` (incl. **Phase 3.5 Production Trust**: boot-zombie
-> fix DEPLOYED, Discord canary CODE-READY/deploy-GATED, constitution hook, no-fake-green
-> doctrines). The chat UI primitives are cross-repo: `@free-intelligence/core` +
-> `fi-glass` on public npm (free-intelligence PR #245), consumed by the python-bot template.
+> **Post-purga (2026-07-14, commit 2f8d9ad, −37,868 líneas)**: the whole
+> `personas/` package is **DELETED** — `personas/insult/`, `personas/alice/`, the
+> flat `cogs/chat` pipeline, all of it. It was the "delete-me" god-package that
+> had quietly become the system; today it's gone. The live system is FOUR
+> packages: **`persona_gateway/`** (the Discord turn path), **`persona_runner/`**
+> (FastAPI + Claude Agent SDK), **`khimeras_shared/`** (everything shared —
+> memory, the behavior engine, markers, guidance, HTTP clients), and **`shared/`**
+> (the persona registry + `<id>.md` DNA + per-persona guidance content). Anything
+> below that still says `personas.insult` / `cogs/chat` / `ChatCog` describes the
+> dead world — trust the live packages, not those names.
 
-**Nomenclature note (post-RENAME-1b / v3.9.30)**: this repo deploys to three Azure Container Apps with names that match their roles. The plumbing container is **`discord-bot`** — it batches Discord events and routes to runners, doing zero LLM work directly (the legacy direct-Anthropic client and its `LEGACY_LLM_ENABLED` flag are deleted; the agent runner is the only turn backend). The Insult persona lives in **`persona-runner`** (Claude Code Agent SDK). The ALICE persona lives in **`alice-bot`** (Azure OpenAI gpt-4.1). The ACR image artifact is still named `insult-bot:<sha>` (legacy). Full table + rationale in `.claude/rules/architecture.md`.
+**Nomenclature (post-purga)**: personas run as ONE Discord bot user each, all
+sharing ONE brain (the persona-runner) addressed by `persona_id`. **`persona-gateway`**
+is the live host — it spins up Insult, Vultur, Frugívoro and ALICE, each on its own
+token, and owns the turn path. **`persona-runner`** is the shared Claude-Agent-SDK
+brain (serves every persona via `/v1/turn`). The legacy **`discord-bot`** plumbing
+container is **RETIRED — scaled to zero** at the Insult cutover; do not treat it as
+a live host (its FQDN is dead). `alice-bot` (legacy gpt-4.1) is superseded by ALICE
+running through the gateway. ACR image artifact still named `insult-bot:<sha>` (legacy).
 
-**Request flow**: User message → `ChatCog.on_message` (cogs/chat/cog.py) → staged turn pipeline (cogs/chat/stages.py `DEFAULT_STAGES`): memory store → LLM-router cutover gate → context build (recent 50 + 5 keyword-relevant) → preset classification (Preset Engine port: Haiku via /v1/judge with regex shadow/fallback) → behavioral guidance + knowledge assembly → `AgentRunnerClient.chat` (khimeras_shared/runner/agent_client.py → persona-runner /v1/turn; the runner rebuilds persona + facts itself and discards plumbing `system_prompt`/`tools`/`model`) → post-LLM mutation port (echo-strip, length variation, opener dedup, `[REACT:]`/`[REMEMBER:]`/`[INVITE:]` markers) → response chunked to Discord (1990 char limit) → background: emoji reactions + fact extraction via /v1/judge.
+**Request flow** (the gateway is the turn path — `persona_gateway/gateway.py`):
+Discord message → `PersonaClient.on_message` → `should_respond` (mention / own-role
+mention / vocative alias gate — a persona only answers when addressed; Insult is the
+omnipresent one) → `_handle`: store the user turn to Postgres → build per-turn
+`behavioral_guidance` (`khimeras_shared/guidance.py::guidance_for_turn`: loads the
+user's facts, runs `classify_preset`, renders the persona's preset guidance + the
+vulnerable-user overlay) → `_run_and_deliver` → `AgentRunnerClient.chat(persona_id,
+behavioral_guidance)` → runner `/v1/turn` → the runner loads `shared/personas/<id>.md`
++ workspace CLAUDE.md and answers → gateway parses markers (`[REACT:]` `[RESEARCH:]`
+`[AGENDA:]` `[REMIND:]` `[REMEMBER:]`), chunks to Discord (1990 char cap), and in the
+background extracts facts (ADD-only merge) and fires reactions.
 
-**DI container**: `app.py` creates a `Container` dataclass holding Settings, MemoryStore, AgentRunnerClient (/v1/turn), RunnerJudgeClient (/v1/judge), and Bot. Cogs receive the container via constructor. All tests mock this container (see `tests/conftest.py` for fixtures).
+**The behavior engine** lives in **`khimeras_shared/behavior/`**, persona-agnostic
+(it reads the USER's state, never a persona's identity):
+- `behavior/presets/` — the rule-based classifier (`classify_preset`): 6 modes
+  (DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE,
+  RESPECTFUL_SERIOUS, META_DEFLECTION) + modifiers (MEMORY_RECALL, CONTEMPT,
+  MULTI_DOMAIN_SYNTHESIS). Zero LLM cost.
+- `behavior/flows/` — the 4-flow analysis (epistemic control, adaptive pressure,
+  dynamic expression, conversational awareness) rendered by `build_flow_prompt`.
+- `behavior/vulnerability.py` — `compute_vulnerability_score` over the 6 signal
+  groups (named_diagnosis, psychiatric_medication, mental_health_clinician,
+  hospitalization, chronic_comorbidity, self_harm_history), threshold ≥4.
+- The prose each persona speaks a mode in is **content**, not code:
+  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md` (Insult has the full
+  set; a persona with no content contributes an empty block, the engine still runs).
 
-**Config**: `config.py` uses Pydantic BaseSettings with `.env` file taking priority over shell env vars (custom source ordering). Settings singleton is created at module import time — tests that import from `insult.core.*` modules work fine, but importing `insult.config` directly requires `.env` to exist.
+**The guardian (`khimeras_shared/guidance.py`)** is the seam that makes the engine
+matter: it classifies the turn against the user's facts and sends the result as
+`behavioral_guidance` on the wire, so the persona's mode + the safety overlay
+actually reach the model. **Vulnerable-user overlay**: when the facts cross the
+threshold (or the current message is an acute crisis — that path never depends on
+Postgres), the overlay is appended — warmth over abrasiveness, clinician-referral
+language, allowlisted medical sources (medlineplus.gov, cima.aemps.es, nih.gov,
+nimh.nih.gov, who.int, salud.gob.mx), Mexican crisis lines (SAPTEL, Línea de la
+Vida). Verbatim regressions in `tests/core/test_presets_clinical.py` +
+`tests/core/test_guidance_guardian.py`. **Fail-safe: any fault → a normal turn,
+never a mute bot.**
 
-**Chat flow (no prefix)**: The bot responds to ALL messages in channels (via `on_message` listener), not just `!chat`. Messages starting with `!` are ignored by the listener (handled as commands). Per-user cooldown is 15s.
+**Memory & facts** (`khimeras_shared/memory/`): append-only **Azure PostgreSQL**
+(`POSTGRES_URL`). Facts grow ADD-only — the extractor runs in the background via
+`/v1/judge`, and `merge_facts_additive` unions onto the full live auto set before
+`save_facts` (a raw `save_facts(subset)` is a hard-delete in disguise, the 2026-06-03
+P0). Consolidation (`khimeras_shared/memory_consolidation.py`) runs by cron with a
+two-layer clinical guard: the conservative judge prompt (`prompts_md/
+memory_consolidator_judge.md`, "NEVER DELETE health/trauma") **plus** a code guard
+(`filter_clinical_destruction`) that refuses any DELETE of a clinical fact regardless
+of what the judge asked — the cluster that protects Alex.
 
-**System prompt composition** (core/character.py `build_adaptive_prompt`, returns `tuple[str, PresetSelection]`):
-1. Base persona from `persona.md` (loaded at startup into settings.system_prompt)
-2. Time awareness context (Mexico City timezone)
-3. Metadata rules (don't reproduce timestamps, speaker labels)
-4. Preset behavioral guidance — one of 6 modes dynamically selected by `classify_preset()` (core/presets.py)
-5. Style adaptation hints appended per-user (if profile has 5+ messages)
-6. Identity reinforcement suffix for conversations >10 messages
-7. User facts appended (from facts.py)
-
-**Preset system** (core/presets.py): Rule-based classifier (zero LLM cost) that analyzes current message + last 5 messages to select a behavioral mode. 6 modes: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION. 2 modifiers: MEMORY_RECALL, CONTEMPT. Only the selected preset's guidance is injected into the system prompt.
-
-**Vulnerable-user overlay** (core/vulnerability.py, v3.5.4): Priority-0 branch in `classify_preset` that forces `RESPECTFUL_SERIOUS` when the user's accumulated facts cross `VULNERABLE_THRESHOLD` (score ≥4). Scoring is weighted over 6 signal groups (`named_diagnosis`, `psychiatric_medication`, `mental_health_clinician`, `hospitalization`, `chronic_comorbidity`, `self_harm_history`). When triggered, `build_adaptive_prompt` appends `_VULNERABLE_OVERLAY_PROMPT` on top of the preset guidance — mandates warmth over abrasiveness, clinician-referral language, citation of authoritative sources via `MEDICAL_WEB_SEARCH_TOOL` (allowlist: medlineplus.gov, cima.aemps.es, nih.gov, nimh.nih.gov, who.int, salud.gob.mx), and Mexican crisis hotlines (SAPTEL, Línea de la Vida) mentioned only at acute-distress points. Exists because a user disclosing CPTSD + active psychiatric treatment was receiving DEFAULT_ABRASIVE whenever their current message lacked overt crisis keywords — see `tests/test_presets_clinical.py` for the verbatim regression cases.
-
-**Reactions** (cogs/chat.py): LLM can include `[REACT:emoji1,emoji2]` in response. Parsed before text processing, executed async in background with human-like delay (0.5-2s). Max 3 reactions. Reaction-only responses (no text) are supported.
-
-**Channel tools** (core/actions.py): 3 tools via Claude tool_use: `create_channel` (private/topic/category), `get_channel_info` (read name+topic of current channel), `edit_channel` (change name and/or topic). All executed in background via `_execute_tool_calls`. ACTION_INTENT modifier in presets forces `tool_choice="any"`.
-
-
-**4-Flow behavioral analysis** (core/flows.py): Pre-generation pipeline that runs AFTER preset selection, BEFORE LLM call. 4 flows: Epistemic Control (detects claims, contradictions, fluff → recommends epistemic moves), Adaptive Pressure (classifies user state → pressure level 1-5), Dynamic Expression (selects response shape + style flavor with anti-repetition tracking), Conversational Awareness (detects loops, deflection, performative arguing). Output injected as Layer 3.5 in system prompt. Post-generation validator checks adherence. 5 structured telemetry events per message: `flow_epistemic`, `flow_pressure`, `flow_expression`, `flow_awareness`, `flow_adherence_violation`.
-
-**Post-generation pipeline** (OutputMutationPort, wired in `composition.py` over `core/character/` mutators):
-1. `strip_echoed_quotes` / `enforce_length_variation` / `deduplicate_opener` — guardrailed mutation stages (max-shrink caps, marker preservation)
-2. `strip_reactions` / `strip_remembers` / `strip_invites` — marker lifecycle (`[REACT:]`, `[REMEMBER:]`, `[INVITE:]`)
-3. Character-break/anti-drift detection now lives runner-side (fi_runner antidrift guard in persona-runner); the plumbing no longer retries on breaks
-
-**Memory** (core/memory.py over `khimeras_shared/memory/`): Append-only **Azure PostgreSQL** (`POSTGRES_URL`; the data plane moved out of the container 2026-05-13 — the SQLite-in-blob layout and its deploy race are dead). Context is built per-channel (all users see same conversation), but style profiles are per-user. `_ensure_connection()` auto-reconnects before every DB operation.
+**Model routing** (`persona_runner/routing/`): `route_for_session` picks the tier
+(Haiku/Sonnet/Opus) per session from the preset + disclosure severity, with a 24h
+Opus budget. **Reminders**: `[REMIND:]` persists to Postgres and the gateway's
+delivery loop rings them. **Artifacts**: `publish_html_artifact` persists HTML and
+the runner serves it at `GET /a/{id}` (`ARTIFACT_BASE_URL` = the runner's own FQDN;
+fails loud if unset rather than minting a dead link).
 
 ## Testing Patterns
 
