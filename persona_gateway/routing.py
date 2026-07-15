@@ -31,13 +31,23 @@ def should_respond(
     message: discord.Message,
     bot_user: discord.abc.User | None,
     aliases: Iterable[str] = (),
+    *,
+    host_owns_reception: bool = False,
 ) -> bool:
     """A persona-bot answers iff a NON-bot author addressed it.
 
+    - `host_owns_reception` (cutover, #6): when the omnipresent host owns reception
+      it routes EVERY message and summons the persona via /invite, so the persona
+      must NOT also self-answer its own @mention (that is the double-answer, the
+      "ventana de dos bots peleando"). When True, this gate always returns False —
+      the persona is invite-only and responds solely to the host's /invite.
+
     - `author.bot` guard: never auto-invoke, never answer another bot (prevents
       Insult ↔ Vultur loops — same fix as Insult/ALICE v4.20.19).
-    - mention-gated: opt-in by design; the host (Insult) is the only omnipresent
-      one. A DIRECT user mention (`bot_user in message.mentions`) fires.
+    - mention-gated: opt-in by design. Post-purga (2026-07-14) this applies to
+      EVERY persona incl. Insult (`aliases=[]` → @mention-only): no persona answers
+      unaddressed chatter today. Insult's omnipresence returns only when the demux_ai
+      host owns reception. A DIRECT user mention (`bot_user in message.mentions`) fires.
     - ROLE mention of the bot's OWN role also fires: pinging the bot's
       integration role (or a custom role assigned to the bot) is the classic "I
       pinged the bot's role expecting it to ping the bot" gotcha — `<@&roleid>`,
@@ -52,6 +62,8 @@ def should_respond(
       message that OPENS addressing Insult never alias-summons a sibling — the
       head of the message wins, same as Insult's gate.
     """
+    if host_owns_reception:
+        return False
     if bot_user is None or message.author.bot:
         return False
     if bot_user in message.mentions:

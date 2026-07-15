@@ -160,7 +160,12 @@ class PersonaClient(discord.Client):
     # --- reception -----------------------------------------------------------
 
     async def on_message(self, message: discord.Message) -> None:
-        if not should_respond(message, self.user, self.persona.aliases):
+        if not should_respond(
+            message,
+            self.user,
+            self.persona.aliases,
+            host_owns_reception=CONFIG.host_owns_reception,
+        ):
             return
         await self._dispatch(message)
 
@@ -170,6 +175,8 @@ class PersonaClient(discord.Client):
         already run on the clean content, so the mention summoned nobody. Fires
         ONLY on the not-addressed → addressed transition, so an edit to a message
         this persona already answered never re-triggers it."""
+        if CONFIG.host_owns_reception:
+            return
         if not edit_summons(before, after, self.user, self.persona.aliases):
             return
         log.info(

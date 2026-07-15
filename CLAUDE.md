@@ -60,8 +60,13 @@ running through the gateway. ACR image artifact still named `insult-bot:<sha>` (
 
 **Request flow** (the gateway is the turn path — `persona_gateway/gateway.py`):
 Discord message → `PersonaClient.on_message` → `should_respond` (mention / own-role
-mention / vocative alias gate — a persona only answers when addressed; Insult is the
-omnipresent one) → `_handle`: store the user turn to Postgres → build per-turn
+mention / vocative alias gate — a persona only answers when addressed. Post-purga
+(2026-07-14) EVERY persona incl. Insult is mention-gated: `aliases=[]` for Insult, so
+it is @mention-only, exactly like the siblings. NO persona answers unaddressed general
+chatter right now — Insult's omnipresence died with the `personas/insult` monolith and
+RETURNS only when the demux_ai host (#6) owns reception and routes. The registry
+(`shared/personas/registry.py`) is the source of truth for this) → `_handle`: store the
+user turn to Postgres → build per-turn
 `behavioral_guidance` (`khimeras_shared/guidance.py::guidance_for_turn`: loads the
 user's facts, runs `classify_preset`, renders the persona's preset guidance + the
 vulnerable-user overlay) → `_run_and_deliver` → `AgentRunnerClient.chat(persona_id,

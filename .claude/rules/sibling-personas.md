@@ -2,8 +2,13 @@
 
 Sibling personas (Vultur, and any future one) are NOT Insult. They share ONE
 brain — the persona-runner — addressed by `persona_id`, and each runs as its own
-Discord bot user under `persona_gateway`. Insult is the omnipresent host; the
-siblings are mention-gated opt-ins (see `shared/personas/registry.py`).
+Discord bot user under `persona_gateway`. **Post-purga (2026-07-14): EVERY persona,
+Insult included, is mention-gated via `should_respond` (`aliases=[]` makes Insult
+@mention-only). NO persona answers unaddressed general chatter right now — Insult's
+omnipresence died with the `personas/insult` monolith and RETURNS only when the
+demux_ai host (#6) owns reception and routes.** The `registry.py` comment on the
+Insult entry is the source of truth ("Mention-gated vía gateway por ahora; su
+omnipresencia regresa cuando el host nuevo sea dueño de la recepción").
 
 ## The hard rule: a sibling persona needs a durable Azure home
 

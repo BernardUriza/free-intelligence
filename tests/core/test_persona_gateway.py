@@ -67,6 +67,24 @@ def test_ignores_bot_author_even_if_mentioned():
     assert should_respond(msg, bot) is False
 
 
+def test_host_owns_reception_makes_persona_invite_only():
+    # CUTOVER (#6): when the host owns reception, a DIRECT mention that would
+    # normally fire must NOT self-answer — the host routes + summons via /invite,
+    # so self-answering here is the double-answer ("dos bots peleando").
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[bot])
+    assert should_respond(msg, bot, host_owns_reception=True) is False
+
+
+def test_host_owns_reception_default_false_preserves_self_answer():
+    # RESISTANCE: the flag defaults False (pre-cutover), so the SAME mention that
+    # is muted above still fires normally — the switch changes nothing until flipped.
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[bot])
+    assert should_respond(msg, bot) is True
+    assert should_respond(msg, bot, host_owns_reception=False) is True
+
+
 def test_ignores_when_not_ready():
     # RESISTANCE: before on_ready, self.user is None.
     msg = _msg(author_bot=False, mentions=[])

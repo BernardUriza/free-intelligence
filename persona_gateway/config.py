@@ -65,6 +65,14 @@ class GatewayConfig(BaseSettings):
     # mention-gated with a typing keepalive, so the longer wait is honest UX.
     first_turn_timeout_s: float = 240.0
 
+    # Cutover switch (#6): when the omnipresent host (demux_ai) owns reception, the
+    # gateway personas go INVITE-ONLY — they stop self-answering their own @mentions
+    # and respond ONLY to the host's /invite. Without this, a mention makes a persona
+    # answer twice (once via its own mention-gate, once via the host's route+invite):
+    # the "ventana de dos bots peleando". Flip to True on the gateway env at the SAME
+    # time the host goes live (HOST_DISCORD_TOKEN set). Default False = pre-cutover.
+    host_owns_reception: bool = False
+
     # Voice (susurro TTS). Auto-speak replies at/above N chars (0 = manual 🔊 only).
     auto_tts_min_chars: int = 0
     susurro_url: str = DEFAULT_SUSURRO_URL
