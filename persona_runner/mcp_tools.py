@@ -289,10 +289,19 @@ async def publish_html_artifact(args: dict) -> dict:
     artifact_id = await insert_artifact(title=title, html_content=html_content, created_by_user_id=user_id)
     if artifact_id is None:
         return _error("Failed to persist artifact (Postgres unreachable or insert failed)")
-    base = os.environ.get(
-        "ARTIFACT_BASE_URL",
-        "https://discord-bot.nicecliff-10074f57.eastus.azurecontainerapps.io",
-    )
+    # The URL must point at a host that actually serves `/a/{id}` — the runner
+    # itself does (persona_runner.api.artifacts). NO hardcoded default: the old
+    # one was `discord-bot.nicecliff…`, a host that is now NXDOMAIN (and the
+    # greendune discord-bot is scaled to zero), so an unconfigured base minted a
+    # dead link and reported it as "Published" — a fake-green. Fail loud instead;
+    # the artifact IS saved, so the id is returned for recovery.
+    base = (os.environ.get("ARTIFACT_BASE_URL") or "").rstrip("/")
+    if not base:
+        log.error("artifact_base_url_unconfigured", artifact_id=artifact_id)
+        return _error(
+            f"Artifact saved (id={artifact_id}) but ARTIFACT_BASE_URL is not configured, "
+            f"so I can't give you a live link. Set it to the runner's public URL."
+        )
     url = f"{base}/a/{artifact_id}"
     return _text(f"Published. URL: {url}\nTitle: {title}\nSize: {len(html_content)} bytes")
 

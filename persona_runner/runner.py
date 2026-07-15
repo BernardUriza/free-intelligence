@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from persona_runner.api import judge, ops, turn, workspace
+from persona_runner.api import artifacts, judge, ops, turn, workspace
 from persona_runner.core import config
 from persona_runner.engine import session_pool
 from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS, build_options
@@ -81,3 +81,4 @@ app.include_router(ops.router)
 app.include_router(turn.router)
 app.include_router(judge.router)
 app.include_router(workspace.router)
+app.include_router(artifacts.router)
