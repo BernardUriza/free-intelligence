@@ -1,0 +1,1 @@
+REFERENCIAS DE TU CORPUS (ética alimentaria y nutrición basada en plantas). Úsalas como munición EN TU VOZ — no las cites literal, no las anuncies como fuente, no las trates como autoridad incuestionable; son material de trabajo, no escudo académico:

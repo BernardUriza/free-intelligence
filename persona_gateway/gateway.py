@@ -61,6 +61,7 @@ from persona_gateway.routing import clean_mention, edit_summons, format_context,
 from persona_gateway.turns import TurnRunner
 from persona_gateway.voice import VoiceService
 from persona_gateway.workers import AgendaWorker, ReflectionWorker, ReminderWorker, ResearchWorker
+from shared.corpus.persona_corpus import build_persona_corpus_block
 from shared.personas import Persona, gateway_personas
 
 # Re-exports: the tests import these from `persona_gateway.gateway`, and the
@@ -303,6 +304,11 @@ class PersonaClient(discord.Client):
             recent_messages=context,
             persona_id=self.persona.persona_id,
         )
+        # This persona's shared topic corpus (RAG): retrieve the chunks relevant to
+        # THIS message and append them to the guidance so the model argues from its
+        # own library, in its own voice. Best-effort — a corpus fault (no PG, empty
+        # namespace, no persona corpus) returns None and the turn ships unchanged.
+        guidance = await self._append_corpus_block(guidance, ask)
         await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
@@ -324,6 +330,21 @@ class PersonaClient(discord.Client):
             message.author.display_name,
             [*recent[-CONFIG.facts_recent_window :], {"user_name": message.author.display_name, "content": ask}],
         )
+
+    async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
+        """Append this persona's corpus references to the turn guidance, if any.
+
+        Fail-safe: any fault returns the guidance untouched. A persona with no
+        `corpus_namespace` (or no relevant hit) simply gets its guidance back.
+        """
+        try:
+            block = await build_persona_corpus_block(persona_id=self.persona.persona_id, query=ask)
+        except Exception:
+            log.exception("gateway_corpus_block_failed", persona_id=self.persona.persona_id)
+            return guidance
+        if not block:
+            return guidance
+        return f"{guidance}\n\n{block}" if guidance else block
 
     def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
         """Delegates to the fact backstop (kept as a method: tests call it).

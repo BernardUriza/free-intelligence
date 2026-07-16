@@ -16,6 +16,14 @@ htmlcov/
 # shared deep_memory corpus, never committed (6 MB, not a repo artifact).
 data/film_corpus_sources/
 
+# Per-persona RAG corpus sources — public-domain + open-access texts and any
+# copyrighted book atoms, ingested locally into deep_memory (scripts/ingest_corpus.py).
+# The source files stay local (like film_corpus_sources); only the MANIFEST.md
+# per folder is versioned so the provenance travels with the repo.
+data/corpus/**
+!data/corpus/**/
+!data/corpus/**/MANIFEST.md
+
 # Claude Code tooling state (local-only, never commit)
 .claude/plans/
 .claude/worktrees/

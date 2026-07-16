@@ -1,0 +1,1 @@
+REFERENCIAS DE TEORÍA CINEMATOGRÁFICA (Braudy & Cohen — Film Theory and Criticism / The Language and Style of Film Criticism). Úsalas como munición analítica EN TU VOZ — no las cites literal, no las anuncies como fuente, no las trates como autoridad incuestionable; son herramienta de disección, no escudo académico:

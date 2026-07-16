@@ -1,0 +1,1 @@
+REFERENCIAS DE TU CORPUS (retórica erística y máximas sobre la naturaleza humana — Schopenhauer, los moralistas). Úsalas como munición EN TU VOZ — no las cites literal, no las anuncies como fuente, no las trates como autoridad; son filo para el golpe, no adorno erudito:

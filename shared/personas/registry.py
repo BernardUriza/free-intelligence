@@ -47,6 +47,13 @@ class Persona:
     # token in the gateway env) at the single-owner cutover, never before, so
     # there is never a minute with two live bots sharing one Discord token.
     gateway_enabled: bool = True
+    # Synthetic pgvector namespace of this persona's shared topic corpus in
+    # deep_memory_chunks (RAG). None = no corpus. Sources live under
+    # data/corpus/<persona_id>/ (gitignored; MANIFEST.md documents them) and are
+    # ingested via scripts/ingest_corpus.py; the per-turn references block is
+    # injected through guidance_for_turn with the header content at
+    # shared/corpus/headers/<persona_id>.md.
+    corpus_namespace: str | None = None
 
 
 # Future bots: add an entry, nothing else to change.
@@ -68,6 +75,7 @@ PERSONAS: dict[str, Persona] = {
         avatar=None,
         tts_voice="onyx",
         gateway_enabled=True,
+        corpus_namespace="__corpus_insult__",  # retórica erística (Schopenhauer, maximistas)
     ),
     "vultur": Persona(
         persona_id="vultur",
@@ -77,6 +85,10 @@ PERSONAS: dict[str, Persona] = {
         bot_user_id="1512687836766404618",  # set on 2026-06-06
         aliases=[],  # no text aliases for now — @mention-only to avoid FP
         avatar=None,
+        # Legacy namespace name (predates per-persona convention): 2,390 chunks
+        # of Braudy & Cohen 2009 + The Language and Style of Film Criticism,
+        # ingested 2026-06-02/03. Keep the name — the data is already in PG.
+        corpus_namespace="__corpus_film__",
     ),
     # ALICE migration (PR-4c) — readiness, NOT cutover. She is registered so the
     # runner can load her DNA (persona_id="alice") and Insult suppresses her via
@@ -99,6 +111,7 @@ PERSONAS: dict[str, Persona] = {
         # off alice-bot (scaled to 0 first) as the final atom, so there is never a
         # minute with two live ALICE bots on one token.
         gateway_enabled=True,
+        corpus_namespace="__corpus_alice__",  # consuelo práctico (estoicos)
     ),
     # Frugívoro — erudite vegan-gastronomy sibling (2026-06-29). Born native to the
     # gateway (no legacy bot to retire, unlike ALICE), Claude persona on the
@@ -114,6 +127,7 @@ PERSONAS: dict[str, Persona] = {
         avatar=None,
         tts_voice="fable",
         gateway_enabled=True,
+        corpus_namespace="__corpus_vegan__",  # el "later hardening step" por fin (2026-07-16)
     ),
     # Unborn Being — counter-apologetics + antinatalist-mentor sibling (2026-07-16).
     # Born native to the gateway, Claude persona on the persona-runner. DNA is three
@@ -129,6 +143,7 @@ PERSONAS: dict[str, Persona] = {
         avatar=None,
         tts_voice="alloy",
         gateway_enabled=True,
+        corpus_namespace="__corpus_unborn__",  # NDE/DMT + contra-apologética clásica
     ),
 }
 

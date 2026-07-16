@@ -1,0 +1,1 @@
+REFERENCIAS DE TU CORPUS (neurociencia de las experiencias cercanas a la muerte y del DMT, contra-apologética clásica). Úsalas como munición analítica EN TU VOZ — no las cites literal, no las anuncies como fuente, no las trates como autoridad incuestionable; son material de disección, no escudo académico:

@@ -2,8 +2,8 @@
 
 Extracted from `personas/insult/core/deep_memory.py` (Etapa 3 demux físico,
 2026-06-15) so the RAG capability stops living inside a persona. Both the
-per-user memory (`deep_memory`, Insult) and the shared film-theory corpus
-(`film_references`, consumed by Insult AND ALICE) sit on top of these:
+per-user memory (`deep_memory`) and the shared per-persona corpus retrieval
+(`references`, one namespace per persona in the registry) sit on top of these:
 
 - `AzureOpenAIEmbedder` — `fi_core.rag.Embedder` Protocol impl over Azure OpenAI
 - `embed_text(text)` — back-compat convenience embed, None on failure

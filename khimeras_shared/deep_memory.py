@@ -33,19 +33,6 @@ from typing import Any
 
 import structlog
 
-# RAG primitives + the shared film-theory corpus now live in khimeras_shared
-# (Etapa 3 demux físico, 2026-06-15). The per-user memory below consumes the
-# neutral embedder/connection from there; the film symbols are re-exported so
-# existing callers (mcp_tools, memory_consolidator, scripts, tests) keep working.
-from khimeras_shared.corpus.film_references import (
-    FILM_CORPUS_NAMESPACE as FILM_CORPUS_NAMESPACE,
-)
-from khimeras_shared.corpus.film_references import (
-    build_film_references_block as build_film_references_block,
-)
-from khimeras_shared.corpus.film_references import (
-    query_corpus as query_corpus,
-)
 from khimeras_shared.corpus.pg_rag import (
     EMBEDDING_API_VERSION as EMBEDDING_API_VERSION,
 )
@@ -63,6 +50,14 @@ from khimeras_shared.corpus.pg_rag import (
 )
 from khimeras_shared.corpus.pg_rag import connect as _connect
 from khimeras_shared.corpus.pg_rag import embed_text
+
+# RAG primitives + the shared per-persona corpus retrieval live in
+# khimeras_shared.corpus (generalized from the film-only module 2026-07-16:
+# `references.py`, namespace declared per persona in the registry). The
+# per-user memory below consumes the neutral embedder/connection from there.
+from khimeras_shared.corpus.references import (
+    query_corpus as query_corpus,
+)
 from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 
 log = structlog.get_logger()
@@ -197,7 +192,7 @@ async def build_user_memory_block(*, user_id: str, text: str | None) -> str | No
     """Retrieve the user's most relevant raw-history chunks and format them
     for prompt injection.
 
-    Mirror of `build_film_references_block` for the per-user partition: owns
+    Mirror of `corpus.references.build_references_block` for the per-user partition: owns
     the similarity floor, the char budget and the authoritative header, so the
     turn pipeline consumes a finished block instead of raw hits. Returns the
     labeled block or None when the message is trivial, retrieval fails, or
