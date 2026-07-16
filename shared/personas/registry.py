@@ -146,6 +146,11 @@ def sibling_bot_user_ids() -> set[str]:
     return {p.bot_user_id for p in PERSONAS.values() if p.bot_user_id}
 
 
+def persona_id_by_bot_user_id() -> dict[str, str]:
+    """Map Discord bot user IDs to their registered persona_id."""
+    return {p.bot_user_id: p.persona_id for p in PERSONAS.values() if p.bot_user_id}
+
+
 def sibling_aliases() -> list[str]:
     """Flat list of all text aliases across registered siblings.
 

@@ -24,6 +24,7 @@ def _message(text: str, *, is_bot: bool = False) -> SimpleNamespace:
         content=text,
         channel=SimpleNamespace(id=111),
         author=SimpleNamespace(id=222, bot=is_bot, display_name="bern"),
+        mentions=[],
     )
 
 
@@ -46,6 +47,20 @@ def test_ingest_maps_a_human_message_onto_the_loop():
     accepted = client._ingest(_message("reséñame Alien"), now=100.0)
     assert accepted is True
     assert client.dispatch_loop.batcher.pending_keys() == ["111:222"]
+
+
+def test_ingest_threads_mentioned_user_ids_to_the_loop():
+    """Discord user mentions must reach the host loop for deterministic persona routing."""
+    client = _client()
+    msg = _message("@Vultur hola")
+    msg.mentions = [SimpleNamespace(id=1512687836766404618)]
+    assert client._ingest(msg, now=100.0) is True
+    assert client.dispatch_loop._forced_target == {}
+    client.dispatch_loop.mention_targets = {"1512687836766404618": "vultur"}
+    msg = _message("@Vultur hola")
+    msg.mentions = [SimpleNamespace(id=1512687836766404618)]
+    assert client._ingest(msg, now=101.0) is True
+    assert client.dispatch_loop._forced_target == {"111:222": "vultur"}
 
 
 def test_ingest_ignores_a_bot_message():

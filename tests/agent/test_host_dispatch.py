@@ -37,6 +37,24 @@ async def test_trigger_message_id_reaches_the_summon_for_reactions():
     assert summon.await_args.kwargs["trigger_message_id"] == "m42"
 
 
+async def test_forced_target_shortcircuits_the_router_and_summons_it():
+    """Explicit @mention dispatch bypasses topical LLM routing and summons the mention target."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="insult", reason="llm_insult")))
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        decision = await dispatch.route_and_dispatch(
+            router,
+            channel_id="C1",
+            text="@Vultur hola",
+            user_name="bernard",
+            forced_target="vultur",
+        )
+    router.route.assert_not_awaited()
+    assert decision.target == "vultur"
+    assert decision.reason == "mention"
+    assert summon.await_args.kwargs["persona_id"] == "vultur"
+    assert "bernard" in summon.await_args.args[0]["reason"]
+
+
 async def test_router_exception_returns_none_and_summons_nobody():
     """RESISTANCE: a routing fault must never wedge the host or dispatch blind."""
     router = SimpleNamespace(route=AsyncMock(side_effect=RuntimeError("azure down")))

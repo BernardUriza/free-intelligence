@@ -34,6 +34,60 @@ async def test_human_message_batches_then_dispatches_on_a_due_tick():
     assert "reséñame Solaris" in summon.await_args.args[0]["reason"]
 
 
+async def test_mentioned_persona_forces_dispatch_without_router():
+    """An explicit bot @mention in a burst wins over the LLM router's topical default."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="insult", reason="llm_insult")))
+    loop = HostDispatchLoop(
+        router=router,
+        batcher=MessageBatcher(window_seconds=3.0),
+        mention_targets={"1512687836766404618": "vultur"},
+    )
+    assert loop.handle_message(
+        channel_id="C1",
+        author_id="u1",
+        author_is_bot=False,
+        text="@Vultur hola",
+        now=100.0,
+        mentioned_ids=["1512687836766404618"],
+    )
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        decisions = await loop.tick(now=104.0)
+    router.route.assert_not_awaited()
+    assert [d.target for d in decisions] == ["vultur"]
+    assert summon.await_args.kwargs["persona_id"] == "vultur"
+
+
+async def test_latest_mentioned_persona_in_a_burst_wins():
+    """If a burst mentions two personas, the latest explicit mention is routed."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="insult", reason="llm_insult")))
+    loop = HostDispatchLoop(
+        router=router,
+        batcher=MessageBatcher(window_seconds=3.0),
+        mention_targets={"1512687836766404618": "vultur", "1503983124982534284": "alice"},
+    )
+    loop.handle_message(
+        channel_id="C1",
+        author_id="u1",
+        author_is_bot=False,
+        text="@Vultur espera",
+        now=100.0,
+        mentioned_ids=["1512687836766404618"],
+    )
+    loop.handle_message(
+        channel_id="C1",
+        author_id="u1",
+        author_is_bot=False,
+        text="@ALICE mejor tú",
+        now=101.0,
+        mentioned_ids=["1503983124982534284"],
+    )
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        decisions = await loop.tick(now=105.0)
+    router.route.assert_not_awaited()
+    assert [d.target for d in decisions] == ["alice"]
+    assert summon.await_args.kwargs["persona_id"] == "alice"
+
+
 async def test_bot_authored_message_is_ignored():
     """RESISTANCE: the host never routes another bot's output (loop guard)."""
     loop = _loop()

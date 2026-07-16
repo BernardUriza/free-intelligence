@@ -23,6 +23,7 @@ import structlog
 from discord.ext import tasks
 
 from demux_ai.host_loop import HostDispatchLoop
+from shared.personas.registry import persona_id_by_bot_user_id
 
 log = structlog.get_logger()
 
@@ -40,6 +41,7 @@ class HostClient(discord.Client):
     def _ingest(self, message: discord.Message, now: float) -> bool:
         """Map a Discord message onto the loop and batch it. Pure over the loop —
         returns whether it was accepted (a human, non-command message)."""
+        mentioned_ids = [str(user.id) for user in getattr(message, "mentions", [])]
         return self.dispatch_loop.handle_message(
             channel_id=str(message.channel.id),
             author_id=str(message.author.id),
@@ -48,6 +50,7 @@ class HostClient(discord.Client):
             now=now,
             author_name=getattr(message.author, "display_name", ""),
             message_id=str(message.id),
+            mentioned_ids=mentioned_ids,
         )
 
     async def on_ready(self) -> None:
@@ -70,7 +73,10 @@ def build_host(router: object) -> HostClient:
     """Wire a HostClient with message-content intent (needed to read text)."""
     intents = discord.Intents.default()
     intents.message_content = True
-    return HostClient(HostDispatchLoop(router=router), intents=intents)
+    return HostClient(
+        HostDispatchLoop(router=router, mention_targets=persona_id_by_bot_user_id()),
+        intents=intents,
+    )
 
 
 def run_host(router: object, token: str | None = None) -> None:

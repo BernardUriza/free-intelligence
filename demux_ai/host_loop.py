@@ -34,7 +34,9 @@ class HostDispatchLoop:
 
     router: object
     batcher: MessageBatcher = field(default_factory=MessageBatcher)
+    mention_targets: dict[str, str] = field(default_factory=dict)
     _names: dict[str, str] = field(default_factory=dict)
+    _forced_target: dict[str, str] = field(default_factory=dict)
 
     def handle_message(
         self,
@@ -46,6 +48,7 @@ class HostDispatchLoop:
         now: float,
         author_name: str = "",
         message_id: str | None = None,
+        mentioned_ids: list[str] | None = None,
     ) -> bool:
         """Feed one inbound message to the batcher. Returns True if accepted.
 
@@ -55,6 +58,8 @@ class HostDispatchLoop:
 
         `message_id` rides through the batcher so the routed turn's [REACT:] markers
         can anchor to the last message of the burst (else host-routed reactions drop).
+        When a burst contains explicit persona @mentions, the latest mentioned
+        registered bot wins and bypasses the LLM router at dispatch time.
         """
         if author_is_bot:
             return False
@@ -65,6 +70,10 @@ class HostDispatchLoop:
         self.batcher.add(key, text, now, message_id)
         if author_name:
             self._names[key] = author_name
+        for mentioned_id in mentioned_ids or []:
+            target = self.mention_targets.get(mentioned_id)
+            if target:
+                self._forced_target[key] = target
         return True
 
     async def tick(self, now: float) -> list:
@@ -79,6 +88,7 @@ class HostDispatchLoop:
                 text=combined,
                 user_name=self._names.pop(key, ""),
                 trigger_message_id=message_id,
+                forced_target=self._forced_target.pop(key, None),
             )
             decisions.append(decision)
         return decisions

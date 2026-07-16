@@ -14,6 +14,7 @@ routing fault must never wedge the host's loop.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 import structlog
@@ -27,6 +28,14 @@ class _Router(Protocol):
     async def route(self, text: str, context: str | None = None) -> Any: ...
 
 
+@dataclass(frozen=True)
+class MentionDecision:
+    """Decision shape returned when an explicit @mention bypasses the LLM router."""
+
+    target: str
+    reason: str = "mention"
+
+
 async def route_and_dispatch(
     router: _Router,
     *,
@@ -37,6 +46,7 @@ async def route_and_dispatch(
     channel_name: str | None = None,
     context: str | None = None,
     trigger_message_id: str | None = None,
+    forced_target: str | None = None,
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the router decision (for
     telemetry) or None if routing faulted.
@@ -45,6 +55,25 @@ async def route_and_dispatch(
     user's ask verbatim (capped) so the summoned persona reads what it's answering.
     A routing exception is logged and swallowed — the host keeps receiving.
     """
+    if forced_target:
+        reason = f"{user_name}: «{text[:600]}»" if user_name else text[:600]
+        accepted = await summon_persona(
+            {"reason": reason},
+            channel_id=channel_id,
+            guild_id=guild_id,
+            channel_name=channel_name,
+            persona_id=forced_target,
+            invited_by="host",
+            trigger_message_id=trigger_message_id,
+        )
+        log.info(
+            "host_mention_shortcircuit",
+            channel_id=channel_id,
+            target=forced_target,
+            accepted=accepted,
+        )
+        return MentionDecision(target=forced_target)
+
     try:
         decision = await router.route(text, context)
     except Exception:

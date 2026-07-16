@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from shared.personas import gateway_personas, get_persona
+from shared.personas.registry import persona_id_by_bot_user_id
 
 
 def test_insult_is_a_registered_persona():
@@ -36,3 +37,13 @@ def test_insult_guidance_content_is_in_place():
 
 def test_insult_is_gateway_enabled_in_the_registry():
     assert any(p.persona_id == "insult" for p in gateway_personas())
+
+
+def test_persona_id_by_bot_user_id_maps_registered_bots():
+    """Host mention routing can resolve every live sibling bot id deterministically."""
+    assert persona_id_by_bot_user_id() == {
+        "1488415576551325906": "insult",
+        "1512687836766404618": "vultur",
+        "1503983124982534284": "alice",
+        "1521273256236023989": "frugivoro",
+    }
