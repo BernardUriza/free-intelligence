@@ -332,7 +332,11 @@ class PersonaClient(discord.Client):
         )
 
     async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
-        """Append this persona's corpus references to the turn guidance, if any.
+        """Merge this persona's corpus references into the turn guidance.
+
+        ORDER IS SAFETY: corpus FIRST, guardian guidance LAST — the vulnerable-user
+        overlay must be the freshest thing in the block, never buried under 2,200
+        chars of erudition (cruel-critic 2026-07-16, finding #2).
 
         Fail-safe: any fault returns the guidance untouched. A persona with no
         `corpus_namespace` (or no relevant hit) simply gets its guidance back.
@@ -344,7 +348,7 @@ class PersonaClient(discord.Client):
             return guidance
         if not block:
             return guidance
-        return f"{guidance}\n\n{block}" if guidance else block
+        return f"{block}\n\n{guidance}" if guidance else block
 
     def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
         """Delegates to the fact backstop (kept as a method: tests call it).
@@ -413,6 +417,11 @@ class PersonaClient(discord.Client):
         if attachment_blocks:
             instruction_content = [{"type": "text", "text": instruction}, *attachment_blocks]
         messages = [*format_context(recent), {"role": "user", "content": instruction_content}]
+        # The invite path is the MAIN path post-purga (the host routes unaddressed
+        # turns here) — it gets the persona's corpus too, keyed off the routing
+        # reason (cruel-critic 2026-07-16, finding #1: Vultur dictaminaba cine sin
+        # su biblioteca en el path con más tráfico).
+        corpus_guidance = await self._append_corpus_block(None, reason)
         await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
@@ -422,6 +431,7 @@ class PersonaClient(discord.Client):
             messages=messages,
             turn_kind="invite",
             react_to=react_to,
+            behavioral_guidance=corpus_guidance,
         )
 
     async def _run_and_deliver(
