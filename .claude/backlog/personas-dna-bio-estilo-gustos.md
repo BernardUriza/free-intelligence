@@ -1,6 +1,6 @@
 # ADN nivelado: biografía + estilo de escritura + gustos auto-seleccionados por persona
 
-Status: Proposed
+Status: In progress (slice 1 aterrizado 2026-07-16: plantilla + Vultur canary, generados por Codex CLI con diseño dado, revisados y commiteados por Claude)
 Proposed: 2026-07-16 by Bernard (vía /histerical-search — investigación completa en ese turno)
 
 ## What it is
@@ -54,4 +54,6 @@ innecesario a nivel prompt.
 - GO del slice 1.
 
 ## Status / next step
-No construido. Slice 1 arranca con el GO: draft de plantilla + Vultur canary.
+Slice 1 DONE (plantilla en docs/persona_dna_template.md + vultur.md +89 líneas:
+biografía, estilo con 3 diálogos ejemplo, self-facts agent_id='vultur').
+Siguiente: slice 2 (ALICE + Frugívoro) y slice 4 (reflection worker).
