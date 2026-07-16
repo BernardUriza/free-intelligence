@@ -115,6 +115,21 @@ PERSONAS: dict[str, Persona] = {
         tts_voice="fable",
         gateway_enabled=True,
     ),
+    # Unborn Being — counter-apologetics + antinatalist-mentor sibling (2026-07-16).
+    # Born native to the gateway, Claude persona on the persona-runner. DNA is three
+    # verbatim blocks (atheist analyst / collaborative core / antinatalist mentor) in
+    # shared/personas/unborn_being.md. Benchmarked locally 11/11 before wiring.
+    "unborn_being": Persona(
+        persona_id="unborn_being",
+        display_name="Unborn Being",
+        persona_file="unborn_being.md",
+        token_env="UNBORN_BEING_DISCORD_TOKEN",  # nosec B106 — env-var NAME, not a secret
+        bot_user_id="1527357397884993677",  # Discord app/bot id, created 2026-07-16
+        aliases=[],  # mention-only: "unborn" suelto es FP-riesgo, mismo criterio que Insult
+        avatar=None,
+        tts_voice="alloy",
+        gateway_enabled=True,
+    ),
 }
 
 

@@ -58,6 +58,7 @@ def test_persona_id_by_bot_user_id_maps_registered_bots():
         "1512687836766404618": "vultur",
         "1503983124982534284": "alice",
         "1521273256236023989": "frugivoro",
+        "1527357397884993677": "unborn_being",
     }
 
 

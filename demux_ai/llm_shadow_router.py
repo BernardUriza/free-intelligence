@@ -51,7 +51,7 @@ _DEFAULT_TARGET = "insult"
 # registered sibling personas (shared/personas/registry.py). Kept as a constant —
 # NOT an import — so demux_ai stays free of any persona dependency; the lockstep
 # is guarded by ``test_valid_targets_mirror_the_registry_in_lockstep``.
-_VALID_TARGETS = ("insult", "vultur", "alice", "frugivoro")
+_VALID_TARGETS = ("insult", "vultur", "alice", "frugivoro", "unborn_being")
 
 # The effort estimate the routing brain attaches to the turn — the arbiter's time
 # budget for THIS task. ``light`` = a greeting / quick reaction; ``normal`` = an
