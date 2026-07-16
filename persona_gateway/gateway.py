@@ -42,7 +42,7 @@ import discord
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.guidance import guidance_for_turn
+from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.prompts import PromptCache
@@ -338,6 +338,15 @@ class PersonaClient(discord.Client):
         overlay must be the freshest thing in the block, never buried under 2,200
         chars of erudition (cruel-critic 2026-07-16, finding #2).
 
+        CAP IS SAFETY TOO: the runner rejects `behavioral_guidance` > 16000 with a
+        422 (a mute bot). `guidance_for_turn` already truncates to that cap; this
+        merge would re-inflate it past the cap by prepending the corpus, so we
+        RE-CAP here — trimming the CORPUS end, never the guidance. The safety
+        overlay always survives intact; erudition yields. If guidance alone
+        already fills the cap, the corpus is dropped entirely (cruel-critic
+        2026-07-16, finding #1: a near-cap vulnerable-user overlay + a corpus hit
+        used to 422 and mute the bot for the most fragile person).
+
         Fail-safe: any fault returns the guidance untouched. A persona with no
         `corpus_namespace` (or no relevant hit) simply gets its guidance back.
         """
@@ -348,7 +357,28 @@ class PersonaClient(discord.Client):
             return guidance
         if not block:
             return guidance
-        return f"{block}\n\n{guidance}" if guidance else block
+        if not guidance:
+            return block[:MAX_GUIDANCE_CHARS]
+        # Reserve the full guidance (safety-critical); the corpus gets whatever
+        # budget is left. sep is "\n\n". A non-positive budget → drop the corpus.
+        sep = "\n\n"
+        corpus_budget = MAX_GUIDANCE_CHARS - len(guidance) - len(sep)
+        if corpus_budget <= 0:
+            log.warning(
+                "gateway_corpus_dropped_guidance_full",
+                persona_id=self.persona.persona_id,
+                guidance_chars=len(guidance),
+            )
+            return guidance
+        if len(block) > corpus_budget:
+            log.info(
+                "gateway_corpus_trimmed_to_cap",
+                persona_id=self.persona.persona_id,
+                block_chars=len(block),
+                corpus_budget=corpus_budget,
+            )
+            block = block[:corpus_budget]
+        return f"{block}{sep}{guidance}"
 
     def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
         """Delegates to the fact backstop (kept as a method: tests call it).
@@ -548,6 +578,35 @@ async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bo
     return False
 
 
+async def _check_corpus_embed(personas: dict[str, PersonaClient]) -> None:
+    """Boot-time liveness probe for the per-persona RAG corpus (finding #2).
+
+    A corpus retrieval embeds the query at runtime via Azure OpenAI. When those
+    creds are absent / rotated / point at a dead deployment, `embed_text` swallows
+    the failure and returns None — indistinguishable from "no relevant hit", so a
+    corpus-wide outage looks exactly like an off-topic turn and NOBODY notices the
+    persona lost its library (the 2026-07-16 incident: the gateway shipped with no
+    AZURE_OPENAI_* creds and every corpus turn silently degraded to bare model
+    knowledge). This probe makes the outage LOUD at boot instead of invisible.
+
+    Off the port-bind critical path (mirrors `_connect_memory`): a probe failure
+    logs ERROR but never kills the process — the personas still serve, just
+    without their corpus. Skipped entirely when no live persona has a corpus.
+    """
+    if not any(getattr(p.persona, "corpus_namespace", None) for p in personas.values()):
+        return
+    from khimeras_shared.corpus.pg_rag import embed_text
+
+    vec = await embed_text("corpus embed boot healthcheck")
+    if vec is None:
+        log.error(
+            "persona_gateway_corpus_embed_unavailable",
+            note="RAG corpus retrieval is DEAD — embed_text returned None; check AZURE_OPENAI_ENDPOINT/KEY + deployment",
+        )
+    else:
+        log.info("persona_gateway_corpus_embed_ok", dim=len(vec))
+
+
 async def _connect_memory(memory, boot: GatewayBootState) -> None:
     """Connect Postgres off the probe's critical path.
 
@@ -628,6 +687,7 @@ async def _main() -> None:
         log.info("persona_gateway_api_bound", port=8788)
 
     await _connect_memory(memory, boot)
+    await _check_corpus_embed(personas)
 
     persona_tasks = [
         asyncio.create_task(

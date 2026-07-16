@@ -121,3 +121,53 @@ async def test_no_corpus_leaves_guidance_untouched():
     ):
         merged = await client._append_corpus_block("OVERLAY", "ask")
     assert merged == "OVERLAY"
+
+
+async def test_merge_never_exceeds_runner_cap():
+    """#1 (cruel-critic round 2): el merge corpus+guidance JAMÁS rebasa el cap
+    del runner (max_length=16000) — si lo hiciera el runner responde 422 y el
+    bot queda MUDO. El corpus se recorta; la guidance sobrevive completa."""
+    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+
+    client = _client()
+    big_corpus = "C" * 3000  # supera el _REF_MAX_CHARS real, fuerza el recorte
+    near_cap_guidance = "G" * (MAX_GUIDANCE_CHARS - 500)  # deja hueco < corpus
+    with patch(
+        "persona_gateway.gateway.build_persona_corpus_block",
+        new=AsyncMock(return_value=big_corpus),
+    ):
+        merged = await client._append_corpus_block(near_cap_guidance, "ask")
+    assert merged is not None
+    assert len(merged) <= MAX_GUIDANCE_CHARS
+    # la guidance (seguridad) sobrevive intacta; lo que cede es el corpus
+    assert merged.endswith(near_cap_guidance)
+
+
+async def test_corpus_dropped_when_guidance_fills_cap():
+    """#1 resistencia: cuando la guidance sola llena el cap, el corpus se
+    DESCARTA (no se recorta la guidance de seguridad) — turno vive, no 422."""
+    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+
+    client = _client()
+    full_guidance = "G" * MAX_GUIDANCE_CHARS
+    with patch(
+        "persona_gateway.gateway.build_persona_corpus_block",
+        new=AsyncMock(return_value="C" * 2000),
+    ):
+        merged = await client._append_corpus_block(full_guidance, "ask")
+    assert merged == full_guidance
+    assert len(merged) <= MAX_GUIDANCE_CHARS
+
+
+async def test_corpus_only_turn_capped():
+    """#1: el invite path (guidance=None) tampoco puede rebasar el cap."""
+    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+
+    client = _client()
+    with patch(
+        "persona_gateway.gateway.build_persona_corpus_block",
+        new=AsyncMock(return_value="C" * (MAX_GUIDANCE_CHARS + 5000)),
+    ):
+        merged = await client._append_corpus_block(None, "ask")
+    assert merged is not None
+    assert len(merged) <= MAX_GUIDANCE_CHARS
