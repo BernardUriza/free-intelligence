@@ -106,7 +106,7 @@ never a mute bot.**
 (`POSTGRES_URL`). Facts grow ADD-only — the extractor runs in the background via
 `/v1/judge`, and `merge_facts_additive` unions onto the full live auto set before
 `save_facts` (a raw `save_facts(subset)` is a hard-delete in disguise, the 2026-06-03
-P0). Consolidation (`khimeras_shared/memory_consolidation.py`) runs by cron with a
+P0). Consolidation (`khimeras_shared/consolidation/`) runs by cron with a
 two-layer clinical guard: the conservative judge prompt (`prompts_md/
 memory_consolidator_judge.md`, "NEVER DELETE health/trauma") **plus** a code guard
 (`filter_clinical_destruction`) that refuses any DELETE of a clinical fact regardless

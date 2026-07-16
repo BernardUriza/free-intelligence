@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared import memory_consolidation as mc
-from khimeras_shared.memory_consolidation import ConsolidationReport, NoopConsolidationHooks
+from khimeras_shared.consolidation import ConsolidationReport, NoopConsolidationHooks
+from khimeras_shared.consolidation import orchestrator as mc
 
 
 class SpyHooks:

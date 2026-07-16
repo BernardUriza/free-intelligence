@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from khimeras_shared.memory_consolidation import (
+from khimeras_shared.consolidation import (
     SOFT_DELETE_RETENTION_SECONDS,
     NoopConsolidationHooks,
     consolidate_all_users,

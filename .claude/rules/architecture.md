@@ -30,7 +30,7 @@ The old flat `insult/...` paths below the move no longer exist.
 - `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
 - `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the persona-runner) via `persona_id`. `gateway.py`.
 - `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
-- `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `memory_consolidation.py`. Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
+- `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `consolidation/` (ex `memory_consolidation.py`, modularizado 2026-07-16). Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
 - `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
 - `tests/` — `arch/` (import-boundary ratchet at **0**), `chat/`, `core/`, `integration/`, `agent/`, `shared/`.
 - `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`.

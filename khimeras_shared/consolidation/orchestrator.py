@@ -1,11 +1,9 @@
-"""Mem0-style user-fact consolidator — NEUTRAL capability + host-job orchestrator.
+"""Consolidation orchestration — the per-user pass, the all-users run, the purge.
 
-PR-3d split: this module is the persona-NEUTRAL core of fact consolidation —
-the dedup judge call, the transactional apply, the SAFETY-CAP P0, and the
-per-run orchestration over a ``ConsolidationHooks`` contract. It contains NO
-persona voice: the siesta sleep-coordination and the dream-diary (Insult's
-voice) live behind hooks the persona implements (``personas/insult/core/
-consolidation_hooks.py``). ``khimeras_shared`` never imports a persona.
+This is the persona-NEUTRAL core of fact consolidation (PR-3d split): the dedup
+judge call, the transactional apply, the SAFETY-CAP P0, and the per-run
+orchestration over a ``ConsolidationHooks`` contract. It contains NO persona
+voice — the siesta sleep-coordination and the dream-diary live behind the hooks.
 
 After hundreds of conversation turns, the auto-extracted facts pile up with
 overlap, contradictions, and stale entries. The fact-extraction LLM runs
@@ -30,23 +28,24 @@ store.
 
 from __future__ import annotations
 
-import re
 import time
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
-import anthropic
 import structlog
 
-from khimeras_shared.behavior.vulnerability import matched_signal_groups
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from khimeras_shared.consolidation.clinical_guard import filter_clinical_destruction
+from khimeras_shared.consolidation.contracts import (
+    ConsolidationHooks,
+    ConsolidationReport,
+    FactOperation,
+    _op_factory,
+)
+from khimeras_shared.consolidation.judge import _call_judge
 
 if TYPE_CHECKING:
     from khimeras_shared.memory import MemoryStore
 
 log = structlog.get_logger()
-
-_PROMPT_CACHE: PromptCache = {}
 
 # 90 days in seconds — retention window for soft-deleted facts before the
 # hard-purge query removes them. 90d is long enough that a misclassified DELETE
@@ -81,286 +80,6 @@ CONSOLIDATION_MIN_DESTROY_TO_CAP = 1
 # amnesiac. Those rows were relabeled to 'manual'. Do NOT introduce a new source
 # string without first adding it to fi_core's FactSource enum.
 CURATED_SOURCES = frozenset({"manual", "agent"})
-
-# CLINICAL GUARD (defense in depth). The judge prompt BEGS the model never to
-# delete health/trauma facts; a prompt is a plea, not a guarantee — a small model
-# on a bad day will still hand back `{"op":"DELETE","id":17}` for "tiene CPTSD".
-# So the applier REFUSES it in code: a destructive op (DELETE, or an UPDATE that
-# consumes the fact into a merge) on a clinical fact is rejected and logged,
-# regardless of what the judge asked for. Non-clinical ops in the same plan still
-# apply — the guard protects the cluster, it does not freeze consolidation.
-CLINICAL_CATEGORIES = frozenset(
-    {
-        "health",
-        "salud",
-        "medical",
-        "medico",
-        "médico",
-        "mental_health",
-        "salud_mental",
-        "trauma",
-        "safety",
-        "seguridad",
-        "medication",
-        "medicacion",
-        "medicación",
-        "diagnosis",
-        "diagnostico",
-        "diagnóstico",
-    }
-)
-
-# Text-level net, on top of `behavior.vulnerability`'s signal groups (diagnoses,
-# psychiatric meds, clinicians, hospitalization, self-harm, chronic comorbidity):
-# the plainly-medical vocabulary those groups don't carry.
-_CLINICAL_TEXT_RE = re.compile(
-    r"(?i)\b("
-    r"diagn[oó]stic\w*|diagnos\w*|"
-    r"medicaci[oó]n|medicament\w*|f[aá]rmac\w*|pastill\w*|dosis|mg\b|receta\w*|"
-    r"tratamiento\w*|terapia\w*|therapy|"
-    r"enfermedad\w*|padecimient\w*|s[ií]ntoma\w*|cr[oó]nic\w*|"
-    r"vih|hiv|hepatitis|c[aá]ncer|cancer|diabet\w*|epileps\w*|"
-    r"depresi[oó]n|ansiedad|anxiety|depress\w*|"
-    r"abuso|abuse|violaci[oó]n|maltrat\w*|"
-    r"cl[ií]nica|hospital\w*|imss|consulta m[eé]dica|"
-    r"alerg\w*|antirretrovir\w*|arv\b"
-    r")"
-)
-
-
-def is_clinical_fact(fact: dict) -> str | None:
-    """Reason string when the fact is clinical/traumatic, else None.
-
-    Deliberately over-inclusive: a false positive costs one redundant fact kept
-    forever; a false negative costs someone's diagnosis (the 2026-06-03 P0).
-    """
-    category = (fact.get("category") or "").strip().lower()
-    if category in CLINICAL_CATEGORIES:
-        return f"category={category}"
-    text = fact.get("fact") or ""
-    groups = matched_signal_groups([fact])
-    if groups:
-        return f"vulnerability_signal={','.join(groups)}"
-    if _CLINICAL_TEXT_RE.search(text):
-        return "clinical_text"
-    return None
-
-
-def filter_clinical_destruction(plan: list[dict], by_id: dict[int, dict]) -> tuple[list[dict], list[dict]]:
-    """Strip every destructive op that would touch a clinical fact.
-
-    Returns `(safe_plan, blocked_ops)`. A blocked DELETE becomes a NOOP; a blocked
-    UPDATE (merge) is dropped and each of its `merge_ids` becomes a NOOP, so the
-    plan still references every input fact exactly once (fi-core's contract) and
-    nothing clinical is destroyed. Everything else passes through untouched — a
-    plan may still fold "le gusta el café" into one line.
-    """
-    safe: list[dict] = []
-    blocked: list[dict] = []
-    for op in plan:
-        kind = op.get("op")
-        if kind == "DELETE":
-            fact = by_id.get(op.get("id"))
-            reason = is_clinical_fact(fact) if fact else None
-            if reason:
-                blocked.append(op)
-                safe.append({"op": "NOOP", "id": op["id"], "reason": f"clinical_guard: {reason}"})
-                continue
-        elif kind == "UPDATE":
-            merge_ids = op.get("merge_ids", [])
-            hits = [(fid, is_clinical_fact(by_id[fid])) for fid in merge_ids if fid in by_id]
-            clinical = [(fid, r) for fid, r in hits if r]
-            if clinical:
-                blocked.append(op)
-                for fid in merge_ids:
-                    reason = dict(clinical).get(fid) or "merged with a clinical fact"
-                    safe.append({"op": "NOOP", "id": fid, "reason": f"clinical_guard: {reason}"})
-                continue
-        safe.append(op)
-    return safe, blocked
-
-
-# Output cap for the judge LLM. The plan must reference every input fact id in
-# exactly one op (NOOP/DELETE/UPDATE), and each op carries a short reason string
-# — so output tokens scale linearly with input fact count. The original 2048 cap
-# silently truncated mid-JSON for users with ≥80 facts (Alex/CPTSD case: 92 facts
-# → judge_failed every run from 2026-04-26 through 2026-04-27). Haiku 4.5 supports
-# up to 8192 output tokens; 4x the original headroom covers ~300+ facts/user.
-JUDGE_MAX_OUTPUT_TOKENS = 8192
-
-
-@dataclass
-class FactOperation:
-    """One row to write to fact_consolidation_log + apply to user_facts."""
-
-    op: str  # NOOP | DELETE | UPDATE | ADD
-    fact_id_before: int | None = None
-    fact_id_after: int | None = None
-    fact_text_before: str | None = None
-    fact_text_after: str | None = None
-    reason: str = ""
-
-
-@dataclass
-class ConsolidationReport:
-    """Summary of one consolidation run for a single user."""
-
-    user_id: str
-    facts_in: int
-    facts_out: int
-    ops: list[FactOperation] = field(default_factory=list)
-    duration_ms: int = 0
-    haiku_input_tokens: int = 0
-    haiku_output_tokens: int = 0
-    error: str | None = None
-
-    def counts_by_op(self) -> dict[str, int]:
-        out = {"NOOP": 0, "DELETE": 0, "UPDATE": 0, "ADD": 0}
-        for o in self.ops:
-            out[o.op] = out.get(o.op, 0) + 1
-        return out
-
-
-class ConsolidationHooks(Protocol):
-    """Persona-side hooks the neutral orchestrator calls at run boundaries.
-
-    Everything persona-flavored (sleep coordination, the dream diary, any voice)
-    lives behind these hooks so the orchestrator stays neutral and ``khimeras_shared``
-    never imports a persona. Insult implements them with siesta + dream diary;
-    ALICE uses ``NoopConsolidationHooks``.
-    """
-
-    async def on_run_started(self, *, total_users: int, dry_run: bool) -> object | None:
-        """Return an opaque marker (passed back to progress hooks), or None."""
-        ...
-
-    async def on_user_progress(
-        self, *, marker: object, total_users: int, processed_users: int, current_user_id: str
-    ) -> None:
-        """Called before each user's consolidation when a marker is active."""
-        ...
-
-    async def after_user(self, *, user_id: str) -> None:
-        """Called after each user's consolidation succeeds (real runs only)."""
-        ...
-
-    async def on_pre_finish(self, *, marker: object, total_users: int) -> None:
-        """Called once after the loop, before hard-purge (real runs only)."""
-        ...
-
-    async def write_diary(self, reports: list[ConsolidationReport], *, memory, llm, model, name_resolver) -> None:
-        """Called once at the end with all reports (real runs only)."""
-        ...
-
-    async def on_run_finished(self) -> None:
-        """Called in ``finally`` on real runs — never leaves the bot asleep."""
-        ...
-
-
-class NoopConsolidationHooks:
-    """Default no-op hooks — for personas without sleep/diary (e.g. ALICE) and
-    for callers that want the bare capability with no persona side effects."""
-
-    async def on_run_started(self, *, total_users: int, dry_run: bool) -> object | None:
-        return None
-
-    async def on_user_progress(
-        self, *, marker: object, total_users: int, processed_users: int, current_user_id: str
-    ) -> None:
-        return None
-
-    async def after_user(self, *, user_id: str) -> None:
-        return None
-
-    async def on_pre_finish(self, *, marker: object, total_users: int) -> None:
-        return None
-
-    async def write_diary(self, reports: list[ConsolidationReport], *, memory, llm, model, name_resolver) -> None:
-        return None
-
-    async def on_run_finished(self) -> None:
-        return None
-
-
-async def _call_judge(
-    llm,
-    model: str,
-    facts: list[dict],
-) -> tuple[list[dict] | None, int, int]:
-    """Single Haiku call. Returns (plan, input_tokens, output_tokens).
-
-    Shape B per memory:[[mcp-shape-b-canonical]]. fi-core
-    (``build_consolidation_prompt`` + ``parse_consolidation_result``) owns the
-    fact RENDER, the JSON parser, op-shape validation, and implicit-NOOP backfill.
-    This function only orchestrates: build → execute via ``llm.utility_call``
-    (RunnerJudgeClient in prod, mock in tests) → parse.
-
-    EXCEPT the system prompt: fi-core ships a Mem0-style curator that deletes
-    whenever "another fact covers the same ground" and caps merges at 25 words.
-    That is the prompt that buried Alex's CPTSD/quetiapina/psiquiatra cluster.
-    The CONSERVATIVE judge — default-NOOP, "NEVER DELETE health/identity/trauma",
-    no word cap — is OURS, lives as CONTENT in
-    ``prompts_md/memory_consolidator_judge.md``, and overrides fi-core's.
-    """
-    from fi_core.persona.mcp_server import (
-        build_consolidation_prompt,
-        parse_consolidation_result,
-    )
-
-    prompt_spec = await build_consolidation_prompt(
-        facts=facts,
-        max_tokens_hint=JUDGE_MAX_OUTPUT_TOKENS,
-    )
-
-    try:
-        response = await llm.utility_call(
-            load_prompt(SHARED_PROMPTS_DIR, "memory_consolidator_judge", _PROMPT_CACHE),
-            [{"role": "user", "content": prompt_spec["user_text"]}],
-            model=model,
-            max_tokens=prompt_spec["max_tokens"],
-        )
-    except (anthropic.APIError, anthropic.APIConnectionError) as e:
-        log.warning("consolidator_judge_call_failed", error=str(e))
-        return None, 0, 0
-    if response.stop_reason == "max_tokens":
-        log.warning(
-            "consolidator_judge_truncated",
-            facts_in=len(facts),
-            max_tokens=prompt_spec["max_tokens"],
-        )
-
-    parsed = await parse_consolidation_result(
-        raw_response=response.text,
-        facts=facts,
-    )
-    if not parsed["ok"]:
-        log.warning(
-            "consolidator_judge_parse_failed",
-            error=parsed["error"],
-            raw_len=parsed["raw_len"],
-        )
-        return None, 0, 0
-    return parsed["ops"], 0, 0
-
-
-def _op_factory(
-    op: str,
-    fact_id_before: int | None,
-    fact_id_after: int | None,
-    text_before: str | None,
-    text_after: str | None,
-    reason: str,
-) -> FactOperation:
-    """Bridge between FactsRepository.apply_consolidation_plan (which doesn't
-    know about FactOperation) and this module's dataclass."""
-    return FactOperation(
-        op=op,
-        fact_id_before=fact_id_before,
-        fact_id_after=fact_id_after,
-        fact_text_before=text_before,
-        fact_text_after=text_after,
-        reason=reason,
-    )
 
 
 async def consolidate_user_facts(

@@ -52,7 +52,7 @@ RUN npm install -g --silent @playwright/mcp \
 # no existe; el engine conductual vive en khimeras_shared.behavior):
 #   - shared/* for chunking, logging setup, and the persona registry/DNA
 #   - khimeras_shared/* for runner.agent_client, prompts loader,
-#     memory/vectors/style/corpus, memory_consolidation, deep_memory,
+#     memory/vectors/style/corpus, consolidation/, deep_memory,
 #     html_artifacts, and behavior/ (presets+flows+vulnerability engine that
 #     persona_runner.{model_routing,router_runtime} import)
 #   - persona_runner/* — the shared runner service (FastAPI + workspace_renderer)

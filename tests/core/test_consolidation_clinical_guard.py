@@ -18,11 +18,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared.memory_consolidation import (
-    _call_judge,
-    filter_clinical_destruction,
-    is_clinical_fact,
-)
+from khimeras_shared.consolidation import filter_clinical_destruction, is_clinical_fact
+from khimeras_shared.consolidation.judge import _call_judge
 from khimeras_shared.prompts import SHARED_PROMPTS_DIR, load_prompt
 
 CLINICAL_FACTS = [
@@ -160,7 +157,7 @@ def test_clinical_predicate_ignores_a_trivial_preference():
 async def test_consolidate_user_facts_applies_no_clinical_delete(monkeypatch):
     """The whole pass: judge asks to delete the CPTSD fact → the applier gets a
     plan with ZERO destructive ops, and the fact survives."""
-    from khimeras_shared import memory_consolidation as mc
+    from khimeras_shared.consolidation import orchestrator as mc
 
     memory = MagicMock()
     memory.get_facts = AsyncMock(return_value=CLINICAL_FACTS)
