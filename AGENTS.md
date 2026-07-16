@@ -6,12 +6,17 @@ contradice esto, **el prompt gana solo para esa tarea** — estas reglas son el 
 
 ## Qué es este repo (post-castigo 2026-07-14)
 
-Bot de Discord multi-persona (Insult, Vultur, Frugívoro, ALICE). El **paquete
-`personas/` fue BORRADO** (commit 2f8d9ad, −37,868 líneas) — ya no existe. El
-sistema vivo son cuatro paquetes:
+Bot de Discord multi-persona (Insult, Vultur, Frugívoro, ALICE, Unborn Being).
+El **paquete `personas/` fue BORRADO** (commit 2f8d9ad, −37,868 líneas) — ya no
+existe. El sistema vivo son cuatro paquetes:
 
 - **`persona_gateway/`** — un bot de Discord por persona; recibe, rutea al runner,
-  entrega. `gateway.py` es el turn path (`_handle` → `_run_and_deliver`).
+  entrega. `gateway.py` es el adapter de Discord (handlers + orquestación); la
+  mecánica vive en servicios inyectados: `ingest.py` (attachments→bloques +
+  STT), `turns.py` (`TurnRunner`: runner→react→markers→send→store→TTS),
+  `invites.py` (helpers del /invite), más `routing/delivery/markers/workers/
+  facts/voice/config`. El bootstrap (`_build_shared`…`_main`) se queda en
+  `gateway.py` — decisión settled, los tests lo monkeypatchean ahí.
 - **`persona_runner/`** — FastAPI + Claude Agent SDK. `runner.py` monta routers
   (`api/{turn,judge,workspace,ops}.py`); lógica en `core/`, `engine/`, `routing/`.
   Entrypoint fijo: `uvicorn persona_runner.runner:app`.
@@ -80,6 +85,29 @@ ENGINE (juzgan al usuario: extracción de facts, juez de consolidación) →
 `khimeras_shared/prompts_md/`, cargados con `khimeras_shared.prompts.load_prompt`.
 Prosa de la VOZ de una persona → `shared/personas/guidance/<persona_id>/`.
 
+## ADN de personas — reglas de contenido (P0)
+
+- **Una sola fuente por persona: `shared/personas/<id>.md`.** El `persona.md` de
+  la raíz está MUERTO (borrado 2026-07-16, `30376a9`); hay un test tombstone que
+  truena si alguien lo recrea. NUNCA lo recrees ni lo referencies.
+- **La plantilla canónica es `docs/persona_dna_template.md`** — secciones:
+  identidad núcleo, `## Biografía` (aterrizada en Khimeras: robots conviven con
+  humanos; hermanos + Bernard el creador), `## Estilo de escritura` (hábitos
+  lingüísticos + 2-3 diálogos de ejemplo few-shot), `## Lo que yo sé sobre mí`
+  (self-facts vía `agent_facts` con provenance), `## Identidad — no negociable`.
+  Toda persona nueva o nivelada la sigue; no inventes otro formato.
+- **Character guard, sin excepciones**: JAMÁS «assistant», «asistente», «IA»,
+  «modelo de lenguaje», «Claude», «Anthropic», «GPT» ni «OpenAI» en el DNA de
+  una persona. La persona ES quien es; el framing de asistente rompe el guard
+  en producción.
+- **Ediciones de DNA existente son ADITIVAS por default** — el diff no borra ni
+  reescribe secciones vivas salvo orden explícita del prompt.
+- **Español con ortografía completa** (acentos, ¿?, ¡!) en todo el contenido de
+  persona.
+- Registrar una persona nueva = entrada en `shared/personas/registry.py` +
+  `<id>.md` + los tests del registry (`tests/shared/test_registry_insult.py`
+  mapea bot_user_id y role names — se actualizan juntos).
+
 ## Git — reglas duras
 
 - **`git commit` SIEMPRE con pathspec explícito**: `git commit -- <ruta1> <ruta2>`.
@@ -97,6 +125,11 @@ Prosa de la VOZ de una persona → `shared/personas/guidance/<persona_id>/`.
   (el humano lo cierra). No intentes rodearlo.
 - Mensajes en español, estilo del repo (`feat(...)`, `fix(...)`, `test(...)`).
 - No toques archivos fuera del alcance que te dieron.
+- **El working tree es COMPARTIDO con sesiones paralelas** (varios agentes
+  trabajan este repo a la vez, es lo normal aquí). Si `git status` muestra
+  archivos modificados/untracked que TÚ no tocaste: no los stagees, no los
+  «arregles», no los borres — repórtalos y sigue en tu carril. Un commit tuyo
+  jamás debe llevarse WIP ajeno.
 
 ## Reporte final
 
