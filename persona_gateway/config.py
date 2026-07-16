@@ -51,6 +51,10 @@ class GatewayConfig(BaseSettings):
     reflection_window: int = 40
     reflection_min_turns: int = 12
     reflection_max_facts: int = 3
+    # First tick waits out the deploy window: gateway + runner ship in the same
+    # CD wave, so a tick at boot stampedes a runner that is still cycling (the
+    # 2026-07-16 first-pass 503s). 15 min = runner warm, deploy settled.
+    reflection_boot_warmup_s: float = 900.0
 
     # Reminders: 30s keeps "recuérdamelo a las 8" honest to the minute; a reminder
     # more than MAX_LATENESS late is retired unsent (nobody wants yesterday's 3am).

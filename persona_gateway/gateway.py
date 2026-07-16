@@ -176,6 +176,13 @@ class PersonaClient(discord.Client):
     async def _reflection_check(self) -> None:
         await self._reflection.drain(self.judge_client)
 
+    @_reflection_check.before_loop
+    async def _reflection_boot_warmup(self) -> None:
+        """Hold the first tick past the deploy window (gateway + runner ship in
+        the same CD wave; a tick at boot stampedes a runner still cycling —
+        the 2026-07-16 first-pass 503s). The weekly gate makes 15 min free."""
+        await asyncio.sleep(CONFIG.reflection_boot_warmup_s)
+
     # --- reception -----------------------------------------------------------
 
     async def on_message(self, message: discord.Message) -> None:
