@@ -27,7 +27,13 @@ log = structlog.get_logger()
 # Tuning for the references injection — mirrors the per-user memory knobs in
 # deep_memory.py so the two retrieval paths behave consistently.
 _REF_TOP_K = 3
-_REF_MIN_SIMILARITY = 0.30  # cosine sim floor; drop weak hits
+# ada-002 es anisotrópico: sus cosenos viven ~[0.65, 0.95] aun entre textos SIN
+# relación (media ~0.85 para relacionados; <0.4 prácticamente no existe). Un
+# floor de 0.30 era un NO-OP: jamás filtró nada y todo top-k entraba al turno —
+# el failure mode exacto de RAG para role-play (chunks irrelevantes distraen al
+# personaje). 0.78 corta lo claramente-ajeno; calibrar con la telemetría
+# top/low_similarity de `deep_memory_corpus_refs_built` (2026-07-16).
+_REF_MIN_SIMILARITY = 0.78
 _REF_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
 _REF_MAX_CHARS = 2200  # cap injected context so the turn stays bounded
 
@@ -118,5 +124,7 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         namespace=namespace,
         hits=len(lines),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
+        low_similarity=round(relevant[len(lines) - 1].get("similarity", 0.0), 3),
+        dropped_below_floor=len(hits) - len(relevant),
     )
     return header.strip() + "\n" + "\n".join(lines)

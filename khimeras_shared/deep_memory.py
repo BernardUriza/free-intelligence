@@ -183,7 +183,12 @@ async def query_user_memory(*, user_id: str, query: str, top_k: int = 5) -> list
 # consistently. Lived in cogs/chat/stages.py until the RetrievalPort seam
 # moved rendering ownership into this domain service (PR-D).
 _USER_MEMORY_TOP_K = 4
-_USER_MEMORY_MIN_SIMILARITY = 0.30  # cosine sim (1 - distance); drop weak hits
+# ada-002 nunca produce cosenos <0.4 ni entre textos ajenos (rango real ~[0.65,
+# 0.95]) — el 0.30 histórico jamás filtró un solo hit. 0.75, más suave que el
+# 0.78 del corpus a propósito: perder recall de memoria del usuario cuesta más
+# que colar un chunk tibio (la clase de P0 "larisa never remembered"). Calibrar
+# con telemetría antes de subirlo (2026-07-16).
+_USER_MEMORY_MIN_SIMILARITY = 0.75
 _USER_MEMORY_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
 _USER_MEMORY_MAX_CHARS = 2000  # cap injected context so the turn stays bounded
 
