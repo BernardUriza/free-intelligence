@@ -53,6 +53,7 @@ class HostDispatchLoop:
         message_id: str | None = None,
         mentioned_ids: list[str] | None = None,
         mentioned_role_names: list[str] | None = None,
+        attachment_names: list[str] | None = None,
     ) -> bool:
         """Feed one inbound message to the batcher. Returns True if accepted.
 
@@ -65,6 +66,14 @@ class HostDispatchLoop:
         When a burst contains explicit persona user/role @mentions, the latest
         mentioned registered persona wins and bypasses the LLM router at dispatch
         time.
+
+        `attachment_names` makes bare images ROUTABLE (2026-07-16 bug: una imagen
+        pelona era text="" → el batcher la tiraba y nadie respondía jamás). The
+        attachment becomes a visible note in the batched text — the router reads
+        "[adjuntó: foto.png]" and routes — and the batcher prefers the
+        attachment-bearing message as the burst's trigger, so the routed persona
+        actually FETCHES the image (the invite path harvests attachments from the
+        trigger message).
         """
         if author_is_bot:
             return False
@@ -72,7 +81,13 @@ class HostDispatchLoop:
         if stripped.startswith(COMMAND_PREFIXES):
             return False
         key = f"{channel_id}:{author_id}"
-        self.batcher.add(key, text, now, message_id)
+        names = [n for n in (attachment_names or []) if n]
+        if names:
+            note = f"[adjuntó: {', '.join(names)}]"
+            batched_text = f"{stripped}\n{note}" if stripped else note
+        else:
+            batched_text = text
+        self.batcher.add(key, batched_text, now, message_id, has_attachments=bool(names))
         if author_name:
             self._names[key] = author_name
         for mentioned_id in mentioned_ids or []:

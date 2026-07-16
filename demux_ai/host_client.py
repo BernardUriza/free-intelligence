@@ -43,6 +43,7 @@ class HostClient(discord.Client):
         returns whether it was accepted (a human, non-command message)."""
         mentioned_ids = [str(user.id) for user in getattr(message, "mentions", [])]
         mentioned_role_names = [role.name for role in getattr(message, "role_mentions", [])]
+        attachment_names = [a.filename for a in getattr(message, "attachments", []) if getattr(a, "filename", None)]
         return self.dispatch_loop.handle_message(
             channel_id=str(message.channel.id),
             author_id=str(message.author.id),
@@ -53,6 +54,7 @@ class HostClient(discord.Client):
             message_id=str(message.id),
             mentioned_ids=mentioned_ids,
             mentioned_role_names=mentioned_role_names,
+            attachment_names=attachment_names,
         )
 
     async def on_ready(self) -> None:
