@@ -48,6 +48,12 @@ from khimeras_shared.prompts import PromptCache
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
+from khimeras_shared.stt import (
+    DEFAULT_AUDIO_CONTENT_TYPE,
+    SusurroSttClient,
+    build_susurro_stt_client,
+    transcribe_voice_message,
+)
 from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
@@ -96,6 +102,7 @@ class PersonaClient(discord.Client):
         *,
         intents: discord.Intents,
         tts_client=None,
+        stt_client: SusurroSttClient | None = None,
         auto_tts_min_chars: int = 0,
         judge_client: RunnerJudgeClient | None = None,
     ) -> None:
@@ -123,6 +130,7 @@ class PersonaClient(discord.Client):
         # Injected services — the logic lives here, the client just delegates.
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
+        self._stt_client = stt_client
         self._facts = FactExtractor(persona, memory, self._bg_tasks)
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)
@@ -233,6 +241,9 @@ class PersonaClient(discord.Client):
         channel_name = getattr(message.channel, "name", None)
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
+        voice_transcripts = await self._transcribe_audio_attachments(message)
+        if voice_transcripts:
+            ask = "\n".join(part for part in [ask, *voice_transcripts] if part)
         attachment_blocks = await self._process_attachments(message)
         if not ask and not attachment_blocks:
             return  # bare @mention with no text and no readable attachment
@@ -311,9 +322,12 @@ class PersonaClient(discord.Client):
         siblings finally SEE images (P0 2026-07-07). Invite turns have no source
         message, so they carry none.
         """
-        if not message.attachments or message.flags.voice:
+        if not message.attachments:
             return []
-        blocks, errors = await process_attachments(message.attachments)
+        readable_attachments = [att for att in message.attachments if not self._is_audio_attachment(att, message)]
+        if not readable_attachments:
+            return []
+        blocks, errors = await process_attachments(readable_attachments)
         for err in errors:
             with contextlib.suppress(discord.HTTPException):
                 await message.channel.send(err)
@@ -324,6 +338,53 @@ class PersonaClient(discord.Client):
             errors=len(errors),
         )
         return blocks
+
+    @staticmethod
+    def _is_audio_attachment(attachment, message: discord.Message) -> bool:
+        content_type = (getattr(attachment, "content_type", None) or "").lower()
+        if content_type.startswith("audio/"):
+            return True
+        filename = (getattr(attachment, "filename", None) or "").lower()
+        return bool(
+            getattr(message.flags, "voice", False)
+            and (not content_type or filename.endswith((".ogg", ".opus", ".mp3", ".m4a", ".wav", ".webm")))
+        )
+
+    async def _transcribe_audio_attachments(self, message: discord.Message) -> list[str]:
+        if not message.attachments or self._stt_client is None:
+            return []
+
+        transcripts: list[str] = []
+        for attachment in message.attachments:
+            if not self._is_audio_attachment(attachment, message):
+                continue
+            content_type = getattr(attachment, "content_type", None) or DEFAULT_AUDIO_CONTENT_TYPE
+            try:
+                audio_data = await attachment.read()
+                transcript = await transcribe_voice_message(
+                    audio_data,
+                    base_url=self._stt_client.base_url,
+                    api_key=self._stt_client.api_key,
+                    content_type=content_type,
+                )
+            except Exception as exc:
+                log.error(
+                    "persona_gateway_stt_failed",
+                    persona_id=self.persona.persona_id,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                continue
+            if transcript is None:
+                continue
+            log.info(
+                "persona_gateway_stt_transcribed",
+                persona_id=self.persona.persona_id,
+                length=len(transcript),
+                engine=getattr(transcript, "engine", None),
+            )
+            transcripts.append(str(transcript))
+        return transcripts
 
     async def respond_to_invite(
         self,
@@ -511,7 +572,15 @@ class PersonaClient(discord.Client):
 # moving them would break that regression guard for no structural gain.
 
 
-def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int, str, RunnerJudgeClient]:
+def _build_shared() -> tuple[
+    MemoryStore,
+    AgentRunnerClient,
+    object | None,
+    SusurroSttClient | None,
+    int,
+    str,
+    RunnerJudgeClient,
+]:
     """Construct the deps shared by all persona-bots (same wiring as Insult).
 
     Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
@@ -538,13 +607,15 @@ def _build_shared() -> tuple[MemoryStore, AgentRunnerClient, object | None, int,
     judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
 
     tts_client = build_susurro_tts_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
+    stt_client = build_susurro_stt_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
     log.info(
         "persona_gateway_tts_configured",
         enabled=tts_client is not None,
         auto_tts_min_chars=CONFIG.auto_tts_min_chars,
     )
+    log.info("persona_gateway_stt_configured", enabled=stt_client is not None)
     invite_token = config.insult_to_alice_token.get_secret_value()
-    return memory, agent_client, tts_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
+    return memory, agent_client, tts_client, stt_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
 
 
 def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
@@ -617,7 +688,12 @@ async def _supervise_persona(persona_id: str, coro, boot: GatewayBootState) -> N
 
 
 async def _main() -> None:
-    memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = _build_shared()
+    shared = _build_shared()
+    if len(shared) == 6:
+        memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = shared
+        stt_client = None
+    else:
+        memory, agent_client, tts_client, stt_client, auto_tts_min_chars, invite_token, judge_client = shared
 
     intents = discord.Intents.default()
     intents.message_content = True
@@ -635,6 +711,7 @@ async def _main() -> None:
             agent_client,
             intents=intents,
             tts_client=tts_client,
+            stt_client=stt_client,
             auto_tts_min_chars=auto_tts_min_chars,
             judge_client=judge_client,
         )

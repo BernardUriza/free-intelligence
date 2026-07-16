@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import base64
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
 from khimeras_shared.attachments import MAX_ATTACHMENT_SIZE
+from khimeras_shared.stt import SusurroSttClient
 from persona_gateway.gateway import PersonaClient
 from shared.personas import Persona
 
@@ -38,7 +39,7 @@ def _channel():
     return channel
 
 
-def _client() -> PersonaClient:
+def _client(*, stt_client: SusurroSttClient | None = None) -> PersonaClient:
     persona = Persona(
         persona_id="vultur",
         display_name="Vultur Analytica",
@@ -50,7 +51,7 @@ def _client() -> PersonaClient:
     memory.get_recent = AsyncMock(return_value=[])
     agent_client = MagicMock()
     agent_client.chat = AsyncMock(return_value=SimpleNamespace(text="va", model_used="claude"))
-    return PersonaClient(persona, memory, agent_client, intents=discord.Intents.none())
+    return PersonaClient(persona, memory, agent_client, intents=discord.Intents.none(), stt_client=stt_client)
 
 
 def _attachment(filename: str, content_type: str, size: int, data: bytes = b"") -> MagicMock:
@@ -158,12 +159,21 @@ async def test_bare_mention_without_attachments_stays_silent():
     client.memory.store.assert_not_awaited()
 
 
-async def test_voice_message_attachments_are_skipped():
-    client = _client()
-    clip = _attachment("voice.ogg", "audio/ogg", 500)
+async def test_voice_message_attachment_is_transcribed_into_runner_text():
+    client = _client(stt_client=SusurroSttClient(base_url="https://sus.example.com", api_key="sk-secret"))
+    clip = _attachment("voice.ogg", "audio/ogg", 500, data=b"ogg-bytes")
     msg = _message("escucha", [clip], voice=True)
 
-    await client._handle(msg)
+    with patch("persona_gateway.gateway.transcribe_voice_message", AsyncMock(return_value="abre la puerta")) as stt:
+        await client._handle(msg)
 
+    stt.assert_awaited_once_with(
+        b"ogg-bytes",
+        base_url="https://sus.example.com",
+        api_key="sk-secret",
+        content_type="audio/ogg",
+    )
     client.agent_client.chat.assert_awaited_once()
-    assert _last_user_content(client) == "escucha"
+    assert _last_user_content(client) == "escucha\nabre la puerta"
+    stored_text = client.memory.store.await_args_list[0].args[4]
+    assert stored_text == "escucha\nabre la puerta"
