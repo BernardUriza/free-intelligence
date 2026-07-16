@@ -127,6 +127,7 @@ async def test_invite_with_trigger_message_id_reacts_to_that_message():
     client.memory.get_recent = AsyncMock(return_value=[])
     channel = _invite_channel()
     trigger = MagicMock()
+    trigger.attachments = []
     channel.fetch_message.return_value = trigger
     with (
         patch.object(client, "get_channel", return_value=channel),

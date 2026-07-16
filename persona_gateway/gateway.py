@@ -319,8 +319,8 @@ class PersonaClient(discord.Client):
         png/jpg/gif/webp + text/pdf, in-character rejection notices). The blocks
         ride the final user message; `AgentRunnerClient` extracts them and the
         runner builds the multimodal SDK input — same E2E path Insult uses, so
-        siblings finally SEE images (P0 2026-07-07). Invite turns have no source
-        message, so they carry none.
+        siblings finally SEE images (P0 2026-07-07). Invite turns feed their
+        fetched trigger message through here too (2026-07-16).
         """
         if not message.attachments:
             return []
@@ -427,7 +427,6 @@ class PersonaClient(discord.Client):
                 f"[Insult te invitó a este turno. Razón: {reason}] "
                 "Lee el hilo de arriba y responde con la mirada que esa razón pide."
             )
-        messages = [*format_context(recent), {"role": "user", "content": instruction}]
         log.info(
             "persona_gateway_invite_accepted",
             persona_id=self.persona.persona_id,
@@ -450,6 +449,26 @@ class PersonaClient(discord.Client):
                     channel_id=channel_id,
                     trigger_message_id=trigger_message_id,
                 )
+        # The trigger message may carry images/documents — a host-routed turn
+        # about an image is blind without them (2026-07-16 bug: Insult reacted
+        # to a photo it never saw). Best-effort: a processing fault degrades to
+        # a text-only turn, never a dead invite.
+        attachment_blocks: list[dict] = []
+        if react_to is not None:
+            try:
+                attachment_blocks = await self._process_attachments(react_to)
+            except Exception:
+                log.warning(
+                    "persona_gateway_invite_attachments_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    trigger_message_id=trigger_message_id,
+                    exc_info=True,
+                )
+        instruction_content: str | list[dict] = instruction
+        if attachment_blocks:
+            instruction_content = [{"type": "text", "text": instruction}, *attachment_blocks]
+        messages = [*format_context(recent), {"role": "user", "content": instruction_content}]
         await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
