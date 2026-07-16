@@ -86,7 +86,7 @@ async def test_invite_trigger_image_rides_the_instruction_turn():
     channel = _invite_channel()
     channel.fetch_message.return_value = _image_trigger()
     with patch(
-        "persona_gateway.gateway.process_attachments",
+        "persona_gateway.ingest.process_attachments",
         new=AsyncMock(return_value=([_IMAGE_BLOCK], [])),
     ):
         await _invite(client, channel)
@@ -113,7 +113,7 @@ async def test_invite_attachment_fault_degrades_to_text_only_turn():
     channel = _invite_channel()
     channel.fetch_message.return_value = _image_trigger()
     with patch(
-        "persona_gateway.gateway.process_attachments",
+        "persona_gateway.ingest.process_attachments",
         new=AsyncMock(side_effect=RuntimeError("cdn down")),
     ):
         await _invite(client, channel)

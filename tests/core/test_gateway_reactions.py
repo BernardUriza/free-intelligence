@@ -63,7 +63,7 @@ async def test_marker_fires_reactions_and_strips_text():
     client = _client("Va, ese plano final corta.[REACT:🦅,🎞️]")
     channel = _channel()
     trigger = MagicMock()
-    with patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add:
+    with patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add:
         await _deliver(client, channel, react_to=trigger)
         await asyncio.sleep(0)
     mock_add.assert_awaited_once_with(trigger, ["🦅", "🎞️"])
@@ -78,7 +78,7 @@ async def test_reaction_only_reply_sends_no_text():
     client = _client("[REACT:👀]")
     channel = _channel()
     trigger = MagicMock()
-    with patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add:
+    with patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add:
         await _deliver(client, channel, react_to=trigger)
         await asyncio.sleep(0)
     mock_add.assert_awaited_once_with(trigger, ["👀"])
@@ -89,7 +89,7 @@ async def test_reaction_only_reply_sends_no_text():
 async def test_no_marker_is_untouched_and_fires_nothing():
     client = _client("Reseña normal sin reacciones.")
     channel = _channel()
-    with patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add:
+    with patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add:
         await _deliver(client, channel, react_to=MagicMock())
         await asyncio.sleep(0)
     mock_add.assert_not_awaited()
@@ -100,7 +100,7 @@ async def test_no_marker_is_untouched_and_fires_nothing():
 async def test_invite_path_never_leaks_marker_without_trigger_message():
     client = _client("Llego al hilo.[REACT:🦅]")
     channel = _channel()
-    with patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add:
+    with patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add:
         await _deliver(client, channel, react_to=None)
         await asyncio.sleep(0)
     mock_add.assert_not_awaited()
@@ -131,7 +131,7 @@ async def test_invite_with_trigger_message_id_reacts_to_that_message():
     channel.fetch_message.return_value = trigger
     with (
         patch.object(client, "get_channel", return_value=channel),
-        patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add,
+        patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add,
     ):
         await client.respond_to_invite(
             channel_id="1489180895264116736",
@@ -157,7 +157,7 @@ async def test_invite_trigger_fetch_failure_degrades_to_text_only():
     channel.fetch_message.side_effect = discord.NotFound(MagicMock(status=404), "gone")
     with (
         patch.object(client, "get_channel", return_value=channel),
-        patch("persona_gateway.gateway.add_reactions", new_callable=AsyncMock) as mock_add,
+        patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock) as mock_add,
     ):
         await client.respond_to_invite(
             channel_id="1489180895264116736",

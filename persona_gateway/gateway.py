@@ -19,14 +19,16 @@ MemoryStore + one AgentRunnerClient.
 **Structure (post-modularization).** `PersonaClient` is the thin Discord adapter:
 event handlers + the turn orchestration, each delegating to an injected service —
 - reception predicates → `persona_gateway.routing`
+- attachment blocks + STT transcripts → `persona_gateway.ingest`
+- the turn tail (runner → react → markers → send → store → TTS) → `persona_gateway.turns`
+- invite helpers (channel resolve, instruction, trigger fetch) → `persona_gateway.invites`
 - reply delivery (chunk + tag + send) → `persona_gateway.delivery`
 - durable markers (research/agenda/remind/remember) → `persona_gateway.markers`
 - the three drain loops → `persona_gateway.workers`
 - background fact extraction → `persona_gateway.facts`
 - per-persona TTS → `persona_gateway.voice`
 - operator-tunable cadences/timeouts → `persona_gateway.config`
-Reactions (`[REACT:]`) stay in `_run_and_deliver` (they need the live message and
-`add_reactions`). Bootstrap (`_build_shared` … `_main`) lives at the bottom.
+Bootstrap (`_build_shared` … `_main`) lives at the bottom.
 """
 
 from __future__ import annotations
@@ -40,27 +42,23 @@ import discord
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.attachments import process_attachments
 from khimeras_shared.guidance import guidance_for_turn
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.prompts import PromptCache
-from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.stt import (
-    DEFAULT_AUDIO_CONTENT_TYPE,
-    SusurroSttClient,
-    build_susurro_stt_client,
-    transcribe_voice_message,
-)
+from khimeras_shared.stt import SusurroSttClient, build_susurro_stt_client
 from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
-from persona_gateway.delivery import DISCORD_LIMIT, chunk, send_chunked
+from persona_gateway.delivery import DISCORD_LIMIT, chunk
 from persona_gateway.facts import FactExtractor
+from persona_gateway.ingest import MessageIngest
+from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
+from persona_gateway.turns import TurnRunner
 from persona_gateway.voice import VoiceService
 from persona_gateway.workers import AgendaWorker, ReminderWorker, ResearchWorker
 from shared.personas import Persona, gateway_personas
@@ -114,7 +112,6 @@ class PersonaClient(discord.Client):
         # LIVE at spawn time (see FactExtractor), so setting it None disables
         # extraction on the next turn.
         self.judge_client = judge_client
-        self.auto_tts_min_chars = auto_tts_min_chars
         # Strong refs to fire-and-forget tasks so the loop doesn't GC them (RUF006).
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
@@ -130,7 +127,16 @@ class PersonaClient(discord.Client):
         # Injected services — the logic lives here, the client just delegates.
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
-        self._stt_client = stt_client
+        self._ingest = MessageIngest(persona, stt_client)
+        self._turns = TurnRunner(
+            persona,
+            memory,
+            agent_client,
+            self._markers,
+            self._voice,
+            self._bg_tasks,
+            auto_tts_min_chars=auto_tts_min_chars,
+        )
         self._facts = FactExtractor(persona, memory, self._bg_tasks)
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)
@@ -241,10 +247,10 @@ class PersonaClient(discord.Client):
         channel_name = getattr(message.channel, "name", None)
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
-        voice_transcripts = await self._transcribe_audio_attachments(message)
+        voice_transcripts = await self._ingest.voice_transcripts(message)
         if voice_transcripts:
             ask = "\n".join(part for part in [ask, *voice_transcripts] if part)
-        attachment_blocks = await self._process_attachments(message)
+        attachment_blocks = await self._ingest.attachment_blocks(message)
         if not ask and not attachment_blocks:
             return  # bare @mention with no text and no readable attachment
 
@@ -312,80 +318,6 @@ class PersonaClient(discord.Client):
         Reads `self.judge_client` LIVE so a toggle to None disables it next turn."""
         self._facts.spawn(self.judge_client, user_id, user_name, recent)
 
-    async def _process_attachments(self, message: discord.Message) -> list[dict]:
-        """Image/document attachments of the summoning message → Anthropic blocks.
-
-        Reuses Insult's shared processor (5MB cap with image compression,
-        png/jpg/gif/webp + text/pdf, in-character rejection notices). The blocks
-        ride the final user message; `AgentRunnerClient` extracts them and the
-        runner builds the multimodal SDK input — same E2E path Insult uses, so
-        siblings finally SEE images (P0 2026-07-07). Invite turns feed their
-        fetched trigger message through here too (2026-07-16).
-        """
-        if not message.attachments:
-            return []
-        readable_attachments = [att for att in message.attachments if not self._is_audio_attachment(att, message)]
-        if not readable_attachments:
-            return []
-        blocks, errors = await process_attachments(readable_attachments)
-        for err in errors:
-            with contextlib.suppress(discord.HTTPException):
-                await message.channel.send(err)
-        log.info(
-            "persona_gateway_attachments_processed",
-            persona_id=self.persona.persona_id,
-            blocks=len(blocks),
-            errors=len(errors),
-        )
-        return blocks
-
-    @staticmethod
-    def _is_audio_attachment(attachment, message: discord.Message) -> bool:
-        content_type = (getattr(attachment, "content_type", None) or "").lower()
-        if content_type.startswith("audio/"):
-            return True
-        filename = (getattr(attachment, "filename", None) or "").lower()
-        return bool(
-            getattr(message.flags, "voice", False)
-            and (not content_type or filename.endswith((".ogg", ".opus", ".mp3", ".m4a", ".wav", ".webm")))
-        )
-
-    async def _transcribe_audio_attachments(self, message: discord.Message) -> list[str]:
-        if not message.attachments or self._stt_client is None:
-            return []
-
-        transcripts: list[str] = []
-        for attachment in message.attachments:
-            if not self._is_audio_attachment(attachment, message):
-                continue
-            content_type = getattr(attachment, "content_type", None) or DEFAULT_AUDIO_CONTENT_TYPE
-            try:
-                audio_data = await attachment.read()
-                transcript = await transcribe_voice_message(
-                    audio_data,
-                    base_url=self._stt_client.base_url,
-                    api_key=self._stt_client.api_key,
-                    content_type=content_type,
-                )
-            except Exception as exc:
-                log.error(
-                    "persona_gateway_stt_failed",
-                    persona_id=self.persona.persona_id,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-                continue
-            if transcript is None:
-                continue
-            log.info(
-                "persona_gateway_stt_transcribed",
-                persona_id=self.persona.persona_id,
-                length=len(transcript),
-                engine=getattr(transcript, "engine", None),
-            )
-            transcripts.append(str(transcript))
-        return transcripts
-
     async def respond_to_invite(
         self,
         *,
@@ -404,11 +336,8 @@ class PersonaClient(discord.Client):
         the lens the reason asks for. No user turn is stored (there is none; Insult
         already wrote the message that triggered it).
         """
-        channel = self.get_channel(int(channel_id))
+        channel = await resolve_messageable(self, channel_id)
         if channel is None:
-            with contextlib.suppress(discord.HTTPException):
-                channel = await self.fetch_channel(int(channel_id))
-        if not isinstance(channel, discord.abc.Messageable):
             log.warning(
                 "persona_gateway_invite_channel_not_found",
                 persona_id=self.persona.persona_id,
@@ -417,16 +346,7 @@ class PersonaClient(discord.Client):
             return
 
         recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
-        if invited_by == "host_router":
-            instruction = (
-                f"[El turno es tuyo: la conversación del canal es la que tú traías. Contexto: {reason}] "
-                "Lee el hilo de arriba y responde directo al último mensaje, en tu voz."
-            )
-        else:
-            instruction = (
-                f"[Insult te invitó a este turno. Razón: {reason}] "
-                "Lee el hilo de arriba y responde con la mirada que esa razón pide."
-            )
+        instruction = invite_instruction(invited_by, reason)
         log.info(
             "persona_gateway_invite_accepted",
             persona_id=self.persona.persona_id,
@@ -434,21 +354,12 @@ class PersonaClient(discord.Client):
             invited_by=invited_by,
             reason_preview=reason[:100],
         )
-        # The summoner's wire carries the Discord message that triggered this turn
-        # so the persona's [REACT:] markers land on it. Without a resolved target,
-        # _run_and_deliver strips the markers and the reactions die (2026-07-14
-        # bug). Best-effort: an unfetchable message degrades to text-only.
-        react_to: discord.Message | None = None
-        if trigger_message_id:
-            try:
-                react_to = await channel.fetch_message(int(trigger_message_id))
-            except (discord.HTTPException, ValueError):
-                log.warning(
-                    "persona_gateway_invite_trigger_fetch_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                    trigger_message_id=trigger_message_id,
-                )
+        react_to = await fetch_trigger(
+            channel,
+            trigger_message_id,
+            persona_id=self.persona.persona_id,
+            channel_id=channel_id,
+        )
         # The trigger message may carry images/documents — a host-routed turn
         # about an image is blind without them (2026-07-16 bug: Insult reacted
         # to a photo it never saw). Best-effort: a processing fault degrades to
@@ -456,7 +367,7 @@ class PersonaClient(discord.Client):
         attachment_blocks: list[dict] = []
         if react_to is not None:
             try:
-                attachment_blocks = await self._process_attachments(react_to)
+                attachment_blocks = await self._ingest.attachment_blocks(react_to)
             except Exception:
                 log.warning(
                     "persona_gateway_invite_attachments_failed",
@@ -493,96 +404,19 @@ class PersonaClient(discord.Client):
         react_to: discord.Message | None = None,
         behavioral_guidance: str | None = None,
     ) -> None:
-        """Shared tail for mention + invite: runner call → react → markers → send.
-
-        Typing keepalive is a fire-and-forget background task so the user sees
-        "[persona] is typing…" during the long runner call. Deliberately NOT
-        `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
-        killing the turn before the runner runs — anti-pattern #1): a short task
-        that re-triggers typing every ~9s until the stop_event is set.
-        """
-        _typing_stop = asyncio.Event()
-
-        async def _typing_keepalive() -> None:
-            while not _typing_stop.is_set():
-                with contextlib.suppress(discord.HTTPException):
-                    async with channel.typing():
-                        with contextlib.suppress(TimeoutError):
-                            await asyncio.wait_for(_typing_stop.wait(), timeout=9.0)
-                    if _typing_stop.is_set():
-                        break
-
-        _typing_task = asyncio.create_task(_typing_keepalive())
-        try:
-            resp = await self.agent_client.chat(
-                "",  # system_prompt ignored by the runner
-                messages,
-                channel_id=channel_id,
-                user_id=user_id,
-                persona_id=self.persona.persona_id,
-                behavioral_guidance=behavioral_guidance,
-            )
-        finally:
-            _typing_stop.set()
-            _typing_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await _typing_task
-
-        text = (resp.text or "").strip()
-
-        # Reactions FIRST (they need the live `react_to` message and the
-        # module-level `add_reactions` the tests monkeypatch).
-        reactions = parse_reactions(text)
-        if reactions:
-            text = strip_reactions(text)
-            if react_to is not None:
-                task = asyncio.create_task(add_reactions(react_to, reactions))
-                self._bg_tasks.add(task)
-                task.add_done_callback(self._bg_tasks.discard)
-                log.info(
-                    "persona_gateway_reactions_fired",
-                    persona_id=self.persona.persona_id,
-                    emojis=reactions,
-                    turn_kind=turn_kind,
-                )
-            else:
-                log.warning(
-                    "persona_gateway_reactions_dropped_no_target",
-                    persona_id=self.persona.persona_id,
-                    emojis=reactions,
-                    turn_kind=turn_kind,
-                )
-
-        # Durable markers (research/agenda/remind/remember): persist the side
-        # effects and strip them so only the in-character ack reaches Discord.
-        text = await self._markers.route(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
-        if not text:
-            return
-
-        await send_chunked(channel, text)
-        await self.memory.store(
-            channel_id,
-            str(self.user.id) if self.user else "0",
-            self.persona.display_name,
-            "assistant",
-            text,
-            for_user_id=user_id,
+        """Thin delegate to the injected TurnRunner (tests drive this directly)."""
+        await self._turns.run_and_deliver(
+            channel=channel,
+            channel_id=channel_id,
+            user_id=user_id,
             guild_id=guild_id,
             channel_name=channel_name,
-            model_used=getattr(resp, "model_used", None),
-        )
-        log.info(
-            "persona_gateway_turn_complete",
-            persona_id=self.persona.persona_id,
-            channel_id=channel_id,
-            chars=len(text),
+            messages=messages,
+            bot_user_id=str(self.user.id) if self.user else "0",
             turn_kind=turn_kind,
+            react_to=react_to,
+            behavioral_guidance=behavioral_guidance,
         )
-
-        # Auto-TTS: a long reply ships a voice clip of the FULL text so you can
-        # listen instead of reading a wall (gated by auto_tts_min_chars; 0=off).
-        if self._voice.should_auto_speak(text, self.auto_tts_min_chars):
-            await self._voice.speak(channel, text, reason="auto")
 
 
 # --- bootstrap: shared deps, the /invite server, and the process lifecycle ----

@@ -164,7 +164,7 @@ async def test_voice_message_attachment_is_transcribed_into_runner_text():
     clip = _attachment("voice.ogg", "audio/ogg", 500, data=b"ogg-bytes")
     msg = _message("escucha", [clip], voice=True)
 
-    with patch("persona_gateway.gateway.transcribe_voice_message", AsyncMock(return_value="abre la puerta")) as stt:
+    with patch("persona_gateway.ingest.transcribe_voice_message", AsyncMock(return_value="abre la puerta")) as stt:
         await client._handle(msg)
 
     stt.assert_awaited_once_with(
