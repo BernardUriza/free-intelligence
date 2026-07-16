@@ -43,6 +43,15 @@ class GatewayConfig(BaseSettings):
     agenda_timeout_s: float = 360.0
     agenda_batch: int = 2
 
+    # Self-reflection (slice 4): the loop wakes every 6h but the DURABLE gate in
+    # `agents.last_reflected_at` only lets a pass run weekly per persona; a pass
+    # needs enough lived turns to be worth judging, and writes at most N facts.
+    reflection_check_seconds: float = 21600.0
+    reflection_min_interval_s: float = 604800.0
+    reflection_window: int = 40
+    reflection_min_turns: int = 12
+    reflection_max_facts: int = 3
+
     # Reminders: 30s keeps "recuérdamelo a las 8" honest to the minute; a reminder
     # more than MAX_LATENESS late is retired unsent (nobody wants yesterday's 3am).
     reminder_check_seconds: float = 30.0

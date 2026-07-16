@@ -6,6 +6,7 @@ The `MemoryStore` facade composes them and exposes the flat legacy API.
 """
 
 from khimeras_shared.memory.repositories.agendas import AgendasRepository
+from khimeras_shared.memory.repositories.agent_facts import AgentFactsRepository
 from khimeras_shared.memory.repositories.channels import ChannelSummariesRepository
 from khimeras_shared.memory.repositories.disclosure import DisclosureRepository
 from khimeras_shared.memory.repositories.facts import FactsRepository
@@ -20,6 +21,7 @@ from khimeras_shared.memory.repositories.world_scans import WorldScansRepository
 
 __all__ = [
     "AgendasRepository",
+    "AgentFactsRepository",
     "ChannelSummariesRepository",
     "DisclosureRepository",
     "FactsRepository",

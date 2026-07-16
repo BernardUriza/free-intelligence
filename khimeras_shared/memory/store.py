@@ -21,6 +21,7 @@ from khimeras_shared.memory.connection import ConnectionManager
 from khimeras_shared.memory.context import build_context, format_relative_time
 from khimeras_shared.memory.repositories import (
     AgendasRepository,
+    AgentFactsRepository,
     ChannelSummariesRepository,
     DisclosureRepository,
     FactsRepository,
@@ -56,6 +57,7 @@ class MemoryStore:
         self._reminders = RemindersRepository(self._manager)
         self._research_jobs = ResearchJobsRepository(self._manager)
         self._agendas = AgendasRepository(self._manager)
+        self._agent_facts = AgentFactsRepository(self._manager)
         self._relational = RelationalStateRepository(self._manager)
         self._channels = ChannelSummariesRepository(self._manager)
         self._world_scans = WorldScansRepository(self._manager)
@@ -343,6 +345,23 @@ class MemoryStore:
 
     async def deactivate_agenda(self, agenda_id: int) -> None:
         await self._agendas.deactivate_agenda(agenda_id)
+
+    # --- agent self-knowledge (reflection loop, slice 4) --------------------
+
+    async def get_agent_self_facts(self, agent_id: str, limit: int = 60) -> list[dict]:
+        return await self._agent_facts.get_self_facts(agent_id, limit)
+
+    async def add_agent_self_fact(self, agent_id: str, fact: str, category: str, provenance: str) -> int | None:
+        return await self._agent_facts.add_self_fact(agent_id, fact, category, provenance)
+
+    async def get_last_reflected_at(self, agent_id: str) -> float | None:
+        return await self._agent_facts.get_last_reflected_at(agent_id)
+
+    async def mark_reflected(self, agent_id: str, ts: float) -> None:
+        await self._agent_facts.mark_reflected(agent_id, ts)
+
+    async def recent_assistant_turns(self, user_name: str, limit: int = 40) -> list[dict]:
+        return await self._messages.recent_assistant_turns(user_name, limit)
 
     async def get_channel_agendas(self, channel_id: str) -> list[dict]:
         return await self._agendas.get_channel_agendas(channel_id)

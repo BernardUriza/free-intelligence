@@ -182,6 +182,25 @@ class MessagesRepository(BaseRepository):
             for r in reversed(rows)
         ]
 
+    async def recent_assistant_turns(self, user_name: str, limit: int = 40) -> list[dict]:
+        """Last N turns THIS persona spoke, across every channel, oldest first.
+
+        The reflection loop's raw material: what the persona actually said this
+        week is the only honest source for "what tastes did I confirm?". Keyed
+        by display name because assistant rows share bot-ish user_ids across
+        hosts, while `user_name` is the persona's stable display name."""
+        rows = await self._fetch(
+            "SELECT channel_id, content, timestamp FROM messages "
+            "WHERE role = 'assistant' AND user_name = $1 "
+            "ORDER BY timestamp DESC LIMIT $2",
+            user_name,
+            limit,
+        )
+        return [
+            {"channel_id": r["channel_id"], "content": r["content"], "timestamp": r["timestamp"]}
+            for r in reversed(rows)
+        ]
+
     async def search(self, channel_id: str, query: str, limit: int = 5, user_id: str | None = None) -> list[dict]:
         """Keyword ILIKE-search across message content, optionally scoped to a user.
 

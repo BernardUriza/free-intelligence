@@ -60,7 +60,7 @@ from persona_gateway.markers import MarkerRouter
 from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
 from persona_gateway.turns import TurnRunner
 from persona_gateway.voice import VoiceService
-from persona_gateway.workers import AgendaWorker, ReminderWorker, ResearchWorker
+from persona_gateway.workers import AgendaWorker, ReflectionWorker, ReminderWorker, ResearchWorker
 from shared.personas import Persona, gateway_personas
 
 # Re-exports: the tests import these from `persona_gateway.gateway`, and the
@@ -141,6 +141,7 @@ class PersonaClient(discord.Client):
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)
         self._reminders = ReminderWorker(persona, memory, agent_client, _PROMPT_CACHE)
+        self._reflection = ReflectionWorker(persona, memory)
 
     # --- lifecycle -----------------------------------------------------------
 
@@ -153,7 +154,7 @@ class PersonaClient(discord.Client):
             guilds=len(self.guilds),
         )
         # Start the drain loops idempotently (on_ready fires again after a resume).
-        for loop in (self._research_drain, self._agenda_check, self._reminder_drain):
+        for loop in (self._research_drain, self._agenda_check, self._reminder_drain, self._reflection_check):
             if not loop.is_running():
                 loop.start()
 
@@ -170,6 +171,10 @@ class PersonaClient(discord.Client):
     @tasks.loop(seconds=CONFIG.reminder_check_seconds)
     async def _reminder_drain(self) -> None:
         await self._reminders.drain(self)
+
+    @tasks.loop(seconds=CONFIG.reflection_check_seconds)
+    async def _reflection_check(self) -> None:
+        await self._reflection.drain(self.judge_client)
 
     # --- reception -----------------------------------------------------------
 

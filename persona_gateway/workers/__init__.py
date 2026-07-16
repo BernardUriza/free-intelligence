@@ -11,7 +11,8 @@ dependency graph stays acyclic (workers → khimeras_shared, never back).
 from __future__ import annotations
 
 from persona_gateway.workers.agenda import AgendaWorker
+from persona_gateway.workers.reflection import ReflectionWorker
 from persona_gateway.workers.reminders import ReminderWorker
 from persona_gateway.workers.research import ResearchWorker
 
-__all__ = ["AgendaWorker", "ReminderWorker", "ResearchWorker"]
+__all__ = ["AgendaWorker", "ReflectionWorker", "ReminderWorker", "ResearchWorker"]

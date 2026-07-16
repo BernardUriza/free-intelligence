@@ -453,3 +453,8 @@ CREATE TABLE IF NOT EXISTS agent_facts (
 );
 CREATE INDEX IF NOT EXISTS idx_af_agent ON agent_facts(agent_id);
 CREATE INDEX IF NOT EXISTS idx_af_deleted_at ON agent_facts(deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Reflection loop (slice 4, 2026-07-16): durable per-agent gate so a weekly
+-- self-reflection survives deploys (an in-process timestamp resets on every
+-- revision — with daily deploys the "weekly" pass would fire daily).
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_reflected_at DOUBLE PRECISION;

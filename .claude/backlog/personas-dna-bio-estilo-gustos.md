@@ -1,6 +1,6 @@
 # ADN nivelado: biografía + estilo de escritura + gustos auto-seleccionados por persona
 
-Status: In progress (slice 1 aterrizado 2026-07-16: plantilla + Vultur canary, generados por Codex CLI con diseño dado, revisados y commiteados por Claude)
+Status: Done (2026-07-16 — los 5 slices en un día: plantilla, 5 personas niveladas, exoesqueleto Unborn, reflection worker)
 Proposed: 2026-07-16 by Bernard (vía /histerical-search — investigación completa en ese turno)
 
 ## What it is
@@ -54,7 +54,9 @@ innecesario a nivel prompt.
 - GO del slice 1.
 
 ## Status / next step
-Slices 1-2-3-5 DONE (2026-07-16): plantilla + Vultur (+89), ALICE (+64),
-Frugívoro (+92), y Unborn Being exoesqueleto (173→300, tratados verbatim).
-Las 5 personas tienen bio + estilo + self-facts. Falta SOLO el slice 4:
-reflection worker (cron → add_agent_fact provenance=self_declared).
+DONE COMPLETO (2026-07-16). Slices 1-2-3-5: plantilla + 5 personas con
+bio/estilo/self-facts. Slice 4: ReflectionWorker en persona_gateway/workers/
+reflection.py — loop 6h con gate durable semanal (agents.last_reflected_at),
+juez vía /v1/judge (prompt en prompts_md/self_reflection.md), escribe a
+agent_facts con provenance=self_declared, ADD-only, fail-safe total.
+Cadencia y knobs en GatewayConfig (reflection_*).
