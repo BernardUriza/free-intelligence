@@ -29,6 +29,18 @@ def test_insult_dna_file_exists_next_to_its_siblings():
     assert dna.stat().st_size > 1000
 
 
+def test_insult_dna_and_runner_fallback_never_drift():
+    """persona.md (the runner's PERSONA_PATH fallback + sync_capabilities target)
+    and shared/personas/insult.md (the DNA served for persona_id='insult') were
+    born as verbatim copies (296fe8d) with NO sync mechanism. Until the physical
+    dedup lands, this harness is what makes silent drift impossible: edit one,
+    edit both, or CI goes red."""
+    root = Path(__file__).parents[2]
+    fallback = (root / "persona.md").read_text(encoding="utf-8")
+    dna = (root / "shared" / "personas" / "insult.md").read_text(encoding="utf-8")
+    assert fallback == dna
+
+
 def test_insult_guidance_content_is_in_place():
     guidance = Path(__file__).parents[2] / "shared" / "personas" / "guidance" / "insult"
     assert (guidance / "presets" / "preset_vulnerable_overlay.md").is_file()
