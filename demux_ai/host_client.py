@@ -23,7 +23,7 @@ import structlog
 from discord.ext import tasks
 
 from demux_ai.host_loop import HostDispatchLoop
-from shared.personas.registry import persona_id_by_bot_user_id
+from shared.personas.registry import persona_id_by_bot_user_id, persona_id_by_role_name
 
 log = structlog.get_logger()
 
@@ -42,6 +42,7 @@ class HostClient(discord.Client):
         """Map a Discord message onto the loop and batch it. Pure over the loop —
         returns whether it was accepted (a human, non-command message)."""
         mentioned_ids = [str(user.id) for user in getattr(message, "mentions", [])]
+        mentioned_role_names = [role.name for role in getattr(message, "role_mentions", [])]
         return self.dispatch_loop.handle_message(
             channel_id=str(message.channel.id),
             author_id=str(message.author.id),
@@ -51,6 +52,7 @@ class HostClient(discord.Client):
             author_name=getattr(message.author, "display_name", ""),
             message_id=str(message.id),
             mentioned_ids=mentioned_ids,
+            mentioned_role_names=mentioned_role_names,
         )
 
     async def on_ready(self) -> None:
@@ -74,7 +76,11 @@ def build_host(router: object) -> HostClient:
     intents = discord.Intents.default()
     intents.message_content = True
     return HostClient(
-        HostDispatchLoop(router=router, mention_targets=persona_id_by_bot_user_id()),
+        HostDispatchLoop(
+            router=router,
+            mention_targets=persona_id_by_bot_user_id(),
+            role_resolver=persona_id_by_role_name,
+        ),
         intents=intents,
     )
 

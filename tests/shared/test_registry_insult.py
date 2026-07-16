@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from shared.personas import gateway_personas, get_persona
-from shared.personas.registry import persona_id_by_bot_user_id
+from shared.personas.registry import persona_id_by_bot_user_id, persona_id_by_role_name
 
 
 def test_insult_is_a_registered_persona():
@@ -47,3 +47,16 @@ def test_persona_id_by_bot_user_id_maps_registered_bots():
         "1503983124982534284": "alice",
         "1521273256236023989": "frugivoro",
     }
+
+
+def test_persona_id_by_role_name_resolves_registered_personas():
+    """Host role mention routing resolves Discord role names through registry data."""
+    assert persona_id_by_role_name("Vultur") == "vultur"
+    assert persona_id_by_role_name("Frugívoro") == "frugivoro"
+    assert persona_id_by_role_name("Frugivoro") == "frugivoro"
+    assert persona_id_by_role_name("Insult") == "insult"
+
+
+def test_persona_id_by_role_name_unknown_returns_none():
+    """RESISTANCE: unknown Discord role names must not force a persona route."""
+    assert persona_id_by_role_name("Moderadores") is None

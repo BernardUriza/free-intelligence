@@ -18,6 +18,7 @@ Adding a bot:
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 
 
@@ -149,6 +150,34 @@ def sibling_bot_user_ids() -> set[str]:
 def persona_id_by_bot_user_id() -> dict[str, str]:
     """Map Discord bot user IDs to their registered persona_id."""
     return {p.bot_user_id: p.persona_id for p in PERSONAS.values() if p.bot_user_id}
+
+
+def _normalize_role_name(value: str) -> str:
+    """Return a lowercase, accent-insensitive role/persona lookup key."""
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_marks = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return without_marks.strip().lower()
+
+
+def persona_id_by_role_name(role_name: str) -> str | None:
+    """Resolve a Discord role name to a registered persona_id, if any.
+
+    Matching is case/accent-insensitive and intentionally based on registry data
+    rather than Discord role ids, so recreated roles keep working.
+    """
+    role_key = _normalize_role_name(role_name)
+    if not role_key:
+        return None
+    for persona in PERSONAS.values():
+        display_first_word = persona.display_name.split(maxsplit=1)[0] if persona.display_name else ""
+        candidates = [
+            persona.persona_id,
+            display_first_word,
+            *persona.aliases,
+        ]
+        if role_key in {_normalize_role_name(candidate) for candidate in candidates}:
+            return persona.persona_id
+    return None
 
 
 def sibling_aliases() -> list[str]:

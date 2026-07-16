@@ -25,6 +25,7 @@ def _message(text: str, *, is_bot: bool = False) -> SimpleNamespace:
         channel=SimpleNamespace(id=111),
         author=SimpleNamespace(id=222, bot=is_bot, display_name="bern"),
         mentions=[],
+        role_mentions=[],
     )
 
 
@@ -60,6 +61,15 @@ def test_ingest_threads_mentioned_user_ids_to_the_loop():
     msg = _message("@Vultur hola")
     msg.mentions = [SimpleNamespace(id=1512687836766404618)]
     assert client._ingest(msg, now=101.0) is True
+    assert client.dispatch_loop._forced_target == {"111:222": "vultur"}
+
+
+def test_ingest_threads_mentioned_role_names_to_the_loop():
+    """Discord role mentions must reach the host loop for deterministic persona routing."""
+    client = _client()
+    msg = _message("@Vultur hola")
+    msg.role_mentions = [SimpleNamespace(name="Vultur")]
+    assert client._ingest(msg, now=100.0) is True
     assert client.dispatch_loop._forced_target == {"111:222": "vultur"}
 
 

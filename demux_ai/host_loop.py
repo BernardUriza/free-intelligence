@@ -16,12 +16,14 @@ never routes another bot's output or a `!command`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import structlog
 
 from demux_ai.batch import MessageBatcher
 from demux_ai.dispatch import route_and_dispatch
+from shared.personas.registry import persona_id_by_role_name
 
 log = structlog.get_logger()
 
@@ -35,6 +37,7 @@ class HostDispatchLoop:
     router: object
     batcher: MessageBatcher = field(default_factory=MessageBatcher)
     mention_targets: dict[str, str] = field(default_factory=dict)
+    role_resolver: Callable[[str], str | None] = persona_id_by_role_name
     _names: dict[str, str] = field(default_factory=dict)
     _forced_target: dict[str, str] = field(default_factory=dict)
 
@@ -49,6 +52,7 @@ class HostDispatchLoop:
         author_name: str = "",
         message_id: str | None = None,
         mentioned_ids: list[str] | None = None,
+        mentioned_role_names: list[str] | None = None,
     ) -> bool:
         """Feed one inbound message to the batcher. Returns True if accepted.
 
@@ -58,8 +62,9 @@ class HostDispatchLoop:
 
         `message_id` rides through the batcher so the routed turn's [REACT:] markers
         can anchor to the last message of the burst (else host-routed reactions drop).
-        When a burst contains explicit persona @mentions, the latest mentioned
-        registered bot wins and bypasses the LLM router at dispatch time.
+        When a burst contains explicit persona user/role @mentions, the latest
+        mentioned registered persona wins and bypasses the LLM router at dispatch
+        time.
         """
         if author_is_bot:
             return False
@@ -72,6 +77,10 @@ class HostDispatchLoop:
             self._names[key] = author_name
         for mentioned_id in mentioned_ids or []:
             target = self.mention_targets.get(mentioned_id)
+            if target:
+                self._forced_target[key] = target
+        for role_name in mentioned_role_names or []:
+            target = self.role_resolver(role_name)
             if target:
                 self._forced_target[key] = target
         return True
