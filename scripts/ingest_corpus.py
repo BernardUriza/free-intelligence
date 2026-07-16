@@ -7,7 +7,7 @@ persona's registry entry (`Persona.corpus_namespace`). The corpus is retrieved
 on ANY user's turn when the topic matches, via `deep_memory.query_corpus`.
 
 Pipeline per source (verbatim from the original film script):
-  .pdf → pypdf text extraction (page by page); .txt / .md → direct UTF-8 read
+  .pdf → pypdf; .xml → JATS/PMC flatten (ElementTree); .txt/.md → direct UTF-8
   → fi_core.rag PARAGRAPH_AWARE chunking (same chunker as AURITY / deep_memory)
   → Azure OpenAI ada-002 embeddings
   → INSERT into deep_memory_chunks with source_type="manual".
@@ -54,7 +54,9 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 _CORPUS_ROOT = _REPO_ROOT / "data" / "corpus"
 _TEXT_SUFFIXES = {".txt", ".md"}
-_SUPPORTED_SUFFIXES = {".pdf", *_TEXT_SUFFIXES}
+# .xml = JATS full-text from PMC / Europe PMC (open-access articles). Tags are
+# stripped to plain text via the stdlib ElementTree — no extra dependency.
+_SUPPORTED_SUFFIXES = {".pdf", ".xml", *_TEXT_SUFFIXES}
 
 
 def slugify_stem(filename: str) -> str:
@@ -108,10 +110,34 @@ def extract_pdf_text(path: Path) -> str:
     return "\n\n".join(parts)
 
 
+def extract_xml_text(path: Path) -> str:
+    """Flatten a JATS/PMC XML article to plain text.
+
+    Walks the tree, concatenating every element's text/tail with whitespace, so
+    the prose survives while the markup is dropped. Stdlib ElementTree only — no
+    lxml dependency. A parse failure returns "" (the source is skipped upstream,
+    never aborting the whole persona's ingest).
+    """
+    import re
+    import xml.etree.ElementTree as ET
+
+    try:
+        root = ET.parse(str(path)).getroot()
+    except ET.ParseError as e:
+        print(f"  WARN: XML parse failed for {path.name}: {e}")
+        return ""
+    text = " ".join(t.strip() for t in root.itertext() if t and t.strip())
+    return re.sub(r"\s+\n", "\n", re.sub(r"[ \t]{2,}", " ", text)).strip()
+
+
 def extract_source_text(path: Path) -> str:
-    """Dispatch extraction by suffix: pypdf for .pdf, direct UTF-8 for .txt/.md."""
-    if path.suffix.lower() == ".pdf":
+    """Dispatch extraction by suffix: pypdf for .pdf, ElementTree for .xml,
+    direct UTF-8 for .txt/.md."""
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
         return extract_pdf_text(path)
+    if suffix == ".xml":
+        return extract_xml_text(path)
     return path.read_text(encoding="utf-8")
 
 
@@ -311,7 +337,7 @@ async def main() -> int:
 
     sources = discover_sources(args.persona)
     if not sources:
-        print(f"FATAL: no ingestable sources (.pdf/.txt/.md) under {src_dir}", file=sys.stderr)
+        print(f"FATAL: no ingestable sources (.pdf/.xml/.txt/.md) under {src_dir}", file=sys.stderr)
         return 2
 
     print(f"persona={args.persona} namespace={namespace or '<unset>'} sources={len(sources)}")
