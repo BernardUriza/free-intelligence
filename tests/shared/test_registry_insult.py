@@ -29,16 +29,16 @@ def test_insult_dna_file_exists_next_to_its_siblings():
     assert dna.stat().st_size > 1000
 
 
-def test_insult_dna_and_runner_fallback_never_drift():
-    """persona.md (the runner's PERSONA_PATH fallback + sync_capabilities target)
-    and shared/personas/insult.md (the DNA served for persona_id='insult') were
-    born as verbatim copies (296fe8d) with NO sync mechanism. Until the physical
-    dedup lands, this harness is what makes silent drift impossible: edit one,
-    edit both, or CI goes red."""
+def test_root_persona_md_stays_dead():
+    """The physical dedup landed (2026-07-16): shared/personas/insult.md is the
+    ONE source of truth for Insult's DNA. Its verbatim copy at the repo root
+    (persona.md, born in 296fe8d as the runner's PERSONA_PATH fallback +
+    sync_capabilities target) is DELETED — PERSONA_PATH now defaults to
+    /app/personas/insult.md and sync_capabilities targets the DNA file. This
+    tombstone keeps the corpse from being resurrected by a stale script or a
+    nostalgic copy-paste: a migration that leaves survivors is fake-green."""
     root = Path(__file__).parents[2]
-    fallback = (root / "persona.md").read_text(encoding="utf-8")
-    dna = (root / "shared" / "personas" / "insult.md").read_text(encoding="utf-8")
-    assert fallback == dna
+    assert not (root / "persona.md").exists()
 
 
 def test_insult_guidance_content_is_in_place():

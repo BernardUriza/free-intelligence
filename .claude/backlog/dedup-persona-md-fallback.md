@@ -1,6 +1,6 @@
 # Dedup persona.md (raíz) vs shared/personas/insult.md
 
-Status: Proposed
+Status: Done (2026-07-16, misma fecha de captura)
 Proposed: 2026-07-16 by Claude (detectado al editar el DNA de Insult)
 
 ## What it is
@@ -30,5 +30,11 @@ Ninguna — es deuda técnica ejecutable; solo secuenciarla fuera de un turno de
 contenido de persona.
 
 ## Status / next step
-No construido. Paso 1: grep de llamadas a `/v1/turn`/`chat()` sin `persona_id`
-para mapear consumidores reales del fallback.
+DONE (2026-07-16) — opción 1 ejecutada: `persona.md` raíz BORRADO,
+`PERSONA_PATH` default → `/app/personas/insult.md`, `COPY persona.md` fuera del
+Dockerfile, `sync_capabilities.py` + pre-commit hook repuntados a
+`shared/personas/insult.md`, `cd.yml` change-detection sin `persona.md`
+(`shared/` ya lo cubre). El arnés anti-drift se invirtió en tombstone
+(`test_root_persona_md_stays_dead`). Auditoría previa: gateway siempre manda
+`persona_id` (gateway.py:150,198); `/v1/judge` no carga persona; el fallback
+sirve contenido byte-idéntico → cero cambio de comportamiento.

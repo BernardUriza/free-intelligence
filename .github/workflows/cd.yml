@@ -113,7 +113,7 @@ jobs:
           # repunteados a khimeras_shared.{behavior,deep_memory,html_artifacts}.
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
             environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
-            persona.md infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
+            infra/azure/runner.Dockerfile infra/azure/entrypoint.sh)
 
           {
             echo "build_gw=$BUILD_GW"

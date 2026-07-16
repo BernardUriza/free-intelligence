@@ -62,12 +62,11 @@ COPY khimeras_shared/ khimeras_shared/
 COPY persona_runner/ persona_runner/
 COPY demux_ai/ demux_ai/
 
-# Persona file lives in the repo (not in workspace mount) so it ships
-# with the image. Renderer NEVER overwrites it.
-COPY persona.md /app/persona.md
-
-# Khimeras sibling personas (vultur.md, etc.) → /app/personas/ to match the
-# runner's PERSONAS_DIR default. A turn's persona_id selects <id>.md from here.
+# All persona DNA (insult.md, vultur.md, etc.) → /app/personas/ to match the
+# runner's PERSONAS_DIR default. A turn's persona_id selects <id>.md from here;
+# PERSONA_PATH defaults to insult.md in this same dir (dedup 2026-07-16 — the
+# root persona.md verbatim copy is DELETED, shared/personas/insult.md is the
+# single source of truth). Renderer NEVER overwrites these.
 COPY shared/personas/ /app/personas/
 
 # Entrypoint script orchestrates two processes: renderer (background) +

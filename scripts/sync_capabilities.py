@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Auto-generate Insult's Self-Awareness section in persona.md from code.
+"""Auto-generate Insult's Self-Awareness section in shared/personas/insult.md (Insult's DNA) from code.
 
 Reads tool definitions, detects modules, and injects an up-to-date capabilities
 block between <!-- CAPABILITIES:START --> and <!-- CAPABILITIES:END --> markers.
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PERSONA = ROOT / "persona.md"
+PERSONA = ROOT / "shared" / "personas" / "insult.md"
 INSULT = ROOT / "personas" / "insult"
 
 START_MARKER = "<!-- CAPABILITIES:START -->"
@@ -360,7 +360,7 @@ def build_capabilities_block() -> str:
 
 
 def sync() -> bool:
-    """Inject capabilities block into persona.md. Returns True if content changed."""
+    """Inject capabilities block into the Insult DNA file. Returns True if content changed."""
     content = PERSONA.read_text()
     new_block = build_capabilities_block()
 
@@ -386,8 +386,8 @@ def sync() -> bool:
 if __name__ == "__main__":
     changed = sync()
     if changed:
-        print("sync_capabilities: persona.md updated")
+        print("sync_capabilities: insult.md updated")
         sys.exit(0)
     else:
-        print("sync_capabilities: persona.md already up to date")
+        print("sync_capabilities: insult.md already up to date")
         sys.exit(0)

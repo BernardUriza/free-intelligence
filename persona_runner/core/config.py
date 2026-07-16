@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 
 WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", "/data/insult-workspace"))
-PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/persona.md"))
+PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/personas/insult.md"))
 
 # Multi-persona (Khimeras): a turn may carry a `persona_id` to load a sibling
 # persona (e.g. "vultur") from PERSONAS_DIR/<id>.md instead of the default
