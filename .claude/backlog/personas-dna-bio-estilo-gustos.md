@@ -54,6 +54,7 @@ innecesario a nivel prompt.
 - GO del slice 1.
 
 ## Status / next step
-Slice 1 DONE (plantilla en docs/persona_dna_template.md + vultur.md +89 líneas:
-biografía, estilo con 3 diálogos ejemplo, self-facts agent_id='vultur').
-Siguiente: slice 2 (ALICE + Frugívoro) y slice 4 (reflection worker).
+Slices 1-2-3-5 DONE (2026-07-16): plantilla + Vultur (+89), ALICE (+64),
+Frugívoro (+92), y Unborn Being exoesqueleto (173→300, tratados verbatim).
+Las 5 personas tienen bio + estilo + self-facts. Falta SOLO el slice 4:
+reflection worker (cron → add_agent_fact provenance=self_declared).
