@@ -593,11 +593,16 @@ async def _check_corpus_embed(personas: dict[str, PersonaClient]) -> None:
     logs ERROR but never kills the process — the personas still serve, just
     without their corpus. Skipped entirely when no live persona has a corpus.
     """
-    if not any(getattr(p.persona, "corpus_namespace", None) for p in personas.values()):
+    has_corpus = any(getattr(getattr(p, "persona", None), "corpus_namespace", None) for p in personas.values())
+    if not has_corpus:
         return
-    from khimeras_shared.corpus.pg_rag import embed_text
+    try:
+        from khimeras_shared.corpus.pg_rag import embed_text
 
-    vec = await embed_text("corpus embed boot healthcheck")
+        vec = await embed_text("corpus embed boot healthcheck")
+    except Exception:
+        log.exception("persona_gateway_corpus_embed_check_crashed")
+        return
     if vec is None:
         log.error(
             "persona_gateway_corpus_embed_unavailable",
