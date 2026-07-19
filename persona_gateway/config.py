@@ -68,6 +68,11 @@ class GatewayConfig(BaseSettings):
     recent_limit: int = 30
     facts_recent_window: int = 12
 
+    # Keyword-relevant OLDER turns merged in alongside `recent_limit`, so a
+    # persona can reach past the 30-message window instead of forgetting
+    # everything older (the pre-purge "recent + relevant" retrieval).
+    relevant_limit: int = 5
+
     # Automatic fact extraction model (the source='auto' backstop). None → the
     # runner picks its own judge default (Haiku class).
     facts_extraction_model: str | None = None

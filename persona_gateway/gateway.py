@@ -44,6 +44,7 @@ from discord.ext import tasks
 
 from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from khimeras_shared.memory import MemoryStore
+from khimeras_shared.other_people import other_people_block_for_turn
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.prompts import PromptCache
 from khimeras_shared.runner.agent_client import AgentRunnerClient
@@ -290,7 +291,14 @@ class PersonaClient(discord.Client):
         if attachment_blocks:
             text_blocks = [{"type": "text", "text": ask}] if ask else []
             user_content = [*text_blocks, *attachment_blocks]
-        context = format_context(recent)
+        # Recent alone is a 30-message window: anything older is invisible, so a
+        # persona forgets what was said last week even though it is in Postgres.
+        # `search` pulls the keyword-relevant older turns and `build_context`
+        # merges them in chronological order — the "recent + relevant" retrieval
+        # that died with the purge. Best-effort: a search fault degrades to
+        # recent-only, never to a mute turn.
+        relevant = await self._load_relevant(channel_id, ask)
+        context = format_context(self.memory.build_context(recent, relevant))
         messages = [*context, {"role": "user", "content": user_content}]
         # The guardian: classify THIS turn against the user's accumulated facts and
         # send the persona's guidance on the wire. Without it the vulnerable-user
@@ -309,6 +317,11 @@ class PersonaClient(discord.Client):
         # own library, in its own voice. Best-effort — a corpus fault (no PG, empty
         # namespace, no persona corpus) returns None and the turn ships unchanged.
         guidance = await self._append_corpus_block(guidance, ask)
+        # Facts about the OTHER participants. The runner rebuilds the AUTHOR's
+        # facts from the user_id, but is blind to the people being talked ABOUT
+        # unless we forward them — the "recuerda a Alex cuando Alex escribe, la
+        # niega cuando preguntan por ella" hole (2026-06-03).
+        other_people = await other_people_block_for_turn(self.memory, channel_id, exclude_user_id=user_id)
         await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
@@ -318,6 +331,7 @@ class PersonaClient(discord.Client):
             messages=messages,
             react_to=message,
             behavioral_guidance=guidance,
+            other_people=other_people,
         )
         # Reply delivered — the persona is not mute. Stamp it so /health can tell
         # "answered recently" from "took a message and went silent".
@@ -330,6 +344,20 @@ class PersonaClient(discord.Client):
             message.author.display_name,
             [*recent[-CONFIG.facts_recent_window :], {"user_name": message.author.display_name, "content": ask}],
         )
+
+    async def _load_relevant(self, channel_id: str, ask: str) -> list[dict]:
+        """Keyword-relevant OLDER turns for this ask, or [] on any fault.
+
+        Degrading to recent-only is a poorer answer; raising here would be a
+        mute turn. Always the former.
+        """
+        if not ask:
+            return []
+        try:
+            return await self.memory.search(channel_id, ask, CONFIG.relevant_limit)
+        except Exception:
+            log.exception("relevant_search_failed", channel_id=channel_id)
+            return []
 
     async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
         """Merge this persona's corpus references into the turn guidance.
@@ -476,6 +504,7 @@ class PersonaClient(discord.Client):
         turn_kind: str = "mention",
         react_to: discord.Message | None = None,
         behavioral_guidance: str | None = None,
+        other_people: str | None = None,
     ) -> None:
         """Thin delegate to the injected TurnRunner (tests drive this directly)."""
         await self._turns.run_and_deliver(
@@ -489,6 +518,7 @@ class PersonaClient(discord.Client):
             turn_kind=turn_kind,
             react_to=react_to,
             behavioral_guidance=behavioral_guidance,
+            other_people=other_people,
         )
 
 

@@ -62,6 +62,7 @@ class TurnRunner:
         turn_kind: str = "mention",
         react_to: discord.Message | None = None,
         behavioral_guidance: str | None = None,
+        other_people: str | None = None,
     ) -> None:
         """Shared tail for mention + invite: runner call → react → markers → send.
 
@@ -91,6 +92,7 @@ class TurnRunner:
                 user_id=user_id,
                 persona_id=self.persona.persona_id,
                 behavioral_guidance=behavioral_guidance,
+                other_people=other_people,
             )
         finally:
             _typing_stop.set()
