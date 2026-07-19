@@ -33,6 +33,19 @@ import { TranscriptRegion, ComposerRegion } from './conversation-surface/compone
 export type {
   AgentConversationSurfaceProps,
   AgentConversationSurfaceLayout,
+  // B3-FIGLASS-SURFACE-PROPS-1: the cohesive capability slices the god-props
+  // interface was decomposed into — each reusable/typeable on its own.
+  SurfaceLayoutProps,
+  SurfaceSlotProps,
+  NewConversationProps,
+  ComposerFrameProps,
+  SendControlProps,
+  MessageRenderProps,
+  DictationProps,
+  ImageAttachmentProps,
+  TurnErrorProps,
+  AutoScrollProps,
+  CollapseProps,
 } from './conversation-surface/types';
 
 export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
