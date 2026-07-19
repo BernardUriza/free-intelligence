@@ -34,13 +34,20 @@ def _msg(
     content: str = "",
     role_mentions: list | None = None,
     guild=None,
+    reply_to=None,
 ):
+    """`reply_to` is the resolved author of the message being replied to (or None
+    for a non-reply) — mirrors `message.reference.resolved.author`."""
+    reference = None
+    if reply_to is not None:
+        reference = SimpleNamespace(resolved=SimpleNamespace(author=reply_to), cached_message=None)
     return SimpleNamespace(
         author=SimpleNamespace(bot=author_bot),
         mentions=mentions,
         content=content,
         role_mentions=role_mentions or [],
         guild=guild,
+        reference=reference,
     )
 
 
@@ -57,6 +64,30 @@ def test_ignores_message_without_mention():
     # RESISTANCE: not mentioned → silent (opt-in by design).
     bot = _user(123)
     msg = _msg(author_bot=False, mentions=[_user(999)])
+    assert should_respond(msg, bot) is False
+
+
+def test_responds_to_reply_to_this_bot():
+    # POSITIVE: a REPLY to this bot's message addresses it — the only channel a
+    # voice note has (audio carries no text and can't @mention). 2026-07-18.
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[], reply_to=bot)
+    assert should_respond(msg, bot) is True
+
+
+def test_reply_to_another_author_does_not_fire():
+    # RESISTANCE: a reply to SOMEONE ELSE's message (a human, or a sibling bot)
+    # must NOT summon this bot — only a reply to ITS OWN message does.
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[], reply_to=_user(999))
+    assert should_respond(msg, bot) is False
+
+
+def test_reply_by_bot_author_still_ignored():
+    # RESISTANCE: even a reply to this bot, if AUTHORED by a bot, stays silent —
+    # the author.bot guard (no Insult↔Vultur loops) outranks the reply channel.
+    bot = _user(123)
+    msg = _msg(author_bot=True, mentions=[], reply_to=bot)
     assert should_respond(msg, bot) is False
 
 

@@ -68,6 +68,18 @@ def should_respond(
         return False
     if bot_user in message.mentions:
         return True
+    # REPLY to one of THIS bot's messages is addressing too — the only
+    # addressing channel a voice note has. A voice message carries no text
+    # (`content` is empty) and cannot embed an @mention, so a bare audio never
+    # fired `should_respond` and its (working) STT transcription never ran. A
+    # Discord reply resolves to `message.reference.resolved`; when that resolved
+    # message's author is this bot, the user is continuing the conversation with
+    # this persona — by voice or by text. `cached_message` avoids an API fetch;
+    # an uncached reference degrades to the mention/alias gates below.
+    ref = getattr(message, "reference", None)
+    resolved = getattr(ref, "resolved", None) or getattr(ref, "cached_message", None)
+    if resolved is not None and getattr(resolved, "author", None) == bot_user:
+        return True
     guild = getattr(message, "guild", None)
     if guild is not None:
         own_role_ids = {r.id for r in getattr(guild.me, "roles", [])}
