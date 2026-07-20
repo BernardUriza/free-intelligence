@@ -1,7 +1,22 @@
 # The endpoints SSH was covering
 
-Status: **22b Done 2026-07-20** (`c57030b`), 22a still Proposed
+Status: **Done 2026-07-20** — 22b (`c57030b`) and 22a (`5b43d9d`), both verified live.
 Proposed: 2026-07-20 by Bernard (from the caught SSH bypass)
+
+## 22a shipped — fire-and-forget background turns (verified live)
+
+`POST …/messages` with `background: true` runs the turn as a task decoupled from
+the request (`engine/detach.py`, strong ref so the GC can't reap it — Art. 5),
+returning `202 accepted` at once. Ockham resolved the fork: the session IS the
+handle, no jobs table — its transcript is the progress, its artifacts (#22b) the
+result. `GET …/status` reports if a turn still runs; `409` refuses a second
+concurrent launch. Verified: POSTed a story with `background:true`, killed the
+socket at 3s, `status` read `running:true`, then `running:false`, then the story
+was downloaded whole over `/artifacts` — the turn finished with no socket open.
+
+The 150-line file law forced the canonical FastAPI shape it cites: `server.py`
+became thin wiring, `messages.py` the message surface, `artifacts.py` the
+artifact surface, `deps.py` the shared engine singleton.
 
 ## 22b shipped — artifacts over HTTP (verified live)
 
