@@ -1,12 +1,12 @@
-name: CD
+name: deploy-front
 
-# Builds the image in ACR and rolls the Container App to it. Only on a green CI —
-# and CI includes the attack suite, so a revision that could write to the database
-# never reaches Azure.
+# Builds the image in ACR and rolls the Container App to it. Only on a green
+# "CI front" — and that CI includes the attack suite, so a revision that could
+# write to the database never reaches Azure.
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: [CI front]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -31,11 +31,11 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build the image in ACR
+      - name: Build the image in ACR (context = front/)
         run: |
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
-          az acr build -r "$ACR" -t "$APP:$SHA" -t "$APP:latest" .
+          az acr build -r "$ACR" -t "$APP:$SHA" -t "$APP:latest" front/
           echo "SHA=$SHA" >> "$GITHUB_ENV"
 
       - name: Roll the Container App
@@ -49,8 +49,6 @@ jobs:
           set -euo pipefail
           FQDN=$(az containerapp show -n "$APP" -g "$RG" \
             --query properties.configuration.ingress.fqdn -o tsv)
-          # An internal ingress is not reachable from this runner; say so instead of
-          # printing a green tick that means nothing.
           if [ -z "$FQDN" ]; then
             echo "No external ingress — cannot probe from CI. Verify by hand."
             exit 0

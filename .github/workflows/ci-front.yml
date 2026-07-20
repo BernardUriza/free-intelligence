@@ -1,10 +1,16 @@
-name: CI
+name: CI front
 
 on:
   push:
     branches: [main]
+    paths: ["front/**", ".github/workflows/ci-front.yml"]
   pull_request:
     branches: [main]
+    paths: ["front/**", ".github/workflows/ci-front.yml"]
+
+defaults:
+  run:
+    working-directory: front
 
 jobs:
   build:
@@ -16,6 +22,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: front/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
@@ -25,15 +32,10 @@ jobs:
     name: Prove it cannot write
     runs-on: ubuntu-latest
 
-    # A DISPOSABLE Postgres, not AIRE's. Handing CI the production DSN would widen
-    # the blast radius of a credential this repo's whole law is about keeping away
-    # from readers — and CI does not need it: it can build the exact same shape.
-    #
-    # The shape that matters is TWO roles, as in production:
-    #   * an owner that writes (the pen — `postgres` here, `aire` there)
-    #   * a reader that holds GRANT SELECT and nothing else (the waiter — `aire_reader`)
-    # The suite connects as the reader and proves the DATABASE refuses it, which is
-    # a stronger claim than proving this repo's code declines to ask.
+    # A DISPOSABLE Postgres, not AIRE's. The shape that matters is TWO roles, as
+    # in production: an owner that writes (the pen) and a reader with GRANT
+    # SELECT and nothing else (the waiter). The suite connects as the reader and
+    # proves the DATABASE refuses it — stronger than proving the code declines.
     services:
       postgres:
         image: postgres:16
@@ -43,7 +45,7 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
           --health-retries 5
 
@@ -57,11 +59,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: front/package-lock.json
       - run: npm ci
 
-      # The daemon owns the DDL (aire-server's law); CI only needs a table shaped
-      # like the one it writes, a row the attacks can try to destroy, and the
-      # read-only role the app is supposed to arrive as.
+      # The daemon owns the DDL (the server half's law); CI only needs a table
+      # shaped like the one it writes, a row the attacks can try to destroy, and
+      # the read-only role the app is supposed to arrive as.
       - name: Build the pen, the log, and the waiter's credential
         run: |
           psql "$OWNER_DSN" -v ON_ERROR_STOP=1 <<'SQL'
