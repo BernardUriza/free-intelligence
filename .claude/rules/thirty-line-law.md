@@ -34,12 +34,13 @@ session-store example, kept diffable against upstream on purpose (Art. 6 —
 reuse the canonical). Splitting it would destroy that diffability. It stays
 whole UNLESS Bernard strikes this exception.
 
-## Current violators (as of registration, 2026-07-19)
+## Current violators (updated 2026-07-19)
 
-`aire/listener.py` 521 · `aire/store.py` 332 (exception above) ·
-`aire/engine.py` 321 · `infra/provision-do.sh` 221 ·
+~~`aire/listener.py` 521~~ — **gutted 2026-07-19** into `aire/listen/` (24
+files, every one ≤30; narratives preserved in `docs/listener-doctrine.md`).
+Still over: `aire/store.py` 332 (exception above) · `aire/engine.py` 321 ·
+`aire/server.py` 137 · `infra/provision-do.sh` 221 ·
 `.github/workflows/costwatch.yml` 123 · `demo_device.py` 99 ·
-`.github/workflows/deploy.yml` 66 · `aire/sweep.py` 54 ·
-`aire/server.py` 137. The compliance refactor is tracked in
+`.github/workflows/deploy.yml` 66 · `aire/sweep.py` 55. Tracked in
 [`.claude/backlog/19-thirty-line-compliance.md`](../backlog/19-thirty-line-compliance.md);
-new files are born under the cap starting today.
+new files are born under the cap.

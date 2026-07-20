@@ -1,6 +1,6 @@
 # Bring the repo under the thirty-line law
 
-Status: Accepted
+Status: In progress — `listener.py` done 2026-07-19 (521 → `aire/listen/`, 24 files all ≤30)
 Proposed: 2026-07-19 by Bernard
 
 ## What it is
@@ -27,6 +27,8 @@ it touches the live daemon and must land with the kill test green
 
 ## Status / next step
 
-Not started. Next step: gut `listener.py` first (biggest violator, hottest
-surface), one commit per extracted module family, deploy + verify the real
-socket after each landing.
+`listener.py` gutted 2026-07-19: `aire/listen/{config,applog}` + subpackages
+`pen/ roster/ guards/ verbs/ net/`, orchestrator kept as the `-m aire.listener`
+entrypoint; long-form comments moved to `docs/listener-doctrine.md`; smoke test
+green (reports, MKDIR ACK, DENIED, REJECTED). Next: `engine.py` (321), then
+`server.py` (137), `sweep.py` (55), `provision-do.sh` (221), the workflows.
