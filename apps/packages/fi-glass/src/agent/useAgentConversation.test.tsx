@@ -604,7 +604,7 @@ describe('persist failure — a save that fails may NOT fail in silence', () => 
     // turn (optimistic user capsule, then the folded turn), so "fail the first
     // call" would let a later one silently clear the error.
     const failing = { yes: true };
-    const onMessagesChange = vi.fn(async () => {
+    const onMessagesChange = vi.fn(async (_messages: ChatMessage[]) => {
       if (failing.yes) throw new Error('HTTP 413');
     });
     const { ref, rerender } = mountConversation(hook, { onMessagesChange });
