@@ -19,7 +19,7 @@ See `store.py` for the rationale on keeping the facade rather than
 switching every callsite to direct-repository injection.
 """
 
-from khimeras_shared.memory.context import build_context, format_relative_time
+from khimeras_shared.memory.context import build_context, format_relative_time, format_relevant_block
 from khimeras_shared.memory.store import MemoryStore
 
-__all__ = ["MemoryStore", "build_context", "format_relative_time"]
+__all__ = ["MemoryStore", "build_context", "format_relative_time", "format_relevant_block"]

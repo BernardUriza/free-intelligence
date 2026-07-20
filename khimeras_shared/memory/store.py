@@ -18,7 +18,7 @@ Why a facade rather than "import the repos directly everywhere":
 from __future__ import annotations
 
 from khimeras_shared.memory.connection import ConnectionManager
-from khimeras_shared.memory.context import build_context, format_relative_time
+from khimeras_shared.memory.context import SELF_BOT_USER_NAME, build_context, format_relative_time
 from khimeras_shared.memory.repositories import (
     AgendasRepository,
     AgentFactsRepository,
@@ -484,5 +484,5 @@ class MemoryStore:
     def _format_relative_time(timestamp: float) -> str:
         return format_relative_time(timestamp)
 
-    def build_context(self, recent: list[dict], relevant: list[dict] | None = None) -> list[dict]:
-        return build_context(recent, relevant)
+    def build_context(self, recent: list[dict], *, self_name: str = SELF_BOT_USER_NAME) -> list[dict]:
+        return build_context(recent, self_name=self_name)

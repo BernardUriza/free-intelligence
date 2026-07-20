@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from persona_gateway.gateway import chunk, clean_mention, edit_summons, format_context, should_respond
+from persona_gateway.gateway import chunk, clean_mention, edit_summons, should_respond
 
 
 def _user(uid: int):
@@ -248,22 +248,6 @@ def test_clean_keeps_other_mentions():
 
 def test_clean_bare_mention_is_empty():
     assert clean_mention("<@123>", 123) == ""
-
-
-# --- format_context ---------------------------------------------------------
-
-
-def test_format_prefixes_speaker_and_skips_empty():
-    recent = [
-        {"user_name": "Bernard", "content": "pon Creep"},
-        {"user_name": "Alex", "content": ""},  # dropped
-        {"user_name": "Insult", "content": "va"},
-    ]
-    out = format_context(recent)
-    assert out == [
-        {"role": "user", "content": "Bernard: pon Creep"},
-        {"role": "user", "content": "Insult: va"},
-    ]
 
 
 # --- chunk ------------------------------------------------------------------

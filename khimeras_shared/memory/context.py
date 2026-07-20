@@ -46,20 +46,19 @@ SELF_BOT_USER_NAME = "Insult"
 
 def build_context(
     recent: list[dict],
-    relevant: list[dict] | None = None,
     *,
     self_name: str = SELF_BOT_USER_NAME,
 ) -> list[dict]:
-    """Assemble the LLM context: recent turns + relevant retrievals.
+    """Frame the recent turns as the LLM context — the ONE canonical framer.
 
-    Output is the list the messages API expects (`role` + `content`).
-    The "relevant" block is prepended as ONE synthetic user message with a
-    header marker so the model knows these are older excerpts, not the live
-    thread.
+    Output is the list the messages API expects (`role` + `content`), each
+    line speaker-prefixed (`Name: content`). Relevant OLDER retrievals do NOT
+    ride here — they travel on the wire's dedicated `relevant_memory` seam
+    (see `format_relevant_block`), so old excerpts are never mislabeled as
+    the live thread.
 
     Recent messages from the LAST HOUR get NO timestamp prefix — just
-    `Name: content`. Older recent messages and all relevant retrievals keep
-    the `[hace Xmin] Name: content` prefix.
+    `Name: content`. Older recent messages keep the `[hace Xmin]` prefix.
 
     Why: the previous unconditional prefix `[hace 6min] Alex: ...` made
     Sonnet 4.6 hallucinate that recent thread messages were "quotes from
@@ -70,6 +69,11 @@ def build_context(
     snippets the model saw during training. Dropping the prefix for the
     fresh window collapses the cue and the model reads them as the live
     thread they actually are.
+
+    `self_name` is the persona reading this context. Its OWN prior turns are
+    marked `Name (tú):` so the transcript carries authorship the roles lose
+    downstream (the runner flattens the list into one replay block) — without
+    the mark, a persona reads its own last reply as just another voice.
     """
     context: list[dict] = []
 
@@ -79,31 +83,7 @@ def build_context(
     fresh_window_seconds = 3600
     now = time.time()
 
-    if relevant:
-        seen_contents = {m["content"] for m in recent}
-        unique_relevant = [m for m in relevant if m["content"] not in seen_contents]
-        if unique_relevant:
-            context.append(
-                {
-                    "role": "user",
-                    "content": "[Contexto relevante de conversaciones anteriores]\n"
-                    + "\n".join(
-                        f"[{format_relative_time(m['timestamp'])}] {m['user_name']}: {m['content']}"
-                        for m in unique_relevant
-                    ),
-                }
-            )
-
     for msg in recent:
-        is_fresh = (now - msg["timestamp"]) < fresh_window_seconds
-        if is_fresh:
-            # No bracketed prefix — these are the live thread, treat them
-            # as the active conversation, not as quoted snippets.
-            content = f"{msg['user_name']}: {msg['content']}"
-        else:
-            ts = f"[{format_relative_time(msg['timestamp'])}] "
-            content = f"{ts}{msg['user_name']}: {msg['content']}"
-
         # Critical attribution fix: an `assistant` row written by ANOTHER
         # bot (e.g. ALICE) must NOT be passed to the LLM as `role=assistant`
         # — that role is reserved for the SELF bot's previous turns, and
@@ -117,12 +97,41 @@ def build_context(
         # Esmeralda thread where Insult kept replying "sigo sin ser
         # Alice" after ALICE had already answered.
         msg_role = msg["role"]
-        if msg_role == "assistant" and msg.get("user_name") and msg["user_name"] != self_name:
+        is_self = msg_role == "assistant" and msg.get("user_name") == self_name
+        if msg_role == "assistant" and not is_self:
             msg_role = "user"
 
-        # Both user and assistant messages get name prefix for clear speaker
-        # attribution — downstream character.strip_metadata() removes these
-        # before the text reaches Discord.
+        speaker = f"{msg['user_name']} (tú)" if is_self else f"{msg['user_name']}"
+        is_fresh = (now - msg["timestamp"]) < fresh_window_seconds
+        if is_fresh:
+            # No bracketed prefix — these are the live thread, treat them
+            # as the active conversation, not as quoted snippets.
+            content = f"{speaker}: {msg['content']}"
+        else:
+            content = f"[{format_relative_time(msg['timestamp'])}] {speaker}: {msg['content']}"
+
         context.append({"role": msg_role, "content": content})
 
     return context
+
+
+def format_relevant_block(relevant: list[dict] | None, recent: list[dict]) -> str | None:
+    """Render keyword/semantic-retrieved OLDER turns as a labeled excerpt block.
+
+    Travels on the wire's `relevant_memory` seam — NEVER inside the replayed
+    live thread, where the runner's framing ("lo que se acaba de decir") would
+    tell the model a week-old excerpt was just said. Rows already present in
+    the recent window are deduped out; every line keeps its relative-time
+    prefix because these are precisely the messages that are NOT now.
+    """
+    if not relevant:
+        return None
+    seen_contents = {m.get("content") for m in recent}
+    unique = [m for m in relevant if m.get("content") and m.get("content") not in seen_contents]
+    if not unique:
+        return None
+    lines = [
+        f"[{format_relative_time(float(m.get('timestamp') or 0))}] {m.get('user_name', '?')}: {m['content']}"
+        for m in unique
+    ]
+    return "Fragmentos más viejos de este canal, relevantes al mensaje actual:\n" + "\n".join(lines)

@@ -22,6 +22,133 @@ from khimeras_shared.memory.base import BaseRepository
 
 log = structlog.get_logger()
 
+# Spanish function words that ILIKE-OR-explode into nearly every row of a
+# Spanish-speaking channel, drowning the discriminating terms of the ask.
+# Discriminating short words ("cv", "ana") survive via the >2-char gate only;
+# accented and unaccented forms both listed because user text carries both.
+_SEARCH_STOPWORDS = frozenset(
+    [
+        "que",
+        "qué",
+        "como",
+        "cómo",
+        "para",
+        "pero",
+        "por",
+        "con",
+        "sin",
+        "los",
+        "las",
+        "una",
+        "uno",
+        "unos",
+        "unas",
+        "del",
+        "este",
+        "esta",
+        "esto",
+        "estos",
+        "estas",
+        "ese",
+        "esa",
+        "eso",
+        "esos",
+        "esas",
+        "aquel",
+        "aquella",
+        "más",
+        "mas",
+        "muy",
+        "también",
+        "tambien",
+        "cuando",
+        "cuándo",
+        "donde",
+        "dónde",
+        "porque",
+        "entonces",
+        "ahora",
+        "aquí",
+        "aqui",
+        "allí",
+        "alli",
+        "algo",
+        "nada",
+        "todo",
+        "toda",
+        "todos",
+        "todas",
+        "otro",
+        "otra",
+        "otros",
+        "otras",
+        "hay",
+        "fue",
+        "son",
+        "ser",
+        "era",
+        "estar",
+        "está",
+        "esta",
+        "están",
+        "estan",
+        "estoy",
+        "estás",
+        "estas",
+        "tiene",
+        "tienen",
+        "tengo",
+        "tienes",
+        "hace",
+        "hacer",
+        "haces",
+        "dice",
+        "dijo",
+        "decir",
+        "puede",
+        "pueden",
+        "puedo",
+        "puedes",
+        "quiero",
+        "quieres",
+        "quiere",
+        "sabe",
+        "sabes",
+        "saber",
+        "bien",
+        "nos",
+        "les",
+        "sus",
+        "mis",
+        "tus",
+        "algún",
+        "alguna",
+        "ninguno",
+        "ninguna",
+        "sea",
+        "sería",
+        "seria",
+        "the",
+        "and",
+        "for",
+        "was",
+        "are",
+        "you",
+        "not",
+        "but",
+        "with",
+        "have",
+        "this",
+        "that",
+        "what",
+    ]
+)
+
+
+def search_terms(query: str) -> list[str]:
+    """The discriminating words of a query: >2 chars and not a stopword."""
+    return [w for w in query.split() if len(w) > 2 and w.lower() not in _SEARCH_STOPWORDS]
+
 
 class MessagesRepository(BaseRepository):
     """Owns the `messages` table plus every read of it (participants, activity)."""
@@ -204,12 +331,11 @@ class MessagesRepository(BaseRepository):
     async def search(self, channel_id: str, query: str, limit: int = 5, user_id: str | None = None) -> list[dict]:
         """Keyword ILIKE-search across message content, optionally scoped to a user.
 
-        Words <=2 chars are dropped to avoid OR-exploding into every row.
         Uses ILIKE (case-insensitive) — Postgres equivalent of SQLite's
         default-collation LIKE. No FTS here — this is the cheap fallback
         path; the semantic search path lives in `FactsRepository.search_facts_semantic`.
         """
-        words = [f"%{w}%" for w in query.split() if len(w) > 2]
+        words = [f"%{w}%" for w in search_terms(query)]
         if not words:
             return []
 

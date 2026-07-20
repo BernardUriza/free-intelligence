@@ -59,7 +59,8 @@ def _client(
         side_effect=RuntimeError("pg down") if search_raises else None,
         return_value=list(relevant or []),
     )
-    memory.build_context = MagicMock(side_effect=lambda rec, rel: [*(rel or []), *rec])
+    memory.build_context = MagicMock(side_effect=lambda rec, **kw: list(rec))
+    memory.search_facts_semantic = AsyncMock(return_value=[])
     memory.get_channel_participants = AsyncMock(
         side_effect=RuntimeError("pg down") if participants_raise else None,
         return_value=list(participants or []),
@@ -106,14 +107,18 @@ def _messages_sent(client: PersonaClient) -> list[dict]:
     return client.agent_client.chat.await_args.args[1]
 
 
-async def test_relevant_older_turns_are_retrieved_and_replayed():
+async def test_relevant_older_turns_ride_the_relevant_memory_seam():
     """The 30-message window is not the whole memory: a keyword hit from last
-    week must ride along, or the persona 'forgets' what Postgres still holds."""
+    week must ride along — on the wire's `relevant_memory` kwarg, labeled as
+    OLD excerpts, never folded into the replayed live thread where the runner
+    would frame it as 'lo que se acaba de decir'."""
     client = _client(relevant=OLD_RELEVANT)
     await client._handle(_message("qué onda con el depa"))
     client.memory.search.assert_awaited_once()
+    relevant_memory = client.agent_client.chat.await_args.kwargs.get("relevant_memory")
+    assert relevant_memory and "Barrhen" in relevant_memory, "el turno relevante viejo no llegó al runner"
     replayed = " ".join(str(m.get("content", "")) for m in _messages_sent(client))
-    assert "Barrhen" in replayed, "el turno relevante viejo no llegó al runner"
+    assert "Barrhen" not in replayed, "el excerpt viejo se coló al hilo vivo replay"
 
 
 async def test_other_participants_facts_reach_the_runner_kwarg():

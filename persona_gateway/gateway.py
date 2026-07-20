@@ -51,7 +51,7 @@ from persona_gateway.facts import FactExtractor
 from persona_gateway.ingest import MessageIngest
 from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
 from persona_gateway.markers import MarkerRouter
-from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
+from persona_gateway.routing import clean_mention, edit_summons, should_respond
 from persona_gateway.turn_context import TurnContextBuilder
 from persona_gateway.turns import TurnRunner
 from persona_gateway.vision import ImageTranscriber
@@ -67,7 +67,6 @@ __all__ = [
     "chunk",
     "clean_mention",
     "edit_summons",
-    "format_context",
     "should_respond",
 ]
 
@@ -305,6 +304,7 @@ class PersonaClient(discord.Client):
             react_to=message,
             behavioral_guidance=turn.guidance,
             other_people=turn.other_people,
+            relevant_memory=turn.relevant_memory,
         )
         # Reply delivered — the persona is not mute. Stamp it so /health can tell
         # "answered recently" from "took a message and went silent".
@@ -448,6 +448,7 @@ class PersonaClient(discord.Client):
             react_to=react_to,
             behavioral_guidance=turn.guidance,
             other_people=turn.other_people,
+            relevant_memory=turn.relevant_memory,
         )
         self.last_turn_delivered = time.time()
         if subject is not None and subject_ask:
@@ -482,6 +483,7 @@ class PersonaClient(discord.Client):
         react_to: discord.Message | None = None,
         behavioral_guidance: str | None = None,
         other_people: str | None = None,
+        relevant_memory: str | None = None,
     ) -> None:
         """Thin delegate to the injected TurnRunner (tests drive this directly)."""
         await self._turns.run_and_deliver(
@@ -496,4 +498,5 @@ class PersonaClient(discord.Client):
             react_to=react_to,
             behavioral_guidance=behavioral_guidance,
             other_people=other_people,
+            relevant_memory=relevant_memory,
         )

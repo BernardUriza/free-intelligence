@@ -21,14 +21,17 @@ from zoneinfo import ZoneInfo
 import structlog
 
 from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
-from khimeras_shared.memory import MemoryStore
+from khimeras_shared.memory import MemoryStore, format_relevant_block
 from khimeras_shared.other_people import other_people_block_for_turn
 from persona_gateway.config import CONFIG
-from persona_gateway.routing import format_context
 from shared.corpus.persona_corpus import build_persona_corpus_block
 from shared.personas import Persona
 
 log = structlog.get_logger()
+
+# Per-ask semantic fact recall: enough hits to resurface the load-bearing fact
+# the injection top-N pushed out, never a wall that dilutes the turn.
+RELEVANT_FACTS_LIMIT = 8
 
 # The pending-reminders context block stays small on purpose: enough for the
 # persona to list/cancel by text, never a wall that crowds out the guidance.
@@ -57,6 +60,7 @@ class TurnContext:
     context: list[dict]
     guidance: str | None
     other_people: str | None
+    relevant_memory: str | None
 
 
 class TurnContextBuilder:
@@ -83,8 +87,22 @@ class TurnContextBuilder:
         guardian and reminders — there is no user to classify — but the corpus
         and other-people blocks still ride.
         """
+        context = self.memory.build_context(recent, self_name=self.persona.display_name)
+
+        # Older retrievals ride the wire's dedicated `relevant_memory` seam —
+        # NEVER inside the replayed live thread, where the runner's framing
+        # ("lo que se acaba de decir") would date-stamp a week-old excerpt as
+        # just-said. Two retrieval modes feed it: keyword hits over the channel
+        # history, and per-ask semantic recall over the author's fact store.
+        relevant_parts: list[str] = []
         relevant = await self.load_relevant(channel_id, relevant_query)
-        context = format_context(self.memory.build_context(recent, relevant))
+        message_block = format_relevant_block(relevant, recent)
+        if message_block:
+            relevant_parts.append(message_block)
+        fact_block = await self.load_relevant_facts(guidance_user_id, relevant_query)
+        if fact_block:
+            relevant_parts.append(fact_block)
+        relevant_memory = "\n\n".join(relevant_parts) or None
 
         # The guardian: classify THIS turn against the user's accumulated facts
         # and send the persona's guidance on the wire. Without it the
@@ -110,7 +128,38 @@ class TurnContextBuilder:
         # unless we forward them — the "recuerda a Alex cuando Alex escribe, la
         # niega cuando preguntan por ella" hole (2026-06-03).
         other_people = await other_people_block_for_turn(self.memory, channel_id, exclude_user_id=exclude_user_id)
-        return TurnContext(context=context, guidance=guidance, other_people=other_people)
+        return TurnContext(
+            context=context,
+            guidance=guidance,
+            other_people=other_people,
+            relevant_memory=relevant_memory,
+        )
+
+    async def load_relevant_facts(self, user_id: str | None, ask: str) -> str | None:
+        """Per-ask semantic recall over the author's OWN fact store, or None.
+
+        The injection paths cap facts at curated + top-N recent — a user with a
+        deep fact history can have exactly the ask-relevant fact sitting outside
+        that cap. `search_facts_semantic` existed for this and had zero live
+        consumers (built-but-unwired, the [SEND] class). Best-effort: no user,
+        no ask, no hits or any fault → None, never a mute turn.
+        """
+        if not user_id or not ask:
+            return None
+        try:
+            hits = await self.memory.search_facts_semantic(user_id, ask, RELEVANT_FACTS_LIMIT)
+        except Exception:
+            log.exception("relevant_facts_search_failed", persona_id=self.persona.persona_id)
+            return None
+        lines = [f"- {h['fact']}" for h in hits or [] if isinstance(h, dict) and h.get("fact")]
+        if not lines:
+            return None
+        log.info(
+            "relevant_facts_loaded",
+            persona_id=self.persona.persona_id,
+            hits=len(lines),
+        )
+        return "Datos que ya sabes del autor del mensaje, relevantes a lo que pregunta:\n" + "\n".join(lines)
 
     async def load_relevant(self, channel_id: str, ask: str) -> list[dict]:
         """Keyword-relevant OLDER turns for this ask, or [] on any fault.

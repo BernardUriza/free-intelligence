@@ -1,9 +1,10 @@
-"""Pure reception predicates + context framing for the persona gateway.
+"""Pure reception predicates for the persona gateway.
 
 Discord-message-in → decision/text-out, no I/O and no persona state: whether a
 bot answers (`should_respond`), whether an edit newly summons it (`edit_summons`),
-stripping its own mention (`clean_mention`), and framing stored rows for the
-runner (`format_context`). Kept pure so they unit-test without a live bot.
+and stripping its own mention (`clean_mention`). Kept pure so they unit-test
+without a live bot. Context framing is `khimeras_shared.memory.context` — the
+one canonical framer.
 """
 
 from __future__ import annotations
@@ -100,20 +101,3 @@ def edit_summons(
     addressed transition). An edit to a message the persona already answered
     (addressed before AND after) never re-triggers it."""
     return not should_respond(before, bot_user, aliases) and should_respond(after, bot_user, aliases)
-
-
-def format_context(recent: list[dict]) -> list[dict]:
-    """Turn stored rows into speaker-prefixed message dicts for the runner.
-
-    Mirrors how the Insult plumbing frames context: each line is
-    "Name: text" so the runner can attribute who said what. Role is kept as a
-    plain "user" turn — the runner reads it as channel context, not as its own
-    history (the persona-bot's own past replies are stored as role='assistant'
-    but here we only need the readable transcript)."""
-    out: list[dict] = []
-    for m in recent:
-        name = m.get("user_name") or "?"
-        content = (m.get("content") or "").strip()
-        if content:
-            out.append({"role": "user", "content": f"{name}: {content}"})
-    return out
