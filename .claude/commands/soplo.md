@@ -25,6 +25,7 @@ tool, it hangs forever — use `tail -n`):
 ssh -i ~/.ssh/aire_vm -o ConnectTimeout=10 root@143.198.9.173 \
   'echo "== services =="; systemctl is-active aire-listener aire-server; \
    echo "== memory =="; curl -s --max-time 8 localhost:8088/health; echo; \
+   echo "== pen =="; grep -a "PEN-" /opt/aire/aire.log | tail -n 1; \
    echo "== log tail =="; tail -n 8 /opt/aire/aire.log; \
    echo "== totals =="; printf "lines=%s casitas=%s uptime=%s\n" "$(wc -l < /opt/aire/aire.log)" "$(ls /opt/aire/workspaces | wc -l)" "$(uptime -p)"'
 ```
@@ -38,10 +39,18 @@ being written, an agent still working with nobody attached.
 
 In 2-3 lines, with real receipts (Art. 2 — never fake-green):
 
-- **Still blowing?** Yes ONLY if `aire-listener` AND `aire-server` say `active` and
-  `/health` returns `ok`. Anything else is reported plainly (the air stopped blowing),
-  with an offer to diagnose:
+- **Still blowing?** Yes ONLY if `aire-listener` AND `aire-server` say `active`,
+  `/health` returns `ok`, **and the last `PEN-` transition in the log is `PEN-UP`**
+  (when the DSN is configured). Anything else is reported plainly (the air stopped
+  blowing), with an offer to diagnose:
   `journalctl -u aire-listener -u aire-server --no-pager -n 20`.
+- **The pen condition exists because of the NUL poison pill (2026-07-20):** the pen
+  sat wedged for ~4.5 days flip-flopping PEN-UP/PEN-DOWN every 2s while both units
+  were `active` and `/health` said `ok` — /soplo declared the air blowing over a
+  frozen mirror. Units + `/health` measure the engine, NOT the pen; the pen's own
+  distress signal is the `PEN-` line. A `PEN-DOWN` tail = the memory is not being
+  mirrored = NOT blowing, whatever the other proxies say
+  (docs/listener-doctrine.md, the pen section).
 - The last log lines and the totals (lines, casitas, uptime).
 - If SSH fails / times out: **report it honestly** (droplet down or unreachable), never
   invent a pulse. Check the droplet state with
