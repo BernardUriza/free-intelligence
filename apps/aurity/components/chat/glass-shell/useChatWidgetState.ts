@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ChatViewMode } from './types';
+import type { ChatViewMode } from 'fi-glass/shell';
 
 export interface UseChatWidgetStateOptions {
   initialOpen: boolean;

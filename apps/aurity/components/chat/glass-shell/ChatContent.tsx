@@ -11,11 +11,11 @@
  */
 
 import { Loader2 } from 'lucide-react';
-import { Composer } from '../composer';
+import { Composer } from 'fi-glass/composer';
 import { ChatWidgetContainer } from './ChatWidgetContainer';
 import { ChatWidgetHeader } from './ChatWidgetHeader';
 import { ChatToolbar } from './ChatToolbar';
-import { ChatFilePreview } from './ChatFilePreview';
+import { ChatFilePreview } from 'fi-glass/shell';
 import { ChatStartScreen } from './ChatStartScreen';
 import type { ChatContentProps } from './types';
 

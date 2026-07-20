@@ -14,9 +14,9 @@
 
 import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { ActionMenu } from '../menu/ActionMenu';
-import { VoiceMicButton } from '../voice';
-import type { ResponseMode, PersonaType, VoiceRecordingState } from './types';
+import { ActionMenu } from 'fi-glass';
+import { VoiceMicButton } from 'fi-glass/voice';
+import type { ResponseMode, PersonaType, VoiceRecordingState } from 'fi-glass/shell';
 
 export interface ChatToolbarProps {
   showAttach?: boolean;

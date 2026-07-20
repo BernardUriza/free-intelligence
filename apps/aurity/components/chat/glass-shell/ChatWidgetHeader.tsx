@@ -12,7 +12,7 @@
  */
 
 import { X, Minimize2, Maximize2, MessageCircle, Search } from 'lucide-react';
-import type { ChatViewMode, ChatNavDest } from './types';
+import type { ChatViewMode, ChatNavDest } from 'fi-glass/shell';
 
 /** Mirrors `<Button variant="ghost" size="sm" className="chat-header-btn">`. */
 const HEADER_BTN_CLASS = 'fi-btn-ghost fi-btn-sm chat-header-btn';
