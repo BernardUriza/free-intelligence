@@ -44,10 +44,11 @@ install_units() {
   cp "$REMOTE_DIR/server/deploy/aire-listener.service" "$REMOTE_DIR/server/deploy/aire-device.service" \
      "$REMOTE_DIR/server/deploy/aire-server.service" \
      "$REMOTE_DIR/server/deploy/aire-sweep.service" "$REMOTE_DIR/server/deploy/aire-sweep.timer" \
-     "$REMOTE_DIR/server/deploy/aire-tick.service" "$REMOTE_DIR/server/deploy/aire-tick.timer" /etc/systemd/system/
+     "$REMOTE_DIR/server/deploy/aire-tick.service" "$REMOTE_DIR/server/deploy/aire-tick.timer" \
+     "$REMOTE_DIR/server/deploy/aire-mirror.service" "$REMOTE_DIR/server/deploy/aire-mirror.timer" /etc/systemd/system/
   cp "$REMOTE_DIR/server/deploy/logrotate-aire" /etc/logrotate.d/aire
   systemctl daemon-reload
-  systemctl enable --now aire-listener aire-server aire-sweep.timer aire-tick.timer
+  systemctl enable --now aire-listener aire-server aire-sweep.timer aire-tick.timer aire-mirror.timer
 }
 
 verify_units() {
