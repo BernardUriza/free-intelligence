@@ -719,4 +719,46 @@ describe('P0 — a slow turn is not a dead turn, and a failed turn does not eat 
     expect(ref.current!.unsentText).toBeNull();
     vi.useRealTimers();
   });
+
+  it('a failed turn hands back the IMAGES too, not just the words', () => {
+    vi.useFakeTimers();
+    const { hook } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+
+    const img = { mediaType: 'image/png', data: 'BASE64PAYLOAD' };
+    act(() => ref.current!.send('mira esta gráfica', [img]));
+    rerender();
+    expect(ref.current!.messages[0]?.images).toHaveLength(1);
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    rerender();
+
+    // Recovery carries the WHOLE message. Handing back only the text let the
+    // user re-send a prompt whose picture had silently ceased to exist.
+    expect(ref.current!.messages).toHaveLength(0);
+    expect(ref.current!.unsentText).toBe('mira esta gráfica');
+    expect(ref.current!.unsentImages).toEqual([img]);
+    vi.useRealTimers();
+  });
+
+  it('clearUnsent drops BOTH channels (a half-cleared recovery re-attaches a ghost)', () => {
+    vi.useFakeTimers();
+    const { hook } = makeFakeAgent();
+    const { ref, rerender } = mountConversation(hook, { turnTimeoutMs: 1000 });
+    act(() => ref.current!.send('con foto', [{ mediaType: 'image/png', data: 'AAA' }]));
+    rerender();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    rerender();
+    expect(ref.current!.unsentImages).toHaveLength(1);
+
+    act(() => ref.current!.clearUnsent());
+    rerender();
+    expect(ref.current!.unsentText).toBeNull();
+    expect(ref.current!.unsentImages).toBeNull();
+    vi.useRealTimers();
+  });
 });

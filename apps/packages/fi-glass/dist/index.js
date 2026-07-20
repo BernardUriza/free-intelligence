@@ -1099,6 +1099,20 @@ function useComposerImages(options = {}) {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
   const clear = useCallback2(() => setDrafts([]), []);
+  const restore = useCallback2(
+    (images) => {
+      setDrafts(
+        images.slice(0, maxImages).map((image) => ({
+          id: `img-${++nextDraftId}`,
+          mediaType: image.mediaType,
+          data: image.data,
+          dataUrl: `data:${image.mediaType};base64,${image.data}`,
+          name: "imagen"
+        }))
+      );
+    },
+    [maxImages]
+  );
   const toMessageImages = useCallback2(
     () => draftsRef.current.map((d) => ({ mediaType: d.mediaType, data: d.data })),
     []
@@ -1120,7 +1134,7 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, toMessageImages, handlePaste };
+  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
 }
 
 // src/composer/ComposerImageAttachments.tsx
