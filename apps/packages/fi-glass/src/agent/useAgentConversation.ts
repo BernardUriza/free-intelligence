@@ -206,8 +206,19 @@ export interface AgentConversation {
    * nothing is pending recovery.
    */
   unsentText: string | null;
-  /** Called by the shell once it has restored `unsentText` into the composer. */
-  clearUnsentText: () => void;
+  /**
+   * The IMAGES of that same failed turn. Recovery has to carry the whole message,
+   * not just its words: a send clears the composer drafts optimistically, so
+   * handing back only the text left the pictures nowhere — the user saw their
+   * prompt return and re-sent it, silently, without the images. Null when there
+   * is nothing pending recovery.
+   */
+  unsentImages: MessageImage[] | null;
+  /**
+   * Called by the shell once it has restored `unsentText` AND `unsentImages`
+   * into the composer.
+   */
+  clearUnsent: () => void;
   /** Send a message: pushes it optimistically, then drives the agent turn.
    * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
    * (empty text, ≥1 image) is valid — the picture IS the message. */
@@ -277,6 +288,7 @@ export function useAgentConversation(
   // What the user wrote on a turn that failed: reverted from the thread, handed
   // back so the composer can put it back in the box instead of losing it.
   const [unsentText, setUnsentText] = useState<string | null>(null);
+  const [unsentImages, setUnsentImages] = useState<MessageImage[] | null>(null);
   // The thread whose save failed, kept so retryPersist can re-attempt exactly it
   // (not whatever the thread has become since).
   const unsaved = useRef<ChatMessage[] | null>(null);
@@ -306,7 +318,10 @@ export function useAgentConversation(
   }, [runPersist]);
 
   const dismissPersistError = useCallback(() => setPersistError(null), []);
-  const clearUnsentText = useCallback(() => setUnsentText(null), []);
+  const clearUnsent = useCallback(() => {
+    setUnsentText(null);
+    setUnsentImages(null);
+  }, []);
 
   // True while a turn we optimistically pushed is still in flight; gates the fold.
   const pending = useRef(false);
@@ -354,6 +369,11 @@ export function useAgentConversation(
     // setMessages updater made it a side-effect of a reducer, which React may
     // re-run — and a re-run resurrected the text after the next send had cleared it.
     setUnsentText(last.content);
+    // Recovery carries the WHOLE message. The images rode on the optimistic
+    // capsule and the composer already cleared its drafts on send, so dropping
+    // them here is a silent amputation: the user gets the words back, re-sends,
+    // and the pictures are gone without a word.
+    setUnsentImages(last.images && last.images.length > 0 ? last.images : null);
     setMessages((prev) => (prev[prev.length - 1]?.role === 'user' ? prev.slice(0, -1) : prev));
   }, []);
 
@@ -374,6 +394,7 @@ export function useAgentConversation(
       lastSent.current = { text: t, images: imgs };
       // A new send supersedes any prompt still waiting to be recovered.
       setUnsentText(null);
+      setUnsentImages(null);
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
@@ -542,7 +563,8 @@ export function useAgentConversation(
     retryPersist,
     dismissPersistError,
     unsentText,
-    clearUnsentText,
+    unsentImages,
+    clearUnsent,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : undefined,

@@ -274,8 +274,19 @@ interface AgentConversation {
      * nothing is pending recovery.
      */
     unsentText: string | null;
-    /** Called by the shell once it has restored `unsentText` into the composer. */
-    clearUnsentText: () => void;
+    /**
+     * The IMAGES of that same failed turn. Recovery has to carry the whole message,
+     * not just its words: a send clears the composer drafts optimistically, so
+     * handing back only the text left the pictures nowhere — the user saw their
+     * prompt return and re-sent it, silently, without the images. Null when there
+     * is nothing pending recovery.
+     */
+    unsentImages: MessageImage[] | null;
+    /**
+     * Called by the shell once it has restored `unsentText` AND `unsentImages`
+     * into the composer.
+     */
+    clearUnsent: () => void;
     /** Send a message: pushes it optimistically, then drives the agent turn.
      * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
      * (empty text, ≥1 image) is valid — the picture IS the message. */
@@ -305,16 +316,28 @@ declare function useAgentConversation(agent: AgentHook, options: UseAgentConvers
 
 /**
  * fi-glass · conversation-surface/types — the public contract of
- * AgentConversationSurface. The props interface is the surface's documented
- * API (every slot/copy/style hook a consumer can inject); it lives here so the
- * orchestrator component stays readable. Re-exported unchanged from
- * `../AgentConversationSurface` — consumers never import from this path.
+ * AgentConversationSurface. The props are the surface's documented API (every
+ * slot/copy/style hook a consumer can inject).
+ *
+ * DECOMPOSITION (B3-FIGLASS-SURFACE-PROPS-1): the contract used to be one
+ * 56-field interface — a god-props object where every new capability grew the
+ * same monolith and the regions had to receive the whole thing because
+ * re-threading 56 props was unviable. It is now split into cohesive, individually
+ * documented sub-interfaces (layout, slots, composer, send controls, message
+ * rendering, dictation, image attachments, turn-error, autoscroll, collapse).
+ * `AgentConversationSurfaceProps` composes them via `extends`, so the flat prop
+ * surface consumers pass is UNCHANGED — this is a pure type-architecture refactor,
+ * not a call-site break. New capabilities now land in the relevant slice instead
+ * of the monolith, and each slice is a reusable, exported unit a region can type
+ * against.
+ *
+ * Re-exported from `../AgentConversationSurface` — consumers never import from
+ * this path.
  */
 
 type AgentConversationSurfaceLayout = 'viewport' | 'contained';
-interface AgentConversationSurfaceProps {
-    /** The conversation state + actions from `useAgentConversation`. */
-    conversation: AgentConversation;
+/** Root sizing behavior of the surface. */
+interface SurfaceLayoutProps {
     /**
      * FG-2 (canary-driven, activist-os): how the surface root sizes itself.
      *  - `"viewport"` (DEFAULT): root is `height: 100dvh` — the full-page behavior
@@ -325,8 +348,16 @@ interface AgentConversationSurfaceProps {
      *    forcing page scroll.
      */
     layout?: AgentConversationSurfaceLayout;
-    /** Composer placeholder copy (app-owned). */
-    composerPlaceholder?: string;
+}
+/** App-owned content slots that stack around the transcript/composer. */
+interface SurfaceSlotProps {
+    /** Rendered when the thread is empty and idle (e.g. an app start screen). */
+    emptyState?: ReactNode;
+    /** Slot rendered just above the composer (e.g. an app's auth banner). */
+    aboveComposer?: ReactNode;
+}
+/** The built-in new-conversation CTA above the composer. */
+interface NewConversationProps {
     /** Label for the new-conversation button. Default: "New chat". */
     newChatLabel?: string;
     /**
@@ -336,10 +367,15 @@ interface AgentConversationSurfaceProps {
      * opt-out, not consumer CSS hiding framework internals.
      */
     showNewChatButton?: boolean;
-    /** Rendered when the thread is empty and idle (e.g. an app start screen). */
-    emptyState?: ReactNode;
-    /** Slot rendered just above the composer (e.g. an app's auth banner). */
-    aboveComposer?: ReactNode;
+}
+/**
+ * ComposerFrame slots, style hooks, the "+" action menu, and the external
+ * append channel — everything about the box the user composes IN, minus the
+ * send/stop controls (see SendControlProps) and dictation (see DictationProps).
+ */
+interface ComposerFrameProps {
+    /** Composer placeholder copy (app-owned). */
+    composerPlaceholder?: string;
     /**
      * Header slot INSIDE the composer box (ComposerFrame's header) — drafts and
      * previews that belong to the message being composed, e.g. a recorded-audio
@@ -362,18 +398,6 @@ interface AgentConversationSurfaceProps {
     composerFooterStart?: ReactNode;
     /** Class for the footer left-rail wrapper. */
     composerFooterStartClassName?: string;
-    /** Pass-through styling/icons for the live-turn AgentPanel. */
-    agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
-    /**
-     * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
-     * (declared plan + steps + tool calls + sources) above each assistant message
-     * that carries one, using the SAME AgentPanel as the live turn. This makes the
-     * differentiator — "see the execution, not just the result" — survive into the
-     * durable transcript instead of collapsing to the answer text on fold. Default
-     * true; a surface that wants answer-only history sets false. Messages with no
-     * `trace` (plain conversational turns, user messages) render unchanged.
-     */
-    showPersistedTrace?: boolean;
     /**
      * Floating composer box class (style hook for the app) — the single frosted
      * container that wraps BOTH the textarea row and the controls row (mic/send),
@@ -389,16 +413,6 @@ interface AgentConversationSurfaceProps {
     /** Controls-row class (the mic/send row inside the box; layout stays framework-owned). */
     composerControlsClassName?: string;
     /**
-     * When true (and no `renderActions` override), each transcript message gets a
-     * default CopyButton in the bubble's actions slot. Default: false
-     * (the dense agentic surface stays action-free unless the app opts in). The
-     * live streaming message never gets a copy action.
-     */
-    showCopyAction?: boolean;
-    /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
-    /** Copy for the "retry saving" button on the persist-failure banner. */
-    persistRetryLabel?: string;
-    /**
      * Extra actions for the composer's "+" menu — anything the app lets the user
      * ADD to a turn (upload a document to the active project, …). Attaching an
      * image is contributed by the framework when `images` is wired; these are
@@ -409,6 +423,62 @@ interface AgentConversationSurfaceProps {
     composerActionsLabel?: string;
     composerActionsMenuClassName?: string;
     composerActionsItemClassName?: string;
+    /**
+     * B3-VOICE-OG118-6 — append text to the composer from an external source
+     * (e.g. a durable-queue transcription). When non-empty, the surface appends
+     * this text to the current input and calls `onComposerAppendConsumed`. Pull-once
+     * pattern: set to a string → surface consumes → consumer resets to ''.
+     */
+    composerAppend?: string;
+    /** Called immediately after the surface appends `composerAppend`. Reset to ''. */
+    onComposerAppendConsumed?: () => void;
+}
+/** The send/stop button in the composer controls row. */
+interface SendControlProps {
+    /**
+     * Render an explicit send button in the composer row (in addition to
+     * Enter-to-send). Default true — a visible affordance matches the shell
+     * composer (AURITY). Set false for an Enter-only composer.
+     */
+    showSendButton?: boolean;
+    /** Class for the send button. */
+    sendButtonClassName?: string;
+    /** Class for the send button icon. */
+    sendButtonIconClassName?: string;
+    /** aria-label for the send button. Default: "Enviar mensaje". */
+    sendLabel?: string;
+    /**
+     * Class applied to the send button ADDITIVELY while it is a stop button
+     * (streaming + the transport can abort) — e.g. a consumer's danger tint.
+     */
+    stopButtonClassName?: string;
+    /** aria-label for the stop button. Default: "Detener respuesta". */
+    stopLabel?: string;
+}
+/** Per-message rendering: glass-box trace, copy action, and bubble slot hooks. */
+interface MessageRenderProps {
+    /** Pass-through styling/icons for the live-turn AgentPanel. */
+    agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
+    /**
+     * B3-FIGLASS-TRACE-PERSISTENCE-1 — re-render the persisted glass-box trace
+     * (declared plan + steps + tool calls + sources) above each assistant message
+     * that carries one, using the SAME AgentPanel as the live turn. This makes the
+     * differentiator — "see the execution, not just the result" — survive into the
+     * durable transcript instead of collapsing to the answer text on fold. Default
+     * true; a surface that wants answer-only history sets false. Messages with no
+     * `trace` (plain conversational turns, user messages) render unchanged.
+     */
+    showPersistedTrace?: boolean;
+    /**
+     * When true (and no `renderActions` override), each transcript message gets a
+     * default CopyButton in the bubble's actions slot. Default: false
+     * (the dense agentic surface stays action-free unless the app opts in). The
+     * live streaming message never gets a copy action.
+     */
+    showCopyAction?: boolean;
+    /** Copy for the "retry saving" button on the persist-failure banner. */
+    persistRetryLabel?: string;
+    /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
     renderHeader?: (message: ChatMessage) => ReactNode;
     /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
     renderBadge?: (message: ChatMessage) => ReactNode;
@@ -434,6 +504,9 @@ interface AgentConversationSurfaceProps {
      * class, so it never throws.
      */
     messageBubbleClassName?: string | ((message: ChatMessage) => string | undefined);
+}
+/** In-composer dictation (STT) via the app's VoiceAdapter, plus the mic slot. */
+interface DictationProps {
     /**
      * The app's voice engine. When it exposes `transcribe`, the surface lights up
      * an in-composer dictation mic and feeds the recognized text straight into the
@@ -448,6 +521,32 @@ interface AgentConversationSurfaceProps {
      * threading a new callback through the components").
      */
     voiceAdapter?: VoiceAdapter;
+    /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
+    micSlotClassName?: string;
+    /** Class for the dictation mic button. */
+    micButtonClassName?: string;
+    /** Called on a recording/transcription failure surfaced by dictation. */
+    onVoiceError?: (message: string) => void;
+    /**
+     * Wrapper class for the live dictation visualizer (the equalizer that reacts
+     * to the mic while recording). Only rendered while dictation is active, fed by
+     * the analyser's frequency bands — so every shell inherits reactive bars
+     * without re-wiring Web Audio. Omit for the unstyled default.
+     */
+    voiceVisualizerClassName?: string;
+    /** Per-bar class for the live dictation visualizer. */
+    voiceVisualizerBarClassName?: string;
+    /**
+     * B3-VOICE-OG118-6 — replace the built-in `ComposerMicSlot` + `useDictation`
+     * with custom content (e.g. a durable-recording button). When provided, no
+     * built-in mic is rendered and no dictation visualizer is shown. The `voiceAdapter`
+     * prop still gates TTS-only features; pass `undefined` or an adapter without
+     * `transcribe` to avoid a phantom built-in mic alongside the override.
+     */
+    micSlotOverride?: ReactNode;
+}
+/** Image attachments in the composer (ChatGPT parity). */
+interface ImageAttachmentProps {
     /**
      * OG118-IMAGE-UPLOAD-1 — image attachments in the composer (ChatGPT parity).
      * When true, the surface owns the whole capability: an attach button in the
@@ -467,63 +566,14 @@ interface AgentConversationSurfaceProps {
     imageChipsClassName?: string;
     /** Called with a human-readable message when an image is rejected (type/size). */
     onImageAttachmentError?: (message: string) => void;
-    /** Class for the dictation mic slot wrapper (only rendered when STT is available). */
-    micSlotClassName?: string;
-    /** Class for the dictation mic button. */
-    micButtonClassName?: string;
-    /** Called on a recording/transcription failure surfaced by dictation. */
-    onVoiceError?: (message: string) => void;
-    /**
-     * Wrapper class for the live dictation visualizer (the equalizer that reacts
-     * to the mic while recording). Only rendered while dictation is active, fed by
-     * the analyser's frequency bands — so every shell inherits reactive bars
-     * without re-wiring Web Audio. Omit for the unstyled default.
-     */
-    voiceVisualizerClassName?: string;
-    /** Per-bar class for the live dictation visualizer. */
-    voiceVisualizerBarClassName?: string;
-    /**
-     * Render an explicit send button in the composer row (in addition to
-     * Enter-to-send). Default true — a visible affordance matches the shell
-     * composer (AURITY). Set false for an Enter-only composer.
-     */
-    showSendButton?: boolean;
-    /** Class for the send button. */
-    sendButtonClassName?: string;
-    /** Class for the send button icon. */
-    sendButtonIconClassName?: string;
-    /** aria-label for the send button. Default: "Enviar mensaje". */
-    sendLabel?: string;
-    /**
-     * Class applied to the send button ADDITIVELY while it is a stop button
-     * (streaming + the transport can abort) — e.g. a consumer's danger tint.
-     */
-    stopButtonClassName?: string;
-    /** aria-label for the stop button. Default: "Detener respuesta". */
-    stopLabel?: string;
-    /**
-     * B3-VOICE-OG118-6 — append text to the composer from an external source
-     * (e.g. a durable-queue transcription). When non-empty, the surface appends
-     * this text to the current input and calls `onComposerAppendConsumed`. Pull-once
-     * pattern: set to a string → surface consumes → consumer resets to ''.
-     */
-    composerAppend?: string;
-    /** Called immediately after the surface appends `composerAppend`. Reset to ''. */
-    onComposerAppendConsumed?: () => void;
-    /**
-     * B3-VOICE-OG118-6 — replace the built-in `ComposerMicSlot` + `useDictation`
-     * with custom content (e.g. a durable-recording button). When provided, no
-     * built-in mic is rendered and no dictation visualizer is shown. The `voiceAdapter`
-     * prop still gates TTS-only features; pass `undefined` or an adapter without
-     * `transcribe` to avoid a phantom built-in mic alongside the override.
-     */
-    micSlotOverride?: ReactNode;
-    /**
-     * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
-     * is set (a hung/timed-out or errored turn), the surface renders a recoverable
-     * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
-     * the consumer's style/copy hooks; sensible defaults render without any.
-     */
+}
+/**
+ * B3-FIGLASS-8 — recoverable turn-failure UI. When `conversation.turnError`
+ * is set (a hung/timed-out or errored turn), the surface renders a recoverable
+ * banner with retry/dismiss INSTEAD of the zombie "thinking…" panel. These are
+ * the consumer's style/copy hooks; sensible defaults render without any.
+ */
+interface TurnErrorProps {
     errorClassName?: string;
     /** Retry button copy. Default: "Reintentar". */
     retryLabel?: string;
@@ -533,14 +583,16 @@ interface AgentConversationSurfaceProps {
     retryButtonClassName?: string;
     /** Class for the dismiss button. */
     dismissButtonClassName?: string;
-    /**
-     * B3-FIGLASS-12 — pin-to-bottom scroll during streaming (ChatGPT parity).
-     * The transcript stays pinned to the newest content while a turn streams;
-     * the user scrolling up unpins it; a floating button jumps back. Powered by
-     * use-stick-to-bottom (ResizeObserver + spring, no overflow-anchor — Safari
-     * doesn't support it). Default true. This finally consumes the autoscroll
-     * promise that config.ts declared and nothing implemented.
-     */
+}
+/**
+ * B3-FIGLASS-12 — pin-to-bottom scroll during streaming (ChatGPT parity).
+ * The transcript stays pinned to the newest content while a turn streams;
+ * the user scrolling up unpins it; a floating button jumps back. Powered by
+ * use-stick-to-bottom (ResizeObserver + spring, no overflow-anchor — Safari
+ * doesn't support it).
+ */
+interface AutoScrollProps {
+    /** Default true. This finally consumes the autoscroll promise that config.ts declared and nothing implemented. */
     autoScroll?: boolean;
     /** aria-label for the floating scroll-to-bottom button. Default: "Ir al final". */
     scrollToBottomLabel?: string;
@@ -548,12 +600,14 @@ interface AgentConversationSurfaceProps {
     scrollToBottomClassName?: string;
     /** Icon class for the scroll-to-bottom button. */
     scrollToBottomIconClassName?: string;
-    /**
-     * B3-FIGLASS-12 — clamp long USER messages behind a "show more" disclosure
-     * (ChatGPT parity: max-height + mask-image fade + aria-expanded toggle).
-     * Assistant messages and the live streaming bubble are never clamped.
-     * Default true.
-     */
+}
+/**
+ * B3-FIGLASS-12 — clamp long USER messages behind a "show more" disclosure
+ * (ChatGPT parity: max-height + mask-image fade + aria-expanded toggle).
+ * Assistant messages and the live streaming bubble are never clamped.
+ */
+interface CollapseProps {
+    /** Default true. */
     collapseUserMessages?: boolean;
     /** Collapsed max height in px. Default 264 (11 lines at 24px leading). */
     collapseMaxHeight?: number;
@@ -563,6 +617,34 @@ interface AgentConversationSurfaceProps {
     /** Class for the disclosure toggle button. */
     collapseToggleClassName?: string;
 }
+/**
+ * The public props of AgentConversationSurface — the sum of every cohesive
+ * capability slice above plus the one required input, the conversation state.
+ * Consumers still pass a flat prop bag; the composition is a type-level concern.
+ */
+interface AgentConversationSurfaceProps extends SurfaceLayoutProps, SurfaceSlotProps, NewConversationProps, ComposerFrameProps, SendControlProps, MessageRenderProps, DictationProps, ImageAttachmentProps, TurnErrorProps, AutoScrollProps, CollapseProps {
+    /** The conversation state + actions from `useAgentConversation`. */
+    conversation: AgentConversation;
+}
+/**
+ * The exact capability slices ComposerRegion consumes — everything about the
+ * box the user composes IN, plus the app slot and CTA that stack above it.
+ *
+ * Typing the region against this instead of the whole surface contract is what
+ * makes the decomposition load-bearing rather than decorative: the compiler now
+ * refuses a composer that reaches into a transcript capability
+ * (`collapseMaxHeight`, `agentPanelProps`), and a new field added to an
+ * unrelated slice cannot silently widen this region's surface. Still ONE object,
+ * so the orchestrator never re-threads props (REGION-PROPS-1) — the slices are
+ * the unit, not the field.
+ */
+type ComposerRegionSurface = SurfaceSlotProps & NewConversationProps & ComposerFrameProps & SendControlProps & DictationProps & ImageAttachmentProps;
+/**
+ * The exact capability slices TranscriptRegion consumes — message rendering,
+ * the recoverable-failure banners, autoscroll and user-message collapse.
+ * Same rationale as {@link ComposerRegionSurface}.
+ */
+type TranscriptRegionSurface = SurfaceSlotProps & MessageRenderProps & TurnErrorProps & AutoScrollProps & CollapseProps;
 
 declare function AgentConversationSurface(props: AgentConversationSurfaceProps): react.JSX.Element;
 
@@ -608,7 +690,7 @@ interface AgentWorkspaceShellProps {
      * the sidebar a static column at every width. No effect without `sidebar`.
      */
     responsive?: boolean;
-    /** Media query that switches the sidebar into drawer mode. Default `(max-width: 768px)`. */
+    /** Media query that switches the sidebar into drawer mode. Default {@link FI_MOBILE_QUERY}. */
     mobileQuery?: string;
     /** Desktop sidebar width (number → px). Default `280`. */
     sidebarWidth?: number | string;
@@ -774,4 +856,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type ToolCategory, type ToolVisualStatus, type TurnError, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerFrameProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

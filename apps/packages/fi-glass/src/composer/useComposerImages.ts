@@ -69,6 +69,14 @@ export interface ComposerImages {
   remove: (id: string) => void;
   /** Detach all (called by the surface after a send). */
   clear: () => void;
+  /**
+   * Re-attach images handed back by a FAILED turn (`conversation.unsentImages`).
+   * A send clears the drafts optimistically, so without this the pictures of a
+   * turn the watchdog killed exist nowhere — the user gets their text back and
+   * silently re-sends without them. Already-encoded, so no validation/downscale
+   * round-trip; still bounded by `maxImages`.
+   */
+  restore: (images: MessageImage[]) => void;
   /** The drafts as wire-ready MessageImages. */
   toMessageImages: () => MessageImage[];
   /** Extract + add image files from a paste event. True if any were taken. */
@@ -192,6 +200,21 @@ export function useComposerImages(options: UseComposerImagesOptions = {}): Compo
 
   const clear = useCallback(() => setDrafts([]), []);
 
+  const restore = useCallback(
+    (images: MessageImage[]) => {
+      setDrafts(
+        images.slice(0, maxImages).map((image) => ({
+          id: `img-${++nextDraftId}`,
+          mediaType: image.mediaType,
+          data: image.data,
+          dataUrl: `data:${image.mediaType};base64,${image.data}`,
+          name: 'imagen',
+        })),
+      );
+    },
+    [maxImages],
+  );
+
   const toMessageImages = useCallback(
     () => draftsRef.current.map((d) => ({ mediaType: d.mediaType, data: d.data })),
     [],
@@ -215,5 +238,5 @@ export function useComposerImages(options: UseComposerImagesOptions = {}): Compo
     [addFiles],
   );
 
-  return { drafts, addFiles, remove, clear, toMessageImages, handlePaste };
+  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
 }

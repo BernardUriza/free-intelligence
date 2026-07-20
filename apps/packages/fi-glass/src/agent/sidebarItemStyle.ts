@@ -19,6 +19,7 @@
  */
 
 import { useEffect } from 'react';
+import { ensureDensityStyle } from './densityStyle';
 
 export const FI_SIDEBAR_ITEM_CLASS = 'fi-sidebar-item';
 export const FI_ITEM_BODY_CLASS = 'fi-sidebar-item-body';
@@ -66,7 +67,7 @@ const CSS = `
 }
 .${FI_ITEM_TITLE_CLASS} {
   font-size: 0.85rem;
-  color: var(--glass-chat-text, #e2e8f0);
+  color: var(--glass-chat-text, #ffffff);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,7 +132,7 @@ const CSS = `
 }
 .${FI_RESOURCE_RENAME_INPUT_CLASS} {
   font-size: 0.85rem;
-  color: var(--glass-chat-text, #e2e8f0);
+  color: var(--glass-chat-text, #ffffff);
   background: var(--glass-chat-bg-mid, #0f172a);
   border: 1px solid var(--glass-chat-accent-from, #059669);
   border-radius: 4px;
@@ -143,6 +144,10 @@ const CSS = `
 
 /** Inject the idempotent sidebar-item stylesheet (no-op on the server / if already present). */
 export function ensureSidebarItemStyle(): void {
+  // The tokens this sheet READS are published by the density sheet; a primitive
+  // never assumes an ancestor mounted it (same contract as touchTarget).
+  ensureDensityStyle();
+
   if (typeof document === 'undefined') return;
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement('style');
