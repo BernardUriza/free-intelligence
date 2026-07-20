@@ -21,13 +21,23 @@ WORKSPACES = Path(os.environ.get(
     "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
 # CAREFUL — measured 2026-07-20, and it is NOT what the SDK docs suggest:
 # max_budget_usd caps the CLIENT's cumulative spend, not one turn. A pooled
-# client that reaches it is poisoned: every later turn dies instantly with an
-# EMPTY result (output 0, no tools, the same cost echoed) and no error event.
-# Dropping the pool (a restart) is what revives it. Backlog #23.
+# client that reaches it is poisoned: every later turn would die instantly with
+# an EMPTY result (output 0, no tools, the same cost echoed) and no error.
+# Handled since: a turn whose cost reaches the ceiling emits a real `error`
+# event and RETIRES its client, so the next turn rebuilds fresh (backlog #23).
 # AIRE_MAX_SPEND_USD is this engine's own cumulative backstop over the process
 # lifetime — when crossed, turns are refused BEFORE they reach the API, with a
 # real BudgetExceeded. Unset → no ceiling (dev). Resets on restart.
 MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
+# The same ceiling handed to the SDK, kept here so a cut turn can be RECOGNISED:
+# a turn whose cost reached it was cut, and its client is spent.
+TURN_CAP_USD = float(os.environ["AIRE_MAX_BUDGET_USD"]) if os.environ.get("AIRE_MAX_BUDGET_USD") else None
+
+
+def turn_cost(event: dict[str, Any]) -> float:
+    usage = getattr(event.get("result"), "usage", None) or {}
+    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
+    return float(cost) if cost else 0.0
 
 
 class Engine:
@@ -76,15 +86,32 @@ class Engine:
             raise BudgetExceeded(
                 f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
         client, lock = await self._client_for(project, session, mode)
-        async with lock:  # serializes turns on the same client (not concurrency-safe)
-            await client.query(prompt)
-            async for event in drain(client):
-                if event.get("type") == "result":
-                    usage = getattr(event.get("result"), "usage", None) or {}
-                    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
-                    if cost:
-                        self._spend_usd += float(cost)
-                yield event
+        spent = False
+        try:
+            async with lock:  # serializes turns on the same client (not concurrency-safe)
+                await client.query(prompt)
+                async for event in drain(client):
+                    if event.get("type") == "result":
+                        cost = turn_cost(event)
+                        self._spend_usd += cost
+                        spent = TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+                    yield event
+                if spent:
+                    yield {"type": "error", "error": "budget_exhausted",
+                           "detail": f"the turn reached the ${TURN_CAP_USD:.2f} ceiling and was "
+                                     "CUT — its work may be incomplete. The spent client is "
+                                     "retired; send the turn again to continue."}
+        finally:
+            if spent:
+                await self._retire(project, session)
+
+    async def _retire(self, project: str, session: str) -> None:
+        """A client that reached max_budget_usd is POISONED: the SDK refuses every
+        later turn on it with an empty result and no error. Dropping it is the
+        cure — the pool is a cache, so the next turn rebuilds from the store with
+        `resume=` and the memory is untouched ([[log-is-the-truth]])."""
+        async with self.pool.guard:
+            await self.pool.close_one(f"{project}/{session}")
 
     async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
         """What the agent remembers — lives in Postgres, not the HTTP connection."""
