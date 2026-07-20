@@ -37,6 +37,8 @@ import asyncio
 import contextlib
 import os
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import discord
 import structlog
@@ -83,6 +85,26 @@ __all__ = [
 SPEAK_EMOJI = "🔊"
 
 log = structlog.get_logger()
+
+# The pending-reminders context block stays small on purpose: enough for the
+# persona to list/cancel by text, never a wall that crowds out the guidance.
+PENDING_REMINDERS_MAX = 10
+_REMINDER_BLOCK_TZ = "America/Mexico_City"
+
+
+def _pending_reminders_block(pending: list[dict]) -> str:
+    """Render this user's pending reminders as turn context (data rows + a
+    2-line structural frame — the ≤5-line inline exception; the rows are data)."""
+    tz = ZoneInfo(_REMINDER_BLOCK_TZ)
+    lines = ["RECORDATORIOS PENDIENTES de este usuario (agendados por ti):"]
+    for row in pending[:PENDING_REMINDERS_MAX]:
+        when = datetime.fromtimestamp(float(row["remind_at"]), tz=tz).strftime("%Y-%m-%d %H:%M")
+        recurring = row.get("recurring") or "none"
+        suffix = f" ({recurring})" if recurring != "none" else ""
+        lines.append(f"- «{row['description']}» — {when}{suffix}")
+    lines.append("Para cancelar uno emite [REMIND_CANCEL: <fragmento del texto del recordatorio>].")
+    return "\n".join(lines)
+
 
 # Engine-side prompt cache (mtime hot-reload) shared by this process's personas.
 _PROMPT_CACHE: PromptCache = {}
@@ -315,6 +337,11 @@ class PersonaClient(discord.Client):
             recent_messages=context,
             persona_id=self.persona.persona_id,
         )
+        # This user's pending reminders (scheduled by THIS persona) ride as turn
+        # context so the persona can LIST them and aim [REMIND_CANCEL:] at rows
+        # that actually exist. BEFORE the corpus merge, so the final order is
+        # corpus → reminders → guardian guidance (safety stays freshest/last).
+        guidance = await self._append_pending_reminders(guidance, user_id)
         # This persona's shared topic corpus (RAG): retrieve the chunks relevant to
         # THIS message and append them to the guidance so the model argues from its
         # own library, in its own voice. Best-effort — a corpus fault (no PG, empty
@@ -377,6 +404,37 @@ class PersonaClient(discord.Client):
             persona_id=self.persona.persona_id,
         )
         return hits
+
+    async def _append_pending_reminders(self, guidance: str | None, user_id: str) -> str | None:
+        """Merge this user's pending reminders (owned by THIS persona) into the
+        turn guidance so the persona can list them and cancel by text.
+
+        Same contract as `_append_corpus_block`: the block goes BEFORE the
+        guidance (the safety overlay stays last), the merge never grows past
+        MAX_GUIDANCE_CHARS (the block is dropped whole rather than trimmed —
+        a half reminder row is worse than none), and any fault returns the
+        guidance untouched. A user with no pending rows gets no block.
+        """
+        try:
+            pending = await self.memory.list_pending_reminders(user_id, self.persona.persona_id)
+        except Exception:
+            log.exception("gateway_pending_reminders_failed", persona_id=self.persona.persona_id)
+            return guidance
+        if not pending:
+            return guidance
+        block = _pending_reminders_block(pending)
+        if not guidance:
+            return block[:MAX_GUIDANCE_CHARS]
+        sep = "\n\n"
+        if len(block) + len(sep) + len(guidance) > MAX_GUIDANCE_CHARS:
+            log.warning(
+                "gateway_reminders_dropped_guidance_full",
+                persona_id=self.persona.persona_id,
+                guidance_chars=len(guidance),
+                block_chars=len(block),
+            )
+            return guidance
+        return f"{block}{sep}{guidance}"
 
     async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
         """Merge this persona's corpus references into the turn guidance.

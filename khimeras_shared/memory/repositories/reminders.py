@@ -119,6 +119,88 @@ class RemindersRepository(BaseRepository):
             for r in rows
         ]
 
+    async def list_pending(self, created_by: str, persona_id: str) -> list[dict]:
+        """All not-yet-delivered reminders CREATED BY this user and OWNED by this
+        persona — the rows a `[REMIND_CANCEL:]` criterion is allowed to match.
+
+        Same isolation contract as `get_pending_reminders`: user A can never see
+        (or cancel) user B's rows, and Vultur can never touch what Insult agendó.
+        Unlike the drain query this has no `remind_at <= now` cut — a reminder
+        you want to cancel is by definition still in the future.
+        """
+        rows = await self._fetch(
+            "SELECT id, channel_id, guild_id, created_by, description, remind_at, "
+            "recurring, persona_id FROM reminders "
+            "WHERE delivered = 0 AND created_by = $1 AND persona_id = $2 ORDER BY remind_at ASC",
+            created_by,
+            persona_id,
+        )
+        return [
+            {
+                "id": r["id"],
+                "channel_id": r["channel_id"],
+                "guild_id": r["guild_id"],
+                "created_by": r["created_by"],
+                "description": r["description"],
+                "remind_at": r["remind_at"],
+                "recurring": r["recurring"],
+                "persona_id": r["persona_id"],
+            }
+            for r in rows
+        ]
+
+    async def cancel_pending(self, created_by: str, persona_id: str, criterion: str) -> list[dict]:
+        """Cancel this user's pending reminders whose description contains
+        `criterion` (case-insensitive substring), scoped to this persona.
+
+        Cancel = the repo's existing retire semantics: `delivered = 1` (the same
+        flag `mark_reminder_delivered` and the stale-retire path use). The row is
+        NEVER deleted — memory is append-only. A recurring reminder marked
+        delivered stops recurring (the drain only rolls `delivered = 0` rows).
+
+        Returns the cancelled rows (id + description) so the caller can log what
+        actually died. Empty criterion cancels NOTHING — an empty substring
+        matches everything, and a cancel-all was never asked for. Best-effort:
+        a DB fault logs and returns [] (the turn already carried the ack).
+        """
+        needle = (criterion or "").strip().lower()
+        if not needle:
+            return []
+        try:
+            pending = await self.list_pending(created_by, persona_id)
+            matched = [r for r in pending if needle in (r["description"] or "").lower()]
+            if not matched:
+                log.info(
+                    "reminder_cancel_no_match",
+                    created_by=created_by,
+                    persona_id=persona_id,
+                    criterion=criterion[:80],
+                )
+                return []
+            ids = [int(r["id"]) for r in matched]
+            tag = await self._execute(
+                "UPDATE reminders SET delivered = 1 WHERE id = ANY($1::bigint[]) AND delivered = 0",
+                ids,
+            )
+            log.info(
+                "reminder_cancelled",
+                reminder_ids=ids,
+                cancelled=_affected_rows(tag),
+                created_by=created_by,
+                persona_id=persona_id,
+                criterion=criterion[:80],
+            )
+            return matched
+        except asyncpg.PostgresError as e:
+            log.error(
+                "reminder_cancel_failed",
+                created_by=created_by,
+                persona_id=persona_id,
+                criterion=criterion[:80],
+                error=str(e),
+            )
+            return []
+
     async def mark_reminder_delivered(self, reminder_id: int) -> None:
         try:
             await self._execute("UPDATE reminders SET delivered = 1 WHERE id = $1", reminder_id)

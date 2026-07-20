@@ -2,7 +2,8 @@
 
 A persona reply can carry markers that spawn durable work: `[RESEARCH:]` (queue a
 deep job), `[AGENDA:]` (persist a standing goal), `[REMIND:]` (schedule a
-reminder), `[REMEMBER:]` (write a fact). `MarkerRouter.route` parses each,
+reminder), `[REMIND_CANCEL:]` (retire pending reminders matching a criterion),
+`[REMEMBER:]` (write a fact). `MarkerRouter.route` parses each,
 persists its side effect, strips the marker from the text, and returns the
 cleaned reply — so only the in-character ack reaches Discord.
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 import structlog
 
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
+from khimeras_shared.markers import parse_remind_cancels, strip_remind_cancels
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
 from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
@@ -44,6 +46,10 @@ class MarkerRouter:
         """Parse → persist → strip every durable marker; return cleaned text."""
         text = await self._route_research(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
         text = await self._route_agenda(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
+        # Cancel BEFORE create: "cancela el de la ropa y recuérdame X" must never
+        # let the cancel criterion eat the reminder being scheduled in this same
+        # turn — the cancel only sees rows that existed before the turn.
+        text = await self._route_remind_cancel(text, channel_id=channel_id, user_id=user_id)
         text = await self._route_remind(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
         text = await self._route_remember(text, channel_id=channel_id, user_id=user_id)
         return text
@@ -120,6 +126,38 @@ class MarkerRouter:
             )
         except Exception:
             log.exception("remind_save_failed", persona_id=self.persona.persona_id, channel_id=channel_id)
+        return text
+
+    async def _route_remind_cancel(self, text: str, *, channel_id: str, user_id: str) -> str:
+        criteria = parse_remind_cancels(text)
+        if not criteria:
+            return text
+        text = strip_remind_cancels(text)
+        for criterion in criteria:
+            try:
+                # Isolation mirrors the drain loop: only rows created by THIS user
+                # and owned by THIS persona are eligible — a cancel can never reach
+                # another user's reminders nor a sibling persona's queue.
+                cancelled = await self.memory.cancel_pending_reminders(
+                    created_by=user_id,
+                    persona_id=self.persona.persona_id,
+                    criterion=criterion,
+                )
+                log.info(
+                    "remind_cancel_routed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    criterion=criterion[:80],
+                    cancelled=len(cancelled),
+                    reminder_ids=[r.get("id") for r in cancelled],
+                )
+            except Exception:
+                log.exception(
+                    "remind_cancel_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    criterion=criterion[:80],
+                )
         return text
 
     async def _route_remember(self, text: str, *, channel_id: str, user_id: str) -> str:

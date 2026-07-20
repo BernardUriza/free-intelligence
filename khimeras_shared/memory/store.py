@@ -295,6 +295,12 @@ class MemoryStore:
     async def get_channel_reminders(self, channel_id: str) -> list[dict]:
         return await self._reminders.get_channel_reminders(channel_id)
 
+    async def list_pending_reminders(self, created_by: str, persona_id: str) -> list[dict]:
+        return await self._reminders.list_pending(created_by, persona_id)
+
+    async def cancel_pending_reminders(self, *, created_by: str, persona_id: str, criterion: str) -> list[dict]:
+        return await self._reminders.cancel_pending(created_by, persona_id, criterion)
+
     async def delete_reminder(self, reminder_id: int) -> bool:
         return await self._reminders.delete_reminder(reminder_id)
 
