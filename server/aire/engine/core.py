@@ -17,7 +17,8 @@ from .drain import drain
 from .options import DEFAULT_MODE, build_options
 from .pool import Pool
 
-WORKSPACES = Path(__file__).resolve().parent.parent.parent / "workspaces"
+WORKSPACES = Path(os.environ.get(
+    "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
 # The SDK's max_budget_usd caps ONE turn. AIRE_MAX_SPEND_USD is a cumulative
 # backstop over the process lifetime — when crossed, turns are refused BEFORE
 # they reach the API. Unset → no ceiling (dev). Resets on restart.

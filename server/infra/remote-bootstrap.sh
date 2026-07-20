@@ -34,18 +34,18 @@ sync_repo() {
 install_runtime() {
   echo "    [remote] python venv + deps (the engine)…"
   [[ -d "$REMOTE_DIR/.venv" ]] || python3 -m venv "$REMOTE_DIR/.venv"
-  "$REMOTE_DIR/.venv/bin/pip" install -q --no-input -r "$REMOTE_DIR/requirements.txt"
+  "$REMOTE_DIR/.venv/bin/pip" install -q --no-input -r "$REMOTE_DIR/server/requirements.txt"
   echo "    [remote] Claude CLI (the engine's subprocess AND the SSH door)…"
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
 }
 
 install_units() {
   echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
-  cp "$REMOTE_DIR/deploy/aire-listener.service" "$REMOTE_DIR/deploy/aire-device.service" \
-     "$REMOTE_DIR/deploy/aire-server.service" \
-     "$REMOTE_DIR/deploy/aire-sweep.service" "$REMOTE_DIR/deploy/aire-sweep.timer" \
-     "$REMOTE_DIR/deploy/aire-tick.service" "$REMOTE_DIR/deploy/aire-tick.timer" /etc/systemd/system/
-  cp "$REMOTE_DIR/deploy/logrotate-aire" /etc/logrotate.d/aire
+  cp "$REMOTE_DIR/server/deploy/aire-listener.service" "$REMOTE_DIR/server/deploy/aire-device.service" \
+     "$REMOTE_DIR/server/deploy/aire-server.service" \
+     "$REMOTE_DIR/server/deploy/aire-sweep.service" "$REMOTE_DIR/server/deploy/aire-sweep.timer" \
+     "$REMOTE_DIR/server/deploy/aire-tick.service" "$REMOTE_DIR/server/deploy/aire-tick.timer" /etc/systemd/system/
+  cp "$REMOTE_DIR/server/deploy/logrotate-aire" /etc/logrotate.d/aire
   systemctl daemon-reload
   systemctl enable --now aire-listener aire-server aire-sweep.timer aire-tick.timer
 }

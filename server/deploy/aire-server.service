@@ -6,9 +6,10 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/aire
+WorkingDirectory=/opt/aire/server
 Environment=AIRE_ISOLATE_CONFIG=1
 Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=AIRE_WORKSPACES=/opt/aire/workspaces
 EnvironmentFile=-/etc/aire/env
 ExecStart=/opt/aire/.venv/bin/uvicorn aire.server:app --host 0.0.0.0 --port 8088
 Restart=always

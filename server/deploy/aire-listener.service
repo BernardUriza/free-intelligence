@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/aire
+WorkingDirectory=/opt/aire/server
 Environment=AIRE_LOG=/opt/aire/aire.log
 Environment=AIRE_PORT=9099
 # ACCEPTED RISK (Bernard, 2026-07-13, /cruel-critic): 0.0.0.0 exposes 9099 to the
@@ -19,6 +19,7 @@ Environment=AIRE_PORT=9099
 # Untrusted lines CAN land in the append-only log. Treat its contents as hostile
 # input downstream — the log is the truth about what ARRIVED, not about who sent it.
 Environment=AIRE_HOST=0.0.0.0
+Environment=AIRE_WORKSPACES=/opt/aire/workspaces
 EnvironmentFile=-/etc/aire/env
 ExecStart=/usr/bin/python3 -m aire.listener
 Restart=always

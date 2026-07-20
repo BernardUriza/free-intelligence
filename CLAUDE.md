@@ -3,9 +3,18 @@
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope. An HTTP server that wraps
 the Claude Agent SDK and mirrors each session's transcript to Postgres.
 
+**This is a MONOREPO** (backlog #20, 2026-07-20): `server/` is the daemon — the
+pen, role `aire`, deployed to the DigitalOcean droplet by
+`.github/workflows/deploy-server.yml`; `front/` is the waiter — read-only, role
+`aire_reader`, Next.js SSR on Azure Container Apps, deployed by its own
+path-filtered workflow. One repo, still two deployments and two credentials:
+the CQRS wall is credential-and-pipeline, not folder. Everything below this
+line describes the SERVER half; the front's law rides in
+`front/.claude/rules/read-only-waiter.md`.
+
 The story — the Mecano song, the EC-GPS blueprint, the log-is-truth science — lives in
-[`docs/genesis.md`](docs/genesis.md); the competitive pitch in
-[`docs/thesis.md`](docs/thesis.md). This file is only what an agent needs to ACT.
+[`server/docs/genesis.md`](server/docs/genesis.md); the competitive pitch in
+[`server/docs/thesis.md`](server/docs/thesis.md). This file is only what an agent needs to ACT.
 
 **The litmus test for every design decision** (from the genesis):
 
@@ -56,17 +65,17 @@ memory. To contradict anything here, verify it first the same way.
 ## Reuse, don't rewrite
 
 - **The Postgres store**: copied from the SDK's official
-  `examples/session_stores/postgres_session_store.py` → [`aire/store.py`](aire/store.py)
+  `examples/session_stores/postgres_session_store.py` → [`aire/store.py`](server/aire/store.py)
   (two marked adaptations: uuid-dedup in `append()`, lazy-asyncpg factory).
   **Conformance suite green** (2026-07-13): all contracts of
   `claude_agent_sdk.testing.run_session_store_conformance` passed against local
   Postgres.
 - **The HTTP server pattern**: `claude_agent_sdk/hosting/` in
   [claude-cookbooks](https://github.com/anthropics/claude-cookbooks) is the reference
-  (FastAPI + SSE + Bearer auth). AIRE's [`aire/server.py`](aire/server.py) opens the
+  (FastAPI + SSE + Bearer auth). AIRE's [`aire/server.py`](server/aire/server.py) opens the
   axis the cookbook lacks: `POST /projects/{project}/sessions/{session}/messages`
   (the cookbook hardcodes one project, `cwd="/app"`). Names map to SDK UUIDs via
-  `uuid5` ([`aire/keys.py`](aire/keys.py)) — no mapping table.
+  `uuid5` ([`aire/keys.py`](server/aire/keys.py)) — no mapping table.
 
 ## Verified SDK facts (don't re-discover them)
 

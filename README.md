@@ -21,7 +21,7 @@ AIRE is being built in two layers, deliberately in this order:
 An Ubuntu 24.04 droplet (`s-1vcpu-512mb`, ~$4/mo, `nyc3`) runs these systemd
 units 24/7:
 
-- **`aire-listener`** (`aire/listener.py`) — the daemon: `accept()` → read
+- **`aire-listener`** (`server/aire/listener.py`) — the daemon: `accept()` → read
   lines → append to `/opt/aire/aire.log`; with `AIRE_DATABASE_URL` set, each
   line is also mirrored to an append-only Postgres table (the pen). The `MKDIR`
   verb (token-gated) creates session casitas.
@@ -85,12 +85,12 @@ into the same store is backlog #17.
 
 EC-GPS: a GPS-tracking machine that has printed money for two decades with a
 Perl daemon, an append-only table, and a console that only reads. AIRE is that
-machine, piece by piece — full story in [`docs/genesis.md`](docs/genesis.md):
+machine, piece by piece — full story in [`server/docs/genesis.md`](server/docs/genesis.md):
 
 | EC-GPS | AIRE today | AIRE next |
 |---|---|---|
 | GPS receivers push over GPRS | demo device pushes over TCP | apps push prompts over HTTP |
-| Perl daemon on a port | `aire/listener.py` on :9099 | the engine that owns the SDK |
+| Perl daemon on a port | `server/aire/listener.py` on :9099 | the engine that owns the SDK |
 | writes `gps_logs`, append-only | appends to `aire.log` (+ the pen → Postgres) | mirrors the transcript to Postgres |
 | PHP console reads and displays | `ssh` + `grep` | aire-front (separate repo) paints it |
 
@@ -111,7 +111,7 @@ endpoint, not a library), plus what the raw API will never give you:
 
 First consumer: fi-runner (free-intelligence) calls AIRE over HTTP instead of
 owning the SDK. Why nobody else fills this gap — the mirror, the broom, the
-day-30 Blackwall, the competitive table — is in [`docs/thesis.md`](docs/thesis.md).
+day-30 Blackwall, the competitive table — is in [`server/docs/thesis.md`](server/docs/thesis.md).
 
 ## Architecture
 
