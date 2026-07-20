@@ -393,6 +393,13 @@ import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 
 // src/shell/touchTarget.ts
 import { useEffect } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -401,10 +408,10 @@ function ensureTouchTargetStyle() {
   const el = document.createElement("style");
   el.id = TOUCH_TARGET_STYLE_ID;
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1766,6 +1773,13 @@ function useAudioQueueStore(identityKey, options = {}) {
 // src/voice/useDurableRecording.ts
 import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect6 } from "react";
 
+// src/voice/durableRecordingMachine.ts
+function isQueueAtCapacity(artifacts, policy) {
+  const pending = artifacts.filter(isPending);
+  const totalBytes = pending.reduce((sum, a) => sum + a.size, 0);
+  return pending.length >= policy.maxItems || totalBytes >= policy.maxBytes;
+}
+
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
   if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
@@ -1894,13 +1908,7 @@ function useDurableRecording(opts) {
     artifactRef.current = artifact;
   }, [artifact]);
   useEffect6(() => {
-    store.list().then((stored) => {
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      setIsAtCapacity(
-        pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
-      );
-    }).catch(() => {
+    store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
   const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
@@ -1948,9 +1956,7 @@ function useDurableRecording(opts) {
     setIsStarting(true);
     try {
       const stored = await store.list();
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
+      if (isQueueAtCapacity(stored, policy)) {
         setIsAtCapacity(true);
         onError?.(
           `Cola llena (m\xE1ximo ${policy.maxItems} audios o ${Math.round(policy.maxBytes / 1024 / 1024)} MB). Transcribe o elimina audios antes de grabar.`

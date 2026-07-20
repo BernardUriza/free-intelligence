@@ -13,7 +13,23 @@
  * Internal module: apps import from `fi-glass/agent`, never from here.
  */
 
-export type { AgentConversationSurfaceProps, AgentConversationSurfaceLayout } from './types';
+export type {
+  AgentConversationSurfaceProps,
+  AgentConversationSurfaceLayout,
+  SurfaceLayoutProps,
+  SurfaceSlotProps,
+  NewConversationProps,
+  SurfaceComposerProps,
+  SendControlProps,
+  MessageRenderProps,
+  DictationProps,
+  ImageAttachmentProps,
+  TurnErrorProps,
+  AutoScrollProps,
+  CollapseProps,
+  ComposerRegionSurface,
+  TranscriptRegionSurface,
+} from './types';
 export { persistedTraceTurn } from './persistedTraceTurn';
 export {
   useComposerFocus,

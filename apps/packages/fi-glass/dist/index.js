@@ -259,6 +259,13 @@ import { Copy, Check } from "lucide-react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -267,10 +274,10 @@ function ensureTouchTargetStyle() {
   const el = document.createElement("style");
   el.id = TOUCH_TARGET_STYLE_ID;
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -725,11 +732,87 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect6, useId as useId3, useState as useState5 } from "react";
+import { useEffect as useEffect7, useId as useId3, useState as useState5 } from "react";
 import { SlidersHorizontal } from "lucide-react";
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect6 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS2 = `
+/* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback \u2014 the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope \u2014 :root is the floor, not a ceiling. */
+:root {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media ${FI_MOBILE_QUERY} {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
+function ensureDensityStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(DENSITY_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = DENSITY_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+function useDensityStyle() {
+  useEffect6(() => {
+    ensureDensityStyle();
+  }, []);
+}
+
+// src/composer/ComposerFrame.tsx
 import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS2 = `
+var CSS3 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -828,15 +911,16 @@ var CSS2 = `
 }
 `;
 function ensureComposerFrameStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect6(() => {
+  useEffect7(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -1020,6 +1104,20 @@ function useComposerImages(options = {}) {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
   const clear = useCallback2(() => setDrafts([]), []);
+  const restore = useCallback2(
+    (images) => {
+      setDrafts(
+        images.slice(0, maxImages).map((image) => ({
+          id: `img-${++nextDraftId}`,
+          mediaType: image.mediaType,
+          data: image.data,
+          dataUrl: `data:${image.mediaType};base64,${image.data}`,
+          name: "imagen"
+        }))
+      );
+    },
+    [maxImages]
+  );
   const toMessageImages = useCallback2(
     () => draftsRef.current.map((d) => ({ mediaType: d.mediaType, data: d.data })),
     []
@@ -1041,7 +1139,7 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, toMessageImages, handlePaste };
+  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
 }
 
 // src/composer/ComposerImageAttachments.tsx
@@ -1133,7 +1231,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment3, useEffect as useEffect7, useRef as useRef6, useState as useState7 } from "react";
+import { Fragment as Fragment3, useEffect as useEffect8, useRef as useRef6, useState as useState7 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment4, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function ActionMenu({
@@ -1151,13 +1249,13 @@ function ActionMenu({
   const [open, setOpen] = useState7(false);
   const triggerRef = useRef6(null);
   const [position, setPosition] = useState7({ top: 0, left: 0 });
-  useEffect7(() => {
+  useEffect8(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect7(() => {
+  useEffect8(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -1947,7 +2045,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect8, useMemo, useRef as useRef7, useSyncExternalStore } from "react";
+import { useEffect as useEffect9, useMemo, useRef as useRef7, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef7(opts);
   cbRef.current = opts;
@@ -1961,7 +2059,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect8(() => () => controller.dispose(), [controller]);
+  useEffect9(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1985,7 +2083,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect9 } from "react";
+import { useEffect as useEffect10 } from "react";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -2000,7 +2098,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect9(() => {
+  useEffect10(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2049,7 +2147,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect10 } from "react";
+import { useEffect as useEffect11 } from "react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
@@ -2148,7 +2246,7 @@ function RichAudioPlayer({
     currentTime
   } = player;
   const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
-  useEffect10(() => {
+  useEffect11(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2156,7 +2254,7 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect10(() => {
+  useEffect11(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
@@ -2768,7 +2866,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState10, useRef as useRef10, useEffect as useEffect11 } from "react";
+import { useState as useState10, useRef as useRef10, useEffect as useEffect12 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -2802,7 +2900,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef10(null);
   const animationFrameRef = useRef10(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect11(() => {
+  useEffect12(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -3043,7 +3141,14 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect12 } from "react";
+import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect13 } from "react";
+
+// src/voice/durableRecordingMachine.ts
+function isQueueAtCapacity(artifacts, policy) {
+  const pending = artifacts.filter(isPending);
+  const totalBytes = pending.reduce((sum, a) => sum + a.size, 0);
+  return pending.length >= policy.maxItems || totalBytes >= policy.maxBytes;
+}
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -3169,17 +3274,11 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef11([]);
   const rtcCtorRef = useRef11(null);
   const pauseOpRef = useRef11(Promise.resolve());
-  useEffect12(() => {
+  useEffect13(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect12(() => {
-    store.list().then((stored) => {
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      setIsAtCapacity(
-        pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
-      );
-    }).catch(() => {
+  useEffect13(() => {
+    store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
   const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
@@ -3227,9 +3326,7 @@ function useDurableRecording(opts) {
     setIsStarting(true);
     try {
       const stored = await store.list();
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
+      if (isQueueAtCapacity(stored, policy)) {
         setIsAtCapacity(true);
         onError?.(
           `Cola llena (m\xE1ximo ${policy.maxItems} audios o ${Math.round(policy.maxBytes / 1024 / 1024)} MB). Transcribe o elimina audios antes de grabar.`
@@ -3431,7 +3528,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState13, useEffect as useEffect13, useCallback as useCallback7 } from "react";
+import { useState as useState13, useEffect as useEffect14, useCallback as useCallback7 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState13([]);
@@ -3445,7 +3542,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect13(() => {
+  useEffect14(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback7(
@@ -3554,7 +3651,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect14, useState as useState15 } from "react";
+import { useEffect as useEffect15, useState as useState15 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -3730,7 +3827,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState15(true);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -3793,7 +3890,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState16, useEffect as useEffect15 } from "react";
+import { useState as useState16, useEffect as useEffect16 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -3815,7 +3912,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState16(null);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -4201,7 +4298,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect16, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect17, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -4409,10 +4506,10 @@ function useResonanceCallLoop(params) {
   const cueApplyRef = useRef12(void 0);
   cueApplyRef.current = cueController?.applyTransition;
   const cueSeqRef = useRef12(0);
-  useEffect16(() => {
+  useEffect17(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect16(() => () => {
+  useEffect17(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState17("idle");
@@ -4497,7 +4594,7 @@ function useResonanceCallLoop(params) {
   const stateRef = useRef12(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -4520,7 +4617,7 @@ function useResonanceCallLoop(params) {
       t.current = void 0;
     }
   };
-  useEffect16(() => {
+  useEffect17(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -4542,7 +4639,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect16(() => () => {
+  useEffect17(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
@@ -4574,69 +4671,105 @@ function useResonanceCallLoop(params) {
   };
 }
 
-// src/shell/ChatWidget.tsx
-import { useCallback as useCallback11 } from "react";
-
-// src/shell/useChatWidgetState.ts
-import { useState as useState18, useCallback as useCallback10 } from "react";
-function useChatWidgetState({
-  initialOpen,
-  initialMode
+// src/shell/ChatFilePreview.tsx
+import {
+  FileText,
+  FileCode,
+  Image as ImageIcon,
+  File,
+  X as X2,
+  Loader2 as Loader211,
+  CheckCircle,
+  AlertCircle as AlertCircle4
+} from "lucide-react";
+import { Fragment as Fragment6, jsx as jsx28, jsxs as jsxs20 } from "react/jsx-runtime";
+var FILE_ICONS = {
+  "application/pdf": FileText,
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
+  "application/msword": FileText,
+  "text/plain": File,
+  "text/markdown": FileCode,
+  "image/png": ImageIcon,
+  "image/jpeg": ImageIcon,
+  "image/jpg": ImageIcon
+};
+function formatFileSize(bytes) {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+}
+function getFileIcon(file) {
+  return FILE_ICONS[file.type] || File;
+}
+function ChatFilePreview({
+  file,
+  status,
+  progress = 0,
+  error,
+  onCancel
 }) {
-  const [isOpen, setIsOpen] = useState18(initialOpen);
-  const [viewMode, setViewMode] = useState18(initialMode);
-  const [isHistoryOpen, setIsHistoryOpen] = useState18(false);
-  const [conversationStarted, setConversationStarted] = useState18(false);
-  const [isStartingConversation, _setIsStartingConversation] = useState18(false);
-  const open = useCallback10(() => {
-    setIsOpen(true);
-  }, []);
-  const close = useCallback10(() => {
-    setIsOpen(false);
-    setViewMode("normal");
-  }, []);
-  const minimize = useCallback10(() => {
-    if (viewMode === "expanded") {
-      setViewMode("normal");
-    }
-  }, [viewMode]);
-  const maximize = useCallback10(() => {
-    setViewMode(viewMode === "expanded" ? "normal" : "expanded");
-  }, [viewMode]);
-  const toggleDenseMode = useCallback10(() => {
-    setViewMode(viewMode === "dense" ? "fullscreen" : "dense");
-  }, [viewMode]);
-  const openHistory = useCallback10(() => {
-    setIsHistoryOpen(true);
-  }, []);
-  const closeHistory = useCallback10(() => {
-    setIsHistoryOpen(false);
-  }, []);
-  const startConversation = useCallback10(() => {
-    setConversationStarted(true);
-  }, []);
-  const onMessagesLoaded = useCallback10((hasMessages) => {
-    if (hasMessages) {
-      setConversationStarted(true);
-    }
-  }, []);
-  return {
-    isOpen,
-    viewMode,
-    isHistoryOpen,
-    conversationStarted,
-    isStartingConversation,
-    open,
-    close,
-    setViewMode,
-    minimize,
-    maximize,
-    toggleDenseMode,
-    openHistory,
-    closeHistory,
-    startConversation,
-    onMessagesLoaded
-  };
+  const FileIcon = getFileIcon(file);
+  const isCompleted = status === "indexed";
+  const isError = status === "error";
+  const isUploading = status === "uploading";
+  const isProcessing = status === "processing";
+  const isAwaitingUser = status === "pending_instructions";
+  return /* @__PURE__ */ jsxs20("div", { className: `
+      flex items-center gap-3 p-3 rounded-xl border
+      ${isError ? "bg-red-900/20 border-red-700/50" : isCompleted ? "bg-emerald-900/20 border-emerald-700/50" : "bg-slate-800/80 border-slate-700/50"}
+      transition-colors duration-200
+    `, children: [
+    /* @__PURE__ */ jsx28("div", { className: `
+        p-2 rounded-lg
+        ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
+      `, children: isProcessing ? /* @__PURE__ */ jsx28(Loader211, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx28(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx28(AlertCircle4, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx28(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+    /* @__PURE__ */ jsxs20("div", { className: "flex-1 min-w-0", children: [
+      /* @__PURE__ */ jsx28("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs20("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+        /* @__PURE__ */ jsx28("span", { children: formatFileSize(file.size) }),
+        isUploading && /* @__PURE__ */ jsxs20(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+        ] }),
+        isAwaitingUser && /* @__PURE__ */ jsxs20(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
+        ] }),
+        isProcessing && /* @__PURE__ */ jsxs20(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-primary", children: "Procesando..." })
+        ] }),
+        isCompleted && /* @__PURE__ */ jsxs20(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "chat-file-status-indexed", children: "Indexado" })
+        ] }),
+        isError && error && /* @__PURE__ */ jsxs20(Fragment6, { children: [
+          /* @__PURE__ */ jsx28("span", { children: "-" }),
+          /* @__PURE__ */ jsx28("span", { className: "fi-text-error truncate", title: error, children: error })
+        ] })
+      ] }),
+      isUploading && /* @__PURE__ */ jsx28("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx28(
+        "div",
+        {
+          className: "fi-progress-bar duration-300",
+          style: { width: `${progress}%` }
+        }
+      ) })
+    ] }),
+    !isCompleted && !isProcessing && /* @__PURE__ */ jsx28(
+      "button",
+      {
+        type: "button",
+        onClick: onCancel,
+        className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
+        "aria-label": "Cancelar",
+        title: "Cancelar",
+        children: /* @__PURE__ */ jsx28(X2, { className: "h-4 w-4" })
+      }
+    )
+  ] });
 }
 
 // src/shell/useMediaQuery.ts
@@ -4702,860 +4835,2011 @@ function clearMediaQueryCache() {
   mqlCache.clear();
 }
 
-// src/shell/config.ts
-var defaultTheme = {
-  background: {
-    header: "bg-gradient-to-r from-emerald-600 to-cyan-600",
-    body: "bg-slate-950",
-    input: "bg-slate-800"
-  },
-  border: {
-    main: "border-slate-700",
-    input: "border-slate-700",
-    bubble: "border-slate-600/60"
-  },
-  text: {
-    primary: "text-white",
-    secondary: "text-slate-200",
-    muted: "text-slate-400",
-    accent: "text-emerald-300"
-  },
-  accent: { from: "from-emerald-600", to: "to-cyan-600" },
-  shadow: "shadow-2xl",
-  timestamp: {
-    text: "text-slate-400/70",
-    tooltip: "bg-slate-800/95 text-slate-200"
+// src/agent/icons.ts
+import {
+  AlertTriangle,
+  BookOpen,
+  Bot,
+  ExternalLink,
+  FileText as FileText2,
+  Globe,
+  ListChecks,
+  Loader2 as Loader212,
+  Receipt,
+  Search,
+  Terminal,
+  Wrench
+} from "lucide-react";
+
+// src/agent/toolClassify.ts
+function classifyTool(name) {
+  const n = name.toLowerCase();
+  if (n.includes("search")) return "search";
+  if (n.includes("scrape") || n.includes("fetch") || n.includes("unlock")) return "scrape";
+  if (n.includes("browser")) return "browser";
+  if (n.includes("document") || n.includes("rag")) return "rag";
+  if (n === "bash" || n.endsWith("__bash")) return "bash";
+  if (n.includes("listmcp") || n.includes("listtool")) return "introspect";
+  return "generic";
+}
+function shortToolName(name) {
+  return name.replace(/^mcp__[^_]+__/, "");
+}
+function stepStatusKey(isError) {
+  if (isError === null) return "pending";
+  return isError ? "error" : "done";
+}
+function latestOpenToolIndex(steps) {
+  return steps.reduce(
+    (latest, step, index) => step.isError === null ? index : latest,
+    -1
+  );
+}
+function toolVisualStatus(step, index, latestOpenIndex, live) {
+  const raw = stepStatusKey(step.isError);
+  if (raw === "error") return "error";
+  if (raw === "done") return "done";
+  if (!live) return "done";
+  return index === latestOpenIndex ? "active" : "sent";
+}
+
+// src/agent/icons.ts
+var defaultAgentIcons = {
+  plan: ListChecks,
+  warning: AlertTriangle,
+  spinner: Loader212,
+  bot: Bot,
+  sources: Receipt,
+  external: ExternalLink,
+  tools: {
+    search: Search,
+    scrape: FileText2,
+    browser: Globe,
+    rag: BookOpen,
+    bash: Terminal,
+    introspect: ListChecks,
+    generic: Wrench
   }
 };
-var defaultBehavior = {
-  autoScroll: true,
-  showTyping: true,
-  groupMessages: true,
-  groupThresholdMinutes: 2,
-  showDayDividers: true,
-  animateEntrance: true,
-  maxMessages: 100,
-  inputPlaceholder: "Escribe tu mensaje...",
-  enableReactions: false,
-  enableReadReceipts: false,
-  enableThinking: true,
-  showThinking: true
-};
-var defaultTimestampConfig = {
-  show: true,
-  format: "smart",
-  showTooltip: true,
-  relativeThreshold: 60,
-  showSeconds: false,
-  position: "inline",
-  updateInterval: 6e4
-};
-var defaultAnimationConfig = {
-  entrance: { enabled: true, duration: "0.4s", easing: "ease-out" },
-  typing: { dotDuration: "1.4s", dotDelay: "0.2s" },
-  scroll: { behavior: "smooth", duration: 300 }
-};
-var defaultChatConfig = {
-  title: "Free Intelligence",
-  subtitle: void 0,
-  theme: defaultTheme,
-  behavior: defaultBehavior,
-  timestamp: defaultTimestampConfig,
-  animation: defaultAnimationConfig,
-  footer: void 0,
-  dimensions: { width: "24rem", height: "600px", minHeight: "400px", maxHeight: "80vh" }
-};
-function mergeChatConfig(custom) {
-  if (!custom) return defaultChatConfig;
+function resolveIcons(overrides) {
+  if (!overrides) return defaultAgentIcons;
   return {
-    ...defaultChatConfig,
-    ...custom,
-    theme: { ...defaultChatConfig.theme, ...custom.theme },
-    behavior: { ...defaultChatConfig.behavior, ...custom.behavior },
-    timestamp: { ...defaultChatConfig.timestamp, ...custom.timestamp },
-    animation: { ...defaultChatConfig.animation, ...custom.animation }
+    ...defaultAgentIcons,
+    ...overrides,
+    tools: { ...defaultAgentIcons.tools, ...overrides.tools ?? {} }
   };
 }
-var CHAT_BREAKPOINTS = {
-  mobile: "(max-width: 639.98px)",
-  tablet: "(min-width: 640px) and (max-width: 1023.98px)",
-  desktop: "(min-width: 1024px)"
-};
+function toolIcon(icons, name) {
+  return icons.tools[classifyTool(name)];
+}
 
-// src/shell/FloatingButton.tsx
-import { MessageCircle } from "lucide-react";
-import { jsx as jsx28, jsxs as jsxs20 } from "react/jsx-runtime";
-function FloatingButton({ onClick, isMobile }) {
-  const buttonSize = isMobile ? "w-16 h-16" : "w-14 h-14";
-  const iconSize = isMobile ? "h-7 w-7" : "h-6 w-6";
-  const buttonPosition = isMobile ? "bottom-4 right-4" : "bottom-6 right-6";
-  return /* @__PURE__ */ jsxs20(
+// src/agent/PlanChecklist.tsx
+import { jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
+function PlanChecklist({
+  plan,
+  classNames,
+  icons,
+  renderGuardBanner
+}) {
+  if (!plan || plan.steps.length === 0) return null;
+  const ic = resolveIcons(icons);
+  const PlanIcon = ic.plan;
+  const WarnIcon = ic.warning;
+  const card = classNames?.card ?? "";
+  const hint = classNames?.hint ?? "";
+  const done = plan.steps.filter((s) => s.status === "done").length;
+  const total = plan.steps.length;
+  const rejection = plan.rejection ?? null;
+  const matchedIndexes = new Set(rejection?.matched.map((m) => m.index) ?? []);
+  const outcome = plan.outcome ?? null;
+  const outcomeBadge = outcome === "completed" ? { label: "completed", tone: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" } : outcome === "failed" ? { label: "failed", tone: "border-red-500/30 bg-red-500/10 text-red-300" } : outcome === "cancelled" ? { label: "cancelled", tone: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400" } : null;
+  const amended = plan.amended ?? null;
+  const amendedLabel = amended === "replan" ? "re-planned" : amended === "insert" ? "revised" : null;
+  return /* @__PURE__ */ jsxs21("div", { className: `${card} mb-2 text-sm`.trim(), children: [
+    /* @__PURE__ */ jsxs21("div", { className: "flex items-center justify-between gap-2 text-zinc-300", children: [
+      /* @__PURE__ */ jsxs21("span", { className: "inline-flex items-center gap-2 font-medium", children: [
+        /* @__PURE__ */ jsx29(PlanIcon, { className: "h-4 w-4 text-zinc-400", "aria-hidden": true }),
+        "plan",
+        amendedLabel && /* @__PURE__ */ jsx29("span", { className: "rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300", children: amendedLabel }),
+        outcomeBadge && /* @__PURE__ */ jsx29("span", { className: `rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${outcomeBadge.tone}`, children: outcomeBadge.label })
+      ] }),
+      /* @__PURE__ */ jsxs21("span", { className: `${hint} text-xs tabular-nums`.trim(), children: [
+        done,
+        " / ",
+        total
+      ] })
+    ] }),
+    rejection && (renderGuardBanner ? renderGuardBanner(rejection) : /* @__PURE__ */ jsxs21("div", { className: "mt-2 flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-200", children: [
+      /* @__PURE__ */ jsx29(
+        WarnIcon,
+        {
+          className: "mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400",
+          "aria-hidden": true
+        }
+      ),
+      /* @__PURE__ */ jsxs21("div", { className: "flex flex-col gap-0.5", children: [
+        /* @__PURE__ */ jsx29("span", { className: "font-medium", children: "A guard blocked this plan" }),
+        /* @__PURE__ */ jsx29("span", { className: "text-amber-200/80", children: rejection.reason }),
+        rejection.guard && /* @__PURE__ */ jsxs21(
+          "span",
+          {
+            className: `${hint} text-[10px] uppercase tracking-wide text-amber-300/60`.trim(),
+            children: [
+              "guard: ",
+              rejection.guard
+            ]
+          }
+        )
+      ] })
+    ] })),
+    /* @__PURE__ */ jsx29("ol", { className: "mt-2 space-y-1.5", children: plan.steps.map((step, i) => {
+      const isRunning = step.status === "running";
+      const isPending2 = step.status === "pending";
+      const isDone = step.status === "done";
+      const isFailed = step.status === "failed";
+      const isCancelled = step.status === "cancelled";
+      const isRejected = matchedIndexes.has(i);
+      const labelTone = isRejected ? "text-amber-300 line-through decoration-amber-500/60" : isFailed ? "text-red-400" : isCancelled ? "text-zinc-500 line-through decoration-zinc-600" : isDone ? "text-zinc-300" : isRunning ? "text-zinc-100" : "text-zinc-500";
+      const railTone = isFailed ? "text-red-400" : isCancelled ? "text-zinc-500 bg-zinc-500" : isDone ? "text-emerald-400 bg-emerald-400" : isRunning ? "text-amber-300 bg-amber-300" : "text-zinc-600 bg-zinc-700";
+      return /* @__PURE__ */ jsxs21("li", { className: "flex flex-col gap-0.5", children: [
+        /* @__PURE__ */ jsxs21("div", { className: "flex items-center gap-2 text-xs", children: [
+          /* @__PURE__ */ jsx29(
+            "span",
+            {
+              className: `h-5 w-1 shrink-0 rounded-full ${railTone} ${isRunning ? "shadow-[0_0_10px_rgb(251_191_36/0.45)]" : ""}`,
+              "aria-label": step.status
+            }
+          ),
+          /* @__PURE__ */ jsx29("span", { className: `flex-1 truncate ${labelTone}`, children: step.label }),
+          isPending2 && /* @__PURE__ */ jsx29("span", { className: `${hint} text-[10px] uppercase tracking-wide`.trim(), children: "queued" }),
+          isRunning && /* @__PURE__ */ jsx29("span", { className: "text-[10px] uppercase tracking-wide text-amber-300", children: "running" }),
+          isCancelled && /* @__PURE__ */ jsx29("span", { className: `${hint} text-[10px] uppercase tracking-wide`.trim(), children: "cancelled" })
+        ] }),
+        step.summary && isDone && /* @__PURE__ */ jsx29("div", { className: `${hint} pl-5 font-mono text-[11px] text-zinc-500`.trim(), children: step.summary }),
+        step.error && isFailed && /* @__PURE__ */ jsx29("div", { className: "pl-5 font-mono text-[11px] text-red-400/80", children: step.error }),
+        step.error && isCancelled && /* @__PURE__ */ jsx29("div", { className: "pl-5 font-mono text-[11px] text-zinc-500", children: step.error }),
+        step.note && /* @__PURE__ */ jsxs21("div", { className: "pl-5 text-[11px] italic text-zinc-400", children: [
+          "note: ",
+          step.note
+        ] })
+      ] }, i);
+    }) })
+  ] });
+}
+
+// src/agent/StepsPanel.tsx
+import { useEffect as useEffect18, useState as useState18 } from "react";
+import { jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+function StepsPanel({
+  steps,
+  status,
+  target,
+  classNames,
+  icons,
+  enableSlowBanner = true,
+  slowThresholdMs = 12e3
+}) {
+  const ic = resolveIcons(icons);
+  const BotIcon = ic.bot;
+  const SpinnerIcon = ic.spinner;
+  const card = classNames?.card ?? "";
+  const hint = classNames?.hint ?? "";
+  const live = status === "thinking" || status === "streaming";
+  const [openOverride, setOpenOverride] = useState18(null);
+  const open = openOverride ?? live;
+  const [elapsed, setElapsed] = useState18(0);
+  useEffect18(() => {
+    if (!live || !enableSlowBanner) {
+      setElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const t = setInterval(() => setElapsed(Date.now() - start), 500);
+    return () => clearInterval(t);
+  }, [live, enableSlowBanner]);
+  const showSlowBanner = live && enableSlowBanner && elapsed >= slowThresholdMs;
+  if (steps.length === 0 && status === "done") return null;
+  const shortTarget = target && target.length > 36 ? `${target.slice(0, 33).trim()}\u2026` : target;
+  const summary = status === "thinking" ? shortTarget ? `Unlocking ${shortTarget}\u2026` : "thinking\u2026" : status === "streaming" && steps.length === 0 ? "writing\u2026" : `${steps.length} ${steps.length === 1 ? "step" : "steps"}`;
+  const latestPendingIndex = live ? latestOpenToolIndex(steps) : -1;
+  return /* @__PURE__ */ jsxs22("div", { className: `${card} mb-2 text-sm`.trim(), children: [
+    /* @__PURE__ */ jsxs22(
+      "button",
+      {
+        type: "button",
+        onClick: () => setOpenOverride(!open),
+        className: "flex w-full items-center justify-between gap-2 text-left text-zinc-300 hover:text-zinc-100",
+        "aria-expanded": open,
+        children: [
+          /* @__PURE__ */ jsxs22("span", { className: "inline-flex items-center gap-2 font-medium", children: [
+            /* @__PURE__ */ jsx30(BotIcon, { className: "h-4 w-4 text-zinc-400", "aria-hidden": true }),
+            summary
+          ] }),
+          /* @__PURE__ */ jsx30("span", { className: `${hint} text-xs`.trim(), children: open ? "hide" : "show" })
+        ]
+      }
+    ),
+    showSlowBanner && /* @__PURE__ */ jsxs22(
+      "div",
+      {
+        className: "mt-2 inline-flex items-center gap-2 rounded-lg border border-sky-700/40 bg-sky-950/30 p-2.5 text-xs text-sky-200",
+        role: "status",
+        "aria-live": "polite",
+        children: [
+          /* @__PURE__ */ jsx30(
+            SpinnerIcon,
+            {
+              className: "h-3.5 w-3.5 shrink-0 animate-spin text-sky-400",
+              "aria-hidden": true
+            }
+          ),
+          /* @__PURE__ */ jsx30("span", { children: "Still working. This can take a second." })
+        ]
+      }
+    ),
+    open && steps.length > 0 && /* @__PURE__ */ jsx30("ol", { className: "mt-2 space-y-1", children: steps.map((s, i) => {
+      const ToolIcon = toolIcon(ic, s.name);
+      const statusKey = toolVisualStatus(s, i, latestPendingIndex, live);
+      const errored = statusKey === "error";
+      const active = statusKey === "active";
+      return /* @__PURE__ */ jsxs22(
+        "li",
+        {
+          className: `flex items-center gap-2 font-mono text-xs ${errored ? "text-red-400" : "text-zinc-400"}`,
+          children: [
+            /* @__PURE__ */ jsx30(ToolIcon, { className: "h-3.5 w-3.5 shrink-0", "aria-hidden": true }),
+            /* @__PURE__ */ jsx30("span", { className: "truncate", children: shortToolName(s.name) }),
+            s.server && s.server !== "brightdata" && /* @__PURE__ */ jsxs22("span", { className: `${hint} text-[10px] uppercase`.trim(), children: [
+              "\xB7 ",
+              s.server
+            ] }),
+            /* @__PURE__ */ jsx30(
+              "span",
+              {
+                className: `ml-auto rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-wide ${active ? "border-amber-400/30 bg-amber-400/10 text-amber-300" : statusKey === "sent" ? "border-zinc-500/25 bg-zinc-500/10 text-zinc-400" : errored ? "border-red-400/30 bg-red-400/10 text-red-300" : "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"}`,
+                "aria-label": statusKey,
+                children: statusKey
+              }
+            )
+          ]
+        },
+        s.id ?? `${s.name}-${i}`
+      );
+    }) })
+  ] });
+}
+
+// src/agent/SourcesPanel.tsx
+import { jsx as jsx31, jsxs as jsxs23 } from "react/jsx-runtime";
+function splitSource(url) {
+  try {
+    const u = new URL(url);
+    const host = u.host.replace(/^www\./, "");
+    const rest = `${u.pathname}${u.search}${u.hash}`;
+    return { host, rest: rest === "/" ? "" : rest };
+  } catch {
+    return { host: url, rest: "" };
+  }
+}
+function SourcesPanel({
+  sources,
+  classNames,
+  icons,
+  label = "Sources"
+}) {
+  if (sources.length === 0) return null;
+  const ic = resolveIcons(icons);
+  const SourcesIcon = ic.sources;
+  const ExternalIcon = ic.external;
+  const card = classNames?.card ?? "";
+  const hint = classNames?.hint ?? "";
+  const row = classNames?.sourceRow ?? "bg-zinc-500/10 hover:border-zinc-400/40 hover:bg-zinc-500/20";
+  return /* @__PURE__ */ jsxs23("div", { className: `${card} text-sm`.trim(), children: [
+    /* @__PURE__ */ jsxs23("h2", { className: "mb-3 inline-flex items-center gap-2 font-medium text-zinc-200", children: [
+      /* @__PURE__ */ jsx31(SourcesIcon, { className: "h-4 w-4 text-zinc-400", "aria-hidden": true }),
+      label,
+      /* @__PURE__ */ jsxs23("span", { className: `${hint} ml-1 text-xs tabular-nums`.trim(), children: [
+        "(",
+        sources.length,
+        ")"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsx31("ul", { className: "flex flex-col gap-1.5 text-sm", children: sources.map((u) => {
+      const { host, rest } = splitSource(u);
+      return /* @__PURE__ */ jsx31("li", { children: /* @__PURE__ */ jsxs23(
+        "a",
+        {
+          href: u,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: `group flex items-center gap-2 rounded-lg border border-transparent px-3 py-2 transition ${row}`,
+          children: [
+            /* @__PURE__ */ jsxs23("span", { className: "truncate", children: [
+              /* @__PURE__ */ jsx31("span", { className: "font-semibold text-zinc-100", children: host }),
+              rest && /* @__PURE__ */ jsx31("span", { className: "ml-0.5 font-mono text-xs text-zinc-500", children: rest })
+            ] }),
+            /* @__PURE__ */ jsx31(
+              ExternalIcon,
+              {
+                className: "ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400 opacity-0 transition group-hover:opacity-100",
+                "aria-hidden": true
+              }
+            )
+          ]
+        }
+      ) }, u);
+    }) })
+  ] });
+}
+
+// src/agent/AgentPanel.tsx
+import { Fragment as Fragment7, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
+function AgentPanel({
+  turn,
+  target,
+  classNames,
+  icons,
+  enableSlowBanner,
+  slowThresholdMs,
+  renderSources,
+  renderGuardBanner
+}) {
+  return /* @__PURE__ */ jsxs24(Fragment7, { children: [
+    /* @__PURE__ */ jsx32(
+      PlanChecklist,
+      {
+        plan: turn.plan,
+        classNames,
+        icons,
+        renderGuardBanner
+      }
+    ),
+    /* @__PURE__ */ jsx32(
+      StepsPanel,
+      {
+        steps: turn.steps,
+        status: turn.status,
+        target,
+        classNames,
+        icons,
+        enableSlowBanner,
+        slowThresholdMs
+      }
+    ),
+    renderSources ? renderSources(turn.sources) : /* @__PURE__ */ jsx32(SourcesPanel, { sources: turn.sources, classNames, icons })
+  ] });
+}
+
+// src/agent/useAgentConversation.ts
+import { useCallback as useCallback10, useEffect as useEffect19, useReducer, useRef as useRef13, useState as useState19 } from "react";
+import {
+  applyConversationEvent,
+  initialConversationState
+} from "@free-intelligence/core";
+var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
+var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
+var DEFAULT_TURN_TIMEOUT_MS = 6e4;
+function useAgentConversation(agent, options) {
+  const {
+    author,
+    userAuthor = DEFAULT_USER_AUTHOR,
+    externalMessages,
+    conversationId,
+    initialMessages,
+    onMessagesChange,
+    turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
+    isAppHandledError
+  } = options;
+  const controlled = externalMessages !== void 0;
+  const [convo, dispatch] = useReducer(
+    applyConversationEvent,
+    void 0,
+    () => initialConversationState(initialMessages ?? [])
+  );
+  const convoRef = useRef13(convo);
+  convoRef.current = convo;
+  const messages = convo.messages;
+  const turnError = convo.failure;
+  const timedOut = convo.timedOut;
+  const controlledRef = useRef13(controlled);
+  controlledRef.current = controlled;
+  const authorRef = useRef13(author);
+  authorRef.current = author;
+  const userAuthorRef = useRef13(userAuthor);
+  userAuthorRef.current = userAuthor;
+  const onMessagesChangeRef = useRef13(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
+  const [persistError, setPersistError] = useState19(null);
+  const unsaved = useRef13(null);
+  const runPersist = useCallback10(async (thread) => {
+    if (!onMessagesChangeRef.current) return;
+    try {
+      await onMessagesChangeRef.current(thread);
+      unsaved.current = null;
+      setPersistError(null);
+    } catch (cause) {
+      unsaved.current = thread;
+      setPersistError({
+        message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
+        cause
+      });
+    }
+  }, []);
+  const retryPersist = useCallback10(() => {
+    const thread = unsaved.current;
+    if (!thread) return;
+    setPersistError(null);
+    void runPersist(thread);
+  }, [runPersist]);
+  const dismissPersistError = useCallback10(() => setPersistError(null), []);
+  const clearUnsent = useCallback10(() => dispatch({ type: "clear_unsent" }), []);
+  const messagesRef = useRef13(messages);
+  messagesRef.current = externalMessages ?? messages;
+  const agentRef = useRef13(agent);
+  agentRef.current = agent;
+  const appHandledRef = useRef13(isAppHandledError);
+  appHandledRef.current = isAppHandledError;
+  const initialRef = useRef13(initialMessages);
+  initialRef.current = initialMessages;
+  const mounted = useRef13(false);
+  const awaitResolver = useRef13(null);
+  const send = useCallback10(
+    (text, images) => {
+      const t = text.trim();
+      const imgs = images && images.length > 0 ? images : void 0;
+      if (!t && !imgs || agent.isStreaming) return;
+      dispatch({
+        type: "send",
+        text: t,
+        images: imgs,
+        author: userAuthorRef.current,
+        controlled
+      });
+      void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
+    },
+    [agent, controlled]
+  );
+  const sendAndAwait = useCallback10(
+    (text) => {
+      const t = text.trim();
+      if (!t) return Promise.resolve("");
+      if (agent.isStreaming) return Promise.reject(new Error("a turn is already streaming"));
+      return new Promise((resolve, reject) => {
+        awaitResolver.current = { resolve, reject };
+        send(t);
+      });
+    },
+    [agent.isStreaming, send]
+  );
+  const stop = useCallback10(() => {
+    if (!agentRef.current.isStreaming) return;
+    agentRef.current.abort?.();
+  }, []);
+  const retry = useCallback10(() => {
+    const last = convoRef.current.lastSent;
+    if (last) send(last.text, last.images);
+  }, [send]);
+  const dismissError = useCallback10(() => dispatch({ type: "dismiss_failure" }), []);
+  useEffect19(() => {
+    if (agent.isStreaming || !convoRef.current.pending) return;
+    if (agent.turn.status === "error") {
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error(agent.turn.errorMessage || "turn failed"));
+      dispatch({
+        type: "turn_failed",
+        message: agent.turn.errorMessage,
+        controlled: controlledRef.current,
+        appHandled: appHandledRef.current?.(agent.turn)
+      });
+      return;
+    }
+    const finalText = agent.turn.text || "";
+    dispatch({
+      type: "turn_settled",
+      turn: agent.turn,
+      author: authorRef.current,
+      controlled: controlledRef.current
+    });
+    const resolver = awaitResolver.current;
+    awaitResolver.current = null;
+    resolver?.resolve(finalText);
+  }, [agent.isStreaming, agent.turn]);
+  useEffect19(() => {
+    if (turnTimeoutMs <= 0) return;
+    if (!agent.isStreaming || !convoRef.current.pending || timedOut) return;
+    const timer = setTimeout(() => {
+      agentRef.current.abort?.();
+      const r = awaitResolver.current;
+      awaitResolver.current = null;
+      r?.reject(new Error("turn timed out"));
+      dispatch({ type: "turn_timeout", controlled: controlledRef.current });
+    }, turnTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs]);
+  useEffect19(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (controlledRef.current) return;
+    dispatch({ type: "hydrate", messages: initialRef.current ?? [] });
+    agent.reset?.();
+  }, [conversationId]);
+  useEffect19(() => {
+    if (controlledRef.current) return;
+    if (convoRef.current.skipPersist) {
+      dispatch({ type: "persist_skip_consumed" });
+      return;
+    }
+    void runPersist(messages);
+  }, [messages]);
+  const newConversation = useCallback10(() => {
+    dispatch({ type: "hydrate", messages: [] });
+    agent.reset?.();
+  }, [agent, controlled]);
+  return {
+    messages: externalMessages ?? messages,
+    turn: agent.turn,
+    author,
+    isStreaming: agent.isStreaming && !timedOut,
+    turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
+    unsentText: convo.unsent.text,
+    unsentImages: convo.unsent.images,
+    clearUnsent,
+    send,
+    sendAndAwait,
+    stop: agent.abort ? stop : void 0,
+    retry,
+    dismissError,
+    newConversation
+  };
+}
+
+// src/agent/AgentConversationSurface.tsx
+import { useEffect as useEffect22, useState as useState20 } from "react";
+
+// src/agent/conversation-surface/hooks/useComposerFocus.ts
+import { useCallback as useCallback11, useEffect as useEffect20, useRef as useRef14 } from "react";
+function useComposerFocus(options) {
+  const { isStreaming, isTranscribing } = options;
+  const inputRef = useRef14(null);
+  const refocusComposer = useCallback11(() => {
+    const el = inputRef.current;
+    if (!el || el.disabled) return;
+    const active = document.activeElement;
+    const isOtherTextEntry = active instanceof HTMLElement && active !== el && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+    if (isOtherTextEntry) return;
+    el.focus();
+  }, []);
+  const wasStreaming = useRef14(false);
+  useEffect20(() => {
+    if (wasStreaming.current && !isStreaming) refocusComposer();
+    wasStreaming.current = isStreaming;
+  }, [isStreaming, refocusComposer]);
+  const wasTranscribing = useRef14(false);
+  useEffect20(() => {
+    if (wasTranscribing.current && !isTranscribing) refocusComposer();
+    wasTranscribing.current = isTranscribing;
+  }, [isTranscribing, refocusComposer]);
+  return inputRef;
+}
+
+// src/agent/conversation-surface/hooks/useSurfaceDictation.ts
+import { useRef as useRef15 } from "react";
+function useSurfaceDictation(options) {
+  const { voiceAdapter, input, setInput, onVoiceError } = options;
+  const micAvailable = typeof voiceAdapter?.transcribe === "function";
+  const baseInputRef = useRef15("");
+  const dictation = useDictation(voiceAdapter, {
+    onTranscriptUpdate: (full) => {
+      const base = baseInputRef.current;
+      setInput(base ? `${base} ${full}` : full);
+    },
+    onError: onVoiceError
+  });
+  return {
+    micAvailable,
+    isRecording: dictation.isRecording,
+    isTranscribing: dictation.isTranscribing,
+    bands: dictation.bands,
+    startDictation: () => {
+      baseInputRef.current = input;
+      void dictation.startRecording();
+    },
+    stopDictation: () => void dictation.stopRecording()
+  };
+}
+
+// src/agent/conversation-surface/hooks/useComposerAppend.ts
+import { useEffect as useEffect21 } from "react";
+function useComposerAppend(options) {
+  const { composerAppend, onComposerAppendConsumed, setInput } = options;
+  useEffect21(() => {
+    if (!composerAppend) return;
+    setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
+    onComposerAppendConsumed?.();
+  }, [composerAppend]);
+}
+
+// src/agent/conversation-surface/hooks/useSurfaceLayout.ts
+function useSurfaceLayout(layout) {
+  const isMobileViewport = useMediaQuery(FI_MOBILE_QUERY);
+  const contentInset = isMobileViewport ? "100%" : "calc(100% - 60px)";
+  const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
+  return { rootStyle, contentInset };
+}
+
+// src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
+import { useStickToBottom } from "use-stick-to-bottom";
+
+// src/agent/ScrollToBottomButton.tsx
+import { ChevronDown } from "lucide-react";
+import { jsx as jsx33 } from "react/jsx-runtime";
+var placement = {
+  position: "absolute",
+  bottom: 12,
+  left: "50%",
+  transform: "translateX(-50%)"
+};
+var skin = {
+  width: 32,
+  height: 32,
+  borderRadius: 9999,
+  border: "1px solid rgba(255,255,255,0.15)",
+  background: "rgba(15,23,42,0.85)",
+  color: "#e2e8f0",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  backdropFilter: "blur(4px)",
+  WebkitBackdropFilter: "blur(4px)",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.35)"
+};
+function ScrollToBottomButton({
+  onClick,
+  label = "Ir al final",
+  className,
+  iconClassName
+}) {
+  useTouchTargetStyle();
+  return /* @__PURE__ */ jsx33(
     "button",
     {
+      type: "button",
       onClick,
-      className: `
-        fixed ${buttonPosition} ${buttonSize}
-        fi-fab-emerald z-50 group
-      `,
-      "aria-label": "Chat with Free Intelligence",
-      children: [
-        /* @__PURE__ */ jsx28(MessageCircle, { className: `${iconSize} text-white` }),
-        /* @__PURE__ */ jsx28("span", { className: "fi-dot-pulse-red" }),
-        !isMobile && /* @__PURE__ */ jsx28("div", { className: "fi-tooltip-right", children: "Habla con Free Intelligence" })
-      ]
+      "aria-label": label,
+      className: className ? `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS} ${className}` : `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS}`,
+      style: className ? placement : { ...placement, ...skin },
+      children: /* @__PURE__ */ jsx33(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }
   );
 }
 
-// src/shell/ChatContent.tsx
-import { Loader2 as Loader213 } from "lucide-react";
+// src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
+import { Fragment as Fragment8 } from "react";
 
-// src/shell/ChatWidgetContainer.tsx
-import { MessageCircle as MessageCircle2 } from "lucide-react";
-import { Fragment as Fragment6, jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
-function ChatWidgetContainer(props) {
-  const { mode, title, children, embedded = false, onModeChange } = props;
-  const { isMobile, isTablet } = useBreakpoints(CHAT_BREAKPOINTS, {
-    ssrMatch: false
-  });
-  const effectiveMode = mode === "minimized" ? "minimized" : isMobile ? mode === "dense" ? "dense" : "fullscreen" : isTablet && (mode === "normal" || mode === "expanded") ? "expanded" : mode;
-  if (effectiveMode === "minimized") {
-    return /* @__PURE__ */ jsxs21("div", { className: "chat-container-minimized", onClick: () => onModeChange("normal"), children: [
-      /* @__PURE__ */ jsx29(MessageCircle2, { className: "chat-container-minimized-icon" }),
-      /* @__PURE__ */ jsx29("span", { className: "chat-container-minimized-title", children: title }),
-      /* @__PURE__ */ jsx29(
-        "button",
-        {
-          onClick: (e) => {
-            e.stopPropagation();
-            onModeChange("normal");
-          },
-          className: "ml-2 fi-hover-ghost",
-          "aria-label": "Expand chat",
-          children: /* @__PURE__ */ jsx29("div", { className: "chat-container-minimized-pulse" })
-        }
-      )
-    ] });
-  }
-  if (effectiveMode === "expanded" && isTablet) {
-    return /* @__PURE__ */ jsxs21(Fragment6, { children: [
-      /* @__PURE__ */ jsx29("div", { className: "chat-backdrop", onClick: () => onModeChange("normal") }),
-      /* @__PURE__ */ jsx29(
-        "div",
-        {
-          className: "chat-container-expanded-tablet",
-          style: { width: "min(90vw, 900px)", height: "min(90vh, 800px)" },
-          children
-        }
-      )
-    ] });
-  }
-  if (effectiveMode === "expanded") {
-    return /* @__PURE__ */ jsx29(
-      "div",
-      {
-        className: "chat-container-expanded",
-        style: {
-          width: "min(80vw, 1200px)",
-          height: "700px",
-          maxWidth: "calc(100vw - 3rem)",
-          maxHeight: "calc(100vh - 3rem)"
-        },
-        children
-      }
-    );
-  }
-  if (embedded && (effectiveMode === "fullscreen" || effectiveMode === "dense")) {
-    return /* @__PURE__ */ jsx29("div", { className: "chat-container-embedded", children });
-  }
-  if (effectiveMode === "dense") {
-    return /* @__PURE__ */ jsx29("div", { className: "chat-container-dense", children });
-  }
-  if (effectiveMode === "fullscreen") {
-    return /* @__PURE__ */ jsx29("div", { className: "chat-container-fullscreen", children });
-  }
-  return /* @__PURE__ */ jsx29("div", { className: "chat-container-normal", children });
+// src/agent/conversation-surface/persistedTraceTurn.ts
+function persistedTraceTurn(message) {
+  const trace = message.trace;
+  if (!trace) return null;
+  const hasContent = (trace.plan?.steps.length ?? 0) > 0 || (trace.tools?.length ?? 0) > 0 || (trace.sources?.length ?? 0) > 0;
+  if (!hasContent) return null;
+  return {
+    plan: trace.plan ?? null,
+    steps: trace.tools ?? [],
+    text: message.content,
+    sources: trace.sources ?? [],
+    meta: null,
+    author: message.author ?? null,
+    heartbeats: 0,
+    status: "done"
+  };
 }
 
-// src/shell/ChatWidgetHeader.tsx
-import { X as X2, Minimize2, Maximize2, MessageCircle as MessageCircle3, Search } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
-var HEADER_BTN_CLASS = "fi-btn-ghost fi-btn-sm chat-header-btn";
-var DEFAULT_HEADER_GRADIENT = "bg-gradient-to-r from-emerald-600 to-cyan-600";
-function ChatWidgetHeader({
-  title,
-  subtitle,
-  backgroundClass = DEFAULT_HEADER_GRADIENT,
-  mode,
-  showControls = true,
-  showHistorySearch = true,
-  onNavigate,
-  onMinimize,
-  onMaximize,
-  onToggleDenseMode,
-  onClose,
-  onHistorySearch
+// src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
+import { jsx as jsx34, jsxs as jsxs25 } from "react/jsx-runtime";
+function TranscriptMessages({
+  messages,
+  turn,
+  isStreaming,
+  agentAuthor,
+  userAuthor,
+  showPersistedTrace,
+  agentPanelProps,
+  showCopyAction,
+  renderHeader,
+  renderBadge,
+  renderActions,
+  resolveBubbleClass,
+  collapseUserMessages,
+  collapseMaxHeight,
+  showMoreLabel,
+  showLessLabel,
+  collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs22("div", { className: `${backgroundClass} chat-header`, children: [
-    /* @__PURE__ */ jsxs22("div", { className: "flex items-center gap-3 min-w-0", children: [
-      /* @__PURE__ */ jsx30(
-        "button",
+  return /* @__PURE__ */ jsxs25("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+    messages.map((m, i) => {
+      const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
+      return /* @__PURE__ */ jsxs25(Fragment8, { children: [
+        traceTurn && /* @__PURE__ */ jsx34(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsxs25(
+          MessageBubble,
+          {
+            role: m.role,
+            header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
+            badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx34(CopyButton, { content: m.content }) : void 0),
+            isLatest: i === messages.length - 1,
+            className: resolveBubbleClass(m),
+            children: [
+              /* @__PURE__ */ jsx34(MessageImages, { images: m.images }),
+              /* @__PURE__ */ jsx34(
+                MessageContent,
+                {
+                  isUser: m.role === "user",
+                  content: m.content,
+                  collapsible: collapseUserMessages && m.role === "user",
+                  collapsedMaxHeight: collapseMaxHeight,
+                  showMoreLabel,
+                  showLessLabel,
+                  collapseToggleClassName
+                }
+              )
+            ]
+          }
+        )
+      ] }, `${m.timestamp}-${i}`);
+    }),
+    isStreaming && /* @__PURE__ */ jsxs25("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+      /* @__PURE__ */ jsx34("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx34(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx34(
+        MessageBubble,
         {
-          type: "button",
-          onClick: () => onNavigate?.("chat"),
-          className: "chat-header-icon",
-          title: "Abrir chat completo",
-          "aria-label": "Abrir chat completo",
-          children: /* @__PURE__ */ jsx30(MessageCircle3, { className: "h-5 w-5 text-white" })
-        }
-      ),
-      /* @__PURE__ */ jsxs22("div", { className: "min-w-0", children: [
-        /* @__PURE__ */ jsx30("h3", { className: "chat-header-title", children: title }),
-        subtitle && /* @__PURE__ */ jsx30("p", { className: "chat-header-subtitle", children: subtitle })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx30("div", { className: "chat-header-controls", children: showControls && /* @__PURE__ */ jsxs22(Fragment7, { children: [
-      showHistorySearch && onHistorySearch && mode !== "minimized" && /* @__PURE__ */ jsx30("button", { onClick: onHistorySearch, className: HEADER_BTN_CLASS, "aria-label": "Search history", title: "Buscar en historial", type: "button", children: /* @__PURE__ */ jsx30(Search, { className: "h-4 w-4" }) }),
-      mode === "fullscreen" && onToggleDenseMode && /* @__PURE__ */ jsx30("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo denso", title: "Modo denso (sin controles)", type: "button", children: /* @__PURE__ */ jsxs22("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx30("path", { d: "M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-9zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5h-13z" }),
-        /* @__PURE__ */ jsx30("path", { d: "M3 4.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5z" })
-      ] }) }),
-      mode === "dense" && onToggleDenseMode && /* @__PURE__ */ jsx30("button", { onClick: onToggleDenseMode, className: HEADER_BTN_CLASS, "aria-label": "Cambiar a modo expandido", title: "Modo expandido (con controles)", type: "button", children: /* @__PURE__ */ jsxs22("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", fill: "currentColor", viewBox: "0 0 16 16", children: [
-        /* @__PURE__ */ jsx30("path", { d: "M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z" }),
-        /* @__PURE__ */ jsx30("path", { d: "M6.5 4.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zM8 8.5a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5zm3-4a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2V5a.5.5 0 0 1 .5-.5zm0 6a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2v-2a.5.5 0 0 1 .5-.5z" })
-      ] }) }),
-      mode === "expanded" && /* @__PURE__ */ jsx30("button", { onClick: onMinimize, className: HEADER_BTN_CLASS, "aria-label": "Restaurar tama\xF1o", title: "Restaurar a tama\xF1o normal", type: "button", children: /* @__PURE__ */ jsx30(Minimize2, { className: "h-4 w-4" }) }),
-      mode === "normal" && /* @__PURE__ */ jsx30("button", { onClick: onMaximize, className: HEADER_BTN_CLASS, "aria-label": "Expandir", title: "Expandir (60% m\xE1s grande)", type: "button", children: /* @__PURE__ */ jsx30(Maximize2, { className: "h-4 w-4" }) }),
-      /* @__PURE__ */ jsx30("button", { onClick: onClose, className: HEADER_BTN_CLASS, "aria-label": "Close", title: "Cerrar", type: "button", children: /* @__PURE__ */ jsx30(X2, { className: "h-5 w-5" }) })
-    ] }) })
-  ] });
-}
-
-// src/shell/ChatToolbar.tsx
-import { Paperclip, Globe, Type, Zap, Trash, Sparkles, BookOpen, Terminal, MoreVertical, Send, Loader2 as Loader211 } from "lucide-react";
-import { jsx as jsx31, jsxs as jsxs23 } from "react/jsx-runtime";
-function ChatToolbar({
-  showAttach = true,
-  showLanguage = true,
-  showFormatting = true,
-  showResponseMode = true,
-  showVoice = true,
-  showPersonaSelector = true,
-  showThinkingToggle = true,
-  responseMode = "explanatory",
-  selectedPersona: _selectedPersona = "general_assistant",
-  showThinking = true,
-  voiceRecording,
-  personaSelector,
-  onAttach,
-  onLanguage,
-  onFormatting,
-  onResponseModeToggle,
-  onVoiceStart,
-  onVoiceStop,
-  onShowThinkingToggle,
-  showClear = true,
-  onClearConversation,
-  showCopyCurl = true,
-  onCopyCurl,
-  onSend,
-  canSend = false,
-  sendLoading = false
-}) {
-  const buttonBaseClass = "chat-toolbar-btn";
-  const iconClass = "chat-toolbar-icon";
-  return /* @__PURE__ */ jsxs23("div", { className: "chat-toolbar", children: [
-    /* @__PURE__ */ jsxs23("div", { className: "fi-flex-gap-sm", children: [
-      showPersonaSelector && personaSelector,
-      /* @__PURE__ */ jsx31(
-        ActionMenu,
-        {
-          trigger: /* @__PURE__ */ jsx31(MoreVertical, { className: iconClass }),
-          triggerLabel: "M\xE1s opciones",
-          triggerClassName: buttonBaseClass,
-          menuClassName: "chat-dropdown",
-          itemClassName: "chat-dropdown-item",
-          dividerClassName: "chat-dropdown-divider",
-          actions: [
-            ...showAttach ? [
-              {
-                id: "attach",
-                label: "Adjuntar archivo",
-                icon: /* @__PURE__ */ jsx31(Paperclip, { className: "fi-icon-sm" }),
-                onSelect: () => onAttach?.()
-              }
-            ] : [],
-            ...showLanguage ? [
-              {
-                id: "language",
-                label: "Cambiar idioma",
-                icon: /* @__PURE__ */ jsx31(Globe, { className: "fi-icon-sm" }),
-                onSelect: () => onLanguage?.()
-              }
-            ] : [],
-            ...showFormatting ? [
-              {
-                id: "formatting",
-                label: "Formato de texto",
-                icon: /* @__PURE__ */ jsx31(Type, { className: "fi-icon-sm" }),
-                onSelect: () => onFormatting?.()
-              }
-            ] : [],
-            ...showCopyCurl ? [
-              {
-                id: "curl",
-                label: "Copiar plantilla curl",
-                icon: /* @__PURE__ */ jsx31(Terminal, { className: "fi-icon-sm" }),
-                onSelect: () => onCopyCurl?.(),
-                dividerBefore: true,
-                className: "chat-dropdown-item fi-text-warning hover:bg-amber-900/20 hover:text-amber-300"
-              }
-            ] : [],
-            ...showThinkingToggle ? [
-              {
-                id: "thinking",
-                label: showThinking ? "Ocultar razonamiento" : "Mostrar razonamiento",
-                icon: /* @__PURE__ */ jsx31(Sparkles, { className: "fi-icon-sm" }),
-                onSelect: () => onShowThinkingToggle?.(),
-                dividerBefore: true,
-                wrapperClassName: "@md:hidden",
-                className: `chat-dropdown-item ${showThinking ? "fi-text-purple hover:bg-purple-900/20" : ""}`
-              }
-            ] : [],
-            ...showClear ? [
-              {
-                id: "clear",
-                label: "Limpiar conversaci\xF3n",
-                icon: /* @__PURE__ */ jsx31(Trash, { className: "fi-icon-sm" }),
-                onSelect: () => onClearConversation?.(),
-                dividerBefore: true,
-                wrapperClassName: "@md:hidden",
-                className: "chat-dropdown-item-danger"
-              }
-            ] : []
-          ]
-        }
-      )
-    ] }),
-    /* @__PURE__ */ jsxs23("div", { className: "fi-flex-gap-sm", children: [
-      showClear && /* @__PURE__ */ jsx31(
-        "button",
-        {
-          onClick: () => onClearConversation?.(),
-          className: `${buttonBaseClass} chat-toolbar-btn-danger hidden @md:flex`,
-          title: "Limpiar conversaci\xF3n",
-          "aria-label": "Limpiar conversaci\xF3n",
-          children: /* @__PURE__ */ jsx31(Trash, { className: iconClass })
-        }
-      ),
-      showThinkingToggle && /* @__PURE__ */ jsx31(
-        "button",
-        {
-          onClick: onShowThinkingToggle,
-          className: `${buttonBaseClass} hidden @md:flex ${showThinking ? "chat-toolbar-btn-active" : ""}`,
-          title: showThinking ? "Razonamiento visible (click para ocultar)" : "Razonamiento oculto (click para mostrar)",
-          "aria-label": showThinking ? "Ocultar razonamiento del modelo" : "Mostrar razonamiento del modelo",
-          children: /* @__PURE__ */ jsx31(Sparkles, { className: iconClass })
-        }
-      ),
-      showResponseMode && /* @__PURE__ */ jsx31(
-        "button",
-        {
-          onClick: onResponseModeToggle,
-          className: `${buttonBaseClass} ${responseMode === "concise" ? "fi-text-info hover:text-cyan-300" : "chat-toolbar-btn-success"}`,
-          title: responseMode === "explanatory" ? "Modo: Explicativo (detallado)" : "Modo: Conciso (breve)",
-          "aria-label": responseMode === "explanatory" ? "Cambiar a modo conciso" : "Cambiar a modo explicativo",
-          children: responseMode === "explanatory" ? /* @__PURE__ */ jsx31(BookOpen, { className: iconClass }) : /* @__PURE__ */ jsx31(Zap, { className: iconClass })
-        }
-      ),
-      showVoice && /* @__PURE__ */ jsx31(
-        VoiceMicButton,
-        {
-          isRecording: voiceRecording?.isRecording || false,
-          isTranscribing: voiceRecording?.isTranscribing || false,
-          audioLevel: voiceRecording?.audioLevel || 0,
-          isSilent: voiceRecording?.isSilent ?? true,
-          recordingTime: voiceRecording?.recordingTime || 0,
-          onStart: onVoiceStart || (() => {
+          role: "assistant",
+          header: /* @__PURE__ */ jsx34(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          className: resolveBubbleClass({
+            role: "assistant",
+            content: turn.text,
+            timestamp: ""
           }),
-          onStop: onVoiceStop || (() => {
-          })
-        }
-      ),
-      /* @__PURE__ */ jsx31(
-        "button",
-        {
-          onClick: onSend,
-          disabled: !canSend,
-          className: `p-2.5 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${canSend ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-900 shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40" : "bg-slate-800 text-slate-500 cursor-not-allowed"}`,
-          "aria-label": "Enviar mensaje",
-          children: sendLoading ? /* @__PURE__ */ jsx31(Loader211, { className: "h-4 w-4 animate-spin" }) : /* @__PURE__ */ jsx31(Send, { className: "h-4 w-4" })
+          children: /* @__PURE__ */ jsx34(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
   ] });
 }
 
-// src/shell/ChatFilePreview.tsx
-import {
-  FileText,
-  FileCode,
-  Image as ImageIcon,
-  File,
-  X as X3,
-  Loader2 as Loader212,
-  CheckCircle,
-  AlertCircle as AlertCircle4
-} from "lucide-react";
-import { Fragment as Fragment8, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
-var FILE_ICONS = {
-  "application/pdf": FileText,
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": FileText,
-  "application/msword": FileText,
-  "text/plain": File,
-  "text/markdown": FileCode,
-  "image/png": ImageIcon,
-  "image/jpeg": ImageIcon,
-  "image/jpg": ImageIcon
-};
-function formatFileSize(bytes) {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
-function getFileIcon(file) {
-  return FILE_ICONS[file.type] || File;
-}
-function ChatFilePreview({
-  file,
-  status,
-  progress = 0,
+// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
+import { jsx as jsx35, jsxs as jsxs26 } from "react/jsx-runtime";
+function TurnErrorBanner({
   error,
-  onCancel
+  onRetry,
+  onDismiss,
+  className,
+  retryLabel = "Reintentar",
+  dismissLabel = "Descartar",
+  retryButtonClassName,
+  dismissButtonClassName
 }) {
-  const FileIcon = getFileIcon(file);
-  const isCompleted = status === "indexed";
-  const isError = status === "error";
-  const isUploading = status === "uploading";
-  const isProcessing = status === "processing";
-  const isAwaitingUser = status === "pending_instructions";
-  return /* @__PURE__ */ jsxs24("div", { className: `
-      flex items-center gap-3 p-3 rounded-xl border
-      ${isError ? "bg-red-900/20 border-red-700/50" : isCompleted ? "bg-emerald-900/20 border-emerald-700/50" : "bg-slate-800/80 border-slate-700/50"}
-      transition-colors duration-200
-    `, children: [
-    /* @__PURE__ */ jsx32("div", { className: `
-        p-2 rounded-lg
-        ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx32(Loader212, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx32(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx32(AlertCircle4, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx32(FileIcon, { className: "w-5 h-5 fi-text" }) }),
-    /* @__PURE__ */ jsxs24("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx32("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs24("div", { className: "flex items-center gap-2 fi-text-xs", children: [
-        /* @__PURE__ */ jsx32("span", { children: formatFileSize(file.size) }),
-        isUploading && /* @__PURE__ */ jsxs24(Fragment8, { children: [
-          /* @__PURE__ */ jsx32("span", { children: "-" }),
-          /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
-        ] }),
-        isAwaitingUser && /* @__PURE__ */ jsxs24(Fragment8, { children: [
-          /* @__PURE__ */ jsx32("span", { children: "-" }),
-          /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
-        ] }),
-        isProcessing && /* @__PURE__ */ jsxs24(Fragment8, { children: [
-          /* @__PURE__ */ jsx32("span", { children: "-" }),
-          /* @__PURE__ */ jsx32("span", { className: "fi-text-primary", children: "Procesando..." })
-        ] }),
-        isCompleted && /* @__PURE__ */ jsxs24(Fragment8, { children: [
-          /* @__PURE__ */ jsx32("span", { children: "-" }),
-          /* @__PURE__ */ jsx32("span", { className: "chat-file-status-indexed", children: "Indexado" })
-        ] }),
-        isError && error && /* @__PURE__ */ jsxs24(Fragment8, { children: [
-          /* @__PURE__ */ jsx32("span", { children: "-" }),
-          /* @__PURE__ */ jsx32("span", { className: "fi-text-error truncate", title: error, children: error })
-        ] })
-      ] }),
-      isUploading && /* @__PURE__ */ jsx32("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx32(
+  return /* @__PURE__ */ jsxs26(
+    "div",
+    {
+      role: "alert",
+      className,
+      style: {
+        marginTop: "1rem",
+        padding: "0.75rem 1rem",
+        borderRadius: 10,
+        border: "1px solid rgba(248,113,113,0.35)",
+        background: "rgba(248,113,113,0.08)",
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.75rem"
+      },
+      children: [
+        /* @__PURE__ */ jsx35("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx35(
+          "button",
+          {
+            type: "button",
+            onClick: onRetry,
+            className: retryButtonClassName,
+            style: retryButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "transparent",
+              color: "#e2e8f0",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: retryLabel
+          }
+        ),
+        /* @__PURE__ */ jsx35(
+          "button",
+          {
+            type: "button",
+            onClick: onDismiss,
+            className: dismissButtonClassName,
+            style: dismissButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "#94a3b8",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: dismissLabel
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
+import { jsx as jsx36, jsxs as jsxs27 } from "react/jsx-runtime";
+function TranscriptRegion({ surface, conversation, contentInset }) {
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    retry,
+    dismissError,
+    persistError,
+    retryPersist,
+    dismissPersistError
+  } = conversation;
+  const {
+    emptyState,
+    agentPanelProps,
+    renderHeader,
+    renderBadge,
+    renderActions,
+    messageBubbleClassName,
+    collapseMaxHeight,
+    showMoreLabel,
+    showLessLabel,
+    collapseToggleClassName,
+    errorClassName,
+    retryButtonClassName,
+    dismissButtonClassName,
+    scrollToBottomClassName,
+    scrollToBottomIconClassName,
+    showPersistedTrace = true,
+    showCopyAction = false,
+    collapseUserMessages = true,
+    autoScroll = true,
+    retryLabel = "Reintentar",
+    dismissLabel = "Descartar",
+    persistRetryLabel = "Reintentar guardar",
+    scrollToBottomLabel = "Ir al final"
+  } = surface;
+  const resolveBubbleClass = (message) => typeof messageBubbleClassName === "function" ? messageBubbleClassName(message) : messageBubbleClassName;
+  const idle = messages.length === 0 && !isStreaming && turn.status === "thinking" && !turn.plan && turn.steps.length === 0 && !turn.text;
+  const stick = useStickToBottom({ initial: "instant", resize: "smooth" });
+  return (
+    // Relative anchor: hosts the scroll area + the floating jump-to-latest
+    // button, so the button stays glued to the transcript's bottom edge.
+    /* @__PURE__ */ jsxs27("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
+      /* @__PURE__ */ jsx36(
         "div",
         {
-          className: "fi-progress-bar duration-300",
-          style: { width: `${progress}%` }
+          ref: autoScroll ? stick.scrollRef : void 0,
+          style: { flex: 1, overflowY: "auto", padding: "var(--fi-transcript-pad, 1.25rem 1rem)" },
+          children: /* @__PURE__ */ jsxs27(
+            "div",
+            {
+              ref: autoScroll ? stick.contentRef : void 0,
+              style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
+              children: [
+                idle ? emptyState : /* @__PURE__ */ jsx36(
+                  TranscriptMessages,
+                  {
+                    messages,
+                    turn,
+                    agentAuthor: author,
+                    isStreaming,
+                    showPersistedTrace,
+                    agentPanelProps,
+                    showCopyAction,
+                    renderHeader,
+                    renderBadge,
+                    renderActions,
+                    resolveBubbleClass,
+                    collapseUserMessages,
+                    collapseMaxHeight,
+                    showMoreLabel,
+                    showLessLabel,
+                    collapseToggleClassName
+                  }
+                ),
+                turnError && /* @__PURE__ */ jsx36(
+                  TurnErrorBanner,
+                  {
+                    error: turnError,
+                    onRetry: retry,
+                    onDismiss: dismissError,
+                    className: errorClassName,
+                    retryLabel,
+                    dismissLabel,
+                    retryButtonClassName,
+                    dismissButtonClassName
+                  }
+                ),
+                persistError && /* @__PURE__ */ jsx36(
+                  TurnErrorBanner,
+                  {
+                    error: persistError,
+                    onRetry: retryPersist,
+                    onDismiss: dismissPersistError,
+                    className: errorClassName,
+                    retryLabel: persistRetryLabel,
+                    dismissLabel,
+                    retryButtonClassName,
+                    dismissButtonClassName
+                  }
+                )
+              ]
+            }
+          )
         }
-      ) })
-    ] }),
-    !isCompleted && !isProcessing && /* @__PURE__ */ jsx32(
+      ),
+      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx36(
+        ScrollToBottomButton,
+        {
+          onClick: () => void stick.scrollToBottom(),
+          label: scrollToBottomLabel,
+          className: scrollToBottomClassName,
+          iconClassName: scrollToBottomIconClassName
+        }
+      )
+    ] })
+  );
+}
+
+// src/agent/conversation-surface/components/composer/ComposerRegion.tsx
+import { ImagePlus } from "lucide-react";
+
+// src/agent/conversation-surface/components/composer/ComposerControls.tsx
+import { Send, Loader2 as Loader213, Square as Square5 } from "lucide-react";
+import { Fragment as Fragment9, jsx as jsx37, jsxs as jsxs28 } from "react/jsx-runtime";
+function ComposerControls({
+  dictation,
+  micSlotOverride,
+  micSlotClassName,
+  micButtonClassName,
+  voiceVisualizerClassName,
+  voiceVisualizerBarClassName,
+  showSendButton,
+  canSend,
+  isStreaming,
+  onSend,
+  onStop,
+  sendLabel = "Enviar mensaje",
+  stopLabel = "Detener respuesta",
+  sendButtonClassName,
+  sendButtonIconClassName,
+  stopButtonClassName
+}) {
+  const stopping = isStreaming && onStop != null;
+  return /* @__PURE__ */ jsxs28(Fragment9, { children: [
+    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx37(
+      AudioVisualizer,
+      {
+        levels: dictation.bands,
+        active: dictation.isRecording,
+        variant: "bars",
+        label: "Nivel del micr\xF3fono",
+        className: voiceVisualizerClassName,
+        barClassName: voiceVisualizerBarClassName
+      }
+    ),
+    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx37(
+      ComposerMicSlot,
+      {
+        available: true,
+        recording: dictation.isRecording,
+        busy: dictation.isTranscribing,
+        onStart: dictation.startDictation,
+        onStop: dictation.stopDictation,
+        className: micSlotClassName,
+        buttonClassName: micButtonClassName
+      }
+    ),
+    showSendButton && // Explicit send affordance (mirrors the shell/AURITY composer). Enter
+    // still sends; this is the visible button. Disabled until there's
+    // trimmed text and nothing is streaming.
+    //
+    // While streaming, a transport that can abort turns this into a live
+    // STOP button — the primary control must never be a spinner the user
+    // can only watch. Without abort support it falls back to that spinner.
+    /* @__PURE__ */ jsx37(
       "button",
       {
         type: "button",
-        onClick: onCancel,
-        className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
-        "aria-label": "Cancelar",
-        title: "Cancelar",
-        children: /* @__PURE__ */ jsx32(X3, { className: "h-4 w-4" })
+        onClick: stopping ? onStop : onSend,
+        disabled: stopping ? false : !canSend,
+        "aria-label": stopping ? stopLabel : sendLabel,
+        "data-fi-composer-send-state": stopping ? "stop" : isStreaming ? "busy" : "send",
+        className: [
+          FI_TOUCH_TARGET_CLASS,
+          sendButtonClassName,
+          stopping ? stopButtonClassName : void 0
+        ].filter(Boolean).join(" "),
+        children: stopping ? /* @__PURE__ */ jsx37(Square5, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx37(
+          Loader213,
+          {
+            className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
+            "aria-hidden": true
+          }
+        ) : /* @__PURE__ */ jsx37(Send, { className: sendButtonIconClassName, "aria-hidden": true })
       }
     )
   ] });
 }
 
-// src/shell/ChatStartScreen.tsx
-import { Download, MessageSquareText, Monitor, Shield, Sparkles as Sparkles2 } from "lucide-react";
-import { Fragment as Fragment9, jsx as jsx33, jsxs as jsxs25 } from "react/jsx-runtime";
-function ChatStartScreen({
-  isAuthenticated,
-  userName,
-  onStart,
-  onLogin: _onLogin,
-  onNavigate,
-  isLoading = false
-}) {
-  if (!isAuthenticated) {
-    return /* @__PURE__ */ jsx33("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs25("div", { className: "chat-start-container", children: [
-      /* @__PURE__ */ jsx33("div", { className: "flex justify-center", children: /* @__PURE__ */ jsx33("div", { className: "chat-start-icon", children: /* @__PURE__ */ jsx33(Monitor, { className: "fi-icon-xl text-purple-400" }) }) }),
-      /* @__PURE__ */ jsxs25("div", { className: "fi-stack-sm", children: [
-        /* @__PURE__ */ jsx33("h3", { className: "chat-start-title", children: "\xA1Pru\xE9balo en tu escritorio!" }),
-        /* @__PURE__ */ jsx33("p", { className: "chat-start-subtitle", children: "IA offline para tu desarrollo profesional. Licencias piloto gratuitas disponibles. \xA1Descarga la tuya!" })
-      ] }),
-      /* @__PURE__ */ jsxs25(
-        "button",
-        {
-          type: "button",
-          onClick: () => onNavigate?.("downloads"),
-          className: "chat-start-btn-login",
-          children: [
-            /* @__PURE__ */ jsx33(Download, { className: "fi-icon-md" }),
-            "Ir a Descargas"
-          ]
-        }
-      ),
-      /* @__PURE__ */ jsx33("p", { className: "chat-start-hint", children: "100% privado, funciona sin internet" })
-    ] }) });
-  }
-  return /* @__PURE__ */ jsx33("div", { className: "chat-start-screen", children: /* @__PURE__ */ jsxs25("div", { className: "chat-start-container", children: [
-    /* @__PURE__ */ jsx33("div", { className: "pt-4 flex justify-center", children: /* @__PURE__ */ jsx33("div", { className: "chat-start-icon-large", children: /* @__PURE__ */ jsx33(Sparkles2, { className: "w-10 h-10 fi-text-purple" }) }) }),
-    /* @__PURE__ */ jsxs25("div", { className: "fi-stack-sm", children: [
-      /* @__PURE__ */ jsxs25("h3", { className: "chat-start-title-large", children: [
-        "Hola, ",
-        userName?.split(" ")[0] || "Doctor"
-      ] }),
-      /* @__PURE__ */ jsx33("p", { className: "chat-start-subtitle", children: "Soy tu asistente de Free Intelligence. Estoy listo para ayudarte con consultas m\xE9dicas, notas SOAP y an\xE1lisis cl\xEDnicos." })
-    ] }),
-    /* @__PURE__ */ jsxs25("div", { className: "chat-start-features", children: [
-      /* @__PURE__ */ jsxs25("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx33(MessageSquareText, { className: "w-4 h-4 fi-text-purple flex-shrink-0" }),
-        /* @__PURE__ */ jsx33("span", { children: "Conversaci\xF3n privada y segura" })
-      ] }),
-      /* @__PURE__ */ jsxs25("div", { className: "chat-start-feature", children: [
-        /* @__PURE__ */ jsx33(Shield, { className: "w-4 h-4 fi-text-green flex-shrink-0" }),
-        /* @__PURE__ */ jsx33("span", { children: "Datos encriptados localmente" })
-      ] })
-    ] }),
-    /* @__PURE__ */ jsx33("button", { onClick: onStart, disabled: isLoading, className: "chat-start-btn-begin", children: isLoading ? /* @__PURE__ */ jsxs25(Fragment9, { children: [
-      /* @__PURE__ */ jsx33("div", { className: "chat-start-spinner" }),
-      "Iniciando..."
-    ] }) : /* @__PURE__ */ jsxs25(Fragment9, { children: [
-      /* @__PURE__ */ jsx33(MessageSquareText, { className: "w-5 h-5" }),
-      "Comenzar conversaci\xF3n"
-    ] }) }),
-    /* @__PURE__ */ jsx33("p", { className: "chat-start-hint", children: "Presiona para iniciar una nueva conversaci\xF3n" })
-  ] }) });
+// src/agent/conversation-surface/components/composer/NewChatButton.tsx
+import { jsx as jsx38 } from "react/jsx-runtime";
+function NewChatButton({ onClick, disabled, label = "New chat" }) {
+  return /* @__PURE__ */ jsx38("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx38(
+    "button",
+    {
+      onClick,
+      disabled,
+      style: {
+        padding: "0.35rem 0.75rem",
+        borderRadius: 8,
+        border: "1px solid rgba(255,255,255,0.15)",
+        background: "transparent",
+        color: "#94a3b8",
+        fontSize: "0.8rem",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1
+      },
+      children: label
+    }
+  ) });
 }
 
-// src/shell/ChatContent.tsx
-import { jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
-function ChatContent({
-  config,
-  embedded,
-  isAuthenticated,
-  userName,
-  viewMode,
-  isHistoryOpen,
-  isStartingConversation,
-  messageCount,
-  loading,
-  isTyping,
-  loadingInitial,
-  customEmptyState,
-  customQuickReplies,
-  message,
-  responseMode,
-  selectedPersona,
-  personaName,
-  showThinking = true,
-  voiceState,
-  uploadFile,
-  uploadStatus,
-  isUploadActive,
-  uploadPrompt,
-  onNavigate,
-  onModeChange,
-  onMinimize,
-  onMaximize,
-  onToggleDenseMode,
-  onClose,
-  onHistoryOpen,
-  onHistoryClose,
-  onStartConversation,
-  onLogin,
-  onMessageChange,
-  onSend,
-  onResponseModeToggle,
-  onShowThinkingToggle,
-  onPersonaChange: _onPersonaChange,
-  onClearConversation,
-  onVoiceStart,
-  onVoiceStop,
-  onAttach,
-  onCancelUpload,
-  onCopyCurl,
-  personaSelector,
-  renderHistory,
-  renderMessages
-}) {
-  const dynamicPlaceholder = personaName ? `Escribe a ${personaName}...` : "Escribe tu mensaje...";
-  const showVoice = typeof onVoiceStart === "function";
-  const showAttach = typeof onAttach === "function";
-  const showResponseMode = typeof onResponseModeToggle === "function";
-  const showThinkingToggle = typeof onShowThinkingToggle === "function";
-  const showClear = typeof onClearConversation === "function";
-  const showPersonaSelector = personaSelector != null;
-  return /* @__PURE__ */ jsxs26("div", { className: "relative flex h-full flex-1 flex-col overflow-hidden", children: [
-    !isHistoryOpen && /* @__PURE__ */ jsxs26(
-      ChatWidgetContainer,
+// src/agent/conversation-surface/components/composer/ComposerRegion.tsx
+import { Fragment as Fragment10, jsx as jsx39, jsxs as jsxs29 } from "react/jsx-runtime";
+function ComposerRegion({ surface, state, contentInset }) {
+  const {
+    input,
+    setInput,
+    onSend,
+    canSend,
+    inputRef,
+    dictation,
+    isStreaming,
+    onStop,
+    hasThread,
+    newConversation,
+    images
+  } = state;
+  const {
+    aboveComposer,
+    composerHeader,
+    composerHeaderClassName,
+    composerFooterStart,
+    composerFooterStartClassName,
+    composerBoxClassName,
+    composerAreaClassName,
+    composerTextareaClassName,
+    composerControlsClassName,
+    composerPlaceholder,
+    micSlotOverride,
+    micSlotClassName,
+    micButtonClassName,
+    voiceVisualizerClassName,
+    voiceVisualizerBarClassName,
+    sendButtonClassName,
+    sendButtonIconClassName,
+    stopButtonClassName,
+    showNewChatButton = true,
+    newChatLabel = "New chat",
+    showSendButton = true,
+    sendLabel = "Enviar mensaje",
+    stopLabel = "Detener respuesta",
+    attachImageLabel = "Adjuntar imagen",
+    composerActions,
+    composerActionsLabel,
+    composerActionsMenuClassName,
+    composerActionsItemClassName,
+    attachImageButtonClassName,
+    imageChipsClassName
+  } = surface;
+  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx39(
+    ComposerImageChips,
+    {
+      drafts: images.drafts,
+      onRemove: images.remove,
+      disabled: isStreaming,
+      className: imageChipsClassName
+    }
+  ) : null;
+  const imagePicker = useImagePicker((files) => void (images && images.addFiles(files)));
+  const actions = [
+    ...images ? [
       {
-        mode: viewMode,
-        title: config.title,
-        embedded,
-        onModeChange,
-        children: [
-          viewMode !== "dense" && !embedded && /* @__PURE__ */ jsx34(
-            ChatWidgetHeader,
-            {
-              title: config.title,
-              subtitle: config.subtitle,
-              backgroundClass: config.theme.background.header,
-              mode: viewMode,
-              showControls: !embedded,
-              onNavigate,
-              onMinimize,
-              onMaximize,
-              onToggleDenseMode,
-              onClose,
-              onHistorySearch: onHistoryOpen
-            }
-          ),
-          messageCount === 0 && loadingInitial ? /* @__PURE__ */ jsx34("div", { className: "flex h-full items-center justify-center", children: /* @__PURE__ */ jsx34(Loader213, { className: "h-8 w-8 animate-spin text-slate-400" }) }) : messageCount === 0 && !isTyping && customEmptyState ? customEmptyState : messageCount === 0 && !isTyping ? /* @__PURE__ */ jsx34(
-            ChatStartScreen,
-            {
-              isAuthenticated,
-              userName,
-              onStart: onStartConversation,
-              onLogin,
-              onNavigate,
-              isLoading: isStartingConversation
-            }
-          ) : renderMessages?.({ viewMode }),
-          customQuickReplies,
-          viewMode !== "dense" && /* @__PURE__ */ jsx34("div", { className: "chat-input-wrapper", children: /* @__PURE__ */ jsxs26("div", { className: "chat-input-floating-box", children: [
-            isUploadActive && uploadFile && /* @__PURE__ */ jsx34(
-              ChatFilePreview,
-              {
-                file: uploadFile,
-                status: uploadStatus ?? "selecting",
-                onCancel: onCancelUpload ?? (() => {
-                })
-              }
-            ),
-            isUploadActive && uploadPrompt,
-            /* @__PURE__ */ jsx34(
+        id: "attach-image",
+        label: attachImageLabel,
+        icon: /* @__PURE__ */ jsx39(ImagePlus, { size: 16, "aria-hidden": true }),
+        onSelect: imagePicker.open
+      }
+    ] : [],
+    ...composerActions ?? []
+  ];
+  const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs29(Fragment10, { children: [
+    images ? imagePicker.input : null,
+    /* @__PURE__ */ jsx39(
+      ComposerActions,
+      {
+        actions,
+        disabled: isStreaming,
+        label: composerActionsLabel,
+        className: attachImageButtonClassName,
+        menuClassName: composerActionsMenuClassName,
+        itemClassName: composerActionsItemClassName
+      }
+    )
+  ] }) : null;
+  const header = imageChips || composerHeader ? /* @__PURE__ */ jsxs29(Fragment10, { children: [
+    imageChips,
+    composerHeader
+  ] }) : void 0;
+  const footerStart = attachButton || composerFooterStart ? /* @__PURE__ */ jsxs29(Fragment10, { children: [
+    attachButton,
+    composerFooterStart
+  ] }) : void 0;
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx39(
+    ComposerControls,
+    {
+      dictation,
+      micSlotOverride,
+      micSlotClassName,
+      micButtonClassName,
+      voiceVisualizerClassName,
+      voiceVisualizerBarClassName,
+      showSendButton,
+      canSend,
+      isStreaming,
+      onSend,
+      onStop,
+      sendLabel,
+      stopLabel,
+      sendButtonClassName,
+      sendButtonIconClassName,
+      stopButtonClassName
+    }
+  ) : null;
+  return /* @__PURE__ */ jsx39(
+    "div",
+    {
+      style: {
+        // The composer is the surface's bottom edge, so it is what a notched
+        // phone's home indicator overlaps once the app runs full-bleed
+        // (`viewport-fit=cover` / an installed standalone PWA). env() resolves
+        // to 0px everywhere else, so the desktop padding is unchanged.
+        paddingTop: "var(--fi-composer-bar-pt, 0.75rem)",
+        paddingBottom: "calc(var(--fi-composer-bar-pb, 1.25rem) + env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-left, 0px))",
+        paddingRight: "calc(var(--fi-composer-bar-px, 1rem) + env(safe-area-inset-right, 0px))",
+        borderTop: "1px solid rgba(255,255,255,0.06)"
+      },
+      children: /* @__PURE__ */ jsxs29("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx39(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx39("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx39(
+          ComposerFrame,
+          {
+            className: composerBoxClassName,
+            header,
+            headerClassName: composerHeaderClassName,
+            footerClassName: composerControlsClassName,
+            footerStart,
+            footerStartClassName: composerFooterStartClassName,
+            footer,
+            children: /* @__PURE__ */ jsx39(
               Composer,
               {
-                message,
-                loading,
-                placeholder: dynamicPlaceholder,
-                onMessageChange,
+                message: input,
+                loading: isStreaming,
+                placeholder: composerPlaceholder,
+                onMessageChange: setInput,
                 onSend,
-                maxRows: 5,
-                areaClassName: "chat-input-area-top",
-                wrapperClassName: "flex-1",
-                textareaClassName: "chat-textarea"
-              }
-            ),
-            /* @__PURE__ */ jsx34(
-              ChatToolbar,
-              {
-                responseMode,
-                selectedPersona,
-                showThinking,
-                voiceRecording: voiceState,
-                personaSelector,
-                showAttach,
-                showLanguage: false,
-                showFormatting: false,
-                showResponseMode,
-                showVoice,
-                showPersonaSelector,
-                showThinkingToggle,
-                showClear,
-                showCopyCurl: typeof onCopyCurl === "function",
-                onResponseModeToggle,
-                onShowThinkingToggle,
-                onClearConversation,
-                onCopyCurl,
-                onAttach,
-                onVoiceStart,
-                onVoiceStop,
-                onSend,
-                canSend: message.trim().length > 0 && !loading,
-                sendLoading: loading
+                onPaste: images ? (e) => {
+                  if (images.handlePaste(e)) e.preventDefault();
+                } : void 0,
+                areaClassName: composerAreaClassName,
+                textareaClassName: composerTextareaClassName,
+                wrapperStyle: { flex: "1 1 0%", minWidth: 0 },
+                textareaRef: inputRef
               }
             )
-          ] }) })
-        ]
-      }
-    ),
-    isHistoryOpen && renderHistory?.({ onClose: onHistoryClose })
-  ] });
-}
-
-// src/shell/ChatWidget.tsx
-import { jsx as jsx35 } from "react/jsx-runtime";
-function ChatWidget({
-  chatHook,
-  config: customConfig,
-  user,
-  isAuthenticated = false,
-  onLogin,
-  onNavigate,
-  isMobile: isMobileProp,
-  initialOpen = false,
-  initialMode = "normal",
-  embedded = false,
-  message,
-  onMessageChange,
-  onSend,
-  responseMode,
-  selectedPersona,
-  personaName,
-  showThinking,
-  onResponseModeToggle,
-  onShowThinkingToggle,
-  onPersonaChange,
-  onClearConversation,
-  voiceState,
-  onVoiceStart,
-  onVoiceStop,
-  uploadFile,
-  uploadStatus,
-  isUploadActive,
-  onAttach,
-  uploadPrompt,
-  onCancelUpload,
-  isStartingConversation = false,
-  onStartConversation,
-  personaSelector,
-  renderHistory,
-  renderMessages,
-  onCopyCurl
-}) {
-  const internalIsMobile = useMediaQuery(CHAT_BREAKPOINTS.mobile, { ssrMatch: false });
-  const isMobile = isMobileProp ?? internalIsMobile;
-  const config = mergeChatConfig(customConfig);
-  const widgetState = useChatWidgetState({ initialOpen, initialMode });
-  const messages = chatHook.messages;
-  const messageCount = messages.length;
-  const loading = chatHook.loading;
-  const isTyping = chatHook.isTyping;
-  const loadingInitial = chatHook.loadingInitial ?? false;
-  const customEmptyState = chatHook.customEmptyState;
-  const customQuickReplies = chatHook.customQuickReplies;
-  const handleOpen = useCallback11(() => {
-    widgetState.open();
-    widgetState.onMessagesLoaded(messageCount > 0);
-  }, [widgetState, messageCount]);
-  if (!widgetState.isOpen) {
-    if (embedded) return null;
-    return /* @__PURE__ */ jsx35(FloatingButton, { onClick: handleOpen, isMobile });
-  }
-  return /* @__PURE__ */ jsx35(
-    ChatContent,
-    {
-      config,
-      embedded,
-      isAuthenticated,
-      userName: user?.name || void 0,
-      viewMode: widgetState.viewMode,
-      isHistoryOpen: widgetState.isHistoryOpen,
-      isStartingConversation,
-      messageCount,
-      loading,
-      isTyping,
-      loadingInitial,
-      customEmptyState,
-      customQuickReplies,
-      message,
-      responseMode,
-      selectedPersona,
-      personaName,
-      showThinking,
-      voiceState,
-      uploadFile,
-      uploadStatus,
-      isUploadActive,
-      uploadPrompt,
-      onNavigate,
-      onModeChange: widgetState.setViewMode,
-      onMinimize: widgetState.minimize,
-      onMaximize: widgetState.maximize,
-      onToggleDenseMode: widgetState.toggleDenseMode,
-      onClose: widgetState.close,
-      onHistoryOpen: widgetState.openHistory,
-      onHistoryClose: widgetState.closeHistory,
-      onStartConversation: onStartConversation ?? widgetState.startConversation,
-      onLogin: onLogin ?? (() => {
-      }),
-      onMessageChange,
-      onSend,
-      onResponseModeToggle,
-      onShowThinkingToggle,
-      onPersonaChange,
-      onClearConversation,
-      onVoiceStart,
-      onVoiceStop,
-      onAttach,
-      onCancelUpload,
-      onCopyCurl,
-      personaSelector,
-      renderHistory,
-      renderMessages
+          }
+        )
+      ] })
     }
   );
 }
 
-// src/shell/ChatSurface.tsx
-import { jsx as jsx36 } from "react/jsx-runtime";
-function ChatSurface(props) {
-  return /* @__PURE__ */ jsx36(
-    ChatWidget,
+// src/agent/AgentConversationSurface.tsx
+import { jsx as jsx40, jsxs as jsxs30 } from "react/jsx-runtime";
+function AgentConversationSurface(props) {
+  const {
+    conversation,
+    layout = "viewport",
+    voiceAdapter,
+    onVoiceError,
+    composerAppend,
+    onComposerAppendConsumed,
+    imageAttachments = false,
+    maxAttachedImages,
+    onImageAttachmentError
+  } = props;
+  const {
+    messages,
+    turn,
+    author,
+    isStreaming,
+    turnError,
+    persistError,
+    retryPersist,
+    dismissPersistError,
+    send,
+    stop,
+    retry,
+    dismissError,
+    newConversation,
+    unsentText,
+    unsentImages,
+    clearUnsent
+  } = conversation;
+  const [input, setInput] = useState20("");
+  useTouchTargetStyle();
+  const { rootStyle, contentInset } = useSurfaceLayout(layout);
+  useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
+  const dictation = useSurfaceDictation({ voiceAdapter, input, setInput, onVoiceError });
+  const inputRef = useComposerFocus({
+    isStreaming,
+    isTranscribing: dictation.isTranscribing
+  });
+  const images = useComposerImages({
+    maxImages: maxAttachedImages,
+    onError: onImageAttachmentError
+  });
+  const restoreImages = images.restore;
+  useEffect22(() => {
+    if (!unsentText && !unsentImages) return;
+    if (unsentText) setInput((current) => current.trim() ? current : unsentText);
+    if (imageAttachments && unsentImages && unsentImages.length > 0) {
+      restoreImages(unsentImages);
+    }
+    clearUnsent();
+  }, [unsentText, unsentImages, imageAttachments, restoreImages, clearUnsent]);
+  const onSend = () => {
+    const t = input.trim();
+    const attached = imageAttachments ? images.toMessageImages() : [];
+    if (!t && attached.length === 0) return;
+    setInput("");
+    images.clear();
+    send(t, attached.length > 0 ? attached : void 0);
+  };
+  return /* @__PURE__ */ jsxs30("div", { style: rootStyle, children: [
+    /* @__PURE__ */ jsx40(
+      TranscriptRegion,
+      {
+        surface: props,
+        conversation: {
+          messages,
+          turn,
+          author,
+          isStreaming,
+          turnError,
+          retry,
+          dismissError,
+          persistError,
+          retryPersist,
+          dismissPersistError
+        },
+        contentInset
+      }
+    ),
+    /* @__PURE__ */ jsx40(
+      ComposerRegion,
+      {
+        surface: props,
+        state: {
+          input,
+          setInput,
+          onSend,
+          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !isStreaming,
+          inputRef,
+          dictation,
+          isStreaming,
+          onStop: stop,
+          hasThread: messages.length > 0 || isStreaming,
+          newConversation,
+          images: imageAttachments ? images : null
+        },
+        contentInset
+      }
+    )
+  ] });
+}
+
+// src/agent/AgentWorkspaceShell.tsx
+import {
+  useCallback as useCallback12,
+  useEffect as useEffect23,
+  useState as useState21
+} from "react";
+import { Menu } from "lucide-react";
+import { jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
+var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
+function ensureToggleStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOGGLE_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOGGLE_STYLE_ID;
+  el.textContent = `
+    .fi-aws-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(10,14,22,0.55);
+      backdrop-filter: blur(var(--glass-blur-compact, 8px));
+      color: #e2e8f0; cursor: pointer; padding: 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .fi-aws-toggle:hover { background: rgba(255,255,255,0.08); }
+    .fi-aws-toggle:active { background: rgba(255,255,255,0.12); }
+    .fi-aws-toggle:focus-visible {
+      outline: 2px solid var(--og-accent, #34d399); outline-offset: 2px;
+    }
+  `;
+  document.head.appendChild(el);
+}
+function AgentWorkspaceShell({
+  visual = "aurora",
+  density = "comfortable",
+  header,
+  conversation,
+  rail,
+  footer,
+  sidebar,
+  responsive = false,
+  mobileQuery = FI_MOBILE_QUERY,
+  sidebarWidth = 280,
+  toggleLabel = "Conversaciones",
+  className,
+  style
+}) {
+  useDensityStyle();
+  const isMobile = useMediaQuery(mobileQuery);
+  const [isOpen, setIsOpen] = useState21(false);
+  const hasSidebar = sidebar != null;
+  const drawerMode = hasSidebar && responsive && isMobile;
+  const open = useCallback12(() => setIsOpen(true), []);
+  const close = useCallback12(() => setIsOpen(false), []);
+  const toggle = useCallback12(() => setIsOpen((v) => !v), []);
+  useEffect23(() => {
+    if (!drawerMode && isOpen) setIsOpen(false);
+  }, [drawerMode, isOpen]);
+  useEffect23(() => {
+    if (!drawerMode || !isOpen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerMode, isOpen]);
+  useEffect23(() => {
+    if (drawerMode) ensureToggleStyle();
+  }, [drawerMode]);
+  const rootStyle = {
+    display: "flex",
+    flexDirection: "column",
+    height: "100dvh",
+    minHeight: 0,
+    overflow: "hidden",
+    // B3-FIGLASS-MOBILE-NATIVE-1: on an installed iOS PWA running
+    // `apple-mobile-web-app-status-bar-style: black-translucent`, the web view is
+    // full-bleed UNDER the clock. Pad the top by the safe-area inset so the
+    // content (sidebar top, header) sits below the status bar while the BACKGROUND
+    // still reaches the physical top edge — the native look. box-sizing keeps the
+    // padding inside the 100dvh so nothing overflows the bottom. env() resolves to
+    // 0 everywhere else, so desktop and non-translucent installs are unchanged.
+    boxSizing: "border-box",
+    paddingTop: "env(safe-area-inset-top, 0px)"
+  };
+  const mainStyle = {
+    display: "grid",
+    gridTemplateColumns: rail ? "minmax(0, 1fr) minmax(280px, 360px)" : "minmax(0, 1fr)",
+    flex: "1 1 auto",
+    minHeight: 0,
+    overflow: "hidden"
+  };
+  const conversationStyle = { minHeight: 0, overflow: "hidden" };
+  const railStyle = { minHeight: 0, overflowY: "auto" };
+  const rootClassName = [
+    "fi-agent-workspace",
+    `fi-visual-${visual}`,
+    `fi-density-${density}`,
+    className
+  ].filter(Boolean).join(" ");
+  const content = /* @__PURE__ */ jsxs31(
+    "div",
     {
-      ...props,
-      embedded: true,
-      initialOpen: true,
-      initialMode: "fullscreen"
+      "data-fi-workspace": "agent",
+      "data-fi-visual": visual,
+      "data-fi-density": density,
+      className: rootClassName,
+      style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
+      children: [
+        header != null && /* @__PURE__ */ jsx41("header", { "data-fi-slot": "header", children: header }),
+        /* @__PURE__ */ jsxs31("main", { "data-fi-slot": "main", style: mainStyle, children: [
+          /* @__PURE__ */ jsx41("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx41("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+        ] }),
+        footer != null && /* @__PURE__ */ jsx41("footer", { "data-fi-slot": "footer", children: footer })
+      ]
+    }
+  );
+  if (!hasSidebar) return content;
+  const api = { isOpen, isMobile, open, close, toggle };
+  const sidebarNode = typeof sidebar === "function" ? sidebar(api) : sidebar;
+  const widthCss = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
+  const sidebarContainerStyle = drawerMode ? {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    bottom: 0,
+    zIndex: 50,
+    width: `min(${widthCss}, 85vw)`,
+    display: "flex",
+    flexDirection: "column",
+    transform: isOpen ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 0.24s ease",
+    willChange: "transform",
+    containerType: "inline-size",
+    containerName: "fi-sidebar",
+    // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
+    // translucent glass panel (fine over the static desktop rail), but as an
+    // off-canvas layer even 3% translucency lets large bright conversation
+    // text ghost through and the list loses contrast. Token-overridable.
+    background: "var(--fi-drawer-bg, rgb(10, 14, 22))",
+    boxShadow: "var(--fi-drawer-shadow, 0 0 40px rgba(0, 0, 0, 0.55))",
+    // The drawer is fixed to the physical top, so its own content also needs
+    // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
+    boxSizing: "border-box",
+    paddingTop: "env(safe-area-inset-top, 0px)"
+  } : {
+    width: widthCss,
+    flexShrink: 0,
+    display: "flex",
+    flexDirection: "column",
+    containerType: "inline-size",
+    containerName: "fi-sidebar"
+  };
+  return /* @__PURE__ */ jsxs31(
+    "div",
+    {
+      "data-fi-workspace": "agent-with-sidebar",
+      style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
+      children: [
+        /* @__PURE__ */ jsx41(
+          "nav",
+          {
+            "data-fi-slot": "sidebar",
+            "aria-label": toggleLabel,
+            style: sidebarContainerStyle,
+            "aria-hidden": drawerMode ? !isOpen : void 0,
+            inert: drawerMode && !isOpen ? true : void 0,
+            children: sidebarNode
+          }
+        ),
+        drawerMode && /* @__PURE__ */ jsx41(
+          "div",
+          {
+            onClick: close,
+            "aria-hidden": true,
+            style: {
+              position: "fixed",
+              inset: 0,
+              zIndex: 40,
+              background: "rgba(0,0,0,0.5)",
+              opacity: isOpen ? 1 : 0,
+              pointerEvents: isOpen ? "auto" : "none",
+              transition: "opacity 0.24s ease"
+            }
+          }
+        ),
+        drawerMode && !isOpen && /* @__PURE__ */ jsx41(
+          "button",
+          {
+            type: "button",
+            className: "fi-aws-toggle",
+            onClick: open,
+            "aria-label": toggleLabel,
+            "aria-expanded": isOpen,
+            style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
+            children: /* @__PURE__ */ jsx41(Menu, { size: 18, "aria-hidden": true })
+          }
+        ),
+        content
+      ]
+    }
+  );
+}
+
+// src/agent/AgentSidebarItem.tsx
+import {
+  useCallback as useCallback13,
+  useRef as useRef16,
+  useState as useState22
+} from "react";
+
+// src/agent/sidebarItemStyle.ts
+import { useEffect as useEffect24 } from "react";
+var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
+var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
+var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
+var FI_ITEM_SUBTITLE_CLASS = "fi-sidebar-item-subtitle";
+var FI_ITEM_META_CLASS = "fi-sidebar-item-meta";
+var FI_ITEM_ACTION_CLASS = "fi-item-action";
+var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
+var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
+var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
+var CSS4 = `
+.${FI_SIDEBAR_ITEM_CLASS} {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fi-item-gap, 0.4rem);
+  padding: var(--fi-item-padding, 0.55rem 0.6rem);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover {
+  background: var(--fi-sidebar-item-hover-bg, rgba(255, 255, 255, 0.04));
+}
+.${FI_SIDEBAR_ITEM_CLASS}:focus-visible {
+  box-shadow: 0 0 0 2px var(--glass-chat-accent-from, #059669);
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-selected {
+  background: var(--fi-sidebar-item-selected-bg, rgba(52, 211, 153, 0.08));
+  border-color: var(--fi-sidebar-item-selected-border, rgba(52, 211, 153, 0.3));
+  cursor: default;
+}
+.${FI_SIDEBAR_ITEM_CLASS}.is-editing {
+  cursor: default;
+}
+.${FI_ITEM_BODY_CLASS} {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.${FI_ITEM_TITLE_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_SUBTITLE_CLASS} {
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.${FI_ITEM_META_CLASS} {
+  font-size: 0.68rem;
+  color: var(--fi-sidebar-item-meta-color, #475569);
+}
+.${FI_ITEM_ACTION_CLASS} {
+  border: none;
+  background: transparent;
+  color: var(--fi-sidebar-item-action-color, #64748b);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.${FI_SIDEBAR_ITEM_CLASS}:hover .${FI_ITEM_ACTION_CLASS},
+.${FI_ITEM_ACTION_CLASS}:focus-visible {
+  opacity: 1;
+}
+.${FI_ITEM_ACTION_CLASS}:disabled {
+  cursor: not-allowed;
+  opacity: 0;
+}
+.${FI_ITEM_ACTION_DANGER_CLASS}:hover:not(:disabled) {
+  color: var(--fi-sidebar-item-danger, #f87171);
+}
+@media (pointer: coarse) {
+  .${FI_ITEM_ACTION_CLASS} {
+    opacity: 1;
+  }
+  /* Touch has no hover to reveal actions, so they are always visible \u2014 but
+     inline they steal the row's width (3 \xD7 44px targets left a ~90px title on a
+     390px phone). Wrap them to their own right-aligned line under the body
+     instead: full-width readable title, intact 44px targets. */
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .${FI_ITEM_BODY_CLASS} {
+    flex: 1 1 100%;
+  }
+}
+@container fi-sidebar (max-width: 220px) {
+  .${FI_SIDEBAR_ITEM_CLASS} {
+    padding: var(--fi-item-padding-compact, 0.3rem 0.4rem);
+    gap: var(--fi-item-gap-compact, 0.25rem);
+  }
+  .${FI_ITEM_META_CLASS} {
+    display: none;
+  }
+}
+.${FI_RESOURCE_RENAME_INPUT_CLASS} {
+  font-size: 0.85rem;
+  color: var(--glass-chat-text, #ffffff);
+  background: var(--glass-chat-bg-mid, #0f172a);
+  border: 1px solid var(--glass-chat-accent-from, #059669);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  width: 100%;
+  outline: none;
+}
+`;
+function ensureSidebarItemStyle() {
+  ensureDensityStyle();
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_ITEM_STYLE_ID;
+  el.textContent = CSS4;
+  document.head.appendChild(el);
+}
+function useSidebarItemStyle() {
+  useEffect24(() => {
+    ensureSidebarItemStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarItem.tsx
+import { Fragment as Fragment11, jsx as jsx42, jsxs as jsxs32 } from "react/jsx-runtime";
+function joinClasses(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function ItemActionSlot({
+  label,
+  onActivate,
+  disabled = false,
+  danger = false,
+  className,
+  children
+}) {
+  const cls = withTouchTarget(
+    joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
+  );
+  return /* @__PURE__ */ jsx42(
+    "button",
+    {
+      type: "button",
+      className: cls,
+      "aria-label": label,
+      disabled,
+      onClick: (e) => {
+        e.stopPropagation();
+        if (!disabled) onActivate();
+      },
+      children
+    }
+  );
+}
+function DestructiveActionSlot(props) {
+  return /* @__PURE__ */ jsx42(ItemActionSlot, { ...props, danger: true });
+}
+function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
+  const [editing, setEditing] = useState22(false);
+  const [draft, setDraft] = useState22("");
+  const cancelledRef = useRef16(false);
+  const start = useCallback13(() => {
+    cancelledRef.current = false;
+    setDraft(value);
+    setEditing(true);
+  }, [value]);
+  const cancel = useCallback13(() => {
+    cancelledRef.current = true;
+    setEditing(false);
+  }, []);
+  const commit = useCallback13(() => {
+    if (cancelledRef.current) {
+      cancelledRef.current = false;
+      setEditing(false);
+      return;
+    }
+    if (draft.trim() === "" && emptyPolicy === "keep") {
+      setEditing(false);
+      return;
+    }
+    onRename(draft);
+    setEditing(false);
+  }, [draft, emptyPolicy, onRename]);
+  return {
+    editing,
+    draft,
+    start,
+    cancel,
+    inputProps: {
+      value: draft,
+      maxLength,
+      autoFocus: true,
+      onChange: (e) => setDraft(e.target.value),
+      onBlur: commit,
+      onClick: (e) => e.stopPropagation(),
+      onKeyDown: (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancel();
+        }
+      }
+    }
+  };
+}
+function AgentSidebarItem({
+  selected,
+  onSelect,
+  title,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  editing = false,
+  toggleable = false,
+  ariaLabel,
+  className
+}) {
+  useSidebarItemStyle();
+  const interactive = !disabled && !editing && (toggleable || !selected);
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx42("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  return /* @__PURE__ */ jsxs32(
+    "div",
+    {
+      className: joinClasses(
+        FI_SIDEBAR_ITEM_CLASS,
+        selected && "is-selected",
+        editing && "is-editing",
+        className
+      ),
+      role: "button",
+      tabIndex: 0,
+      "aria-current": selected,
+      "aria-label": ariaLabel,
+      onClick: () => interactive && onSelect(),
+      onKeyDown: (e) => {
+        if ((e.key === "Enter" || e.key === " ") && interactive) {
+          e.preventDefault();
+          onSelect();
+        }
+      },
+      children: [
+        /* @__PURE__ */ jsxs32("div", { className: FI_ITEM_BODY_CLASS, children: [
+          titleNode,
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx42("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx42("span", { className: FI_ITEM_META_CLASS, children: meta })
+        ] }),
+        actions
+      ]
+    }
+  );
+}
+function EditableResourceItem({
+  title,
+  selected,
+  onSelect,
+  onRename,
+  subtitle,
+  meta,
+  actions,
+  disabled = false,
+  maxLength,
+  emptyPolicy,
+  renameLabel,
+  renameInputLabel,
+  renameGlyph = "\u270E",
+  ariaLabel
+}) {
+  const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx42(
+    "input",
+    {
+      className: FI_RESOURCE_RENAME_INPUT_CLASS,
+      "aria-label": renameInputLabel,
+      ...rename.inputProps
+    }
+  ) : title;
+  return /* @__PURE__ */ jsx42(
+    AgentSidebarItem,
+    {
+      selected,
+      onSelect,
+      disabled,
+      editing: rename.editing,
+      ariaLabel,
+      title: titleNode,
+      subtitle,
+      meta,
+      actions: !rename.editing && /* @__PURE__ */ jsxs32(Fragment11, { children: [
+        /* @__PURE__ */ jsx42(
+          ItemActionSlot,
+          {
+            label: renameLabel,
+            disabled,
+            onActivate: rename.start,
+            children: renameGlyph
+          }
+        ),
+        actions
+      ] })
+    }
+  );
+}
+
+// src/agent/sidebarSectionStyle.ts
+import { useEffect as useEffect25 } from "react";
+var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
+var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
+var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
+var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
+var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
+var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
+var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
+var CSS5 = `
+.${FI_SIDEBAR_SECTION_CLASS} {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.${FI_SECTION_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fi-section-head-gap, 0.5rem);
+  padding: var(--fi-section-head-padding, 0.8rem 0.85rem 0.5rem);
+  border-bottom: var(--fi-section-head-border, none);
+}
+.${FI_SECTION_TITLE_CLASS} {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: var(--fi-section-title-size, inherit);
+  color: var(--fi-section-title-color, inherit);
+}
+.${FI_SECTION_CARD_CLASS} {
+  margin: var(--fi-section-card-margin, var(--fi-sidebar-gap, 0.5rem));
+  padding: var(--fi-section-card-padding, var(--fi-space-2, 0.5rem));
+  border: 1px solid var(--fi-section-card-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--fi-radius-section, 12px);
+  background: var(--fi-section-card-bg, transparent);
+}
+.${FI_SECTION_FOOTER_CLASS} {
+  margin-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  padding-top: var(--fi-section-footer-gap, var(--fi-section-gap, 0.5rem));
+  border-top: 1px solid var(--fi-section-divider, rgba(255, 255, 255, 0.06));
+}
+.${FI_SECTION_SCROLL_CLASS} {
+  min-height: 0;
+  overflow-y: auto;
+  /* Content-aware: the list grows by content and only scrolls past this cap.
+     rem-based (NOT vh) so a short viewport never crushes a few rows into a sliver
+     \u2014 the bug 30vh caused. Overridable per-section via the --fi-section-scroll-max
+     var (the maxBlockSize prop sets it inline). */
+  max-block-size: var(--fi-section-scroll-max, 18rem);
+}
+`;
+function ensureSidebarSectionStyle() {
+  ensureDensityStyle();
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SIDEBAR_SECTION_STYLE_ID;
+  el.textContent = CSS5;
+  document.head.appendChild(el);
+}
+function useSidebarSectionStyle() {
+  useEffect25(() => {
+    ensureSidebarSectionStyle();
+  }, []);
+}
+
+// src/agent/AgentSidebarSection.tsx
+import { jsx as jsx43, jsxs as jsxs33 } from "react/jsx-runtime";
+function joinClasses2(...parts) {
+  return parts.filter(Boolean).join(" ");
+}
+function AgentSidebarSection({
+  title,
+  children,
+  actionSlot,
+  emptyState,
+  count,
+  headerSlot,
+  variant = "plain",
+  footerSlot,
+  scrollBehavior = "none",
+  maxBlockSize,
+  ariaLabel,
+  className
+}) {
+  useSidebarSectionStyle();
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx43("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const showEmpty = count === 0 && emptyState != null;
+  const body = showEmpty ? emptyState : children;
+  const scrollStyle = maxBlockSize != null ? {
+    ["--fi-section-scroll-max"]: typeof maxBlockSize === "number" ? `${maxBlockSize}px` : maxBlockSize
+  } : void 0;
+  return /* @__PURE__ */ jsxs33(
+    "section",
+    {
+      className: joinClasses2(
+        FI_SIDEBAR_SECTION_CLASS,
+        variant === "card" && FI_SECTION_CARD_CLASS,
+        className
+      ),
+      "aria-label": ariaLabel,
+      children: [
+        headerSlot ?? /* @__PURE__ */ jsxs33("div", { className: FI_SECTION_HEAD_CLASS, children: [
+          titleNode,
+          actionSlot
+        ] }),
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx43("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx43("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+      ]
     }
   );
 }
 
 // src/persona-selector/PersonaSelector.tsx
 import {
-  useCallback as useCallback12,
-  useEffect as useEffect17,
+  useCallback as useCallback14,
+  useEffect as useEffect26,
   useId as useId4,
-  useRef as useRef13,
-  useState as useState19
+  useRef as useRef17,
+  useState as useState23
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
-import { ChevronDown, Check as Check2 } from "lucide-react";
-import { Fragment as Fragment10, jsx as jsx37, jsxs as jsxs27 } from "react/jsx-runtime";
+import { ChevronDown as ChevronDown2, Check as Check2 } from "lucide-react";
+import { Fragment as Fragment12, jsx as jsx44, jsxs as jsxs34 } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
@@ -5580,15 +6864,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState19(false);
-  const [position, setPosition] = useState19({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef13(null);
-  const contentRef = useRef13(null);
+  const [isOpen, setIsOpen] = useState23(false);
+  const [position, setPosition] = useState23({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef17(null);
+  const contentRef = useRef17(null);
   const reactId = useId4();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
-  const close = useCallback12(() => setIsOpen(false), []);
-  useEffect17(() => {
+  const close = useCallback14(() => setIsOpen(false), []);
+  useEffect26(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -5600,7 +6884,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect17(() => {
+  useEffect26(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -5620,7 +6904,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect17(() => {
+  useEffect26(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -5659,11 +6943,11 @@ function PersonaSelector({
     }
   };
   if (loading) {
-    return renderLoading ? /* @__PURE__ */ jsx37(Fragment10, { children: renderLoading() }) : /* @__PURE__ */ jsx37("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
+    return renderLoading ? /* @__PURE__ */ jsx44(Fragment12, { children: renderLoading() }) : /* @__PURE__ */ jsx44("div", { role: "status", "aria-live": "polite", children: "Cargando..." });
   }
   const selectedPersona = personas.find((p) => getPersonaId(p) === selected);
   const triggerInner = renderTriggerValue ? renderTriggerValue(selectedPersona, isOpen) : selectedPersona && getPersonaLabel ? getPersonaLabel(selectedPersona) : placeholder;
-  const content = isOpen ? /* @__PURE__ */ jsxs27(
+  const content = isOpen ? /* @__PURE__ */ jsxs34(
     "div",
     {
       ref: contentRef,
@@ -5689,7 +6973,7 @@ function PersonaSelector({
           const badge = renderPersonaBadge?.(persona, ctx);
           const meta = renderPersonaMeta?.(persona);
           const description = getPersonaDescription?.(persona);
-          return /* @__PURE__ */ jsxs27(
+          return /* @__PURE__ */ jsxs34(
             "div",
             {
               role: "option",
@@ -5702,19 +6986,19 @@ function PersonaSelector({
               onKeyDown: handleOptionKeyDown,
               className: `${ITEM_BASE} hover:bg-slate-700/60 ${isSelected ? "bg-purple-500/20 border-purple-500/50 border" : "bg-slate-700/30 border border-transparent"}`,
               children: [
-                /* @__PURE__ */ jsxs27("div", { className: "flex items-center gap-2 mb-1", children: [
+                /* @__PURE__ */ jsxs34("div", { className: "flex items-center gap-2 mb-1", children: [
                   renderPersonaIcon?.(persona, ctx),
-                  /* @__PURE__ */ jsx37(
+                  /* @__PURE__ */ jsx44(
                     "span",
                     {
                       className: `font-medium text-sm ${isSelected ? "text-purple-200" : "text-slate-200"}`,
                       children: getPersonaLabel?.(persona) ?? id
                     }
                   ),
-                  isSelected && /* @__PURE__ */ jsx37(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
+                  isSelected && /* @__PURE__ */ jsx44(Check2, { className: "w-4 h-4 fi-text-purple ml-auto" })
                 ] }),
-                description && /* @__PURE__ */ jsx37("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
-                (badge || meta) && /* @__PURE__ */ jsxs27("div", { className: "flex items-center gap-2 flex-wrap", children: [
+                description && /* @__PURE__ */ jsx44("p", { className: "fi-text-xs mb-2 line-clamp-2", children: description }),
+                (badge || meta) && /* @__PURE__ */ jsxs34("div", { className: "flex items-center gap-2 flex-wrap", children: [
                   badge,
                   meta
                 ] })
@@ -5727,8 +7011,8 @@ function PersonaSelector({
       ]
     }
   ) : null;
-  return /* @__PURE__ */ jsxs27("div", { className, "data-persona-root": true, children: [
-    /* @__PURE__ */ jsxs27(
+  return /* @__PURE__ */ jsxs34("div", { className, "data-persona-root": true, children: [
+    /* @__PURE__ */ jsxs34(
       "button",
       {
         ref: triggerRef,
@@ -5742,8 +7026,8 @@ function PersonaSelector({
         className: triggerClassName ?? TRIGGER_DEFAULT,
         children: [
           triggerInner,
-          /* @__PURE__ */ jsx37(
-            ChevronDown,
+          /* @__PURE__ */ jsx44(
+            ChevronDown2,
             {
               className: `h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`
             }
@@ -5757,6 +7041,11 @@ function PersonaSelector({
 export {
   AUDIO_QUEUE_DEFAULTS,
   ActionMenu,
+  AgentConversationSurface,
+  AgentPanel,
+  AgentSidebarItem,
+  AgentSidebarSection,
+  AgentWorkspaceShell,
   AudioDraftPlayer,
   AudioPlayer,
   AudioQueueItem,
@@ -5765,18 +7054,10 @@ export {
   AudioVisualizer,
   AutoResizeTextarea,
   BUTTON_SIZES,
-  CHAT_BREAKPOINTS,
   COLOR_THEMES,
   COMPOSER_IMAGE_ACCEPT,
   COMPOSER_IMAGE_MEDIA_TYPES,
-  ChatContent,
   ChatFilePreview,
-  ChatStartScreen,
-  ChatSurface,
-  ChatToolbar,
-  ChatWidget,
-  ChatWidgetContainer,
-  ChatWidgetHeader,
   CollapsibleText,
   Composer,
   ComposerActions,
@@ -5785,10 +7066,25 @@ export {
   ComposerMicSlot,
   CopyButton,
   DEFAULT_MAX_IMAGES,
+  DEFAULT_TURN_TIMEOUT_MS,
   DEFAULT_VAD_CONFIG,
+  DestructiveActionSlot,
+  EditableResourceItem,
+  FI_ITEM_ACTION_CLASS,
+  FI_ITEM_META_CLASS,
+  FI_ITEM_SUBTITLE_CLASS,
+  FI_ITEM_TITLE_CLASS,
   FI_MSG_ACTIONS_CLASS,
+  FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SECTION_CARD_CLASS,
+  FI_SECTION_FOOTER_CLASS,
+  FI_SECTION_HEAD_CLASS,
+  FI_SECTION_SCROLL_CLASS,
+  FI_SECTION_TITLE_CLASS,
+  FI_SIDEBAR_ITEM_CLASS,
+  FI_SIDEBAR_SECTION_CLASS,
   FI_TOUCH_TARGET_CLASS,
-  FloatingButton,
+  ItemActionSlot,
   MessageAuthorHeader,
   MessageBubble,
   MessageContent,
@@ -5796,6 +7092,7 @@ export {
   MessageList,
   MessageModelBadge,
   PersonaSelector,
+  PlanChecklist,
   PulseRings,
   RESONANCE_INITIAL_STATE,
   RecordingButton,
@@ -5803,27 +7100,30 @@ export {
   RichAudioPlayer,
   STATUS_TEXT_EN,
   STATUS_TEXT_ES,
+  ScrollToBottomButton,
+  SourcesPanel,
   SpeakButton,
   StatusText,
+  StepsPanel,
   VoiceMicButton,
   artifactLabel,
+  classifyTool,
   clearMediaQueryCache,
   createAudioCuePlayer,
   createAudioPlayer,
   createResonanceCallController,
   createResonanceCueController,
   createResonanceVadGate,
-  defaultAnimationConfig,
-  defaultBehavior,
-  defaultChatConfig,
+  defaultAgentIcons,
   defaultMessageBadge,
   defaultMessageHeader,
-  defaultTheme,
-  defaultTimestampConfig,
   dispatchEffect,
   effectForState,
   ensureComposerFrameStyle,
+  ensureDensityStyle,
   ensureMessageActionsStyle,
+  ensureSidebarItemStyle,
+  ensureSidebarSectionStyle,
   ensureTouchTargetStyle,
   formatArtifactDuration,
   formatArtifactSize,
@@ -5833,32 +7133,40 @@ export {
   isPending,
   isTerminal2 as isResonanceTerminal,
   isTerminal,
+  latestOpenToolIndex,
   makeArtifactId,
   makeRecorder,
   markdownStyles,
-  mergeChatConfig,
   mergeWavBlobs,
   messageStyles,
   normalizeLevels,
   normalizeStreamedMarkdown,
   resampleLevels,
+  resolveIcons,
   resonanceCallReducer,
   resonanceCuePolicy,
+  shortToolName,
+  toolIcon,
+  toolVisualStatus,
+  useAgentConversation,
   useAudioAnalysis,
   useAudioPlayer,
   useAudioQueue,
   useAudioQueueStore,
   useBreakpoints,
-  useChatWidgetState,
   useComposerFrameStyle,
   useComposerImages,
+  useDensityStyle,
   useDictation,
   useDurableRecording,
   useImagePicker,
+  useInlineRename,
   useMediaQuery,
   useMessageActionsStyle,
   useRecorder,
   useResonanceCallLoop,
+  useSidebarItemStyle,
+  useSidebarSectionStyle,
   useTouchTargetStyle,
   useVoice,
   withTouchTarget
