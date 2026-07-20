@@ -6,7 +6,7 @@ from .listen import roster
 from .listen.applog import MIRRORS, _now, append
 from .listen.config import DSN, HOST, LOG, PORT
 from .listen.net import handle
-from .listen.pen import Pen, run as pen_run
+from .listen.pen import Pen
 from .listen.tasks import spawn
 
 
@@ -14,7 +14,7 @@ async def main() -> None:
     if DSN:
         pen = Pen(DSN)
         MIRRORS.append(pen.write)
-        spawn(pen_run(pen))
+        spawn(pen.run())
         await roster.start()
     server = await asyncio.start_server(handle, HOST, PORT)
     append(f"{_now()} - LISTENING {HOST}:{PORT}")
