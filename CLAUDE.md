@@ -119,6 +119,8 @@ memory. To contradict anything here, verify it first the same way.
 - **The device verbs (MKDIR/ALLOW/REVOKE) and the whitelist** are a frozen
   contract with a persistence model — see
   [`.claude/rules/device-verb-protocol.md`](.claude/rules/device-verb-protocol.md).
+- **No `.py`/`.sh`/`.yml` file over 30 lines** — the thirty-line law, specific to
+  this repo: [`.claude/rules/thirty-line-law.md`](.claude/rules/thirty-line-law.md).
 - **Verify against the code, not the docs and not your memory.** This repo already
   produced three false claims that only source code disproved.
 - **Bernard distinguishes learning from building.** When he is understanding something,
