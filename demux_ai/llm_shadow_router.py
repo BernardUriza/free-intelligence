@@ -23,6 +23,7 @@ WITHOUT importing any persona package.
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -198,23 +199,47 @@ class DirectAzureLLMRouter:
         measuring). Raises on a hard API failure — the caller wraps it so a shadow
         fault stays invisible to the turn."""
         client = self._ensure_client()
-        resp = await client.chat.completions.create(  # type: ignore[attr-defined]
-            model=self._deployment,
-            messages=[
-                {"role": "system", "content": _routing_instruction()},
-                {"role": "user", "content": _compose_route_input(text, context)},
-            ],
-            max_tokens=16,
-            temperature=0,
-        )
+        start = time.monotonic()
+        try:
+            resp = await client.chat.completions.create(  # type: ignore[attr-defined]
+                model=self._deployment,
+                messages=[
+                    {"role": "system", "content": _routing_instruction()},
+                    {"role": "user", "content": _compose_route_input(text, context)},
+                ],
+                max_tokens=16,
+                temperature=0,
+            )
+        except Exception as e:
+            log.warning(
+                "host_router_llm_error",
+                model=self._deployment,
+                error_type=type(e).__name__,
+                error_msg=str(e)[:200],
+                latency_ms=int((time.monotonic() - start) * 1000),
+                backend="azure_direct",
+            )
+            raise
+        latency_ms = int((time.monotonic() - start) * 1000)
         out = resp.choices[0].message.content or ""
         target, reason = _parse_target(out)
         usage = resp.usage
+        input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        log.info(
+            "host_router_llm_response",
+            model=self._deployment,
+            target=target,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            backend="azure_direct",
+        )
         return LLMShadowDecision(
             target=target,
             reason=reason,
-            input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
-            output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             effort=_parse_effort(out),
         )
 

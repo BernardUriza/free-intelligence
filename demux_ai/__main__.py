@@ -15,6 +15,10 @@ if __name__ == "__main__":
     if arg != "host":
         print(f"unknown command: {arg}\nusage: python -m demux_ai host", file=sys.stderr)
         sys.exit(2)
+    from shared.logging_setup import configure_structlog
+
+    configure_structlog()
+
     from demux_ai.host_client import run_host
     from demux_ai.llm_shadow_router import DirectAzureLLMRouter
 

@@ -12,6 +12,7 @@ SHADOW only (logged next to ``current_target``, never acted on, no cutover).
 from __future__ import annotations
 
 import pytest
+import structlog
 
 import demux_ai.llm_shadow_router as llm_shadow_router
 from demux_ai.llm_shadow_router import DirectAzureLLMRouter, LLMShadowDecision, LLMShadowRouter
@@ -370,3 +371,45 @@ def test_routing_instruction_gives_personal_disclosure_back_to_the_host():
     assert "does not keep the floor" in instr
     assert "disclosure" in instr
     assert "presión" in instr  # the counter-example, verbatim from the eval
+
+
+# --- Observability: the ONLY live router must log its own decision -----------
+# The A.2.3 window went dark post-cutover because `host_router_llm_response`
+# lived only in the retired Codex backend — the DirectAzureLLMRouter routed
+# 100+ turns with zero latency/token telemetry. These pin the emitter to the
+# live path so the measurement window has an instrument.
+
+
+class _ExplodingCompletions:
+    async def create(self, **kwargs):
+        raise RuntimeError("azure down")
+
+
+@pytest.mark.asyncio
+async def test_direct_route_logs_host_router_llm_response():
+    client = _FakeAzureClient("vultur", prompt_tokens=142, completion_tokens=1)
+    router = DirectAzureLLMRouter(client=client)
+    with structlog.testing.capture_logs() as logs:
+        await router.route("reseña de Hereditary")
+    events = [entry for entry in logs if entry["event"] == "host_router_llm_response"]
+    assert len(events) == 1
+    entry = events[0]
+    assert entry["target"] == "vultur"
+    assert entry["input_tokens"] == 142
+    assert entry["output_tokens"] == 1
+    assert entry["backend"] == "azure_direct"
+    assert isinstance(entry["latency_ms"], int)
+    assert entry["latency_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_direct_route_logs_host_router_llm_error_and_reraises():
+    client = _FakeAzureClient("insult")
+    client.chat.completions = _ExplodingCompletions()
+    router = DirectAzureLLMRouter(client=client)
+    with structlog.testing.capture_logs() as logs, pytest.raises(RuntimeError):
+        await router.route("hola")
+    events = [entry for entry in logs if entry["event"] == "host_router_llm_error"]
+    assert len(events) == 1
+    assert events[0]["error_type"] == "RuntimeError"
+    assert events[0]["backend"] == "azure_direct"
