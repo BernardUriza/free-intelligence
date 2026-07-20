@@ -1,7 +1,26 @@
 # The casita is not a cage — an agent can read the daemon's secrets
 
-Status: Proposed — **the most serious open finding** (2026-07-20)
+Status: **Fixed 2026-07-20** (`e2ff4f7`) — verified live. The daemon still runs
+as root (that half stays Bernard's infra call), but a `PreToolUse` hook now cages
+every file tool to the casita, so root-ness no longer means an agent can roam.
 Proposed: 2026-07-20 by Claude (measured, not theorised)
+
+## What shipped, and the correction it forced
+
+The canonical fix named below (`SandboxSettings`) turned out to be WRONG when
+checked against the SDK source: SandboxSettings confines only bash. Its docstring
+sends filesystem reads to a permission gate. The first attempt used the
+`can_use_tool` callback — and a live test disproved it: under `acceptEdits` a
+`Read` is auto-allowed, the callback never fires, and the agent read
+`/etc/aire/env` straight through it. The gate that actually holds is a
+**`PreToolUse` hook** (`engine/cage.py`), which runs before every matched tool
+regardless of permission mode. Verified live: `Read /etc/aire/env` → *"denied:
+… outside the casita"*, `Write /tmp/fuera.md` → denied, `Write hola.md` in the
+casita → created. Disk confirmed: no secret leaked, `/tmp` untouched.
+
+The CLAUDE.md claim that "SandboxSettings confines the agent" was corrected the
+same commit — it was the fourth false claim this repo's own rule warns about,
+caught by verifying against the source.
 
 ## What it is
 
