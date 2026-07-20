@@ -502,11 +502,13 @@ class PersonaClient(discord.Client):
     ) -> None:
         """Entry point for the gateway's ported /invite handler.
 
-        Routes through the persona-runner (this persona's brain). Insult's
-        ``reason`` is injected as the FRESHEST turn — instruction context, not a
-        visible user message — so the persona reads the thread and responds with
-        the lens the reason asks for. No user turn is stored (there is none; Insult
-        already wrote the message that triggered it).
+        Routes through the persona-runner (this persona's brain). The ``reason``
+        is injected as the FRESHEST turn — instruction context, not a visible
+        user message — so the persona reads the thread and responds with the
+        lens the reason asks for. When the trigger is a real human message
+        (every host-routed turn post-cutover), that user turn IS stored —
+        idempotently by discord_message_id — so the longitudinal memory keeps
+        both halves of the conversation.
         """
         channel = await resolve_messageable(self, channel_id)
         if channel is None:
@@ -564,6 +566,33 @@ class PersonaClient(discord.Client):
             subject = react_to.author
         subject_user_id = str(subject.id) if subject is not None else None
         subject_ask = (react_to.content or "").strip() if react_to is not None else ""
+
+        # Persist the HUMAN trigger turn. The original /invite was Insult-initiated
+        # (no user message existed), but post-cutover the invite IS the main path
+        # and the trigger is a real human message — without this store the
+        # longitudinal memory records only the personas' half of every #general
+        # conversation (found 2026-07-19: zero user rows since the cutover), and
+        # vision's append_content_by_discord_id has no row to land on. The repo's
+        # ON CONFLICT (discord_message_id) DO NOTHING makes this idempotent
+        # against any path that already stored the same message.
+        if subject is not None and subject_user_id is not None and (subject_ask or attachment_blocks):
+            try:
+                await self.memory.store(
+                    channel_id,
+                    subject_user_id,
+                    subject.display_name,
+                    "user",
+                    subject_ask,
+                    guild_id=guild_id,
+                    channel_name=channel_name,
+                    discord_message_id=str(react_to.id) if react_to is not None else None,
+                )
+            except Exception:
+                log.exception(
+                    "persona_gateway_invite_user_store_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                )
 
         relevant = await self._load_relevant(channel_id, subject_ask or reason)
         context = format_context(self.memory.build_context(recent, relevant))
