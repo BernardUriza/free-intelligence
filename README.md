@@ -10,7 +10,7 @@ AIRE is being built in two layers, deliberately in this order:
 1. **The chassis — running today on a DigitalOcean droplet.** A bare TCP daemon
    that accepts connections and appends every line to a greppable log. No AI in
    it, on purpose.
-2. **The intelligence — in the repo, waking up next.** An HTTP server that wraps
+2. **The intelligence — awake since 2026-07-20.** An HTTP server that wraps
    the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
    mirrors each session's memory into **your** Postgres, and speaks only
    events (SSE) — the daemon never returns HTML; every view lives in the
@@ -59,10 +59,23 @@ The droplet answers to **two** kinds of caller, and they are not the same door:
 | | **The SSH door** | **The AIRE door** |
 |---|---|---|
 | How | `ssh -t` + `tmux` + the `claude` CLI | `POST /projects/{p}/sessions/{s}/messages` (SSE) |
-| Who | a human, in a terminal | your apps |
+| Who | **a human, in a terminal — only** | your apps, and every agent |
 | Surface | the Claude Code TUI, live, remote | events; the front renders them |
-| Memory | the droplet's disk (`~/.claude`) — **mortal** | Postgres, in the owner's database — **deathless** |
-| Casita | `workspaces/<name>/` | `workspaces/<project>/` (same idea, engine-owned) |
+| Memory | the disk, mirrored every minute → **deathless** | Postgres, written directly → **deathless** |
+| Casita | `workspaces/{ts}_{uuid}_{name}/` (MKDIR) | `workspaces/<project>/`, or an existing casita by name |
+
+**One memory, two doors** (2026-07-20). The SSH door's transcript is no longer
+mortal: `mirror.py` carries it to `claude_session_store` every minute and
+`restore.py` re-materializes it on a fresh box (backlog #17). And the AIRE door
+can now **continue a session the CLI started** — a session name that already is
+a UUID is honoured verbatim, and a project may name an existing casita, so the
+`project_key` lands exactly where the CLI wrote. Verified live: a session born
+in tmux answered over HTTP with its full memory.
+
+**An agent NEVER drives the daemon through SSH.** Reaching for SSH is the tell
+of a missing endpoint — build the endpoint and use it
+([`.claude/rules/ssh-is-a-missing-endpoint.md`](.claude/rules/ssh-is-a-missing-endpoint.md)).
+SSH may operate the body; it is Bernard's own terminal, not an agent's API.
 
 **The SSH door** is the "my Mac, but in the cloud" experience: the real Claude
 Code interface running in NYC, painted to your terminal. Long tasks must run
@@ -75,11 +88,12 @@ ssh -t -i ~/.ssh/aire_vm root@<IP> \
 # Ctrl-q detaches (it keeps working); the same command re-attaches.
 ```
 
-**Honest caveat — the SSH door is NOT deathless.** Its transcript lives on the
-droplet's disk, so killing the box loses that conversation (the artifacts on
-`workspaces/` too — fetch them by hand, EC-GPS style). Only sessions that come
-in through the AIRE door mirror their memory to Postgres. Wiring the SSH door
-into the same store is backlog #17.
+**Honest caveat — the ARTIFACTS are still mortal.** The transcript survives the
+box, but what the agent WRITES lives on `workspaces/` and dies with the droplet:
+fetch it by hand, EC-GPS style (decision #3). Proven the hard way on 2026-07-20 —
+a re-provisioned droplet came back with the ants book's folder empty; the session
+resumed from Postgres, rebuilt volume 1 from its own memory, and then wrote
+volume 2.
 
 ## Where the shape comes from
 
@@ -87,12 +101,12 @@ EC-GPS: a GPS-tracking machine that has printed money for two decades with a
 Perl daemon, an append-only table, and a console that only reads. AIRE is that
 machine, piece by piece — full story in [`server/docs/genesis.md`](server/docs/genesis.md):
 
-| EC-GPS | AIRE today | AIRE next |
-|---|---|---|
-| GPS receivers push over GPRS | demo device pushes over TCP | apps push prompts over HTTP |
-| Perl daemon on a port | `server/aire/listener.py` on :9099 | the engine that owns the SDK |
-| writes `gps_logs`, append-only | appends to `aire.log` (+ the pen → Postgres) | mirrors the transcript to Postgres |
-| PHP console reads and displays | `ssh` + `grep` | aire-front (separate repo) paints it |
+| EC-GPS | AIRE today (every row landed 2026-07-20) |
+|---|---|
+| GPS receivers push over GPRS | apps push prompts over HTTP (:8088), devices push lines over TCP (:9099) |
+| Perl daemon on a port | `server/aire/listener.py` + the engine that owns the SDK |
+| writes `gps_logs`, append-only | appends to `aire.log` AND mirrors the transcript to Postgres |
+| PHP console reads and displays | `front/` paints it (`/claude`: folder → session → transcript) |
 
 Same skeleton; the parsing step becomes reasoning. The log and the socket are
 eternal — AI is just the *transform* (the repo's law:
@@ -144,10 +158,11 @@ missing glue around the SDK, callable from any language.
 | Droplet + listener + CI/CD + costwatch + broom | ✅ **Live** 24/7 (the demo device is retired — it proved the chassis) |
 | The pen — log mirrored to Postgres | ✅ Live behind `AIRE_DATABASE_URL` |
 | Postgres session store (`aire/store.py`) | ✅ SDK conformance suite green (local) |
-| Engine + SSE events (`aire/engine.py`, `server.py`) | ✅ **Live** on the droplet :8088, Bearer-gated, budget-capped |
-| The console — [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed), the read half | ✅ **Live** on Container Apps ([open it](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io)) — tables, browse, SQL console, the monster. Behind HTTP Basic, reading as `aire_reader` (`GRANT SELECT` only) |
-| **The tracer that proves the thesis** — chapter 1 → kill the process → chapter 2 remembers | ⏳ **Next** (backlog #5) |
-| The broom (retention, backups, metrics) | Backlog |
+| Engine + SSE events (`aire/engine/`, `server.py`) | ✅ **Live** on the droplet :8088, Bearer-gated. `mode=agent` writes real files (fixed 2026-07-20: `bypassPermissions` is refused as root and had killed every agent turn) |
+| The console — `front/`, the read half of this monorepo | ✅ **Live** on Container Apps ([open it](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io)) — tables, browse, SQL console, the monster, and `/claude` (folder → session → transcript). Behind HTTP Basic, reading as `aire_reader` (`GRANT SELECT` only) |
+| **The tracer that proves the thesis** — write → kill the box → remember | ✅ **Done 2026-07-20** (backlog #5), and not simulated: the droplet was re-provisioned, `workspaces/` came back EMPTY, and the resumed session rebuilt volume 1 of the ants book from its Postgres memory before writing volume 2. Two books now live in the store, both readable at `/claude` |
+| The broom (retention, backups, metrics) | Partly live — sweep + logrotate run; backups and metrics are backlog |
+| Honest defect — the per-turn budget cap | ⚠️ `max_budget_usd` caps the pooled CLIENT, and a cut turn returns an empty result with **no error** (backlog #23) |
 
 Roadmap: [`.claude/backlog/`](.claude/backlog/README.md). Agent context:
 [`CLAUDE.md`](CLAUDE.md). Story and pitch: [`docs/`](docs/).

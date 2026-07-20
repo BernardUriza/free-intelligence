@@ -38,10 +38,10 @@ memory. To contradict anything here, verify it first the same way.
    shipped here and scared him — that surface was reverted the same hour). The old
    "the server is the interface / streaming SSR" thesis is DEAD in this repo: the
    daemon's only mouths are `/health` (JSON) and the message endpoint (SSE events).
-   **Every human-facing view — live or stored — lives in the front repo**
-   ([`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed), which
-   EXISTS and is live), which may render the daemon's SSE stream however it wants.
-   Do not re-propose SSR-from-the-daemon (Art. 7).
+   **Every human-facing view — live or stored — lives in [`front/`](front/)**
+   (this monorepo's other half, live on Container Apps), which may render the
+   daemon's SSE stream however it wants. Do not re-propose SSR-from-the-daemon
+   (Art. 7).
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
 3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE
@@ -51,13 +51,15 @@ memory. To contradict anything here, verify it first the same way.
    configured FROM OUTSIDE, at the user layer** — an MCP wired in via the API with the
    *user's own account* (personal or work), never as an identity baked into the server.
 4. **The container stores nothing.** `CLAUDE_CONFIG_DIR=/tmp`.
-5. **This repo is WRITE-ONLY toward the database.** Every read — rendering,
-   analytics, dashboards, session browsing — lives in the front repo, which now
-   EXISTS: [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed)
-   (the PHP of EC-GPS, Next.js SSR,
+5. **The `server/` half is WRITE-ONLY toward the database.** Every read —
+   rendering, analytics, dashboards, session browsing — lives in
+   [`front/`](front/) (the PHP of EC-GPS, Next.js SSR,
    [live](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io);
-   backlog #15). The one sanctioned exception here is the SDK's
-   `session_store.load()` for resume (the agent reading its own memory). Full law:
+   backlog #15, merged here by #20). Its `/claude` view is the one Bernard
+   asked for: a link per folder → its sessions → the transcript rendered as
+   Claude Code reads. The sanctioned exceptions here are the SDK's
+   `session_store.load()` for resume (the agent reading its own memory) and the
+   device roster the socket must enforce. Full law:
    [`.claude/rules/write-only-daemon.md`](.claude/rules/write-only-daemon.md).
    **The one thing the front makes THIS repo's problem:** the reader (`aire_reader`,
    `GRANT SELECT` only) sees *future* tables through
@@ -104,7 +106,21 @@ memory. To contradict anything here, verify it first the same way.
   The "container that doesn't self-modify" is **config, not infra**.
 - **`Stop` hook** → where end-of-job actions go. (The old `git commit && push` idea is
   parked until git exists as a user-layer MCP — see backlog #12; today: nothing.)
-- **`max_budget_usd`** → hard spend cap per query.
+- **`max_budget_usd` caps the CLIENT, NOT the query** — measured 2026-07-20 on the
+  droplet, contradicting the obvious reading. A pooled `ClaudeSDKClient` that reaches
+  the ceiling is **poisoned**: every later turn dies instantly with an EMPTY `result`
+  (0 output tokens, no tool calls, the same cost echoed back) and **no error event**,
+  so a cut turn is indistinguishable from success. Dropping the pool revives it.
+  Backlog #23.
+- **`permission_mode="bypassPermissions"` is REFUSED when the process runs as root**
+  (the same guard as the CLI's `--dangerously-skip-permissions`), and the daemon runs
+  as root: it made every `mode=agent` turn die with `ProcessError` exit 1 while
+  `mode=complete` stayed green — a defect invisible to `/health`. `acceptEdits` is the
+  mode that works, and it honours `allowed_tools`, which bypass left decorative.
+- **A session name that is already a UUID must be honoured verbatim** (`keys.py`), and a
+  project may name an EXISTING casita (128-char allowlist). That is what lets the AIRE
+  door continue a session the CLI started: same `cwd` → same `project_key` → the store
+  finds the memory. **One memory, two doors** — verified live 2026-07-20.
 
 ## Discarded routes (don't re-propose them)
 

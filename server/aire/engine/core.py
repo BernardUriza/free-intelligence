@@ -19,9 +19,14 @@ from .pool import Pool
 
 WORKSPACES = Path(os.environ.get(
     "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
-# The SDK's max_budget_usd caps ONE turn. AIRE_MAX_SPEND_USD is a cumulative
-# backstop over the process lifetime — when crossed, turns are refused BEFORE
-# they reach the API. Unset → no ceiling (dev). Resets on restart.
+# CAREFUL — measured 2026-07-20, and it is NOT what the SDK docs suggest:
+# max_budget_usd caps the CLIENT's cumulative spend, not one turn. A pooled
+# client that reaches it is poisoned: every later turn dies instantly with an
+# EMPTY result (output 0, no tools, the same cost echoed) and no error event.
+# Dropping the pool (a restart) is what revives it. Backlog #23.
+# AIRE_MAX_SPEND_USD is this engine's own cumulative backstop over the process
+# lifetime — when crossed, turns are refused BEFORE they reach the API, with a
+# real BudgetExceeded. Unset → no ceiling (dev). Resets on restart.
 MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
 
 

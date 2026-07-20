@@ -8,7 +8,7 @@
 | 2 | An HTTP server with the `session_store` wired in (what the official cookbook lacks) | Done — `aire/server.py` (own server, cookbook as reference; auth still pending) |
 | 3 | `project_id` → `cwd` + `CLAUDE_CONFIG_DIR` per project (the cookbook hardcodes it to `/app`) | Done — `Engine._cwd` + `AIRE_ISOLATE_CONFIG` |
 | 4 | Deterministic `uuid5` from the name → goodbye `hosting_session_map.json` and the in-RAM dict | Done — `aire/keys.py` |
-| **5** | **Tracer: chapter 1 → kill the container → chapter 2 reads chapter 1 from Postgres** | **Proposed** |
+| **5** | **Tracer: chapter 1 → kill the container → chapter 2 reads chapter 1 from Postgres** | **Done 2026-07-20 — and NOT simulated.** The droplet was re-provisioned, so the ants book's casita came back EMPTY on disk. The resumed session announced *"Restauro primero el Volumen 1 completo desde memoria"*, rebuilt all 10 chapters from its Postgres transcript, then wrote volume 2 (8 new chapters, ~22,700 words). The body died; the memory did not |
 
 ## The broom (so the garbage stays manageable)
 
