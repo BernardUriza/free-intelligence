@@ -455,6 +455,124 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
 }
 
 /**
+ * ConversationState — the reduced state of a whole agentic CONVERSATION (the
+ * thread across turns), plus the pure `applyConversationEvent` reducer that
+ * derives it.
+ *
+ * Sibling of {@link ./state} one level up: `AgentTurnState` reduces the wire
+ * events of ONE streaming turn; this reduces the lifecycle of the conversation
+ * those turns live in — the optimistic push, the fold, the revert that hands the
+ * user's words back, the recoverable-failure banners, persistence bookkeeping.
+ *
+ * WHY IT MOVED HERE (framework-first-canary, the demotion's mirror): fi-glass's
+ * `useAgentConversation` held this logic across 7 `useState` + 10 `useRef` in a
+ * 575-line hook, so the rules of the machine — "a failed turn must never cost
+ * the user their words", "an optimistic push is not a confirmed turn" — could
+ * only be exercised by mounting React and driving a fake transport. They are not
+ * React rules; they are conversation rules, identical for every shell. Here they
+ * are one value and one function, testable with plain assertions.
+ *
+ * Pure: no React, no transport, no timers, no I/O. Immutable: every event
+ * returns a new state object. Time enters as an EVENT (`turn_timeout`), never as
+ * a clock read — same discipline as the turn reducer's heartbeat counter.
+ */
+
+/** Why a turn failed, in terms a shell can render a recovery banner from. */
+interface TurnFailure {
+    kind: 'stream' | 'timeout';
+    message: string;
+}
+/**
+ * What a failed turn hands back so the shell can restore it into the composer.
+ * Carries the WHOLE message: returning only the text let a shell re-send a
+ * prompt whose images had silently ceased to exist.
+ */
+interface UnsentDraft {
+    text: string | null;
+    images: MessageImage[] | null;
+}
+/** The reduced state of the conversation. */
+interface ConversationState {
+    /** The visible thread. */
+    messages: ChatMessage[];
+    /** Set while an optimistically-pushed turn is still in flight; gates the fold. */
+    pending: boolean;
+    /** A recoverable turn failure the shell renders instead of a zombie panel. */
+    failure: TurnFailure | null;
+    /** True once a turn timed out; keeps the watchdog from re-arming on it. */
+    timedOut: boolean;
+    /** What a failed turn handed back, for the shell to restore. */
+    unsent: UnsentDraft;
+    /** The last send, replayed verbatim by a retry (text AND images). */
+    lastSent: {
+        text: string;
+        images?: MessageImage[];
+    } | null;
+    /**
+     * True when the current `messages` change is NOT a confirmed, settled turn
+     * (the mount seed, a conversation switch, the optimistic push). A shell
+     * persists only when this is false, so a failed turn never leaves a durable
+     * lone user message.
+     */
+    skipPersist: boolean;
+}
+type ConversationEvent = 
+/** The user sent. `controlled` shells do not get an optimistic push. */
+{
+    type: 'send';
+    text: string;
+    images?: MessageImage[];
+    author: MessageAuthor;
+    controlled: boolean;
+}
+/** The transport finished cleanly. Folds the assistant turn in. */
+ | {
+    type: 'turn_settled';
+    turn: AgentTurnState;
+    author: MessageAuthor;
+    controlled: boolean;
+}
+/**
+ * The transport reported failure. `appHandled` means the app renders its own
+ * banner for this error class (e.g. a 401 token gate), so the generic
+ * recoverable failure is suppressed — the revert still happens either way.
+ */
+ | {
+    type: 'turn_failed';
+    message?: string;
+    controlled: boolean;
+    appHandled?: boolean;
+}
+/** The idle watchdog fired. Time as an event keeps the reducer pure. */
+ | {
+    type: 'turn_timeout';
+    controlled: boolean;
+} | {
+    type: 'dismiss_failure';
+}
+/** The shell restored `unsent` into its composer. */
+ | {
+    type: 'clear_unsent';
+}
+/** Load a different conversation (or start a fresh one). */
+ | {
+    type: 'hydrate';
+    messages: ChatMessage[];
+}
+/**
+ * The shell CONSUMED the skip: it saw `skipPersist` and declined to persist
+ * this change. One-shot — the flag clears so the NEXT confirmed change
+ * persists normally. (Getting this backwards makes the shell skip forever and
+ * nothing is ever saved.)
+ */
+ | {
+    type: 'persist_skip_consumed';
+};
+declare function initialConversationState(seed?: ChatMessage[]): ConversationState;
+/** Pure reducer: apply one conversation event, returning a new state. */
+declare function applyConversationEvent(state: ConversationState, event: ConversationEvent): ConversationState;
+
+/**
  * Transcript bridge — fold the live agentic turn into flat chat messages.
  *
  * Pure, framework-agnostic (no React, no transport). The agent contract models
@@ -955,4 +1073,4 @@ interface OrganizedConversations {
  */
 declare function organizeConversationSummaries(summaries: ConversationSummary[]): OrganizedConversations;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationLibrary, type ConversationRecord, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };

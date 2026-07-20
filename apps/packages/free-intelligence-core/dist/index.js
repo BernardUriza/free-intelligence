@@ -157,6 +157,100 @@ function foldAssistantTurn(turn, defaultAuthor) {
   };
 }
 
+// src/agent/conversation-state.ts
+function initialConversationState(seed = []) {
+  return {
+    messages: seed,
+    pending: false,
+    failure: null,
+    timedOut: false,
+    unsent: { text: null, images: null },
+    lastSent: null,
+    // The mount seed is not a confirmed turn.
+    skipPersist: true
+  };
+}
+var NO_DRAFT = { text: null, images: null };
+function revertOptimistic(state, controlled) {
+  if (controlled) return state;
+  const last = state.messages[state.messages.length - 1];
+  if (last?.role !== "user") return state;
+  return {
+    ...state,
+    messages: state.messages.slice(0, -1),
+    unsent: {
+      text: last.content,
+      images: last.images && last.images.length > 0 ? last.images : null
+    }
+  };
+}
+function applyConversationEvent(state, event) {
+  switch (event.type) {
+    case "send": {
+      const text = event.text.trim();
+      const images = event.images && event.images.length > 0 ? event.images : void 0;
+      if (!text && !images) return state;
+      const next = {
+        ...state,
+        pending: true,
+        failure: null,
+        timedOut: false,
+        // A new send supersedes any draft still waiting to be recovered.
+        unsent: NO_DRAFT,
+        lastSent: { text, ...images ? { images } : {} },
+        // The optimistic push is not a confirmed turn.
+        skipPersist: true
+      };
+      if (event.controlled) return next;
+      return {
+        ...next,
+        messages: [...state.messages, makeUserMessage(text, event.author, images)]
+      };
+    }
+    case "turn_settled": {
+      if (!state.pending) return state;
+      const base = { ...state, pending: false };
+      if (event.controlled || !event.turn.text) return base;
+      return {
+        ...base,
+        messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
+        // A settled turn IS confirmed — this one gets persisted.
+        skipPersist: false
+      };
+    }
+    case "turn_failed": {
+      if (!state.pending) return state;
+      const reverted = revertOptimistic({ ...state, pending: false }, event.controlled);
+      if (event.appHandled) return reverted;
+      return {
+        ...reverted,
+        failure: {
+          kind: "stream",
+          message: event.message || "La respuesta fall\xF3. Intenta de nuevo."
+        }
+      };
+    }
+    case "turn_timeout": {
+      if (!state.pending || state.timedOut) return state;
+      return {
+        ...revertOptimistic({ ...state, pending: false }, event.controlled),
+        timedOut: true,
+        failure: { kind: "timeout", message: "La respuesta tard\xF3 demasiado. Intenta de nuevo." }
+      };
+    }
+    case "dismiss_failure":
+      return state.failure === null ? state : { ...state, failure: null, timedOut: false };
+    case "clear_unsent":
+      return state.unsent.text === null && state.unsent.images === null ? state : { ...state, unsent: NO_DRAFT };
+    case "hydrate":
+      return { ...initialConversationState(event.messages), lastSent: state.lastSent };
+    case "persist_skip_consumed":
+      return state.skipPersist ? { ...state, skipPersist: false } : state;
+    default:
+      return state;
+  }
+}
+
 // src/conversation/helpers.ts
 var CONVERSATION_SCHEMA_VERSION = 1;
 var DEFAULT_TITLE = "New chat";
@@ -286,12 +380,14 @@ function organizeConversationSummaries(summaries) {
 export {
   CONVERSATION_SCHEMA_VERSION,
   applyAgentEvent,
+  applyConversationEvent,
   createConversationRecord,
   deriveConversationPreview,
   deriveConversationTitle,
   filterConversationSummaries,
   foldAssistantTurn,
   initialAgentTurnState,
+  initialConversationState,
   makeUserMessage,
   organizeConversationSummaries,
   renameConversationRecord,

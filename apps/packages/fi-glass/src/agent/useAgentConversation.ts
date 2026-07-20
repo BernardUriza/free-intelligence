@@ -61,13 +61,15 @@
  *    insult_ai, aurity) are untouched.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   type AgentHook,
   type AgentTurnState,
   type ChatMessage,
   type MessageAuthor,
   type MessageImage,
+  applyConversationEvent,
+  initialConversationState,
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
@@ -265,9 +267,25 @@ export function useAgentConversation(
   // the transcript. `externalMessages` wins over `initialMessages` if both passed.
   const controlled = externalMessages !== undefined;
 
-  const [messages, setMessages] = useState<ChatMessage[]>(
-    initialMessages ?? [],
+  // B3-CORE-TURN-MACHINE-1 — the conversation's state is ONE value reduced by a
+  // pure function in core (`applyConversationEvent`), not 7 useState + 3 refs
+  // scattered here. What stays in this file is strictly the React/transport
+  // binding: refs that dodge stale closures, the effects that observe the
+  // transport, the timer, and the persistence I/O.
+  const [convo, dispatch] = useReducer(
+    applyConversationEvent,
+    undefined,
+    () => initialConversationState(initialMessages ?? []),
   );
+  // Mirror for SYNCHRONOUS reads. `pending`/`skipPersist` were refs precisely
+  // because the effects read-then-write them inside one tick; a bare reducer
+  // would make those reads a render behind. The mirror keeps the old timing
+  // exactly while the transitions themselves become pure.
+  const convoRef = useRef(convo);
+  convoRef.current = convo;
+  const messages = convo.messages;
+  const turnError = convo.failure;
+  const timedOut = convo.timedOut;
   // Read the latest controlled flag inside effects without re-arming them on it.
   const controlledRef = useRef(controlled);
   controlledRef.current = controlled;
@@ -280,15 +298,7 @@ export function useAgentConversation(
   userAuthorRef.current = userAuthor;
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
-  const [turnError, setTurnError] = useState<TurnError | null>(null);
-  // The conversation's own "the watchdog killed this turn" flag. Lets us drop
-  // out of streaming even when the transport's isStreaming is stuck true.
-  const [timedOut, setTimedOut] = useState(false);
   const [persistError, setPersistError] = useState<PersistError | null>(null);
-  // What the user wrote on a turn that failed: reverted from the thread, handed
-  // back so the composer can put it back in the box instead of losing it.
-  const [unsentText, setUnsentText] = useState<string | null>(null);
-  const [unsentImages, setUnsentImages] = useState<MessageImage[] | null>(null);
   // The thread whose save failed, kept so retryPersist can re-attempt exactly it
   // (not whatever the thread has become since).
   const unsaved = useRef<ChatMessage[] | null>(null);
@@ -318,13 +328,8 @@ export function useAgentConversation(
   }, [runPersist]);
 
   const dismissPersistError = useCallback(() => setPersistError(null), []);
-  const clearUnsent = useCallback(() => {
-    setUnsentText(null);
-    setUnsentImages(null);
-  }, []);
+  const clearUnsent = useCallback(() => dispatch({ type: 'clear_unsent' }), []);
 
-  // True while a turn we optimistically pushed is still in flight; gates the fold.
-  const pending = useRef(false);
   // Latest visible thread, read inside the stable `send` closure WITHOUT adding
   // `messages` to its deps (which would rebuild send every keystroke-fold). Used
   // to hand the transport the confirmed history for storeless-backend continuity.
@@ -340,42 +345,11 @@ export function useAgentConversation(
   const appHandledRef = useRef(isAppHandledError);
   appHandledRef.current = isAppHandledError;
   // Last send (text + any attached images) — replayed by retry().
-  const lastSent = useRef<{ text: string; images?: MessageImage[] } | null>(null);
   // Latest seed, read without retriggering the hydration effect on array identity.
   const initialRef = useRef(initialMessages);
   initialRef.current = initialMessages;
-  // Suppress onMessagesChange for changes that are NOT a confirmed/settled turn:
-  // the mount seed, a conversation switch, and the optimistic push. Persistence
-  // is confirmed-only, so a failed/hung turn never leaves a durable lone message.
-  const skipPersist = useRef(true);
   // Skip the conversationId effect on mount (useState already seeded the thread).
   const mounted = useRef(false);
-
-  // Revert the optimistic user message that is still the thread's tail. Used by
-  // both failure paths (timeout watchdog + transport error). Returns the thread
-  // to its pre-send state so persistence never records an unanswered turn.
-  const revertOptimistic = useCallback(() => {
-    // Controlled mode never pushed an optimistic message — nothing to revert.
-    if (controlledRef.current) return;
-    const thread = messagesRef.current;
-    const last = thread[thread.length - 1];
-    if (last?.role !== 'user') return;
-    // Reverting used to DESTROY what the user wrote: the message left the thread
-    // and existed nowhere else, so a turn the watchdog killed took the prompt
-    // with it. Hand it back so the composer can restore it — a failed turn must
-    // never cost the user their words.
-    //
-    // Read from the ref and set BOTH states here: setUnsentText inside the
-    // setMessages updater made it a side-effect of a reducer, which React may
-    // re-run — and a re-run resurrected the text after the next send had cleared it.
-    setUnsentText(last.content);
-    // Recovery carries the WHOLE message. The images rode on the optimistic
-    // capsule and the composer already cleared its drafts on send, so dropping
-    // them here is a silent amputation: the user gets the words back, re-sends,
-    // and the pictures are gone without a word.
-    setUnsentImages(last.images && last.images.length > 0 ? last.images : null);
-    setMessages((prev) => (prev[prev.length - 1]?.role === 'user' ? prev.slice(0, -1) : prev));
-  }, []);
 
   // RESONANCE: the voice loop submits a transcript and awaits the assistant's
   // final text (to speak). This hook stays the SOLE writer of the visible
@@ -391,19 +365,13 @@ export function useAgentConversation(
       // An image-only send is valid (the picture IS the message); a truly empty
       // send is still a no-op.
       if ((!t && !imgs) || agent.isStreaming) return;
-      lastSent.current = { text: t, images: imgs };
-      // A new send supersedes any prompt still waiting to be recovered.
-      setUnsentText(null);
-      setUnsentImages(null);
-      setTurnError(null);
-      setTimedOut(false);
-      if (!controlled) {
-        // Uncontrolled: push the user message optimistically (and gate persist).
-        // Controlled: the consumer's externalMessages already reflects the send.
-        skipPersist.current = true; // the optimistic push is not a confirmed turn
-        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current, imgs)]);
-      }
-      pending.current = true;
+      dispatch({
+        type: 'send',
+        text: t,
+        images: imgs,
+        author: userAuthorRef.current,
+        controlled,
+      });
       // Hand the transport the confirmed thread (prior turns, NOT this message) so
       // a storeless backend can replay it for continuity. The transport that needs
       // it forwards it; one that doesn't ignores `meta`. messagesRef is the thread
@@ -436,51 +404,44 @@ export function useAgentConversation(
   }, []);
 
   const retry = useCallback(() => {
-    if (lastSent.current) send(lastSent.current.text, lastSent.current.images);
+    const last = convoRef.current.lastSent;
+    if (last) send(last.text, last.images);
   }, [send]);
 
-  const dismissError = useCallback(() => {
-    setTurnError(null);
-    setTimedOut(false);
-  }, []);
+  const dismissError = useCallback(() => dispatch({ type: 'dismiss_failure' }), []);
 
   // Fold the finished turn once it stops streaming. Effect-based on purpose: the
   // transport hook owns the turn lifecycle, the conversation only observes it.
   useEffect(() => {
-    if (agent.isStreaming || !pending.current) return;
-    pending.current = false;
+    if (agent.isStreaming || !convoRef.current.pending) return;
     if (agent.turn.status === 'error') {
       // Transport reported a failure: always revert the optimistic user message
       // (never drop it silently). Surface a generic recoverable error UNLESS the
       // app claims this error class (e.g. og118's 401 token gate, which shows its
       // own banner — a blind retry there would just 401 again).
-      revertOptimistic();
       const r = awaitResolver.current;
       awaitResolver.current = null;
       r?.reject(new Error(agent.turn.errorMessage || 'turn failed'));
-      if (!appHandledRef.current?.(agent.turn)) {
-        setTurnError({
-          kind: 'stream',
-          message: agent.turn.errorMessage || 'La respuesta falló. Intenta de nuevo.',
-        });
-      }
+      dispatch({
+        type: 'turn_failed',
+        message: agent.turn.errorMessage,
+        controlled: controlledRef.current,
+        appHandled: appHandledRef.current?.(agent.turn),
+      });
       return;
     }
     const finalText = agent.turn.text || '';
-    // Controlled mode never folds: the consumer's externalMessages already holds
-    // the (possibly multi-message) turn it mapped from its own transport.
-    if (!controlledRef.current && agent.turn.text) {
-      // Clean finish with an answer: fold it in. This is the confirmed turn —
-      // let persistence record user + assistant together (skipPersist stays
-      // false through this settled emit).
-      skipPersist.current = false;
-      setMessages((prev) => [...prev, foldAssistantTurn(agent.turn, authorRef.current)]);
-    }
+    dispatch({
+      type: 'turn_settled',
+      turn: agent.turn,
+      author: authorRef.current,
+      controlled: controlledRef.current,
+    });
     // Settle any awaited (sendAndAwait) turn with the assistant's final text.
     const resolver = awaitResolver.current;
     awaitResolver.current = null;
     resolver?.resolve(finalText);
-  }, [agent.isStreaming, agent.turn, revertOptimistic]);
+  }, [agent.isStreaming, agent.turn]);
 
   // Idle watchdog: while a pushed turn is streaming, arm a timer that re-arms on
   // every turn-state change (so an active turn never trips). If it fires, the
@@ -488,26 +449,20 @@ export function useAgentConversation(
   // message, and surface a recoverable timeout error.
   useEffect(() => {
     if (turnTimeoutMs <= 0) return;
-    if (!agent.isStreaming || !pending.current || timedOut) return;
+    if (!agent.isStreaming || !convoRef.current.pending || timedOut) return;
     const timer = setTimeout(() => {
-      pending.current = false;
       agentRef.current.abort?.();
-      revertOptimistic();
       const r = awaitResolver.current;
       awaitResolver.current = null;
       r?.reject(new Error('turn timed out'));
-      setTimedOut(true);
-      setTurnError({
-        kind: 'timeout',
-        message: 'La respuesta tardó demasiado. Intenta de nuevo.',
-      });
+      dispatch({ type: 'turn_timeout', controlled: controlledRef.current });
     }, turnTimeoutMs);
     return () => clearTimeout(timer);
     // Re-arm on real turn progress (agent.turn is immutable, changes only on
     // events) — NOT on agent identity, so a fresh agent object per render does
     // not reset the watchdog. That makes this a true idle watchdog.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs, revertOptimistic]);
+  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs]);
 
   // Re-hydrate when the active conversation changes: load the new seed, drop any
   // pending fold/error, and reset the live turn so the start screen shows correctly.
@@ -519,11 +474,7 @@ export function useAgentConversation(
     // Controlled mode: the consumer owns the thread + persistence, so a
     // conversationId change never re-hydrates an internal array.
     if (controlledRef.current) return;
-    skipPersist.current = true;
-    pending.current = false;
-    setTurnError(null);
-    setTimedOut(false);
-    setMessages(initialRef.current ?? []);
+    dispatch({ type: 'hydrate', messages: initialRef.current ?? [] });
     agent.reset?.();
     // Re-hydrate strictly on identity change, not on every seed-array change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -533,8 +484,8 @@ export function useAgentConversation(
   // Controlled mode never persists via this hook — the consumer owns persistence.
   useEffect(() => {
     if (controlledRef.current) return;
-    if (skipPersist.current) {
-      skipPersist.current = false;
+    if (convoRef.current.skipPersist) {
+      dispatch({ type: 'persist_skip_consumed' });
       return;
     }
     void runPersist(messages);
@@ -543,13 +494,9 @@ export function useAgentConversation(
   }, [messages]);
 
   const newConversation = useCallback(() => {
-    skipPersist.current = true;
-    setTurnError(null);
-    setTimedOut(false);
     // Controlled mode: the consumer owns the thread, so clearing the internal
     // array is a no-op for what's shown; still reset the live turn/session.
-    if (!controlled) setMessages([]);
-    pending.current = false;
+    dispatch({ type: 'hydrate', messages: [] });
     agent.reset?.();
   }, [agent, controlled]);
 
@@ -562,8 +509,8 @@ export function useAgentConversation(
     persistError,
     retryPersist,
     dismissPersistError,
-    unsentText,
-    unsentImages,
+    unsentText: convo.unsent.text,
+    unsentImages: convo.unsent.images,
     clearUnsent,
     send,
     sendAndAwait,
