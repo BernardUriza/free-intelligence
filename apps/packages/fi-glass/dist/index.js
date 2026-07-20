@@ -259,6 +259,13 @@ import { Copy, Check } from "lucide-react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -267,10 +274,10 @@ function ensureTouchTargetStyle() {
   const el = document.createElement("style");
   el.id = TOUCH_TARGET_STYLE_ID;
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -725,11 +732,82 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect6, useId as useId3, useState as useState5 } from "react";
+import { useEffect as useEffect7, useId as useId3, useState as useState5 } from "react";
 import { SlidersHorizontal } from "lucide-react";
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect6 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS2 = `
+/* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback \u2014 the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope \u2014 :root is the floor, not a ceiling. */
+:root {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media ${FI_MOBILE_QUERY} {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
+function ensureDensityStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(DENSITY_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = DENSITY_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+
+// src/composer/ComposerFrame.tsx
 import { Fragment as Fragment2, jsx as jsx11, jsxs as jsxs8 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS2 = `
+var CSS3 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -828,15 +906,16 @@ var CSS2 = `
 }
 `;
 function ensureComposerFrameStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect6(() => {
+  useEffect7(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -1147,7 +1226,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment3, useEffect as useEffect7, useRef as useRef6, useState as useState7 } from "react";
+import { Fragment as Fragment3, useEffect as useEffect8, useRef as useRef6, useState as useState7 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment4, jsx as jsx13, jsxs as jsxs10 } from "react/jsx-runtime";
 function ActionMenu({
@@ -1165,13 +1244,13 @@ function ActionMenu({
   const [open, setOpen] = useState7(false);
   const triggerRef = useRef6(null);
   const [position, setPosition] = useState7({ top: 0, left: 0 });
-  useEffect7(() => {
+  useEffect8(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect7(() => {
+  useEffect8(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -1961,7 +2040,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect8, useMemo, useRef as useRef7, useSyncExternalStore } from "react";
+import { useEffect as useEffect9, useMemo, useRef as useRef7, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef7(opts);
   cbRef.current = opts;
@@ -1975,7 +2054,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect8(() => () => controller.dispose(), [controller]);
+  useEffect9(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -1999,7 +2078,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect9 } from "react";
+import { useEffect as useEffect10 } from "react";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -2014,7 +2093,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect9(() => {
+  useEffect10(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2063,7 +2142,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect10 } from "react";
+import { useEffect as useEffect11 } from "react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
@@ -2162,7 +2241,7 @@ function RichAudioPlayer({
     currentTime
   } = player;
   const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
-  useEffect10(() => {
+  useEffect11(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -2170,7 +2249,7 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect10(() => {
+  useEffect11(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
@@ -2782,7 +2861,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState10, useRef as useRef10, useEffect as useEffect11 } from "react";
+import { useState as useState10, useRef as useRef10, useEffect as useEffect12 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -2816,7 +2895,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef10(null);
   const animationFrameRef = useRef10(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect11(() => {
+  useEffect12(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -3057,7 +3136,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect12 } from "react";
+import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect13 } from "react";
 
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
@@ -3183,10 +3262,10 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef11([]);
   const rtcCtorRef = useRef11(null);
   const pauseOpRef = useRef11(Promise.resolve());
-  useEffect12(() => {
+  useEffect13(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect12(() => {
+  useEffect13(() => {
     store.list().then((stored) => {
       const pending = stored.filter(isPending);
       const totalBytes = pending.reduce((s, a) => s + a.size, 0);
@@ -3445,7 +3524,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState13, useEffect as useEffect13, useCallback as useCallback7 } from "react";
+import { useState as useState13, useEffect as useEffect14, useCallback as useCallback7 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState13([]);
@@ -3459,7 +3538,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect13(() => {
+  useEffect14(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback7(
@@ -3568,7 +3647,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect14, useState as useState15 } from "react";
+import { useEffect as useEffect15, useState as useState15 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -3744,7 +3823,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState15(true);
-  useEffect14(() => {
+  useEffect15(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -3807,7 +3886,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState16, useEffect as useEffect15 } from "react";
+import { useState as useState16, useEffect as useEffect16 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -3829,7 +3908,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState16(null);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -4215,7 +4294,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect16, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect17, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -4423,10 +4502,10 @@ function useResonanceCallLoop(params) {
   const cueApplyRef = useRef12(void 0);
   cueApplyRef.current = cueController?.applyTransition;
   const cueSeqRef = useRef12(0);
-  useEffect16(() => {
+  useEffect17(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect16(() => () => {
+  useEffect17(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState17("idle");
@@ -4511,7 +4590,7 @@ function useResonanceCallLoop(params) {
   const stateRef = useRef12(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -4534,7 +4613,7 @@ function useResonanceCallLoop(params) {
       t.current = void 0;
     }
   };
-  useEffect16(() => {
+  useEffect17(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -4556,7 +4635,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect16(() => () => {
+  useEffect17(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
   }, []);
@@ -5562,7 +5641,7 @@ function ChatSurface(props) {
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect17,
+  useEffect as useEffect18,
   useId as useId4,
   useRef as useRef13,
   useState as useState19
@@ -5602,7 +5681,7 @@ function PersonaSelector({
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback12(() => setIsOpen(false), []);
-  useEffect17(() => {
+  useEffect18(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -5614,7 +5693,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect17(() => {
+  useEffect18(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -5634,7 +5713,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect17(() => {
+  useEffect18(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;

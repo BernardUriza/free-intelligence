@@ -43,7 +43,7 @@ describe('RemoteConversationLibrary', () => {
     const summaries: ConversationSummary[] = [
       { id: 'a', title: 'A', createdAt: 'x', updatedAt: 'y', preview: 'p' },
     ];
-    const fetchImpl = vi.fn(async () => jsonResponse(200, { conversations: summaries }));
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, { conversations: summaries }));
     let token = 'tok-1';
     const lib = makeLibrary(fetchImpl as never, () => ({ Authorization: `Bearer ${token}` }));
 
@@ -100,7 +100,7 @@ describe('RemoteConversationLibrary', () => {
   });
 
   it('delete and clear hit their endpoints', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse(200, {}));
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, {}));
     const lib = makeLibrary(fetchImpl as never);
 
     await lib.delete('conv 1');

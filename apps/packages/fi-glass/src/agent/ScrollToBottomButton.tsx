@@ -9,10 +9,19 @@
  * above the composer); the skin is consumer-overridable via `className` — the
  * structural placement survives the override so a consumer can't accidentally
  * detach the button from its anchor.
+ *
+ * TOUCH (B3-FIGLASS-TOKEN-LAYER-1): the 32px chevron is the desktop industry
+ * size, but this was the ONE interactive control in the package that skipped the
+ * framework's touch minimum, against the repo's own rule ("touch targets >=44x44
+ * SIEMPRE; never shrink a target to win space"). Composing FI_TOUCH_TARGET_CLASS
+ * settles it without a visual regression: `min-width/min-height` only apply under
+ * a coarse pointer and OUTRANK the 32px `width`/`height`, so a mouse still sees
+ * the 32px chevron while a thumb gets the full 44x44 hit area, icon centered.
  */
 
 import type { CSSProperties } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
 
 export interface ScrollToBottomButtonProps {
   onClick: () => void;
@@ -54,6 +63,7 @@ export function ScrollToBottomButton({
   className,
   iconClassName,
 }: ScrollToBottomButtonProps) {
+  useTouchTargetStyle();
   return (
     <button
       type="button"
@@ -61,7 +71,13 @@ export function ScrollToBottomButton({
       aria-label={label}
       // fi-scroll-to-bottom is always present: glass-chat.css hangs the
       // :focus-visible ring off it (inline styles can't express focus states).
-      className={className ? `fi-scroll-to-bottom ${className}` : 'fi-scroll-to-bottom'}
+      // FI_TOUCH_TARGET_CLASS rides along in BOTH branches — a consumer skinning
+      // the button must not be able to opt out of the touch minimum.
+      className={
+        className
+          ? `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS} ${className}`
+          : `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS}`
+      }
       style={className ? placement : { ...placement, ...skin }}
     >
       <ChevronDown size={16} className={iconClassName} aria-hidden />

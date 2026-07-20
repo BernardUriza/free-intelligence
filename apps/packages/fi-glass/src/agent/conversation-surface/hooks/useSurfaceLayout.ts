@@ -16,6 +16,7 @@
  */
 
 import type { CSSProperties } from 'react';
+import { FI_MOBILE_QUERY } from '../../../theme/breakpoints';
 import { useMediaQuery } from '../../../shell/useMediaQuery';
 import type { AgentConversationSurfaceLayout } from '../types';
 
@@ -25,7 +26,7 @@ export interface SurfaceLayout {
 }
 
 export function useSurfaceLayout(layout: AgentConversationSurfaceLayout): SurfaceLayout {
-  const isMobileViewport = useMediaQuery('(max-width: 768px)');
+  const isMobileViewport = useMediaQuery(FI_MOBILE_QUERY);
   // CONV-MOBILE-RECLAIM-1: on phones the regions already own a 12px gutter via
   // --fi-transcript-pad / --fi-composer-bar-px, so an extra inset here would
   // double-charge the viewport. Full width below the breakpoint.
