@@ -29,7 +29,7 @@ class AgendasRepository(BaseRepository):
 
     async def save_agenda(
         self,
-        persona_id: str,
+        persona_id: str | None,
         channel_id: str,
         guild_id: str | None,
         created_by: str,
