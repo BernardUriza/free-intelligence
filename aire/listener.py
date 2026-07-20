@@ -7,16 +7,16 @@ from .listen.applog import MIRRORS, _now, append
 from .listen.config import DSN, HOST, LOG, PORT
 from .listen.net import handle
 from .listen.pen import Pen, run as pen_run
+from .listen.tasks import spawn
 
 
 async def main() -> None:
     if DSN:
         pen = Pen(DSN)
         MIRRORS.append(pen.write)
-        asyncio.create_task(pen_run(pen))
-    server = await asyncio.start_server(handle, HOST, PORT)
-    if DSN:
+        spawn(pen_run(pen))
         await roster.start()
+    server = await asyncio.start_server(handle, HOST, PORT)
     append(f"{_now()} - LISTENING {HOST}:{PORT}")
     print(f"AIRE listener listening on {HOST}:{PORT} → {LOG}", flush=True)
     async with server:

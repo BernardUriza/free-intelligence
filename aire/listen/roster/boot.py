@@ -4,6 +4,7 @@ import asyncio
 
 from ..applog import _now, append
 from ..config import WHITELIST_ENFORCE
+from ..tasks import spawn
 from . import db, state
 
 
@@ -17,7 +18,7 @@ async def start() -> None:
         if WHITELIST_ENFORCE:
             append(f"{_now()} - WHITELIST enforce=on but roster UNLOADED "
                    "→ denying all non-loopback until it loads")
-    asyncio.create_task(refresher())
+    spawn(refresher())
 
 
 async def refresher(interval: int = 60) -> None:
