@@ -95,6 +95,31 @@ free-intelligence/
 ## 🔗 Quick Links
 
 - **Production:** https://app.og118.ai — the app that actually ships today
+
+### ⚠️ The "staging" that is actually PRODUCTION
+
+`app.og118.ai` is a CNAME to `calm-mud-0d59ce80f.7.azurestaticapps.net`, which is
+the Azure SWA named **`og118-web-staging`**, deployed by
+**`.github/workflows/og118-web-staging.yml`** using the secret
+**`AZURE_SWA_TOKEN_OG118_STAGING`**.
+
+Three names say "staging". The domain they serve is production. **There is no
+other og118-web deploy workflow** — a merge to `main` ships straight to the app
+Bernard uses every day.
+
+Verify, never infer from the name:
+```bash
+dig +short app.og118.ai CNAME
+az staticwebapp show -n og118-web-staging -g og118-rg --query defaultHostname -o tsv
+# same hostname → the "staging" workflow IS the production deploy
+```
+
+This trap has now bitten twice. On 2026-07-20, after merging five fi-glass PRs,
+the deploy was read as "staging only" from the workflow name and Bernard was told
+his changes were NOT on the URL he uses — they were live the whole time. Do not
+repeat it: `staging.og118.ai` is the broken host (invalid cert, see
+[[og118-staging-domain-broken]]); `app.og118.ai` is the real surface, and the
+badly-named workflow is what feeds it.
 - **Full Docs:** [.claude/README.md](.claude/README.md)
 - **Setup Guide:** [.claude/quick-start/development-setup.md](.claude/quick-start/development-setup.md)
 
