@@ -72,8 +72,10 @@ A persona's turn is composed from:
    (`persona_runner/engine/persona_files.py` / framing)
 2. **Workspace context** — the runner's workspace `CLAUDE.md`
 3. **Per-turn `behavioral_guidance`** — assembled by the gateway via
-   `guidance_for_turn`: preset guidance + flows + the vulnerable-user overlay
-   when the user's facts (or an acute-crisis message) cross the threshold
+   `guidance_for_turn`: preset guidance + the vulnerable-user overlay when the
+   user's facts (or an acute-crisis message) cross the threshold. (Flows NO se
+   rinde aquí — el pipeline `behavior/flows/` está sin cablear post-purga; solo
+   sus tipos alimentan el stub neutral de `router_runtime`.)
 4. **Context on the wire** — user facts, other-people block, relevant history,
    corpus blocks travel in the `/v1/turn` payload built by the gateway
 

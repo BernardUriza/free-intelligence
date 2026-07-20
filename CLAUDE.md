@@ -83,6 +83,10 @@ background extracts facts (ADD-only merge) and fires reactions.
   MULTI_DOMAIN_SYNTHESIS). Zero LLM cost.
 - `behavior/flows/` — the 4-flow analysis (epistemic control, adaptive pressure,
   dynamic expression, conversational awareness) rendered by `build_flow_prompt`.
+  **NOT WIRED post-purga (verificado 2026-07-20)**: `analyze_flows`/`build_flow_prompt`
+  tienen cero callers vivos — `guidance_for_turn` solo compone presets + overlay, y
+  el único consumidor externo es `router_runtime.py`, que importa los TIPOS para un
+  stub neutral (`_neutral_flow`). Rewire o borrado: decisión de Bernard pendiente.
 - `behavior/vulnerability.py` — `compute_vulnerability_score` over the 6 signal
   groups (named_diagnosis, psychiatric_medication, mental_health_clinician,
   hospitalization, chronic_comorbidity, self_harm_history), threshold ≥4.
