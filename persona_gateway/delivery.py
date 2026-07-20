@@ -7,16 +7,22 @@ FOUR call sites (research drain, agenda check, reminder drain, the live turn).
 It also records each sent message id → the full untagged reply, so a 🔊 on ANY
 piece of a multi-part reply speaks the whole turn, never one chunk with the
 version tag read aloud.
+
+`[SEND]` (shared.text.MESSAGE_DELIMITER) splits the reply into separate Discord
+messages with a human-pacing delay between them — the multi-message affordance
+the persona DNA teaches. The delimiter itself never reaches the channel.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import OrderedDict
 
 import discord
 
 from khimeras_shared.version import VERSION_TAG
+from shared.text import split_response
 
 DISCORD_LIMIT = 1990  # leave headroom under Discord's 2000-char message cap
 DISCORD_HARD_CAP = 2000  # Discord's absolute per-message limit
@@ -80,20 +86,37 @@ def tag_pieces(pieces: list[str]) -> list[str]:
     return pieces
 
 
+_PACING_SECONDS_PER_CHAR = 0.02
+_PACING_CAP_SECONDS = 2.5
+
+
+def _pacing_delay(next_part: str) -> float:
+    return min(len(next_part) * _PACING_SECONDS_PER_CHAR, _PACING_CAP_SECONDS)
+
+
 async def send_chunked(channel: discord.abc.Messageable, text: str) -> list[discord.Message]:
-    """Split `text`, tag the last piece, and send every piece to `channel`.
+    """Split `text` on `[SEND]` and size, tag the last piece, send every piece.
 
     The single delivery path for every persona reply — live turn, research
-    report, agenda finding, reminder. Empty text sends nothing. Every sent
-    message id is mapped back to the full untagged `text` for the 🔊 path.
+    report, agenda finding, reminder. `[SEND]` parts go out as separate messages
+    with a typing-paced delay between them; the delimiter is never delivered.
+    Empty text sends nothing. Every sent message id is mapped back to the full
+    delimiter-free reply for the 🔊 path.
     """
-    full = (text or "").strip()
-    pieces = tag_pieces(chunk(text))
+    parts = split_response(text or "")
+    if not parts:
+        return []
+    full = "\n".join(parts)
+    groups = [chunk(part) for part in parts]
+    groups[-1] = tag_pieces(groups[-1])
     sent: list[discord.Message] = []
-    for piece in pieces:
-        message = await channel.send(piece)
-        sent.append(message)
-        message_id = getattr(message, "id", None)
-        if isinstance(message_id, int):
-            _remember_full_text(message_id, full)
+    for index, group in enumerate(groups):
+        if index:
+            await asyncio.sleep(_pacing_delay(group[0]))
+        for piece in group:
+            message = await channel.send(piece)
+            sent.append(message)
+            message_id = getattr(message, "id", None)
+            if isinstance(message_id, int):
+                _remember_full_text(message_id, full)
     return sent

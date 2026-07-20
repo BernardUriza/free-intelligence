@@ -21,6 +21,7 @@ from persona_gateway.delivery import send_chunked
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.voice import VoiceService
 from shared.personas import Persona
+from shared.text import split_response
 
 log = structlog.get_logger()
 
@@ -132,12 +133,16 @@ class TurnRunner:
             return
 
         await send_chunked(channel, text)
+
+        # What was actually said in Discord is the delimiter-free text — memory
+        # and voice never see the `[SEND]` pacing marker.
+        delivered = "\n".join(split_response(text))
         await self.memory.store(
             channel_id,
             bot_user_id,
             self.persona.display_name,
             "assistant",
-            text,
+            delivered,
             for_user_id=user_id,
             guild_id=guild_id,
             channel_name=channel_name,
@@ -147,11 +152,11 @@ class TurnRunner:
             "persona_gateway_turn_complete",
             persona_id=self.persona.persona_id,
             channel_id=channel_id,
-            chars=len(text),
+            chars=len(delivered),
             turn_kind=turn_kind,
         )
 
         # Auto-TTS: a long reply ships a voice clip of the FULL text so you can
         # listen instead of reading a wall (gated by auto_tts_min_chars; 0=off).
-        if self._voice.should_auto_speak(text, self.auto_tts_min_chars):
-            await self._voice.speak(channel, text, reason="auto")
+        if self._voice.should_auto_speak(delivered, self.auto_tts_min_chars):
+            await self._voice.speak(channel, delivered, reason="auto")
