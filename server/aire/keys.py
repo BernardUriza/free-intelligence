@@ -14,5 +14,13 @@ AIRE_NAMESPACE = uuid.UUID("a13e0000-0000-4000-8000-000000000000")
 
 
 def sdk_session_uuid(session: str) -> str:
-    """The session's external name → the UUID the SDK demands."""
-    return str(uuid.uuid5(AIRE_NAMESPACE, session))
+    """The session's external name → the UUID the SDK demands.
+
+    A name that ALREADY is a UUID is honoured verbatim instead of being hashed
+    again: that is what lets this door continue a session another door started
+    (the CLI mints its own UUIDs). One memory, whichever door wrote it.
+    """
+    try:
+        return str(uuid.UUID(session))
+    except ValueError:
+        return str(uuid.uuid5(AIRE_NAMESPACE, session))

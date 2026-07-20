@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import re
 
-_VALID = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+# 128, not 64: a project may name an EXISTING casita, and the MKDIR verb's
+# scratch homes are `{timestamp}_{uuid}_{name}` (~75 chars). The charset is what
+# guards the path — no `/`, no `.`, so a longer name opens no traversal.
+_VALID = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 # AIRE is the structure that CONTAINS conversations — it cannot be a project
 # itself (Bernard, 2026-07-20). The container's name is reserved.
 _RESERVED = {"aire"}
