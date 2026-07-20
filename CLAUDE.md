@@ -8,8 +8,12 @@ pen, role `aire`, deployed to the DigitalOcean droplet by
 `.github/workflows/deploy-server.yml`; `front/` is the waiter — read-only, role
 `aire_reader`, Next.js SSR on Azure Container Apps, deployed by its own
 path-filtered workflow. One repo, still two deployments and two credentials:
-the CQRS wall is credential-and-pipeline, not folder. Everything below this
-line describes the SERVER half; the front's law rides in
+the CQRS wall is credential-and-pipeline, not folder. **The front NEVER rides
+to the droplet**: the body clones partial+sparse and materializes `server/`
+only (Bernard's law, 2026-07-20). And **`aire` is a reserved project name** —
+AIRE is the structure that contains conversations, never a project itself
+(enforced in `server/aire/names.py`). Everything below this line describes the
+SERVER half; the front's law rides in
 `front/.claude/rules/read-only-waiter.md`.
 
 The story — the Mecano song, the EC-GPS blueprint, the log-is-truth science — lives in

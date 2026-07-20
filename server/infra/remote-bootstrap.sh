@@ -22,12 +22,15 @@ ensure_swap() {
 }
 
 sync_repo() {
-  echo "    [remote] repo at $REMOTE_DIR…"
+  echo "    [remote] repo at $REMOTE_DIR (server/ only — the front never touches the body)…"
   if [[ -d "$REMOTE_DIR/.git" ]]; then
+    git -C "$REMOTE_DIR" sparse-checkout set --cone server 2>/dev/null || true
     git -C "$REMOTE_DIR" fetch --all --quiet
     git -C "$REMOTE_DIR" reset --hard origin/main
   else
-    git clone "$REPO_URL" "$REMOTE_DIR"
+    # Partial + sparse: front/ blobs are never even downloaded to the droplet.
+    git clone --filter=blob:none --sparse "$REPO_URL" "$REMOTE_DIR"
+    git -C "$REMOTE_DIR" sparse-checkout set --cone server
   fi
 }
 

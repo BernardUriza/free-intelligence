@@ -40,6 +40,8 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new "root@${AIRE_VM_HOST}" bash -s <<'REMOTE'
           set -euo pipefail
           cd /opt/aire
+          # The front never rides to the droplet — the body materializes server/ only.
+          git sparse-checkout set --cone server 2>/dev/null || true
           git fetch --all
           git reset --hard origin/main
           install -m 644 server/deploy/aire-listener.service server/deploy/aire-device.service \
