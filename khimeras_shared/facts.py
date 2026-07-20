@@ -56,6 +56,31 @@ __all__ = [
 ]
 
 
+# The judge's request schema caps user_text at 256K chars (`JudgeRequest`), and a
+# whale user's COMPLETE fact set blows straight through it: 3,345 facts / 300K
+# chars → HTTP 422 on EVERY extraction, so the user's facts can never grow again
+# (found 2026-07-20: Bernard frozen since the 07-14 purge). The extractor never
+# needed the full set — the ADD-only merge unions against the complete live auto
+# set regardless; the prompt's existing-facts section only helps the LLM avoid
+# re-extracting RECENT knowledge. Newest-first budgets keep the payload bounded
+# and the background cost sane.
+EXISTING_FACTS_CHAR_BUDGET = 24_000
+CONVERSATION_CHAR_BUDGET = 30_000
+
+
+def _fit_lines(lines: list[str], budget: int, *, keep_tail: bool = False) -> list[str]:
+    """Accumulate lines until `budget` chars. keep_tail=True keeps the LAST lines
+    (for conversation, where the newest messages matter most)."""
+    picked: list[str] = []
+    total = 0
+    for line in reversed(lines) if keep_tail else lines:
+        total += len(line) + 1
+        if total > budget:
+            break
+        picked.append(line)
+    return picked[::-1] if keep_tail else picked
+
+
 class UtilityClient(Protocol):
     """The minimal surface `extract_facts` needs. `RunnerJudgeClient` satisfies
     it — the function is agnostic to the concrete client, it only requires a
@@ -88,8 +113,18 @@ async def extract_facts(
     full live auto set before persisting; this return value is a SUBSET view and
     is never safe to hand to `save_facts` directly.
     """
-    existing_str = "\n".join(f"- [{f['category']}] {f['fact']}" for f in existing_facts) if existing_facts else "(none)"
-    conversation_str = "\n".join(f"{m.get('user_name', 'persona')}: {m['content']}" for m in recent_messages[-10:])
+    existing_lines = [f"- [{f['category']}] {f['fact']}" for f in existing_facts]
+    kept = _fit_lines(existing_lines, EXISTING_FACTS_CHAR_BUDGET)
+    if len(kept) < len(existing_lines):
+        log.info(
+            "facts_prompt_existing_capped",
+            user_name=user_name,
+            shown=len(kept),
+            total=len(existing_lines),
+        )
+    existing_str = "\n".join(kept) if kept else "(none)"
+    conv_lines = [f"{m.get('user_name', 'persona')}: {m['content']}" for m in recent_messages[-10:]]
+    conversation_str = "\n".join(_fit_lines(conv_lines, CONVERSATION_CHAR_BUDGET, keep_tail=True))
     user_prompt = (
         f"User display name: {user_name}\n\nExisting facts:\n{existing_str}\n\nRecent conversation:\n{conversation_str}"
     )

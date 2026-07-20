@@ -21,6 +21,19 @@ from shared.personas import Persona
 
 log = structlog.get_logger()
 
+# One lock per user, shared across every persona's FactExtractor in this process.
+# `save_facts` is a DELETE+reinsert snapshot (fi-core PgMemoryStore): two personas
+# extracting the same user concurrently race their snapshots into the
+# `idx_pf_auto_dedup` unique index and one save dies whole (observed 2026-07-20,
+# Alex's save). Serializing per user makes the read-merge-save cycle atomic
+# within the gateway; the cross-process race with the consolidator job remains,
+# is logged, and self-heals on the next turn.
+_user_extraction_locks: dict[str, asyncio.Lock] = {}
+
+
+def _extraction_lock(user_id: str) -> asyncio.Lock:
+    return _user_extraction_locks.setdefault(user_id, asyncio.Lock())
+
 
 class FactExtractor:
     """Background ADD-only fact backstop. No-op when no judge client is wired.
@@ -68,25 +81,26 @@ class FactExtractor:
         must never be able to break a delivered turn.
         """
         try:
-            existing = await self.memory.get_facts(user_id)
-            new_facts = await extract_facts(
-                judge,
-                CONFIG.facts_extraction_model,
-                user_name,
-                existing,
-                recent,
-            )
-            all_auto = await self.memory.get_auto_facts(user_id)
-            merged, added = merge_facts_additive(all_auto, new_facts)
-            if not added:
-                log.info(
-                    "facts_extraction_nothing_new",
-                    persona_id=self.persona.persona_id,
-                    user_id=user_id,
-                    total_auto=len(merged),
+            async with _extraction_lock(user_id):
+                existing = await self.memory.get_facts(user_id)
+                new_facts = await extract_facts(
+                    judge,
+                    CONFIG.facts_extraction_model,
+                    user_name,
+                    existing,
+                    recent,
                 )
-                return
-            await self.memory.save_facts(user_id, merged)
+                all_auto = await self.memory.get_auto_facts(user_id)
+                merged, added = merge_facts_additive(all_auto, new_facts)
+                if not added:
+                    log.info(
+                        "facts_extraction_nothing_new",
+                        persona_id=self.persona.persona_id,
+                        user_id=user_id,
+                        total_auto=len(merged),
+                    )
+                    return
+                await self.memory.save_facts(user_id, merged)
             log.info(
                 "facts_extracted_additive",
                 persona_id=self.persona.persona_id,
