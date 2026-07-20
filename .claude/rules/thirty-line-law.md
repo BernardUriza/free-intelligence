@@ -59,9 +59,10 @@ his instinct is the canon:
 Full citations in the 2026-07-20 session; `docs/listener-doctrine.md` holds the
 listener's module map.
 
-## Current violators (updated 2026-07-20)
+## Current violators
 
-`aire/engine.py` 321 · `infra/provision-do.sh` 221 (both also carry >30-line
-functions). Legal now: `server.py` 137, `costwatch.yml` 123, `demo_device.py`
-99, `deploy.yml` 66, `sweep.py` 55. Exempt: `store.py` 332. Tracked in
+**None** (2026-07-20): backlog #19 closed — `engine.py` became the
+`aire/engine/` package, `provision-do.sh` became a thin orchestrator +
+`infra/lib/` + `infra/remote-bootstrap.sh`. Exempt: `store.py` 332 (the rule's
+one exception). History in
 [`.claude/backlog/19-thirty-line-compliance.md`](../backlog/19-thirty-line-compliance.md).
