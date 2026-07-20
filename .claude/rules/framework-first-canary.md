@@ -51,6 +51,44 @@ App-specific → stays in the consumer: API endpoint/transport, access token & a
 banner, branding/copy, model/persona config, screen-specific layout, the wiring
 that hands the transport hook to the framework component.
 
+## The DEMOTION case: when a framework primitive turns out never to have been one
+
+This rule pushes capabilities UP, from consumer to framework. It has a mirror the
+original text never covered, and the shell consolidation
+(B3-FIGLASS-SHELL-CONSOLIDATION-1, 2026-07-20) is its first application: a thing
+that SITS in the framework and turns out to have exactly one consumer — a consumer
+that is not the canary — belongs back with that consumer.
+
+The evidence required before demoting, all of it measured, never argued:
+
+1. **The canary consumes ZERO of it.** og118 renders `fi-glass/agent`; it imported
+   none of `ChatWidget`/`ChatSurface`/`ChatContent`/`ChatToolbar`/`ChatStartScreen`/
+   `FloatingButton`/`useChatWidgetState`. Verified by grep across `apps/og118`.
+2. **Some of it has NO consumer at all.** `ChatSurface` had zero callers anywhere
+   in the monorepo — not og118, not aurity, not fi-glass itself.
+3. **The split is clean, and the shared part STAYS.** `shell/` held two unrelated
+   things under one name. The primitives more than one surface really uses —
+   `touchTarget` (10 controls across voice/messages/composer/agent + og118's
+   sidebar), `useMediaQuery`, `ChatFilePreview`, the type vocabulary og118 types
+   its uploads against — remained in fi-glass. Only the single-consumer
+   orchestrator left.
+4. **The dependency is one-way.** `agent/ → shell/` in 5 places, `shell/ → agent/`
+   in zero. No cycle, so the cut is clean.
+
+**Why demote rather than delete.** The CLAUDE.md orders both "NO LEGACY CODE —
+delete it" and, of aurity specifically, "it is not dead code kept for
+compatibility; it is the canonical shape the live app inherits — read it, do not
+delete it." Deleting satisfies the first and destroys the second. Relocation
+satisfies both: the framework is purged (grep proves zero live references) and the
+canonical shape stays legible AND BUILDING with its owner. `aurity build` is part
+of the verification, not an afterthought.
+
+**What this is NOT a licence for.** Demoting something the canary uses, or
+something with two or more consumers, or moving a capability out to dodge the work
+of generalising it. If the canary touches it at all, it stays and the rule above
+governs. The tell that a demotion is really an evasion: the thing being moved is
+one og118 would plausibly want next release.
+
 ## Gatekeeper enforcement
 
 The AI gatekeeper (bair, centralized in `BernardUriza/.github`) must flag this
