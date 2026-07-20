@@ -11,9 +11,9 @@ SOURCE OF TRUTH**. Everything else —the SSR view, the in-RAM client pool, any 
 is **derived from the log**, never the other way around. This is not a design opinion:
 it is the consensus of modern data engineering (Kreps's "The Log", Helland's
 *"accountants don't use erasers"*, WAL/ARIES, Fowler's event sourcing — citations and
-the EC-GPS genesis in [`docs/genesis.md`](../../docs/genesis.md)).
+the EC-GPS genesis in [`server/docs/genesis.md`](../../server/docs/genesis.md)).
 
-The mapping that follows from it: the engine (`aire/engine.py`) is the listening
+The mapping that follows from it: the engine (`server/aire/engine/`) is the listening
 daemon (Reactor / C10K — the socket is eternal, AI is only the *transform*);
 `gps_logs` = the `session_store`; the PHP waiter = `render.py` / the SSR, which only
 reads and repaints. Replaceable.
@@ -36,4 +36,4 @@ reads and repaints. Replaceable.
    entries. To correct is to append, not to erase (Helland).
 
 See also `CLAUDE.md` (sections *"The spirit"*, *"The genesis"*, *"The waiter and the
-magic"*) and `aire/store.py` (the official Postgres adapter, copied).
+magic"*) and `server/aire/store.py` (the official Postgres adapter, copied).

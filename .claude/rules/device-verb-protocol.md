@@ -44,7 +44,7 @@ per connection.
 Three surfaces, three homes — none of them the droplet's mortal disk:
 
 - **The code** (verbs, gate) → **git**. Reaches the droplet via CI
-  (`git reset --hard origin/main`) and a fresh box via `infra/provision-do.sh`.
+  (`git reset --hard origin/main`) and a fresh box via `server/infra/provision-do.sh`.
 - **The roster data** (`aire_device`) → **the owner's Postgres**, created as role
   `aire` so the console reader sees it. Deathless: it survives the kill test
   exactly as the transcript does (Carlos failure #2: "the whitelist disappeared"

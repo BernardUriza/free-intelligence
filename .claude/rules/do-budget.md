@@ -31,8 +31,8 @@ not documentation.
 
 The $20 cap governs DigitalOcean, where spend is frozen at $4. The component that
 actually **grows** is the pen's `aire_log` table in **Azure Postgres**, fed by a
-port open to the internet (accepted risk, see `deploy/aire-listener.service`). It
-is capped by the **broom** (`aire/sweep.py` + `aire-sweep.timer`, 30-day
+port open to the internet (accepted risk, see `server/deploy/aire-listener.service`). It
+is capped by the **broom** (`server/aire/sweep.py` + `aire-sweep.timer`, 30-day
 retention) and by **logrotate** on the file. `costwatch` verifies both nightly
 over SSH — a dead broom, a crashing sweep, or a disk past 80% goes red.
 

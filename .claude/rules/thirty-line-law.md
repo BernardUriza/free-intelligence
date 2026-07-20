@@ -35,7 +35,7 @@ backlog #19; removing an entry is part of fixing its file.
 
 ## The one exception (Bernard may veto)
 
-`aire/store.py` is a near-verbatim copy of the SDK's official Postgres
+`server/aire/store.py` is a near-verbatim copy of the SDK's official Postgres
 session-store example, kept diffable against upstream on purpose (Art. 6). It
 stays whole and exempt.
 

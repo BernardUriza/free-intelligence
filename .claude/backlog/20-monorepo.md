@@ -1,6 +1,6 @@
 # The monorepo — server and front in one repo, one wall
 
-Status: In progress
+Status: Done 2026-07-20
 Proposed: 2026-07-20 by Bernard
 
 ## What it is
@@ -27,6 +27,10 @@ Done — Bernard greenlit 2026-07-20 ("genial idea!"). Archive of
 
 ## Status / next step
 
-Phase 1: restructure into `server/` (droplet paths pinned via unit env), deploy
-green with probes. Phase 2: subtree `front/` + migrate its workflow + verify
-the render. Phase 3: amend the two rules, archive `aire-front-seed`.
+All three phases landed 2026-07-20. Phase 1: `server/` restructure, droplet
+paths pinned in units, deploy-server green, /health + listener + tick verified
+live. Phase 2: `front/` via git subtree (history intact), ci-front (attack
+suite green on disposable Postgres) + deploy-front (fresh SP scoped to
+insult-rg) → Container App rolled, /api/health 200 verified. Phase 3: both
+laws amended (repo-wall → credential-wall), `aire-front-seed` archived with a
+pointer README.

@@ -1,6 +1,7 @@
-# This repo only reads — the pen lives in `aire-server`
+# This half only reads — the pen lives in `server/` (one monorepo since 2026-07-20)
 
-Repo rule for `aire-front-seed`. It is the mirror image of `aire-server`'s
+Rule for the `front/` half (born as repo `aire-front-seed`, merged into the
+monorepo with full history, backlog #20). It is the mirror image of the server's
 `write-only-daemon` law, and together they are one law with two halves: the
 daemon appends and never reads; the front reads and never appends. The
 append-only table is the frontier between them.

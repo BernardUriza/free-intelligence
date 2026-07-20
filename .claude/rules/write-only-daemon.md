@@ -1,7 +1,11 @@
-# This repo is write-only toward the database — every read lives in the front
+# The server half is write-only toward the database — every read lives in the front
 
-Repo rule for `aire-server`, registered 2026-07-13 by Bernard's directive. This is
-the repo that gets cloned to the daemon's body. Toward Postgres it **only appends**.
+Rule for the `server/` half, registered 2026-07-13 by Bernard's directive;
+**amended 2026-07-20 for the monorepo (backlog #20)**: server and front now
+share ONE repo, so the CQRS wall is no longer physical-by-repo — it is
+**physical-by-credential-and-pipeline**. `server/` is what gets cloned to the
+daemon's body (the droplet pulls this repo; only `server/` runs there). Toward
+Postgres the daemon **only appends**.
 
 ## The law
 
@@ -12,16 +16,20 @@ the repo that gets cloned to the daemon's body. Toward Postgres it **only append
    page, not a rendered transcript. JSON health + SSE events are its only mouths.
    Violated once (2026-07-14: an SSR page served `load_transcript` from here);
    reverted the same hour. The front renders; the daemon speaks events.
-2. **Every reader is a waiter, and every waiter lives in the front repo** — the
-   PHP-of-EC-GPS layer. **It exists**: [`aire-front-seed`](https://github.com/BernardUriza/aire-front-seed)
-   (Next.js SSR, [live on Container Apps](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io),
-   backlog #15). The first tenant was the monster (the DFG view), evicted from
-   here at commit `f40e21a` and now served there.
-   **Its half of this law is [`read-only-waiter`](https://github.com/BernardUriza/aire-front-seed/blob/main/.claude/rules/read-only-waiter.md)** —
-   one law, two repos: this one only appends, that one only reads.
-3. **The daemon owns the DDL.** `CREATE TABLE` for what it writes lives here; the
-   front treats the schema as a read-only contract. A schema change is an API
-   change between the two repos — coordinate it, never surprise the reader.
+2. **Every reader is a waiter, and every waiter lives in `front/`** — the
+   PHP-of-EC-GPS layer (Next.js SSR,
+   [live on Container Apps](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io),
+   backlog #15; merged into this monorepo from `aire-front-seed` with full
+   history, backlog #20). The first tenant was the monster (the DFG view),
+   evicted from the server at commit `f40e21a`.
+   **Its half of this law is [`front/.claude/rules/read-only-waiter.md`](../../front/.claude/rules/read-only-waiter.md)** —
+   one law, two halves, two credentials, two pipelines: `server/` only appends
+   (deploy-server → droplet), `front/` only reads (deploy-front → Azure, and
+   its CI attack suite proves the DATABASE refuses its role a write).
+3. **The daemon owns the DDL.** `CREATE TABLE` for what it writes lives in
+   `server/`; the front treats the schema as a read-only contract. A schema
+   change is an API change between the two halves — now one atomic diff, but
+   still coordinated, never a surprise to the reader.
 4. **The pen's credential is the daemon's alone — one law, two credentials.**
    `AIRE_DATABASE_URL` here (role `aire`, `~/.secrets/aire-postgres.txt`) grants
    **write**: that is what makes it the pen. The front gets a different one —
