@@ -6,7 +6,7 @@ package of 10+ focused modules:
 - `connection.py`   ConnectionManager (schema init, migrations, WAL, vectors)
 - `base.py`         BaseRepository (shared auto-reconnect)
 - `context.py`      Pure functions: format_relative_time, build_context
-- `store.py`        MemoryStore facade — preserves the legacy flat API
+- `store/`          MemoryStore facade package — preserves the legacy flat API
 - `repositories/`   One module per domain (messages, facts, reminders, ...)
 
 External callers should keep importing MemoryStore from this package —
@@ -15,7 +15,7 @@ specific domain can import the relevant repository directly:
 
     from khimeras_shared.memory.repositories import FactsRepository
 
-See `store.py` for the rationale on keeping the facade rather than
+See `store/__init__.py` for the rationale on keeping the facade rather than
 switching every callsite to direct-repository injection.
 """
 
