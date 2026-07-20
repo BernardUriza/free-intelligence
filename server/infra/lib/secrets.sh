@@ -17,8 +17,10 @@ grep -q "^Host github.com$" /root/.ssh/config 2>/dev/null || printf "Host github
 
 append_secret() {  # <file> <KEY=> <human-name>
   if [[ -f "$1" ]]; then
-    local line; line="$(grep "^$2" "$1" | head -1)"
-    [[ -n "$line" ]] && ENV_CONTENT+="$line"$'\n'
+    # `|| true`: a file without this key is normal (grep exits 1, and under
+    # `set -euo pipefail` that would kill the whole provision — it did, 2026-07-20).
+    local line; line="$(grep "^$2" "$1" | head -1 || true)"
+    [[ -n "$line" ]] && ENV_CONTENT+="$line"$'\n' || true
   else
     echo "    [local] no $1 — $3 disabled."
   fi
