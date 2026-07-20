@@ -27,11 +27,21 @@
  */
 
 import { useEffect } from 'react';
+import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 
 const DENSITY_STYLE_ID = 'fi-density-style';
 
 const CSS = `
-.fi-agent-workspace {
+/* B3-FIGLASS-TOKEN-LAYER-1 — the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback — the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope — :root is the floor, not a ceiling. */
+:root {
   --fi-space-1: 0.25rem;
   --fi-space-2: 0.5rem;
   --fi-space-3: 0.75rem;
@@ -44,7 +54,7 @@ const CSS = `
  * transcript/composer regions read these (with their previous literals as
  * fallbacks), so on a phone the chrome tightens and content dominates; desktop
  * resolves to the exact former values. Consumers re-tune by setting the vars. */
-@media (max-width: 768px) {
+@media ${FI_MOBILE_QUERY} {
   .fi-agent-workspace {
     --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
     --fi-transcript-gap: 0.5rem;

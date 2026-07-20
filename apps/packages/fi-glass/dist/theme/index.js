@@ -29,7 +29,7 @@ var glassChatPreset = {
   text: "#ffffff",
   textMuted: "#94a3b8",
   shadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-  radius: "14px"
+  radius: "16px"
 };
 export {
   glassChatPreset,

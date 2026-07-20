@@ -589,10 +589,17 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect21, useState as useState20 } from "react";
+import { useEffect as useEffect22, useState as useState20 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -601,10 +608,10 @@ function ensureTouchTargetStyle() {
   const el = document.createElement("style");
   el.id = TOUCH_TARGET_STYLE_ID;
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -1565,7 +1572,7 @@ function useMediaQuery(query, options) {
 
 // src/agent/conversation-surface/hooks/useSurfaceLayout.ts
 function useSurfaceLayout(layout) {
-  const isMobileViewport = useMediaQuery("(max-width: 768px)");
+  const isMobileViewport = useMediaQuery(FI_MOBILE_QUERY);
   const contentInset = isMobileViewport ? "100%" : "calc(100% - 60px)";
   const rootStyle = layout === "contained" ? { display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" } : { display: "flex", flexDirection: "column", height: "100dvh" };
   return { rootStyle, contentInset };
@@ -1604,13 +1611,14 @@ function ScrollToBottomButton({
   className,
   iconClassName
 }) {
+  useTouchTargetStyle();
   return /* @__PURE__ */ jsx18(
     "button",
     {
       type: "button",
       onClick,
       "aria-label": label,
-      className: className ? `fi-scroll-to-bottom ${className}` : "fi-scroll-to-bottom",
+      className: className ? `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS} ${className}` : `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS}`,
       style: className ? placement : { ...placement, ...skin },
       children: /* @__PURE__ */ jsx18(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }
@@ -2566,11 +2574,87 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect19, useId as useId3, useState as useState18 } from "react";
+import { useEffect as useEffect20, useId as useId3, useState as useState18 } from "react";
 import { SlidersHorizontal } from "lucide-react";
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect19 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS2 = `
+/* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback \u2014 the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope \u2014 :root is the floor, not a ceiling. */
+:root {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media ${FI_MOBILE_QUERY} {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
+function ensureDensityStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(DENSITY_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = DENSITY_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+function useDensityStyle() {
+  useEffect19(() => {
+    ensureDensityStyle();
+  }, []);
+}
+
+// src/composer/ComposerFrame.tsx
 import { Fragment as Fragment5, jsx as jsx32, jsxs as jsxs24 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS2 = `
+var CSS3 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -2669,15 +2753,16 @@ var CSS2 = `
 }
 `;
 function ensureComposerFrameStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect19(() => {
+  useEffect20(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -2837,7 +2922,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment6, useEffect as useEffect20, useRef as useRef15, useState as useState19 } from "react";
+import { Fragment as Fragment6, useEffect as useEffect21, useRef as useRef15, useState as useState19 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment7, jsx as jsx34, jsxs as jsxs26 } from "react/jsx-runtime";
 function ActionMenu({
@@ -2855,13 +2940,13 @@ function ActionMenu({
   const [open, setOpen] = useState19(false);
   const triggerRef = useRef15(null);
   const [position, setPosition] = useState19({ top: 0, left: 0 });
-  useEffect20(() => {
+  useEffect21(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect20(() => {
+  useEffect21(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -3313,7 +3398,7 @@ function AgentConversationSurface(props) {
     clearUnsentText
   } = conversation;
   const [input, setInput] = useState20("");
-  useEffect21(() => {
+  useEffect22(() => {
     if (!unsentText) return;
     setInput((current) => current.trim() ? current : unsentText);
     clearUnsentText();
@@ -3388,73 +3473,6 @@ import {
   useState as useState21
 } from "react";
 import { Menu } from "lucide-react";
-
-// src/agent/densityStyle.ts
-import { useEffect as useEffect22 } from "react";
-var DENSITY_STYLE_ID = "fi-density-style";
-var CSS3 = `
-.fi-agent-workspace {
-  --fi-space-1: 0.25rem;
-  --fi-space-2: 0.5rem;
-  --fi-space-3: 0.75rem;
-  --fi-space-4: 1rem;
-  --fi-space-5: 1.5rem;
-  --fi-radius-section: 12px;
-  --fi-touch-target: 44px;
-}
-/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
- * transcript/composer regions read these (with their previous literals as
- * fallbacks), so on a phone the chrome tightens and content dominates; desktop
- * resolves to the exact former values. Consumers re-tune by setting the vars. */
-@media (max-width: 768px) {
-  .fi-agent-workspace {
-    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
-    --fi-transcript-gap: 0.5rem;
-    --fi-composer-bar-pt: 0.5rem;
-    --fi-composer-bar-px: 0.75rem;
-    --fi-composer-bar-pb: 0.5rem;
-  }
-}
-.fi-density-comfortable {
-  --fi-section-gap: 0.5rem;
-  --fi-sidebar-gap: 0.5rem;
-  --fi-item-gap: 0.4rem;
-  --fi-item-padding: 0.55rem 0.6rem;
-  --fi-section-head-gap: 0.5rem;
-  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
-}
-.fi-density-compact {
-  --fi-section-gap: 0.25rem;
-  --fi-sidebar-gap: 0.25rem;
-  --fi-item-gap: 0.3rem;
-  --fi-item-padding: 0.4rem 0.5rem;
-  --fi-section-head-gap: 0.4rem;
-  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
-}
-.fi-density-spacious {
-  --fi-section-gap: 0.85rem;
-  --fi-sidebar-gap: 0.85rem;
-  --fi-item-gap: 0.55rem;
-  --fi-item-padding: 0.75rem 0.85rem;
-  --fi-section-head-gap: 0.65rem;
-  --fi-section-head-padding: 1rem 1rem 0.65rem;
-}
-`;
-function ensureDensityStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(DENSITY_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = DENSITY_STYLE_ID;
-  el.textContent = CSS3;
-  document.head.appendChild(el);
-}
-function useDensityStyle() {
-  useEffect22(() => {
-    ensureDensityStyle();
-  }, []);
-}
-
-// src/agent/AgentWorkspaceShell.tsx
 import { jsx as jsx40, jsxs as jsxs30 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
@@ -3489,7 +3507,7 @@ function AgentWorkspaceShell({
   footer,
   sidebar,
   responsive = false,
-  mobileQuery = "(max-width: 768px)",
+  mobileQuery = FI_MOBILE_QUERY,
   sidebarWidth = 280,
   toggleLabel = "Conversaciones",
   className,
@@ -3711,7 +3729,7 @@ var CSS4 = `
 }
 .${FI_ITEM_TITLE_CLASS} {
   font-size: 0.85rem;
-  color: var(--glass-chat-text, #e2e8f0);
+  color: var(--glass-chat-text, #ffffff);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3776,7 +3794,7 @@ var CSS4 = `
 }
 .${FI_RESOURCE_RENAME_INPUT_CLASS} {
   font-size: 0.85rem;
-  color: var(--glass-chat-text, #e2e8f0);
+  color: var(--glass-chat-text, #ffffff);
   background: var(--glass-chat-bg-mid, #0f172a);
   border: 1px solid var(--glass-chat-accent-from, #059669);
   border-radius: 4px;
@@ -3786,6 +3804,7 @@ var CSS4 = `
 }
 `;
 function ensureSidebarItemStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement("style");
@@ -4035,6 +4054,7 @@ var CSS5 = `
 }
 `;
 function ensureSidebarSectionStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement("style");

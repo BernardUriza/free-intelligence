@@ -608,7 +608,7 @@ interface AgentWorkspaceShellProps {
      * the sidebar a static column at every width. No effect without `sidebar`.
      */
     responsive?: boolean;
-    /** Media query that switches the sidebar into drawer mode. Default `(max-width: 768px)`. */
+    /** Media query that switches the sidebar into drawer mode. Default {@link FI_MOBILE_QUERY}. */
     mobileQuery?: string;
     /** Desktop sidebar width (number → px). Default `280`. */
     sidebarWidth?: number | string;

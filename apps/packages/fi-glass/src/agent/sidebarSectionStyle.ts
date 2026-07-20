@@ -19,6 +19,7 @@
  */
 
 import { useEffect } from 'react';
+import { ensureDensityStyle } from './densityStyle';
 
 export const FI_SIDEBAR_SECTION_CLASS = 'fi-sidebar-section';
 export const FI_SECTION_HEAD_CLASS = 'fi-sidebar-section-head';
@@ -74,6 +75,10 @@ const CSS = `
 
 /** Inject the idempotent sidebar-section stylesheet (no-op on the server / if already present). */
 export function ensureSidebarSectionStyle(): void {
+  // The tokens this sheet READS are published by the density sheet; a primitive
+  // never assumes an ancestor mounted it (same contract as touchTarget).
+  ensureDensityStyle();
+
   if (typeof document === 'undefined') return;
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement('style');

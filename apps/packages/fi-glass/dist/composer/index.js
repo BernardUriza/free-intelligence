@@ -120,20 +120,96 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect3, useId as useId2, useState as useState2 } from "react";
+import { useEffect as useEffect4, useId as useId2, useState as useState2 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
 
+// src/agent/densityStyle.ts
+import { useEffect as useEffect3 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS = `
+/* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback \u2014 the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope \u2014 :root is the floor, not a ceiling. */
+:root {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media ${FI_MOBILE_QUERY} {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
+function ensureDensityStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(DENSITY_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = DENSITY_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+
 // src/composer/ComposerFrame.tsx
 import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS = `
+var CSS2 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -232,15 +308,16 @@ var CSS = `
 }
 `;
 function ensureComposerFrameStyle() {
+  ensureDensityStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect3(() => {
+  useEffect4(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -537,7 +614,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect4, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect5, useRef as useRef4, useState as useState4 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function ActionMenu({
@@ -555,13 +632,13 @@ function ActionMenu({
   const [open, setOpen] = useState4(false);
   const triggerRef = useRef4(null);
   const [position, setPosition] = useState4({ top: 0, left: 0 });
-  useEffect4(() => {
+  useEffect5(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect4(() => {
+  useEffect5(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
