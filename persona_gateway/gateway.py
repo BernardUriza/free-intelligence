@@ -551,23 +551,64 @@ class PersonaClient(discord.Client):
         instruction_content: str | list[dict] = instruction
         if attachment_blocks:
             instruction_content = [{"type": "text", "text": instruction}, *attachment_blocks]
-        messages = [*format_context(recent), {"role": "user", "content": instruction_content}]
-        # The invite path is the MAIN path post-purga (the host routes unaddressed
-        # turns here) — it gets the persona's corpus too, keyed off the routing
-        # reason (cruel-critic 2026-07-16, finding #1: Vultur dictaminaba cine sin
-        # su biblioteca en el path con más tráfico).
-        corpus_guidance = await self._append_corpus_block(None, reason)
+
+        # The invite path is the MAIN path post-cutover (the host routes every
+        # unaddressed turn here), so it gets the SAME turn assembly as `_handle`
+        # — guardian, reminders, corpus, relevant, other-people, real user_id.
+        # Before 2026-07-19 only the corpus rode along: the vulnerable-user
+        # overlay, relevant memory and third-party facts were wired exclusively
+        # into the @mention path, which the cutover had just demoted to
+        # near-zero traffic — the celebrated-but-disconnected class, again.
+        subject = None
+        if react_to is not None and not getattr(react_to.author, "bot", False):
+            subject = react_to.author
+        subject_user_id = str(subject.id) if subject is not None else None
+        subject_ask = (react_to.content or "").strip() if react_to is not None else ""
+
+        relevant = await self._load_relevant(channel_id, subject_ask or reason)
+        context = format_context(self.memory.build_context(recent, relevant))
+        messages = [*context, {"role": "user", "content": instruction_content}]
+
+        guidance = None
+        if subject_user_id is not None:
+            guidance = await guidance_for_turn(
+                memory=self.memory,
+                user_id=subject_user_id,
+                current_message=subject_ask or reason,
+                recent_messages=context,
+                persona_id=self.persona.persona_id,
+            )
+            guidance = await self._append_pending_reminders(guidance, subject_user_id)
+        guidance = await self._append_corpus_block(guidance, reason)
+        other_people = await other_people_block_for_turn(
+            self.memory,
+            channel_id,
+            exclude_user_id=subject_user_id or (str(self.user.id) if self.user else ""),
+        )
         await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
-            user_id=str(self.user.id) if self.user else "",
+            user_id=subject_user_id or (str(self.user.id) if self.user else ""),
             guild_id=guild_id,
             channel_name=channel_name,
             messages=messages,
             turn_kind="invite",
             react_to=react_to,
-            behavioral_guidance=corpus_guidance,
+            behavioral_guidance=guidance,
+            other_people=other_people,
         )
+        self.last_turn_delivered = time.time()
+        if subject is not None and subject_ask:
+            self._spawn_fact_extraction(
+                str(subject.id),
+                subject.display_name,
+                [
+                    *recent[-CONFIG.facts_recent_window :],
+                    {"user_name": subject.display_name, "content": subject_ask},
+                ],
+            )
+        if react_to is not None and attachment_blocks:
+            self._vision.spawn(self.judge_client, str(react_to.id), attachment_blocks)
 
     async def _run_and_deliver(
         self,
