@@ -1,7 +1,18 @@
 # The endpoints SSH was covering
 
-Status: Proposed
+Status: **22b Done 2026-07-20** (`c57030b`), 22a still Proposed
 Proposed: 2026-07-20 by Bernard (from the caught SSH bypass)
+
+## 22b shipped — artifacts over HTTP (verified live)
+
+`GET /projects/{p}/artifacts` (JSON list) and `GET /projects/{p}/artifacts/{path}`
+(raw bytes) now serve the casita's files, Bearer-gated, path confined by the
+agent cage's `escapes` (Art. 6, reused). The fork below resolved itself: decision
+#3's "fetched by hand" meant `scp` (SSH), which [[ssh-is-a-missing-endpoint]]
+names as the tell of a missing endpoint — so this IS the endpoint, not a
+non-feature. Verified: listed faros' 6 files, downloaded a chapter over HTTP (no
+scp), a `../../../etc/aire/env` traversal returned 404, no-token returned 401.
+These reach disk not the DB, so [[write-only-daemon]] is untouched.
 
 ## What it is
 
