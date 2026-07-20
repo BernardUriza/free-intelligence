@@ -53,7 +53,7 @@ from khimeras_shared.stt import SusurroSttClient, build_susurro_stt_client
 from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
-from persona_gateway.delivery import DISCORD_LIMIT, chunk
+from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.facts import FactExtractor
 from persona_gateway.ingest import MessageIngest
 from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
@@ -240,7 +240,8 @@ class PersonaClient(discord.Client):
             return
         if message.author.id != self.user.id:
             return  # not this persona's message — Insult owns its own 🔊
-        await self._voice.speak(channel, message.content.strip(), reason="manual")
+        text = full_text_for(message.id) or strip_version_tag(message.content.strip())
+        await self._voice.speak(channel, text, reason="manual")
 
     async def _dispatch(self, message: discord.Message) -> None:
         """Shared guarded entry for message + edit summons."""

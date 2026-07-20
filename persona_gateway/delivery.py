@@ -4,9 +4,15 @@ The pure splitter (`chunk`) is Discord-free and unit-tested. `send_chunked` is
 the one place that appends the version tag to the last piece and pushes the
 pieces to a channel — it replaced the copy of that exact block that lived in
 FOUR call sites (research drain, agenda check, reminder drain, the live turn).
+It also records each sent message id → the full untagged reply, so a 🔊 on ANY
+piece of a multi-part reply speaks the whole turn, never one chunk with the
+version tag read aloud.
 """
 
 from __future__ import annotations
+
+import re
+from collections import OrderedDict
 
 import discord
 
@@ -16,6 +22,28 @@ DISCORD_LIMIT = 1990  # leave headroom under Discord's 2000-char message cap
 DISCORD_HARD_CAP = 2000  # Discord's absolute per-message limit
 
 _VERSION_TAG_SUFFIX = f"\n-# {VERSION_TAG}"
+_ANY_VERSION_TAG = re.compile(r"\n-# ᵛ\S*\s*$")
+
+_FULL_TEXT_CAP = 512
+_full_texts: OrderedDict[int, str] = OrderedDict()
+
+
+def _remember_full_text(message_id: int, text: str) -> None:
+    _full_texts[message_id] = text
+    _full_texts.move_to_end(message_id)
+    while len(_full_texts) > _FULL_TEXT_CAP:
+        _full_texts.popitem(last=False)
+
+
+def full_text_for(message_id: int) -> str | None:
+    """The complete untagged reply a sent message belongs to, if still tracked."""
+    return _full_texts.get(message_id)
+
+
+def strip_version_tag(text: str) -> str:
+    """Drop the trailing `-# ᵛ…` deploy tag — any version, not just the running
+    one, because a 🔊 can land on a message delivered by an older deploy."""
+    return _ANY_VERSION_TAG.sub("", text).strip()
 
 
 def chunk(text: str, limit: int = DISCORD_LIMIT) -> list[str]:
@@ -52,12 +80,20 @@ def tag_pieces(pieces: list[str]) -> list[str]:
     return pieces
 
 
-async def send_chunked(channel: discord.abc.Messageable, text: str) -> None:
+async def send_chunked(channel: discord.abc.Messageable, text: str) -> list[discord.Message]:
     """Split `text`, tag the last piece, and send every piece to `channel`.
 
     The single delivery path for every persona reply — live turn, research
-    report, agenda finding, reminder. Empty text sends nothing.
+    report, agenda finding, reminder. Empty text sends nothing. Every sent
+    message id is mapped back to the full untagged `text` for the 🔊 path.
     """
+    full = (text or "").strip()
     pieces = tag_pieces(chunk(text))
+    sent: list[discord.Message] = []
     for piece in pieces:
-        await channel.send(piece)
+        message = await channel.send(piece)
+        sent.append(message)
+        message_id = getattr(message, "id", None)
+        if isinstance(message_id, int):
+            _remember_full_text(message_id, full)
+    return sent
