@@ -60,6 +60,7 @@ from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_m
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
 from persona_gateway.turns import TurnRunner
+from persona_gateway.vision import ImageTranscriber
 from persona_gateway.voice import VoiceService
 from persona_gateway.workers import AgendaWorker, ReflectionWorker, ReminderWorker, ResearchWorker
 from shared.corpus.persona_corpus import build_persona_corpus_block
@@ -140,6 +141,7 @@ class PersonaClient(discord.Client):
             auto_tts_min_chars=auto_tts_min_chars,
         )
         self._facts = FactExtractor(persona, memory, self._bg_tasks)
+        self._vision = ImageTranscriber(memory, self._bg_tasks)
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)
         self._reminders = ReminderWorker(persona, memory, agent_client, _PROMPT_CACHE)
@@ -344,6 +346,11 @@ class PersonaClient(discord.Client):
             message.author.display_name,
             [*recent[-CONFIG.facts_recent_window :], {"user_name": message.author.display_name, "content": ask}],
         )
+        # An image lives inside ONE turn and then evaporates — the stored row keeps
+        # the words and nothing else. Transcribe it into that row so the persona is
+        # not blind to it tomorrow. Also AFTER delivery: a vision round-trip must
+        # never sit between the user and their reply.
+        self._vision.spawn(self.judge_client, str(message.id), attachment_blocks)
 
     async def _load_relevant(self, channel_id: str, ask: str) -> list[dict]:
         """Keyword-relevant OLDER turns for this ask, or [] on any fault.
