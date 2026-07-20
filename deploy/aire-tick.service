@@ -8,4 +8,6 @@ Requires=aire-listener.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 -c "import socket; s = socket.create_connection(('127.0.0.1', 9099), 5); s.sendall(b'TICK pen-heartbeat\n'); s.close()"
+# chr(10) instead of a backslash-n literal: systemd C-unescapes "\n" inside
+# quoted ExecStart strings into a real newline, breaking the python source.
+ExecStart=/usr/bin/python3 -c "import socket; s = socket.create_connection(('127.0.0.1', 9099), 5); s.sendall(('TICK pen-heartbeat' + chr(10)).encode()); s.close()"
