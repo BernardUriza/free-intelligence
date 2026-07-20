@@ -1,4 +1,8 @@
-"""Persona-agnostic behavior engine — presets, flows, vulnerability, synthesis.
+"""Persona-agnostic behavior engine — presets, vulnerability, synthesis.
+
+The 4-flow analyzer pipeline (`behavior/flows/`) was DELETED 2026-07-20: it
+had zero live callers since the purga. Its type contracts survive in
+`behavior/contracts/flows.py` (consumed by the model router).
 
 Resurrected 2026-07-14 from the deleted `personas/insult/core/` (commit
 2f8d9ad^) and modularized so EVERY persona consumes it: the engine reads the

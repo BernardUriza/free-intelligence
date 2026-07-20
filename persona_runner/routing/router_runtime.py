@@ -57,7 +57,7 @@ from typing import Any
 import asyncpg
 import structlog
 
-from khimeras_shared.behavior.flows.model.types import (
+from khimeras_shared.behavior.contracts.flows import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,

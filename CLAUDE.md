@@ -81,12 +81,10 @@ background extracts facts (ADD-only merge) and fires reactions.
   (DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE,
   RESPECTFUL_SERIOUS, META_DEFLECTION) + modifiers (MEMORY_RECALL, CONTEMPT,
   MULTI_DOMAIN_SYNTHESIS). Zero LLM cost.
-- `behavior/flows/` — the 4-flow analysis (epistemic control, adaptive pressure,
-  dynamic expression, conversational awareness) rendered by `build_flow_prompt`.
-  **NOT WIRED post-purga (verificado 2026-07-20)**: `analyze_flows`/`build_flow_prompt`
-  tienen cero callers vivos — `guidance_for_turn` solo compone presets + overlay, y
-  el único consumidor externo es `router_runtime.py`, que importa los TIPOS para un
-  stub neutral (`_neutral_flow`). Rewire o borrado: decisión de Bernard pendiente.
+- `behavior/flows/` — **DELETED 2026-07-20**: the 4-flow analyzer pipeline had
+  zero live callers since the purga (`guidance_for_turn` only composes presets +
+  overlay). The type contracts survive in `behavior/contracts/flows.py`, consumed
+  by `router_runtime.py` for its neutral stub (`_neutral_flow`).
 - `behavior/vulnerability.py` — `compute_vulnerability_score` over the 6 signal
   groups (named_diagnosis, psychiatric_medication, mental_health_clinician,
   hospitalization, chronic_comorbidity, self_harm_history), threshold ≥4.

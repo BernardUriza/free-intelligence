@@ -41,7 +41,7 @@ The live system is FOUR packages plus the host:
   persona_files, session_pool), `routing/` (model_routing, router_runtime),
   `core/` (auth, config, schemas), `workspace_renderer.py`.
 - `khimeras_shared/` — everything shared: `memory/` (Postgres store +
-  repositories), `behavior/` (presets, flows, vulnerability — the behavior
+  repositories), `behavior/` (presets, vulnerability — the behavior
   engine), `guidance.py` (the guardian seam), `facts.py`, `style.py`,
   `markers.py`, `reactions.py`, `attachments.py`, `tts.py`/`stt.py`,
   `prompts.py` + `prompts_md/`, `consolidation/`, `corpus/`, `runner/` (HTTP

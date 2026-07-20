@@ -130,9 +130,9 @@ class AwarenessAnalysis:
 class FlowAnalysis:
     """Full 4-flow analysis for a single turn.
 
-    Produced by `FlowPipeline.run()`; consumed by `build_flow_prompt()` for
-    injection into the system prompt, and by `validate_flow_adherence()`
-    after generation to log violations."""
+    The analyzer pipeline that produced this died with `behavior/flows/`
+    (2026-07-20); today the sole producer is `router_runtime._neutral_flow()`
+    and the sole consumer is the router's crisis branch."""
 
     epistemic: EpistemicAnalysis
     pressure: PressureAnalysis
