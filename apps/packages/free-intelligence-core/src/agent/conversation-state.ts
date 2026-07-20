@@ -89,8 +89,13 @@ export type ConversationEvent =
   | { type: 'clear_unsent' }
   /** Load a different conversation (or start a fresh one). */
   | { type: 'hydrate'; messages: ChatMessage[] }
-  /** Persistence settled; the pending change is no longer un-persisted. */
-  | { type: 'persist_settled' };
+  /**
+   * The shell CONSUMED the skip: it saw `skipPersist` and declined to persist
+   * this change. One-shot — the flag clears so the NEXT confirmed change
+   * persists normally. (Getting this backwards makes the shell skip forever and
+   * nothing is ever saved.)
+   */
+  | { type: 'persist_skip_consumed' };
 
 export function initialConversationState(seed: ChatMessage[] = []): ConversationState {
   return {
@@ -211,8 +216,8 @@ export function applyConversationEvent(
     case 'hydrate':
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
 
-    case 'persist_settled':
-      return state.skipPersist ? state : { ...state, skipPersist: true };
+    case 'persist_skip_consumed':
+      return state.skipPersist ? { ...state, skipPersist: false } : state;
 
     default:
       return state;

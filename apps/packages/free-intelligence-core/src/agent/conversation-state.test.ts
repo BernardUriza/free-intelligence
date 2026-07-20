@@ -193,4 +193,16 @@ describe('hydrate + immutability', () => {
     send(before, 'hola');
     expect(JSON.stringify(before)).toBe(snapshot);
   });
+
+  it('skipPersist is ONE-SHOT: consuming it lets the NEXT change persist', () => {
+    // The bug this test exists for: an event that SET the flag instead of
+    // clearing it made the shell skip forever, so nothing was ever saved. The
+    // fi-glass persistence tests caught it; this is the unit that names it.
+    let s = send(initialConversationState(), 'hola');
+    expect(s.skipPersist).toBe(true);
+    s = applyConversationEvent(s, { type: 'persist_skip_consumed' });
+    expect(s.skipPersist).toBe(false);
+    // Consuming again is a no-op, not a re-arm.
+    expect(applyConversationEvent(s, { type: 'persist_skip_consumed' })).toBe(s);
+  });
 });

@@ -244,8 +244,8 @@ function applyConversationEvent(state, event) {
       return state.unsent.text === null && state.unsent.images === null ? state : { ...state, unsent: NO_DRAFT };
     case "hydrate":
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
-    case "persist_settled":
-      return state.skipPersist ? state : { ...state, skipPersist: true };
+    case "persist_skip_consumed":
+      return state.skipPersist ? { ...state, skipPersist: false } : state;
     default:
       return state;
   }

@@ -376,10 +376,10 @@ function AgentPanel({
 }
 
 // src/agent/useAgentConversation.ts
-import { useCallback, useEffect as useEffect2, useRef, useState as useState2 } from "react";
+import { useCallback, useEffect as useEffect2, useReducer, useRef, useState as useState2 } from "react";
 import {
-  makeUserMessage,
-  foldAssistantTurn
+  applyConversationEvent,
+  initialConversationState
 } from "@free-intelligence/core";
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
@@ -396,9 +396,16 @@ function useAgentConversation(agent, options) {
     isAppHandledError
   } = options;
   const controlled = externalMessages !== void 0;
-  const [messages, setMessages] = useState2(
-    initialMessages ?? []
+  const [convo, dispatch] = useReducer(
+    applyConversationEvent,
+    void 0,
+    () => initialConversationState(initialMessages ?? [])
   );
+  const convoRef = useRef(convo);
+  convoRef.current = convo;
+  const messages = convo.messages;
+  const turnError = convo.failure;
+  const timedOut = convo.timedOut;
   const controlledRef = useRef(controlled);
   controlledRef.current = controlled;
   const authorRef = useRef(author);
@@ -407,11 +414,7 @@ function useAgentConversation(agent, options) {
   userAuthorRef.current = userAuthor;
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
-  const [turnError, setTurnError] = useState2(null);
-  const [timedOut, setTimedOut] = useState2(false);
   const [persistError, setPersistError] = useState2(null);
-  const [unsentText, setUnsentText] = useState2(null);
-  const [unsentImages, setUnsentImages] = useState2(null);
   const unsaved = useRef(null);
   const runPersist = useCallback(async (thread) => {
     if (!onMessagesChangeRef.current) return;
@@ -434,47 +437,29 @@ function useAgentConversation(agent, options) {
     void runPersist(thread);
   }, [runPersist]);
   const dismissPersistError = useCallback(() => setPersistError(null), []);
-  const clearUnsent = useCallback(() => {
-    setUnsentText(null);
-    setUnsentImages(null);
-  }, []);
-  const pending = useRef(false);
+  const clearUnsent = useCallback(() => dispatch({ type: "clear_unsent" }), []);
   const messagesRef = useRef(messages);
   messagesRef.current = externalMessages ?? messages;
   const agentRef = useRef(agent);
   agentRef.current = agent;
   const appHandledRef = useRef(isAppHandledError);
   appHandledRef.current = isAppHandledError;
-  const lastSent = useRef(null);
   const initialRef = useRef(initialMessages);
   initialRef.current = initialMessages;
-  const skipPersist = useRef(true);
   const mounted = useRef(false);
-  const revertOptimistic = useCallback(() => {
-    if (controlledRef.current) return;
-    const thread = messagesRef.current;
-    const last = thread[thread.length - 1];
-    if (last?.role !== "user") return;
-    setUnsentText(last.content);
-    setUnsentImages(last.images && last.images.length > 0 ? last.images : null);
-    setMessages((prev) => prev[prev.length - 1]?.role === "user" ? prev.slice(0, -1) : prev);
-  }, []);
   const awaitResolver = useRef(null);
   const send = useCallback(
     (text, images) => {
       const t = text.trim();
       const imgs = images && images.length > 0 ? images : void 0;
       if (!t && !imgs || agent.isStreaming) return;
-      lastSent.current = { text: t, images: imgs };
-      setUnsentText(null);
-      setUnsentImages(null);
-      setTurnError(null);
-      setTimedOut(false);
-      if (!controlled) {
-        skipPersist.current = true;
-        setMessages((prev) => [...prev, makeUserMessage(t, userAuthorRef.current, imgs)]);
-      }
-      pending.current = true;
+      dispatch({
+        type: "send",
+        text: t,
+        images: imgs,
+        author: userAuthorRef.current,
+        controlled
+      });
       void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
     },
     [agent, controlled]
@@ -496,82 +481,66 @@ function useAgentConversation(agent, options) {
     agentRef.current.abort?.();
   }, []);
   const retry = useCallback(() => {
-    if (lastSent.current) send(lastSent.current.text, lastSent.current.images);
+    const last = convoRef.current.lastSent;
+    if (last) send(last.text, last.images);
   }, [send]);
-  const dismissError = useCallback(() => {
-    setTurnError(null);
-    setTimedOut(false);
-  }, []);
+  const dismissError = useCallback(() => dispatch({ type: "dismiss_failure" }), []);
   useEffect2(() => {
-    if (agent.isStreaming || !pending.current) return;
-    pending.current = false;
+    if (agent.isStreaming || !convoRef.current.pending) return;
     if (agent.turn.status === "error") {
-      revertOptimistic();
       const r = awaitResolver.current;
       awaitResolver.current = null;
       r?.reject(new Error(agent.turn.errorMessage || "turn failed"));
-      if (!appHandledRef.current?.(agent.turn)) {
-        setTurnError({
-          kind: "stream",
-          message: agent.turn.errorMessage || "La respuesta fall\xF3. Intenta de nuevo."
-        });
-      }
+      dispatch({
+        type: "turn_failed",
+        message: agent.turn.errorMessage,
+        controlled: controlledRef.current,
+        appHandled: appHandledRef.current?.(agent.turn)
+      });
       return;
     }
     const finalText = agent.turn.text || "";
-    if (!controlledRef.current && agent.turn.text) {
-      skipPersist.current = false;
-      setMessages((prev) => [...prev, foldAssistantTurn(agent.turn, authorRef.current)]);
-    }
+    dispatch({
+      type: "turn_settled",
+      turn: agent.turn,
+      author: authorRef.current,
+      controlled: controlledRef.current
+    });
     const resolver = awaitResolver.current;
     awaitResolver.current = null;
     resolver?.resolve(finalText);
-  }, [agent.isStreaming, agent.turn, revertOptimistic]);
+  }, [agent.isStreaming, agent.turn]);
   useEffect2(() => {
     if (turnTimeoutMs <= 0) return;
-    if (!agent.isStreaming || !pending.current || timedOut) return;
+    if (!agent.isStreaming || !convoRef.current.pending || timedOut) return;
     const timer = setTimeout(() => {
-      pending.current = false;
       agentRef.current.abort?.();
-      revertOptimistic();
       const r = awaitResolver.current;
       awaitResolver.current = null;
       r?.reject(new Error("turn timed out"));
-      setTimedOut(true);
-      setTurnError({
-        kind: "timeout",
-        message: "La respuesta tard\xF3 demasiado. Intenta de nuevo."
-      });
+      dispatch({ type: "turn_timeout", controlled: controlledRef.current });
     }, turnTimeoutMs);
     return () => clearTimeout(timer);
-  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs, revertOptimistic]);
+  }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs]);
   useEffect2(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
     if (controlledRef.current) return;
-    skipPersist.current = true;
-    pending.current = false;
-    setTurnError(null);
-    setTimedOut(false);
-    setMessages(initialRef.current ?? []);
+    dispatch({ type: "hydrate", messages: initialRef.current ?? [] });
     agent.reset?.();
   }, [conversationId]);
   useEffect2(() => {
     if (controlledRef.current) return;
-    if (skipPersist.current) {
-      skipPersist.current = false;
+    if (convoRef.current.skipPersist) {
+      dispatch({ type: "persist_skip_consumed" });
       return;
     }
     void runPersist(messages);
   }, [messages]);
   const newConversation = useCallback(() => {
-    skipPersist.current = true;
-    setTurnError(null);
-    setTimedOut(false);
-    if (!controlled) setMessages([]);
-    pending.current = false;
+    dispatch({ type: "hydrate", messages: [] });
     agent.reset?.();
   }, [agent, controlled]);
   return {
@@ -583,8 +552,8 @@ function useAgentConversation(agent, options) {
     persistError,
     retryPersist,
     dismissPersistError,
-    unsentText,
-    unsentImages,
+    unsentText: convo.unsent.text,
+    unsentImages: convo.unsent.images,
     clearUnsent,
     send,
     sendAndAwait,

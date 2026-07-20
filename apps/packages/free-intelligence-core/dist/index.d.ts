@@ -559,9 +559,14 @@ type ConversationEvent =
     type: 'hydrate';
     messages: ChatMessage[];
 }
-/** Persistence settled; the pending change is no longer un-persisted. */
+/**
+ * The shell CONSUMED the skip: it saw `skipPersist` and declined to persist
+ * this change. One-shot — the flag clears so the NEXT confirmed change
+ * persists normally. (Getting this backwards makes the shell skip forever and
+ * nothing is ever saved.)
+ */
  | {
-    type: 'persist_settled';
+    type: 'persist_skip_consumed';
 };
 declare function initialConversationState(seed?: ChatMessage[]): ConversationState;
 /** Pure reducer: apply one conversation event, returning a new state. */
