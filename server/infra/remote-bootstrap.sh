@@ -67,6 +67,11 @@ verify_units() {
   done
 }
 
+wire_door_env() {
+  echo "    [remote] the SSH door inherits AIRE env (OAuth for the interactive CLI)…"
+  grep -q "aire/env" /root/.bashrc 2>/dev/null || printf '\n# the SSH door inherits AIRE env (OAuth for the interactive claude CLI)\nif [ -f /etc/aire/env ]; then set -a; . /etc/aire/env; set +a; fi\n' >> /root/.bashrc
+}
+
 restore_door_memory() {
   echo "    [remote] resurrecting the door's transcripts from Postgres…"
   if [[ -f /etc/aire/env ]]; then
@@ -83,6 +88,7 @@ echo "    [remote] /etc/aire (out-of-band secrets)…"
 install -d -m 700 /etc/aire
 sync_repo
 install_runtime
+wire_door_env
 restore_door_memory
 install_units
 verify_units
