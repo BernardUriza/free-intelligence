@@ -45,6 +45,7 @@ class Engine:
         self.session_store = session_store
         self.pool = Pool()
         self._spend_usd = 0.0  # cumulative, process lifetime — the global backstop
+        self._seen_cost: dict[str, float] = {}  # per-client last acc cost, for the delta
 
     def _cwd(self, project: str) -> Path:
         ws = WORKSPACES / project
@@ -85,6 +86,7 @@ class Engine:
         if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
             raise BudgetExceeded(
                 f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
+        key = f"{project}/{session}"
         client, lock = await self._client_for(project, session, mode)
         spent = False
         try:
@@ -92,9 +94,7 @@ class Engine:
                 await client.query(prompt)
                 async for event in drain(client):
                     if event.get("type") == "result":
-                        cost = turn_cost(event)
-                        self._spend_usd += cost
-                        spent = TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+                        spent = self._account(key, turn_cost(event))
                     yield event
                 if spent:
                     yield {"type": "error", "error": "budget_exhausted",
@@ -105,13 +105,23 @@ class Engine:
             if spent:
                 await self._retire(project, session)
 
+    def _account(self, key: str, cost: float) -> bool:
+        """Bank this turn's spend and report whether the client hit the ceiling.
+        `total_cost_usd` is the CLIENT's cumulative spend (measured 2026-07-20),
+        so the backstop adds the DELTA — else N turns N-count the same dollars."""
+        self._spend_usd += max(0.0, cost - self._seen_cost.get(key, 0.0))
+        self._seen_cost[key] = cost
+        return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+
     async def _retire(self, project: str, session: str) -> None:
         """A client that reached max_budget_usd is POISONED: the SDK refuses every
         later turn on it with an empty result and no error. Dropping it is the
         cure — the pool is a cache, so the next turn rebuilds from the store with
         `resume=` and the memory is untouched ([[log-is-the-truth]])."""
+        key = f"{project}/{session}"
+        self._seen_cost.pop(key, None)  # its spend is banked; the reborn client starts at 0
         async with self.pool.guard:
-            await self.pool.close_one(f"{project}/{session}")
+            await self.pool.close_one(key)
 
     async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
         """What the agent remembers — lives in Postgres, not the HTTP connection."""
