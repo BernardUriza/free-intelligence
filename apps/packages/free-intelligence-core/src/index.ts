@@ -32,6 +32,13 @@ export type {
   AgentTurnState,
 } from './agent/state';
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
+export { initialConversationState, applyConversationEvent } from './agent/conversation-state';
+export type {
+  ConversationState,
+  ConversationEvent,
+  TurnFailure,
+  UnsentDraft,
+} from './agent/conversation-state';
 export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
 export type { AgentHook, AgentSendMeta } from './agent/hook';
 
