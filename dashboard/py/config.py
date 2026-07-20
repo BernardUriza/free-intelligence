@@ -1,6 +1,6 @@
 """Dashboard configuration."""
 
-VERSION = "2.2.1"
+VERSION = "2.3.0"
 
 # Azure Blob Storage URLs (public read access)
 STORAGE_BASE = "https://insultstorage.blob.core.windows.net"
