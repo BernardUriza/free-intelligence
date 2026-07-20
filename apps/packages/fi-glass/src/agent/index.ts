@@ -47,6 +47,21 @@ export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
   type AgentConversationSurfaceLayout,
+  // B3-FIGLASS-SURFACE-PROPS-1: decomposed capability slices of the surface
+  // contract, exported so consumers/regions can type against one slice.
+  type SurfaceLayoutProps,
+  type SurfaceSlotProps,
+  type NewConversationProps,
+  type SurfaceComposerProps,
+  type SendControlProps,
+  type MessageRenderProps,
+  type DictationProps,
+  type ImageAttachmentProps,
+  type TurnErrorProps,
+  type AutoScrollProps,
+  type CollapseProps,
+  type ComposerRegionSurface,
+  type TranscriptRegionSurface,
 } from './AgentConversationSurface';
 // B3-FIGLASS-12: floating jump-to-latest affordance (pin-to-bottom UX).
 export {

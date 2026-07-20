@@ -12,7 +12,7 @@
  */
 
 import { Download, MessageSquareText, Monitor, Shield, Sparkles } from 'lucide-react';
-import type { ChatNavDest } from './types';
+import type { ChatNavDest } from 'fi-glass/shell';
 
 export interface ChatStartScreenProps {
   /** Whether the user is authenticated */

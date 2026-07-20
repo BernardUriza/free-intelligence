@@ -25,6 +25,7 @@ import {
   RotateCcw,
   RotateCw,
 } from 'lucide-react';
+import { FI_TOUCH_QUERY } from '../theme/breakpoints';
 import type { AudioSource } from '@free-intelligence/core';
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
@@ -96,9 +97,9 @@ function ensureAudioScrubberStyle(): void {
     input[data-fi-audio-progress]:disabled {
       opacity: 0.35;
     }
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       input[data-fi-audio-progress] {
-        height: 44px;
+        height: var(--fi-touch-target, 44px);
       }
     }
   `;

@@ -19,7 +19,7 @@
 import { useCallback } from 'react';
 import type { ChatMessage } from '@free-intelligence/core';
 import { useChatWidgetState } from './useChatWidgetState';
-import { useMediaQuery } from './useMediaQuery';
+import { useMediaQuery } from 'fi-glass/shell';
 import { mergeChatConfig, CHAT_BREAKPOINTS } from './config';
 import { FloatingButton } from './FloatingButton';
 import { ChatContent } from './ChatContent';

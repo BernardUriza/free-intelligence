@@ -38,6 +38,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Menu } from 'lucide-react';
+import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 import { useMediaQuery } from '../shell/useMediaQuery';
 import { useDensityStyle } from './densityStyle';
 
@@ -75,7 +76,7 @@ export interface AgentWorkspaceShellProps {
    * the sidebar a static column at every width. No effect without `sidebar`.
    */
   responsive?: boolean;
-  /** Media query that switches the sidebar into drawer mode. Default `(max-width: 768px)`. */
+  /** Media query that switches the sidebar into drawer mode. Default {@link FI_MOBILE_QUERY}. */
   mobileQuery?: string;
   /** Desktop sidebar width (number → px). Default `280`. */
   sidebarWidth?: number | string;
@@ -120,7 +121,7 @@ export function AgentWorkspaceShell({
   footer,
   sidebar,
   responsive = false,
-  mobileQuery = '(max-width: 768px)',
+  mobileQuery = FI_MOBILE_QUERY,
   sidebarWidth = 280,
   toggleLabel = 'Conversaciones',
   className,

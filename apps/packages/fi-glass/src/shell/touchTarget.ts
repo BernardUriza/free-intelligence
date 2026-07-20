@@ -19,6 +19,7 @@
  */
 
 import { useEffect } from 'react';
+import { FI_TOUCH_QUERY } from '../theme/breakpoints';
 
 export const FI_TOUCH_TARGET_CLASS = 'fi-touch-target';
 
@@ -36,10 +37,10 @@ export function ensureTouchTargetStyle(): void {
   // mirrors AgentWorkspaceShell's drawer mobileQuery so MOBILE-1 and MOBILE-2
   // flip at the same width.
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;

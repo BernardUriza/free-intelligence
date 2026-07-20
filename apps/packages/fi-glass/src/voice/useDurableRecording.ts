@@ -18,9 +18,9 @@ import type { AudioQueueStore } from './AudioQueueStore';
 import type { AudioArtifact, AudioQueuePolicy } from './audioArtifact';
 import {
   makeArtifactId,
-  isPending,
   AUDIO_QUEUE_DEFAULTS,
 } from './audioArtifact';
+import { isQueueAtCapacity } from './durableRecordingMachine';
 import { useAudioAnalysis } from './useAudioAnalysis';
 import { mergeWavBlobs } from './wav';
 
@@ -115,13 +115,11 @@ export function useDurableRecording(
 
   // Check capacity against store on mount and when policy changes
   useEffect(() => {
-    store.list().then((stored) => {
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      setIsAtCapacity(
-        pending.length >= policy.maxItems || totalBytes >= policy.maxBytes,
-      );
-    }).catch(() => {});
+    // The predicate lives in durableRecordingMachine: decidable from data, so it
+    // is tested without an IndexedDB round-trip. This effect only does the I/O.
+    store.list()
+      .then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy)))
+      .catch(() => {});
   }, [store, policy]);
 
   const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
@@ -182,9 +180,7 @@ export function useDurableRecording(
     try {
       // Check capacity before requesting mic
       const stored = await store.list();
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
+      if (isQueueAtCapacity(stored, policy)) {
         setIsAtCapacity(true);
         onError?.(
           `Cola llena (máximo ${policy.maxItems} audios o ${Math.round(policy.maxBytes / 1024 / 1024)} MB). Transcribe o elimina audios antes de grabar.`,
