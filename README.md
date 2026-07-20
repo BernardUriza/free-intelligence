@@ -162,7 +162,7 @@ missing glue around the SDK, callable from any language.
 | The console — `front/`, the read half of this monorepo | ✅ **Live** on Container Apps ([open it](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io)) — tables, browse, SQL console, the monster, and `/claude` (folder → session → transcript). Behind HTTP Basic, reading as `aire_reader` (`GRANT SELECT` only) |
 | **The tracer that proves the thesis** — write → kill the box → remember | ✅ **Done 2026-07-20** (backlog #5), and not simulated: the droplet was re-provisioned, `workspaces/` came back EMPTY, and the resumed session rebuilt volume 1 of the ants book from its Postgres memory before writing volume 2. Two books now live in the store, both readable at `/claude` |
 | The broom (retention, backups, metrics) | Partly live — sweep + logrotate run; backups and metrics are backlog |
-| Honest defect — the per-turn budget cap | ⚠️ `max_budget_usd` caps the pooled CLIENT, and a cut turn returns an empty result with **no error** (backlog #23) |
+| The budget ceiling | ✅ A cut turn now emits a real `budget_exhausted` error and retires its spent client (fixed + verified 2026-07-20). Open: at $1.00 a long agent job still needs batching — Bernard's spend call (backlog #23) |
 
 Roadmap: [`.claude/backlog/`](.claude/backlog/README.md). Agent context:
 [`CLAUDE.md`](CLAUDE.md). Story and pitch: [`docs/`](docs/).

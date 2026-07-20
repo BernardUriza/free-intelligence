@@ -1,7 +1,25 @@
 # The budget cap lies twice
 
-Status: Proposed
+Status: **Fixed 2026-07-20** (the silent kill and the poisoned client). The
+ceiling's VALUE remains Bernard's open decision — see the fork below.
 Proposed: 2026-07-20 by Claude (found while writing the whales book through the AIRE door)
+
+## What shipped (`751e445`), verified live
+
+A turn whose cost reaches the ceiling now emits a real `error` event and its
+client is retired from the pool. Proven by lowering the cap to `$0.05` on the
+droplet and forcing a cut — the turn stopped at `$0.1179` and answered:
+
+```
+event: error
+data: {"type":"error","error":"budget_exhausted","detail":"the turn reached the
+$0.05 ceiling and was CUT — its work may be incomplete. The spent client is
+retired; send the turn again to continue."}
+```
+
+The next turn on that same session then ran normally (96 output tokens, a real
+`Glob`, `$0.0177`) instead of dying sterile — the retirement works. The cap was
+restored to `$1.00` and the probe data swept from the store.
 
 ## What it is
 
@@ -43,9 +61,11 @@ feature, or raise it for agent-mode jobs. Do not change the ceiling without him.
 
 ## Status / next step
 
-Not built. Two pieces once the fork is decided: (a) emit an honest `error` event
-when a turn is cut for budget — this one is a defect and needs no spend decision;
-(b) evict the poisoned client from the pool instead of serving it forever.
+(a) the honest `error` event and (b) the client retirement are **done and
+verified**. What remains is only Bernard's spend fork above: at `$1.00` a long
+agent job still cannot finish in one turn — the whales book shipped in four
+batches. Either batching becomes a first-class feature (#22a's non-blocking
+launch is its natural home) or the ceiling rises for agent mode.
 
 Related: #22 (the endpoints SSH was covering) — a long agent job needs both a
 non-blocking launch and a ceiling that does not silently eat it.
