@@ -54,6 +54,56 @@ regiones con su literal desktop como fallback:
 Un consumer re-tunea seteando las vars; NO edites literales inline en las
 regiones ni esparzas magic numbers nuevos.
 
+## Protocolo de verificación — un claim "cabe en móvil" se MIDE en el render real
+
+Toda PR que afirme "cabe en móvil", "se ve bien en móvil" o cualquier claim de
+layout responsive DEBE verificarse **midiendo el render real** a ancho de columna
+de teléfono ANTES de aprobar o mergear. Un test SSR que verifica que el markup
+contiene los elementos (`toContain('Transcribir')`) es necesario pero **NO
+suficiente**: prueba que el DOM tiene el elemento, no que el layout lo deja
+visible. Aprobar sobre markup verde sin medir el render es el fake-green de Art. 2
+(ver también [[verify-before-assuming]] Rule 10/12).
+
+### El ancho canónico: 374px
+
+La columna de un teléfono a 390px de viewport menos los gutters del composer
+(`px-2` = 8px por lado) = **374px de contenido**. Ésa es la columna que se mide,
+no los 390 crudos. Para el caso 320px-class, repetir a 304px.
+
+### La medición mínima (Chrome real, no jsdom)
+
+jsdom no hace layout — la medición va en Chrome (chrome-devtools MCP). El window
+de Chrome tiene ancho mínimo (~500px), así que se fuerza un contenedor de 374px y
+se mide dentro de él con `getBoundingClientRect`:
+
+```js
+() => {
+  const wrap = document.querySelector('[data-verify]');
+  wrap.style.width = '374px'; wrap.style.boxSizing = 'border-box';
+  void wrap.offsetWidth;
+  const primary = wrap.querySelector('.<accion-primaria>');
+  const row = wrap.querySelector('.<fila>');
+  return {
+    primaryFitsInColumn: primary.getBoundingClientRect().right <= wrap.getBoundingClientRect().right + 0.5,
+    rowScrollOverflowPx: row.scrollWidth - row.clientWidth, // debe ser 0
+  };
+}
+```
+
+Aprobación requiere: `primaryFitsInColumn === true` **Y** `rowScrollOverflowPx === 0`,
+más un screenshot como recibo visual (Art. 2). El harness es una ruta efímera bajo
+`app/` (sin prefijo `_` — ése es carpeta privada, 404) que rinde el componente REAL
+con Tailwind real; se borra tras medir, nunca se comitea.
+
+### Por qué existe este protocolo
+
+PR #373 shippeó un commit *"mobile-first keeps Transcribir visible"* cuyos tests
+sólo verificaban que el string `"Transcribir"` existía en el markup SSR — verde
+pero ciego al layout. La afirmación de que el botón primario cabía en pantalla
+sólo se pudo confirmar midiendo el flex real a 374px (`Transcribir` right-edge
+dentro de la columna, cero overflow). Fue verdadera, pero llegó sin verificar; el
+protocolo cierra ese hueco.
+
 ## Por qué existe
 
 El PWA de og118 @390×844 gastaba 18.6% del viewport en composer (157px), 32px
