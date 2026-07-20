@@ -11,8 +11,7 @@ from pathlib import Path
 
 MAX_FUNC, MAX_FILE = 30, 150
 EXEMPT = {
-    "aire/store.py",   # upstream-diffable SDK copy — the rule's one exception
-    "aire/engine.py",  # grandfathered, backlog #19
+    "aire/store.py",  # upstream-diffable SDK copy — the rule's one exception
 }
 
 
