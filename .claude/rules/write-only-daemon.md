@@ -69,6 +69,10 @@ of its own contract, not views, and are explicitly allowed:
 
 1. **`session_store.load()` for `resume`** — the agent reading **its own memory**
    to continue a session. Serves no view; it is the SDK's write-path contract.
+   The same exception has a second face since 2026-07-20: `aire/restore.py`
+   (backlog #17) loads the store to RE-MATERIALIZE the door's JSONL transcripts
+   on a fresh box — restore IS resume for the SSH door. Disk wins: an existing
+   file is never overwritten.
 2. **The device whitelist load** (`aire_device`, backlog #18) — the daemon reading
    the roster it must ENFORCE at the socket. Authorized by Bernard 2026-07-14 when
    he chose "the whitelist lives in Postgres" over a mortal file. It is not a view

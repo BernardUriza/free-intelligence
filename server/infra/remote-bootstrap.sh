@@ -67,11 +67,22 @@ verify_units() {
   done
 }
 
+restore_door_memory() {
+  echo "    [remote] resurrecting the door's transcripts from Postgres…"
+  if [[ -f /etc/aire/env ]]; then
+    set -a; . /etc/aire/env; set +a
+    (cd "$REMOTE_DIR/server" && "$REMOTE_DIR/.venv/bin/python3" -m aire.restore) || true
+  else
+    echo "    [remote] no /etc/aire/env yet — restore skipped."
+  fi
+}
+
 install_packages
 ensure_swap
 echo "    [remote] /etc/aire (out-of-band secrets)…"
 install -d -m 700 /etc/aire
 sync_repo
 install_runtime
+restore_door_memory
 install_units
 verify_units
