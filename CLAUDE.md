@@ -134,6 +134,10 @@ memory. To contradict anything here, verify it first the same way.
   [`.claude/rules/device-verb-protocol.md`](.claude/rules/device-verb-protocol.md).
 - **No `.py`/`.sh`/`.yml` file over 30 lines** — the thirty-line law, specific to
   this repo: [`.claude/rules/thirty-line-law.md`](.claude/rules/thirty-line-law.md).
+- **NEVER drive the daemon by SSH — reaching for it means an endpoint is
+  missing, so build the endpoint and use it.** SSH may operate the body (and it
+  is Bernard's own terminal door); it is never how an agent talks to the brain:
+  [`.claude/rules/ssh-is-a-missing-endpoint.md`](.claude/rules/ssh-is-a-missing-endpoint.md).
 - **Verify against the code, not the docs and not your memory.** This repo already
   produced three false claims that only source code disproved.
 - **Bernard distinguishes learning from building.** When he is understanding something,
