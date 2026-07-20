@@ -1,12 +1,16 @@
-"""The casita cage — a `can_use_tool` gate that confines an agent's file tools
-to its own workspace. Backlog #24: `cwd` is NOT a cage on its own, so a plain
-`Read` reaches `/etc/aire/env` and a `Write` lands in `/tmp`. This is the SDK's
-sanctioned mechanism for it (SandboxSettings confines only bash; its docstring
-sends filesystem reads to a permission gate — this IS that gate).
+"""The casita cage — a `PreToolUse` hook that confines an agent's file tools to
+its own workspace. Backlog #24: `cwd` is NOT a cage, so a plain `Read` reaches
+`/etc/aire/env` and a `Write` lands in `/tmp` (both measured 2026-07-20).
 
-`.resolve()` collapses `..` and follows symlinks, so a symlink planted inside the
-casita that points at `/etc` resolves OUTSIDE and is denied. A file tool with no
-path argument (a cwd-relative Grep) is allowed: it cannot escape the cwd.
+Why a hook and NOT `can_use_tool`: the callback only fires when the CLI decides
+to ASK for permission, and under `acceptEdits` a `Read` is auto-allowed — the
+callback never runs (verified in a live test, it read the secret through it). A
+`PreToolUse` hook runs BEFORE every matched tool regardless of the permission
+mode, so it is the gate that actually holds.
+
+`.resolve()` collapses `..` and follows symlinks, so a symlink inside the casita
+pointing at `/etc` resolves OUTSIDE and is denied. A file tool with no path
+argument (a cwd-relative Grep) cannot escape the cwd, so it is allowed.
 """
 
 from __future__ import annotations
@@ -14,9 +18,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
+from claude_agent_sdk import HookMatcher
 
-FILE_TOOLS = {"Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "Glob", "Grep"}
+FILE_TOOLS = "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep"
 PATH_KEYS = ("file_path", "path", "notebook_path")
 
 
@@ -26,16 +30,17 @@ def _escapes(root: Path, raw: str) -> bool:
     return target != root and root not in target.parents
 
 
-def make_cage(cwd: str) -> Any:
-    """A `can_use_tool` callback denying any file tool that points outside `cwd`."""
+def cage_hooks(cwd: str) -> dict[str, Any]:
+    """A `hooks=` dict denying any file tool that points outside `cwd`."""
     root = Path(cwd).resolve()
 
-    async def gate(tool: str, tool_input: dict[str, Any], _ctx: Any) -> Any:
-        if tool not in FILE_TOOLS:
-            return PermissionResultAllow()
-        raw = next((tool_input[k] for k in PATH_KEYS if tool_input.get(k)), None)
+    async def deny_escape(inp: Any, _tool_use_id: Any, _ctx: Any) -> dict[str, Any]:
+        ti = inp["tool_input"] if isinstance(inp, dict) else getattr(inp, "tool_input", {})
+        raw = next((ti[k] for k in PATH_KEYS if ti.get(k)), None)
         if raw is None or not _escapes(root, str(raw)):
-            return PermissionResultAllow()
-        return PermissionResultDeny(message=f"denied: {raw} is outside the casita")
+            return {}
+        return {"hookSpecificOutput": {
+            "hookEventName": "PreToolUse", "permissionDecision": "deny",
+            "permissionDecisionReason": f"denied: {raw} is outside the casita"}}
 
-    return gate
+    return {"PreToolUse": [HookMatcher(matcher=FILE_TOOLS, hooks=[deny_escape])]}

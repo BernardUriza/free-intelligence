@@ -16,7 +16,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .cage import make_cage
+from .cage import cage_hooks
 
 SYSTEM_PROMPT = (
     "You are an agent working inside AIRE, a service that mirrors your session to "
@@ -67,7 +67,7 @@ def build_options(session_store: Any, project: str, cwd: str,
         "env": _env(project),
         "session_store": session_store,
         "session_store_flush": "eager",  # no loss window if the process dies
-        "can_use_tool": make_cage(cwd),  # confine file tools to the casita (#24)
+        "hooks": cage_hooks(cwd),  # confine file tools to the casita (#24)
     }
     budget = os.environ.get("AIRE_MAX_BUDGET_USD")
     if budget:
