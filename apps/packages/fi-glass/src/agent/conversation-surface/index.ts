@@ -19,7 +19,7 @@ export type {
   SurfaceLayoutProps,
   SurfaceSlotProps,
   NewConversationProps,
-  ComposerFrameProps,
+  SurfaceComposerProps,
   SendControlProps,
   MessageRenderProps,
   DictationProps,

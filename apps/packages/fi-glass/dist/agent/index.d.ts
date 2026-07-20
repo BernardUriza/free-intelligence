@@ -373,7 +373,7 @@ interface NewConversationProps {
  * append channel — everything about the box the user composes IN, minus the
  * send/stop controls (see SendControlProps) and dictation (see DictationProps).
  */
-interface ComposerFrameProps {
+interface SurfaceComposerProps {
     /** Composer placeholder copy (app-owned). */
     composerPlaceholder?: string;
     /**
@@ -622,7 +622,7 @@ interface CollapseProps {
  * capability slice above plus the one required input, the conversation state.
  * Consumers still pass a flat prop bag; the composition is a type-level concern.
  */
-interface AgentConversationSurfaceProps extends SurfaceLayoutProps, SurfaceSlotProps, NewConversationProps, ComposerFrameProps, SendControlProps, MessageRenderProps, DictationProps, ImageAttachmentProps, TurnErrorProps, AutoScrollProps, CollapseProps {
+interface AgentConversationSurfaceProps extends SurfaceLayoutProps, SurfaceSlotProps, NewConversationProps, SurfaceComposerProps, SendControlProps, MessageRenderProps, DictationProps, ImageAttachmentProps, TurnErrorProps, AutoScrollProps, CollapseProps {
     /** The conversation state + actions from `useAgentConversation`. */
     conversation: AgentConversation;
 }
@@ -638,7 +638,7 @@ interface AgentConversationSurfaceProps extends SurfaceLayoutProps, SurfaceSlotP
  * so the orchestrator never re-threads props (REGION-PROPS-1) — the slices are
  * the unit, not the field.
  */
-type ComposerRegionSurface = SurfaceSlotProps & NewConversationProps & ComposerFrameProps & SendControlProps & DictationProps & ImageAttachmentProps;
+type ComposerRegionSurface = SurfaceSlotProps & NewConversationProps & SurfaceComposerProps & SendControlProps & DictationProps & ImageAttachmentProps;
 /**
  * The exact capability slices TranscriptRegion consumes — message rendering,
  * the recoverable-failure banners, autoscroll and user-message collapse.
@@ -856,4 +856,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerFrameProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceComposerProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

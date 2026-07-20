@@ -28,8 +28,8 @@ import { useBreakpoints } from '@/hooks/useMediaQuery';
 import { defaultChatConfig, type ChatConfig, CHAT_BREAKPOINTS } from '@/config/chat.config';
 import { confirmDelete, toastSuccess } from '@/lib/swal';
 import { ROUTES } from '@/lib/api/routes';
+import { ChatWidget as GlassChatWidget } from '../glass-shell';
 import {
-  ChatWidget as GlassChatWidget,
   type ChatViewMode,
   type ChatNavDest,
 } from 'fi-glass/shell';

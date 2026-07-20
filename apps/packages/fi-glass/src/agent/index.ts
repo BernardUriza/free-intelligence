@@ -52,7 +52,7 @@ export {
   type SurfaceLayoutProps,
   type SurfaceSlotProps,
   type NewConversationProps,
-  type ComposerFrameProps,
+  type SurfaceComposerProps,
   type SendControlProps,
   type MessageRenderProps,
   type DictationProps,

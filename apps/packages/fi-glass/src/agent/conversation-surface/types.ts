@@ -67,7 +67,7 @@ export interface NewConversationProps {
  * append channel — everything about the box the user composes IN, minus the
  * send/stop controls (see SendControlProps) and dictation (see DictationProps).
  */
-export interface ComposerFrameProps {
+export interface SurfaceComposerProps {
   /** Composer placeholder copy (app-owned). */
   composerPlaceholder?: string;
   /**
@@ -328,7 +328,7 @@ export interface AgentConversationSurfaceProps
   extends SurfaceLayoutProps,
     SurfaceSlotProps,
     NewConversationProps,
-    ComposerFrameProps,
+    SurfaceComposerProps,
     SendControlProps,
     MessageRenderProps,
     DictationProps,
@@ -354,7 +354,7 @@ export interface AgentConversationSurfaceProps
  */
 export type ComposerRegionSurface = SurfaceSlotProps &
   NewConversationProps &
-  ComposerFrameProps &
+  SurfaceComposerProps &
   SendControlProps &
   DictationProps &
   ImageAttachmentProps;

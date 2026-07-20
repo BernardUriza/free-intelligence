@@ -13,9 +13,9 @@
 
 import { MessageCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useBreakpoints } from './useMediaQuery';
+import { useBreakpoints } from 'fi-glass/shell';
 import { CHAT_BREAKPOINTS } from './config';
-import type { ChatViewMode } from './types';
+import type { ChatViewMode } from 'fi-glass/shell';
 
 export interface ChatWidgetContainerProps {
   /** Current view mode */
