@@ -339,3 +339,33 @@ export interface AgentConversationSurfaceProps
   /** The conversation state + actions from `useAgentConversation`. */
   conversation: AgentConversation;
 }
+
+/**
+ * The exact capability slices ComposerRegion consumes — everything about the
+ * box the user composes IN, plus the app slot and CTA that stack above it.
+ *
+ * Typing the region against this instead of the whole surface contract is what
+ * makes the decomposition load-bearing rather than decorative: the compiler now
+ * refuses a composer that reaches into a transcript capability
+ * (`collapseMaxHeight`, `agentPanelProps`), and a new field added to an
+ * unrelated slice cannot silently widen this region's surface. Still ONE object,
+ * so the orchestrator never re-threads props (REGION-PROPS-1) — the slices are
+ * the unit, not the field.
+ */
+export type ComposerRegionSurface = SurfaceSlotProps &
+  NewConversationProps &
+  ComposerFrameProps &
+  SendControlProps &
+  DictationProps &
+  ImageAttachmentProps;
+
+/**
+ * The exact capability slices TranscriptRegion consumes — message rendering,
+ * the recoverable-failure banners, autoscroll and user-message collapse.
+ * Same rationale as {@link ComposerRegionSurface}.
+ */
+export type TranscriptRegionSurface = SurfaceSlotProps &
+  MessageRenderProps &
+  TurnErrorProps &
+  AutoScrollProps &
+  CollapseProps;

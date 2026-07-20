@@ -27,6 +27,8 @@ export type {
   TurnErrorProps,
   AutoScrollProps,
   CollapseProps,
+  ComposerRegionSurface,
+  TranscriptRegionSurface,
 } from './types';
 export { persistedTraceTurn } from './persistedTraceTurn';
 export {

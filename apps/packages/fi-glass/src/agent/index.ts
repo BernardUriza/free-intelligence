@@ -60,6 +60,8 @@ export {
   type TurnErrorProps,
   type AutoScrollProps,
   type CollapseProps,
+  type ComposerRegionSurface,
+  type TranscriptRegionSurface,
 } from './AgentConversationSurface';
 // B3-FIGLASS-12: floating jump-to-latest affordance (pin-to-bottom UX).
 export {
