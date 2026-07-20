@@ -376,3 +376,51 @@ export function where(): { host: string; database: string } {
     return { host: "?", database: "?" };
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * The claude memory (backlog #10): folders with Claude inside.       *
+ * `project_key` IS the CLI's dash-encoded cwd — one key, one casita. *
+ * ------------------------------------------------------------------ */
+
+export type ClaudeFolder = { project_key: string; sessions: number; entries: number; mtime: string };
+export type ClaudeSession = { session_id: string; entries: number; mtime: string; first_user: unknown };
+export type ClaudeEntry = { entry: unknown; mtime: string };
+
+export async function claudeFolders(): Promise<ClaudeFolder[]> {
+  return read<ClaudeFolder>(
+    `
+    SELECT project_key, count(DISTINCT session_id)::int AS sessions,
+           count(*)::int AS entries, max(mtime)::text AS mtime
+    FROM claude_session_store WHERE subpath = ''
+    GROUP BY project_key ORDER BY max(mtime) DESC
+    `,
+    [],
+  );
+}
+
+export async function claudeSessions(projectKey: string): Promise<ClaudeSession[]> {
+  return read<ClaudeSession>(
+    `
+    SELECT session_id, count(*)::int AS entries, max(mtime)::text AS mtime,
+           (SELECT e2.entry FROM claude_session_store e2
+            WHERE e2.project_key = $1 AND e2.session_id = s.session_id
+              AND e2.subpath = '' AND e2.entry->>'type' = 'user'
+            ORDER BY e2.seq LIMIT 1) AS first_user
+    FROM claude_session_store s
+    WHERE project_key = $1 AND subpath = ''
+    GROUP BY session_id ORDER BY max(mtime) DESC
+    `,
+    [projectKey],
+  );
+}
+
+export async function claudeTranscript(projectKey: string, sessionId: string): Promise<ClaudeEntry[]> {
+  return read<ClaudeEntry>(
+    `
+    SELECT entry, mtime::text AS mtime FROM claude_session_store
+    WHERE project_key = $1 AND session_id = $2 AND subpath = ''
+    ORDER BY seq
+    `,
+    [projectKey, sessionId],
+  );
+}
