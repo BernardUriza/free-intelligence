@@ -2203,6 +2203,11 @@ function ensureAudioScrubberStyle() {
     input[data-fi-audio-progress]:disabled {
       opacity: 0.35;
     }
+    @media ${FI_TOUCH_QUERY} {
+      input[data-fi-audio-progress] {
+        height: var(--fi-touch-target, 44px);
+      }
+    }
   `;
   document.head.appendChild(el);
 }
@@ -2222,6 +2227,7 @@ function RichAudioPlayer({
   source,
   autoPlay = false,
   skipSeconds = 10,
+  compact = false,
   showTime = true,
   onError,
   onEnded,
@@ -2263,6 +2269,7 @@ function RichAudioPlayer({
   const positionLabel = `${formatPlaybackTime(currentTime)} / ${formatPlaybackTime(
     duration
   )}`;
+  const timeLabel = compact ? formatPlaybackTime(currentTime > 0 ? currentTime : duration) : positionLabel;
   return /* @__PURE__ */ jsxs16(
     "div",
     {
@@ -2271,7 +2278,7 @@ function RichAudioPlayer({
       role: "group",
       "aria-label": "Controles de reproducci\xF3n de audio",
       children: [
-        /* @__PURE__ */ jsx22(
+        !compact && /* @__PURE__ */ jsx22(
           "button",
           {
             type: "button",
@@ -2294,7 +2301,7 @@ function RichAudioPlayer({
             children: isLoading ? /* @__PURE__ */ jsx22(Loader26, { className: `${iconClass} animate-spin`, "aria-hidden": true }) : isPlaying ? /* @__PURE__ */ jsx22(Pause2, { className: iconClass, "aria-hidden": true }) : /* @__PURE__ */ jsx22(Play3, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx22(
+        !compact && /* @__PURE__ */ jsx22(
           "button",
           {
             type: "button",
@@ -2305,7 +2312,7 @@ function RichAudioPlayer({
             children: /* @__PURE__ */ jsx22(Square3, { className: iconClass, "aria-hidden": true })
           }
         ),
-        /* @__PURE__ */ jsx22(
+        !compact && /* @__PURE__ */ jsx22(
           "button",
           {
             type: "button",
@@ -2333,7 +2340,15 @@ function RichAudioPlayer({
             "data-fi-audio-progress": ""
           }
         ),
-        showTime ? /* @__PURE__ */ jsx22("span", { "data-fi-audio-time": "", "aria-hidden": true, className: "text-xs tabular-nums", children: positionLabel }) : null,
+        showTime ? /* @__PURE__ */ jsx22(
+          "span",
+          {
+            "data-fi-audio-time": "",
+            "aria-hidden": true,
+            className: "text-xs tabular-nums shrink-0",
+            children: timeLabel
+          }
+        ) : null,
         error ? /* @__PURE__ */ jsxs16("span", { role: "alert", className: "inline-flex items-center gap-1 text-xs", children: [
           /* @__PURE__ */ jsx22(AlertCircle2, { className: iconClass, "aria-hidden": true }),
           "Error de audio"
@@ -3906,6 +3921,7 @@ function AudioDraftPlayer({
   className = ""
 }) {
   useTouchTargetStyle();
+  const compactPlayer = variant === "row";
   const isPaused = artifact.state === "paused";
   const isSaving = artifact.state === "stopping";
   const isBusy = artifact.state === "transcribing" || artifact.state === "uploading";
@@ -3956,6 +3972,7 @@ function AudioDraftPlayer({
               RichAudioPlayer,
               {
                 source: pausedPreview,
+                compact: compactPlayer,
                 className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
                 buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
                 iconClassName: "w-4 h-4",
@@ -3983,6 +4000,7 @@ function AudioDraftPlayer({
             RichAudioPlayer,
             {
               source: playbackUrl ? { url: playbackUrl } : null,
+              compact: compactPlayer,
               className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
               buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
               iconClassName: "w-4 h-4",

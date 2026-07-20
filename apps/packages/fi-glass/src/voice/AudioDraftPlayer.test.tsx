@@ -261,3 +261,49 @@ describe('<AudioDraftPlayer> variant (COMPOSER-FRAME-2)', () => {
     expect(html).not.toContain('shadow-lg');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Mobile-first row: compact transport keeps the primary action on-screen
+// (CONV-MOBILE-RECLAIM — the "no visible Transcribir button" bug)
+// ---------------------------------------------------------------------------
+
+describe('<AudioDraftPlayer> compact row transport (CONV-MOBILE-RECLAIM)', () => {
+  it('drops the ±10s skip and stop controls in the in-composer row', () => {
+    const html = renderToStaticMarkup(
+      <AudioDraftPlayer
+        artifact={makeArtifact()}
+        variant="row"
+        onPrimary={() => {}}
+      />,
+    );
+    // Compact player keeps only play/pause + scrubber; the width-hungry skip and
+    // stop buttons are gone so the primary action is never crowded off-screen.
+    expect(html).toContain('aria-label="Reproducir audio"');
+    expect(html).toContain('data-fi-audio-progress');
+    expect(html).not.toContain('aria-label="Retroceder 10 segundos"');
+    expect(html).not.toContain('aria-label="Avanzar 10 segundos"');
+    expect(html).not.toContain('aria-label="Detener audio"');
+  });
+
+  it('keeps the primary (Transcribir) action rendered in the compact row', () => {
+    const html = renderToStaticMarkup(
+      <AudioDraftPlayer
+        artifact={makeArtifact()}
+        variant="row"
+        onPrimary={() => {}}
+        primaryActionLabel="Transcribir"
+      />,
+    );
+    expect(html).toContain('fi-audio-draft-primary');
+    expect(html).toContain('Transcribir');
+  });
+
+  it('keeps the FULL transport (skip + stop) for the standalone card', () => {
+    const html = renderToStaticMarkup(
+      <AudioDraftPlayer artifact={makeArtifact()} onPrimary={() => {}} />,
+    );
+    expect(html).toContain('aria-label="Retroceder 10 segundos"');
+    expect(html).toContain('aria-label="Detener audio"');
+    expect(html).toContain('aria-label="Avanzar 10 segundos"');
+  });
+});

@@ -56,3 +56,23 @@ describe('<RichAudioPlayer> control surface', () => {
     expect(html).not.toContain('data-fi-audio-time');
   });
 });
+
+describe('<RichAudioPlayer> compact transport (mobile composer)', () => {
+  it('keeps only play/pause + scrubber, dropping skip and stop', () => {
+    const html = renderToStaticMarkup(<RichAudioPlayer compact />);
+    expect(html).toContain('aria-label="Reproducir audio"');
+    expect(html).toContain('aria-label="Progreso de reproducción"');
+    expect(html).not.toContain('aria-label="Retroceder 10 segundos"');
+    expect(html).not.toContain('aria-label="Avanzar 10 segundos"');
+    expect(html).not.toContain('aria-label="Detener audio"');
+  });
+
+  it('renders a SINGLE visible time readout (not the dual mm:ss / mm:ss)', () => {
+    const html = renderToStaticMarkup(<RichAudioPlayer compact />);
+    expect(html).toContain('data-fi-audio-time');
+    // The VISIBLE span shows one value (clip length 0:00 when idle); the dual
+    // "0:00 / 0:00" survives only in the scrubber's aria-valuetext for a11y.
+    expect(html).toContain('>0:00</span>');
+    expect(html).not.toContain('>0:00 / 0:00</span>');
+  });
+});
