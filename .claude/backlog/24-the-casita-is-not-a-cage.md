@@ -19,6 +19,17 @@ TOOL: Read {'file_path': '/opt/aire/README.md', 'limit': 1}     → "# AIRE"
 TOOL: Grep {'pattern': '^', 'path': '/etc/aire/env', 'count'}   → 7 lines
 ```
 
+**It already bites in NORMAL use, not just under a probe.** In an E2E on
+2026-07-20 — two books written in parallel through the door, no adversarial
+intent — one agent (`el-ajedrez`) chose absolute paths and wrote its whole book
+to **`/tmp/ajedrez/`**, entirely outside its casita, while the other (faros)
+used relative paths and stayed in. The transcript still mirrored to Postgres for
+both (the memory is safe), but the ARTIFACTS landed in `/tmp` — outside
+`workspaces/`, so the "fetch by hand from the casita" model misses them and a
+`/tmp` sweep would erase them. The cage's absence is not a hypothetical hole a
+hostile prompt must find; a well-behaved agent falls out of the casita on its
+own.
+
 The probe deliberately asked for the line COUNT, not the contents — a hostile or
 merely curious prompt would ask for the contents and get them. `Bash` being
 disallowed does not help: `Read` alone is enough.
