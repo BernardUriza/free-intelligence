@@ -117,3 +117,37 @@ async def test_cancel_of_a_recurring_reminder_retires_it():
 
     assert [r["id"] for r in cancelled] == [5]
     assert "SET delivered = 1" in repo._execute.await_args.args[0]
+
+
+async def test_cancel_criterion_quoted_from_the_context_block_still_matches():
+    """RESISTANCE of the GRAVE class: the turn-context block renders rows as
+    «description», so a persona quoting the fragment verbatim emits
+    [REMIND_CANCEL: «la ropa»]. The surrounding quotes must be stripped from the
+    needle — otherwise the cancel silently no-ops right after the persona said
+    "va, muerto", and the reminder rings anyway."""
+    repo = _repo([_row(1, "sacar la ropa de la lavadora")])
+
+    for quoted in ("\u00abla ropa\u00bb", '"la ropa"', "'la ropa'", "\u201cla ropa\u201d", "\u2018la ropa\u2019"):
+        repo._execute.reset_mock()
+        cancelled = await repo.cancel_pending("U1", "vultur", quoted)
+        assert [r["id"] for r in cancelled] == [1], f"quoted criterion {quoted!r} failed to match"
+
+
+async def test_cancel_quotes_only_stripped_at_the_edges():
+    """Interior quote chars are content, not wrapping — they still count for the
+    substring match."""
+    repo = _repo([_row(1, 'ver la peli "Hereditary" con Alex')])
+
+    cancelled = await repo.cancel_pending("U1", "vultur", '"Hereditary"')
+
+    assert [r["id"] for r in cancelled] == [1]
+
+
+async def test_cancel_criterion_that_is_only_quotes_cancels_nothing():
+    """RESISTANCE: «» alone strips down to empty — the cancel-all guard must
+    still refuse it after quote-stripping."""
+    repo = _repo([_row(1, "sacar la ropa")])
+
+    assert await repo.cancel_pending("U1", "vultur", "«»") == []
+    repo._fetch.assert_not_awaited()
+    repo._execute.assert_not_awaited()

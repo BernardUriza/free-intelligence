@@ -20,6 +20,9 @@ from khimeras_shared.memory.base import BaseRepository
 log = structlog.get_logger()
 
 
+_CRITERION_QUOTE_CHARS = "\u00ab\u00bb\"'\u201c\u201d\u2018\u2019"
+
+
 def _affected_rows(command_tag: str) -> int:
     """Parse asyncpg's command tag (e.g. 'UPDATE 3', 'DELETE 1') into an int.
 
@@ -162,8 +165,14 @@ class RemindersRepository(BaseRepository):
         actually died. Empty criterion cancels NOTHING — an empty substring
         matches everything, and a cancel-all was never asked for. Best-effort:
         a DB fault logs and returns [] (the turn already carried the ack).
+
+        Surrounding quotes are stripped from the needle: the turn-context block
+        renders each pending row as «description», so a persona quoting the
+        fragment verbatim sends «la ropa» — which must still match the unquoted
+        description instead of silently cancelling nothing after an affirmative
+        ack.
         """
-        needle = (criterion or "").strip().lower()
+        needle = (criterion or "").strip().strip(_CRITERION_QUOTE_CHARS).strip().lower()
         if not needle:
             return []
         try:

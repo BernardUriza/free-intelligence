@@ -417,12 +417,12 @@ class PersonaClient(discord.Client):
         """
         try:
             pending = await self.memory.list_pending_reminders(user_id, self.persona.persona_id)
+            if not pending:
+                return guidance
+            block = _pending_reminders_block(pending)
         except Exception:
             log.exception("gateway_pending_reminders_failed", persona_id=self.persona.persona_id)
             return guidance
-        if not pending:
-            return guidance
-        block = _pending_reminders_block(pending)
         if not guidance:
             return block[:MAX_GUIDANCE_CHARS]
         sep = "\n\n"
