@@ -11,11 +11,14 @@
  * branding or backend. Apps inject those via slots (emptyState, aboveComposer)
  * and copy props.
  *
- * Pure orchestrator (REGION-PROPS-1): the regions receive the surface's whole
- * props object as `surface` and read their own slice + copy defaults — the
- * orchestrator never re-threads passthroughs. It owns only the shared state
- * (input, dictation, focus, append) and hands each region what IT derives:
- * the conversation slice, the composing state, the layout inset.
+ * Pure orchestrator (REGION-PROPS-1): the orchestrator hands its props object
+ * to each region as `surface` and never re-threads passthroughs. Each region
+ * TYPES that object down to the capability slices it actually consumes
+ * (`ComposerRegionSurface` / `TranscriptRegionSurface`), so the boundary is
+ * enforced by the compiler instead of by convention — one object passed, a
+ * narrow contract received. The orchestrator owns only the shared state
+ * (input, images, dictation, focus, append) and hands each region what IT
+ * derives: the conversation slice, the composing state, the layout inset.
  */
 
 import { useEffect, useState } from 'react';
@@ -46,6 +49,9 @@ export type {
   TurnErrorProps,
   AutoScrollProps,
   CollapseProps,
+  // B3-FIGLASS-SURFACE-PROPS-2: the per-region unions the slices compose into.
+  ComposerRegionSurface,
+  TranscriptRegionSurface,
 } from './conversation-surface/types';
 
 export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
@@ -75,20 +81,12 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     dismissError,
     newConversation,
     unsentText,
-    clearUnsentText,
+    unsentImages,
+    clearUnsent,
   } =
     conversation;
   const [input, setInput] = useState('');
 
-  // A failed turn hands back what the user wrote (the watchdog used to revert it
-  // out of the thread and destroy it). Put it back in the box — the framework
-  // does it, so no consumer can forget and cost the user their prompt. An input
-  // the user has since typed into wins: never clobber live typing.
-  useEffect(() => {
-    if (!unsentText) return;
-    setInput((current) => (current.trim() ? current : unsentText));
-    clearUnsentText();
-  }, [unsentText, clearUnsentText]);
   // B3-FIGLASS-MOBILE-2 — guarantee the touch-target stylesheet is present so the
   // composed send button (and any other fi-glass control on the surface) gets its
   // 44×44 mobile minimum even if no other control mounted it first.
@@ -108,6 +106,24 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     maxImages: maxAttachedImages,
     onError: onImageAttachmentError,
   });
+  const restoreImages = images.restore;
+
+  // A failed turn hands back what the user wrote (the watchdog used to revert it
+  // out of the thread and destroy it). Put it back in the box — the framework
+  // does it, so no consumer can forget and cost the user their prompt. An input
+  // the user has since typed into wins: never clobber live typing.
+  //
+  // The IMAGES come back too: the send cleared the drafts optimistically, so
+  // restoring only the text would return a prompt whose pictures are silently
+  // missing — the user re-sends and the attachment never existed.
+  useEffect(() => {
+    if (!unsentText && !unsentImages) return;
+    if (unsentText) setInput((current) => (current.trim() ? current : unsentText));
+    if (imageAttachments && unsentImages && unsentImages.length > 0) {
+      restoreImages(unsentImages);
+    }
+    clearUnsent();
+  }, [unsentText, unsentImages, imageAttachments, restoreImages, clearUnsent]);
 
   const onSend = () => {
     const t = input.trim();
