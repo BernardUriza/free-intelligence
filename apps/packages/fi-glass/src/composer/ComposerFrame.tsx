@@ -39,6 +39,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { withTouchTarget } from '../shell/touchTarget';
+import { ensureDensityStyle } from '../agent/densityStyle';
 
 const COMPOSER_FRAME_STYLE_ID = 'fi-composer-frame-style';
 
@@ -143,6 +144,10 @@ const CSS = `
 
 /** Inject the idempotent composer-frame stylesheet (no-op on the server / if already present). */
 export function ensureComposerFrameStyle(): void {
+  // The tokens this sheet READS are published by the density sheet; a primitive
+  // never assumes an ancestor mounted it (same contract as touchTarget).
+  ensureDensityStyle();
+
   if (typeof document === 'undefined') return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement('style');

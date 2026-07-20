@@ -356,11 +356,18 @@ function Composer({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect3, useId as useId2, useState as useState3 } from "react";
+import { useEffect as useEffect4, useId as useId2, useState as useState3 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -369,10 +376,10 @@ function ensureTouchTargetStyle() {
   const el = document.createElement("style");
   el.id = TOUCH_TARGET_STYLE_ID;
   el.textContent = `
-    @media (pointer: coarse), (max-width: 768px) {
+    @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
-        min-width: 44px;
-        min-height: 44px;
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -390,6 +397,66 @@ function useTouchTargetStyle() {
 function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect3 } from "react";
+var CSS = `
+/* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
+ * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
+ * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
+ * saw no tokens at all, which is exactly why every consumer re-wrote the
+ * comfortable value as a literal fallback \u2014 the same number in two places,
+ * drifting apart on the first edit. The base scale is the PACKAGE's scale, so
+ * it belongs at the root; only the DENSITY VARIANTS below stay scoped, because
+ * those are a per-subtree choice. A consumer still overrides any token at a
+ * deeper scope \u2014 :root is the floor, not a ceiling. */
+:root {
+  --fi-space-1: 0.25rem;
+  --fi-space-2: 0.5rem;
+  --fi-space-3: 0.75rem;
+  --fi-space-4: 1rem;
+  --fi-space-5: 1.5rem;
+  --fi-radius-section: 12px;
+  --fi-touch-target: 44px;
+}
+/* CONV-MOBILE-RECLAIM-1 \u2014 the conversation surface's own spacing tokens. The
+ * transcript/composer regions read these (with their previous literals as
+ * fallbacks), so on a phone the chrome tightens and content dominates; desktop
+ * resolves to the exact former values. Consumers re-tune by setting the vars. */
+@media ${FI_MOBILE_QUERY} {
+  .fi-agent-workspace {
+    --fi-transcript-pad: 0.75rem 0.75rem 0.5rem;
+    --fi-transcript-gap: 0.5rem;
+    --fi-composer-bar-pt: 0.5rem;
+    --fi-composer-bar-px: 0.75rem;
+    --fi-composer-bar-pb: 0.5rem;
+  }
+}
+.fi-density-comfortable {
+  --fi-section-gap: 0.5rem;
+  --fi-sidebar-gap: 0.5rem;
+  --fi-item-gap: 0.4rem;
+  --fi-item-padding: 0.55rem 0.6rem;
+  --fi-section-head-gap: 0.5rem;
+  --fi-section-head-padding: 0.8rem 0.85rem 0.5rem;
+}
+.fi-density-compact {
+  --fi-section-gap: 0.25rem;
+  --fi-sidebar-gap: 0.25rem;
+  --fi-item-gap: 0.3rem;
+  --fi-item-padding: 0.4rem 0.5rem;
+  --fi-section-head-gap: 0.4rem;
+  --fi-section-head-padding: 0.6rem 0.7rem 0.35rem;
+}
+.fi-density-spacious {
+  --fi-section-gap: 0.85rem;
+  --fi-sidebar-gap: 0.85rem;
+  --fi-item-gap: 0.55rem;
+  --fi-item-padding: 0.75rem 0.85rem;
+  --fi-section-head-gap: 0.65rem;
+  --fi-section-head-padding: 1rem 1rem 0.65rem;
+}
+`;
 
 // src/composer/ComposerFrame.tsx
 import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
@@ -414,7 +481,7 @@ import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect4, useRef as useRef4, useState as useState5 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect5, useRef as useRef4, useState as useState5 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function ActionMenu({
@@ -432,13 +499,13 @@ function ActionMenu({
   const [open, setOpen] = useState5(false);
   const triggerRef = useRef4(null);
   const [position, setPosition] = useState5({ top: 0, left: 0 });
-  useEffect4(() => {
+  useEffect5(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect4(() => {
+  useEffect5(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -993,11 +1060,11 @@ import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 import { jsx as jsx15 } from "react/jsx-runtime";
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect5, useMemo, useRef as useRef5, useSyncExternalStore as useSyncExternalStore2 } from "react";
+import { useEffect as useEffect6, useMemo, useRef as useRef5, useSyncExternalStore as useSyncExternalStore2 } from "react";
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect6 } from "react";
+import { useEffect as useEffect7 } from "react";
 import { jsx as jsx16, jsxs as jsxs12 } from "react/jsx-runtime";
 
 // src/voice/RichAudioPlayer.tsx
@@ -1010,7 +1077,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect7 } from "react";
+import { useEffect as useEffect8 } from "react";
 import { jsx as jsx17, jsxs as jsxs13 } from "react/jsx-runtime";
 
 // src/voice/AudioVisualizer.tsx
@@ -1030,7 +1097,7 @@ import { useCallback as useCallback5, useState as useState9 } from "react";
 import { useState as useState7, useRef as useRef7, useCallback as useCallback4 } from "react";
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState8, useRef as useRef8, useEffect as useEffect8 } from "react";
+import { useState as useState8, useRef as useRef8, useEffect as useEffect9 } from "react";
 
 // src/voice/audioArtifact.ts
 var AUDIO_QUEUE_DEFAULTS = {
@@ -1045,13 +1112,13 @@ var AUDIO_QUEUE_DEFAULTS = {
 import { useMemo as useMemo2 } from "react";
 
 // src/voice/useDurableRecording.ts
-import { useState as useState10, useRef as useRef9, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState10, useRef as useRef9, useCallback as useCallback6, useEffect as useEffect10 } from "react";
 
 // src/voice/useAudioQueue.ts
-import { useState as useState11, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState11, useEffect as useEffect11, useCallback as useCallback7 } from "react";
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect11, useState as useState13 } from "react";
+import { useEffect as useEffect12, useState as useState13 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -1074,12 +1141,12 @@ import { jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState14, useEffect as useEffect12 } from "react";
+import { useState as useState14, useEffect as useEffect13 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef10, useState as useState15 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect14, useMemo as useMemo3, useRef as useRef10, useState as useState15 } from "react";
 
 // src/shell/ChatToolbar.tsx
 import { jsx as jsx23, jsxs as jsxs17 } from "react/jsx-runtime";
