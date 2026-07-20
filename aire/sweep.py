@@ -25,7 +25,8 @@ from __future__ import annotations
 import asyncio
 import os
 
-from .listener import DSN, _now, append
+from .listen.applog import _now, append
+from .listen.config import DSN
 
 RETENTION_DAYS = int(os.environ.get("AIRE_RETENTION_DAYS", "30"))
 
