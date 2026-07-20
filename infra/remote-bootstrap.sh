@@ -43,10 +43,11 @@ install_units() {
   echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
   cp "$REMOTE_DIR/deploy/aire-listener.service" "$REMOTE_DIR/deploy/aire-device.service" \
      "$REMOTE_DIR/deploy/aire-server.service" \
-     "$REMOTE_DIR/deploy/aire-sweep.service" "$REMOTE_DIR/deploy/aire-sweep.timer" /etc/systemd/system/
+     "$REMOTE_DIR/deploy/aire-sweep.service" "$REMOTE_DIR/deploy/aire-sweep.timer" \
+     "$REMOTE_DIR/deploy/aire-tick.service" "$REMOTE_DIR/deploy/aire-tick.timer" /etc/systemd/system/
   cp "$REMOTE_DIR/deploy/logrotate-aire" /etc/logrotate.d/aire
   systemctl daemon-reload
-  systemctl enable --now aire-listener aire-server aire-sweep.timer
+  systemctl enable --now aire-listener aire-server aire-sweep.timer aire-tick.timer
 }
 
 verify_units() {

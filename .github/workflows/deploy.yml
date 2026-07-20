@@ -46,16 +46,17 @@ jobs:
           git reset --hard origin/main
           install -m 644 deploy/aire-listener.service deploy/aire-device.service \
                          deploy/aire-server.service \
-                         deploy/aire-sweep.service deploy/aire-sweep.timer /etc/systemd/system/
+                         deploy/aire-sweep.service deploy/aire-sweep.timer \
+                         deploy/aire-tick.service deploy/aire-tick.timer /etc/systemd/system/
           install -m 644 deploy/logrotate-aire /etc/logrotate.d/aire
           systemctl daemon-reload
           systemctl enable --now aire-server >/dev/null 2>&1 || true
           systemctl restart aire-listener aire-server
-          systemctl enable --now aire-sweep.timer
+          systemctl enable --now aire-sweep.timer aire-tick.timer
           sleep 3
           # is-active with multiple units exits 0 if AT LEAST ONE is active —
           # check each unit on its own so a dead one actually breaks the job.
-          for u in aire-listener aire-server aire-sweep.timer; do
+          for u in aire-listener aire-server aire-sweep.timer aire-tick.timer; do
             if ! systemctl --quiet is-active "$u"; then
               echo "$u is NOT active"
               systemctl status "$u" --no-pager || true
