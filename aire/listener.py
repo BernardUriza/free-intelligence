@@ -159,11 +159,35 @@ class Pen:
                                 pending.append(self.queue.get_nowait())
                             except asyncio.QueueEmpty:
                                 break
-                    await conn.executemany(
-                        "INSERT INTO aire_log (line) VALUES ($1)",
-                        [(line,) for line in pending],
-                    )
-                    pending = []  # cleared ONLY on a successful insert
+                    try:
+                        await conn.executemany(
+                            "INSERT INTO aire_log (line) VALUES ($1)",
+                            [(line,) for line in pending],
+                        )
+                        pending = []  # cleared ONLY on a successful insert
+                    except asyncpg.DataError:
+                        # Postgres answered and REJECTED the data (SQLSTATE 22xxx):
+                        # an identical retry can NEVER succeed, and holding the
+                        # batch wedges the mirror forever — the NUL poison pill
+                        # that kept the pen down ~6 days flip-flopping PEN-UP/
+                        # PEN-DOWN every 2s. Mirror line by line instead; a line
+                        # Postgres cannot hold even sanitized becomes a marker.
+                        # The file keeps the raw original; order is preserved.
+                        # pop-as-committed so a connection drop mid-fallback
+                        # retries only the uncommitted remainder (no duplicates).
+                        while pending:
+                            try:
+                                await conn.execute(
+                                    "INSERT INTO aire_log (line) VALUES ($1)",
+                                    pending[0].replace("\x00", "�"),
+                                )
+                            except asyncpg.DataError as line_exc:
+                                await conn.execute(
+                                    "INSERT INTO aire_log (line) VALUES ($1)",
+                                    f"{_now()} - PEN-POISON unstorable line "
+                                    f"dropped ({line_exc!r})",
+                                )
+                            pending.pop(0)
             except Exception as exc:
                 self._mark(healthy=False, detail=repr(exc))
                 await asyncio.sleep(delay)
@@ -459,7 +483,15 @@ async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
                         append(f"{_now()} {addr} RATE-LIMITED")
                         throttled = True
                     break
-                msg = raw.decode(errors="replace").rstrip("\r\n")
+                # NUL is VALID UTF-8, so errors="replace" lets it through — but
+                # Postgres text can never hold it, and one NUL wedged the pen in
+                # an infinite retry loop for 6 days (2026-07-20, a binary probe
+                # on the open port). Neutralize it at the mouth.
+                msg = (
+                    raw.decode(errors="replace")
+                    .replace("\x00", "�")
+                    .rstrip("\r\n")
+                )
                 if not msg:
                     continue
                 if msg.startswith("MKDIR"):
