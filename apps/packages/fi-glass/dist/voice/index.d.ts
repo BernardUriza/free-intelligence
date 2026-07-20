@@ -353,7 +353,16 @@ interface RichAudioPlayerProps {
     autoPlay?: boolean;
     /** Seconds the skip-back / skip-forward controls jump. Default 10. */
     skipSeconds?: number;
-    /** Show the mm:ss / mm:ss time readout. Default true. */
+    /**
+     * Compact transport for tight spaces (CONV-MOBILE-RECLAIM / voice-note preview
+     * in the mobile composer). Drops the skip-back / stop / skip-forward buttons —
+     * keeping only play-pause + scrubber + a SINGLE time readout — so the row fits
+     * a phone-width composer beside a primary action (Transcribir / Guardar)
+     * instead of pushing it off-screen. The full four-button transport (default)
+     * stays for the standalone TTS player where the width is available.
+     */
+    compact?: boolean;
+    /** Show the time readout. Default true. */
     showTime?: boolean;
     /** Called on a playback/load error. */
     onError?: (error: unknown, context: string) => void;
@@ -374,7 +383,7 @@ interface RichAudioPlayerProps {
  * (duration is NaN until metadata loads) by collapsing them to 0:00.
  */
 declare function formatPlaybackTime(seconds: number): string;
-declare function RichAudioPlayer({ source, autoPlay, skipSeconds, showTime, onError, onEnded, className, buttonClassName, iconClassName, progressClassName, }: RichAudioPlayerProps): react.JSX.Element;
+declare function RichAudioPlayer({ source, autoPlay, skipSeconds, compact, showTime, onError, onEnded, className, buttonClassName, iconClassName, progressClassName, }: RichAudioPlayerProps): react.JSX.Element;
 
 /**
  * fi-glass · AudioVisualizer — reusable audio-level graphic (bars / pulse).
