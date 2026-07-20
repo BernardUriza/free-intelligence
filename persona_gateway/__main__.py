@@ -14,6 +14,6 @@ if __name__ == "__main__":
 
     configure_structlog()
 
-    from persona_gateway.gateway import run
+    from persona_gateway.app import run
 
     run()

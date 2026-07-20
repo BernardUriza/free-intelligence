@@ -23,9 +23,9 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from persona_gateway import gateway as gateway_mod
+from persona_gateway import app as app_mod
+from persona_gateway.app import _connect_memory, _supervise_persona, _wait_until_bound
 from persona_gateway.boot import GatewayBootState
-from persona_gateway.gateway import _connect_memory, _supervise_persona, _wait_until_bound
 from persona_gateway.invite_server import build_invite_app
 
 TOKEN = "s3cr3t-token"  # noqa: S105 — fixture token, not a real secret
@@ -189,10 +189,10 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
     memory = SimpleNamespace(connect=fake_connect, close=AsyncMock())
     # (memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client)
     shared = (memory, object(), None, 0, TOKEN, object())
-    monkeypatch.setattr(gateway_mod, "_build_shared", lambda: shared)
+    monkeypatch.setattr(app_mod, "_build_shared", lambda: shared)
 
     persona = SimpleNamespace(persona_id="alice", token_env="ALICE_DISCORD_TOKEN")
-    monkeypatch.setattr(gateway_mod, "gateway_personas", lambda: [persona])
+    monkeypatch.setattr(app_mod, "gateway_personas", lambda: [persona])
     monkeypatch.setenv("ALICE_DISCORD_TOKEN", "token")
 
     async def fake_start(_token):
@@ -200,7 +200,7 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
         raise RuntimeError("login refused")
 
     monkeypatch.setattr(
-        gateway_mod,
+        app_mod,
         "PersonaClient",
         lambda *a, **kw: SimpleNamespace(user=None, start=fake_start),
     )
@@ -212,9 +212,9 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
         server.started = True
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(gateway_mod, "_serve_invite_api", lambda *a: (server, fake_serve()))
+    monkeypatch.setattr(app_mod, "_serve_invite_api", lambda *a: (server, fake_serve()))
 
-    await asyncio.wait_for(gateway_mod._main(), timeout=5)
+    await asyncio.wait_for(app_mod._main(), timeout=5)
 
     assert order == ["http_bind", "db_connect", "discord_login"]
     memory.close.assert_awaited_once()

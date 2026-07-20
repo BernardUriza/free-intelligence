@@ -1,7 +1,7 @@
 """Pending reminders ON THE WIRE — the persona can only list/cancel what it sees.
 
-`_append_pending_reminders` merges the asking user's pending rows (owned by THIS
-persona) into the turn guidance. Contract mirrored from `_append_corpus_block`:
+`TurnContextBuilder.append_pending_reminders` merges the asking user's pending rows (owned by THIS
+persona) into the turn guidance. Contract mirrored from `TurnContextBuilder.append_corpus_block`:
 the block rides BEFORE the guidance (the guardian overlay stays last), the merge
 never crosses MAX_GUIDANCE_CHARS (the block is dropped whole), and every fault —
 dead store, missing facade method — returns the guidance untouched, never a mute
@@ -16,7 +16,8 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 
 from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
-from persona_gateway.gateway import PENDING_REMINDERS_MAX, PersonaClient
+from persona_gateway.gateway import PersonaClient
+from persona_gateway.turn_context import PENDING_REMINDERS_MAX
 from shared.personas import Persona
 
 PENDING = [
@@ -72,14 +73,14 @@ def _message(text: str) -> MagicMock:
 
 
 # --------------------------------------------------------------------------
-# _append_pending_reminders — the merge contract
+# append_pending_reminders — the merge contract
 # --------------------------------------------------------------------------
 
 
 async def test_block_lists_descriptions_and_rides_before_the_guidance():
     client = _client(PENDING)
 
-    merged = await client._append_pending_reminders("OVERLAY VULNERABLE: calidez", "U1")
+    merged = await client._context.append_pending_reminders("OVERLAY VULNERABLE: calidez", "U1")
 
     assert merged is not None
     assert "sacar la ropa de la lavadora" in merged
@@ -92,13 +93,13 @@ async def test_block_lists_descriptions_and_rides_before_the_guidance():
 async def test_no_pending_rows_leaves_guidance_untouched():
     client = _client([])
 
-    assert await client._append_pending_reminders("GUIDANCE", "U1") == "GUIDANCE"
+    assert await client._context.append_pending_reminders("GUIDANCE", "U1") == "GUIDANCE"
 
 
 async def test_block_alone_when_there_is_no_guidance():
     client = _client(PENDING)
 
-    merged = await client._append_pending_reminders(None, "U1")
+    merged = await client._context.append_pending_reminders(None, "U1")
 
     assert merged and "sacar la ropa" in merged
 
@@ -108,7 +109,7 @@ async def test_dead_store_returns_guidance_untouched():
     must survive a dead reminders table without noticing."""
     client = _client(PENDING, raise_listing=True)
 
-    assert await client._append_pending_reminders("GUIDANCE", "U1") == "GUIDANCE"
+    assert await client._context.append_pending_reminders("GUIDANCE", "U1") == "GUIDANCE"
 
 
 async def test_near_cap_guidance_drops_the_block_whole():
@@ -117,7 +118,7 @@ async def test_near_cap_guidance_drops_the_block_whole():
     client = _client(PENDING)
     near_cap = "G" * (MAX_GUIDANCE_CHARS - 10)
 
-    assert await client._append_pending_reminders(near_cap, "U1") == near_cap
+    assert await client._context.append_pending_reminders(near_cap, "U1") == near_cap
 
 
 async def test_row_count_is_capped():
@@ -127,7 +128,7 @@ async def test_row_count_is_capped():
     ]
     client = _client(many)
 
-    merged = await client._append_pending_reminders(None, "U1")
+    merged = await client._context.append_pending_reminders(None, "U1")
 
     assert merged is not None
     assert f"pendiente {PENDING_REMINDERS_MAX - 1}" in merged

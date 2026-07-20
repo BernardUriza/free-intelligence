@@ -13,47 +13,38 @@ behavior; the gateway only:
   4. posts the reply as that bot user (native name/avatar — no webhook),
   5. persists both turns to the shared Postgres so the personas see one another.
 
-A single process hosts all persona-bots via `asyncio.gather`, sharing one
-MemoryStore + one AgentRunnerClient.
-
-**Structure (post-modularization).** `PersonaClient` is the thin Discord adapter:
-event handlers + the turn orchestration, each delegating to an injected service —
+**Structure (post-modularization 2026-07-20).** `PersonaClient` is the thin
+Discord adapter: event handlers + the two turn entry points, each delegating to
+an injected service —
 - reception predicates → `persona_gateway.routing`
 - attachment blocks + STT transcripts → `persona_gateway.ingest`
+- context/guidance/other-people assembly → `persona_gateway.turn_context`
 - the turn tail (runner → react → markers → send → store → TTS) → `persona_gateway.turns`
 - invite helpers (channel resolve, instruction, trigger fetch) → `persona_gateway.invites`
 - reply delivery (chunk + tag + send) → `persona_gateway.delivery`
 - durable markers (research/agenda/remind/remember) → `persona_gateway.markers`
-- the three drain loops → `persona_gateway.workers`
+- the drain loops → `persona_gateway.workers`
 - background fact extraction → `persona_gateway.facts`
 - per-persona TTS → `persona_gateway.voice`
 - operator-tunable cadences/timeouts → `persona_gateway.config`
-Bootstrap (`_build_shared` … `_main`) lives at the bottom.
+- process bootstrap (deps, /invite server, lifecycle) → `persona_gateway.app`
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
-import os
 import time
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import discord
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from khimeras_shared.memory import MemoryStore
-from khimeras_shared.other_people import other_people_block_for_turn
-from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.prompts import PromptCache
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.stt import SusurroSttClient, build_susurro_stt_client
-from khimeras_shared.tts import build_susurro_tts_client
-from persona_gateway.boot import GatewayBootState
+from khimeras_shared.stt import SusurroSttClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.facts import FactExtractor
@@ -61,16 +52,15 @@ from persona_gateway.ingest import MessageIngest
 from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.routing import clean_mention, edit_summons, format_context, should_respond
+from persona_gateway.turn_context import TurnContextBuilder
 from persona_gateway.turns import TurnRunner
 from persona_gateway.vision import ImageTranscriber
 from persona_gateway.voice import VoiceService
 from persona_gateway.workers import AgendaWorker, ReflectionWorker, ReminderWorker, ResearchWorker
-from shared.corpus.persona_corpus import build_persona_corpus_block
-from shared.personas import Persona, gateway_personas
+from shared.personas import Persona
 
-# Re-exports: the tests import these from `persona_gateway.gateway`, and the
-# reactions test monkeypatches `persona_gateway.gateway.add_reactions` — keep the
-# names resolvable on THIS module's namespace so both keep working after the split.
+# Re-exports: the tests import these from `persona_gateway.gateway` — keep the
+# names resolvable on THIS module's namespace so they keep working after the split.
 __all__ = [
     "DISCORD_LIMIT",
     "PersonaClient",
@@ -78,7 +68,6 @@ __all__ = [
     "clean_mention",
     "edit_summons",
     "format_context",
-    "run",
     "should_respond",
 ]
 
@@ -86,32 +75,8 @@ SPEAK_EMOJI = "🔊"
 
 log = structlog.get_logger()
 
-# The pending-reminders context block stays small on purpose: enough for the
-# persona to list/cancel by text, never a wall that crowds out the guidance.
-PENDING_REMINDERS_MAX = 10
-_REMINDER_BLOCK_TZ = "America/Mexico_City"
-
-
-def _pending_reminders_block(pending: list[dict]) -> str:
-    """Render this user's pending reminders as turn context (data rows + a
-    2-line structural frame — the ≤5-line inline exception; the rows are data)."""
-    tz = ZoneInfo(_REMINDER_BLOCK_TZ)
-    lines = ["RECORDATORIOS PENDIENTES de este usuario (agendados por ti):"]
-    for row in pending[:PENDING_REMINDERS_MAX]:
-        when = datetime.fromtimestamp(float(row["remind_at"]), tz=tz).strftime("%Y-%m-%d %H:%M")
-        recurring = row.get("recurring") or "none"
-        suffix = f" ({recurring})" if recurring != "none" else ""
-        lines.append(f"- «{row['description']}» — {when}{suffix}")
-    lines.append("Para cancelar uno emite [REMIND_CANCEL: <fragmento del texto del recordatorio>].")
-    return "\n".join(lines)
-
-
 # Engine-side prompt cache (mtime hot-reload) shared by this process's personas.
 _PROMPT_CACHE: PromptCache = {}
-
-# Bind timing for the /invite HTTP server (external protocol contract, not a knob).
-BIND_TIMEOUT_SECONDS = 15.0  # well under the ACA StartUp probe's failure budget
-BIND_POLL_SECONDS = 0.05
 
 
 class PersonaClient(discord.Client):
@@ -153,6 +118,7 @@ class PersonaClient(discord.Client):
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
         self._ingest = MessageIngest(persona, stt_client)
+        self._context = TurnContextBuilder(persona, memory)
         self._turns = TurnRunner(
             persona,
             memory,
@@ -279,6 +245,8 @@ class PersonaClient(discord.Client):
                 with contextlib.suppress(discord.HTTPException):
                     await message.add_reaction("🦅")
 
+    # --- turn entry points ----------------------------------------------------
+
     async def _handle(self, message: discord.Message) -> None:
         channel_id = str(message.channel.id)
         user_id = str(message.author.id)
@@ -316,42 +284,17 @@ class PersonaClient(discord.Client):
         if attachment_blocks:
             text_blocks = [{"type": "text", "text": ask}] if ask else []
             user_content = [*text_blocks, *attachment_blocks]
-        # Recent alone is a 30-message window: anything older is invisible, so a
-        # persona forgets what was said last week even though it is in Postgres.
-        # `search` pulls the keyword-relevant older turns and `build_context`
-        # merges them in chronological order — the "recent + relevant" retrieval
-        # that died with the purge. Best-effort: a search fault degrades to
-        # recent-only, never to a mute turn.
-        relevant = await self._load_relevant(channel_id, ask)
-        context = format_context(self.memory.build_context(recent, relevant))
-        messages = [*context, {"role": "user", "content": user_content}]
-        # The guardian: classify THIS turn against the user's accumulated facts and
-        # send the persona's guidance on the wire. Without it the vulnerable-user
-        # overlay never reaches the model — a user with a clinical cluster gets the
-        # raw abrasive register. Every fault inside returns None: a turn without
-        # guidance is a normal turn.
-        guidance = await guidance_for_turn(
-            memory=self.memory,
-            user_id=user_id,
-            current_message=ask,
-            recent_messages=context,
-            persona_id=self.persona.persona_id,
+
+        turn = await self._context.build(
+            channel_id=channel_id,
+            recent=recent,
+            relevant_query=ask,
+            guidance_user_id=user_id,
+            guidance_message=ask,
+            corpus_query=ask,
+            exclude_user_id=user_id,
         )
-        # This user's pending reminders (scheduled by THIS persona) ride as turn
-        # context so the persona can LIST them and aim [REMIND_CANCEL:] at rows
-        # that actually exist. BEFORE the corpus merge, so the final order is
-        # corpus → reminders → guardian guidance (safety stays freshest/last).
-        guidance = await self._append_pending_reminders(guidance, user_id)
-        # This persona's shared topic corpus (RAG): retrieve the chunks relevant to
-        # THIS message and append them to the guidance so the model argues from its
-        # own library, in its own voice. Best-effort — a corpus fault (no PG, empty
-        # namespace, no persona corpus) returns None and the turn ships unchanged.
-        guidance = await self._append_corpus_block(guidance, ask)
-        # Facts about the OTHER participants. The runner rebuilds the AUTHOR's
-        # facts from the user_id, but is blind to the people being talked ABOUT
-        # unless we forward them — the "recuerda a Alex cuando Alex escribe, la
-        # niega cuando preguntan por ella" hole (2026-06-03).
-        other_people = await other_people_block_for_turn(self.memory, channel_id, exclude_user_id=user_id)
+        messages = [*turn.context, {"role": "user", "content": user_content}]
         await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
@@ -360,8 +303,8 @@ class PersonaClient(discord.Client):
             channel_name=channel_name,
             messages=messages,
             react_to=message,
-            behavioral_guidance=guidance,
-            other_people=other_people,
+            behavioral_guidance=turn.guidance,
+            other_people=turn.other_people,
         )
         # Reply delivered — the persona is not mute. Stamp it so /health can tell
         # "answered recently" from "took a message and went silent".
@@ -379,116 +322,6 @@ class PersonaClient(discord.Client):
         # not blind to it tomorrow. Also AFTER delivery: a vision round-trip must
         # never sit between the user and their reply.
         self._vision.spawn(self.judge_client, str(message.id), attachment_blocks)
-
-    async def _load_relevant(self, channel_id: str, ask: str) -> list[dict]:
-        """Keyword-relevant OLDER turns for this ask, or [] on any fault.
-
-        Degrading to recent-only is a poorer answer; raising here would be a
-        mute turn. Always the former.
-        """
-        if not ask:
-            return []
-        try:
-            hits = await self.memory.search(channel_id, ask, CONFIG.relevant_limit)
-        except Exception:
-            log.exception("relevant_search_failed", channel_id=channel_id)
-            return []
-        # Positive telemetry, not just failure telemetry: without a success
-        # event this retrieval is unauditable in prod — "it didn't error" is not
-        # "it fired", and inferring from the answer's richness is exactly the
-        # attribution guess this event exists to replace.
-        log.info(
-            "relevant_context_loaded",
-            channel_id=channel_id,
-            hits=len(hits),
-            persona_id=self.persona.persona_id,
-        )
-        return hits
-
-    async def _append_pending_reminders(self, guidance: str | None, user_id: str) -> str | None:
-        """Merge this user's pending reminders (owned by THIS persona) into the
-        turn guidance so the persona can list them and cancel by text.
-
-        Same contract as `_append_corpus_block`: the block goes BEFORE the
-        guidance (the safety overlay stays last), the merge never grows past
-        MAX_GUIDANCE_CHARS (the block is dropped whole rather than trimmed —
-        a half reminder row is worse than none), and any fault returns the
-        guidance untouched. A user with no pending rows gets no block.
-        """
-        try:
-            pending = await self.memory.list_pending_reminders(user_id, self.persona.persona_id)
-            if not pending:
-                return guidance
-            block = _pending_reminders_block(pending)
-        except Exception:
-            log.exception("gateway_pending_reminders_failed", persona_id=self.persona.persona_id)
-            return guidance
-        if not guidance:
-            return block[:MAX_GUIDANCE_CHARS]
-        sep = "\n\n"
-        if len(block) + len(sep) + len(guidance) > MAX_GUIDANCE_CHARS:
-            log.warning(
-                "gateway_reminders_dropped_guidance_full",
-                persona_id=self.persona.persona_id,
-                guidance_chars=len(guidance),
-                block_chars=len(block),
-            )
-            return guidance
-        return f"{block}{sep}{guidance}"
-
-    async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
-        """Merge this persona's corpus references into the turn guidance.
-
-        ORDER IS SAFETY: corpus FIRST, guardian guidance LAST — the vulnerable-user
-        overlay must be the freshest thing in the block, never buried under 2,200
-        chars of erudition (cruel-critic 2026-07-16, finding #2).
-
-        CAP IS SAFETY TOO: the runner rejects `behavioral_guidance` > 16000 with a
-        422 (a mute bot). `guidance_for_turn` already truncates to that cap; this
-        merge would re-inflate it past the cap by prepending the corpus, so we
-        RE-CAP here — trimming the CORPUS end, never the guidance. The safety
-        overlay always survives intact; erudition yields. If guidance alone
-        already fills the cap, the corpus is dropped entirely (cruel-critic
-        2026-07-16, finding #1: a near-cap vulnerable-user overlay + a corpus hit
-        used to 422 and mute the bot for the most fragile person).
-
-        Fail-safe: any fault returns the guidance untouched. A persona with no
-        `corpus_namespace` (or no relevant hit) simply gets its guidance back.
-        """
-        try:
-            block = await build_persona_corpus_block(persona_id=self.persona.persona_id, query=ask)
-        except Exception:
-            log.exception("gateway_corpus_block_failed", persona_id=self.persona.persona_id)
-            return guidance
-        if not block:
-            return guidance
-        if not guidance:
-            return block[:MAX_GUIDANCE_CHARS]
-        # Reserve the full guidance (safety-critical); the corpus gets whatever
-        # budget is left. sep is "\n\n". A non-positive budget → drop the corpus.
-        sep = "\n\n"
-        corpus_budget = MAX_GUIDANCE_CHARS - len(guidance) - len(sep)
-        if corpus_budget <= 0:
-            log.warning(
-                "gateway_corpus_dropped_guidance_full",
-                persona_id=self.persona.persona_id,
-                guidance_chars=len(guidance),
-            )
-            return guidance
-        if len(block) > corpus_budget:
-            log.info(
-                "gateway_corpus_trimmed_to_cap",
-                persona_id=self.persona.persona_id,
-                block_chars=len(block),
-                corpus_budget=corpus_budget,
-            )
-            block = block[:corpus_budget]
-        return f"{block}{sep}{guidance}"
-
-    def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
-        """Delegates to the fact backstop (kept as a method: tests call it).
-        Reads `self.judge_client` LIVE so a toggle to None disables it next turn."""
-        self._facts.spawn(self.judge_client, user_id, user_name, recent)
 
     async def respond_to_invite(
         self,
@@ -594,26 +427,16 @@ class PersonaClient(discord.Client):
                     channel_id=channel_id,
                 )
 
-        relevant = await self._load_relevant(channel_id, subject_ask or reason)
-        context = format_context(self.memory.build_context(recent, relevant))
-        messages = [*context, {"role": "user", "content": instruction_content}]
-
-        guidance = None
-        if subject_user_id is not None:
-            guidance = await guidance_for_turn(
-                memory=self.memory,
-                user_id=subject_user_id,
-                current_message=subject_ask or reason,
-                recent_messages=context,
-                persona_id=self.persona.persona_id,
-            )
-            guidance = await self._append_pending_reminders(guidance, subject_user_id)
-        guidance = await self._append_corpus_block(guidance, reason)
-        other_people = await other_people_block_for_turn(
-            self.memory,
-            channel_id,
+        turn = await self._context.build(
+            channel_id=channel_id,
+            recent=recent,
+            relevant_query=subject_ask or reason,
+            guidance_user_id=subject_user_id,
+            guidance_message=subject_ask or reason,
+            corpus_query=reason,
             exclude_user_id=subject_user_id or (str(self.user.id) if self.user else ""),
         )
+        messages = [*turn.context, {"role": "user", "content": instruction_content}]
         await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
@@ -623,8 +446,8 @@ class PersonaClient(discord.Client):
             messages=messages,
             turn_kind="invite",
             react_to=react_to,
-            behavioral_guidance=guidance,
-            other_people=other_people,
+            behavioral_guidance=turn.guidance,
+            other_people=turn.other_people,
         )
         self.last_turn_delivered = time.time()
         if subject is not None and subject_ask:
@@ -638,6 +461,13 @@ class PersonaClient(discord.Client):
             )
         if react_to is not None and attachment_blocks:
             self._vision.spawn(self.judge_client, str(react_to.id), attachment_blocks)
+
+    # --- delegates -------------------------------------------------------------
+
+    def _spawn_fact_extraction(self, user_id: str, user_name: str, recent: list[dict]) -> None:
+        """Delegates to the fact backstop (kept as a method: tests call it).
+        Reads `self.judge_client` LIVE so a toggle to None disables it next turn."""
+        self._facts.spawn(self.judge_client, user_id, user_name, recent)
 
     async def _run_and_deliver(
         self,
@@ -667,229 +497,3 @@ class PersonaClient(discord.Client):
             behavioral_guidance=behavioral_guidance,
             other_people=other_people,
         )
-
-
-# --- bootstrap: shared deps, the /invite server, and the process lifecycle ----
-# Kept in this module (not a separate app.py) because the boot-resilience test
-# monkeypatches these names on `persona_gateway.gateway` and drives `_main` —
-# moving them would break that regression guard for no structural gain.
-
-
-def _build_shared() -> tuple[
-    MemoryStore,
-    AgentRunnerClient,
-    object | None,
-    SusurroSttClient | None,
-    int,
-    str,
-    RunnerJudgeClient,
-]:
-    """Construct the deps shared by all persona-bots (same wiring as Insult).
-
-    Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
-    TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
-    simply off. The `/invite` bearer token (INSULT_TO_ALICE_TOKEN) is the same
-    secret the legacy alice-bot endpoint used. The last element is the one-shot
-    judge client (runner /v1/judge) that drives the automatic fact-extraction
-    backstop — same runner URL + token as the turn client, a different endpoint.
-    """
-    config = PersonaRuntimeConfig.from_env()
-
-    memory = MemoryStore(config.postgres_url.get_secret_value())
-    runner_url = config.persona_runner_url
-    runner_token = config.persona_runner_token.get_secret_value()
-    if not (runner_url and runner_token):
-        raise RuntimeError("persona gateway requires PERSONA_RUNNER_URL + token")
-    # first_turn_timeout_s=240 (vs the 120 default): a sibling's FIRST turn — cold
-    # session + curated facts + guidance — measured 134.5s in prod. The 120s
-    # default read-timeout hung up 14s before the runner finished; the user got
-    # the "…" fallback while a complete reply died unread.
-    agent_client = AgentRunnerClient(
-        runner_url=runner_url, runner_token=runner_token, timeout_s=CONFIG.first_turn_timeout_s
-    )
-    judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
-
-    tts_client = build_susurro_tts_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
-    stt_client = build_susurro_stt_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
-    log.info(
-        "persona_gateway_tts_configured",
-        enabled=tts_client is not None,
-        auto_tts_min_chars=CONFIG.auto_tts_min_chars,
-    )
-    log.info("persona_gateway_stt_configured", enabled=stt_client is not None)
-    invite_token = config.insult_to_alice_token.get_secret_value()
-    return memory, agent_client, tts_client, stt_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
-
-
-def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
-    """Return `(server, serve_coro)` for the ported /invite endpoint.
-
-    Port 8788 mirrors the legacy alice-bot so the Container App ingress targetPort
-    is unchanged. Always served (even with no token) so the /health probe answers;
-    /invite itself fail-closes (503) when the token is unset.
-    """
-    import uvicorn
-
-    from persona_gateway.invite_server import build_invite_app
-
-    app = build_invite_app(personas, invite_token, boot)
-    server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8788, log_level="warning"))  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
-    log.info("persona_gateway_invite_api_starting", port=8788, token_configured=bool(invite_token))
-    return server, server.serve()
-
-
-async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bool:
-    """Block until uvicorn is actually listening, not merely scheduled.
-
-    `asyncio.create_task(server.serve())` yields a task, not a bound socket. Every
-    subsequent await — Postgres, Discord login — could otherwise run first and hang
-    with port 8788 still closed, which is precisely what the ACA StartUp probe
-    punishes. `server.started` flips only after the socket accepts.
-    """
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if getattr(server, "started", False):
-            return True
-        await asyncio.sleep(BIND_POLL_SECONDS)
-    log.error("persona_gateway_bind_timeout", port=8788, timeout_s=timeout)
-    return False
-
-
-async def _check_corpus_embed(personas: dict[str, PersonaClient]) -> None:
-    """Boot-time liveness probe for the per-persona RAG corpus (finding #2).
-
-    A corpus retrieval embeds the query at runtime via Azure OpenAI. When those
-    creds are absent / rotated / point at a dead deployment, `embed_text` swallows
-    the failure and returns None — indistinguishable from "no relevant hit", so a
-    corpus-wide outage looks exactly like an off-topic turn and NOBODY notices the
-    persona lost its library (the 2026-07-16 incident: the gateway shipped with no
-    AZURE_OPENAI_* creds and every corpus turn silently degraded to bare model
-    knowledge). This probe makes the outage LOUD at boot instead of invisible.
-
-    Off the port-bind critical path (mirrors `_connect_memory`): a probe failure
-    logs ERROR but never kills the process — the personas still serve, just
-    without their corpus. Skipped entirely when no live persona has a corpus.
-    """
-    has_corpus = any(getattr(getattr(p, "persona", None), "corpus_namespace", None) for p in personas.values())
-    if not has_corpus:
-        return
-    try:
-        from khimeras_shared.corpus.pg_rag import embed_text
-
-        vec = await embed_text("corpus embed boot healthcheck")
-    except Exception:
-        log.exception("persona_gateway_corpus_embed_check_crashed")
-        return
-    if vec is None:
-        log.error(
-            "persona_gateway_corpus_embed_unavailable",
-            note="RAG corpus retrieval is DEAD — embed_text returned None; check AZURE_OPENAI_ENDPOINT/KEY + deployment",
-        )
-    else:
-        log.info("persona_gateway_corpus_embed_ok", dim=len(vec))
-
-
-async def _connect_memory(memory, boot: GatewayBootState) -> None:
-    """Connect Postgres off the probe's critical path.
-
-    A cold Postgres must never keep port 8788 from binding: the ACA StartUp probe
-    kills the replica, the restart burns another Discord IDENTIFY, and the
-    crashloop feeds itself. `MemoryStore._ensure_connection` reconnects before
-    every operation, so a boot-time failure degrades rather than kills.
-    """
-    try:
-        await memory.connect()
-    except Exception as exc:
-        log.exception("persona_gateway_db_connect_failed", error=type(exc).__name__)
-        return
-    boot.mark_db_connected()
-
-
-async def _supervise_persona(persona_id: str, coro, boot: GatewayBootState) -> None:
-    """Await one persona's Discord session, isolating its death from its siblings.
-
-    `Client.start` only returns when the session ends. Whatever it raises — a
-    throttled IDENTIFY, a revoked token, a gateway hang — belongs to THIS persona
-    and must not tear down the process: the other bots keep serving, `/invite`
-    keeps answering, and `/health` reports the loss.
-    """
-    try:
-        await coro
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:
-        log.exception("persona_gateway_persona_failed", persona_id=persona_id, error=type(exc).__name__)
-    else:
-        log.error("persona_gateway_persona_exited", persona_id=persona_id)
-    boot.mark_persona_down(persona_id)
-
-
-async def _main() -> None:
-    shared = _build_shared()
-    if len(shared) == 6:
-        memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = shared
-        stt_client = None
-    else:
-        memory, agent_client, tts_client, stt_client, auto_tts_min_chars, invite_token, judge_client = shared
-
-    intents = discord.Intents.default()
-    intents.message_content = True
-
-    personas: dict[str, PersonaClient] = {}
-    tokens: dict[str, str] = {}
-    for persona in gateway_personas():
-        token = os.environ.get(persona.token_env, "").strip()
-        if not token:
-            log.warning("persona_gateway_no_token", persona_id=persona.persona_id, env=persona.token_env)
-            continue
-        personas[persona.persona_id] = PersonaClient(
-            persona,
-            memory,
-            agent_client,
-            intents=intents,
-            tts_client=tts_client,
-            stt_client=stt_client,
-            auto_tts_min_chars=auto_tts_min_chars,
-            judge_client=judge_client,
-        )
-        tokens[persona.persona_id] = token
-
-    if not personas:
-        log.error("persona_gateway_nothing_to_start", note="no persona token configured")
-        return
-
-    boot = GatewayBootState()
-
-    # The HTTP server binds BEFORE Postgres and before any Discord login, so the
-    # StartUp probe answers as soon as the process is alive. Until a persona
-    # finishes on_ready, /health reports serving=false — honestly.
-    server, serve_coro = _serve_invite_api(personas, invite_token, boot)
-    api_task = asyncio.create_task(serve_coro, name="invite-api")
-    if await _wait_until_bound(server):
-        log.info("persona_gateway_api_bound", port=8788)
-
-    await _connect_memory(memory, boot)
-    await _check_corpus_embed(personas)
-
-    persona_tasks = [
-        asyncio.create_task(
-            _supervise_persona(persona_id, client.start(tokens[persona_id]), boot),
-            name=f"persona:{persona_id}",
-        )
-        for persona_id, client in personas.items()
-    ]
-    for persona_id in personas:
-        log.info("persona_gateway_starting", persona_id=persona_id)
-
-    try:
-        await asyncio.gather(*persona_tasks)
-        log.error("persona_gateway_all_personas_down", personas=sorted(personas))
-    finally:
-        api_task.cancel()
-        await asyncio.gather(api_task, return_exceptions=True)
-        await memory.close()
-
-
-def run() -> None:
-    """CLI entrypoint: `python -m persona_gateway run`."""
-    asyncio.run(_main())
