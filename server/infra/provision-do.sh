@@ -24,10 +24,13 @@ OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"
+PG_SERVER="development-pg-n66dz"          # the pen's Azure Postgres
+PG_RG="insult-rg"
 
 source "$SCRIPT_DIR/lib/keys.sh"
 source "$SCRIPT_DIR/lib/droplet.sh"
 source "$SCRIPT_DIR/lib/secrets.sh"
+source "$SCRIPT_DIR/lib/pgfirewall.sh"
 
 echo "==> AIRE provision (DigitalOcean)"
 echo "    NAME=$NAME  REGION=$REGION  SIZE=$SIZE  IMAGE=$IMAGE"
@@ -38,6 +41,7 @@ ensure_ssh_key
 ensure_do_fingerprint
 ensure_droplet
 capture_ip
+ensure_pg_firewall
 
 echo "==> [5/6] Remote bootstrap on $IP (clone repo, install units, start daemon)…"
 SSH="ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
