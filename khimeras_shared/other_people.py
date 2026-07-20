@@ -99,4 +99,13 @@ async def other_people_block_for_turn(
 ) -> str | None:
     """Load + render in one fail-safe call for the turn path. None when empty."""
     facts = await load_other_participants_facts(memory, channel_id, exclude_user_id=exclude_user_id)
-    return format_other_people_block(facts) or None
+    block = format_other_people_block(facts) or None
+    if block:
+        log.info(
+            "other_people_block_built",
+            channel_id=channel_id,
+            participants=len(facts),
+            facts_total=sum(len(v) for v in facts.values()),
+            block_chars=len(block),
+        )
+    return block

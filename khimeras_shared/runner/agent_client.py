@@ -437,6 +437,35 @@ class AgentRunnerClient:
             elapsed_ms=elapsed_ms,
         )
 
+        # TEXT NO MODEL EVER GENERATED. A real generation always spends output
+        # tokens; text with zero of them came from the SDK itself — an auth
+        # failure, a quota wall, a transport error rendered as prose. Returning
+        # it delivers a raw vendor string to Discord: on 2026-07-19 a revoked
+        # OAuth token made every persona answer
+        # "Failed to authenticate. API Error: 401 ..." — in English, with the
+        # version tag appended — for 4.5 hours, into a conversation between two
+        # real people, while /health, the 200s and `turn_complete` all stayed
+        # green. `input_tokens` is NOT the signal (cache reads legitimately
+        # report 0); output_tokens is, because generated text cannot be free.
+        #
+        # Raise instead of return, exactly like the invalid-JSON case above: the
+        # gateway's turn guard already degrades to an in-character "…" and logs
+        # it. Same class — reachable but broken — so it must be SEEN, not spoken.
+        # Only an EXPLICIT zero accuses. A missing field means the runner never
+        # reported usage (an older build, a different shape) — unknown, and
+        # unknown must not silence a real answer.
+        output_tokens = data.get("output_tokens")
+        returned_tool_calls = data.get("tool_calls") or []
+        if text.strip() and output_tokens == 0 and not returned_tool_calls:
+            log.error(
+                "agent_runner_client_zero_generation",
+                text_preview=text[:120],
+                model=data.get("model", ""),
+                stop_reason=data.get("stop_reason", ""),
+                session_uuid=data.get("session_uuid"),
+            )
+            raise PersonaTurnError(f"runner returned text with no generation: {text[:120]}")
+
         return LLMResponse(
             text=text,
             tool_calls=[],

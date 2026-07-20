@@ -354,10 +354,21 @@ class PersonaClient(discord.Client):
         if not ask:
             return []
         try:
-            return await self.memory.search(channel_id, ask, CONFIG.relevant_limit)
+            hits = await self.memory.search(channel_id, ask, CONFIG.relevant_limit)
         except Exception:
             log.exception("relevant_search_failed", channel_id=channel_id)
             return []
+        # Positive telemetry, not just failure telemetry: without a success
+        # event this retrieval is unauditable in prod — "it didn't error" is not
+        # "it fired", and inferring from the answer's richness is exactly the
+        # attribution guess this event exists to replace.
+        log.info(
+            "relevant_context_loaded",
+            channel_id=channel_id,
+            hits=len(hits),
+            persona_id=self.persona.persona_id,
+        )
+        return hits
 
     async def _append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
         """Merge this persona's corpus references into the turn guidance.
