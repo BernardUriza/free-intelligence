@@ -1,11 +1,15 @@
 """The modes dial + the SDK options factory.
 
 complete → no tools, no agentic loop → the substitute for the raw API.
-agent    → tools + BYPASS → the enhancer that executes tools.
-CAREFUL with BYPASS: it grants ALL builtins EXCEPT those in `disallowed` — the
-allowlist is decorative under that mode; what actually contains is `disallowed`.
-`Bash` stays out; the real filesystem confinement is `SandboxSettings`, not yet
-in place — `cwd` is NOT a cage.
+agent    → tools + acceptEdits → the enhancer that executes tools.
+
+NOT bypassPermissions: the CLI REFUSES it outright when the process runs as
+root ("cannot be used with root/sudo privileges"), and the daemon does — so
+that mode made every agent turn die with exit 1 (verified 2026-07-20 on the
+droplet, invisible until the door was finally exercised for real). acceptEdits
+auto-approves the file edits an agent needs AND honours `allowed_tools`, which
+bypass left decorative. `Bash` stays out; the real filesystem confinement is
+`SandboxSettings`, not yet in place — `cwd` is NOT a cage.
 """
 
 import os
@@ -27,7 +31,7 @@ MODES: dict[str, dict[str, Any]] = {
     "agent": {
         "allowed_tools": ["Read", "Write", "Glob", "Grep", "WebSearch", "WebFetch"],
         "disallowed_tools": ["Bash"],
-        "permission_mode": "bypassPermissions",
+        "permission_mode": "acceptEdits",
     },
 }
 DEFAULT_MODE = "agent"
