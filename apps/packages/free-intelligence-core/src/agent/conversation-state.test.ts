@@ -14,9 +14,10 @@ import {
 } from './conversation-state';
 import { initialAgentTurnState } from './state';
 import type { AgentTurnState } from './state';
+import type { MessageAuthor } from './events';
 
-const AGENT = { id: 'og118', label: 'og118' } as const;
-const USER = { id: 'user', label: 'Tú' } as const;
+const AGENT: MessageAuthor = { id: 'og118', name: 'og118', symbol: 'og' };
+const USER: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
 
 const send = (s: ConversationState, text: string, images?: { mediaType: string; data: string }[]) =>
   applyConversationEvent(s, { type: 'send', text, images, author: USER, controlled: false });
