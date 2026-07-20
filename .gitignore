@@ -40,3 +40,4 @@ discord_backup_codes.txt
 # Working dir for tooling that dumps REAL #general messages (scripts/router_eval.py
 # writes its per-case detail here). Verbatim conversations — health, money, drugs.
 scratchpad/
+.claude/tmp_*
