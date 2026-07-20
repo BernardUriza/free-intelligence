@@ -1,0 +1,86 @@
+"""The message surface — POST a turn and GET a session's background status.
+
+`POST …/messages` runs one turn: an SSE event stream by default, or fire-and-
+forget when the body carries `background: true` (#22a) — the turn then survives a
+dropped socket and its result is read back via the artifacts endpoint (#22b) or
+the mirrored transcript. Events, never HTML ([[write-only-daemon]]).
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import AsyncIterator
+from dataclasses import asdict, is_dataclass
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
+from sse_starlette.event import ServerSentEvent
+from sse_starlette.sse import EventSourceResponse
+
+from .deps import get_engine
+from .engine import DEFAULT_MODE, MODES, BudgetExceeded
+from .names import InvalidName, clean
+
+router = APIRouter()
+
+
+def safe_names(project: str, session: str) -> tuple[str, str]:
+    try:
+        return clean("project", project), clean("session", session)
+    except InvalidName as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def safe_mode(mode: str | None) -> str:
+    return mode if mode in MODES else DEFAULT_MODE
+
+
+@router.post("/projects/{project}/sessions/{session}/messages")
+async def post_message(project: str, session: str, request: Request) -> Any:
+    project, session = safe_names(project, session)
+    body = await request.json()
+    message = str(body.get("message", body.get("prompt", ""))).strip()
+    mode = safe_mode(body.get("mode"))
+    # An empty message is NOT a turn: sending it to the SDK is a real query that
+    # spends money for nothing. The edge cuts it before it touches the agent.
+    if not message:
+        raise HTTPException(status_code=422, detail="empty message")
+    if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
+        return await _launch_background(project, session, message, mode)
+    return EventSourceResponse(_events(project, session, message, mode))
+
+
+async def _launch_background(project: str, session: str, message: str, mode: str) -> JSONResponse:
+    engine = await get_engine()
+    try:
+        engine.launch_detached(project, session, message, mode)
+    except RuntimeError as exc:  # a turn already runs on this session
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return JSONResponse({"status": "accepted", "session": session}, status_code=202)
+
+
+@router.get("/projects/{project}/sessions/{session}/status")
+async def session_status(project: str, session: str) -> JSONResponse:
+    """Is a background turn (#22a) still running on this session?"""
+    project, session = safe_names(project, session)
+    engine = await get_engine()
+    return JSONResponse({"session": session,
+                         "running": engine.detached.running(f"{project}/{session}")})
+
+
+async def _events(project: str, session: str, message: str, mode: str) -> AsyncIterator[ServerSentEvent]:
+    engine = await get_engine()
+    try:
+        async for ev in engine.run_stream(project, session, message, mode):
+            yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
+    except BudgetExceeded as exc:
+        # The spend ceiling was hit BEFORE the turn touched the API. Tell the
+        # caller in-stream (the connection is already an event stream, so a 402
+        # header is no longer possible) instead of a silent stall.
+        yield ServerSentEvent(event="error", data=json.dumps({"error": "budget_exceeded", "detail": str(exc)}))
+    yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": mode}))
+
+
+def _plain(ev: dict[str, Any]) -> dict[str, Any]:
+    return {k: asdict(v) if is_dataclass(v) and not isinstance(v, type) else v for k, v in ev.items()}

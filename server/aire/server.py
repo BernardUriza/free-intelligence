@@ -1,4 +1,4 @@
-"""AIRE's HTTP surface — events only, NEVER a view.
+"""AIRE's HTTP surface — events and files, NEVER a view.
 
 Your apps stop calling `api.anthropic.com` and call AIRE. Same slot (an HTTP
 endpoint, not a library you import), but AIRE remembers (Postgres). This
@@ -6,15 +6,14 @@ server emits **no HTML, ever** — Bernard's law, twice over:
 
 - [[write-only-daemon]]: every reader/view is a waiter and every waiter lives
   in the front repo (`aire-front`). This repo holds the pen, not the menu.
-- The daemon's mouths are `/health` (JSON), the message endpoint (SSE events),
-  and the artifacts endpoint (#22b — RAW file bytes, never HTML). The artifacts
-  endpoint reaches the droplet's DISK, not the database, so it is the daemon's
-  own surface, not a waiter read: it serves the files an agent wrote in its
-  casita, the download that replaces the `scp` [[ssh-is-a-missing-endpoint]]
-  named. Rendering events into pixels is still the front's job.
+- The daemon's mouths are `/health` (JSON), the message router (SSE events +
+  the #22a background launch), and the artifacts router (#22b — RAW file bytes,
+  never HTML, reaching the droplet's DISK not the database). Rendering events
+  into pixels is the front's job.
 
-`?mode=` picks the dial: `complete` (bare substitute for the raw API) or
-`agent` (enhancer that executes tools inside the session's casita).
+This module is only the wiring: the app, the auth middleware, `/health`, and the
+routers. The endpoints live in `messages.py` and `artifacts.py` (one surface per
+module — the thirty-line file law); the engine singleton lives in `deps.py`.
 
 AUTHENTICATION — the LLM door (``AIRE_AUTH_TOKEN``). Every turn burns real
 Anthropic tokens, so everything except ``/health`` is gated by a long secret
@@ -26,23 +25,16 @@ constant-time.
 from __future__ import annotations
 
 import hmac
-import json
 import os
-from collections.abc import AsyncIterator
-from dataclasses import asdict, is_dataclass
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from sse_starlette.event import ServerSentEvent
-from sse_starlette.sse import EventSourceResponse
 
-from . import artifacts
-from .engine import DEFAULT_MODE, MODES, BudgetExceeded, Engine
-from .names import InvalidName, clean
-from .store import create_postgres_session_store
+from . import artifacts, messages
+from .deps import drop_engine, get_engine
+from .engine import MODES
 
-DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
 AUTH_TOKEN = os.environ.get("AIRE_AUTH_TOKEN", "")
 
 app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
@@ -66,38 +58,6 @@ async def llm_door(request: Request, call_next: Any) -> Any:
     return await call_next(request)
 
 
-_engine: Engine | None = None
-
-
-async def get_engine() -> Engine:
-    global _engine
-    if _engine is None:
-        store = await create_postgres_session_store(DSN)
-        _engine = Engine(store)
-    return _engine
-
-
-def _drop_engine() -> None:
-    """The cached pool (store + clients) dies with the database; let the next
-    request rebuild it against the database once it's back up."""
-    global _engine
-    _engine = None
-
-
-def safe_names(project: str, session: str) -> tuple[str, str]:
-    try:
-        return clean("project", project), clean("session", session)
-    except InvalidName as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-def safe_mode(mode: str | None) -> str:
-    return mode if mode in MODES else DEFAULT_MODE
-
-
-app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
-
-
 @app.get("/health")
 async def health() -> JSONResponse:
     """The REAL state of the memory, including a downed database, without
@@ -108,38 +68,12 @@ async def health() -> JSONResponse:
         await engine.session_store.list_sessions("__health__")
         return JSONResponse({"status": "ok", "memory": "postgres", "modes": list(MODES)})
     except Exception as exc:  # noqa: BLE001 — health catches EVERYTHING, that's its job
-        _drop_engine()
+        drop_engine()
         return JSONResponse(
             {"status": "degraded", "memory": "unreachable", "detail": type(exc).__name__},
             status_code=503,
         )
 
 
-@app.post("/projects/{project}/sessions/{session}/messages")
-async def post_message(project: str, session: str, request: Request) -> Any:
-    project, session = safe_names(project, session)
-    body = await request.json()
-    message = str(body.get("message", body.get("prompt", ""))).strip()
-    mode = safe_mode(body.get("mode"))
-    # An empty message is NOT a turn: sending it to the SDK is a real query that
-    # spends money for nothing. The edge cuts it before it touches the agent.
-    if not message:
-        raise HTTPException(status_code=422, detail="empty message")
-    return EventSourceResponse(_events(project, session, message, mode))
-
-
-async def _events(project: str, session: str, message: str, mode: str) -> AsyncIterator[ServerSentEvent]:
-    engine = await get_engine()
-    try:
-        async for ev in engine.run_stream(project, session, message, mode):
-            yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
-    except BudgetExceeded as exc:
-        # The spend ceiling was hit BEFORE the turn touched the API. Tell the
-        # caller in-stream (the connection is already an event stream, so a 402
-        # header is no longer possible) instead of a silent stall.
-        yield ServerSentEvent(event="error", data=json.dumps({"error": "budget_exceeded", "detail": str(exc)}))
-    yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": mode}))
-
-
-def _plain(ev: dict[str, Any]) -> dict[str, Any]:
-    return {k: asdict(v) if is_dataclass(v) and not isinstance(v, type) else v for k, v in ev.items()}
+app.include_router(messages.router)   # POST a turn (SSE or #22a background), GET status
+app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface

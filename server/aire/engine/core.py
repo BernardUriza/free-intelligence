@@ -13,6 +13,7 @@ from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
 from .contract import BudgetExceeded
+from .detach import Detached
 from .drain import drain
 from .options import DEFAULT_MODE, build_options
 from .pool import Pool
@@ -46,6 +47,7 @@ class Engine:
         self.pool = Pool()
         self._spend_usd = 0.0  # cumulative, process lifetime — the global backstop
         self._seen_cost: dict[str, float] = {}  # per-client last acc cost, for the delta
+        self.detached = Detached()  # fire-and-forget background turns (#22a)
 
     def _cwd(self, project: str) -> Path:
         ws = WORKSPACES / project
@@ -112,6 +114,20 @@ class Engine:
         self._spend_usd += max(0.0, cost - self._seen_cost.get(key, 0.0))
         self._seen_cost[key] = cost
         return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+
+    def launch_detached(self, project: str, session: str, prompt: str, mode: str) -> None:
+        """Run the turn fire-and-forget (#22a): decoupled from the request, it
+        finishes even if the caller hangs up. Raises if one already runs here."""
+        self.detached.launch(
+            f"{project}/{session}",
+            lambda: self._drain_detached(project, session, prompt, mode))
+
+    async def _drain_detached(self, project: str, session: str, prompt: str, mode: str) -> None:
+        try:
+            async for _ev in self.run_stream(project, session, prompt, mode):
+                pass  # events discarded — the transcript + artifacts ARE the record
+        except Exception as exc:  # noqa: BLE001 — no client to tell; log for the operator
+            print(f"DETACHED {project}/{session} failed: {type(exc).__name__}: {exc}")
 
     async def _retire(self, project: str, session: str) -> None:
         """A client that reached max_budget_usd is POISONED: the SDK refuses every
