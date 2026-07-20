@@ -139,6 +139,14 @@ interface ComposerImages {
     remove: (id: string) => void;
     /** Detach all (called by the surface after a send). */
     clear: () => void;
+    /**
+     * Re-attach images handed back by a FAILED turn (`conversation.unsentImages`).
+     * A send clears the drafts optimistically, so without this the pictures of a
+     * turn the watchdog killed exist nowhere — the user gets their text back and
+     * silently re-sends without them. Already-encoded, so no validation/downscale
+     * round-trip; still bounded by `maxImages`.
+     */
+    restore: (images: MessageImage[]) => void;
     /** The drafts as wire-ready MessageImages. */
     toMessageImages: () => MessageImage[];
     /** Extract + add image files from a paste event. True if any were taken. */

@@ -24,7 +24,7 @@ import {
 } from '../../../../composer/ComposerImageAttachments';
 import { ComposerActions, type ComposerAction } from '../../../../composer/ComposerActions';
 import type { ComposerImages } from '../../../../composer/useComposerImages';
-import type { AgentConversationSurfaceProps } from '../../types';
+import type { ComposerRegionSurface } from '../../types';
 import type { SurfaceDictation } from '../../hooks';
 import { ComposerControls } from './ComposerControls';
 import { NewChatButton } from './NewChatButton';
@@ -48,8 +48,13 @@ export interface SurfaceComposerState {
 }
 
 export interface ComposerRegionProps {
-  /** The surface's public props — the region reads its slice + copy defaults. */
-  surface: AgentConversationSurfaceProps;
+  /**
+   * The composer's capability slices — NOT the whole surface contract. Narrowed
+   * to {@link ComposerRegionSurface} so the compiler enforces what this region
+   * may read; the orchestrator still hands its props object whole (structural
+   * typing), so nothing is re-threaded.
+   */
+  surface: ComposerRegionSurface;
   state: SurfaceComposerState;
   /** The fluid center cap (100% minus the responsive gutter). */
   contentInset: string;
@@ -126,7 +131,7 @@ export function ComposerRegion({ surface, state, contentInset }: ComposerRegionP
       ? [
           {
             id: 'attach-image',
-            label: attachImageLabel ?? 'Adjuntar imagen',
+            label: attachImageLabel,
             icon: <ImagePlus size={16} aria-hidden />,
             onSelect: imagePicker.open,
           },

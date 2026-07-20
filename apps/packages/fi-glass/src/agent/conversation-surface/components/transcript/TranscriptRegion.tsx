@@ -19,13 +19,18 @@ import { useStickToBottom } from 'use-stick-to-bottom';
 import type { ChatMessage } from '@free-intelligence/core';
 import { ScrollToBottomButton } from '../../../ScrollToBottomButton';
 import type { AgentConversation } from '../../../useAgentConversation';
-import type { AgentConversationSurfaceProps } from '../../types';
+import type { TranscriptRegionSurface } from '../../types';
 import { TranscriptMessages } from './TranscriptMessages';
 import { TurnErrorBanner } from './TurnErrorBanner';
 
 export interface TranscriptRegionProps {
-  /** The surface's public props — the region reads its slice + copy defaults. */
-  surface: AgentConversationSurfaceProps;
+  /**
+   * The transcript's capability slices — NOT the whole surface contract.
+   * Narrowed to {@link TranscriptRegionSurface} so a composer concern
+   * (`composerPlaceholder`, `sendLabel`) is a compile error here, not a
+   * convention nobody enforces.
+   */
+  surface: TranscriptRegionSurface;
   /** The live conversation slice the transcript renders. */
   conversation: Pick<
     AgentConversation,

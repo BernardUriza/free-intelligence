@@ -1104,6 +1104,20 @@ function useComposerImages(options = {}) {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
   const clear = useCallback2(() => setDrafts([]), []);
+  const restore = useCallback2(
+    (images) => {
+      setDrafts(
+        images.slice(0, maxImages).map((image) => ({
+          id: `img-${++nextDraftId}`,
+          mediaType: image.mediaType,
+          data: image.data,
+          dataUrl: `data:${image.mediaType};base64,${image.data}`,
+          name: "imagen"
+        }))
+      );
+    },
+    [maxImages]
+  );
   const toMessageImages = useCallback2(
     () => draftsRef.current.map((d) => ({ mediaType: d.mediaType, data: d.data })),
     []
@@ -1125,7 +1139,7 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, toMessageImages, handlePaste };
+  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
 }
 
 // src/composer/ComposerImageAttachments.tsx
@@ -5233,6 +5247,7 @@ function useAgentConversation(agent, options) {
   const [timedOut, setTimedOut] = useState19(false);
   const [persistError, setPersistError] = useState19(null);
   const [unsentText, setUnsentText] = useState19(null);
+  const [unsentImages, setUnsentImages] = useState19(null);
   const unsaved = useRef13(null);
   const runPersist = useCallback10(async (thread) => {
     if (!onMessagesChangeRef.current) return;
@@ -5255,7 +5270,10 @@ function useAgentConversation(agent, options) {
     void runPersist(thread);
   }, [runPersist]);
   const dismissPersistError = useCallback10(() => setPersistError(null), []);
-  const clearUnsentText = useCallback10(() => setUnsentText(null), []);
+  const clearUnsent = useCallback10(() => {
+    setUnsentText(null);
+    setUnsentImages(null);
+  }, []);
   const pending = useRef13(false);
   const messagesRef = useRef13(messages);
   messagesRef.current = externalMessages ?? messages;
@@ -5274,6 +5292,7 @@ function useAgentConversation(agent, options) {
     const last = thread[thread.length - 1];
     if (last?.role !== "user") return;
     setUnsentText(last.content);
+    setUnsentImages(last.images && last.images.length > 0 ? last.images : null);
     setMessages((prev) => prev[prev.length - 1]?.role === "user" ? prev.slice(0, -1) : prev);
   }, []);
   const awaitResolver = useRef13(null);
@@ -5284,6 +5303,7 @@ function useAgentConversation(agent, options) {
       if (!t && !imgs || agent.isStreaming) return;
       lastSent.current = { text: t, images: imgs };
       setUnsentText(null);
+      setUnsentImages(null);
       setTurnError(null);
       setTimedOut(false);
       if (!controlled) {
@@ -5400,7 +5420,8 @@ function useAgentConversation(agent, options) {
     retryPersist,
     dismissPersistError,
     unsentText,
-    clearUnsentText,
+    unsentImages,
+    clearUnsent,
     send,
     sendAndAwait,
     stop: agent.abort ? stop : void 0,
@@ -5985,7 +6006,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     ...images ? [
       {
         id: "attach-image",
-        label: attachImageLabel ?? "Adjuntar imagen",
+        label: attachImageLabel,
         icon: /* @__PURE__ */ jsx39(ImagePlus, { size: 16, "aria-hidden": true }),
         onSelect: imagePicker.open
       }
@@ -6115,14 +6136,10 @@ function AgentConversationSurface(props) {
     dismissError,
     newConversation,
     unsentText,
-    clearUnsentText
+    unsentImages,
+    clearUnsent
   } = conversation;
   const [input, setInput] = useState20("");
-  useEffect22(() => {
-    if (!unsentText) return;
-    setInput((current) => current.trim() ? current : unsentText);
-    clearUnsentText();
-  }, [unsentText, clearUnsentText]);
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
@@ -6135,6 +6152,15 @@ function AgentConversationSurface(props) {
     maxImages: maxAttachedImages,
     onError: onImageAttachmentError
   });
+  const restoreImages = images.restore;
+  useEffect22(() => {
+    if (!unsentText && !unsentImages) return;
+    if (unsentText) setInput((current) => current.trim() ? current : unsentText);
+    if (imageAttachments && unsentImages && unsentImages.length > 0) {
+      restoreImages(unsentImages);
+    }
+    clearUnsent();
+  }, [unsentText, unsentImages, imageAttachments, restoreImages, clearUnsent]);
   const onSend = () => {
     const t = input.trim();
     const attached = imageAttachments ? images.toMessageImages() : [];
