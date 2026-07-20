@@ -1,6 +1,9 @@
 # Bring the repo under the thirty-line law
 
-Status: In progress — `listener.py` done 2026-07-19 (521 → `aire/listen/`, 24 files all ≤30)
+Status: In progress — LAW AMENDED 2026-07-20 (functions ≤30, files ≤150, one
+concept per file, anti-ravioli); `aire/listen/` flattened to 9 modules;
+`scripts/check_law.py` enforces in CI. Remaining: `engine.py` (grandfathered),
+`provision-do.sh` 221.
 Proposed: 2026-07-19 by Bernard
 
 ## What it is
@@ -27,8 +30,12 @@ it touches the live daemon and must land with the kill test green
 
 ## Status / next step
 
-`listener.py` gutted 2026-07-19: `aire/listen/{config,applog}` + subpackages
-`pen/ roster/ guards/ verbs/ net/`, orchestrator kept as the `-m aire.listener`
-entrypoint; long-form comments moved to `docs/listener-doctrine.md`; smoke test
-green (reports, MKDIR ACK, DENIED, REJECTED). Next: `engine.py` (321), then
-`server.py` (137), `sweep.py` (55), `provision-do.sh` (221), the workflows.
+2026-07-19: `listener.py` gutted to 24 sub-30-line files. 2026-07-20: Bernard
+smelled the ravioli; the evidence hunt (Ousterhout's classitis, PEP 20 flat >
+nested, linter caps live on functions not files) amended the law and the tree
+was FLATTENED to one-concept-per-module: `config applog tasks pen roster
+guards verbs net` + the `listener.py` orchestrator. `scripts/check_law.py`
+(AST) now fails the deploy workflow on any violation. Under the amended law
+`server.py`/`sweep.py`/`demo_device.py` are already legal. Remaining:
+`engine.py` (321 + long functions, grandfathered in the checker),
+`provision-do.sh` (221 — split into `infra/lib/` sourced parts).

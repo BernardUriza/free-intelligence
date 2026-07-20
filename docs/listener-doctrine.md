@@ -83,13 +83,18 @@ created as role `aire` so the console's reader sees it.
 
 ## Module map
 
-| Module | Holds |
+Flat, one concept per module (thirty-line law as amended 2026-07-20: the
+original 30-line-per-FILE cut produced ravioli subpackages, flattened the
+next day — functions ≤30, files ≤150, depth ≤2):
+
+| Module | The concept |
 |---|---|
 | `listen/config.py` | every env knob |
 | `listen/applog.py` | `_now`, `append` + the mirror registry |
-| `listen/pen/` | `state` (queue/health), `batches`, `loop`, `poison` |
-| `listen/roster/` | `state` (cache), `db` (load/refresh), `writes`, `boot` |
-| `listen/guards/` | `bucket` (line flood), `conns` (socket flood), `gate` (admission) |
-| `listen/verbs/` | `auth`, `mkdir`, `allow`, `revoke`, dispatch in `__init__` |
-| `listen/net/` | `sockets`, `lines` (sanitize), `session`, `handler` |
+| `listen/tasks.py` | `spawn` — strong task refs (create_task keeps only weak ones) |
+| `listen/pen.py` | the Postgres mirror: queue, batches, drain loop, poison cure |
+| `listen/roster.py` | the whitelist: cache, load/refresh, writes, boot |
+| `listen/guards.py` | `Bucket` (line flood), `ConnLimiter` (socket flood), `admit` |
+| `listen/verbs.py` | token auth, MKDIR/ALLOW/REVOKE, dispatch |
+| `listen/net.py` | peer/hangup, line sanitizing, session, handle |
 | `aire/listener.py` | the orchestrator entrypoint (`python3 -m aire.listener`) |
