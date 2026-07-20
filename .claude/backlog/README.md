@@ -26,7 +26,7 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 
 | # | Item | Status |
 |---|------|--------|
-| 10 | A page to view your sessions (it's a `SELECT`) | Proposed |
+| 10 | A page to view your sessions (it's a `SELECT`) | **Done 2026-07-20** — `/claude` in the front: a link per folder (Bernard's spec), sessions titled by first prompt, transcript rendered like a Claude Code session (› prompts, ⏺ replies, tool chips). Pure `aire_reader` SELECTs; verified live in the real browser |
 | 11 | Memory Tool (`memory_20250818`) → distilled facts in the same database | Proposed |
 | 12 | Git as a user-layer tool: an MCP configured from OUTSIDE via the API, with the user's own account (personal or work) — AIRE itself never touches git; only then does `Stop` hook → commit/push make sense | Idea |
 | 13 | Semantic search over the sessions (pgvector) | Idea |
