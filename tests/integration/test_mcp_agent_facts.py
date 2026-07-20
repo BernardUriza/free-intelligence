@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from persona_runner import mcp_tools
+from persona_runner.mcp_tools import shared
 
 _get = mcp_tools.get_agent_facts.handler
 _add = mcp_tools.add_agent_fact.handler
@@ -48,7 +49,7 @@ class _FakeConn:
 
 
 def _patch_conn(monkeypatch, conn):
-    monkeypatch.setattr(mcp_tools, "_connect", AsyncMock(return_value=conn))
+    monkeypatch.setattr(shared, "_connect", AsyncMock(return_value=conn))
 
 
 # ─── get_agent_facts ────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ def _patch_conn(monkeypatch, conn):
 @pytest.mark.asyncio
 async def test_get_agent_facts_requires_agent_id(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _get({"agent_id": ""})
     spy.assert_not_awaited()
     assert "required" in repr(out).lower()
@@ -104,7 +105,7 @@ async def test_get_agent_facts_empty(monkeypatch):
 @pytest.mark.asyncio
 async def test_add_agent_fact_rejects_bad_provenance_before_db(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _add({"agent_id": "insult", "fact": "x", "category": "voice", "provenance": "invented"})
     spy.assert_not_awaited()  # never reached Postgres
     assert "provenance" in repr(out).lower()
@@ -113,7 +114,7 @@ async def test_add_agent_fact_rejects_bad_provenance_before_db(monkeypatch):
 @pytest.mark.asyncio
 async def test_add_agent_fact_requires_fact(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _add({"agent_id": "insult", "fact": "", "provenance": "self_declared"})
     spy.assert_not_awaited()
     assert "required" in repr(out).lower()
@@ -147,7 +148,7 @@ async def test_add_agent_fact_defaults_category(monkeypatch):
 @pytest.mark.asyncio
 async def test_update_requires_fact_id(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _upd({"fact": "x"})
     spy.assert_not_awaited()
     assert "fact_id" in repr(out).lower()
@@ -156,7 +157,7 @@ async def test_update_requires_fact_id(monkeypatch):
 @pytest.mark.asyncio
 async def test_update_nothing_to_change(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _upd({"fact_id": 5})
     spy.assert_not_awaited()
     assert "nothing to update" in repr(out).lower()
@@ -165,7 +166,7 @@ async def test_update_nothing_to_change(monkeypatch):
 @pytest.mark.asyncio
 async def test_update_bad_provenance(monkeypatch):
     spy = AsyncMock()
-    monkeypatch.setattr(mcp_tools, "_connect", spy)
+    monkeypatch.setattr(shared, "_connect", spy)
     out = await _upd({"fact_id": 5, "provenance": "nope"})
     spy.assert_not_awaited()
     assert "provenance" in repr(out).lower()

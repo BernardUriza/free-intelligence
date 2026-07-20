@@ -67,7 +67,7 @@ def detect_modules() -> dict[str, bool]:
         # Newer capabilities (2026-05) — detect by module presence
         "deep_memory": (INSULT / "core" / "deep_memory.py").exists(),
         "html_artifacts": (INSULT / "core" / "html_artifacts.py").exists(),
-        "agent_runner_mcp": (ROOT / "persona_runner" / "mcp_tools.py").exists(),
+        "agent_runner_mcp": (ROOT / "persona_runner" / "mcp_tools" / "__init__.py").exists(),
     }
 
 
@@ -90,41 +90,63 @@ def detect_fi_core() -> bool:
     return req.exists() and "fi-core" in req.read_text()
 
 
-def extract_mcp_tool_names() -> list[dict]:
-    """Pull tool names from @tool-decorated functions in mcp_tools.py.
-
-    Each @tool decorator's first positional arg is the tool name; the
-    second is its description. Returns names prefixed with
-    `mcp__insult_db__` so they match the wire name the agent sees.
-    """
-    mcp = ROOT / "persona_runner" / "mcp_tools.py"
-    if not mcp.exists():
+def _registered_tool_order(init_py) -> list[str]:
+    """Function-name order of the INSULT_DB_TOOLS list in the package __init__."""
+    if not init_py.exists():
         return []
     try:
-        tree = ast.parse(mcp.read_text())
+        tree = ast.parse(init_py.read_text())
     except SyntaxError:
         return []
-
-    tools: list[dict] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.AsyncFunctionDef):
-            for dec in node.decorator_list:
-                if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "tool":
-                    name = ""
-                    desc = ""
-                    if dec.args:
-                        name = _extract_string(dec.args[0])
-                        if len(dec.args) >= 2:
-                            desc = _extract_string(dec.args[1])
-                    if name:
-                        first_sentence = desc.split(". ")[0] + "." if desc else ""
-                        tools.append(
-                            {
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == "INSULT_DB_TOOLS" and isinstance(node.value, ast.List):
+                    return [e.id for e in node.value.elts if isinstance(e, ast.Name)]
+    return []
+
+
+def extract_mcp_tool_names() -> list[dict]:
+    """Pull tool names from @tool-decorated functions in the mcp_tools package.
+
+    Each @tool decorator's first positional arg is the tool name; the
+    second is its description. Ordered per INSULT_DB_TOOLS in the package
+    __init__ so the rendered list matches what the server registers.
+    Returns names prefixed with `mcp__insult_db__` (the wire name).
+    """
+    pkg = ROOT / "persona_runner" / "mcp_tools"
+    if not pkg.is_dir():
+        return []
+
+    by_func: dict[str, dict] = {}
+    for mcp in sorted(pkg.glob("*.py")):
+        try:
+            tree = ast.parse(mcp.read_text())
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.AsyncFunctionDef):
+                for dec in node.decorator_list:
+                    if isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "tool":
+                        name = ""
+                        desc = ""
+                        if dec.args:
+                            name = _extract_string(dec.args[0])
+                            if len(dec.args) >= 2:
+                                desc = _extract_string(dec.args[1])
+                        if name:
+                            first_sentence = desc.split(". ")[0] + "." if desc else ""
+                            by_func[node.name] = {
                                 "name": f"mcp__insult_db__{name}",
                                 "desc": first_sentence,
                             }
-                        )
-    return tools
+
+    order = _registered_tool_order(pkg / "__init__.py")
+    if order:
+        ordered = [by_func[f] for f in order if f in by_func]
+        ordered.extend(v for k, v in by_func.items() if k not in order)
+        return ordered
+    return list(by_func.values())
 
 
 def extract_fi_core_mcp_tools() -> list[dict]:
@@ -295,7 +317,7 @@ def build_capabilities_block() -> str:
     )
 
     # MCP tools come from two sources at runtime:
-    #   1. persona_runner/mcp_tools.py — DB-access tools in-process
+    #   1. persona_runner/mcp_tools/ — DB-access tools in-process
     #   2. fi-core's mcp_server.py — anti-drift detectors via stdio subprocess
     # Both are registered in persona_runner/runner.py:_build_options and the
     # agent sees them with the same wire-name shape: mcp__<server>__<tool>.
