@@ -102,8 +102,12 @@ memory. To contradict anything here, verify it first the same way.
   optional and the SDK probes them at runtime.
 - **There are two distinct memories**: `SessionStore` (raw transcript) and the
   **Memory Tool** (`memory_20250818`, distilled facts, client-side → your same database).
-- **`SandboxSettings`** confines the agent (bash sandbox, `excludedCommands: ["git"]`).
-  The "container that doesn't self-modify" is **config, not infra**.
+- **`SandboxSettings` confines ONLY bash, NOT `Read`/`Grep`/`Write`** — verified in
+  the SDK source 2026-07-20, correcting the earlier claim here. Its own docstring:
+  *"Filesystem read restrictions: Use Read deny rules … not these sandbox settings."*
+  The real filesystem cage for an agent is the **`can_use_tool`** callback (a
+  per-tool allow/deny gate) or permission deny rules — wired in `engine/cage.py`,
+  scoping every file tool to the session's casita.
 - **`Stop` hook** → where end-of-job actions go. (The old `git commit && push` idea is
   parked until git exists as a user-layer MCP — see backlog #12; today: nothing.)
 - **`max_budget_usd` caps the CLIENT, NOT the query** — measured 2026-07-20 on the
