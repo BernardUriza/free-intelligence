@@ -1,6 +1,6 @@
 # The bridge — the droplet's terminal, mirrored to the browser
 
-Status: Proposed
+Status: Dropped 2026-07-20 — superseded by Bernard's own conclusion the same day
 Proposed: 2026-07-20 by Bernard
 
 ## What it is
@@ -37,3 +37,14 @@ xterm.js.
 
 Not started. Next: scaffold `bridge/` (Go, thirty-line law applies), systemd
 unit + path-filtered deploy, verify through the SSH tunnel on the real droplet.
+
+## Why dropped (2026-07-20, Bernard's call)
+
+*"Si debe ser solo lectura, lo podemos cablear de otra forma, no directa, usando
+la base de datos como debe ser… en vez de una conexión al droplet, mejor
+conectarme a la base de datos en una nueva tabla, diferente a la de los logs,
+donde se reconstruya el transcript completo de Claude Code."* The bridge was a
+window into a mortal body's screen; the right wiring is the house theorem — the
+transcript lives deathless in Postgres and every view reads the database
+(read-only-waiter). The LIVE terminal, when wanted, is direct SSH (the htop
+ritual). This is backlog #17 — the conclusion moved there.
