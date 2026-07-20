@@ -3143,6 +3143,13 @@ function useAudioQueueStore(identityKey, options = {}) {
 // src/voice/useDurableRecording.ts
 import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect13 } from "react";
 
+// src/voice/durableRecordingMachine.ts
+function isQueueAtCapacity(artifacts, policy) {
+  const pending = artifacts.filter(isPending);
+  const totalBytes = pending.reduce((sum, a) => sum + a.size, 0);
+  return pending.length >= policy.maxItems || totalBytes >= policy.maxBytes;
+}
+
 // src/voice/wav.ts
 function blobToArrayBuffer(blob) {
   if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
@@ -3271,13 +3278,7 @@ function useDurableRecording(opts) {
     artifactRef.current = artifact;
   }, [artifact]);
   useEffect13(() => {
-    store.list().then((stored) => {
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      setIsAtCapacity(
-        pending.length >= policy.maxItems || totalBytes >= policy.maxBytes
-      );
-    }).catch(() => {
+    store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
   const { audioLevel, isSilent, bands } = useAudioAnalysis(currentStream, {
@@ -3325,9 +3326,7 @@ function useDurableRecording(opts) {
     setIsStarting(true);
     try {
       const stored = await store.list();
-      const pending = stored.filter(isPending);
-      const totalBytes = pending.reduce((s, a) => s + a.size, 0);
-      if (pending.length >= policy.maxItems || totalBytes >= policy.maxBytes) {
+      if (isQueueAtCapacity(stored, policy)) {
         setIsAtCapacity(true);
         onError?.(
           `Cola llena (m\xE1ximo ${policy.maxItems} audios o ${Math.round(policy.maxBytes / 1024 / 1024)} MB). Transcribe o elimina audios antes de grabar.`
