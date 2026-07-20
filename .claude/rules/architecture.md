@@ -1,40 +1,67 @@
 # Architecture Rules
 
-## Nomenclature — Plumbing vs Runners
+## Nomenclature — the live surfaces (post-purga 2026-07-14 + host cutover 2026-07-15)
 
-Post-F3 + RENAME-1b (v3.9.30, 2026-05-14) the system is three Container
-Apps with names that now match their logical roles:
+Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 
-| Container App | Role | What it does |
+| Container App | State | Role |
 |---|---|---|
-| **discord-bot** | Plumbing / gateway | Listens on Discord, batches messages, stores to Postgres, picks the right runner per turn via the feature flag, parses `[REACT:]` / `[REMEMBER:]` markers, delivers chunked response. Zero direct LLM calls when `LEGACY_LLM_ENABLED=false`. FQDN: `discord-bot.nicecliff-10074f57.eastus.azurecontainerapps.io`. |
-| **persona-runner** | Shared Claude persona brain (Insult + siblings) | FastAPI + claude-agent-sdk (Python). Serves Insult (`persona_id` omitted) and every Claude sibling (Vultur…) via `persona_id`. OAuth Max via `~/.claude/.credentials.json`. Reads `persona.md` (Insult DNA) as system prompt + `<cwd>/CLAUDE.md` as project context via `setting_sources=["project"]`. Cwd = `/data/insult-workspace`. Renamed from `insult-runner` (v4.21.x) — Insult stopped being the system. |
-| **alice-bot** | ALICE persona | Azure OpenAI gpt-4.1 path. Sibling runner, not a Claude Code agent (different model family). Passive: only fires on mention or `/invite` from Insult. |
-| *(future) aurity-runner* | AURITY persona | Qwen-only third sibling per the docstring in `alice/core/llm.py`. Not implemented. |
+| **persona-gateway** | LIVE (min=max=1) | The Discord turn path. One bot user per persona (Insult, Vultur, Frugívoro, ALICE…), all mention-gated, sharing ONE brain via `persona_id`. Owns marker parsing, chunked delivery, facts extraction, reminders, voice (🔊). Binds :8788 for `/invite` + health. Code: `persona_gateway/`. |
+| **persona-runner** | LIVE (min=max=1) | The shared Claude-Agent-SDK brain. FastAPI `/v1/turn` (+ `/v1/judge`, artifacts at `GET /a/{id}`). Loads `shared/personas/<id>.md` as DNA. OAuth Max. Code: `persona_runner/`. |
+| **khimeras-host** | LIVE (min=max=1) | The demux reception host (#6): owns reception (`HOST_OWNS_RECEPTION` → `CONFIG.host_owns_reception` in the gateway suppresses persona self-reception), routes via gpt-4.1 (Azure OpenAI), summons personas invite-only. Code: `demux_ai/`. |
+| **discord-bot** | RETIRED — scaled to 0 | The legacy plumbing container (ex `insult-bot`, renamed 2026-05-14). Dead FQDN; do not treat as a live host. |
+| *(alice-bot)* | DELETED | The legacy gpt-4.1 ALICE container no longer exists; ALICE runs through the gateway on the runner. |
 
-**ACR artifact caveat:** the OCI image repo `insultacr.azurecr.io/insult-bot:<sha>` retains the legacy name. The Container App that consumes it is `discord-bot`. Renaming the ACR repo is a separate operation (not yet done — low value, would require updating every `az acr build --image insult-bot:...` line in CD).
+**ACR artifact caveat:** live images are `persona-gateway:<sha>`,
+`persona-runner:<sha>`, `khimeras-host:<sha>` in `insultacr.azurecr.io`; the
+legacy `insult-bot:<sha>` repo name lingers as an artifact only.
 
-**KQL retroactive:** logs before 2026-05-14 are filtered by `ContainerAppName_s == "insult-bot"`. Logs from 2026-05-14 onward use `discord-bot`. For queries that span the rename window, use `in("insult-bot", "discord-bot")` until the old logs roll off Log Analytics retention (~30d).
+**Name history (for reading old logs/memories):** `insult-bot` (the original
+monolith) → renamed `discord-bot` 2026-05-14 (RENAME-1b) → demuxed into
+`personas/` + runners through v4.21.x → **the whole `personas/` package deleted
+2026-07-14 (commit 2f8d9ad, −37,868 lines)** → host cutover 2026-07-15. KQL for
+current incidents filters `ContainerAppName_s in ("persona-gateway",
+"persona-runner", "khimeras-host")`; the old names only matter for archaeology.
 
-**Pre-rename history:** the plumbing container was originally `insult-bot` (it was Insult, before the runner split). After F3 cutover (v3.9.25) it became a stateless plumbing layer; the name became confusing. RENAME-1b executed the physical rename via scale-to-0 → create new → delete old, with ~30s of Discord-visible downtime.
+## Project Structure (post-purga — verified against the tree)
 
-## Project Structure (post-demux, v4.21.39+)
+The live system is FOUR packages plus the host:
 
-The monorepo demuxed from a flat `insult/` god-package into per-persona packages
-under `personas/`, a light host (`demux_ai/`), and shared contracts
-(`khimeras_shared/`). **Insult is now ONE persona, not the name of the system.**
-The old flat `insult/...` paths below the move no longer exist.
+- `persona_gateway/` — the Discord turn path. `gateway.py` (PersonaClient:
+  reception, `_dispatch`/`_handle`, 🔊 voice reaction), `boot.py`
+  (bind→connect→login order, per-persona supervision), `config.py`,
+  `delivery.py` (chunked send, `DISCORD_LIMIT = 1990`), `turns.py`
+  (run_and_deliver + typing keepalive), `facts.py` (background ADD-only
+  extraction), `ingest.py`, `routing.py`, `markers.py`, `invites.py` +
+  `invite_server.py` (:8788 `/invite`, sole host post alice-bot retirement),
+  `vision.py`, `voice.py`, `workers/` (agenda, reminders, research,
+  reflection).
+- `persona_runner/` — FastAPI + Claude Agent SDK. `runner.py`, `api/` (turn,
+  judge, artifacts, ops, workspace), `engine/` (framing, options,
+  persona_files, session_pool), `routing/` (model_routing, router_runtime),
+  `core/` (auth, config, schemas), `workspace_renderer.py`.
+- `khimeras_shared/` — everything shared: `memory/` (Postgres store +
+  repositories), `behavior/` (presets, flows, vulnerability — the behavior
+  engine), `guidance.py` (the guardian seam), `facts.py`, `style.py`,
+  `markers.py`, `reactions.py`, `attachments.py`, `tts.py`/`stt.py`,
+  `prompts.py` + `prompts_md/`, `consolidation/`, `corpus/`, `runner/` (HTTP
+  client), `persona/`, `llm/` (shared types), `version.py` (`VERSION_TAG`).
+- `shared/` — `personas/` (the registry `registry.py` — source of truth for
+  aliases/gating —, per-persona DNA `<id>.md`, `addressing.py`, `guidance/`
+  content), `corpus/`, `logging_setup/`, `text/`, `time_context.py`.
+- `demux_ai/` — the host: `host_client.py`/`host_loop.py`, `host_llm.py`
+  (gpt-4.1 reception brain), `dispatch.py`, `summon.py`, `batch.py`,
+  `router_budget.py`, `llm_shadow_router.py`, `prompts/`.
+- `tests/` — `arch/`, `chat/`, `core/`, `integration/`, `agent/`, `shared/` +
+  top-level marker/worker tests. Fixtures post-castigo in `conftest.py`
+  (`mock_memory`, Postgres-backed `pg_memory_store`).
+- `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`; repo root has
+  `Dockerfile.gateway` and `Dockerfile.host`.
+- `pyproject.toml` — ruff, pytest, coverage (fail_under 75), bandit config.
 
-- `demux_ai/` — light host: explicit persona selection + gpt-4.1 routing. Live modules: `host.py`, `host_llm.py` (the gpt-4.1 host-router model client, PR-4b slice 1+), `registry.py`, `__main__.py` (`python -m demux_ai run`). No longer a skeleton.
-- `personas/insult/` — the Insult persona. `app.py` (DI `Container`), `bot.py` (Discord lifecycle + health), `config.py` (Pydantic Settings), `composition.py` (the only place that knows concrete implementations), `cogs/` (chat pipeline, voice, utility), `core/` (memory **package**, llm, presets, flows, facts, health_state, debug_server, siesta, backup…), `prompts/*.md` (hot-reloaded), `tasks/`.
-- `personas/alice/` — symmetric sibling persona (Azure OpenAI gpt-4.1). Own `app.py`, `bot.py`, `config.py`, `cogs/`, `core/`, `api/`. Passive: fires on mention or `/invite`.
-- `persona_gateway/` — one Discord bot user per sibling persona (Vultur…), all sharing ONE brain (the persona-runner) via `persona_id`. `gateway.py`.
-- `shared/personas/vultur.md` — Vultur persona DNA (LIVE ephemeral on the Mac; destination in `personas/` TBD).
-- `khimeras_shared/` — shared contracts/infra REAL, now populated and live: `memory/`, `llm/`, `runner/`, `corpus/`, `persona/`, `vectors.py`, `style.py`, `prompts.py`, `consolidation/` (ex `memory_consolidation.py`, modularizado 2026-07-16). Consumed by `personas/insult`, `personas/alice`, `demux_ai` (host) and `persona_gateway` — the "migrate only when 2+ consumers share the SAME contract" bar has been met (see `khimeras_shared/PROMOTION.md`).
-- `shared/` — `corpus/` (animal_liberation, film_criticism), `llm/`, `logging_setup/`, `text/`, `time_context.py`.
-- `tests/` — `arch/` (import-boundary ratchet at **0**), `chat/`, `core/`, `integration/`, `agent/`, `shared/`.
-- `infra/azure/` — `runner.Dockerfile`, `entrypoint.sh`.
-- `pyproject.toml` — ruff, pytest, coverage, bandit config.
+> Anything referencing `personas/insult/`, `personas/alice/`, `demux_ai/host.py`,
+> `app.py` DI containers, cogs, or `python -m insult run` describes the dead
+> pre-purga world.
 
 ## Production Trust / Observability (Phase 3.5)
 
@@ -42,8 +69,11 @@ Born from the 2026-06-13 incident: the bot died mute for 14 min while `/health`
 reported `is_ready:true` (a proxy that lied). The real liveness contract is
 "responds in Discord", never an internal flag.
 
-- **Boot-zombie observability** — DEPLOYED (v4.21.44/45): honest `serving`/`healthy`/`guild_count`, boot instrumentation (`pg_pool_creating→bot_ready`), fail-fast `os._exit`, prewarm off the critical path.
-- **Discord real canary** — **RETIRED by operator decision (2026-06-21, v4.21.97/98)**: implemented and verified (LIVE 2026-06-20), then Bernard killed the cyclic `*/5` probe because of the `#canary` message noise. Deleted end-to-end: the ACA Job `insult-canary`, the `canary.py` cog + `canary_probe.py` runner + `canary-job.sh`, the `cd.yml` sync step + Dockerfile COPY, the `insult-canary-heartbeat-absent` Azure Monitor alert, the `canary-ops-ag` action group, and the "Insult Canary Ops" webhook; the `#canary` channel was purged (955 → 0). **Risk note (deliberate trade-off, do not silently "fix" by reviving it):** the canary was the ONLY *un-fakeable real-contract* probe — it proved Insult actually answers on the real Discord surface every 5 min. With it retired, production-trust now leans on **proxies that CAN lie** (`/health` + `serving`/`healthy`, structured logs, the CD `/v1/turn` smoke) — exactly the fake-green class the canary existed to backstop (see `verify-before-assuming.md` rigor hierarchy + the 2026-06-13 14-min boot-zombie that `is_ready:true` masked). The boot-zombie observability below (honest `serving`/`healthy`) is the remaining live signal. If the real-Discord-surface guarantee is ever needed again, re-introduce a canary (a single self-deleting probe, lower cadence) rather than treating a `/health` 200 as proof.
+- **Honest health** — the lesson survived the purge: the gateway binds its
+  health port before Postgres/Discord (`persona_gateway/boot.py`) and reports
+  real serving state; the ActivationFailed hang class was root-fixed in
+  v4.22.14.
+- **Discord real canary** — **RETIRED by operator decision (2026-06-21, v4.21.97/98)**: implemented and verified (LIVE 2026-06-20), then Bernard killed the cyclic `*/5` probe because of the `#canary` message noise. Deleted end-to-end (ACA Job, cog, runner, CD step, alert, action group, webhook; `#canary` purged). **Risk note (deliberate trade-off, do not silently "fix" by reviving it):** the canary was the ONLY *un-fakeable real-contract* probe — it proved the bot actually answers on the real Discord surface every 5 min. With it retired, production-trust leans on **proxies that CAN lie** (`/health`, structured logs, the CD smoke) — exactly the fake-green class the canary existed to backstop (see `verify-before-assuming.md` rigor hierarchy). If the real-Discord-surface guarantee is ever needed again, re-introduce a canary (a single self-deleting probe, lower cadence) rather than treating a `/health` 200 as proof.
 - **Constitution enforcement** — `UserPromptSubmit` hook injects the 9 articles of `engineering-playbook/rules/00-constitution.md` each turn.
 - **Operational rigor doctrines** (playbook) — no fake-green / total instrumentation (`observability-logging.md`); rigor hierarchy `Chrome DevTools > proxy` + fix-Chrome-don't-route-around-it (`verify-before-assuming.md`).
 
@@ -63,87 +93,102 @@ deployed to its own Azure Static Web App via
 forbidden parallel/disposable product surface: discord-bot is a backend bot with
 NO declared Next.js `web/` in this repo (the chat UI is the cross-repo fi-glass
 above), so the "no parallel surfaces" prohibition of `new-project-stack` does not
-bite here. Its deploy is now path-scoped (`paths: dashboard/**`) so non-dashboard
+bite here. Its deploy is path-scoped (`paths: dashboard/**`) so non-dashboard
 commits no longer redeploy it. If it is ever superseded, freeze it the same day
 (Art. 6) — do not let it rot as an unowned surface.
 
-## Patterns
-- DI container via `Container` dataclass in `app.py` — all deps injected into cogs
-- Cogs pattern from discord.py — commands grouped by concern (chat, utility)
-- Settings singleton with Pydantic BaseSettings (env_file=".env")
-- Structured logging via structlog (JSON-ready, never use print())
-- Memory is append-only: never delete, only grow ("infinite conversation")
-- Context is hierarchical: recent messages (50) + keyword-relevant messages (5)
-- All DB operations go through _ensure_connection() for auto-reconnect
-- Commands must have @commands.cooldown to prevent token burn
-- Character break detection → auto-retry → sanitize as fallback
-- Anti-pattern detection → log warning (doesn't block, monitors drift)
-- User style adaptation via EMA (exponential moving average) with confidence gate (5 msgs)
-- Preset classification via rule-based regex patterns (zero LLM cost, runs every message)
-- `build_adaptive_prompt` returns `tuple[str, PresetSelection]` — caller logs the selected preset
-- Emoji reactions parsed from `[REACT:]` markers in LLM response, executed async in background
-- Background tasks (reactions, fact extraction) use `asyncio.create_task` + `_background_tasks` set for lifecycle management
+## Patterns (live)
 
-## Preset System
-- 6 behavioral modes: DEFAULT_ABRASIVE (~55%), PLAYFUL_ROAST (~15%), INTELLECTUAL_PRESSURE (~12%), RELATIONAL_PROBE (~8%), RESPECTFUL_SERIOUS (~3%), META_DEFLECTION (~7%)
-- 2 modifiers (overlay on any mode): MEMORY_RECALL, CONTEMPT
-- Priority: RESPECTFUL_SERIOUS > META_DEFLECTION > RELATIONAL_PROBE > INTELLECTUAL_PRESSURE > PLAYFUL_ROAST > DEFAULT_ABRASIVE
-- Only the selected preset's guidance is injected into the system prompt (not all 6)
-- Classifier analyzes: current message (primary) + last 5 messages (secondary) + user facts (for MEMORY_RECALL)
+- **Mention-gated reception**: `should_respond` in `persona_gateway/routing.py`
+  + `shared/personas/addressing.py`; the registry
+  (`shared/personas/registry.py`) is the source of truth for aliases. Post-purga
+  EVERY persona (Insult included, `aliases=[]`) is @mention-only; omnipresence
+  returns only through the khimeras-host reception.
+- **Guarded turn entry**: `_dispatch` wraps `_handle`; failures log + neutral
+  recovery ("…" → reaction fallback), never internals.
+- Settings from env (`persona_gateway/config.py`), structured logging via
+  structlog (never print()).
+- **Memory is append-only**: never delete, only grow ("infinite conversation");
+  Azure Postgres via `khimeras_shared/memory/`.
+- **Facts are ADD-only**: background extraction (`persona_gateway/facts.py`) →
+  `merge_facts_additive` onto the full live auto set before `save_facts`. A raw
+  `save_facts(subset)` is a hard-delete in disguise (2026-06-03 P0).
+- **Behavioral guidance per turn**: `guidance_for_turn`
+  (`khimeras_shared/guidance.py`) classifies the preset against the user's
+  facts and ships the rendered guidance + vulnerable-user overlay to the runner
+  on the wire. Fail-safe: any fault → normal turn.
+- Emoji reactions parsed from `[REACT:]` markers
+  (`khimeras_shared/reactions.py`), executed async in background with
+  human-like delay; background tasks tracked in a set for lifecycle.
+- Durable markers (`[REMIND:]`, `[AGENDA:]`, `[RESEARCH:]`, `[REMEMBER:]`)
+  persist to Postgres; gateway workers (`persona_gateway/workers/`) deliver.
+
+## Preset System (`khimeras_shared/behavior/presets/`)
+- 6 behavioral modes: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION
+- 3 modifiers (overlay on any mode): MEMORY_RECALL, CONTEMPT, MULTI_DOMAIN_SYNTHESIS
+- Priority: RESPECTFUL_SERIOUS always wins (safety), then META_DEFLECTION
+- Classifier (`classify_preset`) is rule-based regex, zero LLM cost, runs every
+  turn inside `guidance_for_turn`: current message (primary) + recent messages
+  (secondary) + user facts (for MEMORY_RECALL)
+- Only the selected preset's guidance is rendered into `behavioral_guidance`
+- The prose each persona speaks a mode in is CONTENT:
+  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md` (Insult has the
+  full set; a persona with no content contributes an empty block, the engine
+  still runs)
 
 ## Prompts
-- **The universal rule now lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the discord-bot-specific instantiation (its loader + file list); the cross-repo law is the SSOT. It was a distillation error that this rule stayed repo-local from 2026-05-12 until 2026-06-23 — see the SSOT's "why this rule exists".
-- LLM-facing prompts MUST live in `personas/insult/prompts/*.md`, loaded via `personas.insult.core.prompts_loader.load_prompt(name)` — NEVER as inline Python strings.
-- The loader is mtime-aware: editing the `.md` file is picked up by the running bot on the next request without a redeploy or restart. Inline strings require a version bump and full deploy cycle just to change tone.
-- Call `load_prompt("<name>")` inside the function that uses the prompt, NOT at module level — so the mtime check fires per-request and hot-reload actually works.
-- Migration pattern when extracting an inline prompt:
-  1. Create `personas/insult/prompts/<name>.md` with the prompt content verbatim
-  2. Replace the Python constant with `load_prompt("<name>")` inside the consumer function
-  3. Delete the inline constant
-- Exception: ≤5-line structural fragments that the prompt builder concatenates (e.g. `CACHE_BOUNDARY`, single-line headers) may stay inline — they are scaffolding, not content humans iterate.
-- Existing prompt-loader users to mirror: `facts_extraction`, `language_cure`, `proactive_social`, `proactive_world_scan`, `siesta_diary`, `memory_consolidator_judge`.
-- Known violations (technical debt — migrate when touched; paths post-demux):
-  - `personas/insult/core/presets/` — `PRESET_GUIDANCE`, `MODIFIER_GUIDANCE`, `_VULNERABLE_OVERLAY_PROMPT`, `_INTENTIONALITY_DIRECTIVE`
-  - `personas/insult/core/presets_llm.py` — `_CLASSIFIER_SYSTEM_PROMPT`
-  - `personas/insult/core/character/prompts.py` — inline layers of `build_adaptive_prompt`
-  - `personas/insult/core/flows/guidance.py` — shape/flavor/pressure guidance blocks
-  - `personas/insult/core/flows/prompt.py` — flow prompt assembly
-  - `personas/insult/core/summaries.py`, `stance_log.py` — utility prompts
-- Why this rule exists: prompts are CONTENT, not code. Inline Python forces escape gymnastics on quotes, hides prompt edits in code diffs, and locks editability behind redeploy. The `prompts_loader.py` infrastructure has existed since the (now-deleted, 2026-07-07) Moltbook integration — but the convention was never documented, so subsequent commits kept adding inline prompts. Detected 2026-05-12 while debugging flat replies; the most recent `_CLASSIFIER_SYSTEM_PROMPT` addition violated the convention.
+- **The universal rule lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the discord-bot-specific instantiation; the cross-repo law is the SSOT.
+- LLM-facing prompts MUST live in content files — persona DNA in
+  `shared/personas/<id>.md`, guidance prose in `shared/personas/guidance/`,
+  utility prompts in `khimeras_shared/prompts_md/*.md` loaded via
+  `khimeras_shared/prompts.py::load_prompt(name)` — NEVER as inline Python
+  strings.
+- The loader is mtime-aware: editing the `.md` is picked up on the next request
+  without redeploy. Call `load_prompt("<name>")` inside the function that uses
+  the prompt, NOT at module level, so hot-reload actually works.
+- Current `prompts_md/` set: `facts_extraction`, `image_transcript`,
+  `memory_consolidator_judge`, `other_people_header`, `reminder_delivery`,
+  `self_reflection`.
+- Exception: ≤5-line structural fragments the prompt builder concatenates may
+  stay inline — scaffolding, not content humans iterate.
+- History: convention detected 2026-05-12 while debugging flat replies; the old
+  `personas/insult` inline-prompt debt list died with the package in 2f8d9ad —
+  do not re-accrue it in the live packages.
 
 ## Reactions
 - LLM includes `[REACT:emoji1,emoji2]` in response (max 3 emojis)
-- `parse_reactions()` extracts emojis, `strip_reactions()` removes markers from text
-- Reactions fire in background with human-like delay (0.5-2s initial, 0.35s between)
+- `parse_reactions()` extracts, `strip_reactions()` removes markers
+  (`khimeras_shared/reactions.py`); `add_reactions()` fires in background with
+  human-like delay
 - Reaction-only responses (no text) are supported — powerful for dismissal/acknowledgment
-- `[REACT:]` is NOT in `strip_metadata` — chat.py owns the full parse→strip lifecycle
+- The gateway owns the full parse→strip lifecycle
+  (`persona_gateway/gateway.py` / `turns.py`)
 
-## Attachments
-- Images (png/jpg/gif/webp): sent to Claude as base64 vision blocks
-- Text/code (25+ extensions): read as UTF-8, injected as text blocks
+## Attachments (`khimeras_shared/attachments.py`)
+- Images (png/jpg/jpeg/gif/webp): sent as base64 vision blocks; oversize images
+  are resized/re-encoded to fit the cap
+- Text/code extensions: read as UTF-8, injected as text blocks
 - PDFs: sent as base64 document blocks
-- Unsupported types: rejected with in-character error message
-- Max size: 5MB per attachment
-- Multiple attachments per message supported
+- Unsupported types: rejected with an in-character message
+- `MAX_ATTACHMENT_SIZE` = 5MB per attachment; `HARD_DOWNLOAD_LIMIT` = 25MB
 - Attachment content is NOT stored in longitudinal memory (only the text message)
 
 ## Dependencies
-- discord.py >= 2.3.0
-- anthropic >= 0.42.0
-- aiosqlite >= 0.19.0
-- pydantic-settings >= 2.1.0
-- structlog >= 24.1.0
-- typer >= 0.9.0
-- ruff >= 0.11.0 (dev)
-- pytest >= 8.0.0, pytest-asyncio, pytest-cov (dev)
-- bandit >= 1.8.0, pip-audit >= 2.7.0 (dev)
+
+**`environment.yml` is the source of truth** (conda-first — memory
+`feedback_no_pypi_only_conda`; ruff pinned `==0.11.12`, see
+`feedback_ruff_version_pinned`). Do not trust dependency lists in docs; read
+the file.
 
 ## Security
 - .env is gitignored — NEVER commit tokens
-- Bot validates required tokens at startup (validate_required)
+- Required tokens validated at startup (`PersonaRuntimeConfig.from_env` /
+  gateway boot fails loud per persona with `persona_gateway_no_token`)
 - All user input is parameterized in SQL (no injection)
-- Max message length enforced before sending to LLM (4000 chars)
 - Max attachment size enforced (5MB)
-- Character breaks auto-detected and sanitized (never expose model identity)
-- Anti-pattern drift monitored via logging (never expose assistant behavior)
-- In-character errors never expose "Claude", "Anthropic", or API internals
+- Never expose model identity: persona DNA forbids it, and error paths are
+  neutral by design (see robustness.md) — the old regex character-guard died
+  with the monolith and has NO live equivalent, so the DNA + error-path
+  discipline carry that responsibility alone
+- CI security layers: `bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/`
+  + `pip-audit` (`.github/workflows/ci.yml`)

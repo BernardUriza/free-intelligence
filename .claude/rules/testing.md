@@ -1,16 +1,18 @@
 # Testing Rules
 
-> **Name disclaimer (post-RENAME-1b, 2026-05-14)**: the plumbing Container
-> App is now **`discord-bot`**. Older `insult-bot` references in `az`
-> commands and KQL filters in this file describe historical state — for
-> live infra always use `discord-bot`. The ACR image artifact is still
-> named `insult-bot:<sha>` (legacy OCI repo name). For queries spanning
-> the rename window: `ContainerAppName_s in ("insult-bot", "discord-bot")`.
+> **Name disclaimer (post-purga 2026-07-14, commit 2f8d9ad + host cutover
+> 2026-07-15)**: the live Container Apps are **`persona-gateway`** (the Discord
+> turn path, all personas), **`persona-runner`** (shared Claude-Agent-SDK brain)
+> and **`khimeras-host`** (demux reception host). The legacy **`discord-bot`**
+> plumbing app is RETIRED — scaled to zero, dead FQDN; `alice-bot` no longer
+> exists as a Container App. Older `insult-bot` / `discord-bot` references in
+> KQL filters and `az` snippets in memory files describe historical state —
+> for live infra always filter/query the three live app names.
 
 ## Verify Live Infra State Before Asserting — MANDATORY
 
 Before making any claim about how production infrastructure is configured — ingress
-exposure, env vars, secrets, blob state, deploy revision, container image tag,
+exposure, env vars, secrets, deploy revision, container image tag,
 network policy, anything — run the live query first. `CLAUDE.md` and the files
 under `.claude/rules/` describe **intended** state at the moment they were written
 and rot silently as the user changes infra without updating the docs.
@@ -20,10 +22,9 @@ command and quote the actual output.
 
 | Question                              | Verify with                                                                                          |
 |---------------------------------------|------------------------------------------------------------------------------------------------------|
-| Is the debug endpoint exposed?        | `az containerapp show --name insult-bot --resource-group insult-rg --query properties.configuration.ingress` |
-| What env vars / secrets does prod have? | `az containerapp show --name insult-bot -g insult-rg --query "properties.template.containers[0].env"` |
-| What is the current deployed revision? | `az containerapp show ... --query properties.latestRevisionName`                                     |
-| What is in the backup blob right now? | `az storage blob show --account-name insultstorage --container-name insult-bot --name memory.db --query "{modified:properties.lastModified, size:properties.contentLength}"` |
+| What Container Apps are live / scaled? | `az containerapp list -g insult-rg --query "[].{name:name, running:properties.runningStatus, replicas:properties.template.scale.minReplicas}" -o table` |
+| What env vars / secrets does prod have? | `az containerapp show --name persona-gateway -g insult-rg --query "properties.template.containers[0].env"` |
+| What is the current deployed revision? | `az containerapp show --name persona-runner -g insult-rg --query properties.latestRevisionName`      |
 | What is the local file actually doing? | `Read` it. Do not paraphrase from memory.                                                            |
 | Is CI green / a PR merged?            | `gh run list`, `gh pr view`                                                                          |
 
@@ -37,7 +38,7 @@ same turn (or flag the divergence). Never let a known-stale claim sit unfixed
 once you have observed the truth.
 
 This rule is the precondition to the diagnostic workflow further down (KQL first,
-debug endpoint for content). Diagnostic queries themselves are useless if you
+DB read for content). Diagnostic queries themselves are useless if you
 have already lied about how the system is wired.
 
 ## Pre-Push Verification — MANDATORY
@@ -46,13 +47,13 @@ Before EVERY push, verify that code actually works at the Python import level, n
 
 1. **SDK class existence**: If you reference a new exception class, enum, or attribute from an external SDK (e.g., `anthropic.OverloadedError`), ALWAYS verify it exists first:
    ```bash
-   python3 -c "import anthropic; print(hasattr(anthropic, 'OverloadedError'))"
+   conda run -n discord-bot python -c "import anthropic; print(hasattr(anthropic, 'OverloadedError'))"
    ```
    `ruff check` and `pytest` may pass even when the class doesn't exist (if the import is inside a try/except or conditional path). Only a live import test catches this.
 
 2. **Real import smoke test**: After adding imports from external packages, verify the module loads:
    ```bash
-   python3 -c "from insult.core.llm import LLMClient; print('OK')"
+   conda run -n discord-bot python -c "from khimeras_shared.guidance import guidance_for_turn; print('OK')"
    ```
 
 3. **Never assume SDK APIs exist**: Always check `dir(module)` or `hasattr(module, 'ClassName')` before using a class you haven't used before in this codebase.
@@ -64,137 +65,81 @@ Before EVERY push, verify that code actually works at the Python import level, n
 - Use DevTools to verify Discord interactions when possible: navigate to Discord web, inspect network requests, check console for errors
 - Prefer automated browser verification over manual "go check it" instructions
 
-## Debug HTTP Endpoint (read-only introspection)
+## Introspection surfaces (post-purga)
 
-The bot exposes a read-only HTTP server (`insult/core/debug_server.py`) that Claude Code can hit directly to inspect state without needing the Discord MCP server.
+> **Historical note:** the old read-only debug HTTP server
+> (`insult/core/debug_server.py`, `/debug/messages` on port 8787) **died with
+> `personas/` in 2f8d9ad** — `grep -rn "8787\|debug/messages" --include='*.py' .`
+> returns nothing live. Do not curl those endpoints; do not tell Bernard they
+> exist. The `persona-gateway` binds port 8788 for its own `/invite` + health
+> API (`persona_gateway/invite_server.py`), which is NOT a message-introspection
+> surface.
 
-### Setup
-- Requires `DEBUG_TOKEN` in `.env` — fail-closed if unset (server does NOT start)
-- Generate: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
-- Defaults: `DEBUG_HOST=0.0.0.0`, `DEBUG_PORT=8787`
-- Auth: `Authorization: Bearer <token>` header on every endpoint except `/debug/health`
+The live introspection surfaces are:
 
-### Endpoints
-| Method | Path | Query params | Returns |
-|--------|------|--------------|---------|
-| GET | `/debug/health` | — | `{"status": "ok"}` (no auth) |
-| GET | `/debug/messages` | `channel_id` (req), `limit` (1-500, default 15) | Last N messages for channel |
-| GET | `/debug/channels` | `guild_id` (req), `since_hours` (default 24) | Channel activity counts |
-| GET | `/debug/stats` | — | Total messages / users / channels |
-
-### How to use from Claude Code
-```bash
-# Load token from .env
-TOKEN=$(grep DEBUG_TOKEN .env | cut -d= -f2)
-
-# Read last 15 messages in a channel
-curl -s "http://localhost:8787/debug/messages?channel_id=123456&limit=15" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-
-# List active channels in a guild in last 24h
-curl -s "http://localhost:8787/debug/channels?guild_id=99999&since_hours=24" \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
-### Notes
-- Read-only — no write paths
-- In Azure Container Apps: **publicly reachable** at `https://insult-bot.nicecliff-10074f57.eastus.azurecontainerapps.io` (external ingress targets port 8787). Bearer token from Azure secret `debug-token` is the only protection — verify with `az containerapp show -n insult-bot -g insult-rg --query properties.configuration.ingress` before claiming otherwise
-- Uses `hmac.compare_digest` for timing-safe token comparison
-- For local testing, bot must be running (`python -m insult run`)
+1. **Azure Log Analytics (KQL)** — structured events from the three live apps
+   (`ContainerAppName_s in ("persona-gateway", "persona-runner", "khimeras-host")`),
+   table `ContainerAppConsoleLogs_CL`, workspace in
+   `memory/reference_azure_log_analytics.md`.
+2. **The Postgres data plane directly** — messages/facts live in Azure
+   PostgreSQL (`POSTGRES_URL`, schema in
+   `khimeras_shared/memory/postgres_schema.sql`). A read-only `psql` query is
+   the modern replacement for every old `/debug/messages` step.
+3. **Discord itself via the debug Chrome (`:9333`)** — the canonical history of
+   what was actually said and answered.
 
 ### MANDATORY diagnostic workflow
 
 A complete diagnosis in this app is, in order:
 
 1. **Azure Log Analytics by time range — ALWAYS first.** Pull every event the
-   bot emitted during the window where the user reports misbehavior. Use the
+   system emitted during the window where the user reports misbehavior. Use the
    KQL REST path documented in `memory/reference_azure_log_analytics.md`
-   (workspace customer ID `14ebd989-62d2-4207-b099-f6e13256fd72`, table
-   `ContainerAppConsoleLogs_CL`, filter `ContainerAppName_s == "insult-bot"`).
-   Every structured signal lives here: `preset_classified`, `flow_pressure`,
-   `flow_expression`, `llm_request`, `llm_response` (input/output tokens,
-   cache hits, stop_reason), `llm_timeout`, `llm_failed`, `llm_bad_request`,
-   `tool_calls_detected`, `character_break_detected`, `chat_turn_end`, etc.
+   (table `ContainerAppConsoleLogs_CL`, filter on the live app names above).
    This reconstructs 90%+ of any incident without ever reading message text.
 
-2. **Debug endpoint ONLY when log signals are insufficient.** If after
+2. **Direct DB read ONLY when log signals are insufficient.** If after
    reading KQL you still need the literal user/bot text to corroborate a
-   hypothesis (e.g. you see `preset=default_abrasive modifiers=[memory_recall]`
-   and `output_tokens=22` but cannot tell whether the 22-token reply was
-   appropriate without seeing what the user asked), THEN hit
-   `/debug/messages?channel_id=<id>&limit=30`. The endpoint is LOCAL-ONLY
-   (Azure Container App has no ingress), so it only works while running
-   the bot on this Mac — it is a corroboration tool, not the first move.
+   hypothesis, query Postgres directly (read-only) or read the channel in
+   Discord web. Content reads are a corroboration tool, not the first move.
 
-Rationale: starting with the endpoint before KQL forces the user to paste
-channel IDs and wait for a local bot; starting with narration about what
+Rationale: starting with content before KQL forces the user to paste
+channel IDs and wait; starting with narration about what
 you cannot see burns their trust. Start with `TimeGenerated` + structured
-events. Ask for channel text only when the structured data does not answer
+events. Go to channel text only when the structured data does not answer
 the question.
-
-This replaces the prior "debug endpoint first" rule. That rule was written
-while Log Analytics was not yet proven reachable from this Mac — once the
-REST path was validated (2026-04-24) the ordering flipped: KQL first,
-endpoint for content verification.
 
 ### Detect dropped messages — MANDATORY before claiming "no activity"
 
-When `total_messages` is flat or the user reports "the bot died", DO NOT
-conclude "nobody wrote to it" until you have proven there are no
-**silently swallowed messages**. The bot can be alive at the gateway
-(heartbeats green, `guilds: 1`) and still drop inbound messages mid-pipeline
-(attachment processing, LLM call, post-LLM mutation, delivery). Those
-deaths leave a `chat_turn_start` with no paired `chat_turn_end`, OR
-no `chat_turn_start` at all if the drop is at the cog/listener level.
+When the user reports "the bot died", DO NOT conclude "nobody wrote to it"
+until you have proven there are no **silently swallowed messages**. The
+gateway can be alive at the Discord gateway (heartbeats green) and still drop
+inbound messages mid-pipeline (attachment processing, the runner call, marker
+parsing, delivery). Signals to check, in order:
 
-**Three signals that scream "swallowed message" — check them in order:**
+1. **Consecutive user messages with no bot reply between them.** Pull the last
+   30+ rows for the channel from Postgres (or scroll Discord web itself). If
+   the same author sends 3+ messages within a short window with no bot message
+   interleaved, one was eaten. Common shape: long message + image → "como
+   ves" → "ups" → "okok" — the user is poking a corpse.
+2. **A turn-start log event without its paired turn-end** (same request id) in
+   KQL — every orphan is a message that entered the pipeline and never came
+   out. Cross-reference the stage events around it to find where it died.
+   Gateway-side failures log `persona_gateway_turn_failed`.
 
-1. **Consecutive user messages with no bot reply between them.** Pull the
-   last 30+ messages from `/debug/messages` (NOT 15 or 20 — too short to see
-   the pattern). If the same `author_id` sends 3+ messages within a short
-   window with no bot message interleaved, one was eaten. Common shape:
-   long message + image → "como ves" → "ups" → "okok" — the user is
-   poking a corpse.
-
-2. **`chat_turn_start` without paired `chat_turn_end` (same `request_id`).**
-   ```kql
-   ContainerAppConsoleLogs_CL
-   | where ContainerAppName_s == "insult-bot" and TimeGenerated > ago(24h)
-   | extend req = tostring(parse_json(Log_s).request_id),
-            ev  = tostring(parse_json(Log_s).event)
-   | where ev in ("chat_turn_start", "chat_turn_end")
-   | summarize starts = countif(ev == "chat_turn_start"),
-               ends   = countif(ev == "chat_turn_end") by req
-   | where starts > ends
-   ```
-   Every orphan `request_id` is a message that entered the pipeline and
-   never came out. Cross-reference with `stage_attachments_processed`,
-   `stage_facts_loaded`, `llm_call_start`, `llm_call_complete` to find
-   the stage where it died.
-
-3. **`unanswered` field in `proactive_message_sent`.** The proactive system
-   itself counts how many user messages went without a reply
-   (`unanswered: 3` means the bot already noticed it ate three). Treat
-   any `unanswered >= 2` in a recent proactive event as a self-report of
-   the bug — the bot is literally asking you to check why.
-
-**Why this rule exists:** on 2026-05-09 a user reported "se murió otra vez"
-and the assistant pulled only 20 messages from `/debug/messages`, saw the
-last one was "Okok", and concluded "nobody has written for 31h". The
-real story was visible in those same 20 messages: four consecutive user
-messages from the same author (one with an image attachment) with zero
+**Why this rule exists (historical, 2026-05-09 — the module it names died in
+2f8d9ad; the lesson is alive):** a user reported "se murió otra vez" and the
+assistant pulled only 20 messages from the then-live `/debug/messages`
+endpoint, saw the last one was "Okok", and concluded "nobody has written for
+31h". The real story was visible in those same 20 messages: four consecutive
+user messages from the same author (one with an image attachment) with zero
 bot replies between them. The user's "Ups / Okok" was acknowledging the
-silence, not closing the conversation. The smoking gun was also visible
-in `proactive_message_sent ... unanswered: 3` from earlier the same day —
-the bot had counted the swallowed messages and the assistant didn't read
-the field. Pulling 20 messages is too few; reading them without checking
-author-sequence is worse than reading none.
+silence, not closing the conversation. Pulling 20 messages is too few; reading
+them without checking author-sequence is worse than reading none.
 
-**Apply this rule any time:** the user reports degraded responsiveness,
-`total_messages` is unchanging across two heartbeat windows, or you see
-a `proactive_message_sent` with `unanswered > 0`. Pull `limit=50` minimum
-from `/debug/messages`, group by `author_id`, and flag any consecutive
-run of 2+ user messages without an interleaved bot message.
+**Apply this rule any time** the user reports degraded responsiveness. Pull 50+
+rows minimum, group by author, and flag any consecutive run of 2+ user
+messages without an interleaved bot message.
 
 ### Inspect the database BEFORE believing the chat — MANDATORY
 
@@ -202,25 +147,18 @@ When a user reports "the bot doesn't remember X", "forgot facts Y",
 "loses context Z", or any other complaint about memory, your **first
 move** is to query the database directly. NOT the chat history. NOT
 the user's testimony about what was said. NOT the LLM's narration of
-what it has in context. The database.
+what it has in context. The database (Azure Postgres via `POSTGRES_URL`).
 
 **Concrete debugging order when "the bot forgot something":**
 
-1. **Pull `/debug/messages?channel_id=X&limit=80`** and verify the
-   message in question is physically present. If it is NOT in the
-   DB, the model is telling the truth that it doesn't have it — the
-   storage layer dropped it. Stop blaming the model.
-2. **Query KQL** for `chat_turn_start` + `stage_memory_stored` +
-   `chat_turn_end` for that message's timestamp. If all three fire
-   but the row is absent from `/debug/messages`, the bug is between
-   the log line and the actual INSERT — a deploy/restart-induced
-   blob race ([[project_blob_download_race_bug]]) is the most
-   common culprit.
-3. **Compare DB rows against Discord's own history.** Discord
-   itself is the canonical source — pull via the bot's HTTP API
-   and diff against what the DB has. If the gap window matches a
-   recent `containerapp revision activate` timestamp, the deploy
-   ate the messages.
+1. **Query Postgres** and verify the message in question is physically
+   present. If it is NOT in the DB, the model is telling the truth that it
+   doesn't have it — the storage layer dropped it. Stop blaming the model.
+2. **Query KQL** for the turn's store/turn-end events at that message's
+   timestamp. If the events fire but the row is absent, the bug is between
+   the log line and the actual INSERT.
+3. **Compare DB rows against Discord's own history.** Discord itself is the
+   canonical source — diff against what the DB has.
 4. **Only after all three of the above** is it worth investigating
    prompt construction, context truncation, attention dilution,
    model behavior. Those are all downstream of the data plane.
@@ -233,17 +171,18 @@ reporting a symptom; the DB tells you whether the data even exists.
 Skipping that step is what a chat product would do, not what a
 developer would do.
 
-**Why this rule exists:** on 2026-05-12 the assistant spent ~3
-hours iterating fixes (preset routing, formatting normalization,
+**Why this rule exists (historical, 2026-05-12 — pre-Postgres, when the data
+plane was SQLite-in-container with a blob-restore race):** the assistant spent
+~3 hours iterating fixes (preset routing, formatting normalization,
 top-N fact retrieval, timestamp prefix removal) for a "memory bug"
-that was actually a deploy-induced storage drop. A 30-second query
-to `/debug/messages` at minute 1 would have shown the messages
-were physically absent from the DB and immediately pointed at the
-blob-restore race, saving ~3 hours of misdiagnosed work and the
-user's trust. The user's exact words were *"simplemente es lo que
-hace un dev normalmente — observar la base de datos"* — and they
-were right. Believing chat testimony when there is a deterministic
-data source available is what Claude Chat does. This is Claude Code.
+that was actually a deploy-induced storage drop. A 30-second DB query
+at minute 1 would have shown the messages were physically absent
+and immediately pointed at the blob-restore race, saving ~3 hours of
+misdiagnosed work and the user's trust. The user's exact words were
+*"simplemente es lo que hace un dev normalmente — observar la base de
+datos"* — and they were right. (The blob race itself was killed by the
+Postgres migration, 2026-05-13; the verify-the-data-plane-first lesson is
+permanent.)
 
 **Applies to ALL "memory" or "forgot" or "lost context" reports**,
 regardless of how persuasive the user's narrative or how confident
@@ -261,9 +200,9 @@ have time." First. Always.
 Anti-pattern to refuse: the user pastes a few turns of bot output
 and asks "why did this happen?". The right move is:
 
-1. `/debug/messages?limit=120` → is the relevant data in the DB?
-2. KQL for that turn's `preset_classified` + `stage_facts_loaded`
-   + `stage_context_built` → what did the bot actually receive?
+1. DB query → is the relevant data in the DB?
+2. KQL for that turn's classification + context events → what did the bot
+   actually receive?
 3. Only after (1) and (2): write the explanation.
 
 If you find yourself typing "the model is probably doing X because
@@ -279,14 +218,13 @@ bot turns where Insult said *"No lo tengo. Nunca llegó a esta
 sesión"* about Alex's CV right after a recovery had restored the
 CV to the DB. The assistant wrote a confident multi-paragraph
 explanation ("the model is consistency-locked on its own prior
-disclaimers in the thread") — without checking `/debug/messages`
-to confirm the CV was actually in the DB, without checking KQL to
-see what the classifier had chosen, without confirming that
-MEMORY_RECALL had fired or that the Other People block was being
-emitted. Bernard caught it immediately. The explanation might have
-been partly right; the violation is offering it before checking.
+disclaimers in the thread") — without checking the DB
+to confirm the CV was actually there, without checking KQL to
+see what the classifier had chosen. Bernard caught it immediately.
+The explanation might have been partly right; the violation is
+offering it before checking.
 
-The verification cost in that case was ~30 seconds (one curl + one
+The verification cost in that case was ~30 seconds (one query + one
 KQL). The cost of speculating wrong is the user's trust, which by
 that point in the day was already on its last reserve. Pay the 30
 seconds. Always.
@@ -311,10 +249,10 @@ parent rule was written:
    the bot is being honest". This narrative is built on top of one
    verified fact (CV is in DB at older timestamps) BUT extends to
    multiple unverified claims:
-   - that `get_recent` is the only mechanism putting messages in
-     context (false — `memory.search` also pulls keyword-relevant
+   - that the recent-window read is the only mechanism putting messages in
+     context (false — the keyword-relevant search also pulls
      older messages)
-   - that the Other People block's 20 facts don't include CV-detail
+   - that the Other People block's facts don't include CV-detail
      facts (verified — they're general summaries)
    - that the model "is being honest" rather than the alternative
      interpretation that the relevant search ran and the model
@@ -350,23 +288,20 @@ by a specific user payload — "Bernard's 'X' triggered turn Y",
 corresponds to input M" — you MUST first verify the payload from
 the same log line that names the event.
 
-Anti-pattern: read `chat_turn_end` for request_id `68293411` at
-14:26, notice the user typed "lislisto" to Claude Code at 14:25,
-and conclude "Bernard's 'lislisto' produced this turn." The two
-events are in different systems (Claude Code chat ≠ Discord
-channel) and only coincide in wall-clock time. The actual user
-text that entered the pipeline is in `chat_turn_start`'s
-`text_preview` field for that same `request_id`. Quote that, never
-the conversational text.
+Anti-pattern: read a turn-end event at 14:26, notice the user typed
+"lislisto" to Claude Code at 14:25, and conclude "Bernard's 'lislisto'
+produced this turn." The two events are in different systems (Claude Code
+chat ≠ Discord channel) and only coincide in wall-clock time. The actual
+user text that entered the pipeline is in the turn-start event's text
+preview for that same request id. Quote that, never the conversational text.
 
 **Operational form:** before writing the sentence "the user's input
 X caused event Y", run a query that returns the actual input
-captured at intake (`chat_turn_start.text_preview`,
-`/debug/messages?channel_id=...`, or equivalent). If your sentence
-names a payload, the payload must come from a log/DB read in the
-same response. If you only have a wall-clock correlation, write
-"a turn fired at 14:25:49" — not "your message 'X' fired at
-14:25:49."
+captured at intake (the turn-start text preview, a DB row, or
+equivalent). If your sentence names a payload, the payload must come
+from a log/DB read in the same response. If you only have a
+wall-clock correlation, write "a turn fired at 14:25:49" — not
+"your message 'X' fired at 14:25:49."
 
 **Why this rule exists:** on 2026-05-14, during the Agent SDK
 cutover verification, the assistant reported "Bernard's 'lislisto'
@@ -379,7 +314,7 @@ unrelated Discord turn (text "Y sí solo es presumir jajaja remote
 worker no es facil") that happened to fire ~10 seconds after his
 Claude Code message. The damage was trust + adrenaline spike right
 in the middle of a delicate revoke-API-key cutover. A 5-second
-query against `chat_turn_start.text_preview` would have surfaced
+query against the turn-start text preview would have surfaced
 the correct text and produced a non-alarming report.
 
 The cost of guessing the payload is unbounded: at worst the user
@@ -389,16 +324,20 @@ never paraphrase from conversational context.
 
 ### Resilience anti-patterns — DO NOT introduce
 
-These are codified after the 2026-05-08 outage post-mortem (full ADR
-in `.claude/plans/turn_resilience.md`). Every entry is a real failure
-mode that bit us or that production-product post-mortems documented.
+These are codified after the 2026-05-08 outage post-mortem. Every entry is a
+real failure mode that bit us or that production post-mortems documented. The
+code that first fixed them died with `personas/` in 2f8d9ad, but every rule
+applies verbatim to the live `persona_gateway/` turn path (which uses
+discord.py the same way — see e.g. the guarded recovery send in
+`persona_gateway/gateway.py::_dispatch`).
 
 1. **`async with channel.typing(): await llm_or_other_long_call(...)`** —
    `Typing.__aenter__` makes a blocking `send_typing` HTTP request
    *before* the body runs. If the channel is hot, a 40062
    (`ServiceResourceIsBeingRateLimited`) here kills the entire turn
    even though the LLM never ran. Fix: typing is a fire-and-forget
-   background task that wraps its own `HTTPException`. Reference:
+   background task that wraps its own `HTTPException` (live:
+   `persona_gateway/turns.py` typing keepalive). Reference:
    [discord.py context_managers.py:54-92](https://github.com/Rapptz/discord.py/blob/master/discord/context_managers.py).
 
 2. **`except Exception: log + send(error_message)` without an inner
@@ -407,17 +346,18 @@ mode that bit us or that production-product post-mortems documented.
    429s and the user sees nothing. Always wrap the recovery `send`
    with its own guard, and fall through to `message.add_reaction(...)`
    (different bucket, almost always survives) on secondary failure.
+   Live implementation: `persona_gateway/gateway.py::_dispatch`.
 
 3. **Stateless triviality filter for life-checks** — discarding
    "ups"/"okok"/"hola?" with no awareness of whether the previous
    turn failed is how the bot becomes invisible to a user trying to
-   wake it. The trivial gate must consult `ChannelHealth.last_outcome`
+   wake it. Any trivial gate must consult per-channel last-outcome state
    and bypass the skip when the previous turn failed within 60 s.
 
 4. **Logging an event whose name lies about which stage failed** —
-   `chat_llm_failed` MUST NOT fire when the LLM never ran (e.g., when
-   `channel.typing()` exploded before the LLM call). Failure stage is
-   a typed field on `chat_turn_end`, not buried in the event name.
+   an "llm_failed"-style event MUST NOT fire when the LLM never ran (e.g.,
+   when typing exploded before the call). Failure stage is
+   a typed field on the turn-end event, not buried in the event name.
 
 5. **Ignoring `retry-after` from the upstream** — Anthropic returns
    `retry-after` in 429/529. Vercel AI SDK
@@ -427,17 +367,17 @@ mode that bit us or that production-product post-mortems documented.
    jittered backoff.
 
 6. **Out-of-character degradation text in user-facing error paths** —
-   `persona.md` forbids exposing model identity. ChatGPT and Cursor
-   send "model overloaded" text; we cannot. Use either a reaction
-   (`[REACT:⏳]`) or an in-character `core/errors.py` message that
-   does not name the underlying tech.
+   the persona DNA forbids exposing model identity. ChatGPT and Cursor
+   send "model overloaded" text; we cannot. The live failure surface is
+   neutral: the gateway sends "…" (or a reaction) on turn failure, never
+   an error naming the underlying tech.
 
 7. **Per-upstream circuit breaker for a single-upstream client** —
    Marc Brooker (AWS, author of the canonical jitter paper) explicitly
    advises against this in his [2022
    post](https://brooker.co.za/blog/2022/02/16/circuit-breakers.html):
    *"Circuit breakers are designed to turn partial failures into
-   complete failures."* For Anthropic API (single upstream), opening
+   complete failures."* For a single upstream, opening
    the breaker just means "the bot is dead" — a worse failure than
    a per-request retry+jitter. Use token bucket / retry budget instead.
    Per-Discord-channel breakers are fine because channels ARE sharded.
@@ -469,7 +409,7 @@ mode that bit us or that production-product post-mortems documented.
     real production users. Always run
     `gh api repos/<owner>/<lib>` (stars, last commit, open issues)
     and `gh search code 'from <lib> import'` (real dependents)
-    before adding to `pyproject.toml`.
+    before adding to the dependency set.
 
 13. **Trusting a Discord error code from memory without verifying** —
     40060 is `InteractionHasAlreadyBeenAcknowledged` (slash commands),
@@ -487,15 +427,17 @@ The DM (`@me/1489130575422820352`) is a TRAP for verification: it exercises the
 simplest possible turn — single author, no other participants, no "Other People"
 fact block, no multi-user batching, no cross-persona interplay. **It never
 fails**, so a green DM reply proves almost nothing. `#general` is where the real
-distortion lives (the multi-user context build, the failover branch, the
-behavioral guidance assembly), and it is where reported P0s actually surface.
+distortion lives (the multi-user context build, the behavioral guidance
+assembly, host reception/routing), and it is where reported P0s actually
+surface. Post-purga note: every persona is mention-gated, so the probe must
+@mention the persona under test.
 
 How to apply when driving Discord in the debug Chrome (`:9333`,
 [[reference_discord_web_send_via_chrome]]):
 - Open `https://discord.com/channels/<guild>/1489180895264116736` (#general),
   not the DM.
-- Send the probe there, confirm Insult (voice A) replies with the expected
-  version tag — NOT an ALICE failover.
+- Send the probe there, confirm the persona replies with the expected
+  version tag (`khimeras_shared/version.py::VERSION_TAG`).
 - A DM check is acceptable ONLY as a quick "is the process alive at all" smoke,
   never as the verification of record. If a fix is "verified", it was verified in
   #general.
@@ -568,42 +510,27 @@ and Alex were live picking a movie. Bernard: *"si métete a mi hilo con alex, es
 esperado."* The deploy-wait was the right pause; the permission-ask was the empty
 dilemma.
 
-## E2E Testing with Discord MCP
-When you need to verify that the bot actually works end-to-end (not just unit tests), use the Discord MCP server to interact with a real Discord server. This Mac is the server.
+## E2E — the real contract (post-purga)
 
-### Setup
-- The MCP server `barryyip0625/mcp-discord` (or `SaseQ/discord-mcp`) provides tools like `discord_send`, `discord_read_messages`, `discord_search_messages`
-- The bot must be running locally on this Mac before E2E tests
-- Use a dedicated testing Discord server/channel (not production)
-- The bot's `DISCORD_TOKEN` from `.env` is the same token the MCP uses
+> **Historical note:** the old E2E sections here described `python -m insult
+> run`, prefix commands (`!chat`, `!perfil`), an `E2E_TEST_MODE` cooldown
+> bypass, and a Discord MCP server. All of that mechanism died with
+> `personas/` in 2f8d9ad — there are no prefix commands and no local Insult
+> process. Do not resurrect those steps.
 
-### How to Run E2E Tests
-1. Start the bot locally: `python -m insult run`
-2. Use MCP Discord tools to send a command: `discord_send` with `!chat <test message>`
-3. Wait briefly, then `discord_read_messages` to read the bot's response
-4. Verify the response: no character breaks, correct language, in-character tone
-5. Use `discord_search_messages` to verify memory persistence across messages
+The live E2E contract is:
 
-### E2E Test Mode (App-Level Bypass)
-- The app should support a `E2E_TEST_MODE=true` environment variable
-- When enabled: reduces cooldowns to 0, disables rate limiting, enables a `!e2e_reset` command to clear test data
-- This mode should ONLY be active while the bot is running locally for testing — never in production
-- The bypass is controlled via `.env`, not hardcoded
-
-### When to Run E2E Tests
-- After implementing new commands or changing chat flow
-- After modifying persona.md or character break detection
-- After changing memory/context building logic
-- When unit tests pass but you want to verify the full integration
-- Do this naturally — don't wait for the user to ask. If you changed bot behavior, verify it works
-
-### E2E Test Checklist
-- [ ] Bot responds to `!chat` in the correct language
-- [ ] Bot stays in character (no "I'm an AI", no "Claude", no apologies)
-- [ ] Bot remembers context from previous messages in the same channel
-- [ ] Error responses are in-character (not exposing internals)
-- [ ] `!perfil` shows style profile after 5+ messages
-- [ ] Long messages are chunked correctly (< 2000 chars per message)
+1. Deploy (or run `python -m persona_gateway run` locally only when explicitly
+   doing local dev — prod observation happens against the cloud, per
+   [[feedback_observe_prod_not_local]] doctrine: never stand up a local bot to
+   inspect prod).
+2. Drive Discord web in the debug Chrome (`:9333`), probe in **#general** with
+   an @mention of the persona under test.
+3. Verify: reply arrives, in-character, correct language, expected
+   `VERSION_TAG`, long replies chunked under Discord's cap
+   (`persona_gateway/delivery.py::DISCORD_LIMIT = 1990`).
+4. Memory: a follow-up probe referencing the earlier message confirms
+   store→retrieve through Postgres.
 
 ## E2E via CI/CD Pipeline (Production Verification)
 
@@ -613,14 +540,16 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 1. Commit and push to `main`
 2. CI runs (GitHub Actions: lint, tests, audit, security) — monitor with `gh run watch --exit-status`
 3. On CI success, CD triggers automatically (workflow_run on CI completion)
-4. CD builds Docker image, pushes to Azure Container Registry (insultacr), deploys to Azure Container Apps (insult-bot in insult-rg)
+4. CD detects which surfaces changed, builds the per-surface images
+   (`persona-gateway`, `persona-runner`, `khimeras-host`), pushes to ACR
+   (`insultacr`), and deploys each changed Container App in `insult-rg`
 5. Monitor CD deployment via `az` CLI:
    - `gh run list --workflow=cd.yml --limit=3` to check CD run status
-   - `az containerapp show --name insult-bot --resource-group insult-rg --query "properties.latestRevisionName"` to verify new revision
-   - `az containerapp logs show --name insult-bot --resource-group insult-rg --follow` to tail logs and confirm bot starts healthy
-6. Once deployed, verify the bot responds in Discord (either manually or via MCP)
+   - `az containerapp show --name persona-gateway -g insult-rg --query "properties.latestRevisionName"` to verify new revision
+   - `az containerapp logs show --name persona-gateway -g insult-rg --follow` to tail logs and confirm the gateway starts healthy
+6. Once deployed, verify the persona responds in #general (version-tag probe via the debug Chrome)
 
 ### Key Resources
-- **ACR**: insultacr.azurecr.io
-- **Container App**: insult-bot (resource group: insult-rg)
+- **ACR**: insultacr.azurecr.io (legacy repo `insult-bot:<sha>` still exists; live images are `persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`)
+- **Container Apps**: persona-gateway, persona-runner, khimeras-host (resource group: insult-rg); `discord-bot` retired at scale 0
 - **CD workflow**: `.github/workflows/cd.yml` — triggers on CI success on main

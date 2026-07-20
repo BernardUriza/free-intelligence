@@ -1,62 +1,77 @@
 # Robustness Rules
 
+> **Post-purga (2026-07-14, 2f8d9ad):** the prefix-command bot
+> (`!chat`/`!buscar`/`!memoria`/`!perfil`/`!ping` + their cooldown table) and
+> the direct-Anthropic `LLMClient` (`personas/insult/core/llm.py`) are DELETED.
+> The live turn path is `persona_gateway/` → `persona_runner` `/v1/turn`. This
+> file describes the live failure surfaces plus the historical lessons that
+> still bind.
+
 ## Error Handling
-- Every command must have try/except with user-facing error message
-- Error messages are ALWAYS in-character (via `get_error_response()` in `core/errors.py`)
-- NEVER expose "Claude", "Anthropic", "API", or internal error types to users
-- DB write failures are logged but don't crash the command (user message still gets a response)
-- Never let exceptions propagate silently — always log with structlog
+- The live guarded entry is `persona_gateway/gateway.py::_dispatch`: any turn
+  failure logs `persona_gateway_turn_failed` and NEVER exposes internals to the
+  channel — the recovery is a neutral "…" send, itself guarded, falling through
+  to a reaction (different rate-limit bucket) if the send 429s.
+- NEVER expose "Claude", "Anthropic", "API", or internal error types to users.
+- DB write failures are logged but don't kill the turn (the user still gets a
+  response).
+- Never let exceptions propagate silently — always log with structlog.
+- **Fail-safe doctrine (guidance/behavior engine):** any fault in guidance
+  assembly degrades to a normal turn, never a mute bot
+  (`khimeras_shared/guidance.py`).
 
-## Rate Limiting
-- !chat: 1 use / 15s per user (protects Claude API tokens)
-- !buscar: 1 use / 10s per user
-- !memoria: 1 use / 5s per user
-- !perfil: 1 use / 10s per user
-- !ping: 1 use / 3s per user
-- Cooldown errors are in-character (not generic Discord messages)
+## LLM Resilience (historical lessons — the client died, the doctrine stands)
 
-## LLM Resilience
-- Timeout: 30s (configurable via LLM_TIMEOUT)
-- Max retries: 5 for most errors (configurable via LLM_MAX_RETRIES)
-- SDK-level retries disabled: `AsyncAnthropic(max_retries=0)` — our outer loop
-  owns retry policy. Without this, the SDK silently retries ~2x internally and
+The tuned retry loop below lived in the deleted `LLMClient`; today the gateway
+calls the runner over HTTP (`khimeras_shared/runner/` client) and the runner
+owns the model call via the Claude Agent SDK. When (re)building any direct
+model client, these remain law:
+
+- **Disable SDK-level retries** (`max_retries=0` on the SDK client) — the outer
+  loop owns retry policy. Otherwise the SDK silently retries ~2x internally and
   inflates observed timeouts from 30s to ~90s per attempt.
-- RateLimitError: exponential backoff (2^attempt seconds), up to LLM_MAX_RETRIES
-- AuthenticationError: fail immediately, no retry
-- Timeout/ConnectionError: **capped at 2 attempts total** (`_MAX_TIMEOUT_RETRIES` in `llm.py`),
-  with 1s delay between them. Five timeouts × 30s = 2+ minutes of dead air is too
-  punishing; after 2 we give up and raise.
-- Timeout retry UX: callers may pass `on_timeout` to `LLMClient.chat()`. It fires
-  **once** after the first APITimeoutError so the user gets an in-character
-  "retry_notice" message instead of silent dead air. `chat.py._respond()` wires this.
-- APIStatusError 529 (Overloaded): exponential backoff, up to LLM_MAX_RETRIES
-- Other APIError: fail immediately
-- Character break detected: auto-retry with reinforced system prompt, then sanitize
+- RateLimitError / 529 Overloaded: exponential backoff **with jitter**, bounded
+  attempts; honor `retry-after` when ≤60s.
+- AuthenticationError: fail immediately, no retry.
+- Timeout/ConnectionError: cap at 2 attempts total — five timeouts × 30s of
+  dead air is too punishing for a chat surface.
+- Give the user an in-character signal after the first timeout instead of
+  silent dead air.
 
-## Lifecycle
-- Signal handling: SIGTERM/SIGINT → graceful shutdown (close DB, close bot)
-- Health check task: every 60s, logs latency + guilds + memory stats
-- on_disconnect / on_resumed events logged for connection monitoring
-- DB auto-reconnect via _ensure_connection() before every operation
+## Lifecycle (live: `persona_gateway/boot.py` + `gateway.py`)
+- **Bind → connect → login order is mandatory**: the health/API port (8788)
+  binds BEFORE Postgres connect and Discord login, so the platform's startup
+  probe never kills a slow boot (root fix of the ActivationFailed hangs,
+  v4.22.14 — see [[reference_activationfailed_gateway_hang]]).
+- Each persona runs under its own supervision; one persona crashing logs
+  `persona_gateway_persona_failed` without silently killing the siblings, and
+  `persona_gateway_all_personas_down` fires when nothing is left.
+- `/health` is honest — it reflects real serving state, not an early flag
+  (the 2026-06-13 boot-zombie lesson: `is_ready:true` while dead for 14 min).
 
 ## Logging
-- Use structlog everywhere (never print())
-- Log events: bot_ready, bot_disconnected, bot_resumed, health_check
-- Log LLM: llm_request, llm_response (with token counts), llm_*_error
-- Log character: character_break_detected, character_break_fixed_on_retry
-- Log style: style_adapted (with user profile metrics)
-- Log memory: memory_connected, memory_closed, memory_store_failed
-- Log attachments: attachment_processed, attachment_rejected
-- Log commands: command_error with user context
+- Use structlog everywhere (never print()).
+- Prefer structured event names with a stable prefix (the gateway family is
+  `persona_gateway_*`) and typed fields over prose; `LOG_FORMAT=json` in prod
+  (ANSI in prod logs broke KQL parsing once — see
+  [[feedback_kql_has_lies_and_ansi_logs]]).
+- Log every stage transition of a turn so an orphaned turn (start without end)
+  is detectable in KQL — see the dropped-messages workflow in `testing.md`.
 
 ## Destructive Post-Processing — MANDATORY
+
+> The three files named in the 2026-05-18 table died in 2f8d9ad, but the
+> principle binds every LIVE post-LLM mutator: the marker strippers
+> (`khimeras_shared/markers.py`, `khimeras_shared/reactions.py::strip_reactions`),
+> and the style-profile updater (`khimeras_shared/style.py` — which today
+> implements the two-regime stickiness this lesson demanded).
 
 Any post-LLM mutator (regex stripper, heuristic truncator, profile updater)
 that acts on a single signal MUST consider context before mutating output
 or persistent state. Three production bugs hit users within the same hour
-on 2026-05-18 from this exact class:
+on 2026-05-18 from this exact class (files as they existed then):
 
-| Bug | File | Symptom |
+| Bug | File (historical) | Symptom |
 |---|---|---|
 | Echo strip ate quoted citations | `core/character/formatting.py:strip_echoed_quotes` | `"su equipo no crece" — eso te lo inventas` became ` no crece" — eso te lo inventas` (orphan quote + missing opener + missing content) |
 | Language flipped on a single paste | `core/style.py:UserStyleProfile.update` | Bernard pasted an English email; bot responded entirely in English next turn |
@@ -78,7 +93,8 @@ on 2026-05-18 from this exact class:
   (`count < CONFIDENCE_THRESHOLD`) may flip on a single signal — they are
   still learning. Confident profiles MUST require N consecutive
   other-side signals (streak counter) before flipping a discrete field
-  like `detected_language`. Continuous fields keep using EMA.
+  like `detected_language`. Continuous fields keep using EMA. Live
+  implementation: `khimeras_shared/style.py` (`lang_switch_streak`).
 
 ### Required tests for any new mutator
 
@@ -88,12 +104,8 @@ Every mutator MUST land with at least two tests:
 2. The **resistance case** — a near-miss that looks like the target but is
    intentional and must be preserved.
 
-Examples in this codebase:
-- `test_preserves_intentional_quote` ⇆ `test_strips_unquoted_echo`
-- `test_confident_profile_resists_single_off_language_msg` ⇆
-  `test_confident_profile_switches_after_three_consecutive_off_language`
-- `test_uniform_medium_preserves_markers_in_tail` ⇆
-  `test_uniform_medium_truncates`
+Live examples: `tests/core/test_style.py` (confident profile resists a single
+off-language message ⇆ switches after consecutive ones).
 
 Without the resistance test, the mutator's regression risk is invisible
 until production hits the wrong shape.
@@ -105,8 +117,8 @@ until production hits the wrong shape.
 - Is there a paragraph-level / multi-signal check before the hard
   mutation, or does it act on the first match?
 - Are there tests for both the positive case AND the resistance case?
-- Does the telemetry event (`echo_stripped`, `length_enforced`, etc.)
-  include a `reason` field describing WHY the mutation fired?
+- Does the telemetry event include a `reason` field describing WHY the
+  mutation fired?
 
 Reference: full case studies in
 `memory/feedback_destructive_post_processing.md`.

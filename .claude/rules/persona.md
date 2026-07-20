@@ -1,63 +1,95 @@
 # Persona & Character Rules
 
+> **Post-purga (2026-07-14, 2f8d9ad):** `personas/insult/core/{presets,character,style}.py`,
+> the cogs, and the layered `build_adaptive_prompt` are DELETED. Personas are
+> now DNA files under `shared/personas/<id>.md` served by the persona-runner;
+> the behavior engine lives in `khimeras_shared/behavior/`. This file describes
+> the live shape plus the identity doctrine that never changes.
+
 ## Identity
-- The bot IS "Insult" — abrasive, curious, relational, psychologically observant, challenging, occasionally warm, never bland
-- persona.md in project root defines the full character
-- NEVER expose "Claude", "Anthropic", "AI", "language model" to users
-- NEVER apologize, use assistant framing, or break character
-- All error messages must be in-character (via core/errors.py)
+- The repo hosts MULTIPLE personas — Insult (abrasive, curious, relational,
+  psychologically observant, challenging, occasionally warm, never bland),
+  Vultur, Frugívoro, ALICE, … — each defined by its DNA file
+  `shared/personas/<id>.md` and registered in `shared/personas/registry.py`.
+- NEVER expose "Claude", "Anthropic", "AI", "language model" to users.
+- NEVER apologize, use assistant framing, or break character.
+- Error paths are neutral and in-character by design: the gateway's failure
+  recovery sends "…" or a reaction, never internals
+  (`persona_gateway/gateway.py::_dispatch`).
 
-## Preset System (core/presets.py)
-- 6 behavioral modes that change HOW Insult responds based on conversation context
-- Classifier is rule-based (regex patterns), zero LLM cost, runs every message
-- Only the selected preset's guidance is injected into the system prompt
-- Modes: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION
-- Modifiers: MEMORY_RECALL (fact callbacks), CONTEMPT (ultra-minimal for low-effort)
-- Priority: RESPECTFUL_SERIOUS always wins (safety), then META_DEFLECTION (identity protection)
-- The LLM doesn't "know" about presets — it just receives the appropriate behavioral guidance
+## Preset System (`khimeras_shared/behavior/presets/`)
+- 6 behavioral modes that change HOW a persona responds based on conversation
+  context: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE,
+  RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION
+- Modifiers: MEMORY_RECALL (fact callbacks), CONTEMPT (ultra-minimal for
+  low-effort), MULTI_DOMAIN_SYNTHESIS (cross-domain conceptual moves)
+- Classifier (`classify_preset`) is rule-based (regex patterns), zero LLM cost,
+  runs every turn inside `guidance_for_turn` (`khimeras_shared/guidance.py`)
+- Priority: RESPECTFUL_SERIOUS always wins (safety), then META_DEFLECTION
+  (identity protection)
+- Only the selected preset's guidance is rendered into the per-turn
+  `behavioral_guidance` sent to the runner — the model never "knows" about
+  presets, it just receives the guidance
+- The prose per persona per mode is CONTENT, not code:
+  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md`
 
-## Character Guard System (core/character.py)
-- 20 regex patterns in CHARACTER_BREAK_PATTERNS detect identity leaks
-- 16 regex patterns in ANTI_PATTERN_CHECKS detect assistant drift (customer-support tone, therapy-speak, summarizing, stage directions)
-- On identity break: auto-retry with reinforced system prompt → sanitize if retry also fails
-- On anti-pattern: log warning (doesn't block response — soft monitoring for drift)
-- `strip_metadata()` removes leaked timestamps, speaker labels, `[SEND]` markers
-- `[REACT:]` is NOT stripped by character.py — chat.py owns that lifecycle
+## Character Guard — historical (no live equivalent)
 
-## Emoji Reactions (cogs/chat.py)
+The regex character-guard (`core/character.py`: ~20 CHARACTER_BREAK_PATTERNS,
+~16 ANTI_PATTERN_CHECKS, auto-retry with reinforced prompt → sanitize,
+`strip_metadata`) **died with the monolith in 2f8d9ad** — `grep -rn
+"character_break|sanitize" persona_gateway persona_runner khimeras_shared
+shared demux_ai` returns nothing. Today, identity protection rests entirely on:
+
+1. The persona DNA (`shared/personas/<id>.md`) — including its jailbreak /
+   identity-probing scenario coverage, and
+2. The neutral error path (no out-of-character degradation text).
+
+If identity leaks resurface in prod, re-introducing a post-LLM guard is a
+design decision to raise with Bernard — do not assume one exists.
+
+## Emoji Reactions (`khimeras_shared/reactions.py` + gateway)
 - LLM can include `[REACT:emoji1,emoji2]` anywhere in response
-- Parsed BEFORE text processing, executed async in background
-- Human-like delay: 0.5-2s before first reaction, 0.35s between reactions
-- Max 3 reactions per message, ~1 in 4-6 messages should have reactions
-- Reaction-only responses (no text) supported — `[REACT:👀]` with no text
+- Parsed before text processing, executed async in background
+  (`add_reactions`), human-like delay
+- Max 3 reactions per message; reaction-only responses (no text) supported —
+  `[REACT:👀]` with no text
 
-## Style Adaptation (core/style.py)
-- Each user gets a style profile stored in SQLite
+## Style Adaptation (`khimeras_shared/style.py`)
+- Each user gets a style profile persisted in Postgres
+  (`khimeras_shared/memory/repositories/profiles.py`)
 - Profile tracks: language, formality, technical level, verbosity, emoji usage
-- Updated every message via EMA (exponential moving average, alpha=0.3)
-- Confidence gate: profile not applied until 5+ messages from user
-- Adaptation is ADDITIVE — appended to system prompt, never replaces base persona
-- Insult adjusts HOW it talks (intensity, vocabulary, depth) but never WHO it is
+- Updated via EMA (exponential moving average); confidence gate
+  (`CONFIDENCE_THRESHOLD = 5` messages) before the profile is applied
+- Language is sticky once confident: a single off-language message cannot flip
+  `detected_language` (streak counter required — the 2026-05-18 lesson, see
+  robustness.md)
+- Adaptation is ADDITIVE — a persona adjusts HOW it talks, never WHO it is
 
-## Prompt Architecture
-The system prompt is composed in layers (core/character.py `build_adaptive_prompt`):
-1. **Base persona** (persona.md) — immutable identity
-2. **Time context** — current time in Mexico City, metadata rules
-3. **Preset guidance** — behavioral mode selected by classifier
-4. **Style adaptation** (build_adaptive_prompt) — soft per-user hints
-5. **Identity reinforcement** (long conversations) — re-centering clause
-6. **User facts** (facts.py) — what Insult knows about this user
+## Prompt Architecture (live)
+A persona's turn is composed from:
+1. **DNA** — `shared/personas/<id>.md`, loaded by the runner as system prompt
+   (`persona_runner/engine/persona_files.py` / framing)
+2. **Workspace context** — the runner's workspace `CLAUDE.md`
+3. **Per-turn `behavioral_guidance`** — assembled by the gateway via
+   `guidance_for_turn`: preset guidance + flows + the vulnerable-user overlay
+   when the user's facts (or an acute-crisis message) cross the threshold
+4. **Context on the wire** — user facts, other-people block, relevant history,
+   corpus blocks travel in the `/v1/turn` payload built by the gateway
 
-## Modifying the Persona
-- Edit persona.md directly — it's loaded at startup
-- Scenario table in persona.md covers edge cases (jailbreak, identity probing, etc.)
-- CRITICAL REMINDERS section at the bottom repeats key rules (beginning + end weighting)
-- Preset guidance lives in presets.py PRESET_GUIDANCE dict — edit there for mode-specific behavior
-- After modifying persona.md or presets.py, run tests to verify nothing broke
+## Modifying a Persona
+- Edit `shared/personas/<id>.md` directly — the runner reads it per turn
+- Mode-specific prose: edit `shared/personas/guidance/<id>/presets/*.md` (or
+  `flows/*.md`) — content files, hot-editable, no code change
+- Engine behavior (classifier patterns, priorities): `khimeras_shared/behavior/`
+- After modifying DNA or the engine, run the regression suites
+  (`tests/core/test_presets_clinical.py`, `tests/core/test_guidance_guardian.py`)
+  — the vulnerable-user overlay has verbatim regressions protecting Alex
 
-## Anti-Drift Rules
-- Identity reinforcement suffix auto-appends after 10+ messages in a conversation
-- Character break retry uses reinforced prompt with explicit "you broke character" reminder
-- Anti-pattern monitoring logs customer-support, therapy-speak, and summarizing patterns
-- Preset classification logged every message — flag if 90%+ of classifications are DEFAULT_ABRASIVE
-- Response length not explicitly monitored yet but persona.md instructs length variation
+## Anti-Drift
+- Preset classification runs (and can be logged) every turn — flag if 90%+ of
+  classifications are DEFAULT_ABRASIVE
+- The old drift machinery (identity-reinforcement suffix after 10+ messages,
+  break auto-retry, anti-pattern regex monitoring) is historical — it died in
+  2f8d9ad with no replacement; drift watching today is done by reading real
+  transcripts in #general, not by regex

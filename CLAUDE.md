@@ -27,8 +27,8 @@ conda run -n discord-bot pytest -k "test_disclosure" -v                # por nom
 ruff check . && ruff format .     # Lint + format (run before every commit)
 ruff check --fix .                # Auto-fix lint issues
 
-# Full CI locally
-ruff check . && ruff format --check . && pytest -v --cov --cov-fail-under=80 && bandit -r personas/ -c pyproject.toml && pip-audit
+# Full CI locally (mirrors .github/workflows/ci.yml)
+ruff check . && ruff format --check . && pytest -v --cov && bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml && pip-audit
 ```
 
 **Dependency changes**: edit `environment.yml`, then `mamba env update -f environment.yml`.
@@ -121,19 +121,22 @@ fails loud if unset rather than minting a dead link).
 
 ## Testing Patterns
 
-Tests use a fully mocked DI container (`conftest.py`). To test a cog:
-1. Create the cog with `mock_container` fixture
-2. Call the method directly (e.g., `cog._respond(mock_message, "text")`)
-3. Assert on `mock_llm.chat`, `mock_memory.store`, `message.channel.send`
+Post-castigo fixtures live in `tests/conftest.py`: the insult-era Container/cog
+fixtures died with `personas/`. What remains fixtures the shared layer — a
+lightweight `mock_memory` plus the Postgres-backed `pg_memory_store`
+(`tests/_pg_fixture.py`, requires a local Postgres, gated by `REQUIRES_PG`).
+Gateway/runner behavior is tested by calling the functions/classes directly
+(`tests/agent/`, `tests/chat/`, `tests/core/`); `tests/arch/` holds the
+architecture harnesses.
 
-Coverage threshold is 80% in CI (`workflow.md`), 75% in `pyproject.toml` (local floor). Pure I/O modules (bot.py, app.py, config.py, llm.py, memory.py) are excluded from coverage.
+Coverage gate is `fail_under = 75` in `pyproject.toml` (CI runs `pytest --cov`
+against that same floor). Pure I/O modules are excluded via the coverage
+config in `pyproject.toml` — read it rather than trusting doc lists.
 
 ## Rules
 Detailed rules in `.claude/rules/`: architecture, robustness, testing, workflow, persona, voice, sibling-personas. Key non-obvious rules:
 - **Sibling personas (Vultur, future) run from a durable Azure Container App** (`persona-gateway`, cloned from `alice-bot`), NEVER an ephemeral local-Mac process — see `.claude/rules/sibling-personas.md`. Diagnose "sibling X no responde" by host-liveness FIRST, not the corpus.
-- **Never expose "Claude"/"Anthropic"/"AI"** in bot responses — character guard auto-retries and sanitizes
-- Error messages to users must be in-character (via `core/errors.py`)
+- **Never expose "Claude"/"Anthropic"/"AI"** in bot responses — post-purga there is NO regex character-guard anymore; the persona DNA + neutral error paths carry this alone
+- Error paths to users are neutral and in-character: turn failure → "…" send with reaction fallback (`persona_gateway/gateway.py::_dispatch`), never internals
 - All logging via structlog, never print()
-- DB write failures are logged but don't crash commands
-- Preset classification logged every message for drift monitoring
-- Anti-pattern drift is logged but doesn't block responses
+- DB write failures are logged but don't kill the turn

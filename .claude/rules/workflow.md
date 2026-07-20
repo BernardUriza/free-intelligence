@@ -1,11 +1,10 @@
 # Workflow Rules
 
-> **Name disclaimer (post-RENAME-1b, 2026-05-14)**: the plumbing Container
-> App is **`discord-bot`** (renamed from `insult-bot`). Cognition lives
-> in `persona-runner` (Claude Code Agent SDK) and `alice-bot` (Azure
-> OpenAI gpt-4.1). The ACR image is still tagged `insult-bot:<sha>`
-> (legacy OCI repo name, not yet renamed). See `.claude/rules/architecture.md`
-> § Nomenclature for the full table.
+> **Name disclaimer (post-purga 2026-07-14 + host cutover 2026-07-15)**: the
+> live Container Apps are **`persona-gateway`**, **`persona-runner`** and
+> **`khimeras-host`**; legacy `discord-bot` is scaled to zero and `alice-bot`
+> no longer exists. See `.claude/rules/architecture.md` § Nomenclature for the
+> verified table.
 
 ## Demux Progress Tracker — keep the HTML checklist in sync
 
@@ -58,17 +57,18 @@ This rule was registered 2026-06-12 after Claude ended a turn with
 ## CI Pipeline
 4 layers in GitHub Actions, all must pass on every push/PR:
 1. **Ruff Lint & Format** — fastest, runs first, blocks everything else
-2. **Tests + Coverage** — pytest with 80% minimum coverage gate
-3. **Dependency Audit** — pip-audit scans for CVEs in dependencies
+2. **Tests + Coverage** — pytest with the `fail_under = 75` gate from pyproject.toml
+3. **Dependency Audit** — pip-audit scans for CVEs in dependencies (ignores
+   reviewed in `.claude/backlog/cve-exploitability-review.md`)
 4. **Code Security** — bandit SAST for Python security issues
 
 ### Running CI Locally
 ```bash
-ruff check .                                    # lint
-ruff format --check .                           # format check
-pytest -v --cov --cov-fail-under=80             # tests + coverage
-bandit -r insult/ -c pyproject.toml             # security code
-pip-audit                                       # security deps
+conda run -n discord-bot ruff check .
+conda run -n discord-bot ruff format --check .
+conda run -n discord-bot pytest -v --cov
+conda run -n discord-bot bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml
+conda run -n discord-bot pip-audit
 ```
 
 ### When CI Fails
@@ -84,10 +84,11 @@ pip-audit                                       # security deps
 - One logical change per commit
 
 ## Version Bumping
-- On every commit, bump the patch version (micro point) in ALL THREE:
+- On every commit, bump the patch version (micro point) in BOTH live files
+  (`personas/insult/__init__.py` died in 2f8d9ad):
   - `pyproject.toml` → `version = "X.Y.Z"`
-  - `personas/insult/__init__.py` → `__version__ = "X.Y.Z"`
-  - `khimeras_shared/version.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript unicode — SHARED: Insult delivery + persona_gateway + legacy alice all wear this same deploy tag)
+  - `khimeras_shared/version.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript
+    unicode — every persona's last chunk wears this same deploy tag)
 - The version tag appears at the bottom of every bot response so we can track which deploy is responding
 - Bump patch (Z) for fixes/small changes, minor (Y) for features, major (X) for breaking changes
 
@@ -109,88 +110,20 @@ pip-audit                                       # security deps
 - The "what's next?" question is only legitimate when there is genuine priority ambiguity — multiple equally weighted critical items, no recent context, or an explicit user pivot. Otherwise, work.
 - This rule was registered after a `/work` invocation re-asked priority on a session that had just diagnosed a grave blob-download race condition losing longitudinal facts. The user's response was unambiguous: stop asking, start working.
 
-## CI/CD Must NOT Mutate Production Data — MANDATORY
+## CI/CD Must NOT Mutate Production Data — RESOLVED (Postgres, 2026-05-13)
 
-**Root cause first, then the band-aid.** A deploy that silently
-destroys the database is not "a race condition we work around" — it
-is an architectural failure that any serious CI/CD pipeline would
-prevent by construction.
+**The root cause was fixed**: the data plane moved out of the container to
+Azure Database for PostgreSQL (see [[project_postgres_live_v3_8]]). Containers
+are stateless; a deploy/revision swap touches nothing user-visible. The old
+SQLite-in-container + blob backup/restore loop — whose restore race destroyed
+14 minutes of a live CV-disclosure conversation on 2026-05-12
+([[project_blob_download_race_bug]]) — died with the migration, and the
+pre-push "is the bot mid-conversation?" band-aid check died with it.
 
-### The root cause that MUST be fixed
-
-The bot stores all conversation state in a SQLite file (`memory.db`)
-that lives **inside the container**. Persistence between deploys is
-done via a blob-storage backup/restore loop:
-
-1. Container running: writes to local SQLite, periodically uploads
-   the file to Azure Blob Storage (~every 10 min).
-2. Container restarting (deploy / scale event / health failure):
-   the new replica boots, finds no local DB, downloads the blob to
-   `memory.db`, and starts running.
-3. The window between (1) last upload and (2) restart is **the bug**:
-   any messages stored locally that haven't been uploaded yet are
-   wiped when the new replica overwrites with the stale blob.
-
-This is documented in [[project_blob_download_race_bug]] and was
-discovered 2026-04-27. It is STILL not fixed as of 2026-05-12. On
-2026-05-12 it destroyed 14 minutes of an active CV-disclosure
-conversation between Bernard and Alex, including the only copy of
-Alex's full resume that Insult had ever seen.
-
-**This is vibecoding, not CI/CD.** A serious deployment of a
-stateful service does one of:
-
-- **Separate the data plane from the compute plane.** PostgreSQL on
-  Azure Database for PostgreSQL, Cloud SQL, RDS, etc. The container
-  is stateless; restarting it touches nothing user-visible. This is
-  the correct fix. SQLite in a container with blob backup is
-  acceptable for a hobby weekend project, not for a bot carrying
-  vulnerable-user disclosures.
-- **At minimum**, before any restart, force a final blob upload from
-  the *outgoing* replica and block the new replica from running its
-  download until the upload completes. This is still racy under
-  network failure but closes the common case.
-
-**The user explicitly called this out on 2026-05-12**: *"el cicd
-nunca deberia afectar esto!? como es posible que una base de datos
-se elimine o se bloquee silenciosamente durante un deploy? eso es
-vibecoding puro, no cicd"*. They are right. Until the data plane is
-moved out of the container, every deploy is a partial data-loss
-event waiting to happen.
-
-### The band-aid (only valid until the root cause is fixed)
-
-Before any `git push` to `main`, check whether the bot is mid-
-conversation. The CI/CD pipeline triggers a container revision swap
-that can wipe up to ~15 minutes of messages on each swap.
-
-```bash
-# SAFE if no turn in the last 10 min, BLOCKED otherwise.
-curl -s "https://insult-bot.nicecliff-10074f57.eastus.azurecontainerapps.io/debug/health" -m 10 \
-  | python3 -c "import json,sys; d=json.load(sys.stdin); age=d.get('last_turn_age_s'); \
-  print('SAFE' if age is None or age > 600 else f'BLOCKED — last turn {age:.0f}s ago')"
-```
-
-If output is `BLOCKED`, the deploy is FORBIDDEN until either:
-1. The root-cause fix lands (data plane moved out of container), OR
-2. The conversation pauses for >10 minutes, OR
-3. The user explicitly says "deploy now, I'm OK losing messages".
-
-**No exceptions for "small" or "urgent" fixes.** A non-blocking
-prompt change is worth less than 15 minutes of a stressed user's
-conversation with the bot.
-
-**Also applies to:** Azure container revision activation/deactivation,
-manual blob uploads, anything that triggers a container restart with
-the blob-restore path. If you must restart in flight, use the
-blob-recovery procedure (scale down → patch blob → scale up).
-
-**Treat the band-aid as evidence of architectural debt, not as a
-solution.** Every time this check runs, it is a reminder that the
-data plane lives in the wrong place. The next time a non-trivial
-amount of dev time is available, the priority is migrating
-`memory.db` out of the container, not adding more guards around
-the broken layout.
+The standing lesson: a stateful service whose deploys can mutate user data is
+an architectural failure, not a race to work around. Bernard, 2026-05-12: *"el
+cicd nunca deberia afectar esto… eso es vibecoding puro, no cicd."* Any future
+stateful surface in this repo starts with its data plane OUTSIDE the compute.
 
 ### Sub-rule: NO band-aid menus when the user asks for architecture
 

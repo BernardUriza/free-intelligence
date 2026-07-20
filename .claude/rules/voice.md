@@ -1,32 +1,37 @@
 # Voice (TTS) Rules
 
-How Insult speaks. There are TWO TTS backends; which one runs is decided at
-request time by whether `ARBOR_TTS_URL` is set. **Prod runs susurro only** —
-`ARBOR_TTS_URL` is not set on the Container App (arbor is LOCAL-ONLY by the
-2026-06-01 decision), and the old direct Azure `tts`/`whisper` deployments were
-DELETED when voice migrated to the susurro gateway (2026-06-19).
+How personas speak, post-purga. **Prod runs susurro only.** The old Insult
+VoiceCog (`personas/insult/cogs/voice/cog.py`) and its arbor switch died with
+`personas/` in 2f8d9ad; the live voice path is entirely in the gateway:
 
-## Two backends, one switch
+- **Trigger**: 🔊 reaction on one of the persona's OWN messages →
+  `persona_gateway/gateway.py::on_raw_reaction_add` → `PersonaVoice.speak`
+  (`persona_gateway/voice.py`). Auto-speak fires for replies at/above
+  a configurable char threshold (0 = manual 🔊 only).
+- **Backend**: `khimeras_shared/tts.py::synthesize_susurro_tts` against the
+  **susurro gateway** — `sus.bernarduriza.com` (`POST /v1/tts`; STT via
+  `/v1/stt`, client in `khimeras_shared/stt.py`). Project-keyed proxy over a
+  dedicated Azure OpenAI; key in `~/.secrets/susurro-key-discord-bot.txt`,
+  gateway config `susurro_url`/`susurro_key` (`persona_gateway/config.py`).
+  The old direct Azure `tts`/`whisper` deployments were DELETED at the susurro
+  migration (2026-06-19).
+- **Arbor is NOT wired**: the gateway path hardcodes `arbor_active=False` and
+  its config has no arbor vars — there is no prod arbor switch anymore. Arbor
+  remains a RETIRED, LOCAL-ONLY tool (2026-06-01 decision), documented below
+  as reference because its facts were expensive to discover.
 
-| Backend | When | Voice | Where it runs |
-|---|---|---|---|
-| **susurro gateway** (default) | `ARBOR_TTS_URL` unset | `onyx` (Insult) / `nova` (ALICE) | `sus.bernarduriza.com` (`/v1/tts`, `/v1/stt`) — project-keyed proxy over a dedicated Azure OpenAI; key in `~/.secrets/susurro-key-discord-bot.txt`, prod secret `SUSURRO_KEY` |
-| **Arbor TTS** (external, local-only) | `ARBOR_TTS_URL` set | `arbor` (ChatGPT consumer voice) | external HTTP service on a residential host |
+Voice is fail-soft: no susurro creds → `build_susurro_tts_client` returns
+`None` → voice is simply off, never a crashed persona.
 
-Code: `personas/insult/cogs/voice/cog.py` — `on_raw_reaction_add` (🔊 reaction) →
-`generate_arbor_tts_audio()` when `settings.arbor_tts_url` is truthy, else
-`synthesize_susurro_tts()` (`khimeras_shared/tts.py`) against the susurro
-gateway. Config vars in `personas/insult/config.py`: `susurro_url`,
-`susurro_key` (SecretStr), plus `arbor_tts_url`, `arbor_tts_token` (SecretStr),
-`arbor_tts_voice` (default `arbor`), `arbor_tts_timeout_seconds` (default 240).
-The arbor path calls the service with `Authorization: Bearer <token>` and
-`POST /tts {text, voice, format}`.
+---
 
-## The Arbor service (`arbor-tts/`)
+## REFERENCE — the retired Arbor service (`arbor-tts/`, local-only, no prod path)
 
 A Node/Playwright "black box": text → ChatGPT's **Arbor** voice MP3 via the
 undocumented `GET /backend-api/synthesize`. It is NOT an API — it drives a
 logged-in ChatGPT web session. Self-contained docs in `arbor-tts/README.md`.
+Nothing in the live packages calls it (`grep -rn ARBOR_TTS_URL --include='*.py' .`
+→ empty); reopening it in prod is a decision for Bernard, not a default.
 
 ### Hard, expensive-to-rediscover facts (verified 2026-06-01)
 
@@ -52,48 +57,22 @@ logged-in ChatGPT web session. Self-contained docs in `arbor-tts/README.md`.
   (residential IP works; datacenter does not). `infra/azure/arbor-tts/` exists but
   the VM path is a dead end — keep it only as reference.
 
-## Production deployment shape (Mac-as-backend)
+### Deployment shape it used (Mac-as-backend, for the record)
 
-Because only a residential IP + non-headless Chrome works, Arbor runs on Bernard's
-Mac, exposed via a tunnel; the Azure `discord-bot` calls it.
+- Runtime at `~/Library/ArborTTS`, NOT `~/Documents` — launchd cannot access
+  TCC-protected `~/Documents`/`~/Desktop`/`~/Downloads`.
+- launchd agents: `com.bernard.arbor-tts` (Node service) +
+  `com.bernard.arbor-tts-tunnel` (cloudflared).
+- `SERVICE_TOKEN` in `~/.secrets/arbor-tts-token.txt` (never in the repo).
+- cloudflared Quick Tunnel URLs are EPHEMERAL (change on every restart);
+  Tailscale Funnel (`*.ts.net`) was the stable upgrade.
+- Debug order when it went mute: Mac awake? → Chrome :9222 answering? →
+  tunnel URL still current? → ChatGPT session (`/api/auth/session`) alive?
+  A placeholder-id `404` from `/tts` means message creation failed
+  (headless/datacenter/Chrome down), not a code bug.
 
-- **Runtime lives at `~/Library/ArborTTS`, NOT in `~/Documents`** — launchd cannot
-  access TCC-protected `~/Documents`/`~/Desktop`/`~/Downloads` ("Operation not
-  permitted"). Deploy the runtime (src + node_modules + .env + auth) under
-  `~/Library/...`.
-- **launchd agents** (`~/Library/LaunchAgents/`): `com.bernard.arbor-tts` (the
-  Node service, KeepAlive) and `com.bernard.arbor-tts-tunnel` (cloudflared).
-- **SERVICE_TOKEN** in `~/.secrets/arbor-tts-token.txt` (never in the repo). Same
-  value set as the `arbor-tts-token` Container App secret, referenced by
-  `ARBOR_TTS_TOKEN=secretref:arbor-tts-token`.
-- **Tunnel:** cloudflared Quick Tunnel works with zero account but its
-  `*.trycloudflare.com` **URL is EPHEMERAL — it changes on every cloudflared
-  restart and breaks `ARBOR_TTS_URL`.** The stable upgrade is **Tailscale Funnel**
-  (`*.ts.net`, needs `sudo brew services start tailscale` + `tailscale up` +
-  `tailscale funnel --bg 8799`); update `ARBOR_TTS_URL` once and it never changes.
-- Wiring the bot is a Container App env change → new revision → restart. Safe now
-  (data plane is Postgres, no blob race).
-
-## Debugging "Insult went mute" (check in this order)
-
-1. **Mac awake?** The service only answers when the Mac is on.
-2. **Chrome on :9222 running?** (`curl -s -o /dev/null -w '%{http_code}'
-   http://localhost:9222/json/version` → 200). CDP mode needs the logged-in,
-   non-headless Chrome. This is the #1 cause.
-3. **Tunnel URL still matches `ARBOR_TTS_URL`?** If cloudflared restarted, the
-   `trycloudflare` URL changed — re-read it from
-   `~/Library/ArborTTS/cloudflared.log` and update the Container App env.
-4. **ChatGPT session alive?** `/api/auth/session` must return an `accessToken`.
-   In CDP mode the live Chrome keeps it fresh; if expired, re-login in that Chrome.
-
-A `404`/placeholder error from `/tts`
-(`message_id=request-placeholder-...`, `conversation_id=undefined`) means message
-creation failed — almost always headless/datacenter (wrong host) or Chrome :9222
-down, NOT a code bug. `synthesize.js` already polls for a real UUID id.
-
-## ToS / safety
+### ToS / safety
 
 Driving a personal ChatGPT account programmatically violates OpenAI's ToS; ban
-risk scales with volume. Keep Arbor **on-demand only** (user presses 🔊) and
-low-volume. Do NOT auto-speak every message — constant automated traffic is what
-flags an account. When in doubt, the Azure `tts` fallback is always ToS-clean.
+risk scales with volume. That risk profile is part of why arbor stays retired:
+susurro (`/v1/tts`) is the ToS-clean path and the only one wired.
