@@ -6,8 +6,12 @@ server emits **no HTML, ever** — Bernard's law, twice over:
 
 - [[write-only-daemon]]: every reader/view is a waiter and every waiter lives
   in the front repo (`aire-front`). This repo holds the pen, not the menu.
-- The daemon's only mouths are `/health` (JSON) and the message endpoint
-  (SSE events). Rendering those events into pixels is the front's job.
+- The daemon's mouths are `/health` (JSON), the message endpoint (SSE events),
+  and the artifacts endpoint (#22b — RAW file bytes, never HTML). The artifacts
+  endpoint reaches the droplet's DISK, not the database, so it is the daemon's
+  own surface, not a waiter read: it serves the files an agent wrote in its
+  casita, the download that replaces the `scp` [[ssh-is-a-missing-endpoint]]
+  named. Rendering events into pixels is still the front's job.
 
 `?mode=` picks the dial: `complete` (bare substitute for the raw API) or
 `agent` (enhancer that executes tools inside the session's casita).
@@ -33,6 +37,7 @@ from fastapi.responses import JSONResponse
 from sse_starlette.event import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
+from . import artifacts
 from .engine import DEFAULT_MODE, MODES, BudgetExceeded, Engine
 from .names import InvalidName, clean
 from .store import create_postgres_session_store
@@ -88,6 +93,9 @@ def safe_names(project: str, session: str) -> tuple[str, str]:
 
 def safe_mode(mode: str | None) -> str:
     return mode if mode in MODES else DEFAULT_MODE
+
+
+app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
 
 
 @app.get("/health")

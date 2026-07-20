@@ -24,7 +24,7 @@ FILE_TOOLS = "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep"
 PATH_KEYS = ("file_path", "path", "notebook_path")
 
 
-def _escapes(root: Path, raw: str) -> bool:
+def escapes(root: Path, raw: str) -> bool:
     target = Path(raw)
     target = (target if target.is_absolute() else root / target).resolve()
     return target != root and root not in target.parents
@@ -37,7 +37,7 @@ def cage_hooks(cwd: str) -> dict[str, Any]:
     async def deny_escape(inp: Any, _tool_use_id: Any, _ctx: Any) -> dict[str, Any]:
         ti = inp["tool_input"] if isinstance(inp, dict) else getattr(inp, "tool_input", {})
         raw = next((ti[k] for k in PATH_KEYS if ti.get(k)), None)
-        if raw is None or not _escapes(root, str(raw)):
+        if raw is None or not escapes(root, str(raw)):
             return {}
         return {"hookSpecificOutput": {
             "hookEventName": "PreToolUse", "permissionDecision": "deny",
