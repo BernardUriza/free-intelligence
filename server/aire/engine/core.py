@@ -124,8 +124,10 @@ class Engine:
 
     async def _drain_detached(self, project: str, session: str, prompt: str, mode: str) -> None:
         try:
-            async for _ev in self.run_stream(project, session, prompt, mode):
-                pass  # events discarded — the transcript + artifacts ARE the record
+            async for ev in self.run_stream(project, session, prompt, mode):
+                # No client listens in background — surface an error (a budget cut).
+                if ev.get("type") == "error":
+                    print(f"DETACHED {project}/{session} {ev.get('error')}: {ev.get('detail', '')}")
         except Exception as exc:  # noqa: BLE001 — no client to tell; log for the operator
             print(f"DETACHED {project}/{session} failed: {type(exc).__name__}: {exc}")
 
