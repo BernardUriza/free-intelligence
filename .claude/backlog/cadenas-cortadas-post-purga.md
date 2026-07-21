@@ -54,6 +54,28 @@ hoy. Estaba podando los facts de Alex cada 48h con capacidad de borrar salud/tra
 
 **Congelado**: cron cambiado a `0 0 31 2 *` (31-feb, nunca se dispara). Reversible.
 **Re-hogar (follow-up)**: construir un entrypoint de consolidación en el sistema
-vivo (`khimeras_shared.memory_consolidation.consolidate_all_users`) + una imagen
-que lo corra, y recién entonces re-activar el cron. NUNCA re-activar apuntando a la
-imagen vieja.
+vivo (`khimeras_shared.consolidation.orchestrator` — el módulo existe, 688 LOC con
+el guard clínico ya integrado; la ruta vieja `khimeras_shared.memory_consolidation`
+fue renombrada en b3c8894) + una imagen que lo corra, y recién entonces re-activar
+el cron. NUNCA re-activar apuntando a la imagen vieja.
+
+## Auditoría de código muerto post-purga (2026-07-20)
+
+Una pregunta casual ("cuál .py tiene más LOC") destapó que `khimeras_shared/behavior/
+flows/` (~2,700 líneas: pipeline + test + 30 .md) llevaba desde la purga **sin un
+solo caller vivo, aparentando conexión** — se borró por la raíz en v4.29.0/29.1
+(commits df0acbd, 5437e92). Eso disparó un barrido completo del repo (Agent Explore,
+grep de callers vivos por módulo). Resultado: **NO hay más muertos-invisibles tipo
+flows.** Los 3 candidatos con cero callers son todos **congelados/dormantes por
+diseño y documentados** — se registran aquí con dueño y decisión pendiente para NO
+re-descubrirlos en la próxima auditoría:
+
+| Ruta | LOC | Cero-callers verificado | Por qué NO se borró |
+|---|---|---|---|
+| `khimeras_shared/consolidation/` | 688 | grep del paquete = 0 importadores vivos (solo strings de provenance + `apply_consolidation_plan` que es método del *repository*, no del paquete) | **Salvaguarda clínica de Alex** — es el item #5 de arriba, congelado a propósito con el guard `filter_clinical_destruction`. Borrarlo destruye la maquinaria que se va a re-homear. |
+| `demux_ai/router_budget.py` (`RouterBudget`) | 112 | `RouterBudget(` no se construye fuera del propio archivo; el `_BUDGET.record()` de `router_runtime` es OTRA clase (rate-limiter per-user) | Hoja huérfana **dentro del host #6 (`demux_ai/`), deployado-pero-dormante por diseño**. Perdió su consumidor en la purga del shadow stage; su re-cableado depende de cuándo el host owné la recepción. |
+| `class LLMShadowRouter` en `demux_ai/llm_shadow_router.py` | ~32 | solo construido en tests; el vivo es `DirectAzureLLMRouter` (`demux_ai/__main__.py:25`, `scripts/router_eval.py`) | **NO borrar el archivo** — comparte módulo con `DirectAzureLLMRouter` y helpers vivos. Solo la clase agéntica cara está muerta, también dentro del host #6 dormante. |
+
+**Decisión de Bernard pendiente** (sin fecha forzada): descongelar-y-re-cablear vs.
+borrar. Los tres son reversibles vía git. El peso va hacia **mantener** en los tres
+— consolidation por Alex, los dos del host por ser infra en construcción, no basura.

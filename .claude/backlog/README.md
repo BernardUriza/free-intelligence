@@ -7,6 +7,7 @@ en el engineering-playbook. Items Done se retiran del folder (limpieza
 
 | Item | Status | Hook |
 |---|---|---|
+| [Cadenas cortadas post-purga + código muerto](cadenas-cortadas-post-purga.md) | Triaged (2026-07-15) + auditoría 2026-07-20 | superficies con datos vivos y disparador muerto (dashboard/serenityops/RAG/consolidation congelados). La auditoría 2026-07-20 confirma que `flows/` era el único muerto-invisible (borrado v4.29.x); los 3 con cero callers restantes (consolidation, router_budget, LLMShadowRouter) son congelados/dormantes por diseño — decisión de descongelar-vs-borrar pendiente |
 | [rename `discord-bot` → `server-bot`](rename-discord-bot-to-server-bot.md) | Proposed | el sistema ya no es solo Discord cognitivo; rename del repo/sistema (NO de la plomería de Discord) cuando exista el host del demux |
 | [ML-stack CVE tax](ml-stack-cve-audit.md) | Proposed | `sentence-transformers`→torch/transformers (embeddings, EN USO) arrastra un CVE tax perpetuo sin fix upstream; mitigado con ignore-list justificado en ci.yml. Root: migrar embeddings a Azure OpenAI (mata el tax + aligera la imagen). Fork arquitectura+costo de Bernard |
 | [LLM shadow router token bloat](llm-shadow-router-token-bloat.md) | Done (token bloat); cutover PENDIENTE | fix `DirectAzureLLMRouter` desplegado + medido (9509→115 tokens). Lo vivo del item: A.2.3 ≥50 direct calls → cutover gpt-4.1 (NO-GO hoy: 26% divergencia, falsos positivos peli/Netflix→vultur) |
