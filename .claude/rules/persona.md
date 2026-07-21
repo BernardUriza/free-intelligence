@@ -31,7 +31,7 @@
   `behavioral_guidance` sent to the runner — the model never "knows" about
   presets, it just receives the guidance
 - The prose per persona per mode is CONTENT, not code:
-  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md`
+  `shared/personas/guidance/<persona_id>/presets/*.md`
 
 ## Character Guard — historical (no live equivalent)
 
@@ -81,8 +81,8 @@ A persona's turn is composed from:
 
 ## Modifying a Persona
 - Edit `shared/personas/<id>.md` directly — the runner reads it per turn
-- Mode-specific prose: edit `shared/personas/guidance/<id>/presets/*.md` (or
-  `flows/*.md`) — content files, hot-editable, no code change
+- Mode-specific prose: edit `shared/personas/guidance/<id>/presets/*.md` —
+  content files, hot-editable, no code change
 - Engine behavior (classifier patterns, priorities): `khimeras_shared/behavior/`
 - After modifying DNA or the engine, run the regression suites
   (`tests/core/test_presets_clinical.py`, `tests/core/test_guidance_guardian.py`)

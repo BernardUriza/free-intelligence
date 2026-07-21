@@ -132,7 +132,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   (secondary) + user facts (for MEMORY_RECALL)
 - Only the selected preset's guidance is rendered into `behavioral_guidance`
 - The prose each persona speaks a mode in is CONTENT:
-  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md` (Insult has the
+  `shared/personas/guidance/<persona_id>/presets/*.md` (Insult has the
   full set; a persona with no content contributes an empty block, the engine
   still runs)
 

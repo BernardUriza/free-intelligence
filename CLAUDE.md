@@ -89,7 +89,7 @@ background extracts facts (ADD-only merge) and fires reactions.
   groups (named_diagnosis, psychiatric_medication, mental_health_clinician,
   hospitalization, chronic_comorbidity, self_harm_history), threshold ≥4.
 - The prose each persona speaks a mode in is **content**, not code:
-  `shared/personas/guidance/<persona_id>/{presets,flows}/*.md` (Insult has the full
+  `shared/personas/guidance/<persona_id>/presets/*.md` (Insult has the full
   set; a persona with no content contributes an empty block, the engine still runs).
 
 **The guardian (`khimeras_shared/guidance.py`)** is the seam that makes the engine

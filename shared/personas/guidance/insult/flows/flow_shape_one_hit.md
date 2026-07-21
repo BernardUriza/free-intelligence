@@ -1,1 +1,0 @@
-Shape: ONE-HIT. HARD LIMIT: 1 sentence, max 20 words. One devastating line — land it and STOP. No elaboration, no follow-up, no context-setting. If you write more than one sentence you have failed this instruction.
