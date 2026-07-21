@@ -14,6 +14,16 @@ export function folderName(projectKey: string): string {
   return name || projectKey;
 }
 
+/** A transcript's weight in bytes → a human size. The daemon stores no cost
+ *  (backlog #8: total_cost_usd never lands in the store), so weight is the
+ *  honest "how much each casita holds" — the JSON bytes of its transcript. */
+export function humanBytes(bytes: number): string {
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 type Block = { type?: string; text?: string; name?: string; input?: unknown };
 type Message = { content?: string | Block[] };
 type Entry = { type?: string; message?: Message; uuid?: string };

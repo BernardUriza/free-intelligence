@@ -382,7 +382,7 @@ export function where(): { host: string; database: string } {
  * `project_key` IS the CLI's dash-encoded cwd — one key, one casita. *
  * ------------------------------------------------------------------ */
 
-export type ClaudeFolder = { project_key: string; sessions: number; entries: number; mtime: string };
+export type ClaudeFolder = { project_key: string; sessions: number; entries: number; weight_bytes: number; mtime: string };
 export type ClaudeSession = { session_id: string; entries: number; mtime: string; first_user: unknown };
 export type ClaudeEntry = { entry: unknown; mtime: string };
 
@@ -390,7 +390,8 @@ export async function claudeFolders(): Promise<ClaudeFolder[]> {
   return read<ClaudeFolder>(
     `
     SELECT project_key, count(DISTINCT session_id)::int AS sessions,
-           count(*)::int AS entries, max(mtime)::text AS mtime
+           count(*)::int AS entries, sum(length(entry::text))::int AS weight_bytes,
+           max(mtime)::text AS mtime
     FROM claude_session_store WHERE subpath = ''
     GROUP BY project_key ORDER BY max(mtime) DESC
     `,

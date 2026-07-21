@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Shell from "../../components/Shell.tsx";
 import { claudeFolders } from "../../lib/db.ts";
-import { folderName, freshness } from "../../lib/claude.tsx";
+import { folderName, freshness, humanBytes } from "../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,7 @@ export default async function ClaudePage() {
               <th>folder</th>
               <th>sessions</th>
               <th>entries</th>
+              <th>weight</th>
               <th>last activity</th>
             </tr>
           </thead>
@@ -39,6 +40,7 @@ export default async function ClaudePage() {
                 </td>
                 <td>{f.sessions}</td>
                 <td>{f.entries}</td>
+                <td>{humanBytes(f.weight_bytes)}</td>
                 <td>{freshness(f.mtime)}</td>
               </tr>
             ))}
