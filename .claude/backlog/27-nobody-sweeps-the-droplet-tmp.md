@@ -1,7 +1,25 @@
 # Nobody sweeps the droplet's /tmp — resume temp dirs and stray artifacts pile up
 
-Status: Proposed
+Status: **Done 2026-07-20** (`f55cef4`) — verified live.
 Proposed: 2026-07-20 by Claude (found auditing the parallel-books E2E)
+
+## What shipped
+
+`aire-tmpclean.timer` (hourly) runs `aire-tmpclean.service`, a oneshot
+`find /tmp -maxdepth 1 -type d -name "claude-resume-*" -mmin +60 -exec rm -rf`.
+The `-mmin +60` guard means a dir backing a live pooled client (younger than an
+hour) is never touched. Installed by BOTH the deploy workflow and
+`remote-bootstrap.sh`, so a kill test resurrects it (device-verb-protocol
+durability). Verified live: timer `active`, next run scheduled, the exact find
+removed a 3h-old dir and left a fresh one, the service exits 0.
+
+**The tmpfiles.d route was tried first and rejected by evidence** (Loop Law): a
+dry-run on the droplet showed the `e` type only cleans dir CONTENTS, never
+age-removes whole dirs matching a glob — both test dirs survived. The find timer
+is the AIRE-native pattern anyway (aire-sweep/tick/mirror), so Art. 6 favoured it.
+
+The stray-artifact half (a book in /tmp) is moot since #24 (the cage): agents can
+no longer write outside their casita, so nothing lands in /tmp to sweep.
 
 ## What it is
 
