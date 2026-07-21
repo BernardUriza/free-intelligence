@@ -18,7 +18,7 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 | # | Item | Status |
 |---|------|--------|
 | 6 | Retention: per-project TTL, archive cold sessions, purge | Proposed |
-| 7 | Scheduled backups (`pg_dump` + cron) | Proposed |
+| 7 | Scheduled backups. Details: [`07-backups.md`](07-backups.md) | **Done — covered by the platform 2026-07-20**: Azure Flexible Server backs up the DB, 7-day point-in-time restore (verified). A `pg_dump`+cron would reinvent it (Art. 6); dropped. Only gap is geo-redundancy (off) — Bernard's spend call, likely over-engineering |
 | 8 | Metrics per casita: weight, sessions, cost. Details: [`08-metrics.md`](08-metrics.md) | **Weight+sessions Done 2026-07-20** (`7e05a4e`) — weight column live on `/claude`, verified in the browser. **Cost blocked**: a data check found `total_cost_usd` is never persisted (0/400 entries), so it needs a write-path change + a schema decision that's Bernard's |
 | 9 | Compaction / summarization of old sessions before archiving them | Idea |
 
