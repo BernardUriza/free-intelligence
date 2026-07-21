@@ -19,7 +19,7 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 |---|------|--------|
 | 6 | Retention: per-project TTL, archive cold sessions, purge | Proposed |
 | 7 | Scheduled backups (`pg_dump` + cron) | Proposed |
-| 8 | Metrics: how much each project weighs, how many sessions, what they cost | Proposed |
+| 8 | Metrics per casita: weight, sessions, cost. Details: [`08-metrics.md`](08-metrics.md) | **Weight+sessions Done 2026-07-20** (`7e05a4e`) — weight column live on `/claude`, verified in the browser. **Cost blocked**: a data check found `total_cost_usd` is never persisted (0/400 entries), so it needs a write-path change + a schema decision that's Bernard's |
 | 9 | Compaction / summarization of old sessions before archiving them | Idea |
 
 ## What opens up because the database is yours
