@@ -48,16 +48,17 @@ jobs:
                          server/deploy/aire-server.service \
                          server/deploy/aire-sweep.service server/deploy/aire-sweep.timer \
                          server/deploy/aire-tick.service server/deploy/aire-tick.timer \
-                         server/deploy/aire-mirror.service server/deploy/aire-mirror.timer /etc/systemd/system/
+                         server/deploy/aire-mirror.service server/deploy/aire-mirror.timer \
+                         server/deploy/aire-tmpclean.service server/deploy/aire-tmpclean.timer /etc/systemd/system/
           install -m 644 server/deploy/logrotate-aire /etc/logrotate.d/aire
           systemctl daemon-reload
           systemctl enable --now aire-server >/dev/null 2>&1 || true
           systemctl restart aire-listener aire-server
-          systemctl enable --now aire-sweep.timer aire-tick.timer aire-mirror.timer
+          systemctl enable --now aire-sweep.timer aire-tick.timer aire-mirror.timer aire-tmpclean.timer
           sleep 3
           # is-active with multiple units exits 0 if AT LEAST ONE is active —
           # check each unit on its own so a dead one actually breaks the job.
-          for u in aire-listener aire-server aire-sweep.timer aire-tick.timer aire-mirror.timer; do
+          for u in aire-listener aire-server aire-sweep.timer aire-tick.timer aire-mirror.timer aire-tmpclean.timer; do
             if ! systemctl --quiet is-active "$u"; then
               echo "$u is NOT active"
               systemctl status "$u" --no-pager || true
