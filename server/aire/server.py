@@ -31,7 +31,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import artifacts, messages
+from . import artifacts, init_project, messages
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
@@ -77,3 +77,4 @@ async def health() -> JSONResponse:
 
 app.include_router(messages.router)   # POST a turn (SSE or #22a background), GET status
 app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
+app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)

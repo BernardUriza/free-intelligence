@@ -24,6 +24,18 @@ SYSTEM_PROMPT = (
     "they help. Files you create live in this session's workspace directory."
 )
 
+
+def _casita_prompt(cwd: str) -> str:
+    """The casita's fixed prompt, if the `init` endpoint wrote one. Read DIRECTLY
+    (not via setting_sources="project", which walks UP the tree and would drag in
+    /opt/aire/CLAUDE.md — the server's own). This is the consumer's fixed persona
+    living as CONTENT in the casita, so each turn only sends the changing values."""
+    md = Path(cwd) / "CLAUDE.md"
+    try:
+        return md.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
 MODES: dict[str, dict[str, Any]] = {
     "complete": {
         "allowed_tools": [],
@@ -54,10 +66,10 @@ def _env(project: str) -> dict[str, str]:
 def build_options(session_store: Any, project: str, cwd: str,
                   session_uuid: str, mode: str, resuming: bool) -> Any:
     from claude_agent_sdk import ClaudeAgentOptions
-
     policy = MODES.get(mode, MODES[DEFAULT_MODE])
+    casita = _casita_prompt(cwd)
     kwargs: dict[str, Any] = {
-        "system_prompt": SYSTEM_PROMPT,
+        "system_prompt": f"{SYSTEM_PROMPT}\n\n{casita}" if casita else SYSTEM_PROMPT,
         "allowed_tools": list(policy["allowed_tools"]),
         "disallowed_tools": list(policy["disallowed_tools"]),
         "permission_mode": policy["permission_mode"],
