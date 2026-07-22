@@ -324,10 +324,40 @@ summary {
 
 .gate {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 24px;
+}
+.gate input[type="number"],
+.gate select {
+  width: 100%;
+  background: var(--page);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: 14px/1.5 inherit;
+}
+.gate .result {
+  width: 100%;
+  max-width: 340px;
+  margin-top: 16px;
+}
+.gate .result pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 18px;
+  font: 13px/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.gate .result .sub {
+  margin: 8px 2px 0;
+  font-size: 12px;
 }
 .gate form {
   display: flex;
