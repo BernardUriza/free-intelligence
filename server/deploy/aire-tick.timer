@@ -1,9 +1,0 @@
-[Unit]
-Description=AIRE tick every 5 minutes (12 per hour through the pen)
-
-[Timer]
-OnCalendar=*:00/05
-AccuracySec=5s
-
-[Install]
-WantedBy=timers.target

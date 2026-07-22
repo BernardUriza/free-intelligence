@@ -16,7 +16,7 @@ removed a 3h-old dir and left a fresh one, the service exits 0.
 **The tmpfiles.d route was tried first and rejected by evidence** (Loop Law): a
 dry-run on the droplet showed the `e` type only cleans dir CONTENTS, never
 age-removes whole dirs matching a glob — both test dirs survived. The find timer
-is the AIRE-native pattern anyway (aire-sweep/tick/mirror), so Art. 6 favoured it.
+is the AIRE-native pattern anyway (aire-sweep/mirror), so Art. 6 favoured it.
 
 The stray-artifact half (a book in /tmp) is moot since #24 (the cage): agents can
 no longer write outside their casita, so nothing lands in /tmp to sweep.
