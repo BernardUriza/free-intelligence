@@ -19,7 +19,7 @@ from sse_starlette.event import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
 from .deps import get_engine
-from .engine import DEFAULT_MODE, MODES, BudgetExceeded
+from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy
 from .names import InvalidName, clean
 
 router = APIRouter()
@@ -79,6 +79,10 @@ async def _events(project: str, session: str, message: str, mode: str) -> AsyncI
         # caller in-stream (the connection is already an event stream, so a 402
         # header is no longer possible) instead of a silent stall.
         yield ServerSentEvent(event="error", data=json.dumps({"error": "budget_exceeded", "detail": str(exc)}))
+    except SlotBusy as exc:
+        # The box was full and the queue wait timed out (backpressure). The stream
+        # is already 200, so say retry in-stream rather than a 503 header.
+        yield ServerSentEvent(event="error", data=json.dumps({"error": "slot_busy", "detail": str(exc)}))
     yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": mode}))
 
 

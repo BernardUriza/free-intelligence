@@ -20,18 +20,11 @@ from .pool import Pool
 
 WORKSPACES = Path(os.environ.get(
     "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
-# CAREFUL — measured 2026-07-20, and it is NOT what the SDK docs suggest:
-# max_budget_usd caps the CLIENT's cumulative spend, not one turn. A pooled
-# client that reaches it is poisoned: every later turn would die instantly with
-# an EMPTY result (output 0, no tools, the same cost echoed) and no error.
-# Handled since: a turn whose cost reaches the ceiling emits a real `error`
-# event and RETIRES its client, so the next turn rebuilds fresh (backlog #23).
-# AIRE_MAX_SPEND_USD is this engine's own cumulative backstop over the process
-# lifetime — when crossed, turns are refused BEFORE they reach the API, with a
-# real BudgetExceeded. Unset → no ceiling (dev). Resets on restart.
+# max_budget_usd caps the CLIENT's cumulative spend, not one turn (measured; a
+# poisoned client is retired, backlog #23). AIRE_MAX_SPEND_USD is this engine's
+# own process-lifetime backstop — turns refused BEFORE the API. Resets on restart.
 MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
-# The same ceiling handed to the SDK, kept here so a cut turn can be RECOGNISED:
-# a turn whose cost reached it was cut, and its client is spent.
+# The same ceiling given to the SDK, kept to RECOGNISE a cut turn (#23).
 TURN_CAP_USD = float(os.environ["AIRE_MAX_BUDGET_USD"]) if os.environ.get("AIRE_MAX_BUDGET_USD") else None
 
 
@@ -70,6 +63,7 @@ class Engine:
             await self.pool.evict(now)
             client = self.pool.clients.get(key)
             if client is None:
+                await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
                                         str(self._cwd(project)),
@@ -83,11 +77,17 @@ class Engine:
 
     async def run_stream(self, project: str, session: str, prompt: str,
                          mode: str = DEFAULT_MODE) -> AsyncIterator[dict[str, Any]]:
-        """One turn, live. The transcript mirrors itself to Postgres — the
-        agent's memory AND the page's memory are THE SAME transcript."""
+        """One turn, live (transcript mirrors to Postgres). The RAM slot
+        (backpressure) is held for the whole turn: a 3rd device queues."""
         if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
             raise BudgetExceeded(
                 f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
+        async with self.pool.slot():
+            async for event in self._turn(project, session, prompt, mode):
+                yield event
+
+    async def _turn(self, project: str, session: str, prompt: str,
+                    mode: str) -> AsyncIterator[dict[str, Any]]:
         key = f"{project}/{session}"
         client, lock = await self._client_for(project, session, mode)
         spent = False

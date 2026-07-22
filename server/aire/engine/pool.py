@@ -14,12 +14,18 @@ an active session rides the cheap `cache_read` instead of re-caching cold."""
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
+
+from .contract import SlotBusy
 
 # 2, not 8: 129 MB/client on a 458 MB box. POOL_IDLE_S≈55min aligns with the 1h
 # prompt cache so a warm client is not evicted while its paid cache is still live.
 POOL_MAX = int(os.environ.get("AIRE_POOL_MAX", "2"))
 POOL_IDLE_S = float(os.environ.get("AIRE_POOL_IDLE_S", "3300"))
+# Backpressure: a turn waits this long for a RAM slot before it's told to retry.
+SLOT_WAIT_S = float(os.environ.get("AIRE_SLOT_WAIT_S", "45"))
 
 
 class Pool:
@@ -28,6 +34,31 @@ class Pool:
         self.locks: dict[str, asyncio.Lock] = {}
         self.used: dict[str, float] = {}  # key → last-use monotonic ts (LRU)
         self.guard = asyncio.Lock()
+        # One permit per RAM slot: at most POOL_MAX turns run at once, so at most
+        # POOL_MAX live clients (#9 — a 3rd device queues, it does not OOM the box).
+        self.slots = asyncio.Semaphore(POOL_MAX)
+
+    @asynccontextmanager
+    async def slot(self) -> AsyncIterator[None]:
+        """Hold a RAM slot for a turn; queue (backpressure) if full, 503 on wait
+        timeout — never build past POOL_MAX and OOM the 458 MB box."""
+        try:
+            await asyncio.wait_for(self.slots.acquire(), timeout=SLOT_WAIT_S)
+        except asyncio.TimeoutError as exc:
+            raise SlotBusy(f"all {POOL_MAX} slots busy for >{SLOT_WAIT_S:.0f}s") from exc
+        try:
+            yield
+        finally:
+            self.slots.release()
+
+    async def make_space(self) -> None:
+        """Close the LRU idle client so a NEW one fits under POOL_MAX. The slot
+        semaphore guarantees a turn already holds a permit, so an idle exists."""
+        while len(self.clients) >= POOL_MAX:
+            idle = sorted((t, k) for k, t in self.used.items() if not self.busy(k))
+            if not idle:
+                break  # all busy — the semaphore should have prevented this
+            await self.close_one(idle[0][1])
 
     def busy(self, key: str) -> bool:
         lock = self.locks.get(key)
