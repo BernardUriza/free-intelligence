@@ -1,35 +1,31 @@
 import Link from "next/link";
-import { ask } from "../aire.ts";
+import { ask, init } from "../aire.ts";
+import { PERSONA } from "./persona.ts";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Cannabímetro — a canary consumer of AIRE: a THC-intake calculator that asks
- * the daemon's LLM door to do the math and the context. A `<form method="GET">`
- * and a Server Component render the result — NO client JavaScript, like the rest
- * of the front. Each calculation is one `complete` turn in the `canary-thc`
- * casita, so it also shows up as a conversation at `/claude` and in the log.
+ * the daemon's LLM door to do the math. A `<form method="GET">` and a Server
+ * Component render the result — NO client JavaScript, like the rest of the front.
+ *
+ * The consumer is ANOREXIC (the free-intelligence pattern): its fixed persona
+ * lives in the casita (set once via `init`, stored as the casita's CLAUDE.md),
+ * so each turn sends ONLY the changing values. Each calc is one `complete` turn
+ * in `canary-thc`, visible as a conversation at `/claude`.
  */
 
 const METHODS = ["fumado", "vaporizado", "comestible", "tintura"];
 const PROJECT = "canary-thc";
 const SESSION = "cannabimetro";
 
-function buildPrompt(grams: string, thc: string, method: string): string {
-  return (
-    `Eres un calculador de consumo de THC. Datos: ${grams} g de flor al ${thc}% de THC, ` +
-    `consumidos por vía ${method}. Devuelve, breve y en español: (1) los mg de THC totales ` +
-    `(gramos × %THC × 10), (2) la biodisponibilidad típica de ese método, (3) los mg de THC ` +
-    `realmente absorbidos, y (4) una nota de seguridad de una línea. Sin rodeos.`
-  );
-}
-
 async function Result({ grams, thc, method }: { grams: string; thc: string; method: string }) {
   let text = "";
   let cost: number | null = null;
   let error = "";
   try {
-    const turn = await ask(PROJECT, SESSION, buildPrompt(grams, thc, method));
+    await init(PROJECT, PERSONA); // the persona lives in the casita, not the message
+    const turn = await ask(PROJECT, SESSION, `${grams} g al ${thc}% THC, vía ${method}`);
     text = turn.text;
     cost = turn.costUsd;
   } catch (err) {

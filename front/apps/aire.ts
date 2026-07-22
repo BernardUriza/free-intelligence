@@ -30,6 +30,19 @@ function parseSse(body: string): Turn | null {
   return out;
 }
 
+/** Set a casita's FIXED prompt once (its CLAUDE.md), so later turns send only the
+ *  changing values. Idempotent — safe to call before every turn. */
+export async function init(project: string, claudeMd: string): Promise<void> {
+  if (!GATE || !TOKEN) throw new Error("AIRE_GATE_URL / AIRE_AUTH_TOKEN not set — no door to call.");
+  const res = await fetch(`${GATE}/projects/${project}/init`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ claude_md: claudeMd }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`AIRE init ${res.status}: ${await res.text()}`);
+}
+
 /** One `complete` turn through the AIRE door. Throws if the door is unset/down. */
 export async function ask(project: string, session: string, message: string): Promise<Turn> {
   if (!GATE || !TOKEN) throw new Error("AIRE_GATE_URL / AIRE_AUTH_TOKEN not set — no door to call.");
