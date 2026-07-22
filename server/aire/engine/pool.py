@@ -2,14 +2,24 @@
 subprocess. On a small box an unbounded pool is an OOM waiting to happen, so it
 is capped and evicted LRU; idle clients are reaped by age. Evicting loses
 nothing: the transcript is in Postgres and the next turn rebuilds the client
-with `resume=` (the whole point of the store)."""
+with `resume=` (the whole point of the store).
+
+Tuned to the box + the cache (backlog #9, measured 2026-07-21): ONE live client
+is 129 MB and the droplet has ~180 MB free, so POOL_MAX=8 was a latent OOM (8 ×
+129 MB ≫ 458 MB) — 2 is what the RAM actually holds. And the prompt cache AIRE
+pays for lasts 1h (`ephemeral_1h`), but the pool evicted at 15 min, throwing away
+45 min of paid-for warm cache: a resumed turn then re-paid `cache_creation` (17×
+`cache_read`). POOL_IDLE_S=3300 keeps a client warm across the cache window, so
+an active session rides the cheap `cache_read` instead of re-caching cold."""
 
 import asyncio
 import os
 from typing import Any
 
-POOL_MAX = int(os.environ.get("AIRE_POOL_MAX", "8"))
-POOL_IDLE_S = float(os.environ.get("AIRE_POOL_IDLE_S", "900"))
+# 2, not 8: 129 MB/client on a 458 MB box. POOL_IDLE_S≈55min aligns with the 1h
+# prompt cache so a warm client is not evicted while its paid cache is still live.
+POOL_MAX = int(os.environ.get("AIRE_POOL_MAX", "2"))
+POOL_IDLE_S = float(os.environ.get("AIRE_POOL_IDLE_S", "3300"))
 
 
 class Pool:
