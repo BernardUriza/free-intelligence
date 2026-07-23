@@ -22,6 +22,14 @@ user row persisted to Postgres.
 - The gateway has **no STT client at all**: `MessageIngest` only classifies
   audio (to keep it out of the document lane) — the transcription lane was
   deleted, not shimmed.
+- **The host also ECHOES the transcript to the channel**
+  (`HostClient.echo_transcript`), restored from the pre-purga
+  `insult/cogs/chat/batch.py` that died in 2f8d9ad. Verbatim format —
+  `>>> 🔊 **<autor> dijo:**\n<texto>\n🎙️` — sent with a raw `channel.send`:
+  no version tag, no `[SEND]` chunking, truncated at 1990 rather than split,
+  because it is a **sidecar, not a turn**. A voice note is opaque unless you
+  hit play; the echo is what makes it readable for whoever is not listening
+  and for whoever reads the history later. A failed echo never blocks routing.
 - Env for the host: `SUSURRO_URL` + `SUSURRO_KEY` (secret `susurro-key` on
   `khimeras-host`, same value the gateway uses for TTS).
 - Fail-soft at every step: no STT client or a dead susurro → routing degrades to

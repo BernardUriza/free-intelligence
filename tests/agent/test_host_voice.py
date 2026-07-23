@@ -32,7 +32,7 @@ def _voice_message(*, is_bot: bool = False, content: str = "") -> SimpleNamespac
     return SimpleNamespace(
         id=999,
         content=content,
-        channel=SimpleNamespace(id=111),
+        channel=SimpleNamespace(id=111, send=AsyncMock()),
         author=SimpleNamespace(id=222, bot=is_bot, display_name="bern"),
         mentions=[],
         role_mentions=[],
@@ -85,6 +85,58 @@ async def test_a_bots_audio_is_never_transcribed():
         await client.on_message(_voice_message(is_bot=True))
     transcribe.assert_not_awaited()
     assert client.dispatch_loop.batcher.pending_keys() == []
+
+
+async def test_the_host_echoes_the_transcript_to_the_channel():
+    """Restored from pre-purga batch.py: a voice note is opaque unless you hit
+    play, so the words get published as a sidecar."""
+    msg = _voice_message()
+    client = _client()
+    with patch(
+        "demux_ai.host_client.transcribe_voice_message",
+        new=AsyncMock(return_value="abre la puerta"),
+    ):
+        await client.on_message(msg)
+    msg.channel.send.assert_awaited_once_with(">>> 🔊 **bern dijo:**\nabre la puerta\n🎙️")
+
+
+async def test_a_long_transcript_is_truncated_not_split():
+    msg = _voice_message()
+    client = _client()
+    with patch(
+        "demux_ai.host_client.transcribe_voice_message",
+        new=AsyncMock(return_value="pa " * 900),
+    ):
+        await client.on_message(msg)
+    sent = msg.channel.send.await_args.args[0]
+    assert len(sent) <= 1990
+    assert sent.endswith("…")
+
+
+async def test_no_transcript_means_no_echo():
+    """RESISTANCE: a text message (or a dead susurro) must not spam the channel."""
+    msg = _voice_message()
+    client = _client()
+    with patch(
+        "demux_ai.host_client.transcribe_voice_message",
+        new=AsyncMock(side_effect=RuntimeError("susurro down")),
+    ):
+        await client.on_message(msg)
+    msg.channel.send.assert_not_awaited()
+
+
+async def test_a_failing_echo_never_blocks_the_routing():
+    """RESISTANCE: the echo is a sidecar — if the send 403s, the turn still routes."""
+    msg = _voice_message()
+    msg.channel.send = AsyncMock(side_effect=RuntimeError("missing permissions"))
+    client = _client()
+    with patch(
+        "demux_ai.host_client.transcribe_voice_message",
+        new=AsyncMock(return_value="sigo llegando"),
+    ):
+        await client.on_message(msg)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    assert due[0][3] == "sigo llegando"
 
 
 async def test_text_plus_voice_keeps_both():

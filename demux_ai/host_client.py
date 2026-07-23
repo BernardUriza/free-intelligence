@@ -36,6 +36,7 @@ log = structlog.get_logger()
 
 HOST_TOKEN_ENV = "HOST_DISCORD_TOKEN"  # noqa: S105 # nosec B105 — env-var NAME, not a secret
 TICK_SECONDS = 1.0
+ECHO_LIMIT = 1990
 
 
 class HostClient(discord.Client):
@@ -112,8 +113,32 @@ class HostClient(discord.Client):
         if not self._tick.is_running():
             self._tick.start()
 
+    async def echo_transcript(self, message: discord.Message, text: str) -> None:
+        """Publish what the voice note SAID, as a sidecar — not a turn.
+
+        Restored from the pre-purga `insult/cogs/chat/batch.py`, which echoed
+        every transcription and died with `personas/` in 2f8d9ad. A Discord
+        voice message is opaque unless you hit play, so the echo is what makes
+        it readable for whoever is not listening and for whoever reads the
+        history later. Verbatim format, including the `>>>` block quote (the
+        client draws a vertical bar, separating "what the user said" from the
+        persona's reply that lands right after).
+
+        Sent with a raw `channel.send`: no version tag, no chunking — it is a
+        sidecar, so it truncates rather than spilling into a second message.
+        """
+        echo = f">>> 🔊 **{message.author.display_name} dijo:**\n{text}\n🎙️"
+        if len(echo) > ECHO_LIMIT:
+            echo = echo[: ECHO_LIMIT - 3] + "…"
+        try:
+            await message.channel.send(echo)
+        except Exception:
+            log.exception("host_voice_echo_failed", channel_id=str(message.channel.id))
+
     async def on_message(self, message: discord.Message) -> None:
         voice_text = "" if message.author.bot else await self.transcribe_voice(message)
+        if voice_text:
+            await self.echo_transcript(message, voice_text)
         self._ingest(message, time.time(), voice_text)
 
     @tasks.loop(seconds=TICK_SECONDS)
