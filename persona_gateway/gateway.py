@@ -372,6 +372,7 @@ class PersonaClient(discord.Client):
         # to a photo it never saw). Best-effort: a processing fault degrades to
         # a text-only turn, never a dead invite.
         attachment_blocks: list[dict] = []
+        voice_transcripts: list[str] = []
         if react_to is not None:
             try:
                 attachment_blocks = await self._ingest.attachment_blocks(react_to)
@@ -383,9 +384,21 @@ class PersonaClient(discord.Client):
                     trigger_message_id=trigger_message_id,
                     exc_info=True,
                 )
-        instruction_content: str | list[dict] = instruction
-        if attachment_blocks:
-            instruction_content = [{"type": "text", "text": instruction}, *attachment_blocks]
+            # Voice notes reached the persona MUTE (2026-07-23): STT was wired
+            # only into `_handle`, which `HOST_OWNS_RECEPTION=true` had already
+            # demoted to zero traffic, so the host routed "[adjuntó:
+            # voice-message.ogg]" and nobody ever transcribed it — the same
+            # celebrated-but-disconnected class as the 2026-07-16 blind image.
+            try:
+                voice_transcripts = await self._ingest.voice_transcripts(react_to)
+            except Exception:
+                log.warning(
+                    "persona_gateway_invite_stt_failed",
+                    persona_id=self.persona.persona_id,
+                    channel_id=channel_id,
+                    trigger_message_id=trigger_message_id,
+                    exc_info=True,
+                )
 
         # The invite path is the MAIN path post-cutover (the host routes every
         # unaddressed turn here), so it gets the SAME turn assembly as `_handle`
@@ -399,6 +412,14 @@ class PersonaClient(discord.Client):
             subject = react_to.author
         subject_user_id = str(subject.id) if subject is not None else None
         subject_ask = (react_to.content or "").strip() if react_to is not None else ""
+        if voice_transcripts:
+            subject_ask = "\n".join(part for part in [subject_ask, *voice_transcripts] if part)
+            speaker = subject.display_name if subject is not None else "quien habló"
+            instruction = f"{instruction}\n[Nota de voz de {speaker}, transcrita: «{' '.join(voice_transcripts)}»]"
+
+        instruction_content: str | list[dict] = instruction
+        if attachment_blocks:
+            instruction_content = [{"type": "text", "text": instruction}, *attachment_blocks]
 
         # Persist the HUMAN trigger turn. The original /invite was Insult-initiated
         # (no user message existed), but post-cutover the invite IS the main path
