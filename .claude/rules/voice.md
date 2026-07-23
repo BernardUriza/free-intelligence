@@ -1,16 +1,50 @@
-# Voice (TTS) Rules
+# Voice Rules — TTS (gateway) and STT (host)
 
-How personas speak, post-purga. **Prod runs susurro only.** The old Insult
-VoiceCog (`personas/insult/cogs/voice/cog.py`) and its arbor switch died with
-`personas/` in 2f8d9ad; the live voice path is entirely in the gateway:
+The two directions have **different owners**, on purpose:
+
+| Direction | Owner | Why |
+|---|---|---|
+| **TTS** (persona speaks) | `persona-gateway` | the gateway posts the messages, so it posts the audio |
+| **STT** (voice note → text) | `khimeras-host` | the host owns RECEPTION, so it owns transcription |
+
+## STT belongs to the host — nobody else calls susurro `/v1/stt`
+
+**Hard rule (Bernard, 2026-07-23): the host is the ONLY component that
+transcribes.** `demux_ai/host_client.py::HostClient.transcribe_voice` runs
+susurro STT on inbound audio BEFORE routing, so the gpt-4.1 router decides who
+answers from what was actually SAID instead of from the filename
+("[adjuntó: voice-message.ogg]" says nothing about whether the audio is about
+cinema, a health scare or a landlord). The words then ride the `/invite` wire as
+`trigger_transcript` — **uncapped**, unlike the router's 600-char `reason` — and
+`respond_to_invite` folds them into the instruction the model reads AND into the
+user row persisted to Postgres.
+
+- The gateway has **no STT client at all**: `MessageIngest` only classifies
+  audio (to keep it out of the document lane) — the transcription lane was
+  deleted, not shimmed.
+- Env for the host: `SUSURRO_URL` + `SUSURRO_KEY` (secret `susurro-key` on
+  `khimeras-host`, same value the gateway uses for TTS).
+- Fail-soft at every step: no STT client or a dead susurro → routing degrades to
+  the old filename note; the turn is never dropped.
+- **Known consequence:** with the host down or `HOST_OWNS_RECEPTION=false`, a
+  bare voice note @mentioning a persona gets NO reply — `_handle` has no
+  transcription and an audio-only message carries no text. That is the accepted
+  cost of one owner; if the @mention path ever matters again, the host is what
+  gets fixed, not a second susurro consumer.
+
+## TTS — how personas speak
+
+Post-purga, **prod runs susurro only.** The old Insult VoiceCog
+(`personas/insult/cogs/voice/cog.py`) and its arbor switch died with
+`personas/` in 2f8d9ad; the live TTS path is entirely in the gateway:
 
 - **Trigger**: 🔊 reaction on one of the persona's OWN messages →
   `persona_gateway/gateway.py::on_raw_reaction_add` → `PersonaVoice.speak`
   (`persona_gateway/voice.py`). Auto-speak fires for replies at/above
   a configurable char threshold (0 = manual 🔊 only).
 - **Backend**: `khimeras_shared/tts.py::synthesize_susurro_tts` against the
-  **susurro gateway** — `sus.bernarduriza.com` (`POST /v1/tts`; STT via
-  `/v1/stt`, client in `khimeras_shared/stt.py`). Project-keyed proxy over a
+  **susurro gateway** — `sus.bernarduriza.com` (`POST /v1/tts`; the `/v1/stt`
+  client in `khimeras_shared/stt.py` is the HOST's, see above). Project-keyed proxy over a
   dedicated Azure OpenAI; key in `~/.secrets/susurro-key-discord-bot.txt`,
   gateway config `susurro_url`/`susurro_key` (`persona_gateway/config.py`).
   The old direct Azure `tts`/`whisper` deployments were DELETED at the susurro

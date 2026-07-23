@@ -23,7 +23,6 @@ from khimeras_shared.memory import MemoryStore
 from khimeras_shared.persona import PersonaRuntimeConfig
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.stt import SusurroSttClient, build_susurro_stt_client
 from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
@@ -41,7 +40,6 @@ def _build_shared() -> tuple[
     MemoryStore,
     AgentRunnerClient,
     object | None,
-    SusurroSttClient | None,
     int,
     str,
     RunnerJudgeClient,
@@ -72,15 +70,13 @@ def _build_shared() -> tuple[
     judge_client = RunnerJudgeClient(runner_url=runner_url, token=runner_token)
 
     tts_client = build_susurro_tts_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
-    stt_client = build_susurro_stt_client(base_url=CONFIG.susurro_url, api_key=CONFIG.susurro_key)
     log.info(
         "persona_gateway_tts_configured",
         enabled=tts_client is not None,
         auto_tts_min_chars=CONFIG.auto_tts_min_chars,
     )
-    log.info("persona_gateway_stt_configured", enabled=stt_client is not None)
     invite_token = config.insult_to_alice_token.get_secret_value()
-    return memory, agent_client, tts_client, stt_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
+    return memory, agent_client, tts_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
 
 
 def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
@@ -190,9 +186,8 @@ async def _main() -> None:
     shared = _build_shared()
     if len(shared) == 6:
         memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = shared
-        stt_client = None
     else:
-        memory, agent_client, tts_client, stt_client, auto_tts_min_chars, invite_token, judge_client = shared
+        memory, agent_client, tts_client, auto_tts_min_chars, invite_token, judge_client = shared
 
     intents = discord.Intents.default()
     intents.message_content = True
@@ -210,7 +205,6 @@ async def _main() -> None:
             agent_client,
             intents=intents,
             tts_client=tts_client,
-            stt_client=stt_client,
             auto_tts_min_chars=auto_tts_min_chars,
             judge_client=judge_client,
         )

@@ -35,7 +35,7 @@ def test_ingest_threads_the_message_id_for_reactions():
     client = _client()
     client._ingest(_message("reséñame Alien"), now=100.0)
     due = client.dispatch_loop.batcher.pop_due(now=200.0)
-    assert due == [("111:222", "reséñame Alien", "999")]
+    assert due == [("111:222", "reséñame Alien", "999", "")]
 
 
 def _client() -> HostClient:

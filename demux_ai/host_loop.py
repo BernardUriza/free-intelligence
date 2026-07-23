@@ -54,6 +54,7 @@ class HostDispatchLoop:
         mentioned_ids: list[str] | None = None,
         mentioned_role_names: list[str] | None = None,
         attachment_names: list[str] | None = None,
+        voice_text: str = "",
     ) -> bool:
         """Feed one inbound message to the batcher. Returns True if accepted.
 
@@ -74,6 +75,13 @@ class HostDispatchLoop:
         attachment-bearing message as the burst's trigger, so the routed persona
         actually FETCHES the image (the invite path harvests attachments from the
         trigger message).
+
+        `voice_text` is the receiver's transcript of that message's voice notes.
+        It becomes the message's ROUTABLE text, because the filename note alone
+        made the router pick a persona without knowing what was said
+        (2026-07-23) — "[adjuntó: voice-message.ogg]" says nothing about whether
+        the audio is about cinema, a health scare or a landlord. The filename
+        note still rides along so the trigger keeps preferring this message.
         """
         if author_is_bot:
             return False
@@ -82,12 +90,22 @@ class HostDispatchLoop:
             return False
         key = f"{channel_id}:{author_id}"
         names = [n for n in (attachment_names or []) if n]
+        spoken = voice_text.strip()
+        if spoken:
+            stripped = f"{stripped}\n{spoken}" if stripped else spoken
         if names:
             note = f"[adjuntó: {', '.join(names)}]"
             batched_text = f"{stripped}\n{note}" if stripped else note
         else:
-            batched_text = text
-        self.batcher.add(key, batched_text, now, message_id, has_attachments=bool(names))
+            batched_text = stripped or text
+        self.batcher.add(
+            key,
+            batched_text,
+            now,
+            message_id,
+            has_attachments=bool(names),
+            voice_transcript=spoken,
+        )
         if author_name:
             self._names[key] = author_name
         for mentioned_id in mentioned_ids or []:
@@ -104,7 +122,7 @@ class HostDispatchLoop:
         """Flush every due batch and dispatch it. Returns the routing decisions
         (for telemetry/tests). One batch's dispatch fault never blocks the others."""
         decisions = []
-        for key, combined, message_id in self.batcher.pop_due(now):
+        for key, combined, message_id, voice_transcript in self.batcher.pop_due(now):
             channel_id = key.split(":", 1)[0]
             decision = await route_and_dispatch(
                 self.router,
@@ -113,6 +131,7 @@ class HostDispatchLoop:
                 user_name=self._names.pop(key, ""),
                 trigger_message_id=message_id,
                 forced_target=self._forced_target.pop(key, None),
+                voice_transcript=voice_transcript,
             )
             decisions.append(decision)
         return decisions

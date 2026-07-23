@@ -82,6 +82,14 @@ class InviteRequest(BaseModel):
             "when its reply carries [REACT:] markers; omitted → reactions are dropped."
         ),
     )
+    trigger_transcript: str = Field(
+        default="",
+        description=(
+            "What the trigger message's voice notes SAID, transcribed by the host — "
+            "the only component that talks to susurro. Uncapped on purpose: `reason` "
+            "is truncated for the router, this is the persona's copy of the words."
+        ),
+    )
 
 
 class InviteResponse(BaseModel):
@@ -189,6 +197,7 @@ def build_invite_app(
                 reason=req.reason,
                 invited_by=req.invited_by or "insult_rest",
                 trigger_message_id=req.trigger_message_id,
+                trigger_transcript=req.trigger_transcript,
             )
         )
         app.state.background_tasks.add(task)

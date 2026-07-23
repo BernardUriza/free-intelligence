@@ -17,7 +17,7 @@ behavior; the gateway only:
 Discord adapter: event handlers + the two turn entry points, each delegating to
 an injected service —
 - reception predicates → `persona_gateway.routing`
-- attachment blocks + STT transcripts → `persona_gateway.ingest`
+- attachment blocks (audio is the host's lane, not this one) → `persona_gateway.ingest`
 - context/guidance/other-people assembly → `persona_gateway.turn_context`
 - the turn tail (runner → react → markers → send → store → TTS) → `persona_gateway.turns`
 - invite helpers (channel resolve, instruction, trigger fetch) → `persona_gateway.invites`
@@ -44,7 +44,6 @@ from khimeras_shared.memory import MemoryStore
 from khimeras_shared.prompts import PromptCache
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.stt import SusurroSttClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.facts import FactExtractor
@@ -89,7 +88,6 @@ class PersonaClient(discord.Client):
         *,
         intents: discord.Intents,
         tts_client=None,
-        stt_client: SusurroSttClient | None = None,
         auto_tts_min_chars: int = 0,
         judge_client: RunnerJudgeClient | None = None,
     ) -> None:
@@ -116,7 +114,7 @@ class PersonaClient(discord.Client):
         # Injected services — the logic lives here, the client just delegates.
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
-        self._ingest = MessageIngest(persona, stt_client)
+        self._ingest = MessageIngest(persona)
         self._context = TurnContextBuilder(persona, memory)
         self._turns = TurnRunner(
             persona,
@@ -253,9 +251,6 @@ class PersonaClient(discord.Client):
         channel_name = getattr(message.channel, "name", None)
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
-        voice_transcripts = await self._ingest.voice_transcripts(message)
-        if voice_transcripts:
-            ask = "\n".join(part for part in [ask, *voice_transcripts] if part)
         attachment_blocks = await self._ingest.attachment_blocks(message)
         if not ask and not attachment_blocks:
             return  # bare @mention with no text and no readable attachment
@@ -332,6 +327,7 @@ class PersonaClient(discord.Client):
         reason: str,
         invited_by: str = "insult_rest",
         trigger_message_id: str | None = None,
+        trigger_transcript: str = "",
     ) -> None:
         """Guarded entry for the invite path — what `/invite` schedules.
 
@@ -351,6 +347,7 @@ class PersonaClient(discord.Client):
                 reason=reason,
                 invited_by=invited_by,
                 trigger_message_id=trigger_message_id,
+                trigger_transcript=trigger_transcript,
             )
         except Exception:
             log.exception(
@@ -372,6 +369,7 @@ class PersonaClient(discord.Client):
         channel_name: str | None,
         reason: str,
         invited_by: str = "insult_rest",
+        trigger_transcript: str = "",
         trigger_message_id: str | None = None,
     ) -> None:
         """Entry point for the gateway's ported /invite handler.
@@ -413,7 +411,6 @@ class PersonaClient(discord.Client):
         # to a photo it never saw). Best-effort: a processing fault degrades to
         # a text-only turn, never a dead invite.
         attachment_blocks: list[dict] = []
-        voice_transcripts: list[str] = []
         if react_to is not None:
             try:
                 attachment_blocks = await self._ingest.attachment_blocks(react_to)
@@ -425,21 +422,11 @@ class PersonaClient(discord.Client):
                     trigger_message_id=trigger_message_id,
                     exc_info=True,
                 )
-            # Voice notes reached the persona MUTE (2026-07-23): STT was wired
-            # only into `_handle`, which `HOST_OWNS_RECEPTION=true` had already
-            # demoted to zero traffic, so the host routed "[adjuntó:
-            # voice-message.ogg]" and nobody ever transcribed it — the same
-            # celebrated-but-disconnected class as the 2026-07-16 blind image.
-            try:
-                voice_transcripts = await self._ingest.voice_transcripts(react_to)
-            except Exception:
-                log.warning(
-                    "persona_gateway_invite_stt_failed",
-                    persona_id=self.persona.persona_id,
-                    channel_id=channel_id,
-                    trigger_message_id=trigger_message_id,
-                    exc_info=True,
-                )
+        # What the voice note SAID arrives transcribed on the wire. The gateway
+        # never calls susurro for STT: the host owns reception, so it owns
+        # transcription (2026-07-23 decision) and the persona reads its words
+        # instead of a filename.
+        spoken = trigger_transcript.strip()
 
         # The invite path is the MAIN path post-cutover (the host routes every
         # unaddressed turn here), so it gets the SAME turn assembly as `_handle`
@@ -453,10 +440,10 @@ class PersonaClient(discord.Client):
             subject = react_to.author
         subject_user_id = str(subject.id) if subject is not None else None
         subject_ask = (react_to.content or "").strip() if react_to is not None else ""
-        if voice_transcripts:
-            subject_ask = "\n".join(part for part in [subject_ask, *voice_transcripts] if part)
+        if spoken:
+            subject_ask = "\n".join(part for part in [subject_ask, spoken] if part)
             speaker = subject.display_name if subject is not None else "quien habló"
-            instruction = f"{instruction}\n[Nota de voz de {speaker}, transcrita: «{' '.join(voice_transcripts)}»]"
+            instruction = f"{instruction}\n[Nota de voz de {speaker}, transcrita: «{spoken}»]"
 
         instruction_content: str | list[dict] = instruction
         if attachment_blocks:

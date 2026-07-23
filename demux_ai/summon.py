@@ -44,6 +44,7 @@ async def summon_persona(
     persona_id: str | None = None,
     invited_by: str | None = None,
     trigger_message_id: str | None = None,
+    trigger_transcript: str = "",
 ) -> bool:
     """Fire-and-forget POST to the gateway's /invite endpoint.
 
@@ -88,6 +89,8 @@ async def summon_persona(
         payload["invited_by"] = invited_by
     if trigger_message_id:
         payload["trigger_message_id"] = trigger_message_id
+    if trigger_transcript:
+        payload["trigger_transcript"] = trigger_transcript
 
     try:
         # follow_redirects=True because Azure Container Apps internal ingress

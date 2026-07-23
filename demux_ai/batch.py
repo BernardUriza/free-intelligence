@@ -34,6 +34,11 @@ class _Batch:
     # the trigger message, so anchoring on the text tail loses the image the user
     # actually wants discussed (2026-07-16, la imagen pelona sin respuesta).
     attachment_message_id: str | None = None
+    # The transcript of the burst's most recent voice note. The host is the ONLY
+    # component that talks to susurro (2026-07-23 decision), so this text is the
+    # persona's single source for what was SAID — it rides pop_due → dispatch →
+    # /invite instead of being re-transcribed downstream.
+    voice_transcript: str = ""
 
 
 @dataclass
@@ -49,7 +54,14 @@ class MessageBatcher:
     _batches: dict[str, _Batch] = field(default_factory=dict)
 
     def add(
-        self, key: str, text: str, now: float, message_id: str | None = None, *, has_attachments: bool = False
+        self,
+        key: str,
+        text: str,
+        now: float,
+        message_id: str | None = None,
+        *,
+        has_attachments: bool = False,
+        voice_transcript: str = "",
     ) -> None:
         """Accumulate one message under `key`, resetting its debounce to `now`.
 
@@ -70,19 +82,22 @@ class MessageBatcher:
                 batch.last_message_id = message_id
         if has_attachments and message_id:
             batch.attachment_message_id = message_id
+        if voice_transcript.strip():
+            batch.voice_transcript = voice_transcript.strip()
         batch.last_activity = now
 
-    def pop_due(self, now: float) -> list[tuple[str, str, str | None]]:
+    def pop_due(self, now: float) -> list[tuple[str, str, str | None, str]]:
         """Return and REMOVE every batch quiet for at least `window_seconds`.
 
-        Result is `(key, combined_text, trigger_message_id)` triples in insertion
-        order. A batch that went quiet but accumulated no real text (only
-        whitespace) is dropped, not routed — there is nothing to answer. The
-        trigger is the attachment-bearing message when the burst had one (the
-        invite path harvests images from the trigger — anchoring on the text tail
-        loses them), else the last real-text message (the [REACT:] anchor).
+        Result is `(key, combined_text, trigger_message_id, voice_transcript)`
+        in insertion order. A batch that went quiet but accumulated no real text
+        (only whitespace) is dropped, not routed — there is nothing to answer.
+        The trigger is the attachment-bearing message when the burst had one
+        (the invite path harvests images from the trigger — anchoring on the
+        text tail loses them), else the last real-text message (the [REACT:]
+        anchor). `voice_transcript` is "" for a burst with no audio.
         """
-        due: list[tuple[str, str, str | None]] = []
+        due: list[tuple[str, str, str | None, str]] = []
         for key in list(self._batches):
             batch = self._batches[key]
             if now - batch.last_activity < self.window_seconds:
@@ -90,7 +105,14 @@ class MessageBatcher:
             del self._batches[key]
             combined = "\n".join(batch.parts).strip()
             if combined:
-                due.append((key, combined, batch.attachment_message_id or batch.last_message_id))
+                due.append(
+                    (
+                        key,
+                        combined,
+                        batch.attachment_message_id or batch.last_message_id,
+                        batch.voice_transcript,
+                    )
+                )
         return due
 
     def pending_keys(self) -> list[str]:

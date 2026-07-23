@@ -15,7 +15,7 @@ def test_single_message_flushes_after_the_window():
     b = MessageBatcher(window_seconds=3.0)
     b.add("c1:u1", "hola", now=100.0)
     assert b.pop_due(now=101.0) == []  # still within the window
-    assert b.pop_due(now=104.0) == [("c1:u1", "hola", None)]  # quiet past 3s
+    assert b.pop_due(now=104.0) == [("c1:u1", "hola", None, "")]  # quiet past 3s
 
 
 def test_burst_collapses_into_one_batch_the_debounce_resets():
@@ -26,14 +26,14 @@ def test_burst_collapses_into_one_batch_the_debounce_resets():
     b.add("c1:u1", "de las pelis", now=102.0)
     # At 104 only 2s have passed since the LAST message — still batching.
     assert b.pop_due(now=104.0) == []
-    assert b.pop_due(now=105.5) == [("c1:u1", "oye\nuna pregunta\nde las pelis", None)]
+    assert b.pop_due(now=105.5) == [("c1:u1", "oye\nuna pregunta\nde las pelis", None, "")]
 
 
 def test_different_keys_are_independent():
     b = MessageBatcher(window_seconds=3.0)
     b.add("c1:u1", "de u1", now=100.0)
     b.add("c1:u2", "de u2", now=100.5)
-    due = {key: text for key, text, _ in b.pop_due(now=104.0)}
+    due = {key: text for key, text, _, _ in b.pop_due(now=104.0)}
     assert due == {"c1:u1": "de u1", "c1:u2": "de u2"}
 
 
@@ -43,7 +43,7 @@ def test_last_message_id_is_the_reaction_anchor():
     b = MessageBatcher(window_seconds=3.0)
     b.add("c1:u1", "oye", now=100.0, message_id="m1")
     b.add("c1:u1", "de las pelis", now=101.0, message_id="m2")
-    assert b.pop_due(now=105.0) == [("c1:u1", "oye\nde las pelis", "m2")]
+    assert b.pop_due(now=105.0) == [("c1:u1", "oye\nde las pelis", "m2", "")]
 
 
 def test_whitespace_trailer_never_steals_the_reaction_anchor():
@@ -52,7 +52,7 @@ def test_whitespace_trailer_never_steals_the_reaction_anchor():
     b = MessageBatcher(window_seconds=3.0)
     b.add("c1:u1", "la pregunta", now=100.0, message_id="m1")
     b.add("c1:u1", "   ", now=101.0, message_id="m2")  # whitespace only
-    assert b.pop_due(now=105.0) == [("c1:u1", "la pregunta", "m1")]
+    assert b.pop_due(now=105.0) == [("c1:u1", "la pregunta", "m1", "")]
 
 
 def test_whitespace_only_burst_routes_nothing():
@@ -67,7 +67,7 @@ def test_whitespace_only_burst_routes_nothing():
 def test_flushed_batch_is_removed_not_repeated():
     b = MessageBatcher(window_seconds=3.0)
     b.add("c1:u1", "hola", now=100.0)
-    assert b.pop_due(now=104.0) == [("c1:u1", "hola", None)]
+    assert b.pop_due(now=104.0) == [("c1:u1", "hola", None, "")]
     assert b.pop_due(now=110.0) == []  # not re-delivered
     assert b.pending_keys() == []
 

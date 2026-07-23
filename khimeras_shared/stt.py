@@ -18,6 +18,22 @@ log = structlog.get_logger()
 
 STT_TIMEOUT_S = 30.0
 DEFAULT_AUDIO_CONTENT_TYPE = "audio/ogg"
+VOICE_FILENAME_SUFFIXES = (".ogg", ".opus", ".mp3", ".m4a", ".wav", ".webm")
+
+
+def is_audio_attachment(*, content_type: str | None, filename: str | None, voice_message: bool) -> bool:
+    """Whether one Discord attachment is audio the STT lane should claim.
+
+    Field-level (not `discord.Message`-level) so BOTH readers share one
+    definition: the gateway's ingest and the host's receiver. A drifted copy
+    would mean one of them transcribes an attachment the other treats as a
+    readable document.
+    """
+    ctype = (content_type or "").lower()
+    if ctype.startswith("audio/"):
+        return True
+    name = (filename or "").lower()
+    return bool(voice_message and (not ctype or name.endswith(VOICE_FILENAME_SUFFIXES)))
 
 
 @dataclass(frozen=True)
@@ -96,8 +112,10 @@ async def transcribe_voice_message(
 __all__ = [
     "DEFAULT_AUDIO_CONTENT_TYPE",
     "STT_TIMEOUT_S",
+    "VOICE_FILENAME_SUFFIXES",
     "SttTranscript",
     "SusurroSttClient",
     "build_susurro_stt_client",
+    "is_audio_attachment",
     "transcribe_voice_message",
 ]

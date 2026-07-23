@@ -1,10 +1,10 @@
 """Message ingestion — a Discord message's attachments → runner-ready inputs.
 
-Two lanes out of one summoning message: readable attachments (images, text,
-PDFs) become Anthropic content blocks via the shared processor, and
-voice-message audio becomes text transcripts via susurro STT. The gateway's
-turn builders (`_handle`, `respond_to_invite`) consume both lanes and never
-touch the classification/download mechanics themselves.
+Readable attachments (images, text, PDFs) become Anthropic content blocks via
+the shared processor. Audio is NOT this module's business: the host owns
+reception and therefore owns transcription (2026-07-23), and ships the words on
+the `/invite` wire — so audio attachments are only classified here, to keep them
+out of the document lane.
 """
 
 from __future__ import annotations
@@ -15,24 +15,17 @@ import discord
 import structlog
 
 from khimeras_shared.attachments import process_attachments
-from khimeras_shared.stt import (
-    DEFAULT_AUDIO_CONTENT_TYPE,
-    SusurroSttClient,
-    transcribe_voice_message,
-)
+from khimeras_shared.stt import is_audio_attachment
 from shared.personas import Persona
 
 log = structlog.get_logger()
 
-_VOICE_FILENAME_SUFFIXES = (".ogg", ".opus", ".mp3", ".m4a", ".wav", ".webm")
-
 
 class MessageIngest:
-    """Turns one message's attachments into blocks + transcripts for the runner."""
+    """Turns one message's readable attachments into blocks for the runner."""
 
-    def __init__(self, persona: Persona, stt_client: SusurroSttClient | None) -> None:
+    def __init__(self, persona: Persona) -> None:
         self.persona = persona
-        self._stt_client = stt_client
 
     async def attachment_blocks(self, message: discord.Message) -> list[dict]:
         """Image/document attachments of the summoning message → Anthropic blocks.
@@ -63,51 +56,8 @@ class MessageIngest:
 
     @staticmethod
     def is_audio_attachment(attachment, message: discord.Message) -> bool:
-        content_type = (getattr(attachment, "content_type", None) or "").lower()
-        if content_type.startswith("audio/"):
-            return True
-        filename = (getattr(attachment, "filename", None) or "").lower()
-        return bool(
-            getattr(message.flags, "voice", False) and (not content_type or filename.endswith(_VOICE_FILENAME_SUFFIXES))
+        return is_audio_attachment(
+            content_type=getattr(attachment, "content_type", None),
+            filename=getattr(attachment, "filename", None),
+            voice_message=bool(getattr(message.flags, "voice", False)),
         )
-
-    async def voice_transcripts(self, message: discord.Message) -> list[str]:
-        """Voice-message audio → text via susurro STT. Empty when STT is off.
-
-        Per-attachment failures are logged and skipped — a broken voice note must
-        never kill the turn the text part of the message still deserves.
-        """
-        if not message.attachments or self._stt_client is None:
-            return []
-
-        transcripts: list[str] = []
-        for attachment in message.attachments:
-            if not self.is_audio_attachment(attachment, message):
-                continue
-            content_type = getattr(attachment, "content_type", None) or DEFAULT_AUDIO_CONTENT_TYPE
-            try:
-                audio_data = await attachment.read()
-                transcript = await transcribe_voice_message(
-                    audio_data,
-                    base_url=self._stt_client.base_url,
-                    api_key=self._stt_client.api_key,
-                    content_type=content_type,
-                )
-            except Exception as exc:
-                log.error(
-                    "persona_gateway_stt_failed",
-                    persona_id=self.persona.persona_id,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-                continue
-            if transcript is None:
-                continue
-            log.info(
-                "persona_gateway_stt_transcribed",
-                persona_id=self.persona.persona_id,
-                length=len(transcript),
-                engine=getattr(transcript, "engine", None),
-            )
-            transcripts.append(str(transcript))
-        return transcripts

@@ -1,13 +1,15 @@
-"""Invite turns transcribe the trigger message's voice notes.
+"""Invite turns carry the voice note's words — transcribed by the HOST.
 
-The 2026-07-23 bug: Bernard's audios reached the persona MUTE. STT was wired
-only into `_handle`, and `HOST_OWNS_RECEPTION=true` had demoted that path to
-zero traffic — the host routed "[adjuntó: voice-message.ogg]" and nobody ever
-called susurro. Same shape as the 2026-07-16 blind image.
+2026-07-23, in two moves. First: Bernard's audios reached the persona MUTE —
+STT was wired only into `_handle`, which `HOST_OWNS_RECEPTION=true` had demoted
+to zero traffic, so the host routed "[adjuntó: voice-message.ogg]" and nobody
+transcribed it. Then Bernard's call on the architecture: the host owns
+reception, so the host owns susurro — nobody else talks to it. The gateway now
+READS the transcript off the `/invite` wire.
 
-Mutator rule: positive (voice note → transcript rides the instruction turn AND
-is persisted as the user's words) + resistance (STT fault → the turn still
-lands, never a dead invite).
+Mutator rule: positive (the wire transcript reaches both the instruction the
+model reads and the user row persisted to memory) + resistance (no transcript →
+a plain text-only turn, and the gateway never calls susurro itself).
 """
 
 from __future__ import annotations
@@ -18,9 +20,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
-from khimeras_shared.stt import SusurroSttClient
 from persona_gateway.gateway import PersonaClient
 from shared.personas import Persona
+
+SPOKEN = "quiero migrar el runner a otra región"
 
 
 class _Typing:
@@ -43,13 +46,7 @@ def _client(reply_text: str) -> PersonaClient:
     memory.get_recent = AsyncMock(return_value=[])
     agent_client = MagicMock()
     agent_client.chat = AsyncMock(return_value=SimpleNamespace(text=reply_text, model_used="claude"))
-    return PersonaClient(
-        persona,
-        memory,
-        agent_client,
-        intents=discord.Intents.none(),
-        stt_client=SusurroSttClient(base_url="https://sus.example", api_key="k"),
-    )
+    return PersonaClient(persona, memory, agent_client, intents=discord.Intents.none())
 
 
 def _invite_channel():
@@ -64,7 +61,6 @@ def _voice_trigger():
     attachment = MagicMock()
     attachment.content_type = "audio/ogg"
     attachment.filename = "voice-message.ogg"
-    attachment.read = AsyncMock(return_value=b"OggS")
     trigger = MagicMock()
     trigger.id = 1527198401375113227
     trigger.content = ""
@@ -74,7 +70,7 @@ def _voice_trigger():
     return trigger
 
 
-async def _invite(client: PersonaClient, channel) -> None:
+async def _invite(client: PersonaClient, channel, transcript: str) -> None:
     with patch.object(client, "get_channel", return_value=channel):
         await client.respond_to_invite(
             channel_id="1489180895264116736",
@@ -83,42 +79,43 @@ async def _invite(client: PersonaClient, channel) -> None:
             reason="bernard2389: «[adjuntó: voice-message.ogg]»",
             invited_by="host_router",
             trigger_message_id="1527198401375113227",
+            trigger_transcript=transcript,
         )
         await asyncio.sleep(0)
 
 
-async def test_invite_voice_note_is_transcribed_into_the_turn():
+async def test_wire_transcript_reaches_the_turn_and_memory():
     client = _client("Ya te oí, y sigue siendo mala idea.")
     channel = _invite_channel()
     channel.fetch_message.return_value = _voice_trigger()
-    with patch(
-        "persona_gateway.ingest.transcribe_voice_message",
-        new=AsyncMock(return_value="quiero migrar el runner a otra región"),
-    ):
-        await _invite(client, channel)
+    await _invite(client, channel, SPOKEN)
 
-    messages = client.agent_client.chat.await_args.args[1]
-    instruction = messages[-1]["content"]
+    instruction = client.agent_client.chat.await_args.args[1][-1]["content"]
     assert isinstance(instruction, str)
-    assert "quiero migrar el runner a otra región" in instruction
+    assert SPOKEN in instruction
 
     user_rows = [c.args for c in client.memory.store.await_args_list if c.args[3] == "user"]
     assert user_rows, "el turno de voz del humano nunca se persistió"
-    assert "quiero migrar el runner a otra región" in user_rows[0][4]
+    assert SPOKEN in user_rows[0][4]
 
 
-async def test_invite_stt_fault_degrades_to_text_only_turn():
-    client = _client("Llego igual sin el audio.")
+async def test_no_transcript_keeps_a_plain_turn():
+    client = _client("Respondo al hilo.")
     channel = _invite_channel()
     channel.fetch_message.return_value = _voice_trigger()
-    with patch(
-        "persona_gateway.ingest.transcribe_voice_message",
-        new=AsyncMock(side_effect=RuntimeError("susurro down")),
-    ):
-        await _invite(client, channel)
+    await _invite(client, channel, "")
 
-    messages = client.agent_client.chat.await_args.args[1]
-    assert isinstance(messages[-1]["content"], str)
-    assert "Nota de voz" not in messages[-1]["content"]
-    sent = " ".join(str(c) for c in channel.send.call_args_list)
-    assert "Llego igual sin el audio." in sent
+    instruction = client.agent_client.chat.await_args.args[1][-1]["content"]
+    assert "Nota de voz" not in instruction
+
+
+async def test_gateway_never_calls_susurro_itself():
+    """RESISTANCE: transcription belongs to the host. If the gateway ever grows
+    its own STT call again, this fails."""
+    client = _client("ok")
+    channel = _invite_channel()
+    channel.fetch_message.return_value = _voice_trigger()
+    transcribe = AsyncMock(return_value="no debería llamarse")
+    with patch("khimeras_shared.stt.transcribe_voice_message", new=transcribe):
+        await _invite(client, channel, SPOKEN)
+    transcribe.assert_not_awaited()

@@ -47,6 +47,7 @@ async def route_and_dispatch(
     context: str | None = None,
     trigger_message_id: str | None = None,
     forced_target: str | None = None,
+    voice_transcript: str = "",
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the router decision (for
     telemetry) or None if routing faulted.
@@ -54,6 +55,10 @@ async def route_and_dispatch(
     The persona is reached through the gateway `/invite`; the reason carries the
     user's ask verbatim (capped) so the summoned persona reads what it's answering.
     A routing exception is logged and swallowed — the host keeps receiving.
+
+    `voice_transcript` rides UNCAPPED and separate from the capped reason: the
+    host owns susurro, so this is the persona's only copy of what was said, and
+    a 600-char cap would silently truncate a long voice note.
     """
     if forced_target:
         reason = f"{user_name}: «{text[:600]}»" if user_name else text[:600]
@@ -65,6 +70,7 @@ async def route_and_dispatch(
             persona_id=forced_target,
             invited_by="host",
             trigger_message_id=trigger_message_id,
+            trigger_transcript=voice_transcript,
         )
         log.info(
             "host_mention_shortcircuit",
@@ -94,6 +100,7 @@ async def route_and_dispatch(
         persona_id=target,
         invited_by="host",
         trigger_message_id=trigger_message_id,
+        trigger_transcript=voice_transcript,
     )
     log.info(
         "host_dispatched",
