@@ -41,3 +41,4 @@ discord_backup_codes.txt
 # writes its per-case detail here). Verbatim conversations — health, money, drugs.
 scratchpad/
 .claude/tmp_*
+.probe/

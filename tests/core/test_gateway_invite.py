@@ -3,7 +3,7 @@
 This is the port of personas.alice.api.server onto the persona gateway so ALICE
 runs on ONE host (kills the double-reply "metiche") and the legacy alice-bot can
 be retired. Mutator/contract rule: positive (valid token + ready persona → 202
-schedules respond_to_invite with the right args) + resistance (no token / bad
+schedules dispatch_invite with the right args) + resistance (no token / bad
 token / unconfigured / persona-not-ready all refuse, never schedule).
 """
 
@@ -26,8 +26,8 @@ PAYLOAD = {
 
 
 def _ready_client() -> SimpleNamespace:
-    """A booted persona client: .user is set, respond_to_invite is awaitable."""
-    return SimpleNamespace(user=SimpleNamespace(id=1503983124982534284), respond_to_invite=AsyncMock())
+    """A booted persona client: .user is set, dispatch_invite is awaitable."""
+    return SimpleNamespace(user=SimpleNamespace(id=1503983124982534284), dispatch_invite=AsyncMock())
 
 
 def test_invite_happy_path_schedules_with_args():
@@ -37,8 +37,8 @@ def test_invite_happy_path_schedules_with_args():
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
     assert r.json() == {"status": "invited", "channel_id": PAYLOAD["channel_id"], "detail": None}
-    client.respond_to_invite.assert_called_once()
-    kwargs = client.respond_to_invite.call_args.kwargs
+    client.dispatch_invite.assert_called_once()
+    kwargs = client.dispatch_invite.call_args.kwargs
     assert kwargs["channel_id"] == PAYLOAD["channel_id"]
     assert kwargs["reason"] == PAYLOAD["reason"]
     assert kwargs["invited_by"] == "insult_rest"
@@ -54,7 +54,7 @@ def test_invite_forwards_trigger_message_id():
     with TestClient(app) as http:
         r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
-    kwargs = client.respond_to_invite.call_args.kwargs
+    kwargs = client.dispatch_invite.call_args.kwargs
     assert kwargs["trigger_message_id"] == "1526655478313127987"
 
 
@@ -64,7 +64,7 @@ def test_invite_missing_token_is_401():
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD)
     assert r.status_code == 401
-    client.respond_to_invite.assert_not_called()
+    client.dispatch_invite.assert_not_called()
 
 
 def test_invite_bad_token_is_401():
@@ -73,7 +73,7 @@ def test_invite_bad_token_is_401():
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": "Bearer wrong"})
     assert r.status_code == 401
-    client.respond_to_invite.assert_not_called()
+    client.dispatch_invite.assert_not_called()
 
 
 def test_invite_unconfigured_token_is_503():
@@ -83,7 +83,7 @@ def test_invite_unconfigured_token_is_503():
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": "Bearer anything"})
     assert r.status_code == 503
-    client.respond_to_invite.assert_not_called()
+    client.dispatch_invite.assert_not_called()
 
 
 def test_invite_persona_not_registered_is_503():
@@ -96,12 +96,12 @@ def test_invite_persona_not_registered_is_503():
 
 def test_invite_persona_not_ready_is_503():
     # RESISTANCE: persona registered but pre-on_ready (user is None) → 503, no schedule.
-    client = SimpleNamespace(user=None, respond_to_invite=AsyncMock())
+    client = SimpleNamespace(user=None, dispatch_invite=AsyncMock())
     app = build_invite_app({INVITE_PERSONA_ID: client}, TOKEN)
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 503
-    client.respond_to_invite.assert_not_called()
+    client.dispatch_invite.assert_not_called()
 
 
 def test_health_is_public():
@@ -122,9 +122,9 @@ def test_invite_persona_id_routes_to_that_persona():
     with TestClient(app) as http:
         r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
-    vultur.respond_to_invite.assert_called_once()
-    alice.respond_to_invite.assert_not_called()
-    kwargs = vultur.respond_to_invite.call_args.kwargs
+    vultur.dispatch_invite.assert_called_once()
+    alice.dispatch_invite.assert_not_called()
+    kwargs = vultur.dispatch_invite.call_args.kwargs
     assert kwargs["invited_by"] == "host_router"
 
 
@@ -137,9 +137,9 @@ def test_invite_omitted_persona_id_keeps_alice_wire_contract():
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
-    alice.respond_to_invite.assert_called_once()
-    vultur.respond_to_invite.assert_not_called()
-    assert alice.respond_to_invite.call_args.kwargs["invited_by"] == "insult_rest"
+    alice.dispatch_invite.assert_called_once()
+    vultur.dispatch_invite.assert_not_called()
+    assert alice.dispatch_invite.call_args.kwargs["invited_by"] == "insult_rest"
 
 
 def test_invite_explicit_unknown_persona_is_400():
@@ -151,4 +151,4 @@ def test_invite_explicit_unknown_persona_is_400():
     with TestClient(app) as http:
         r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 400
-    alice.respond_to_invite.assert_not_called()
+    alice.dispatch_invite.assert_not_called()

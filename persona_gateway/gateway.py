@@ -323,6 +323,47 @@ class PersonaClient(discord.Client):
         # never sit between the user and their reply.
         self._vision.spawn(self.judge_client, str(message.id), attachment_blocks)
 
+    async def dispatch_invite(
+        self,
+        *,
+        channel_id: str,
+        guild_id: str | None,
+        channel_name: str | None,
+        reason: str,
+        invited_by: str = "insult_rest",
+        trigger_message_id: str | None = None,
+    ) -> None:
+        """Guarded entry for the invite path — what `/invite` schedules.
+
+        `_dispatch` has protected the @mention path since day one, but the
+        invite path — which the host cutover made THE path — ran as a bare
+        `create_task`, so any fault died as "Task exception was never
+        retrieved" and the user got NOTHING. Found 2026-07-23: a runner 422
+        left a voice note unanswered with the failure visible only in the
+        logs. Same contract as `_dispatch`: log, then a neutral "…" so the
+        persona is never silently mute.
+        """
+        try:
+            await self.respond_to_invite(
+                channel_id=channel_id,
+                guild_id=guild_id,
+                channel_name=channel_name,
+                reason=reason,
+                invited_by=invited_by,
+                trigger_message_id=trigger_message_id,
+            )
+        except Exception:
+            log.exception(
+                "persona_gateway_invite_failed",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+                invited_by=invited_by,
+            )
+            channel = await resolve_messageable(self, channel_id)
+            if channel is not None:
+                with contextlib.suppress(discord.HTTPException):
+                    await channel.send("…")
+
     async def respond_to_invite(
         self,
         *,

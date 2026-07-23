@@ -225,14 +225,27 @@ class FactsRepository(BaseRepository):
         `PgMemoryStore.semantic_search` already falls back to unranked
         `get_facts` when no embedder is wired, the query can't embed, or
         the user has zero embedded rows — so this stays a single safe
-        entry point regardless of pgvector state."""
+        entry point regardless of pgvector state.
+
+        `limit` is enforced HERE, on every path, because those fallbacks
+        IGNORE it: on 2026-07-23 a voice note whose embedding failed came back
+        with all 4115 of Bernard's facts, inflating the runner payload to
+        376,300 chars, and the turn died on a 422 (`user_text` > 256000
+        characters). A fallback that leaves the bot mute is worse than no
+        fallback."""
         try:
             facts = await self._get_store().semantic_search(user_id, query, limit=limit)
-            log.info("facts_semantic_search", user_id=user_id, query=query[:50], results=len(facts))
-            return [_fact_to_dict(f) for f in facts]
+            log.info(
+                "facts_semantic_search",
+                user_id=user_id,
+                query=query[:50],
+                results=len(facts),
+                capped=len(facts) > limit,
+            )
+            return [_fact_to_dict(f) for f in facts[:limit]]
         except Exception as e:
             log.warning("facts_semantic_search_failed", user_id=user_id, error=str(e))
-            return await self.get_facts(user_id)
+            return (await self.get_facts(user_id))[:limit]
 
     # ------------------------------------------------------------------
     # Local SQL — out of MemoryStore scope (cross-user) or consolidator-owned

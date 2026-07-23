@@ -182,7 +182,7 @@ def build_invite_app(
         # Fire-and-forget: the persona responds asynchronously. Keep a reference
         # on app state so the task isn't GC'd mid-flight (RUF006); auto-pruned.
         task = asyncio.create_task(
-            client.respond_to_invite(
+            client.dispatch_invite(
                 channel_id=req.channel_id,
                 guild_id=req.guild_id,
                 channel_name=req.channel_name,
