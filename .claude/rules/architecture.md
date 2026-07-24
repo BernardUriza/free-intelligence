@@ -134,6 +134,18 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   human-like delay; background tasks tracked in a set for lifecycle.
 - Durable markers (`[REMIND:]`, `[AGENDA:]`, `[RESEARCH:]`, `[REMEMBER:]`)
   persist to Postgres; gateway workers (`persona_gateway/workers/`) deliver.
+- **`[GIF: tag]`** (`khimeras_shared/gifs.py`, 2026-07-23): the persona posts a
+  GIF from its OWN catalog — `shared/personas/guidance/<id>/gifs/catalog.md`,
+  `tag: url` per line, hot-editable. The model emits an INTENT, never a URL: a
+  tag with no entry posts NOTHING, which is the anti-hallucination guard (a GIF
+  id is an opaque number the model would invent). Hosts are allowlisted. The URL
+  ships as its own bare message — no version tag, no chunking — because Discord
+  only unfurls a standalone URL cleanly (same sidecar shape as the host's voice
+  echo). The available tags are injected into the turn guidance; without them the
+  model cannot use a repertoire it was never shown. **Why a catalog and not an
+  API:** Google killed the Tenor API on 2026-06-30 (no new keys since January);
+  Discord's own picker now serves from Klipy + Giphy. Existing `tenor.com/view/…`
+  URLs still render — the unfurl scrapes the site, which outlived the API.
 
 ## Preset System (`khimeras_shared/behavior/presets/`)
 - 6 behavioral modes: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION

@@ -34,6 +34,7 @@ from khimeras_shared.behavior import (
     is_vulnerable_overlay_selection,
 )
 from khimeras_shared.constraints import build_constraints_block
+from khimeras_shared.gifs import catalog_block
 
 log = structlog.get_logger()
 
@@ -86,6 +87,12 @@ def build_turn_guidance(
         overlay_on = is_vulnerable_overlay_selection(selection)
         if overlay_on:
             parts.append(build_vulnerable_overlay_prompt(persona_id))
+        # A persona cannot use a repertoire it was never shown: without the tag
+        # list the model either never emits [GIF:] or invents a tag that resolves
+        # to nothing. Absent catalog → block is None → feature simply off.
+        gif_block = catalog_block(persona_id)
+        if gif_block:
+            parts.append(gif_block)
         guidance = "\n\n".join(p for p in parts if p and p.strip()).strip()
         if not guidance:
             return None

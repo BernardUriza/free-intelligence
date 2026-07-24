@@ -14,6 +14,7 @@ import contextlib
 import discord
 import structlog
 
+from khimeras_shared.gifs import resolve_gifs, strip_gif_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.runner.agent_client import AgentRunnerClient
@@ -131,10 +132,18 @@ class TurnRunner:
         # Durable markers (research/agenda/remind/remember): persist the side
         # effects and strip them so only the in-character ack reaches Discord.
         text = await self._markers.route(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
-        if not text:
+        # `[GIF: tag]` resolves against the persona's OWN catalog. Parsed BEFORE
+        # the empty-text return so a reply that is only a GIF still posts it.
+        gif_urls = resolve_gifs(self.persona.persona_id, text)
+        text = strip_gif_markers(text)
+        if not text and not gif_urls:
             return
 
-        await send_chunked(channel, text)
+        if text:
+            await send_chunked(channel, text)
+        await self._send_gifs(channel, gif_urls, turn_kind=turn_kind)
+        if not text:
+            return
 
         # What was actually said in Discord is the delimiter-free text — memory
         # and voice never see the `[SEND]` pacing marker.
@@ -162,3 +171,29 @@ class TurnRunner:
         # listen instead of reading a wall (gated by auto_tts_min_chars; 0=off).
         if self._voice.should_auto_speak(delivered, self.auto_tts_min_chars):
             await self._voice.speak(channel, delivered, reason="auto")
+
+    async def _send_gifs(self, channel, urls: list[str], *, turn_kind: str) -> None:
+        """Post each GIF as its OWN bare message — no version tag, no chunking.
+
+        A GIF is a sidecar, like the host's transcript echo: Discord only unfurls
+        it cleanly when the URL stands alone, and the `-# ᵛ…` suffix
+        `send_chunked` appends would hang text off the embed. Failure is silent
+        by design — a GIF that will not post must never cost the reply that
+        already landed.
+        """
+        for url in urls:
+            try:
+                await channel.send(url)
+            except Exception:
+                log.warning(
+                    "persona_gateway_gif_send_failed",
+                    persona_id=self.persona.persona_id,
+                    turn_kind=turn_kind,
+                    exc_info=True,
+                )
+                continue
+            log.info(
+                "persona_gateway_gif_sent",
+                persona_id=self.persona.persona_id,
+                turn_kind=turn_kind,
+            )
