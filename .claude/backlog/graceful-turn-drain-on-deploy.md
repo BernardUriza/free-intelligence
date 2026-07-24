@@ -59,9 +59,24 @@ No construido. `personas/insult/bot.py` murió en la purga — los dos hosts viv
 son `persona_gateway/boot.py` y el `persona_runner`.
 
 Orden sugerido (el retry primero: es 20 líneas y cubre el caso real de hoy):
-1. **Retry 502/503 en `khimeras_shared/runner/agent_client.py`** — 2 intentos,
-   backoff con jitter, solo para esos códigos (nunca para un 4xx, que es un bug
-   nuestro). Convierte el turno perdido en un turno tardío.
-2. **Drain en el runner**: dejar de aceptar `/v1/turn` al recibir SIGTERM y
-   esperar a las sesiones activas con timeout duro < `terminationGracePeriod`.
-3. Lo mismo en el gateway + subir `terminationGracePeriodSeconds` en ACA.
+1. ✅ **HECHO (2026-07-24, v4.32.1)** — Retry 502/503 en
+   `khimeras_shared/runner/agent_client.py`. Loop externo (`transient_max_retries=2`)
+   que envuelve el connect-retry: un 502/503 (el runner devuelve
+   `HTTPException(502, "agent loop failed")` cuando su subprocess SDK muere) se
+   re-POSTea con full-jitter backoff (base 0.75s, cap 3s). SOLO 502/503 —
+   un 500 es un bug definido (no retry), un 4xx es turno rechazado (no retry),
+   un ReadTimeout puede haber landeado (no retry, double-spend). Un 502
+   PERSISTENTE agota los reintentos y degrada honestamente vía `RunnerDownError`.
+   Tests: `tests/integration/test_agent_client_connect_retry.py`
+   (502→retry→éxito, 503→retry→éxito, 502-persistente→RunnerDownError,
+   500-no-retry, 4xx-no-retry). Costo aceptado documentado en el código: el
+   turno matado pudo gastar tokens antes de morir, así que el retry lo
+   double-spendea — aceptable porque el primer gasto no entregó nada y la
+   muerte típica por reinicio es `stop_reason=null` (generación nunca completó).
+   **El retry convierte el turno perdido en tardío, PERO no cierra el hueco raíz:**
+   si el rolling update tarda más que la ventana de retry (~2s), sigue cayendo al
+   guard. Los pasos 2-3 (drenaje) son la cura de raíz.
+2. **Drain en el runner** (PENDIENTE): dejar de aceptar `/v1/turn` al recibir
+   SIGTERM y esperar a las sesiones activas con timeout duro <
+   `terminationGracePeriod`.
+3. Lo mismo en el gateway + subir `terminationGracePeriodSeconds` en ACA (PENDIENTE).
