@@ -117,6 +117,18 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   (`khimeras_shared/guidance.py`) classifies the preset against the user's
   facts and ships the rendered guidance + vulnerable-user overlay to the runner
   on the wire. Fail-safe: any fault → normal turn.
+- **User invariants ride EVERY turn** (`khimeras_shared/constraints.py`,
+  2026-07-23): facts tagged `category='constraint'` — atheist, vegan, allergies,
+  does-not-drive, estrangements — are restrictions on what may be SAID, not
+  trivia competing for prompt space. They are rendered FIRST into
+  `behavioral_guidance` (so the 16k truncation eats preset prose, never an
+  invariant), derived from the facts the guardian already loaded (zero extra
+  queries), and deduped by containment (the ADD-only store holds one invariant
+  in a dozen wordings). **Why it exists:** asked about concerts, the persona
+  offered Bernard a Christian-rock band — the only automatic fact channel is
+  `RELEVANT_FACTS_LIMIT = 8` ranked by similarity to the ask, and no invariant
+  ever resembles the topic. Backfill of pre-tag facts:
+  `scripts/backfill_constraints.py` (dry-run by default, UPDATE-only).
 - Emoji reactions parsed from `[REACT:]` markers
   (`khimeras_shared/reactions.py`), executed async in background with
   human-like delay; background tasks tracked in a set for lifecycle.

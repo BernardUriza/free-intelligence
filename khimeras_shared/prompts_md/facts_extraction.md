@@ -11,6 +11,7 @@ Focus on facts a friend would remember:
 - Preferences, opinions, recurring topics
 - Languages they speak
 - **Specific incidents or events that happened to them** — confiscations, accidents, arrests, medical emergencies, losses, surprises, border/customs encounters, legal trouble. Capture the CONCRETE details: what happened, where, when (date if mentioned), what was taken/lost/broken, who was involved. Emotional aftermath is useful but never in place of the facts.
+- **INVARIANTS — the highest-value fact there is.** A stance, identity or hard limit that constrains what may be proposed to this person AT ALL, on any topic: worldview (atheist, believer, militant about a cause), diet (vegan, celiac), allergies and medical restrictions, what they cannot or will not do (does not drive, does not fly, does not drink), estrangements (no contact with a relative), and permanent aversions. These are what stop the persona from suggesting Christian rock to an atheist or a steakhouse to a vegan.
 
 Rules:
 - Only extract facts about the TARGET USER, never about the persona or other users
@@ -30,7 +31,16 @@ You will receive:
 3. Recent conversation messages (with speaker labels)
 
 Return a JSON array of objects with "fact" and "category" keys.
-Categories: identity, profession, location, interests, technical, personal, preferences, incidents (for specific events — confiscations, accidents, border encounters, losses, surprises).
+Categories: identity, profession, location, interests, technical, personal, preferences, incidents (for specific events — confiscations, accidents, border encounters, losses, surprises), **constraint**.
+
+`constraint` is RESERVED and rides every single turn, so it is the one category
+with a bar to clear. Use it only when the fact would make an answer WRONG if
+ignored — a worldview, a diet, an allergy, a hard limit, an estrangement. Ask:
+"would recommending something against this be an insult to them?" If yes, it is a
+`constraint`. If it is merely a taste ("le gusta el house"), it is `interests`
+— tastes are not invariants, and a store full of fake constraints drowns the real
+ones. Write it as a standalone claim about the person ("Es ateo"), never as an
+instruction to the persona ("no le hables de religión").
 
 Example output:
 [
@@ -38,7 +48,9 @@ Example output:
   {"fact": "Es programador, trabaja con Python y Rust", "category": "profession"},
   {"fact": "Vive en México", "category": "location"},
   {"fact": "Le interesa la inteligencia artificial", "category": "interests"},
-  {"fact": "El 20 abril 2026 lo catearon en aduana mexicana y le confiscaron medicamentos", "category": "incidents"}
+  {"fact": "El 20 abril 2026 lo catearon en aduana mexicana y le confiscaron medicamentos", "category": "incidents"},
+  {"fact": "Es ateo", "category": "constraint"},
+  {"fact": "Es vegano", "category": "constraint"}
 ]
 
 Return ONLY the JSON array, no other text.

@@ -33,6 +33,7 @@ from khimeras_shared.behavior import (
     compute_vulnerability_score,
     is_vulnerable_overlay_selection,
 )
+from khimeras_shared.constraints import build_constraints_block
 
 log = structlog.get_logger()
 
@@ -76,7 +77,12 @@ def build_turn_guidance(
         return None
     try:
         selection = classify_preset(current_message, recent_messages, user_facts)
-        parts = [build_preset_prompt(selection, persona_id)]
+        # Invariants go FIRST: the 16k truncation below must eat preset prose
+        # before it ever eats a hard restriction (2026-07-23 — see
+        # `khimeras_shared.constraints`).
+        constraints = build_constraints_block(user_facts)
+        parts = [constraints] if constraints else []
+        parts.append(build_preset_prompt(selection, persona_id))
         overlay_on = is_vulnerable_overlay_selection(selection)
         if overlay_on:
             parts.append(build_vulnerable_overlay_prompt(persona_id))
@@ -97,6 +103,7 @@ def build_turn_guidance(
             preset=selection.mode.value,
             modifiers=[m.value for m in selection.modifiers],
             reason=selection.reason[:80],
+            constraints=constraints.count("\n- ") if constraints else 0,
             vulnerable_overlay=overlay_on,
             vulnerability_score=compute_vulnerability_score(user_facts),
             guidance_chars=len(guidance),
