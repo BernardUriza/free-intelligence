@@ -1,4 +1,5 @@
 import * as react from 'react';
+import { RefObject } from 'react';
 
 /**
  * fi-glass · shell types — the SHARED vocabulary live surfaces speak.
@@ -74,6 +75,52 @@ interface BreakpointMatches {
 declare function useBreakpoints(breakpoints: Breakpoints, options?: Pick<UseMediaQueryOptions, 'ssrMatch'>): BreakpointMatches;
 declare function clearMediaQueryCache(): void;
 
+/**
+ * fi-glass · useEdgeSwipe — the native drawer gesture (B3-FIGLASS-SWIPE-1).
+ *
+ * The off-canvas drawer of AgentWorkspaceShell opened only by tapping the
+ * hamburger. On a phone the expected affordance is the gesture: drag from the
+ * left edge to the right to pull the panel in, drag left to push it back out,
+ * with the panel FOLLOWING the finger and settling by distance or flick speed.
+ *
+ * It is deliberately a shell-level primitive (not agent-level): any drawer
+ * surface can consume it. The hook owns only the gesture math and returns a
+ * 0..1 `progress` while a drag is live (`null` otherwise) — the consumer decides
+ * how that paints, so fi-glass never assumes a visual.
+ *
+ * Contract notes:
+ *  - touch only. A mouse/trackpad has no edge-swipe idiom and a pointer version
+ *    would fight text selection.
+ *  - the axis is decided once per gesture: past the slop, a mostly-vertical move
+ *    releases the gesture so the conversation/list keeps scrolling normally.
+ *  - listeners are native + `{ passive: false }`; React's delegated touch
+ *    handlers cannot preventDefault the horizontal pan.
+ */
+
+interface EdgeSwipeOptions {
+    /** Master switch — the consumer passes `false` outside drawer mode. */
+    enabled: boolean;
+    /** Current drawer state: decides whether a gesture opens or closes. */
+    isOpen: boolean;
+    /** Element the gesture is listened on (the shell root). */
+    containerRef: RefObject<HTMLElement | null>;
+    /** The drawer panel — measured to convert pixels into progress. */
+    panelRef: RefObject<HTMLElement | null>;
+    onOpen: () => void;
+    onClose: () => void;
+    /** Width of the left hot zone that starts an OPEN gesture. Default 24px. */
+    edgeSize?: number;
+    /** Used when the panel cannot be measured (SSR/jsdom). Default 280px. */
+    fallbackWidth?: number;
+    /** Fraction of the panel width that commits the gesture. Default 0.4. */
+    distanceRatio?: number;
+    /** Flick speed (px/ms) that commits regardless of distance. Default 0.35. */
+    velocity?: number;
+    /** Movement before the axis is decided. Default 8px. */
+    axisSlop?: number;
+}
+declare function useEdgeSwipe({ enabled, isOpen, containerRef, panelRef, onOpen, onClose, edgeSize, fallbackWidth, distanceRatio, velocity, axisSlop, }: EdgeSwipeOptions): number | null;
+
 declare const FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 /** Inject the idempotent touch-target stylesheet (no-op on the server / if already present). */
 declare function ensureTouchTargetStyle(): void;
@@ -82,4 +129,4 @@ declare function useTouchTargetStyle(): void;
 /** Compose {@link FI_TOUCH_TARGET_CLASS} with an optional consumer class (additive, order-stable). */
 declare function withTouchTarget(className?: string): string;
 
-export { type BreakpointMatches, type Breakpoints, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, type ChatViewMode, FI_TOUCH_TARGET_CLASS, type PersonaType, type ResponseMode, type UploadStatus, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, ensureTouchTargetStyle, useBreakpoints, useMediaQuery, useTouchTargetStyle, withTouchTarget };
+export { type BreakpointMatches, type Breakpoints, ChatFilePreview, type ChatFilePreviewProps, type ChatNavDest, type ChatViewMode, type EdgeSwipeOptions, FI_TOUCH_TARGET_CLASS, type PersonaType, type ResponseMode, type UploadStatus, type UseMediaQueryOptions, type VoiceRecordingState, clearMediaQueryCache, ensureTouchTargetStyle, useBreakpoints, useEdgeSwipe, useMediaQuery, useTouchTargetStyle, withTouchTarget };

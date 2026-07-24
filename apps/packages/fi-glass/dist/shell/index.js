@@ -164,8 +164,117 @@ function clearMediaQueryCache() {
   mqlCache.clear();
 }
 
+// src/shell/useEdgeSwipe.ts
+import { useEffect, useRef, useState } from "react";
+var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
+function useEdgeSwipe({
+  enabled,
+  isOpen,
+  containerRef,
+  panelRef,
+  onOpen,
+  onClose,
+  edgeSize = 24,
+  fallbackWidth = 280,
+  distanceRatio = 0.4,
+  velocity = 0.35,
+  axisSlop = 8
+}) {
+  const [progress, setProgress] = useState(null);
+  const gestureRef = useRef(null);
+  useEffect(() => {
+    if (!enabled) {
+      gestureRef.current = null;
+      setProgress(null);
+      return;
+    }
+    const node = containerRef.current;
+    if (!node) return;
+    const measure = () => {
+      const measured = panelRef.current?.getBoundingClientRect().width ?? 0;
+      return measured > 0 ? measured : fallbackWidth;
+    };
+    const release = () => {
+      gestureRef.current = null;
+      setProgress(null);
+    };
+    const handleStart = (event) => {
+      if (gestureRef.current || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!isOpen && touch.clientX > edgeSize) return;
+      gestureRef.current = {
+        id: touch.identifier,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startTime: Date.now(),
+        width: measure(),
+        opening: !isOpen,
+        axis: "undecided"
+      };
+    };
+    const handleMove = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.touches).find((t) => t.identifier === gesture.id);
+      if (!touch) return;
+      const dx = touch.clientX - gesture.startX;
+      const dy = touch.clientY - gesture.startY;
+      if (gesture.axis === "undecided") {
+        if (Math.abs(dx) < axisSlop && Math.abs(dy) < axisSlop) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          release();
+          return;
+        }
+        gesture.axis = "horizontal";
+      }
+      if (event.cancelable) event.preventDefault();
+      setProgress(clamp01(gesture.opening ? dx / gesture.width : 1 + dx / gesture.width));
+    };
+    const handleEnd = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.changedTouches).find((t) => t.identifier === gesture.id);
+      release();
+      if (!touch || gesture.axis !== "horizontal") return;
+      const dx = touch.clientX - gesture.startX;
+      const elapsed = Math.max(1, Date.now() - gesture.startTime);
+      const speed = dx / elapsed;
+      const travelled = gesture.opening ? dx : -dx;
+      const flicked = gesture.opening ? speed > velocity : -speed > velocity;
+      if (travelled > gesture.width * distanceRatio || flicked) {
+        if (gesture.opening) onOpen();
+        else onClose();
+      }
+    };
+    node.addEventListener("touchstart", handleStart, { passive: true });
+    node.addEventListener("touchmove", handleMove, { passive: false });
+    node.addEventListener("touchend", handleEnd, { passive: true });
+    node.addEventListener("touchcancel", release, { passive: true });
+    return () => {
+      node.removeEventListener("touchstart", handleStart);
+      node.removeEventListener("touchmove", handleMove);
+      node.removeEventListener("touchend", handleEnd);
+      node.removeEventListener("touchcancel", release);
+      gestureRef.current = null;
+    };
+  }, [
+    enabled,
+    isOpen,
+    containerRef,
+    panelRef,
+    onOpen,
+    onClose,
+    edgeSize,
+    fallbackWidth,
+    distanceRatio,
+    velocity,
+    axisSlop
+  ]);
+  return progress;
+}
+
 // src/shell/touchTarget.ts
-import { useEffect } from "react";
+import { useEffect as useEffect2 } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -195,7 +304,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect(() => {
+  useEffect2(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -208,6 +317,7 @@ export {
   clearMediaQueryCache,
   ensureTouchTargetStyle,
   useBreakpoints,
+  useEdgeSwipe,
   useMediaQuery,
   useTouchTargetStyle,
   withTouchTarget
