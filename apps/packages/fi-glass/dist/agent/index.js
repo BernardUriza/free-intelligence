@@ -3301,10 +3301,123 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback7,
-  useEffect as useEffect15,
-  useState as useState14
+  useEffect as useEffect16,
+  useMemo,
+  useRef as useRef13,
+  useState as useState15
 } from "react";
 import { Menu } from "lucide-react";
+
+// src/shell/useEdgeSwipe.ts
+import { useEffect as useEffect15, useRef as useRef12, useState as useState14 } from "react";
+var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
+function useEdgeSwipe({
+  enabled,
+  isOpen,
+  containerRef,
+  panelRef,
+  onOpen,
+  onClose,
+  edgeSize = 24,
+  fallbackWidth = 280,
+  distanceRatio = 0.4,
+  velocity = 0.35,
+  axisSlop = 8
+}) {
+  const [progress, setProgress] = useState14(null);
+  const gestureRef = useRef12(null);
+  useEffect15(() => {
+    if (!enabled) {
+      gestureRef.current = null;
+      setProgress(null);
+      return;
+    }
+    const node = containerRef.current;
+    if (!node) return;
+    const measure = () => {
+      const measured = panelRef.current?.getBoundingClientRect().width ?? 0;
+      return measured > 0 ? measured : fallbackWidth;
+    };
+    const release = () => {
+      gestureRef.current = null;
+      setProgress(null);
+    };
+    const handleStart = (event) => {
+      if (gestureRef.current || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!isOpen && touch.clientX > edgeSize) return;
+      gestureRef.current = {
+        id: touch.identifier,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startTime: Date.now(),
+        width: measure(),
+        opening: !isOpen,
+        axis: "undecided"
+      };
+    };
+    const handleMove = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.touches).find((t) => t.identifier === gesture.id);
+      if (!touch) return;
+      const dx = touch.clientX - gesture.startX;
+      const dy = touch.clientY - gesture.startY;
+      if (gesture.axis === "undecided") {
+        if (Math.abs(dx) < axisSlop && Math.abs(dy) < axisSlop) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          release();
+          return;
+        }
+        gesture.axis = "horizontal";
+      }
+      if (event.cancelable) event.preventDefault();
+      setProgress(clamp01(gesture.opening ? dx / gesture.width : 1 + dx / gesture.width));
+    };
+    const handleEnd = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.changedTouches).find((t) => t.identifier === gesture.id);
+      release();
+      if (!touch || gesture.axis !== "horizontal") return;
+      const dx = touch.clientX - gesture.startX;
+      const elapsed = Math.max(1, Date.now() - gesture.startTime);
+      const speed = dx / elapsed;
+      const travelled = gesture.opening ? dx : -dx;
+      const flicked = gesture.opening ? speed > velocity : -speed > velocity;
+      if (travelled > gesture.width * distanceRatio || flicked) {
+        if (gesture.opening) onOpen();
+        else onClose();
+      }
+    };
+    node.addEventListener("touchstart", handleStart, { passive: true });
+    node.addEventListener("touchmove", handleMove, { passive: false });
+    node.addEventListener("touchend", handleEnd, { passive: true });
+    node.addEventListener("touchcancel", release, { passive: true });
+    return () => {
+      node.removeEventListener("touchstart", handleStart);
+      node.removeEventListener("touchmove", handleMove);
+      node.removeEventListener("touchend", handleEnd);
+      node.removeEventListener("touchcancel", release);
+      gestureRef.current = null;
+    };
+  }, [
+    enabled,
+    isOpen,
+    containerRef,
+    panelRef,
+    onOpen,
+    onClose,
+    edgeSize,
+    fallbackWidth,
+    distanceRatio,
+    velocity,
+    axisSlop
+  ]);
+  return progress;
+}
+
+// src/agent/AgentWorkspaceShell.tsx
 import { jsx as jsx28, jsxs as jsxs20 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
@@ -3342,21 +3455,37 @@ function AgentWorkspaceShell({
   mobileQuery = FI_MOBILE_QUERY,
   sidebarWidth = 280,
   toggleLabel = "Conversaciones",
+  swipe = true,
+  swipeEdgeSize = 24,
   className,
   style
 }) {
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
-  const [isOpen, setIsOpen] = useState14(false);
+  const [isOpen, setIsOpen] = useState15(false);
+  const rootRef = useRef13(null);
+  const panelRef = useRef13(null);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
   const open = useCallback7(() => setIsOpen(true), []);
   const close = useCallback7(() => setIsOpen(false), []);
   const toggle = useCallback7(() => setIsOpen((v) => !v), []);
-  useEffect15(() => {
+  const numericSidebarWidth = typeof sidebarWidth === "number" ? sidebarWidth : 280;
+  const dragProgress = useEdgeSwipe({
+    enabled: drawerMode && swipe,
+    isOpen,
+    containerRef: rootRef,
+    panelRef,
+    onOpen: open,
+    onClose: close,
+    edgeSize: swipeEdgeSize,
+    fallbackWidth: numericSidebarWidth
+  });
+  const dragging = dragProgress !== null;
+  useEffect16(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3369,9 +3498,17 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect15(() => {
+  useEffect16(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
+  const api = useMemo(
+    () => ({ isOpen, isMobile, open, close, toggle }),
+    [isOpen, isMobile, open, close, toggle]
+  );
+  const sidebarNode = useMemo(
+    () => typeof sidebar === "function" ? sidebar(api) : sidebar,
+    [sidebar, api]
+  );
   const rootStyle = {
     display: "flex",
     flexDirection: "column",
@@ -3422,9 +3559,8 @@ function AgentWorkspaceShell({
     }
   );
   if (!hasSidebar) return content;
-  const api = { isOpen, isMobile, open, close, toggle };
-  const sidebarNode = typeof sidebar === "function" ? sidebar(api) : sidebar;
   const widthCss = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
+  const drawerOffset = dragging ? (dragProgress - 1) * 100 : isOpen ? 0 : -100;
   const sidebarContainerStyle = drawerMode ? {
     position: "fixed",
     top: 0,
@@ -3434,9 +3570,12 @@ function AgentWorkspaceShell({
     width: `min(${widthCss}, 85vw)`,
     display: "flex",
     flexDirection: "column",
-    transform: isOpen ? "translateX(0)" : "translateX(-100%)",
-    transition: "transform 0.24s ease",
+    transform: drawerOffset === 0 ? "translateX(0)" : `translateX(${drawerOffset}%)`,
+    // While the finger drives it there is no animation — the panel IS the
+    // finger. The easing only returns for the settle after release.
+    transition: dragging ? "none" : "transform 0.24s ease",
     willChange: "transform",
+    touchAction: "pan-y",
     containerType: "inline-size",
     containerName: "fi-sidebar",
     // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
@@ -3460,12 +3599,15 @@ function AgentWorkspaceShell({
   return /* @__PURE__ */ jsxs20(
     "div",
     {
+      ref: rootRef,
       "data-fi-workspace": "agent-with-sidebar",
+      "data-fi-drawer-dragging": dragging ? "" : void 0,
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
         /* @__PURE__ */ jsx28(
           "nav",
           {
+            ref: panelRef,
             "data-fi-slot": "sidebar",
             "aria-label": toggleLabel,
             style: sidebarContainerStyle,
@@ -3484,9 +3626,9 @@ function AgentWorkspaceShell({
               inset: 0,
               zIndex: 40,
               background: "rgba(0,0,0,0.5)",
-              opacity: isOpen ? 1 : 0,
-              pointerEvents: isOpen ? "auto" : "none",
-              transition: "opacity 0.24s ease"
+              opacity: dragging ? dragProgress : isOpen ? 1 : 0,
+              pointerEvents: isOpen && !dragging ? "auto" : "none",
+              transition: dragging ? "none" : "opacity 0.24s ease"
             }
           }
         ),
@@ -3498,7 +3640,14 @@ function AgentWorkspaceShell({
             onClick: open,
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
-            style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
+            style: {
+              position: "absolute",
+              top: "0.6rem",
+              left: "0.6rem",
+              zIndex: 30,
+              opacity: dragging ? 1 - dragProgress : 1,
+              transition: dragging ? "none" : "opacity 0.24s ease"
+            },
             children: /* @__PURE__ */ jsx28(Menu, { size: 18, "aria-hidden": true })
           }
         ),
@@ -3511,12 +3660,12 @@ function AgentWorkspaceShell({
 // src/agent/AgentSidebarItem.tsx
 import {
   useCallback as useCallback8,
-  useRef as useRef12,
-  useState as useState15
+  useRef as useRef14,
+  useState as useState16
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect16 } from "react";
+import { useEffect as useEffect17 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -3645,7 +3794,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect16(() => {
+  useEffect17(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -3685,9 +3834,9 @@ function DestructiveActionSlot(props) {
   return /* @__PURE__ */ jsx29(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
-  const [editing, setEditing] = useState15(false);
-  const [draft, setDraft] = useState15("");
-  const cancelledRef = useRef12(false);
+  const [editing, setEditing] = useState16(false);
+  const [draft, setDraft] = useState16("");
+  const cancelledRef = useRef14(false);
   const start = useCallback8(() => {
     cancelledRef.current = false;
     setDraft(value);
@@ -3835,7 +3984,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect17 } from "react";
+import { useEffect as useEffect18 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -3895,7 +4044,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect17(() => {
+  useEffect18(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

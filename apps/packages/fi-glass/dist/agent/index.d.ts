@@ -696,10 +696,18 @@ interface AgentWorkspaceShellProps {
     sidebarWidth?: number | string;
     /** Accessible label for the drawer toggle. Default `Conversaciones`. */
     toggleLabel?: string;
+    /**
+     * Edge-swipe gesture for the mobile drawer (drag right from the left edge to
+     * open, drag left to close, panel follows the finger). Only active in drawer
+     * mode. Default `true` — the gesture is the expected phone affordance.
+     */
+    swipe?: boolean;
+    /** Width of the left hot zone that starts the open gesture. Default `24`. */
+    swipeEdgeSize?: number;
     className?: string;
     style?: CSSProperties;
 }
-declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, sidebar, responsive, mobileQuery, sidebarWidth, toggleLabel, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
+declare function AgentWorkspaceShell({ visual, density, header, conversation, rail, footer, sidebar, responsive, mobileQuery, sidebarWidth, toggleLabel, swipe, swipeEdgeSize, className, style, }: AgentWorkspaceShellProps): react.JSX.Element;
 
 interface ItemActionSlotProps {
     /** Accessible label — the consumer supplies the copy (e.g. "Renombrar chat"). */

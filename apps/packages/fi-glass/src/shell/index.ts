@@ -28,6 +28,8 @@ export {
   type BreakpointMatches,
 } from './useMediaQuery';
 
+export { useEdgeSwipe, type EdgeSwipeOptions } from './useEdgeSwipe';
+
 export {
   FI_TOUCH_TARGET_CLASS,
   ensureTouchTargetStyle,

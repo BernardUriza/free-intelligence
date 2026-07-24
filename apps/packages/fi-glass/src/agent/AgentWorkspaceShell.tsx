@@ -24,6 +24,12 @@
  * the consumer's DOM. Inline styles + one idempotent <style> tag → zero
  * CSS-coupling, no consumer import.
  *
+ * B3-FIGLASS-SWIPE-1: in drawer mode the panel also answers the native gesture —
+ * drag right from the left edge to pull it in, drag left to push it back out,
+ * following the finger and settling by distance or flick speed (`useEdgeSwipe`).
+ * A mostly-vertical move releases the gesture so lists keep scrolling. Opt out
+ * with `swipe={false}`.
+ *
  * B3-FIGLASS-SEMANTIC-SHELL-1: the slot wrappers are DOM landmarks, not bare divs —
  * `<header>`/`<main>`/`<aside>` (rail)/`<footer>` for the page column and a labelled
  * `<nav>` for the sidebar. The `data-fi-slot` attributes and inline styles are
@@ -33,6 +39,8 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -40,6 +48,7 @@ import {
 import { Menu } from 'lucide-react';
 import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 import { useMediaQuery } from '../shell/useMediaQuery';
+import { useEdgeSwipe } from '../shell/useEdgeSwipe';
 import { useDensityStyle } from './densityStyle';
 
 export type AgentWorkspaceShellVisual = 'aurora' | 'midnight' | 'clinical';
@@ -82,6 +91,14 @@ export interface AgentWorkspaceShellProps {
   sidebarWidth?: number | string;
   /** Accessible label for the drawer toggle. Default `Conversaciones`. */
   toggleLabel?: string;
+  /**
+   * Edge-swipe gesture for the mobile drawer (drag right from the left edge to
+   * open, drag left to close, panel follows the finger). Only active in drawer
+   * mode. Default `true` — the gesture is the expected phone affordance.
+   */
+  swipe?: boolean;
+  /** Width of the left hot zone that starts the open gesture. Default `24`. */
+  swipeEdgeSize?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -124,12 +141,16 @@ export function AgentWorkspaceShell({
   mobileQuery = FI_MOBILE_QUERY,
   sidebarWidth = 280,
   toggleLabel = 'Conversaciones',
+  swipe = true,
+  swipeEdgeSize = 24,
   className,
   style,
 }: AgentWorkspaceShellProps) {
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
 
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
@@ -137,6 +158,19 @@ export function AgentWorkspaceShell({
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
+
+  const numericSidebarWidth = typeof sidebarWidth === 'number' ? sidebarWidth : 280;
+  const dragProgress = useEdgeSwipe({
+    enabled: drawerMode && swipe,
+    isOpen,
+    containerRef: rootRef,
+    panelRef,
+    onOpen: open,
+    onClose: close,
+    edgeSize: swipeEdgeSize,
+    fallbackWidth: numericSidebarWidth,
+  });
+  const dragging = dragProgress !== null;
 
   // Resizing/rotating back to desktop must never strand an open drawer.
   useEffect(() => {
@@ -162,6 +196,18 @@ export function AgentWorkspaceShell({
   useEffect(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
+
+  const api = useMemo<AgentWorkspaceShellApi>(
+    () => ({ isOpen, isMobile, open, close, toggle }),
+    [isOpen, isMobile, open, close, toggle],
+  );
+
+  // Memoized against the api identity so a swipe (which re-renders this shell on
+  // every touchmove) never re-runs a consumer's render-prop sidebar.
+  const sidebarNode = useMemo(
+    () => (typeof sidebar === 'function' ? sidebar(api) : sidebar),
+    [sidebar, api],
+  );
 
   const rootStyle: CSSProperties = {
     display: 'flex',
@@ -228,10 +274,8 @@ export function AgentWorkspaceShell({
 
   if (!hasSidebar) return content;
 
-  const api: AgentWorkspaceShellApi = { isOpen, isMobile, open, close, toggle };
-  const sidebarNode = typeof sidebar === 'function' ? sidebar(api) : sidebar;
-
   const widthCss = typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth;
+  const drawerOffset = dragging ? (dragProgress - 1) * 100 : isOpen ? 0 : -100;
 
   const sidebarContainerStyle: CSSProperties = drawerMode
     ? {
@@ -243,9 +287,12 @@ export function AgentWorkspaceShell({
         width: `min(${widthCss}, 85vw)`,
         display: 'flex',
         flexDirection: 'column',
-        transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-        transition: 'transform 0.24s ease',
+        transform: drawerOffset === 0 ? 'translateX(0)' : `translateX(${drawerOffset}%)`,
+        // While the finger drives it there is no animation — the panel IS the
+        // finger. The easing only returns for the settle after release.
+        transition: dragging ? 'none' : 'transform 0.24s ease',
         willChange: 'transform',
+        touchAction: 'pan-y',
         containerType: 'inline-size',
         containerName: 'fi-sidebar',
         // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
@@ -270,10 +317,13 @@ export function AgentWorkspaceShell({
 
   return (
     <div
+      ref={rootRef}
       data-fi-workspace="agent-with-sidebar"
+      data-fi-drawer-dragging={dragging ? '' : undefined}
       style={{ display: 'flex', height: '100dvh', position: 'relative', overflowX: 'hidden' }}
     >
       <nav
+        ref={panelRef}
         data-fi-slot="sidebar"
         aria-label={toggleLabel}
         style={sidebarContainerStyle}
@@ -292,9 +342,9 @@ export function AgentWorkspaceShell({
             inset: 0,
             zIndex: 40,
             background: 'rgba(0,0,0,0.5)',
-            opacity: isOpen ? 1 : 0,
-            pointerEvents: isOpen ? 'auto' : 'none',
-            transition: 'opacity 0.24s ease',
+            opacity: dragging ? dragProgress : isOpen ? 1 : 0,
+            pointerEvents: isOpen && !dragging ? 'auto' : 'none',
+            transition: dragging ? 'none' : 'opacity 0.24s ease',
           }}
         />
       )}
@@ -306,7 +356,14 @@ export function AgentWorkspaceShell({
           onClick={open}
           aria-label={toggleLabel}
           aria-expanded={isOpen}
-          style={{ position: 'absolute', top: '0.6rem', left: '0.6rem', zIndex: 30 }}
+          style={{
+            position: 'absolute',
+            top: '0.6rem',
+            left: '0.6rem',
+            zIndex: 30,
+            opacity: dragging ? 1 - dragProgress : 1,
+            transition: dragging ? 'none' : 'opacity 0.24s ease',
+          }}
         >
           <Menu size={18} aria-hidden />
         </button>

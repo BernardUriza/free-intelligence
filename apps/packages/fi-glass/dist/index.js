@@ -4853,6 +4853,115 @@ function clearMediaQueryCache() {
   mqlCache.clear();
 }
 
+// src/shell/useEdgeSwipe.ts
+import { useEffect as useEffect18, useRef as useRef13, useState as useState18 } from "react";
+var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
+function useEdgeSwipe({
+  enabled,
+  isOpen,
+  containerRef,
+  panelRef,
+  onOpen,
+  onClose,
+  edgeSize = 24,
+  fallbackWidth = 280,
+  distanceRatio = 0.4,
+  velocity = 0.35,
+  axisSlop = 8
+}) {
+  const [progress, setProgress] = useState18(null);
+  const gestureRef = useRef13(null);
+  useEffect18(() => {
+    if (!enabled) {
+      gestureRef.current = null;
+      setProgress(null);
+      return;
+    }
+    const node = containerRef.current;
+    if (!node) return;
+    const measure = () => {
+      const measured = panelRef.current?.getBoundingClientRect().width ?? 0;
+      return measured > 0 ? measured : fallbackWidth;
+    };
+    const release = () => {
+      gestureRef.current = null;
+      setProgress(null);
+    };
+    const handleStart = (event) => {
+      if (gestureRef.current || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!isOpen && touch.clientX > edgeSize) return;
+      gestureRef.current = {
+        id: touch.identifier,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startTime: Date.now(),
+        width: measure(),
+        opening: !isOpen,
+        axis: "undecided"
+      };
+    };
+    const handleMove = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.touches).find((t) => t.identifier === gesture.id);
+      if (!touch) return;
+      const dx = touch.clientX - gesture.startX;
+      const dy = touch.clientY - gesture.startY;
+      if (gesture.axis === "undecided") {
+        if (Math.abs(dx) < axisSlop && Math.abs(dy) < axisSlop) return;
+        if (Math.abs(dx) <= Math.abs(dy)) {
+          release();
+          return;
+        }
+        gesture.axis = "horizontal";
+      }
+      if (event.cancelable) event.preventDefault();
+      setProgress(clamp01(gesture.opening ? dx / gesture.width : 1 + dx / gesture.width));
+    };
+    const handleEnd = (event) => {
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const touch = Array.from(event.changedTouches).find((t) => t.identifier === gesture.id);
+      release();
+      if (!touch || gesture.axis !== "horizontal") return;
+      const dx = touch.clientX - gesture.startX;
+      const elapsed = Math.max(1, Date.now() - gesture.startTime);
+      const speed = dx / elapsed;
+      const travelled = gesture.opening ? dx : -dx;
+      const flicked = gesture.opening ? speed > velocity : -speed > velocity;
+      if (travelled > gesture.width * distanceRatio || flicked) {
+        if (gesture.opening) onOpen();
+        else onClose();
+      }
+    };
+    node.addEventListener("touchstart", handleStart, { passive: true });
+    node.addEventListener("touchmove", handleMove, { passive: false });
+    node.addEventListener("touchend", handleEnd, { passive: true });
+    node.addEventListener("touchcancel", release, { passive: true });
+    return () => {
+      node.removeEventListener("touchstart", handleStart);
+      node.removeEventListener("touchmove", handleMove);
+      node.removeEventListener("touchend", handleEnd);
+      node.removeEventListener("touchcancel", release);
+      gestureRef.current = null;
+    };
+  }, [
+    enabled,
+    isOpen,
+    containerRef,
+    panelRef,
+    onOpen,
+    onClose,
+    edgeSize,
+    fallbackWidth,
+    distanceRatio,
+    velocity,
+    axisSlop
+  ]);
+  return progress;
+}
+
 // src/agent/icons.ts
 import {
   AlertTriangle,
@@ -5026,7 +5135,7 @@ function PlanChecklist({
 }
 
 // src/agent/StepsPanel.tsx
-import { useEffect as useEffect18, useState as useState18 } from "react";
+import { useEffect as useEffect19, useState as useState19 } from "react";
 import { jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
 function StepsPanel({
   steps,
@@ -5043,10 +5152,10 @@ function StepsPanel({
   const card = classNames?.card ?? "";
   const hint = classNames?.hint ?? "";
   const live = status === "thinking" || status === "streaming";
-  const [openOverride, setOpenOverride] = useState18(null);
+  const [openOverride, setOpenOverride] = useState19(null);
   const open = openOverride ?? live;
-  const [elapsed, setElapsed] = useState18(0);
-  useEffect18(() => {
+  const [elapsed, setElapsed] = useState19(0);
+  useEffect19(() => {
     if (!live || !enableSlowBanner) {
       setElapsed(0);
       return;
@@ -5229,7 +5338,7 @@ function AgentPanel({
 }
 
 // src/agent/useAgentConversation.ts
-import { useCallback as useCallback10, useEffect as useEffect19, useReducer, useRef as useRef13, useState as useState19 } from "react";
+import { useCallback as useCallback10, useEffect as useEffect20, useReducer, useRef as useRef14, useState as useState20 } from "react";
 import {
   applyConversationEvent,
   initialConversationState
@@ -5254,21 +5363,21 @@ function useAgentConversation(agent, options) {
     void 0,
     () => initialConversationState(initialMessages ?? [])
   );
-  const convoRef = useRef13(convo);
+  const convoRef = useRef14(convo);
   convoRef.current = convo;
   const messages = convo.messages;
   const turnError = convo.failure;
   const timedOut = convo.timedOut;
-  const controlledRef = useRef13(controlled);
+  const controlledRef = useRef14(controlled);
   controlledRef.current = controlled;
-  const authorRef = useRef13(author);
+  const authorRef = useRef14(author);
   authorRef.current = author;
-  const userAuthorRef = useRef13(userAuthor);
+  const userAuthorRef = useRef14(userAuthor);
   userAuthorRef.current = userAuthor;
-  const onMessagesChangeRef = useRef13(onMessagesChange);
+  const onMessagesChangeRef = useRef14(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
-  const [persistError, setPersistError] = useState19(null);
-  const unsaved = useRef13(null);
+  const [persistError, setPersistError] = useState20(null);
+  const unsaved = useRef14(null);
   const runPersist = useCallback10(async (thread) => {
     if (!onMessagesChangeRef.current) return;
     try {
@@ -5291,16 +5400,16 @@ function useAgentConversation(agent, options) {
   }, [runPersist]);
   const dismissPersistError = useCallback10(() => setPersistError(null), []);
   const clearUnsent = useCallback10(() => dispatch({ type: "clear_unsent" }), []);
-  const messagesRef = useRef13(messages);
+  const messagesRef = useRef14(messages);
   messagesRef.current = externalMessages ?? messages;
-  const agentRef = useRef13(agent);
+  const agentRef = useRef14(agent);
   agentRef.current = agent;
-  const appHandledRef = useRef13(isAppHandledError);
+  const appHandledRef = useRef14(isAppHandledError);
   appHandledRef.current = isAppHandledError;
-  const initialRef = useRef13(initialMessages);
+  const initialRef = useRef14(initialMessages);
   initialRef.current = initialMessages;
-  const mounted = useRef13(false);
-  const awaitResolver = useRef13(null);
+  const mounted = useRef14(false);
+  const awaitResolver = useRef14(null);
   const send = useCallback10(
     (text, images) => {
       const t = text.trim();
@@ -5338,7 +5447,7 @@ function useAgentConversation(agent, options) {
     if (last) send(last.text, last.images);
   }, [send]);
   const dismissError = useCallback10(() => dispatch({ type: "dismiss_failure" }), []);
-  useEffect19(() => {
+  useEffect20(() => {
     if (agent.isStreaming || !convoRef.current.pending) return;
     if (agent.turn.status === "error") {
       const r = awaitResolver.current;
@@ -5363,7 +5472,7 @@ function useAgentConversation(agent, options) {
     awaitResolver.current = null;
     resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn]);
-  useEffect19(() => {
+  useEffect20(() => {
     if (turnTimeoutMs <= 0) return;
     if (!agent.isStreaming || !convoRef.current.pending || timedOut) return;
     const timer = setTimeout(() => {
@@ -5375,7 +5484,7 @@ function useAgentConversation(agent, options) {
     }, turnTimeoutMs);
     return () => clearTimeout(timer);
   }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs]);
-  useEffect19(() => {
+  useEffect20(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
@@ -5384,7 +5493,7 @@ function useAgentConversation(agent, options) {
     dispatch({ type: "hydrate", messages: initialRef.current ?? [] });
     agent.reset?.();
   }, [conversationId]);
-  useEffect19(() => {
+  useEffect20(() => {
     if (controlledRef.current) return;
     if (convoRef.current.skipPersist) {
       dispatch({ type: "persist_skip_consumed" });
@@ -5418,13 +5527,13 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect22, useState as useState20 } from "react";
+import { useEffect as useEffect23, useState as useState21 } from "react";
 
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
-import { useCallback as useCallback11, useEffect as useEffect20, useRef as useRef14 } from "react";
+import { useCallback as useCallback11, useEffect as useEffect21, useRef as useRef15 } from "react";
 function useComposerFocus(options) {
   const { isStreaming, isTranscribing } = options;
-  const inputRef = useRef14(null);
+  const inputRef = useRef15(null);
   const refocusComposer = useCallback11(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
@@ -5433,13 +5542,13 @@ function useComposerFocus(options) {
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  const wasStreaming = useRef14(false);
-  useEffect20(() => {
+  const wasStreaming = useRef15(false);
+  useEffect21(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef14(false);
-  useEffect20(() => {
+  const wasTranscribing = useRef15(false);
+  useEffect21(() => {
     if (wasTranscribing.current && !isTranscribing) refocusComposer();
     wasTranscribing.current = isTranscribing;
   }, [isTranscribing, refocusComposer]);
@@ -5447,11 +5556,11 @@ function useComposerFocus(options) {
 }
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
-import { useRef as useRef15 } from "react";
+import { useRef as useRef16 } from "react";
 function useSurfaceDictation(options) {
   const { voiceAdapter, input, setInput, onVoiceError } = options;
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef15("");
+  const baseInputRef = useRef16("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -5473,10 +5582,10 @@ function useSurfaceDictation(options) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerAppend.ts
-import { useEffect as useEffect21 } from "react";
+import { useEffect as useEffect22 } from "react";
 function useComposerAppend(options) {
   const { composerAppend, onComposerAppendConsumed, setInput } = options;
-  useEffect21(() => {
+  useEffect22(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -6125,7 +6234,7 @@ function AgentConversationSurface(props) {
     unsentImages,
     clearUnsent
   } = conversation;
-  const [input, setInput] = useState20("");
+  const [input, setInput] = useState21("");
   useTouchTargetStyle();
   const { rootStyle, contentInset } = useSurfaceLayout(layout);
   useComposerAppend({ composerAppend, onComposerAppendConsumed, setInput });
@@ -6139,7 +6248,7 @@ function AgentConversationSurface(props) {
     onError: onImageAttachmentError
   });
   const restoreImages = images.restore;
-  useEffect22(() => {
+  useEffect23(() => {
     if (!unsentText && !unsentImages) return;
     if (unsentText) setInput((current) => current.trim() ? current : unsentText);
     if (imageAttachments && unsentImages && unsentImages.length > 0) {
@@ -6201,8 +6310,10 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback12,
-  useEffect as useEffect23,
-  useState as useState21
+  useEffect as useEffect24,
+  useMemo as useMemo4,
+  useRef as useRef17,
+  useState as useState22
 } from "react";
 import { Menu } from "lucide-react";
 import { jsx as jsx41, jsxs as jsxs31 } from "react/jsx-runtime";
@@ -6242,21 +6353,37 @@ function AgentWorkspaceShell({
   mobileQuery = FI_MOBILE_QUERY,
   sidebarWidth = 280,
   toggleLabel = "Conversaciones",
+  swipe = true,
+  swipeEdgeSize = 24,
   className,
   style
 }) {
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
-  const [isOpen, setIsOpen] = useState21(false);
+  const [isOpen, setIsOpen] = useState22(false);
+  const rootRef = useRef17(null);
+  const panelRef = useRef17(null);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
   const open = useCallback12(() => setIsOpen(true), []);
   const close = useCallback12(() => setIsOpen(false), []);
   const toggle = useCallback12(() => setIsOpen((v) => !v), []);
-  useEffect23(() => {
+  const numericSidebarWidth = typeof sidebarWidth === "number" ? sidebarWidth : 280;
+  const dragProgress = useEdgeSwipe({
+    enabled: drawerMode && swipe,
+    isOpen,
+    containerRef: rootRef,
+    panelRef,
+    onOpen: open,
+    onClose: close,
+    edgeSize: swipeEdgeSize,
+    fallbackWidth: numericSidebarWidth
+  });
+  const dragging = dragProgress !== null;
+  useEffect24(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect23(() => {
+  useEffect24(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -6269,9 +6396,17 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect23(() => {
+  useEffect24(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
+  const api = useMemo4(
+    () => ({ isOpen, isMobile, open, close, toggle }),
+    [isOpen, isMobile, open, close, toggle]
+  );
+  const sidebarNode = useMemo4(
+    () => typeof sidebar === "function" ? sidebar(api) : sidebar,
+    [sidebar, api]
+  );
   const rootStyle = {
     display: "flex",
     flexDirection: "column",
@@ -6322,9 +6457,8 @@ function AgentWorkspaceShell({
     }
   );
   if (!hasSidebar) return content;
-  const api = { isOpen, isMobile, open, close, toggle };
-  const sidebarNode = typeof sidebar === "function" ? sidebar(api) : sidebar;
   const widthCss = typeof sidebarWidth === "number" ? `${sidebarWidth}px` : sidebarWidth;
+  const drawerOffset = dragging ? (dragProgress - 1) * 100 : isOpen ? 0 : -100;
   const sidebarContainerStyle = drawerMode ? {
     position: "fixed",
     top: 0,
@@ -6334,9 +6468,12 @@ function AgentWorkspaceShell({
     width: `min(${widthCss}, 85vw)`,
     display: "flex",
     flexDirection: "column",
-    transform: isOpen ? "translateX(0)" : "translateX(-100%)",
-    transition: "transform 0.24s ease",
+    transform: drawerOffset === 0 ? "translateX(0)" : `translateX(${drawerOffset}%)`,
+    // While the finger drives it there is no animation — the panel IS the
+    // finger. The easing only returns for the settle after release.
+    transition: dragging ? "none" : "transform 0.24s ease",
     willChange: "transform",
+    touchAction: "pan-y",
     containerType: "inline-size",
     containerName: "fi-sidebar",
     // The drawer owns a FULLY opaque surface: a consumer's sidebar may be a
@@ -6360,12 +6497,15 @@ function AgentWorkspaceShell({
   return /* @__PURE__ */ jsxs31(
     "div",
     {
+      ref: rootRef,
       "data-fi-workspace": "agent-with-sidebar",
+      "data-fi-drawer-dragging": dragging ? "" : void 0,
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
         /* @__PURE__ */ jsx41(
           "nav",
           {
+            ref: panelRef,
             "data-fi-slot": "sidebar",
             "aria-label": toggleLabel,
             style: sidebarContainerStyle,
@@ -6384,9 +6524,9 @@ function AgentWorkspaceShell({
               inset: 0,
               zIndex: 40,
               background: "rgba(0,0,0,0.5)",
-              opacity: isOpen ? 1 : 0,
-              pointerEvents: isOpen ? "auto" : "none",
-              transition: "opacity 0.24s ease"
+              opacity: dragging ? dragProgress : isOpen ? 1 : 0,
+              pointerEvents: isOpen && !dragging ? "auto" : "none",
+              transition: dragging ? "none" : "opacity 0.24s ease"
             }
           }
         ),
@@ -6398,7 +6538,14 @@ function AgentWorkspaceShell({
             onClick: open,
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
-            style: { position: "absolute", top: "0.6rem", left: "0.6rem", zIndex: 30 },
+            style: {
+              position: "absolute",
+              top: "0.6rem",
+              left: "0.6rem",
+              zIndex: 30,
+              opacity: dragging ? 1 - dragProgress : 1,
+              transition: dragging ? "none" : "opacity 0.24s ease"
+            },
             children: /* @__PURE__ */ jsx41(Menu, { size: 18, "aria-hidden": true })
           }
         ),
@@ -6411,12 +6558,12 @@ function AgentWorkspaceShell({
 // src/agent/AgentSidebarItem.tsx
 import {
   useCallback as useCallback13,
-  useRef as useRef16,
-  useState as useState22
+  useRef as useRef18,
+  useState as useState23
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect24 } from "react";
+import { useEffect as useEffect25 } from "react";
 var FI_SIDEBAR_ITEM_CLASS = "fi-sidebar-item";
 var FI_ITEM_BODY_CLASS = "fi-sidebar-item-body";
 var FI_ITEM_TITLE_CLASS = "fi-sidebar-item-title";
@@ -6545,7 +6692,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect24(() => {
+  useEffect25(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -6585,9 +6732,9 @@ function DestructiveActionSlot(props) {
   return /* @__PURE__ */ jsx42(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
-  const [editing, setEditing] = useState22(false);
-  const [draft, setDraft] = useState22("");
-  const cancelledRef = useRef16(false);
+  const [editing, setEditing] = useState23(false);
+  const [draft, setDraft] = useState23("");
+  const cancelledRef = useRef18(false);
   const start = useCallback13(() => {
     cancelledRef.current = false;
     setDraft(value);
@@ -6735,7 +6882,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect25 } from "react";
+import { useEffect as useEffect26 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -6795,7 +6942,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect25(() => {
+  useEffect26(() => {
     ensureSidebarSectionStyle();
   }, []);
 }
@@ -6850,10 +6997,10 @@ function AgentSidebarSection({
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback14,
-  useEffect as useEffect26,
+  useEffect as useEffect27,
   useId as useId4,
-  useRef as useRef17,
-  useState as useState23
+  useRef as useRef19,
+  useState as useState24
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
 import { ChevronDown as ChevronDown2, Check as Check2 } from "lucide-react";
@@ -6882,15 +7029,15 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
-  const [isOpen, setIsOpen] = useState23(false);
-  const [position, setPosition] = useState23({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef17(null);
-  const contentRef = useRef17(null);
+  const [isOpen, setIsOpen] = useState24(false);
+  const [position, setPosition] = useState24({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef19(null);
+  const contentRef = useRef19(null);
   const reactId = useId4();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback14(() => setIsOpen(false), []);
-  useEffect26(() => {
+  useEffect27(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -6902,7 +7049,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect26(() => {
+  useEffect27(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -6922,7 +7069,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect26(() => {
+  useEffect27(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;
@@ -7177,6 +7324,7 @@ export {
   useDensityStyle,
   useDictation,
   useDurableRecording,
+  useEdgeSwipe,
   useImagePicker,
   useInlineRename,
   useMediaQuery,
