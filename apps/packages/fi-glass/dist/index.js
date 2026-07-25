@@ -6540,8 +6540,14 @@ function AgentWorkspaceShell({
             "aria-expanded": isOpen,
             style: {
               position: "absolute",
-              top: "0.6rem",
-              left: "0.6rem",
+              // The wrapper is full-bleed (100dvh, no top inset) so a bare `top`
+              // anchors to the PHYSICAL top edge — under the iOS status bar on a
+              // black-translucent PWA it collides with the clock. Consume the
+              // safe-area inset so the floating toggle sits below the status bar,
+              // the way a flow header would. env() resolves to 0 off-device, so
+              // desktop and non-translucent installs are unchanged.
+              top: "calc(0.6rem + env(safe-area-inset-top, 0px))",
+              left: "calc(0.6rem + env(safe-area-inset-left, 0px))",
               zIndex: 30,
               opacity: dragging ? 1 - dragProgress : 1,
               transition: dragging ? "none" : "opacity 0.24s ease"
