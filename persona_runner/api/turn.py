@@ -29,20 +29,34 @@ router = APIRouter()
 
 
 def _drain(message: Any, state: dict) -> None:
-    """Accumulate one SDK stream message into the turn's result state."""
+    """Accumulate one SDK stream message into the turn's result state.
+
+    Text that SHARES a message with a tool call is the model narrating what it
+    is about to do ("necesito cargar mis herramientas de memoria primero…") —
+    plumbing, never the answer. The persona must never expose its mechanics, so
+    that text is counted (`preamble_chars`) and dropped; only the text of a
+    message that calls no tool is the persona speaking. Final texts from
+    separate messages join on a newline instead of butting together, so two
+    blocks can never fuse into `…búsqueda.NADA`.
+    """
     mtype = type(message).__name__
     if mtype == "AssistantMessage":
-        for block in getattr(message, "content", []) or []:
-            btype = type(block).__name__
-            if btype == "TextBlock":
-                state["text"] += getattr(block, "text", "") or ""
-            elif btype == "ToolUseBlock":
-                state["tool_calls"].append(
-                    {
-                        "name": getattr(block, "name", "?"),
-                        "input_keys": list((getattr(block, "input", {}) or {}).keys()),
-                    }
-                )
+        blocks = getattr(message, "content", []) or []
+        text = "".join(getattr(b, "text", "") or "" for b in blocks if type(b).__name__ == "TextBlock")
+        tool_blocks = [b for b in blocks if type(b).__name__ == "ToolUseBlock"]
+        for block in tool_blocks:
+            state["tool_calls"].append(
+                {
+                    "name": getattr(block, "name", "?"),
+                    "input_keys": list((getattr(block, "input", {}) or {}).keys()),
+                }
+            )
+        if not text:
+            return
+        if tool_blocks:
+            state["preamble_chars"] += len(text)
+        else:
+            state["text"] = f"{state['text']}\n{text}" if state["text"] else text
     elif mtype == "ResultMessage":
         usage = getattr(message, "usage", None) or {}
         state["input_tokens"] = int(usage.get("input_tokens", 0))
@@ -67,6 +81,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
 
     state: dict[str, Any] = {
         "text": "",
+        "preamble_chars": 0,
         "tool_calls": [],
         "input_tokens": 0,
         "output_tokens": 0,
@@ -118,6 +133,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         channel_id=req.channel_id,
         user_id=req.user_id,
         text_len=len(state["text"]),
+        preamble_chars=state["preamble_chars"],
         tool_calls=len(state["tool_calls"]),
         # Tool names so KQL can distinguish workspace Read/Grep/Glob from the
         # mcp__insult_db__* tools.
