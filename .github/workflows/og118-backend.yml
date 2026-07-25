@@ -56,16 +56,41 @@ jobs:
           az acr show -n "$ACR" -g "$RG" >/dev/null 2>&1 \
             || az acr create -n "$ACR" -g "$RG" -l "$LOCATION" --sku Basic --admin-enabled false
 
-      - name: Build linux/amd64 + push to ACR
+      - name: Set up Buildx (docker-container driver)
+        # REQUIRED for the registry cache below: buildx's DEFAULT `docker` driver
+        # rejects `--cache-to type=registry` ("cache export feature is currently
+        # not supported for docker driver"). This action provisions the
+        # `docker-container` driver, which supports it.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build linux/amd64 + push to ACR (registry layer cache)
         run: |
           az acr login -n "$ACR"
           # BuildKit on the amd64 runner honors apps/og118/server/Dockerfile.dockerignore
           # (scoped) and builds natively — no QEMU, no arm64.
           # SHA-only tag: :latest is mutable and can race across concurrent deploys.
-          docker build --platform linux/amd64 \
+          #
+          # The `:buildcache` tag is why this registry stopped growing ~375 MB per
+          # deploy. A GitHub runner is ephemeral, so without an EXTERNAL cache
+          # every layer is rebuilt with a fresh digest and re-pushed whole — 54
+          # builds had produced 18.3 GB with ~5% dedupe. `--cache-from` seeds
+          # BuildKit from the last build's layers so the untouched ones (apt +
+          # Node 20 + the Claude CLI, ~200 MB that change on no schedule of ours)
+          # are reused instead of re-uploaded.
+          #
+          # mode=min, not max: this Dockerfile is single-stage, so the final
+          # image's layers ARE the reusable ones — mode=max would only duplicate
+          # them in the cache blob for no hit-rate gain.
+          #
+          # --push is mandatory with the docker-container driver: the build result
+          # never lands in the runner's local image store, so a separate
+          # `docker push` would fail with "image not found".
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache,mode=min" \
             -f apps/og118/server/Dockerfile \
-            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" .
-          docker push "$ACR.azurecr.io/$IMAGE:${{ github.sha }}"
+            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" \
+            --push .
 
       - name: Ensure Container Apps environment (idempotent)
         run: |
@@ -274,3 +299,24 @@ jobs:
             echo "waiting for health ($i)…"; sleep 10
           done
           echo "health check failed"; exit 1
+
+      - name: Prune old images (retention)
+        # Runs LAST and only on a green health check — a failed deploy keeps every
+        # old image so a rollback stays possible.
+        #
+        # og118acr is Basic (10 GB included). Untended, it reached 18.3 GB / 54
+        # manifests at ~375 MB each; a manual purge on 2026-07-25 brought it to
+        # 2.0 GB. This step is what keeps it there instead of re-growing.
+        #
+        # The filter matches ONLY 40-hex commit SHAs (the tag this workflow
+        # pushes). The anchors are load-bearing: acr purge does a PARTIAL regex
+        # match, so an unanchored `.*` would also match `:buildcache` and delete
+        # the layer cache on every deploy — turning the step above back into a
+        # full rebuild. --untagged then reclaims the previous cache manifest,
+        # which `--cache-to` orphans each run.
+        continue-on-error: true
+        run: |
+          az acr run --registry "$ACR" --cmd \
+            "acr purge --filter '$IMAGE:^[0-9a-f]{40}$' --ago 30d --keep 5 --untagged" \
+            /dev/null
+          az acr show-usage -n "$ACR" -o table
