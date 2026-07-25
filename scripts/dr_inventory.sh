@@ -95,7 +95,7 @@ secret_audit() {
   cat <<'EOF'
 
   Recuperables sin Bernard (no necesitan backup):
-    acr-password   → az acr credential show -n insultacr
+    acr-password   → az acr credential show -n serverbotacr
     azure-openai-key → az cognitiveservices account keys list -n insult-openai -g insult-rg
 
   Requieren a Bernard (login + MFA, NO regenerables por el agente):

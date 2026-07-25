@@ -38,8 +38,8 @@ on:
 env:
   NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
   RG: insult-rg
-  REGISTRY: insultacr
-  ACR: insultacr.azurecr.io
+  REGISTRY: serverbotacr
+  ACR: serverbotacr.azurecr.io
 
 jobs:
   deploy:
