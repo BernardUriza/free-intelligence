@@ -1,7 +1,44 @@
 # Rename `discord-bot` → `server-bot`
 
-Status: Proposed
+Status: In progress (ACR hecho 2026-07-25; RG + repo + apps pendientes)
 Proposed: 2026-06-18 by Bernard
+
+## PROGRESO 2026-07-25 — el ACR ya está migrado
+
+**HECHO (v4.32.5, commit ac11774):** el registry `insultacr` → **`serverbotacr`**
+para el runtime de discord-bot. Bernard lo pidió explícito ("hazlo ahora mismo").
+Nombre válido: `serverbotacr` (los ACR NO admiten guiones → NO "serverbot-acr").
+- Creado `serverbotacr` (Basic, eastus, admin on) en insult-rg.
+- Importadas las 4 imágenes EN USO (`az acr import`): persona-runner, persona-gateway,
+  khimeras-host @ `1c8438f`; susurro-gateway @ `2ba817d2`.
+- Repuntadas las 4 apps (`registry set` + `--image serverbotacr...`), verificadas
+  **Healthy/Running** pulleando del nuevo ACR.
+- `cd.yml` (REGISTRY/ACR) y `scripts/dr_inventory.sh` → serverbotacr.
+
+**NO HECHO — y por qué (hallazgo de alcance, Art. 5):**
+- **`insultacr` NO se borró: es un ACR COMPARTIDO.** portfolio-spring (portfolio-rg),
+  rancho-studio, aire-front tienen sus imágenes ahí. Borrarlo los rompe. Para
+  eliminar insultacr hay que primero migrar (o aceptar tumbar) esos 3 proyectos.
+- **Jobs huérfanos que aún apuntan a `insultacr/insult-bot`:** `fact-consolidation`
+  (cron `0 0 31 2 *` = 31-feb, fecha imposible → nunca dispara; últimos runs Failed
+  9-13 jul, muerto desde antes) e `insult-canary` (el canary retirado). Ambos
+  candidatos a BORRAR — su imagen `insult-bot:d6fa36c7` ya no existe (purgada).
+- La app `discord-bot` retired (min=0, sin scale rules) también apunta a
+  insult-bot; inocua pero bloquea el borrado limpio de insultacr.
+
+## `insult-rg` → `server-rg`: NO es un rename, es una RECONSTRUCCIÓN (Art. 7)
+
+Bernard pidió (2026-07-25) renombrar también el RG. La verdad dura:
+- **Azure NO renombra Resource Groups.** "Renombrar" = crear `server-rg` + mover
+  todos los recursos + borrar el viejo.
+- **Container Apps y su managed environment (`prod-env`) NO soportan `az resource
+  move` entre RGs.** La única vía es RECREAR el environment + las 3 apps desde cero
+  → **downtime Discord-visible real** + reconfigurar secrets/ingress/registries.
+- Costo alto (downtime + reconstrucción) por cero función (el nombre del RG es el
+  más interno de todos, ningún humano externo lo ve).
+- **Decisión de Bernard (2026-07-25): agendado, NO ejecutar reactivo.** Se hace
+  dentro de este proyecto coordinado, en una ventana dedicada, sin downtime
+  sorpresa a media conversación.
 
 ## What it is
 
