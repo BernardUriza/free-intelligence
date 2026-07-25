@@ -76,8 +76,10 @@ async def test_role_mentioned_persona_forces_dispatch_without_router():
     assert summon.await_args.kwargs["persona_id"] == "vultur"
 
 
-async def test_user_and_role_mentions_share_the_forced_target():
-    """User and role mentions in one burst coexist and keep deterministic forced routing."""
+async def test_user_and_role_mentions_summon_every_mentioned_persona():
+    """Naming two personas in one burst wakes BOTH — a mention must not overwrite
+    the previous one. `@Vultur @Insult @frugi @A.L.I.C.E. cuéntenme cada quien`
+    (2026-07-25 01:30 UTC) woke only frugi: `_forced_target` was a single slot."""
     router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="insult", reason="llm_insult")))
     loop = HostDispatchLoop(
         router=router,
@@ -96,8 +98,31 @@ async def test_user_and_role_mentions_share_the_forced_target():
     with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
         decisions = await loop.tick(now=104.0)
     router.route.assert_not_awaited()
-    assert [d.target for d in decisions] == ["vultur"]
-    assert summon.await_args.kwargs["persona_id"] == "vultur"
+    assert [d.targets for d in decisions] == [("alice", "vultur")]
+    assert sorted(c.kwargs["persona_id"] for c in summon.await_args_list) == ["alice", "vultur"]
+
+
+async def test_the_same_persona_mentioned_by_user_and_role_is_summoned_once():
+    """RESISTANCE: @Vultur as user AND role in one burst is ONE persona, one invite."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="insult", reason="llm_insult")))
+    loop = HostDispatchLoop(
+        router=router,
+        batcher=MessageBatcher(window_seconds=3.0),
+        mention_targets={"1512687836766404618": "vultur"},
+    )
+    assert loop.handle_message(
+        channel_id="C1",
+        author_id="u1",
+        author_is_bot=False,
+        text="@Vultur hola",
+        now=100.0,
+        mentioned_ids=["1512687836766404618"],
+        mentioned_role_names=["Vultur"],
+    )
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        decisions = await loop.tick(now=104.0)
+    assert [d.targets for d in decisions] == [("vultur",)]
+    assert summon.await_count == 1
 
 
 async def test_latest_mentioned_persona_in_a_burst_wins():

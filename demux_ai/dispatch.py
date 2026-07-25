@@ -14,6 +14,7 @@ routing fault must never wedge the host's loop.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -30,10 +31,15 @@ class _Router(Protocol):
 
 @dataclass(frozen=True)
 class MentionDecision:
-    """Decision shape returned when an explicit @mention bypasses the LLM router."""
+    """Decision shape returned when an explicit @mention bypasses the LLM router.
+
+    `targets` holds EVERY mentioned persona — naming four personas summons four.
+    `target` stays the first one so existing telemetry keeps reading a scalar.
+    """
 
     target: str
     reason: str = "mention"
+    targets: tuple[str, ...] = ()
 
 
 async def route_and_dispatch(
@@ -46,7 +52,7 @@ async def route_and_dispatch(
     channel_name: str | None = None,
     context: str | None = None,
     trigger_message_id: str | None = None,
-    forced_target: str | None = None,
+    forced_targets: list[str] | None = None,
     voice_transcript: str = "",
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the router decision (for
@@ -60,25 +66,44 @@ async def route_and_dispatch(
     host owns susurro, so this is the persona's only copy of what was said, and
     a 600-char cap would silently truncate a long voice note.
     """
-    if forced_target:
+    if forced_targets:
         reason = f"{user_name}: «{text[:600]}»" if user_name else text[:600]
-        accepted = await summon_persona(
-            {"reason": reason},
-            channel_id=channel_id,
-            guild_id=guild_id,
-            channel_name=channel_name,
-            persona_id=forced_target,
-            invited_by="host",
-            trigger_message_id=trigger_message_id,
-            trigger_transcript=voice_transcript,
+        # Every mentioned persona is summoned, concurrently: "@Vultur @Insult
+        # @frugi @A.L.I.C.E. cuéntenme cada quien" must wake four, not the last
+        # one to survive an overwrite. One failed summon never costs the others.
+        outcomes = await asyncio.gather(
+            *(
+                summon_persona(
+                    {"reason": reason},
+                    channel_id=channel_id,
+                    guild_id=guild_id,
+                    channel_name=channel_name,
+                    persona_id=persona_id,
+                    invited_by="host",
+                    trigger_message_id=trigger_message_id,
+                    trigger_transcript=voice_transcript,
+                )
+                for persona_id in forced_targets
+            ),
+            return_exceptions=True,
         )
-        log.info(
-            "host_mention_shortcircuit",
-            channel_id=channel_id,
-            target=forced_target,
-            accepted=accepted,
-        )
-        return MentionDecision(target=forced_target)
+        for persona_id, outcome in zip(forced_targets, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                log.warning(
+                    "host_mention_summon_failed",
+                    channel_id=channel_id,
+                    target=persona_id,
+                    error=f"{type(outcome).__name__}: {outcome}",
+                )
+                continue
+            log.info(
+                "host_mention_shortcircuit",
+                channel_id=channel_id,
+                target=persona_id,
+                accepted=outcome,
+                mentioned=list(forced_targets),
+            )
+        return MentionDecision(target=forced_targets[0], targets=tuple(forced_targets))
 
     try:
         decision = await router.route(text, context)

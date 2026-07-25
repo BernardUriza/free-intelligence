@@ -39,7 +39,7 @@ class HostDispatchLoop:
     mention_targets: dict[str, str] = field(default_factory=dict)
     role_resolver: Callable[[str], str | None] = persona_id_by_role_name
     _names: dict[str, str] = field(default_factory=dict)
-    _forced_target: dict[str, str] = field(default_factory=dict)
+    _forced_targets: dict[str, list[str]] = field(default_factory=dict)
 
     def handle_message(
         self,
@@ -64,9 +64,9 @@ class HostDispatchLoop:
 
         `message_id` rides through the batcher so the routed turn's [REACT:] markers
         can anchor to the last message of the burst (else host-routed reactions drop).
-        When a burst contains explicit persona user/role @mentions, the latest
-        mentioned registered persona wins and bypasses the LLM router at dispatch
-        time.
+        When a burst contains explicit persona user/role @mentions, EVERY mentioned
+        registered persona is summoned (in mention order, deduped) and the LLM
+        router is bypassed at dispatch time.
 
         `attachment_names` makes bare images ROUTABLE (2026-07-16 bug: una imagen
         pelona era text="" → el batcher la tiraba y nadie respondía jamás). The
@@ -108,14 +108,19 @@ class HostDispatchLoop:
         )
         if author_name:
             self._names[key] = author_name
-        for mentioned_id in mentioned_ids or []:
-            target = self.mention_targets.get(mentioned_id)
-            if target:
-                self._forced_target[key] = target
-        for role_name in mentioned_role_names or []:
-            target = self.role_resolver(role_name)
-            if target:
-                self._forced_target[key] = target
+        # Within ONE message every mention counts ("@Vultur @Insult @frugi
+        # @A.L.I.C.E. cuéntenme cada quien" wakes four). ACROSS the burst the
+        # newest mentioning message REPLACES the previous set, because a second
+        # message that names someone else is a correction ("@ALICE mejor tú"),
+        # not an addition.
+        forced: list[str] = []
+        for target in [self.mention_targets.get(m) for m in mentioned_ids or []] + [
+            self.role_resolver(r) for r in mentioned_role_names or []
+        ]:
+            if target and target not in forced:
+                forced.append(target)
+        if forced:
+            self._forced_targets[key] = forced
         return True
 
     async def tick(self, now: float) -> list:
@@ -130,7 +135,7 @@ class HostDispatchLoop:
                 text=combined,
                 user_name=self._names.pop(key, ""),
                 trigger_message_id=message_id,
-                forced_target=self._forced_target.pop(key, None),
+                forced_targets=self._forced_targets.pop(key, None),
                 voice_transcript=voice_transcript,
             )
             decisions.append(decision)

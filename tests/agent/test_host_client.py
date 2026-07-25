@@ -56,12 +56,12 @@ def test_ingest_threads_mentioned_user_ids_to_the_loop():
     msg = _message("@Vultur hola")
     msg.mentions = [SimpleNamespace(id=1512687836766404618)]
     assert client._ingest(msg, now=100.0) is True
-    assert client.dispatch_loop._forced_target == {}
+    assert client.dispatch_loop._forced_targets == {}
     client.dispatch_loop.mention_targets = {"1512687836766404618": "vultur"}
     msg = _message("@Vultur hola")
     msg.mentions = [SimpleNamespace(id=1512687836766404618)]
     assert client._ingest(msg, now=101.0) is True
-    assert client.dispatch_loop._forced_target == {"111:222": "vultur"}
+    assert client.dispatch_loop._forced_targets == {"111:222": ["vultur"]}
 
 
 def test_ingest_threads_mentioned_role_names_to_the_loop():
@@ -70,7 +70,7 @@ def test_ingest_threads_mentioned_role_names_to_the_loop():
     msg = _message("@Vultur hola")
     msg.role_mentions = [SimpleNamespace(name="Vultur")]
     assert client._ingest(msg, now=100.0) is True
-    assert client.dispatch_loop._forced_target == {"111:222": "vultur"}
+    assert client.dispatch_loop._forced_targets == {"111:222": ["vultur"]}
 
 
 def test_ingest_ignores_a_bot_message():
