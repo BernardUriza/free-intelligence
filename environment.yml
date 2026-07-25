@@ -123,6 +123,11 @@ dependencies:
   # Security / lint
   - pip-audit>=2.7.0
   - bandit>=1.8.0
+  # Transitive (bandit, transformers) — pinned only to clear the 5 HIGH GHSAs
+  # published 2026-07-24 against <=3.1.54 (config-injection RCE, --output
+  # overwrite, clone --template, kwarg smuggling, env exfiltration). Nothing
+  # here imports it; the floor exists so pip-audit stops red-gating the CD.
+  - gitpython>=3.1.56
 
   # Packages without py314 conda-forge build yet → pip fallback (allowed
   # per the memory rule when no conda recipe exists AND we need the
