@@ -42,6 +42,11 @@ class GatewayConfig(BaseSettings):
     agenda_check_seconds: float = 600.0
     agenda_timeout_s: float = 360.0
     agenda_batch: int = 2
+    # An agenda speaks unprompted, so it only speaks during waking hours (CDMX).
+    # Without this a 24h cadence that first came due at 03:00 posts at 03:00
+    # forever — which is how Vultur woke Bernard two nights running.
+    agenda_daytime_start: int = 9
+    agenda_daytime_end: int = 22
 
     # Self-reflection (slice 4): the loop wakes every 6h but the DURABLE gate in
     # `agents.last_reflected_at` only lets a pass run weekly per persona; a pass

@@ -8,12 +8,13 @@ import structlog
 
 from khimeras_shared.markers import strip_delivery_markers
 from khimeras_shared.memory import MemoryStore
-from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
+from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_daytime, is_nothing_new
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import send_chunked
 from persona_gateway.workers._host import GatewayHost, host_bot_id
 from shared.personas import Persona
+from shared.time_context import now_in_mexico_city
 
 log = structlog.get_logger()
 
@@ -28,7 +29,14 @@ class AgendaWorker:
 
     async def drain(self, host: GatewayHost) -> None:
         """Each due agenda is pursued; the per-agenda `cadence_hours` throttles
-        real frequency. When the runner finds nothing new the persona stays QUIET."""
+        real frequency. When the runner finds nothing new the persona stays QUIET.
+
+        Outside waking hours nothing runs and nothing is marked ran, so a due
+        agenda simply waits for the window to open instead of posting at 03:00.
+        """
+        if not is_daytime(now_in_mexico_city(), CONFIG.agenda_daytime_start, CONFIG.agenda_daytime_end):
+            log.debug("agenda_outside_daytime_window", persona_id=self.persona.persona_id)
+            return
         try:
             agendas = await self.memory.get_due_agendas(
                 time.time(), limit=CONFIG.agenda_batch, persona_id=self.persona.persona_id

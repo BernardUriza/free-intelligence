@@ -15,9 +15,24 @@ the post; silence is the default.
 
 from __future__ import annotations
 
-__all__ = ["frame_agenda_prompt", "is_nothing_new"]
+from datetime import datetime
+
+__all__ = ["frame_agenda_prompt", "is_daytime", "is_nothing_new"]
 
 _NOTHING_SENTINEL = "nada"
+
+
+def is_daytime(moment: datetime, start_hour: int, end_hour: int) -> bool:
+    """True when `moment` falls inside the waking window `[start_hour, end_hour)`.
+
+    An agenda speaks UNPROMPTED, so its cadence alone is not enough: a 24h
+    cadence that first came due at 03:00 keeps firing at 03:00 forever. Vultur's
+    own agenda asked for "horario diurno razonable, no en madrugada" and then
+    posted at 02:39 and 02:57 CDMX on consecutive days — the goal said it, no
+    code enforced it. Blocked cycles do NOT mark the agenda as run, so it simply
+    fires when the window opens.
+    """
+    return start_hour <= moment.hour < end_hour
 
 
 def frame_agenda_prompt(goal: str, last_result: str | None = None) -> str:

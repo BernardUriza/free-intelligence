@@ -6,7 +6,10 @@ live runner or DB.
 
 from __future__ import annotations
 
-from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_nothing_new
+from datetime import datetime
+
+from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_daytime, is_nothing_new
+from shared.time_context import MEXICO_CITY_TZ
 
 
 class TestFrameAgendaPrompt:
@@ -52,3 +55,30 @@ class TestIsNothingNew:
 
     def test_nada_inside_sentence_is_something(self):
         assert is_nothing_new("No hay nada que no sepas ya, pero salió esto nuevo") is False
+
+
+class TestDaytimeWindow:
+    """An agenda speaks unprompted, so it may only speak while Bernard is awake.
+
+    Vultur's own goal asked for "horario diurno razonable, no en madrugada" and
+    then posted at 02:39 and 02:57 CDMX two days running (2026-07-25/27): the
+    goal said it, no code enforced it.
+    """
+
+    def _at(self, hour: int) -> datetime:
+        return datetime(2026, 7, 27, hour, 30, tzinfo=MEXICO_CITY_TZ)
+
+    def test_the_two_am_poke_that_woke_him_is_blocked(self):
+        assert is_daytime(self._at(2), 9, 22) is False
+
+    def test_midday_runs(self):
+        assert is_daytime(self._at(13), 9, 22) is True
+
+    def test_the_window_includes_its_start_hour(self):
+        assert is_daytime(self._at(9), 9, 22) is True
+
+    def test_the_window_excludes_its_end_hour(self):
+        assert is_daytime(self._at(22), 9, 22) is False
+
+    def test_late_evening_before_the_cutoff_still_runs(self):
+        assert is_daytime(self._at(21), 9, 22) is True

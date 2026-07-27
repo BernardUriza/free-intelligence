@@ -10,10 +10,17 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+MEXICO_CITY_TZ = ZoneInfo("America/Mexico_City")
+
+
+def now_in_mexico_city() -> datetime:
+    """The single wall clock every surface reads — prompts, workers, schedulers."""
+    return datetime.now(MEXICO_CITY_TZ)
+
 
 def _get_current_time_context() -> str:
     """Build a human-readable current time string for the system prompt (Mexico City timezone)."""
-    now = datetime.now(ZoneInfo("America/Mexico_City"))
+    now = now_in_mexico_city()
     day_names_es = {0: "lunes", 1: "martes", 2: "miércoles", 3: "jueves", 4: "viernes", 5: "sábado", 6: "domingo"}
     month_names_es = {
         1: "enero",
