@@ -387,16 +387,77 @@ compartidas). Sin separación, cualquiera en el cibercafé veía la lista comple
 de expedientes: nombres de alumnos, escuelas y WhatsApps de las mamás de otras
 familias. Datos de menores en una máquina pública.
 
-`rbac.py`: una lista de correos en `FENIX_ADMIN_EMAILS`. Sin lista → modo
-abierto (desarrollo local); con lista → sólo esos correos. El bearer compartido
-NUNCA es admin: una credencial compartida no identifica a una persona.
+### El token del mostrador, no un proveedor de identidad
 
-Los endpoints de expedientes responden **404, no 403** — para el cibercafé esa
-superficie no existe; un 403 confirmaría que hay algo detrás. Verificado:
-`/expedientes` 404, `/expedientes/excel` 404, `/chat/stream` **200** (la tutoría
-vive). El frontend además no pinta ni la pestaña ni el historial.
+La primera versión usó una lista de correos (`FENIX_ADMIN_EMAILS`) y anunciaba
+que "la separación de verdad llega con Auth0". Se intentó y se descartó: un IdP
+pide tenant, callbacks por entorno, refresh tokens y consentimiento para
+distinguir a tres personas que trabajan detrás del **mismo** mostrador — y la
+separación real de este local no es entre personas, es entre **las PC de adentro
+y las de afuera**.
 
-**Límite honesto:** esto es defensa en profundidad, no la puerta definitiva. El
-aislamiento real es del servidor, que guarda las conversaciones POR DUEÑO; con
-el bearer compartido todos comparten un mismo dueño por diseño. La separación
-de verdad llega con Auth0.
+Lo que quedó modela exactamente eso:
+
+- **`FENIX_ADMIN_TOKEN` autoriza.** Es el secreto de la papelería, se pega una
+  vez en cada PC del mostrador y vive en su `localStorage`. Las máquinas del
+  ciber simplemente no lo tienen. Se revoca cambiando una variable. Comparación
+  en tiempo constante — un `==` filtra el token carácter a carácter ante quien
+  pueda medir la respuesta.
+- **`X-Fenix-Email` identifica.** Dice QUIÉN trabajó una cotización; no abre
+  ninguna puerta. Un correo fuera de `FENIX_ADMIN_EMAILS` se marca en la píldora
+  sin bloquear, porque casi siempre es un dedazo que deja la cotización difícil
+  de rastrear.
+
+Sin token configurado, todo el mundo es mostrador: es el default de desarrollo,
+y tanto el arranque como `/expedientes/rol` lo reportan para que nadie lo
+despliegue así sin verlo.
+
+### H13 — la lista de cotizaciones estaba abierta a cualquiera
+
+El hallazgo más grave del experimento, y sólo apareció al ir a corregir un
+comentario. `GET /conversations` respondía **200 sin ninguna credencial**: los
+títulos llevan nombre del alumno, escuela y el WhatsApp de la mamá. Cualquiera
+que alcanzara el servidor —empezando por las PC del ciber— podía leer la lista
+completa. Ocultarla en la barra era cosmética, y el propio comentario del código
+lo admitía mientras prometía una puerta que nunca llegó.
+
+La causa es estructural y vale para cualquier consumer que herede la app de
+og118: **og118 sirve `/conversations` y `/projects` abiertas porque es una app
+de una sola cuenta.** Un consumer con dos públicos hereda ese supuesto sin
+enterarse.
+
+Se cierran inyectando la dependencia en las rutas ya registradas, **no con un
+middleware**: el middleware queda por fuera del CORS de og118 (Starlette pone
+más afuera lo último añadido) y el navegador recibiría un error de red opaco en
+lugar del 404 que el cliente distingue para pintar la vista pública. Verificado:
+el 404 llega con `access-control-allow-origin`.
+
+Como la puerta se pone mutando rutas ajenas, un rename en og118 la reabriría en
+silencio — el arranque **falla** si no cierra ninguna, y un test lo afirma
+(`tests/test_puerta_mostrador.py`, 7 verdes).
+
+Cerrar la puerta destapó tres defectos más, ninguno visible en el build:
+
+1. La librería remota mandaba el bearer pero **no** el token del mostrador, así
+   que se ganaba su propio 404 y la barra quedaba vacía.
+2. La píldora leía `localStorage` durante el render → el servidor pintaba vacío,
+   el cliente pintaba iniciales, y React tiraba el árbol por la discrepancia.
+3. El cibercafé recibía la app del mostrador entera ("Nueva cotización", "manda
+   la foto de la lista") cuando son niños con veinte minutos de tarea.
+
+### H14 — el framework no sabía NO guardar
+
+fi-glass tenía dos implementaciones de `ConversationLibrary` y **ambas
+persisten**: IndexedDB (navegador) y Remote (servidor). En una terminal
+compartida eso no es una funcionalidad ausente sino un riesgo: IndexedDB es del
+navegador, no de la persona, así que cada niño heredaría la conversación del
+anterior.
+
+Es el caso canónico de `framework-first-canary` con un consumer que **no** es el
+canario: la capacidad es reusable (cualquier shell con modo kiosco la quiere),
+así que subió a fi-glass como `EphemeralConversationLibrary` y fenix es su
+primer consumer. 61 líneas contra el mismo contrato, 6 tests.
+
+**Verificado en runtime**, no en el build: sin token, la PC pública contestó
+`7 x 8 = 56` y explicó la fotosíntesis para 5º de primaria, sin tocar
+`/conversations`; con token, los 33 chats y las dos pestañas vuelven.
