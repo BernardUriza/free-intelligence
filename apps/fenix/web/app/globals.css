@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* fi-glass NO trae paleta de color: sus tokens propios son sólo de MATERIAL
+   (--glass-blur, --glass-opacity, --glass-saturation). La paleta vive en los
+   ~20 tokens `--glass-chat-*` que define glass-chat.css, y se activan con la
+   clase `glass-chat` en <body>. Los nombres `--fi-bg/--fi-surface/--fi-text`
+   NO EXISTEN — inventarlos deja el composer en blanco sobre negro. */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--glass-chat-body, #020617);
+  color: var(--glass-chat-text, #ffffff);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El acento de la marca. fi-glass lo lee como `var(--fi-accent, var(--og-accent, …))`,
+   así que definir --fi-accent es la vía limpia para un consumer que no es og118. */
+:root {
+  --fi-accent: var(--glass-chat-accent-text, #6ee7b7);
+}
+
+.fenix-start {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.fenix-start-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.fenix-start-sub {
+  font-size: 0.95rem;
+  opacity: 0.7;
+  max-width: 34ch;
+}
+
+.fenix-start-grid {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 46rem;
+  margin-top: 1.25rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .fenix-start-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.fenix-start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: var(--glass-chat-radius, 16px);
+  border: 1px solid var(--glass-chat-surface-border, rgba(71,85,105,0.4));
+  background: var(--glass-chat-surface, rgba(30,41,59,0.6));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fenix-start-card:hover,
+.fenix-start-card:focus-visible {
+  border-color: var(--glass-chat-accent-text, #6ee7b7);
+  background: rgb(255 255 255 / 0.07);
+}
+
+.fenix-start-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  opacity: 0.85;
+}
+
+.fenix-start-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.fenix-start-card-help {
+  font-size: 0.8rem;
+  opacity: 0.65;
+  line-height: 1.35;
+}
+
+.fenix-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  height: 100%;
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.fenix-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--glass-chat-radius, 16px);
+  border: 1px solid var(--glass-chat-surface-border, rgba(71,85,105,0.4));
+  background: var(--glass-chat-surface, rgba(30,41,59,0.6));
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fenix-new:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fenix-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow-y: auto;
+}
+
+.fenix-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 10px;
+}
+
+.fenix-item-active {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.fenix-item-open {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.875rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fenix-item-del {
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fenix-item:hover .fenix-item-del,
+.fenix-item-del:focus-visible {
+  opacity: 0.7;
+}
+
+@media (hover: none) {
+  .fenix-item-del {
+    opacity: 0.55;
+  }
+}
+
+.fenix-item-del svg {
+  width: 1rem;
+  height: 1rem;
+}
