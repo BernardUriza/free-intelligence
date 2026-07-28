@@ -91,7 +91,7 @@ def detect_fi_core() -> bool:
 
 
 def _registered_tool_order(init_py) -> list[str]:
-    """Function-name order of the INSULT_DB_TOOLS list in the package __init__."""
+    """Function-name order of the PERSONA_MEMORY_TOOLS list in the package __init__."""
     if not init_py.exists():
         return []
     try:
@@ -101,7 +101,7 @@ def _registered_tool_order(init_py) -> list[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
-                if isinstance(tgt, ast.Name) and tgt.id == "INSULT_DB_TOOLS" and isinstance(node.value, ast.List):
+                if isinstance(tgt, ast.Name) and tgt.id == "PERSONA_MEMORY_TOOLS" and isinstance(node.value, ast.List):
                     return [e.id for e in node.value.elts if isinstance(e, ast.Name)]
     return []
 
@@ -110,9 +110,9 @@ def extract_mcp_tool_names() -> list[dict]:
     """Pull tool names from @tool-decorated functions in the mcp_tools package.
 
     Each @tool decorator's first positional arg is the tool name; the
-    second is its description. Ordered per INSULT_DB_TOOLS in the package
+    second is its description. Ordered per PERSONA_MEMORY_TOOLS in the package
     __init__ so the rendered list matches what the server registers.
-    Returns names prefixed with `mcp__insult_db__` (the wire name).
+    Returns names prefixed with `mcp__persona_memory__` (the wire name).
     """
     pkg = ROOT / "persona_runner" / "mcp_tools"
     if not pkg.is_dir():
@@ -137,7 +137,7 @@ def extract_mcp_tool_names() -> list[dict]:
                         if name:
                             first_sentence = desc.split(". ")[0] + "." if desc else ""
                             by_func[node.name] = {
-                                "name": f"mcp__insult_db__{name}",
+                                "name": f"mcp__persona_memory__{name}",
                                 "desc": first_sentence,
                             }
 
@@ -299,7 +299,7 @@ def build_capabilities_block() -> str:
         lines.append(
             "- **Deep vector memory**: Beyond the structured fact digest, you can vector-recall "
             "the actual chunks of past conversation that semantically match a query. "
-            "Powered by `mcp__insult_db__deep_memory(user_id, query, top_k)`. "
+            "Powered by `mcp__persona_memory__deep_memory(user_id, query, top_k)`. "
             "Backed by Azure OpenAI ada-002 embeddings + Postgres pgvector."
         )
 
@@ -307,7 +307,7 @@ def build_capabilities_block() -> str:
         lines.append(
             "- **HTML artifact publishing**: You can mint shareable HTML pages "
             "(reports, mini-apps, snapshots) served at `bot.bernarduriza.com/a/{id}`. "
-            "Powered by `mcp__insult_db__publish_html_artifact(title, html_content, user_id)`. "
+            "Powered by `mcp__persona_memory__publish_html_artifact(title, html_content, user_id)`. "
             "Use for content that wouldn't fit in chat or that renders better as a page."
         )
 

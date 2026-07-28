@@ -1,7 +1,7 @@
 """HTML artifact storage — agent-generated pages served by GET /a/{id}.
 
 The Insult agent can publish standalone HTML pages (reports, mini-apps,
-chat snapshots) via the `mcp__insult_db__publish_html_artifact` tool.
+chat snapshots) via the `mcp__persona_memory__publish_html_artifact` tool.
 The discord-bot's debug HTTP server exposes a public `GET /a/{id}`
 endpoint that streams the stored HTML back. The system is dynamic:
 adding an artifact does NOT require a redeploy of anything.

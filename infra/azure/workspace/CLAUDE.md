@@ -12,13 +12,13 @@ structured output is easier to read than the markdown projection:
 
 | Need | Tool |
 |---|---|
-| What do I know about user X? | `mcp__insult_db__get_user_facts(user_id)` |
-| What was just said in this channel? | `mcp__insult_db__get_recent_messages(channel_id, limit)` |
-| Did the user mention "X" earlier? | `mcp__insult_db__search_messages(channel_id, query, limit)` |
-| Has the user disclosed anything clinical? | `mcp__insult_db__get_disclosure_log(user_id, days)` |
-| What is the user's emotional arc state? | `mcp__insult_db__get_emotional_arc(user_id, channel_id)` |
-| Vector-recall something the user said weeks ago | `mcp__insult_db__deep_memory(user_id, query, top_k)` |
-| Want to share a long doc / mini-app / snapshot | `mcp__insult_db__publish_html_artifact(title, html_content, user_id)` |
+| What do I know about user X? | `mcp__persona_memory__get_user_facts(user_id)` |
+| What was just said in this channel? | `mcp__persona_memory__get_recent_messages(channel_id, limit)` |
+| Did the user mention "X" earlier? | `mcp__persona_memory__search_messages(channel_id, query, limit)` |
+| Has the user disclosed anything clinical? | `mcp__persona_memory__get_disclosure_log(user_id, days)` |
+| What is the user's emotional arc state? | `mcp__persona_memory__get_emotional_arc(user_id, channel_id)` |
+| Vector-recall something the user said weeks ago | `mcp__persona_memory__deep_memory(user_id, query, top_k)` |
+| Want to share a long doc / mini-app / snapshot | `mcp__persona_memory__publish_html_artifact(title, html_content, user_id)` |
 
 ### `deep_memory` vs `get_user_facts` — which to use
 
@@ -82,7 +82,7 @@ file). It is your operating contract, not data.
 
 ## Hard Rules
 
-- ONLY the `mcp__insult_db__*` tools are available. Calls to `Read`,
+- ONLY the `mcp__persona_memory__*` tools are available. Calls to `Read`,
   `Grep`, `Glob`, `Write`, `Edit`, `Bash` will be denied.
 - DO NOT invent user_ids or channel_ids. The host always injects them
   in the `<turn_context>` block at the top of your prompt.

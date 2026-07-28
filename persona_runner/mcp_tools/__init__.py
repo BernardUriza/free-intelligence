@@ -8,7 +8,7 @@ real data. The renderer was a 264-line projector that existed only so
 the agent's built-in `Read`/`Grep`/`Glob` tools could see PG state.
 
 This package ships a set of in-process MCP tools that hit Postgres
-directly. The agent calls them as `mcp__insult_db__get_facts` instead
+directly. The agent calls them as `mcp__persona_memory__get_facts` instead
 of `Read("facts/{user_id}.md")`. Benefits:
 
 - No staleness window (markdown was 0-60s behind PG).
@@ -48,7 +48,7 @@ from persona_runner.mcp_tools.memory_reads import (
 )
 from persona_runner.mcp_tools.shared import _connect, _error, _text
 
-INSULT_DB_TOOLS = [
+PERSONA_MEMORY_TOOLS = [
     get_user_facts,
     get_recent_messages,
     search_messages,
@@ -61,11 +61,11 @@ INSULT_DB_TOOLS = [
     update_agent_fact,
 ]
 
-# Name used in `allowed_tools`: `mcp__insult_db__<tool_name>`
-INSULT_DB_SERVER_NAME = "insult_db"
+# Name used in `allowed_tools`: `mcp__persona_memory__<tool_name>`
+PERSONA_MEMORY_SERVER_NAME = "persona_memory"
 
 
-def build_insult_db_server():
+def build_persona_memory_server():
     """Return the McpSdkServerConfig the runner registers in ClaudeAgentOptions.
 
     Called once per session at client construction. The server itself is
@@ -73,20 +73,20 @@ def build_insult_db_server():
     the pg_state pattern. No shared pool to leak across sessions.
     """
     return create_sdk_mcp_server(
-        name=INSULT_DB_SERVER_NAME,
+        name=PERSONA_MEMORY_SERVER_NAME,
         version="1.0.0",
-        tools=INSULT_DB_TOOLS,
+        tools=PERSONA_MEMORY_TOOLS,
     )
 
 
 __all__ = [
-    "INSULT_DB_SERVER_NAME",
-    "INSULT_DB_TOOLS",
+    "PERSONA_MEMORY_SERVER_NAME",
+    "PERSONA_MEMORY_TOOLS",
     "_connect",
     "_error",
     "_text",
     "add_agent_fact",
-    "build_insult_db_server",
+    "build_persona_memory_server",
     "deep_memory",
     "get_agent_facts",
     "get_disclosure_log",

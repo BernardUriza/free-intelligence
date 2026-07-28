@@ -67,7 +67,7 @@ def verify_required_tools(options: Any) -> None:
 async def build_options(persona: str, model: str | None = None) -> Any:
     """Construct ClaudeAgentOptions for a new session.
 
-    MCP servers registered: the in-process `insult_db` (Postgres tools), fi-core's
+    MCP servers registered: the in-process `persona_memory` (Postgres tools), fi-core's
     persona server (anti-drift, resolved from fi_runner's CAPABILITY registry so
     there is no tool list to keep in sync here), and Playwright over stdio.
 
@@ -78,16 +78,16 @@ async def build_options(persona: str, model: str | None = None) -> Any:
     from fi_runner import ClaudeCodeBackend, MCPServerSpec, PermissionMode, ToolPolicy, capabilities
 
     from persona_runner.mcp_tools import (
-        INSULT_DB_SERVER_NAME,
-        INSULT_DB_TOOLS,
-        build_insult_db_server,
+        PERSONA_MEMORY_SERVER_NAME,
+        PERSONA_MEMORY_TOOLS,
+        build_persona_memory_server,
     )
 
     specs = [
         MCPServerSpec(
-            name=INSULT_DB_SERVER_NAME,
-            server=build_insult_db_server(),  # in-process MCP server
-            tools=tuple(t.name for t in INSULT_DB_TOOLS),
+            name=PERSONA_MEMORY_SERVER_NAME,
+            server=build_persona_memory_server(),  # in-process MCP server
+            tools=tuple(t.name for t in PERSONA_MEMORY_TOOLS),
         ),
         *capabilities.resolve(["persona"], env_passthrough=False),
         MCPServerSpec(

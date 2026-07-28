@@ -1,4 +1,4 @@
-"""Shared plumbing for the insult_db MCP tools — PG connection + result envelopes.
+"""Shared plumbing for the persona_memory MCP tools — PG connection + result envelopes.
 
 Architecture mirrors `pg_state.py`: one-shot asyncpg connections per
 tool call. The agent invokes tools rarely enough (a few per turn) that

@@ -1,6 +1,6 @@
 """MCP tools for `agent_facts` — the bot's self-knowledge (v4.20.14 PR-1).
 
-These are the first WRITE-capable tools in the insult_db MCP server, so the
+These are the first WRITE-capable tools in the persona_memory MCP server, so the
 tests cover both the happy path and the resistance cases that keep a malformed
 call from ever touching Postgres:
   - get_agent_facts: agent_id required, optional category filter, formatting.

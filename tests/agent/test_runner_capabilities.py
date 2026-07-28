@@ -32,11 +32,11 @@ class _FakeOptions:
 
 
 def test_verify_required_tools_raises_when_missing():
-    opts = _FakeOptions(["mcp__insult_db__get_user_facts"])  # no WebSearch/WebFetch
+    opts = _FakeOptions(["mcp__persona_memory__get_user_facts"])  # no WebSearch/WebFetch
     with pytest.raises(RuntimeError, match="required built-in tools"):
         runner_options.verify_required_tools(opts)
 
 
 def test_verify_required_tools_passes_when_present():
-    opts = _FakeOptions([*runner_options.REQUIRED_BUILTIN_TOOLS, "mcp__insult_db__x"])
+    opts = _FakeOptions([*runner_options.REQUIRED_BUILTIN_TOOLS, "mcp__persona_memory__x"])
     runner_options.verify_required_tools(opts)  # must not raise

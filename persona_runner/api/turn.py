@@ -136,7 +136,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         preamble_chars=state["preamble_chars"],
         tool_calls=len(state["tool_calls"]),
         # Tool names so KQL can distinguish workspace Read/Grep/Glob from the
-        # mcp__insult_db__* tools.
+        # mcp__persona_memory__* tools.
         tool_names=[tc.get("name", "?") for tc in state["tool_calls"]],
         input_tokens=state["input_tokens"],
         output_tokens=state["output_tokens"],
