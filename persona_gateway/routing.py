@@ -40,8 +40,16 @@ def should_respond(
     - `host_owns_reception` (cutover, #6): when the omnipresent host owns reception
       it routes EVERY message and summons the persona via /invite, so the persona
       must NOT also self-answer its own @mention (that is the double-answer, the
-      "ventana de dos bots peleando"). When True, this gate always returns False —
-      the persona is invite-only and responds solely to the host's /invite.
+      "ventana de dos bots peleando"). It suppresses the persona ONLY on the
+      surface the host can actually hear: a GUILD channel. Discord isolates DM
+      channels per bot user, so a DM addressed to Insult is invisible to the host
+      — it never routes it, and no /invite is ever issued. Suppressing there left
+      every persona's DM dead: the persona muted itself waiting for a host that
+      could not see the message (2026-07-27, "en su app no contestan").
+
+    - A DM IS the address: writing to a persona's private channel is addressing it
+      by construction (nobody types "@Insult" in a 1:1 DM). So in a DM any non-bot
+      human message answers — no mention, no alias, no reply required.
 
     - `author.bot` guard: never auto-invoke, never answer another bot (prevents
       Insult ↔ Vultur loops — same fix as Insult/ALICE v4.20.19).
@@ -63,9 +71,12 @@ def should_respond(
       message that OPENS addressing Insult never alias-summons a sibling — the
       head of the message wins, same as Insult's gate.
     """
-    if host_owns_reception:
-        return False
     if bot_user is None or message.author.bot:
+        return False
+    is_dm = getattr(message, "guild", None) is None
+    if is_dm:
+        return True
+    if host_owns_reception:
         return False
     if bot_user in message.mentions:
         return True

@@ -27,17 +27,24 @@ def _guild(gid: int, bot_role_ids: list[int]):
     return SimpleNamespace(id=gid, me=me)
 
 
+GUILD_CHANNEL = _guild(gid=700, bot_role_ids=[])
+DM = None
+
+
 def _msg(
     *,
     author_bot: bool,
     mentions: list,
     content: str = "",
     role_mentions: list | None = None,
-    guild=None,
+    guild=GUILD_CHANNEL,
     reply_to=None,
 ):
     """`reply_to` is the resolved author of the message being replied to (or None
-    for a non-reply) — mirrors `message.reference.resolved.author`."""
+    for a non-reply) — mirrors `message.reference.resolved.author`.
+
+    `guild` defaults to a server channel; pass `guild=DM` for a direct message,
+    where addressing is implicit and the host cannot hear."""
     reference = None
     if reply_to is not None:
         reference = SimpleNamespace(resolved=SimpleNamespace(author=reply_to), cached_message=None)
@@ -114,6 +121,40 @@ def test_host_owns_reception_default_false_preserves_self_answer():
     msg = _msg(author_bot=False, mentions=[bot])
     assert should_respond(msg, bot) is True
     assert should_respond(msg, bot, host_owns_reception=False) is True
+
+
+def test_dm_without_mention_fires():
+    # POSITIVE (2026-07-27): writing to a persona's DM IS addressing it — nobody
+    # types "@Insult" in a 1:1. The mention gate belongs to guild channels only.
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[], content="oye, qué opinas", guild=DM)
+    assert should_respond(msg, bot) is True
+
+
+def test_dm_answers_even_when_host_owns_reception():
+    # THE BUG: Discord isolates DM channels per bot user, so khimeras-host never
+    # sees a DM addressed to Insult and never issues an /invite. Suppressing here
+    # left every persona mute in its own app ("en su app no contestan").
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[], content="hola", guild=DM)
+    assert should_respond(msg, bot, host_owns_reception=True) is True
+
+
+def test_dm_from_a_bot_stays_ignored():
+    # RESISTANCE: the author.bot loop guard outranks the DM channel — a sibling
+    # bot DMing this persona must never start a two-bot ping-pong.
+    bot = _user(123)
+    msg = _msg(author_bot=True, mentions=[], content="hola", guild=DM)
+    assert should_respond(msg, bot, host_owns_reception=True) is False
+
+
+def test_guild_message_without_mention_still_silent():
+    # RESISTANCE: the DM opening must not leak into guild channels — an
+    # unaddressed server message stays silent exactly as before.
+    bot = _user(123)
+    msg = _msg(author_bot=False, mentions=[], content="hola a todos")
+    assert should_respond(msg, bot) is False
+    assert should_respond(msg, bot, host_owns_reception=True) is False
 
 
 def test_ignores_when_not_ready():
