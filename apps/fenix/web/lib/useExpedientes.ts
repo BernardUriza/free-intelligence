@@ -7,6 +7,12 @@ const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
 
 export type EstadoExpediente = 'nueva' | 'cotizando' | 'bloqueada' | 'entregada' | 'cerrada';
 
+export interface RenglonExpediente {
+  descripcion: string;
+  cantidad: number;
+  precio: number;
+}
+
 export interface Expediente {
   id: string;
   conversacionId: string | null;
@@ -19,6 +25,10 @@ export interface Expediente {
   estado: EstadoExpediente;
   total: number | null;
   notas: string;
+  items: RenglonExpediente[];
+  forrado: RenglonExpediente[];
+  opcionales: RenglonExpediente[];
+  fuera: string[];
   creado: string;
   actualizado: string;
 }
@@ -72,5 +82,32 @@ export function useExpedientes() {
     [recargar],
   );
 
-  return { expedientes, cargando, error, guardar, recargar };
+  /**
+   * Descarga el presupuesto en .xlsx.
+   *
+   * Lo genera el SERVIDOR: al modelo se le bloquea Bash/Write por seguridad
+   * (ToolPolicy.companion) y, verificado en runtime, ante "genera el Excel"
+   * termina entregando una tabla en el chat — que no es lo que se manda por
+   * WhatsApp. El modelo pone los datos; el formato lo pone la plantilla.
+   */
+  const descargarExcel = useCallback(async (datos: Record<string, unknown>) => {
+    const r = await fetch(`${API}/expedientes/excel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(datos),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const blob = await r.blob();
+    const nombre =
+      r.headers.get('Content-Disposition')?.match(/filename="(.+?)"/)?.[1] ?? 'Presupuesto.xlsx';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    a.click();
+    URL.revokeObjectURL(url);
+    return nombre;
+  }, []);
+
+  return { expedientes, cargando, error, guardar, recargar, descargarExcel };
 }

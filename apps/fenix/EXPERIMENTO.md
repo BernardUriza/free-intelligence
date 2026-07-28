@@ -270,3 +270,59 @@ og118 recompila verde.
   framework avise en vez de recortar callado, y eso cambia una firma pública.
 
 Ambos quedan documentados arriba con su arreglo propuesto.
+
+---
+
+# H11 — el entregable no existía (27-jul)
+
+Bernard preguntó "¿y las cotizaciones de Excel?" y destapó el hueco más grande
+del proyecto.
+
+**El modelo NO puede generar el archivo.** `ToolPolicy.companion()` le bloquea
+`Bash`, `Write` y `Edit` (og118 #277 — un companion no debe tocar el filesystem
+del host, y debe seguir siendo así). Verificado en runtime, no deducido: ante
+"genera el Excel" el modelo intenta `Bash`, falla, se disculpa
+("Permíteme intentar directamente…") y **entrega una tabla markdown en el chat**.
+
+Ese es el peor modo de fallar: parece útil. Lo que se manda por WhatsApp a la
+mamá del alumno es un `.xlsx`, no un mensaje — el chat es el medio, el Excel es
+el producto. Toda la app estaba construida alrededor de algo que no producía su
+entregable.
+
+## La solución: el modelo pone los DATOS, el servidor pone el FORMATO
+
+`apps/fenix/server/presupuesto.py` genera el .xlsx con openpyxl a partir de
+datos estructurados, y `POST /expedientes/excel` lo sirve. Dos ganancias de un
+movimiento:
+
+1. **Seguridad**: no hay que abrirle ejecución de código arbitrario a un
+   companion para producir una hoja de cálculo.
+2. **El formato queda invariante por construcción.** Las Instructions repiten
+   "PLANTILLA … NO alterar formato" precisamente porque un modelo que ejecuta el
+   script puede improvisar el diseño. Si el script vive en el servidor, no hay
+   nada que improvisar — y la regla "la rotulación no lleva descuento" se cumple
+   sola en vez de depender de que el modelo la recuerde.
+
+Verificado releyendo el archivo generado y comparando contra un cálculo
+independiente: subtotal 496, ahorro 74.40, total 421.60. Cuadra.
+
+## Dos defectos encontrados en el camino, ninguno visible en el build
+
+- **`items: undefined` reventaba la app.** Los 33 expedientes migrados se
+  escribieron antes de que el campo existiera, y `e.items.length` lanzaba
+  `Cannot read properties of undefined`. Arreglado en los dos lados: el store
+  completa la forma al LEER (un store que gana campos con el tiempo debe
+  devolver siempre la forma completa) y el cliente no asume la forma de lo que
+  llega de una API.
+- **El nombre del archivo salía genérico.** CORS oculta `Content-Disposition`
+  al JavaScript salvo que se exponga explícitamente, así que la descarga era
+  "Presupuesto.xlsx" en vez de "Presupuesto-Emma-Hernandez-4B.xlsx". El archivo
+  viaja por WhatsApp: su nombre tiene que decir de quién es sin abrirlo.
+
+## Lo que falta para cerrar el círculo
+
+Los renglones llegan al expediente por API, pero **el modelo todavía no los
+escribe solo** al cerrar una cotización. Hoy hay que pasarlos; el paso que falta
+es una herramienta MCP que le permita guardar el desglose en el expediente.
+Mientras tanto el botón "Excel" sólo aparece en los expedientes que ya tienen
+renglones — un botón que descarga una hoja vacía es peor que no tenerlo.

@@ -27,6 +27,7 @@ import {
   Phone,
   Save,
   School,
+  Sheet,
   Search,
   User,
   X,
@@ -49,12 +50,14 @@ export function FenixClientes({
   error,
   onGuardar,
   onAbrirChat,
+  onExcel,
 }: {
   expedientes: Expediente[];
   cargando: boolean;
   error: string | null;
   onGuardar: (datos: Partial<Expediente>) => Promise<unknown>;
   onAbrirChat: (conversacionId: string) => void;
+  onExcel: (e: Expediente) => Promise<unknown>;
 }) {
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<EstadoExpediente | 'todos'>('todos');
@@ -330,6 +333,19 @@ export function FenixClientes({
               )}
 
               <footer className="fx-t-pie">
+                {/* El entregable real. Sólo aparece cuando el expediente TIENE
+                    renglones: un botón que descarga una hoja vacía es peor que
+                    no tenerlo. */}
+                {(e.items?.length ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    className="fx-btn fx-btn-primario fi-touch-target"
+                    onClick={() => void onExcel(e)}
+                  >
+                    <Sheet aria-hidden />
+                    Excel
+                  </button>
+                )}
                 <button
                   type="button"
                   className="fx-btn fi-touch-target"

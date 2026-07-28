@@ -29,11 +29,13 @@ if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
 from fastapi import APIRouter, Depends, HTTPException  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from app import Principal, app, get_principal  # noqa: E402  (la app de og118)
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
+from presupuesto import Presupuesto, Renglon, generar, nombre_archivo  # noqa: E402
 
 _store: ExpedienteStore | None = None
 
@@ -61,6 +63,10 @@ class ExpedienteRequest(BaseModel):
     estado: str = "nueva"
     total: float | None = None
     notas: str = ""
+    items: list[dict] = []
+    forrado: list[dict] = []
+    opcionales: list[dict] = []
+    fuera: list[str] = []
 
 
 router = APIRouter(prefix="/expedientes", tags=["fenix"])
@@ -98,6 +104,66 @@ async def borrar(
         raise HTTPException(status_code=422, detail="id inválido")
     store.borrar(principal.sub, expediente_id)
     return {"borrado": expediente_id}
+
+
+class RenglonRequest(BaseModel):
+    descripcion: str
+    cantidad: float = 1
+    precio: float = 0
+
+
+class PresupuestoRequest(BaseModel):
+    alumno: str = ""
+    escuela: str = ""
+    grado: str = ""
+    tutor: str = ""
+    fecha: str = ""
+    descuento: float = 0.15
+    items: list[RenglonRequest] = []
+    forrado: list[RenglonRequest] = []
+    opcionales: list[RenglonRequest] = []
+    fuera: list[str] = []
+
+
+@router.post("/excel")
+async def excel(
+    req: PresupuestoRequest,
+    _: Principal = Depends(get_principal),
+) -> Response:
+    """El presupuesto en .xlsx — el entregable que se manda por WhatsApp.
+
+    Lo genera el SERVIDOR, no el modelo: `ToolPolicy.companion()` le bloquea
+    Bash/Write al agente (y debe seguir así), y además el formato es el aprobado
+    por la dirección — si lo ejecutara el modelo, podría improvisarlo.
+    """
+    if not req.items and not req.forrado:
+        raise HTTPException(status_code=422, detail="un presupuesto sin renglones no es un presupuesto")
+
+    conv = lambda rs: [Renglon(r.descripcion, r.cantidad, r.precio) for r in rs]  # noqa: E731
+    p = Presupuesto(
+        alumno=req.alumno,
+        escuela=req.escuela,
+        grado=req.grado,
+        tutor=req.tutor,
+        fecha=req.fecha,
+        descuento=req.descuento,
+        items=conv(req.items),
+        forrado=conv(req.forrado),
+        opcionales=conv(req.opcionales),
+        fuera=list(req.fuera),
+    )
+    datos = generar(p)
+    return Response(
+        content=datos,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_archivo(p)}"',
+            # Sin esto el navegador OCULTA el header al JavaScript por CORS y la
+            # descarga sale como "Presupuesto.xlsx" genérico. El archivo se manda
+            # por WhatsApp: su nombre tiene que decir de quién es sin abrirlo.
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
 
 
 app.include_router(router)

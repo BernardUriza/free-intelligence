@@ -85,6 +85,13 @@ export function FenixChat() {
             cargando={exp.cargando}
             error={exp.error}
             onGuardar={exp.guardar}
+            onExcel={(e) =>
+              exp.descargarExcel({
+                alumno: e.alumno, escuela: e.escuela, grado: e.grado, tutor: e.tutor,
+                items: e.items ?? [], forrado: e.forrado ?? [],
+                opcionales: e.opcionales ?? [], fuera: e.fuera ?? [],
+              })
+            }
             onAbrirChat={(id) => {
               setVista('chats');
               void lib.switchConversation(id).catch((e) => console.error('[fenix] switch failed', e));

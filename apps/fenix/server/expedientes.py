@@ -36,6 +36,24 @@ def id_valido(valor: str) -> bool:
     return bool(_ID_RE.match(valor))
 
 
+def _renglones(valor: Any) -> list[dict]:
+    """Normaliza los renglones que vengan del cliente o del modelo."""
+    salida = []
+    for r in valor or []:
+        if not isinstance(r, dict):
+            continue
+        desc = str(r.get("descripcion") or "").strip()
+        if not desc:
+            continue
+        try:
+            cant = float(r.get("cantidad") or 1)
+            precio = float(r.get("precio") or 0)
+        except (TypeError, ValueError):
+            continue
+        salida.append({"descripcion": desc, "cantidad": cant, "precio": precio})
+    return salida
+
+
 def _ahora() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat()
 
@@ -57,8 +75,21 @@ class ExpedienteStore:
         tmp.write_text(json.dumps(data, ensure_ascii=False), "utf-8")
         os.replace(tmp, self._path)  # atómico en POSIX
 
+    @staticmethod
+    def _completo(e: dict) -> dict:
+        """Rellena los campos que un registro viejo no tenía.
+
+        Los 33 expedientes migrados se escribieron antes de que existieran los
+        renglones; sin esto el cliente recibe `items: undefined` y revienta al
+        leer `.length`. Un store que gana campos con el tiempo debe devolver
+        siempre la forma completa.
+        """
+        for k in ("items", "forrado", "opcionales", "fuera"):
+            e.setdefault(k, [])
+        return e
+
     def listar(self, owner: str) -> list[dict]:
-        vivos = [e for e in self._load().values() if e.get("ownerId") == owner]
+        vivos = [self._completo(e) for e in self._load().values() if e.get("ownerId") == owner]
         return sorted(vivos, key=lambda e: e.get("actualizado") or "", reverse=True)
 
     def obtener(self, owner: str, expediente_id: str) -> dict | None:
@@ -120,6 +151,14 @@ class ExpedienteStore:
                 "folio": (datos.get("folio") or "").strip(),
                 "estado": estado,
                 "total": datos.get("total"),
+                # Los renglones de la cotización. Viven aquí y no sólo en el
+                # hilo porque el Excel se genera del expediente: si el dato
+                # está únicamente en la conversación, el entregable depende de
+                # volver a pedírselo al modelo cada vez.
+                "items": _renglones(datos.get("items")),
+                "forrado": _renglones(datos.get("forrado")),
+                "opcionales": _renglones(datos.get("opcionales")),
+                "fuera": [str(x).strip() for x in (datos.get("fuera") or []) if str(x).strip()],
                 "notas": (datos.get("notas") or "").strip(),
                 "creado": (anterior or {}).get("creado") or _ahora(),
                 "actualizado": _ahora(),
