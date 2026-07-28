@@ -10,6 +10,11 @@
   --og-bg-mid: #0f172a;
   --og-accent: #34d399;
   --og-accent-muted: #a3a3a3;
+  /* fi-glass leía `--og-accent` directamente — el framework conociendo por
+     nombre a su único consumidor. Ahora lee `--fi-accent`, genérico, y og118 le
+     pasa el suyo desde aquí: el acento sigue siendo el mismo verde, pero la
+     dependencia va del consumer al framework y no al revés. */
+  --fi-accent: var(--og-accent);
   --og-danger: #f87171;
   --og-danger-text: #fca5a5;
   --og-warning: #fbbf24;

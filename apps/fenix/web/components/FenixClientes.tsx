@@ -17,14 +17,19 @@
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  Check,
   CircleDashed,
   FileSpreadsheet,
   Loader,
+  Loader2,
   MessageSquare,
   PackageCheck,
   Phone,
+  Save,
   School,
   Search,
+  User,
+  X,
 } from 'lucide-react';
 import { pendientes, type EstadoExpediente, type Expediente } from '@/lib/useExpedientes';
 
@@ -55,6 +60,10 @@ export function FenixClientes({
   const [filtro, setFiltro] = useState<EstadoExpediente | 'todos'>('todos');
   const [editando, setEditando] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<Partial<Expediente> | null>(null);
+  // El guardado viaja por la red: sin un estado explícito el botón se queda
+  // mudo y el usuario vuelve a picarle creyendo que no registró.
+  const [guardando, setGuardando] = useState(false);
+  const [recienGuardado, setRecienGuardado] = useState<string | null>(null);
 
   const conteo = useMemo(() => {
     const c: Record<string, number> = {};
@@ -74,10 +83,19 @@ export function FenixClientes({
   }, [expedientes, busqueda, filtro]);
 
   async function guardar() {
-    if (!borrador) return;
-    await onGuardar(borrador);
-    setEditando(null);
-    setBorrador(null);
+    if (!borrador || guardando) return;
+    setGuardando(true);
+    try {
+      await onGuardar(borrador);
+      // La lista se reordena sola al cambiar el estado, así que la tarjeta
+      // destella una vez para decir CUÁL se movió.
+      setRecienGuardado(borrador.id ?? null);
+      setTimeout(() => setRecienGuardado(null), 1200);
+      setEditando(null);
+      setBorrador(null);
+    } finally {
+      setGuardando(false);
+    }
   }
 
   if (cargando) return <p className="fx-vacio">Cargando expedientes…</p>;
@@ -227,17 +245,25 @@ export function FenixClientes({
                     </label>
                   </div>
                   <div className="fx-acciones">
-                    <button type="submit" className="fx-btn fx-btn-primario fi-touch-target">
-                      Guardar
+                    <button
+                      type="submit"
+                      className="fx-btn fx-btn-primario fi-touch-target"
+                      data-estado={guardando ? 'guardando' : undefined}
+                      disabled={guardando}
+                    >
+                      {guardando ? <Loader2 className="fx-girando" aria-hidden /> : <Save aria-hidden />}
+                      {guardando ? 'Guardando…' : 'Guardar'}
                     </button>
                     <button
                       type="button"
                       className="fx-btn fi-touch-target"
+                      disabled={guardando}
                       onClick={() => {
                         setEditando(null);
                         setBorrador(null);
                       }}
                     >
+                      <X aria-hidden />
                       Cancelar
                     </button>
                   </div>
@@ -247,7 +273,11 @@ export function FenixClientes({
           }
 
           return (
-            <article key={e.id} className={`fx-tarjeta ${ESTADO[e.estado].clase}`}>
+            <article
+              key={e.id}
+              className={`fx-tarjeta ${ESTADO[e.estado].clase}`}
+              {...(recienGuardado === e.id ? { 'data-recien': '' } : {})}
+            >
               <header className="fx-t-head">
                 <span className="fx-t-estado">
                   <Icono aria-hidden />
@@ -256,7 +286,10 @@ export function FenixClientes({
                 {e.folio && <span className="fx-t-folio">#{e.folio}</span>}
               </header>
 
-              <h3 className="fx-t-nombre">{e.alumno || 'Sin nombre'}</h3>
+              <h3 className="fx-t-nombre">
+                <User aria-hidden />
+                {e.alumno || 'Sin nombre'}
+              </h3>
 
               <dl className="fx-t-datos">
                 {(e.escuela || e.grado) && (
@@ -305,6 +338,7 @@ export function FenixClientes({
                     setBorrador({ ...e });
                   }}
                 >
+                  {falta.length ? <AlertTriangle aria-hidden /> : <Check aria-hidden />}
                   {falta.length ? 'Completar' : 'Editar'}
                 </button>
                 {e.conversacionId && (

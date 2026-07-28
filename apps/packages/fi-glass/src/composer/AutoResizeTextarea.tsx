@@ -128,7 +128,17 @@ export const AutoResizeTextarea = forwardRef<
         value={value}
         onChange={onChange}
         maxLength={maxLength}
+        // `glass-chat-composer-input` va PRIMERO y siempre: fi-glass ya trae ese
+        // estilo (transparente, color del tema) pero hasta ahora no se lo
+        // aplicaba, así que un consumer que no supiera pasarlo a mano renderizaba
+        // un textarea blanco con texto blanco — invisible, y con el build en
+        // verde. El default del framework no puede ser "roto".
+        //
+        // La regla es inerte si el consumer no activa el tema (`.glass-chat` en
+        // <body>): sin esas variables no pinta nada. Y como el className del
+        // consumer se concatena DESPUÉS, sigue ganando quien quiera otra cosa.
         className={`
+          glass-chat-composer-input
           resize-none
           ${className}
         `}

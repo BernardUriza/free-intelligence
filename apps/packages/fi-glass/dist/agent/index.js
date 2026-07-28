@@ -1920,7 +1920,7 @@ function MessageAuthorHeader({
         "data-fi-author-avatar": "",
         style: {
           ...AVATAR,
-          background: isUser ? "var(--fi-author-user-bg, rgba(124,58,237,0.8))" : "var(--fi-author-agent-bg, var(--og-accent, #34d399))",
+          background: isUser ? "var(--fi-author-user-bg, rgba(124,58,237,0.8))" : "var(--fi-author-agent-bg, var(--fi-accent, #34d399))",
           color: isUser ? "var(--fi-author-user-fg, #fff)" : "var(--fi-author-agent-fg, #0a0f1e)"
         },
         children: avatarToken(author)
@@ -1984,7 +1984,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx14("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+        /* @__PURE__ */ jsx14("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
       ]
     }
   );
@@ -2338,6 +2338,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
         onChange,
         maxLength,
         className: `
+          glass-chat-composer-input
           resize-none
           ${className}
         `,
@@ -3438,7 +3439,7 @@ function ensureToggleStyle() {
     .fi-aws-toggle:hover { background: rgba(255,255,255,0.08); }
     .fi-aws-toggle:active { background: rgba(255,255,255,0.12); }
     .fi-aws-toggle:focus-visible {
-      outline: 2px solid var(--og-accent, #34d399); outline-offset: 2px;
+      outline: 2px solid var(--fi-accent, #34d399); outline-offset: 2px;
     }
   `;
   document.head.appendChild(el);

@@ -8,6 +8,22 @@
    clase `glass-chat` en <body>. Los nombres `--fi-bg/--fi-surface/--fi-text`
    NO EXISTEN — inventarlos deja el composer en blanco sobre negro. */
 :root {
+  /* ESCALA DE ESPACIADO. Una sola progresión para toda la app: antes cada
+     bloque inventaba su propio 0.35/0.45/0.7rem y el ritmo vertical no
+     cuadraba en ningún lado. Base 4px, que es la que ya usan los touch targets.
+     Cualquier valor fuera de esta escala en el resto del archivo es un bug. */
+  --fx-1: 0.25rem;   /*  4px */
+  --fx-2: 0.5rem;    /*  8px */
+  --fx-3: 0.75rem;   /* 12px */
+  --fx-4: 1rem;      /* 16px */
+  --fx-5: 1.5rem;    /* 24px */
+  --fx-6: 2rem;      /* 32px */
+  --fx-radio: 12px;
+  --fx-radio-sm: 9px;
+  /* Una sola curva de movimiento: la retroalimentación se siente del mismo
+     material en toda la app. */
+  --fx-salida: 160ms cubic-bezier(0.2, 0, 0.2, 1);
+
   /* El fuego de la marca, medido del logo real de la papelería (su avatar de
      WhatsApp), no elegido a ojo. */
   --fx-fuego: #e05000;
@@ -34,9 +50,9 @@ body {
 .fx-side {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--fx-3);
   height: 100%;
-  padding: 0.75rem;
+  padding: var(--fx-3);
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }
 
@@ -138,7 +154,7 @@ body {
 .fx-chats {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--fx-1);
   margin: 0.45rem 0 0;
   padding: 0;
   overflow-y: auto;
@@ -175,7 +191,7 @@ body {
   gap: 0.12rem;
   flex: 1;
   min-width: 0;
-  padding: 0.5rem 0.55rem;
+  padding: var(--fx-2) var(--fx-3);
   border: 0;
   background: none;
   color: inherit;
@@ -267,7 +283,7 @@ body {
 
 .fx-inicio-grid {
   display: grid;
-  gap: 0.7rem;
+  gap: var(--fx-3);
   width: 100%;
   max-width: 46rem;
   margin-top: 1.4rem;
@@ -284,8 +300,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.3rem;
-  padding: 1rem;
+  gap: var(--fx-1);
+  padding: var(--fx-4) var(--fx-4) var(--fx-5);
   border: 1px solid var(--fx-linea);
   border-radius: var(--glass-chat-radius, 16px);
   background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
@@ -332,11 +348,11 @@ body {
 .fx-clientes {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--fx-4);
   width: 100%;
   max-width: 68rem;
   margin: 0 auto;
-  padding: 1.5rem 1rem calc(2rem + env(safe-area-inset-bottom));
+  padding: var(--fx-5) var(--fx-4) calc(var(--fx-6) + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -377,7 +393,7 @@ body {
 .fx-buscar input { width: 100%; border: 0; background: none; color: inherit; font-size: 0.86rem; outline: none; }
 
 /* Filtros por estado — cada uno con el color de su estado. */
-.fx-filtros { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.fx-filtros { display: flex; flex-wrap: wrap; gap: var(--fx-2); }
 
 .fx-chip {
   display: inline-flex;
@@ -417,7 +433,7 @@ body {
 
 .fx-tarjetas {
   display: grid;
-  gap: 0.7rem;
+  gap: var(--fx-3);
   grid-template-columns: 1fr;
 }
 
@@ -436,8 +452,8 @@ body {
      columna y saca la tercera tarjeta de la pantalla. Medido: 87px de
      desbordamiento antes de esta línea. */
   min-width: 0;
-  gap: 0.5rem;
-  padding: 0.85rem 0.95rem 0.75rem;
+  gap: var(--fx-2);
+  padding: var(--fx-4) var(--fx-4) var(--fx-3);
   border: 1px solid var(--fx-linea);
   border-radius: 14px;
   background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
@@ -475,6 +491,9 @@ body {
 }
 
 .fx-t-nombre {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
   margin: 0;
   font-size: 1rem;
   font-weight: 620;
@@ -482,6 +501,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.fx-t-nombre svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  opacity: 0.45;
 }
 
 .fx-t-datos { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
@@ -530,9 +556,9 @@ body {
   justify-content: center;
   gap: 0.3rem;
   flex-shrink: 0;
-  padding: 0.42rem 0.75rem;
+  padding: var(--fx-2) var(--fx-3);
   border: 1px solid var(--fx-linea);
-  border-radius: 9px;
+  border-radius: var(--fx-radio-sm);
   background: var(--fx-tenue);
   color: inherit;
   font-size: 0.79rem;
@@ -562,9 +588,9 @@ body {
 
 /* ── Formulario del expediente ──────────────────────────────────────────── */
 
-.fx-form { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
+.fx-form { display: flex; flex-direction: column; gap: var(--fx-4); width: 100%; }
 
-.fx-campos { display: grid; gap: 0.6rem; grid-template-columns: 1fr; }
+.fx-campos { display: grid; gap: var(--fx-3); grid-template-columns: 1fr; }
 
 @media (min-width: 640px) {
   .fx-campos { grid-template-columns: repeat(4, 1fr); }
@@ -598,3 +624,72 @@ body {
 }
 
 .fx-acciones { display: flex; gap: 0.5rem; }
+
+/* ── Retroalimentación visual ───────────────────────────────────────────── */
+
+/* Un solo anillo de foco para toda la app. Sin esto, el recorrido con teclado
+   dependía del outline por defecto del navegador, invisible sobre el fondo
+   oscuro. */
+.fx-side :focus-visible,
+.fx-clientes :focus-visible,
+.fx-inicio :focus-visible {
+  outline: 2px solid var(--fx-fuego-ambar);
+  outline-offset: 2px;
+  border-radius: var(--fx-radio-sm);
+}
+
+/* Todo lo clicable responde al presionar: sin esto, en táctil no hay señal de
+   que el toque registró hasta que la pantalla cambia. */
+.fx-btn:active,
+.fx-nueva:active,
+.fx-accion:active,
+.fx-chip:active,
+.fx-mini-abrir:active {
+  transform: scale(0.985);
+}
+
+.fx-btn,
+.fx-nueva,
+.fx-chip,
+.fx-mini,
+.fx-tarjeta,
+.fx-accion {
+  transition: background var(--fx-salida), border-color var(--fx-salida),
+    transform var(--fx-salida), box-shadow var(--fx-salida);
+}
+
+/* Estado de guardado del formulario. El botón dice lo que está pasando en vez
+   de quedarse mudo mientras la petición viaja. */
+.fx-btn[data-estado='guardando'] {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.fx-btn[data-estado='guardado'] {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.fx-girando {
+  animation: fx-giro 0.9s linear infinite;
+}
+
+@keyframes fx-giro {
+  to { transform: rotate(360deg); }
+}
+
+/* La tarjeta recién guardada parpadea una vez: confirma CUÁL cambió cuando la
+   lista se reordena sola al cambiar de estado. */
+.fx-tarjeta[data-recien] {
+  animation: fx-destello 1.1s var(--fx-salida);
+}
+
+@keyframes fx-destello {
+  0% { box-shadow: inset 0 3px 0 var(--es), 0 0 0 2px color-mix(in srgb, var(--es) 55%, transparent); }
+  100% { box-shadow: inset 0 3px 0 var(--es), 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-btn, .fx-nueva, .fx-chip, .fx-mini, .fx-tarjeta, .fx-accion { transition: none; }
+  .fx-girando, .fx-tarjeta[data-recien] { animation: none; }
+}

@@ -64,7 +64,9 @@ export function FenixSidebar({
   return (
     <nav className="fx-side" aria-label="Fénix">
       <div className="fx-marca">
-        <Image src="/branding/emblem.png" alt="" width={30} height={30} priority />
+        {/* emblem-64 y no emblem.png: el master pesa 234 KB para pintar 30
+            píxeles. A 64px (2x para retina) son 3.6 KB. */}
+        <Image src="/branding/emblem-64.png" alt="" width={32} height={32} priority />
         <div className="fx-marca-txt">
           <strong>Fénix</strong>
           <span>Escolar AI</span>

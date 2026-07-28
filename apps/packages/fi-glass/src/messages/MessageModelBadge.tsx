@@ -43,7 +43,7 @@ export function MessageModelBadge({
       }}
     >
       {label}{' '}
-      <span style={{ color: 'var(--fi-accent, var(--og-accent, #34d399))' }}>{model}</span>
+      <span style={{ color: 'var(--fi-accent, #34d399)' }}>{model}</span>
     </span>
   );
 }

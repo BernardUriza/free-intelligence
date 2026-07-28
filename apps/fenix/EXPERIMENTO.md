@@ -236,3 +236,37 @@ leyendo el registro del servidor después de guardar, no en la UI.
 la ESCUELA se abrevia con elipsis hasta que el título quepa.
 **Arreglo de raíz sugerido:** que el truncado del framework sea visible (avisar,
 o exponer `TITLE_MAX`) en vez de recortar callado.
+
+---
+
+# Consolidación en fi-glass (27-jul)
+
+El experimento corrió con la regla "no tocar fi-glass" para que el veredicto
+fuera limpio. Cumplida y con veredicto emitido, lo que resultó ser del framework
+sube al framework. Esto es lo que se consolidó:
+
+## H2 — el composer ya no viene roto por default ✅
+`AutoResizeTextarea` ahora aplica `glass-chat-composer-input` él mismo. La clase
+va PRIMERO y el `className` del consumer se concatena después, así que quien
+quiera otra cosa sigue ganando; y si el consumer no activa el tema
+(`.glass-chat` en `<body>`), la regla es inerte.
+
+**La prueba de que la consolidación sirvió:** fenix BORRÓ su
+`composerTextareaClassName` y el composer sigue correcto — verificado en el
+navegador, `class="glass-chat-composer-input resize-none"`, fondo transparente,
+texto blanco. El consumer ya no necesita saber ese detalle.
+
+## H5 — fi-glass ya no conoce a og118 ✅
+Las tres referencias a `--og-accent` pasaron a `--fi-accent`. og118 mapea el
+suyo (`--fi-accent: var(--og-accent)`) en su propio `globals.css`, así que el
+acento sigue siendo el mismo verde pero la dependencia ahora va del consumer al
+framework y no al revés. `grep -rn "og-accent" src/` en fi-glass: **cero**.
+og118 recompila verde.
+
+## Lo que NO se subió, y por qué
+- **H1 (`mapEvent`)** — mover el mapeo fi-runner→core toca el contrato entre dos
+  paquetes publicados; merece su propio PR con tests, no un arrastre.
+- **H10 (`TITLE_MAX` trunca en silencio)** — el arreglo correcto es que el
+  framework avise en vez de recortar callado, y eso cambia una firma pública.
+
+Ambos quedan documentados arriba con su arreglo propuesto.

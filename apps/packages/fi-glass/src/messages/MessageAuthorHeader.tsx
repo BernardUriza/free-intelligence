@@ -69,7 +69,7 @@ export function MessageAuthorHeader({
           ...AVATAR,
           background: isUser
             ? 'var(--fi-author-user-bg, rgba(124,58,237,0.8))'
-            : 'var(--fi-author-agent-bg, var(--og-accent, #34d399))',
+            : 'var(--fi-author-agent-bg, var(--fi-accent, #34d399))',
           color: isUser
             ? 'var(--fi-author-user-fg, #fff)'
             : 'var(--fi-author-agent-fg, #0a0f1e)',

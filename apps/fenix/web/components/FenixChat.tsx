@@ -98,13 +98,11 @@ export function FenixChat() {
           showNewChatButton={false}
           emptyState={<FenixStartScreen onPick={(prompt) => void conversation.send(prompt)} />}
           imageAttachments
-          // HALLAZGO-4: fi-glass TRAE los estilos del composer (.glass-chat-composer,
-          // .glass-chat-composer-input) pero NO se los aplica solo — son opt-in vía
-          // estas props. Un consumer que no lo sepa renderiza un textarea blanco con
-          // texto blanco: invisible. El default del framework es "roto"; lo correcto
-          // sólo se descubre leyendo Og118AgentChat.tsx:342 y :375.
+          // El textarea ya NO necesita `composerTextareaClassName`: el arreglo
+          // subió a fi-glass y el componente aplica su propia clase. Esta línea
+          // era el hallazgo H2 y ahora sobra — que es exactamente lo que debía
+          // pasar al consolidar en el framework.
           composerBoxClassName="glass-chat-composer"
-          composerTextareaClassName="glass-chat-composer-input"
         />
         )
       }

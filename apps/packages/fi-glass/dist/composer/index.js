@@ -57,6 +57,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
         onChange,
         maxLength,
         className: `
+          glass-chat-composer-input
           resize-none
           ${className}
         `,
