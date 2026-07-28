@@ -1,0 +1,29 @@
+{
+  "docs": {
+    "lista-de-precios-y-reglas-de-venta.md": {
+      "hash": "40b7d24d80f5862e",
+      "chars": 22070,
+      "origen": "Lista de precios y reglas de venta (14-jul-2026 · actualizada)",
+      "chunks": 16
+    },
+    "plantilla-presupuesto-excel.md": {
+      "hash": "99b29e67fb0233ec",
+      "chars": 7609,
+      "origen": "PLANTILLA — Presupuesto Excel (script canónico, NO alterar formato)",
+      "chunks": 4
+    },
+    "clientes-y-cotizaciones.md": {
+      "hash": "247da564eb95a704",
+      "chars": 17077,
+      "origen": "Clientes y cotizaciones (8-jul-2026)",
+      "chunks": 13
+    },
+    "directiva-de-tutoria-secundaria-3.md": {
+      "hash": "2229da9895209310",
+      "chars": 2214,
+      "origen": "Directiva de tutoría — Secundaria 3° (ISCED 2)",
+      "chunks": 2
+    }
+  },
+  "corpus": "project-b29d97a1-7c42-4545-ad18-8bc15b25007c"
+}

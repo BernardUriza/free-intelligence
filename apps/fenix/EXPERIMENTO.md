@@ -191,6 +191,26 @@ probables, ninguna verificada todavía:
    provenance). Es el mismo modelo que el 14-jul ignoró las Instructions y se fue
    a comparar Office Depot con Amazon.
 
-**Pendiente #1:** medir cuál de las dos es, con el mismo prompt contra Opus y
-contra un chunking más fino. Hasta entonces fenix cotiza, pero con un recall que
-no es de fiar para producción.
+**RESUELTO el mismo día, y la hipótesis del modelo era FALSA.** Se repitió la
+pregunta aislada — *"¿Cuánto cuestan los gises blancos comprimidos?"* — con el
+MISMO modelo (`claude-sonnet-4-5`) y el MISMO corpus, y respondió:
+
+> Gises blancos comprimidos Baco (caja): **$11** (precio de lista)
+> → renglón de `lista-de-precios-y-reglas-de-venta.md`: "Gises blancos
+> comprimidos Baco (caja): $11 (POS 18/jul, ticket Lidia Orozco)"
+
+Correcto, con la traza al renglón exacto. Así que no era Sonnet: **era el recall
+del RAG en preguntas de VARIOS artículos.** La primera pregunta pedía dos cosas
+("forrado de lustre **y** gises blancos"); la búsqueda semántica trajo el chunk
+del forrado y no el de los gises, y el modelo — correctamente — no inventó el que
+no vio.
+
+**Por qué esto importa más de lo que parece:** una cotización real ES una
+pregunta de muchos artículos a la vez (la de estela quiroz tenía 19). Si el
+recall se degrada con 2, el riesgo con 19 es que renglones válidos caigan en
+"falta precio — preguntar a la dirección" y el presupuesto salga incompleto.
+No es un fallo de seguridad (nunca inventa), pero sí de completitud.
+
+**Pendiente #1 (reformulado):** medir el recall con una lista real de 15-20
+artículos y, si se degrada, subir el `top_k` de `search_documents` o partir la
+lista maestra en chunks por sección en vez de 16 bloques de ~1.4k chars.
