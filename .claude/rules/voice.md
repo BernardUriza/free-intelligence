@@ -35,10 +35,30 @@ user row persisted to Postgres.
 - Fail-soft at every step: no STT client or a dead susurro → routing degrades to
   the old filename note; the turn is never dropped.
 - **Known consequence:** with the host down or `HOST_OWNS_RECEPTION=false`, a
-  bare voice note @mentioning a persona gets NO reply — `_handle` has no
-  transcription and an audio-only message carries no text. That is the accepted
-  cost of one owner; if the @mention path ever matters again, the host is what
-  gets fixed, not a second susurro consumer.
+  bare voice note @mentioning a persona **in a guild** gets NO reply — `_handle`
+  has no transcription there and an audio-only message carries no text. That is
+  the accepted cost of one owner; if the guild @mention path ever matters again,
+  the host is what gets fixed, not a second susurro consumer.
+
+### The ONE exception: a DM, where the host is structurally deaf
+
+**In a DM the gateway transcribes** (`MessageIngest.dm_voice_transcript`,
+2026-07-27). This is not a second owner competing with the host — it is the
+surface the host **cannot** own: Discord isolates DM channels per bot user, so a
+DM addressed to Insult is invisible to `khimeras-host`, which never sees it and
+never issues an `/invite`. "Only the host transcribes" is unsatisfiable there by
+anyone.
+
+- Scoped by `guild is None` and nothing else. In a guild the method returns ""
+  without even reading the attachment — the guild doctrine is untouched, and
+  `tests/core/test_dm_voice_transcript.py` asserts susurro is never called there.
+- Same susurro creds as TTS (`susurro_url` / `susurro_key`), same fail-soft
+  posture: no client, no audio, or a dead susurro → "" and the turn proceeds.
+- **Why it exists:** DMs were dead until v4.32.7, so this gap was invisible. The
+  moment they answered, a voice note — the natural thing to send from a phone —
+  hit `_handle`'s early `return` with empty `ask` and no readable attachment and
+  produced TOTAL silence: no reply, no "…", no reaction, not even a
+  `last_message_seen` stamp for `/health` to flag the mute.
 
 ## TTS — how personas speak
 

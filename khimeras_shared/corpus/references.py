@@ -105,9 +105,11 @@ def cite_label(source_ref: str | None) -> str:
     agent cite where a recalled chunk came from" since the table was written.
     """
     ref = (source_ref or "").strip()
-    if not ref:
-        return "corpus"
-    return ref.split(":", 1)[1].strip() if ":" in ref else ref
+    slug = ref.split(":", 1)[1].strip() if ":" in ref else ref
+    # A ref of "insult:" (prefix, empty slug) used to render `- [] passage` — an
+    # empty bracket the docstring above already promised would degrade to
+    # "corpus". Contract and code now agree.
+    return slug or "corpus"
 
 
 async def build_references_block(query: str | None, *, namespace: str, header: str) -> str | None:

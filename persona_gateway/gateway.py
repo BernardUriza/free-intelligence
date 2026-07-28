@@ -88,6 +88,7 @@ class PersonaClient(discord.Client):
         *,
         intents: discord.Intents,
         tts_client=None,
+        stt_client=None,
         auto_tts_min_chars: int = 0,
         judge_client: RunnerJudgeClient | None = None,
     ) -> None:
@@ -114,7 +115,7 @@ class PersonaClient(discord.Client):
         # Injected services — the logic lives here, the client just delegates.
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
-        self._ingest = MessageIngest(persona)
+        self._ingest = MessageIngest(persona, stt_client)
         self._context = TurnContextBuilder(persona, memory)
         self._turns = TurnRunner(
             persona,
@@ -252,6 +253,14 @@ class PersonaClient(discord.Client):
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
         attachment_blocks = await self._ingest.attachment_blocks(message)
+        # A DM voice note carries NO text and no readable attachment, so it used
+        # to hit the return below and die in total silence — and the host that
+        # owns transcription cannot see a DM at all (Discord isolates DM channels
+        # per bot user). Transcribing here is scoped to DMs only; in a guild this
+        # returns "" and the host stays the sole transcriber.
+        spoken = await self._ingest.dm_voice_transcript(message)
+        if spoken:
+            ask = f"{ask}\n{spoken}" if ask else spoken
         if not ask and not attachment_blocks:
             return  # bare @mention with no text and no readable attachment
 

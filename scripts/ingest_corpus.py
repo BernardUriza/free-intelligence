@@ -67,7 +67,23 @@ _MIN_SALVAGE_CHARS = 120
 def slugify_stem(filename: str) -> str:
     """Filename → source_ref slug: stem, lowercased, spaces/underscores → hyphens."""
     stem = Path(filename).stem
-    return stem.lower().replace(" ", "-").replace("_", "-")
+    return _slug(stem)
+
+
+def slugify_dirname(dirname: str) -> str:
+    """Directory name → slug, keeping everything AFTER a dot.
+
+    A directory is not a file: `Path("v1.2").stem` is "v1", so sibling folders
+    `v1.2/` and `v1.3/` both collapsed to "v1" and their source_refs collided —
+    the dedupe index `(user_id, source_ref, md5(chunk_text))` would then treat
+    two different corpora as one and every citation would point at the wrong
+    folder. Directories keep their full name.
+    """
+    return _slug(dirname)
+
+
+def _slug(text: str) -> str:
+    return text.lower().replace(" ", "-").replace("_", "-").replace(".", "-")
 
 
 def discover_sources(persona_id: str) -> list[tuple[str, Path]]:
@@ -94,7 +110,7 @@ def discover_sources(persona_id: str) -> list[tuple[str, Path]]:
         if path.suffix.lower() not in _SUPPORTED_SUFFIXES:
             print(f"  WARN: skipping unsupported file type: {rel}")
             continue
-        prefix = "-".join(slugify_stem(part) for part in rel.parts[:-1])
+        prefix = "-".join(slugify_dirname(part) for part in rel.parts[:-1])
         slug = slugify_stem(path.name)
         ref = f"{prefix}-{slug}" if prefix else slug
         sources.append((f"{persona_id}:{ref}", path))

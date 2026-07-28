@@ -99,3 +99,29 @@ def test_shortened_role_still_resolves_for_compound_names():
     server that named the role just "Vultur" or "Unborn" keeps working."""
     assert persona_id_by_role_name("Vultur") == "vultur"
     assert persona_id_by_role_name("Unborn") == "unborn_being"
+
+
+def test_no_two_personas_share_a_role_candidate():
+    """ARNÉS: role resolution takes the FIRST persona that matches, so a
+    candidate shared by two personas routes to whichever the dict yields first
+    — silently, and forever, since nothing validates it.
+
+    Widening the candidate set (persona_id + full display_name + first word +
+    aliases) widened the collision surface too. This asserts the set stays
+    disjoint, so a new persona or alias that shadows an existing one fails HERE
+    instead of misrouting a real conversation.
+    """
+    from shared.personas.registry import PERSONAS, _normalize_role_name
+
+    owner: dict[str, str] = {}
+    for persona_id, persona in PERSONAS.items():
+        first_word = persona.display_name.split(maxsplit=1)[0] if persona.display_name else ""
+        for candidate in [persona.persona_id, persona.display_name, first_word, *persona.aliases]:
+            key = _normalize_role_name(candidate)
+            if not key:
+                continue
+            assert owner.get(key, persona_id) == persona_id, (
+                f"role candidate '{key}' is claimed by both '{owner[key]}' and '{persona_id}' — "
+                "role mentions would route to whichever the registry yields first"
+            )
+            owner[key] = persona_id

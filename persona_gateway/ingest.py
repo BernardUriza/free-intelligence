@@ -1,10 +1,18 @@
 """Message ingestion — a Discord message's attachments → runner-ready inputs.
 
 Readable attachments (images, text, PDFs) become Anthropic content blocks via
-the shared processor. Audio is NOT this module's business: the host owns
-reception and therefore owns transcription (2026-07-23), and ships the words on
-the `/invite` wire — so audio attachments are only classified here, to keep them
-out of the document lane.
+the shared processor.
+
+Audio is the host's business IN A GUILD: the host owns reception and therefore
+owns transcription (2026-07-23), shipping the words on the `/invite` wire, so a
+guild audio attachment is only classified here to keep it out of the document
+lane. The ONE exception is a DM, where that doctrine cannot be satisfied by
+anyone: Discord isolates DM channels per bot user, so the host is structurally
+DEAF there — it never sees the message and never issues an /invite. Before this,
+a voice note in a DM produced total silence (no reply, no "…", no reaction, not
+even a `last_message_seen` stamp for /health), and a DM is precisely where a
+phone user sends audio. So the gateway transcribes ONLY when `guild is None`;
+in a guild it still touches no STT.
 """
 
 from __future__ import annotations
@@ -15,7 +23,12 @@ import discord
 import structlog
 
 from khimeras_shared.attachments import process_attachments
-from khimeras_shared.stt import is_audio_attachment
+from khimeras_shared.stt import (
+    DEFAULT_AUDIO_CONTENT_TYPE,
+    SusurroSttClient,
+    is_audio_attachment,
+    transcribe_voice_message,
+)
 from shared.personas import Persona
 
 log = structlog.get_logger()
@@ -24,8 +37,47 @@ log = structlog.get_logger()
 class MessageIngest:
     """Turns one message's readable attachments into blocks for the runner."""
 
-    def __init__(self, persona: Persona) -> None:
+    def __init__(self, persona: Persona, stt_client: SusurroSttClient | None = None) -> None:
         self.persona = persona
+        self._stt_client = stt_client
+
+    async def dm_voice_transcript(self, message: discord.Message) -> str:
+        """Words spoken in a DM voice note, or "" when it does not apply.
+
+        Guild messages return "" untouched — there the host is the only
+        transcriber and this must never become a second consumer of susurro.
+        Fail-soft everywhere else: no client, no audio, or a dead susurro
+        degrades to "" (the pre-existing silent behaviour), never a broken turn.
+        """
+        if getattr(message, "guild", None) is not None:
+            return ""
+        if self._stt_client is None or not getattr(message, "attachments", None):
+            return ""
+        parts: list[str] = []
+        for attachment in message.attachments:
+            if not self.is_audio_attachment(attachment, message):
+                continue
+            try:
+                audio = await attachment.read()
+                transcript = await transcribe_voice_message(
+                    audio,
+                    base_url=self._stt_client.base_url,
+                    api_key=self._stt_client.api_key,
+                    content_type=getattr(attachment, "content_type", None) or DEFAULT_AUDIO_CONTENT_TYPE,
+                )
+            except Exception:
+                log.warning("persona_gateway_dm_stt_failed", persona_id=self.persona.persona_id, exc_info=True)
+                continue
+            if transcript:
+                parts.append(str(transcript))
+        if parts:
+            log.info(
+                "persona_gateway_dm_stt_transcribed",
+                persona_id=self.persona.persona_id,
+                parts=len(parts),
+                length=sum(len(p) for p in parts),
+            )
+        return "\n".join(parts)
 
     async def attachment_blocks(self, message: discord.Message) -> list[dict]:
         """Image/document attachments of the summoning message → Anthropic blocks.
