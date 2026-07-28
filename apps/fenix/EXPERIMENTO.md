@@ -122,3 +122,75 @@ terceros con esa credencial rompe el ToS de Anthropic. **Esta app es de uso
 personal (Bernard + Claude, fase de dogfood).** El día que el equipo de la
 papelería la use, necesita su propia cuenta o una API key del negocio.
 Ver memoria `[[og118-oauth-personal-use]]`.
+
+---
+
+# Backend (27-jul, mismo día)
+
+**No se escribió un backend nuevo.** fenix corre sobre `apps/og118/server` — el
+mismo runtime, el mismo `/chat/stream`, el mismo RAG — en otro puerto y con otra
+persona. Duplicar 4,438 líneas habría sido reinventar lo canónico (Art. 6).
+
+Cambio total al backend existente: **una línea**, retrocompatible.
+
+```python
+PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (… / "prompts" / "persona.md"))
+```
+
+Sin la variable, og118 se comporta exactamente igual que antes. Con ella, el
+mismo binario sirve a un segundo consumer con su propia voz: la tesis
+"1 build → N consumers" ejercida de verdad.
+
+## Cómo se levanta
+
+```bash
+cd apps/og118/server
+export CLAUDE_CODE_OAUTH_TOKEN=$(grep -oE 'sk-ant-[A-Za-z0-9_-]+' ~/.secrets/og118-claude-oauth.txt | head -1)
+export FI_PERSONA_PATH=<repo>/apps/fenix/server/prompts/persona.md
+export OG118_AUTH_MODE=bearer
+export OG118_PROJECT_REGISTRY_PATH=$HOME/.fenix-data/projects.json
+export OG118_CONVERSATIONS_PATH=$HOME/.fenix-data/conversations
+export FI_RAG_STORE_PATH=$HOME/.fenix-data/fi_rag_store.h5
+export OG118_ALLOWED_ORIGINS=http://localhost:3100,http://127.0.0.1:3100
+./.venv/bin/uvicorn app:app --port 8119
+```
+
+## Hallazgos nuevos (backend)
+
+### H8 — Rutas de contenedor como default local
+`OG118_PROJECT_REGISTRY_PATH` y `FI_RAG_STORE_PATH` apuntan por default a
+`/opt/fi/…`, que en una Mac da `PermissionError` y tumba el primer request con
+500. El README no lo menciona.
+
+### H9 — El origen CORS del consumer viene hardcodeado
+`_DEFAULT_ORIGINS = "http://localhost:3000,…"` — el puerto de og118. Un segundo
+consumer en otro puerto recibe **400 en el preflight** y el navegador reporta
+sólo `Failed to fetch`, sin pista de CORS. Se arregla con
+`OG118_ALLOWED_ORIGINS`, pero hay que saber que existe.
+
+## E2E — verde, con un defecto real
+
+Verificado en la app (no por curl): mensaje enviado desde
+`http://localhost:3100`, el glass-box renderizó los 5 pasos en vivo con las
+llamadas a `search_documents`, y la respuesta llegó firmada como **Fénix**.
+
+Lo que salió bien:
+- Abrió con la cita literal del candado anti-invención.
+- **Forrado de lustre $13**, correcto, con la traza del renglón.
+- No inventó lo que no encontró: lo mandó a «preguntar a la dirección».
+
+**El defecto:** dijo que **no encontró el precio de los gises blancos** — y sí
+está en la lista maestra (`Gises blancos comprimidos Baco (caja): $11`, POS
+18/jul). Por `curl`, con la misma pregunta, SÍ lo encontró. Dos causas
+probables, ninguna verificada todavía:
+
+1. **Recall del RAG.** El documento de 22,070 chars se partió en **16 chunks**
+   (~1.4k chars c/u). Una lista de 117 renglones de precio en chunks tan gruesos
+   depende de que la búsqueda semántica acierte el chunk exacto.
+2. **El modelo.** El turno corrió en **claude-sonnet-4-5** (lo dice el chip de
+   provenance). Es el mismo modelo que el 14-jul ignoró las Instructions y se fue
+   a comparar Office Depot con Amazon.
+
+**Pendiente #1:** medir cuál de las dos es, con el mismo prompt contra Opus y
+contra un chunking más fino. Hasta entonces fenix cotiza, pero con un recall que
+no es de fiar para producción.

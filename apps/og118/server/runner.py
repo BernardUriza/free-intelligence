@@ -22,7 +22,12 @@ from fi_runner import (
     load_prompt,
 )
 
-PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
+# La persona base es CONFIGURABLE por entorno para que un segundo consumer
+# (apps/fenix) corra este mismo runtime con su propia voz, sin duplicar el
+# servidor: "1 build → N consumers". Sin la variable, la ruta es exactamente la
+# de antes, así que og118 no cambia en nada. El prompt sigue viviendo en un .md
+# que se lee en runtime (P0 prompts-as-content), nunca inline en el código.
+PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (Path(__file__).parent / "prompts" / "persona.md"))
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
 
 
