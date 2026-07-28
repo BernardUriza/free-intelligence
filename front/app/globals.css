@@ -359,6 +359,22 @@ summary {
   margin: 8px 2px 0;
   font-size: 12px;
 }
+.gate.wide form,
+.gate.wide .result {
+  max-width: 460px;
+}
+.gate .plano {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 12px;
+}
+.gate .plano svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
 .gate form {
   display: flex;
   flex-direction: column;
