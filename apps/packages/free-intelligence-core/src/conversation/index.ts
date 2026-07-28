@@ -11,6 +11,11 @@
 export type { ConversationRecord, ConversationSummary } from './record';
 export type { ConversationLibrary } from './library';
 export {
+  conversationToMarkdown,
+  conversationFileName,
+  type ConversationMarkdownOptions,
+} from './markdown';
+export {
   CONVERSATION_SCHEMA_VERSION,
   createConversationRecord,
   summarizeConversation,

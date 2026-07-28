@@ -966,6 +966,39 @@ interface ConversationLibrary {
 }
 
 /**
+ * conversationToMarkdown — la conversación como un archivo que alguien se lleva.
+ *
+ * Función pura sobre el record: sin React, sin navegador, sin descarga. Quien
+ * quiera entregarlo (un Blob en el browser, un archivo en disco, un adjunto de
+ * correo) pone ESA parte; aquí sólo vive la forma del documento, que es lo que
+ * se repite en cada shell.
+ *
+ * Markdown y no PDF ni HTML porque el destino real es seguir trabajando: se
+ * pega en un cuaderno digital, se abre en cualquier editor, se lee tal cual en
+ * texto plano si no hay nada más a la mano.
+ */
+
+interface ConversationMarkdownOptions {
+    /** Cómo se nombra a cada lado. Default: `Tú` / `Asistente`. */
+    labels?: {
+        user?: string;
+        assistant?: string;
+    };
+    /** Línea de procedencia bajo el título (de dónde salió esta conversación). */
+    source?: string;
+}
+/** El documento completo, listo para escribir a un archivo `.md`. */
+declare function conversationToMarkdown(record: ConversationRecord, options?: ConversationMarkdownOptions): string;
+/**
+ * Un nombre de archivo seguro derivado del título.
+ *
+ * Los títulos vienen del primer mensaje del usuario, así que traen de todo:
+ * `/`, `:`, saltos de línea, emoji. Un nombre sin sanear rompe la descarga en
+ * silencio o crea directorios que nadie pidió.
+ */
+declare function conversationFileName(record: ConversationRecord): string;
+
+/**
  * Conversation helpers — pure, deterministic primitives for building and
  * summarizing ConversationRecords. No React, no browser, no transport.
  *
@@ -1073,4 +1106,4 @@ interface OrganizedConversations {
  */
 declare function organizeConversationSummaries(summaries: ConversationSummary[]): OrganizedConversations;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, conversationFileName, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };

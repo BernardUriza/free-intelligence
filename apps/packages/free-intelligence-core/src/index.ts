@@ -91,4 +91,7 @@ export {
   setConversationPinned,
   setConversationArchived,
   sanitizeConversationMessage,
+  conversationToMarkdown,
+  conversationFileName,
 } from './conversation';
+export type { ConversationMarkdownOptions } from './conversation';
