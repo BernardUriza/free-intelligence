@@ -27,6 +27,7 @@ import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
 import { FenixVisorExcel, type HojaVista } from './FenixVisorExcel';
+import { FenixBarraPresupuesto } from './FenixBarraPresupuesto';
 import { useExpedientes } from '@/lib/useExpedientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
@@ -64,6 +65,12 @@ export function FenixChat() {
     items: e.items ?? [], forrado: e.forrado ?? [],
     opcionales: e.opcionales ?? [], fuera: e.fuera ?? [],
   });
+
+  // El expediente de la conversación abierta, si ya tiene renglones. Es lo que
+  // permite ofrecer el Excel SIN salir del chat donde se cotizó.
+  const presupuestoAbierto = exp.expedientes.find(
+    (e) => e.conversacionId === lib.activeId && (e.items?.length ?? 0) > 0,
+  );
 
   async function abrirVisor(e: Expediente) {
     setVerExcel(e);
@@ -127,6 +134,14 @@ export function FenixChat() {
           composerPlaceholder="Manda la foto de la lista, o pregunta un precio…"
           newChatLabel="Nueva cotización"
           showNewChatButton={false}
+          aboveComposer={
+            presupuestoAbierto ? (
+              <FenixBarraPresupuesto
+                expediente={presupuestoAbierto}
+                onVer={(e) => void abrirVisor(e)}
+              />
+            ) : null
+          }
           emptyState={<FenixStartScreen onPick={(prompt) => void conversation.send(prompt)} />}
           imageAttachments
           // El textarea ya NO necesita `composerTextareaClassName`: el arreglo

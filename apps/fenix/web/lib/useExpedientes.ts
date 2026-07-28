@@ -25,6 +25,9 @@ export interface Expediente {
   estado: EstadoExpediente;
   total: number | null;
   notas: string;
+  descuento: number;
+  totalDeclarado: number | null;
+  desgloseIncompleto: boolean;
   items: RenglonExpediente[];
   forrado: RenglonExpediente[];
   opcionales: RenglonExpediente[];
