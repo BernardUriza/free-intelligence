@@ -89,13 +89,19 @@ def test_empty_message_yields_no_guidance():
 
 
 def test_persona_without_guidance_content_yields_none_not_a_crash():
-    """RESISTANCE: Vultur/Frugi have no guidance .md yet — the engine still
-    classifies, the prompt just carries no voice-specific block."""
+    """RESISTANCE: a persona with NO guidance content still classifies without
+    crashing — the prompt just carries no voice-specific block.
+
+    Pinned to a synthetic id on purpose. This used to name `vultur`, which broke
+    the day Vultur got a GIF catalog (2026-07-27): the fixture was "whichever
+    persona happens to be empty today", so filling any persona's content turned
+    a passing test red. A never-registered id is empty by construction.
+    """
     guidance = build_turn_guidance(
         current_message="reséñame Stalker",
         recent_messages=[],
         user_facts=[],
-        persona_id="vultur",
+        persona_id="__persona_with_no_content__",
     )
     assert guidance is None or guidance == ""
 

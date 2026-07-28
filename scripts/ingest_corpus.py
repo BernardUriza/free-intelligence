@@ -68,19 +68,31 @@ def slugify_stem(filename: str) -> str:
 def discover_sources(persona_id: str) -> list[tuple[str, Path]]:
     """All ingestable files under data/corpus/<persona_id>/ as (source_ref, path).
 
-    Skips MANIFEST.md, hidden files, and unsupported extensions (warned).
+    RECURSIVE: a corpus of hundreds of small files (a scraped blog, a paper set)
+    belongs in its own subfolder, not dumped flat next to the books. A file in
+    `contraelamor/` gets source_ref `<persona_id>:contraelamor-<slug>`, so the
+    subfolder both namespaces the slug against collisions and stays visible in
+    the citation the RAG surfaces.
+
+    Skips MANIFEST.md, hidden files/dirs, and unsupported extensions (warned).
     """
     src_dir = _CORPUS_ROOT / persona_id
     sources: list[tuple[str, Path]] = []
-    for path in sorted(src_dir.iterdir()):
-        if not path.is_file() or path.name.startswith("."):
+    for path in sorted(src_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(src_dir)
+        if any(part.startswith(".") for part in rel.parts):
             continue
         if path.name == "MANIFEST.md":
             continue
         if path.suffix.lower() not in _SUPPORTED_SUFFIXES:
-            print(f"  WARN: skipping unsupported file type: {path.name}")
+            print(f"  WARN: skipping unsupported file type: {rel}")
             continue
-        sources.append((f"{persona_id}:{slugify_stem(path.name)}", path))
+        prefix = "-".join(slugify_stem(part) for part in rel.parts[:-1])
+        slug = slugify_stem(path.name)
+        ref = f"{prefix}-{slug}" if prefix else slug
+        sources.append((f"{persona_id}:{ref}", path))
     return sources
 
 
