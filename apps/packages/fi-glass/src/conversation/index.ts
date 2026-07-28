@@ -7,6 +7,7 @@
  * refresh-safe transcript without re-implementing persistence in the app.
  */
 
+export { EphemeralConversationLibrary } from './EphemeralConversationLibrary';
 export {
   IndexedDBConversationLibrary,
   type IndexedDBConversationLibraryOptions,

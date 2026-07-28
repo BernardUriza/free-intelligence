@@ -1,6 +1,41 @@
 import { ConversationLibrary, ConversationSummary, ConversationRecord, ChatMessage } from '@free-intelligence/core';
 
 /**
+ * EphemeralConversationLibrary — conversations that die with the tab.
+ *
+ * The ConversationLibrary contract satisfied by a plain in-memory Map: nothing
+ * reaches IndexedDB, localStorage or a server, and closing the tab is the whole
+ * cleanup story.
+ *
+ * It exists for **shared-machine / kiosk surfaces**, where persistence is not a
+ * missing feature but a hazard: a public terminal that remembers threads shows
+ * the previous stranger's conversation to the next one. IndexedDB is the wrong
+ * tool there (it is per-browser, not per-person, so every visitor inherits the
+ * last one's history), and a remote library is worse (it publishes it).
+ *
+ * The live thread still works exactly as anywhere else — messages, streaming,
+ * switching between conversations opened during this visit — because the
+ * contract is the same. What disappears is only what should: everything, on
+ * close.
+ *
+ * @example
+ * const library = useMemo(
+ *   () => (isPublicTerminal ? new EphemeralConversationLibrary() : remote),
+ *   [isPublicTerminal, remote],
+ * );
+ * const lib = useConversationLibrary(library);
+ */
+
+declare class EphemeralConversationLibrary implements ConversationLibrary {
+    private readonly records;
+    list(): Promise<ConversationSummary[]>;
+    get(id: string): Promise<ConversationRecord | null>;
+    put(record: ConversationRecord): Promise<void>;
+    delete(id: string): Promise<void>;
+    clear(): Promise<void>;
+}
+
+/**
  * IndexedDBConversationLibrary — a browser ConversationLibrary (DD-002B1.2).
  *
  * Implements the @free-intelligence/core ConversationLibrary contract over
@@ -146,4 +181,4 @@ declare function useConversationLibrary(library: ConversationLibrary, options?: 
 
 declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
 
-export { type ConversationLibraryState, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+export { type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
