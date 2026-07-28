@@ -45,6 +45,9 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 | 26 | **The mirror re-reads everything every minute** — `SESSION-MIRROR offered 437` logs every idle minute (its docstring promises silence), and it re-parses + re-ships every SSH-door transcript in full every 60s: O(history)/minute on a 512MB box. Fix collides with the deliberate no-offset-state design. Details: [`26-the-mirror-relogs-everything-every-minute.md`](26-the-mirror-relogs-everything-every-minute.md) | Proposed |
 | 27 | **Nobody sweeps the droplet's /tmp** — 7 `/tmp/claude-resume-*` dirs (SDK resume temp, ~1.4M each) and stray books accrue; the broom only covers Postgres + `aire.log`. Fixed with an hourly `find -mmin +60` timer (tmpfiles.d proved unable to age-remove glob dirs). Details: [`27-nobody-sweeps-the-droplet-tmp.md`](27-nobody-sweeps-the-droplet-tmp.md) | **Done 2026-07-20** (`f55cef4`) — `aire-tmpclean.timer`, verified live; installed by deploy + provision |
 
+| 28 | **Per-token budget** — the canary key is revocable but not independently capped; a leaked canary can burn the whole global `AIRE_MAX_BUDGET_USD` before it is noticed. Details: [`28-per-token-budget.md`](28-per-token-budget.md) | Proposed |
+| 29 | **Grow the door — per-turn model / tools / images** for fi-runner's new `AIREBackend`. The first-cut backend covers the companion/complete turn; `mcp_servers` (per-turn tools), per-turn `system_prompt`, `model`, and `images` are rejected loudly because the door takes only `{message, mode}`. Each is a [[ssh-is-a-missing-endpoint]] gap. #1 (tools) is the one that unblocks a real consumer (og118 on AIRE). Details: [`29-grow-the-door-per-turn.md`](29-grow-the-door-per-turn.md) | Proposed |
+
 ---
 
 **The only one that matters today is #5.** Everything else is plumbing until chapter 2
