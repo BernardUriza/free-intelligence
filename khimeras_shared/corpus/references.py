@@ -91,6 +91,25 @@ async def query_corpus(
         await conn.close()
 
 
+def cite_label(source_ref: str | None) -> str:
+    """`source_ref` → the short provenance label shown next to a retrieved passage.
+
+    `source_ref` is `<persona_id>:<slug>` (and for a subfoldered corpus,
+    `<persona_id>:<subfolder>-<slug>`). The persona prefix is noise to the model
+    — it already knows whose corpus this is — so only the slug is rendered.
+
+    Exists because the retrieval always carried provenance and the prompt threw
+    it away: `query_corpus` returns source_ref/source_type/similarity, and the
+    block rendered `- <text>` alone, so a passage arrived indistinguishable from
+    the persona's own invention. The schema comment has said "source_ref lets the
+    agent cite where a recalled chunk came from" since the table was written.
+    """
+    ref = (source_ref or "").strip()
+    if not ref:
+        return "corpus"
+    return ref.split(":", 1)[1].strip() if ":" in ref else ref
+
+
 async def build_references_block(query: str | None, *, namespace: str, header: str) -> str | None:
     """Retrieve relevant corpus chunks and format them for prompt injection.
 
@@ -111,7 +130,7 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
     lines: list[str] = []
     total = 0
     for h in relevant:
-        line = f"- {h['chunk_text'].strip()}"
+        line = f"- [{cite_label(h.get('source_ref'))}] {h['chunk_text'].strip()}"
         if total + len(line) > _REF_MAX_CHARS:
             break
         lines.append(line)

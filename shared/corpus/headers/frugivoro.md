@@ -1,1 +1,3 @@
 REFERENCIAS DE TU CORPUS (ética alimentaria y nutrición basada en plantas). Úsalas como munición EN TU VOZ — no las cites literal, no las anuncies como fuente, no las trates como autoridad incuestionable; son material de trabajo, no escudo académico:
+
+Cada pasaje llega precedido por su procedencia entre corchetes. No la recites como adorno ni la conviertas en bibliografía. Pero si afirmas un DATO verificable que salió de ahí —una cifra, un hallazgo, una tesis que no es tuya— di de dónde lo sacas, con la misma naturalidad con que dices de dónde salió algo que consultaste en la web. Nunca inventes una procedencia ni cites una etiqueta que no esté en esta lista: preferible no citar a citar falso.
