@@ -1,64 +1,87 @@
 'use client';
 
 /**
- * Expedientes — la respuesta al hallazgo más caro de la auditoría.
+ * Expedientes — tarjetas, no renglones de texto.
  *
- * 43 de los 79 turnos bloqueados (54%) lo estaban por "falta nombre / WhatsApp".
- * Una sesión pidió el mismo dato SEIS veces, y cada repetición es un turno
- * completo del modelo releyendo la conversación entera. Pedirlo por chat es la
- * forma más cara posible de capturar dos campos de texto.
+ * El expediente vivía dentro del TÍTULO del chat, y funcionó para arrancar: era
+ * la convención que el equipo ya usaba a mano. Pero el título es un contenedor
+ * de 60 caracteres (`TITLE_MAX` en fi-core) y para que cupiera el teléfono hubo
+ * que abreviar la escuela con elipsis. Un contenedor donde un campo se mutila
+ * para salvar otro no es un expediente.
  *
- * Aquí se capturan en un formulario y se escriben en el título de la
- * conversación, que es donde el equipo ya los guardaba y donde el asistente los
- * lee. Cero backend nuevo, cero segunda verdad.
+ * Ahora cada cliente es un objeto con campos propios y una tarjeta que se lee de
+ * un vistazo: el estado manda el color, los pendientes se ven sin abrir nada, y
+ * el chat de esa cotización está a un clic.
  */
 
 import { useMemo, useState } from 'react';
-import { Check, Search, UserRound } from 'lucide-react';
-import { faltantes, parseCliente, tieneNombre, tituloDeCliente, type Cliente } from '@/lib/cliente';
+import {
+  AlertTriangle,
+  CircleDashed,
+  FileSpreadsheet,
+  Loader,
+  MessageSquare,
+  PackageCheck,
+  Phone,
+  School,
+  Search,
+} from 'lucide-react';
+import { pendientes, type EstadoExpediente, type Expediente } from '@/lib/useExpedientes';
 
-interface Conversacion {
-  id: string;
-  title: string;
-}
+const ESTADO = {
+  nueva: { etiqueta: 'Nueva', icono: CircleDashed, clase: 'es-nueva' },
+  cotizando: { etiqueta: 'Cotizando', icono: Loader, clase: 'es-cotizando' },
+  bloqueada: { etiqueta: 'Falta info', icono: AlertTriangle, clase: 'es-bloqueada' },
+  entregada: { etiqueta: 'Entregada', icono: FileSpreadsheet, clase: 'es-entregada' },
+  cerrada: { etiqueta: 'Cerrada', icono: PackageCheck, clase: 'es-cerrada' },
+} as const satisfies Record<EstadoExpediente, { etiqueta: string; icono: unknown; clase: string }>;
+
+const ORDEN: EstadoExpediente[] = ['bloqueada', 'cotizando', 'nueva', 'entregada', 'cerrada'];
 
 export function FenixClientes({
-  conversations,
-  onSave,
-  onOpen,
+  expedientes,
+  cargando,
+  error,
+  onGuardar,
+  onAbrirChat,
 }: {
-  conversations: readonly Conversacion[];
-  onSave: (id: string, titulo: string) => void;
-  onOpen: (id: string) => void;
+  expedientes: Expediente[];
+  cargando: boolean;
+  error: string | null;
+  onGuardar: (datos: Partial<Expediente>) => Promise<unknown>;
+  onAbrirChat: (conversacionId: string) => void;
 }) {
   const [busqueda, setBusqueda] = useState('');
+  const [filtro, setFiltro] = useState<EstadoExpediente | 'todos'>('todos');
   const [editando, setEditando] = useState<string | null>(null);
-  const [borrador, setBorrador] = useState<Cliente | null>(null);
+  const [borrador, setBorrador] = useState<Partial<Expediente> | null>(null);
 
-  const expedientes = useMemo(() => {
-    const todos = conversations.map((c) => ({ ...c, cliente: parseCliente(c.title) }));
+  const conteo = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const e of expedientes) c[e.estado] = (c[e.estado] ?? 0) + 1;
+    return c;
+  }, [expedientes]);
+
+  const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    const filtrados = q
-      ? todos.filter((e) => `${e.cliente.alumno} ${e.cliente.escuela} ${e.cliente.whatsapp}`.toLowerCase().includes(q))
-      : todos;
-    // Los incompletos primero: son los que cuestan dinero cada vez que alguien
-    // abre esa cotización y el asistente se traba pidiendo el dato.
-    return filtrados.sort((a, b) => Number(a.cliente.completo) - Number(b.cliente.completo));
-  }, [conversations, busqueda]);
+    return expedientes
+      .filter((e) => (filtro === 'todos' ? true : e.estado === filtro))
+      .filter((e) =>
+        q ? `${e.alumno} ${e.escuela} ${e.grado} ${e.whatsapp} ${e.tutor} ${e.folio}`.toLowerCase().includes(q) : true,
+      )
+      // Lo que estorba primero: una cotización bloqueada es dinero detenido.
+      .sort((a, b) => ORDEN.indexOf(a.estado) - ORDEN.indexOf(b.estado));
+  }, [expedientes, busqueda, filtro]);
 
-  const incompletos = expedientes.filter((e) => !e.cliente.completo).length;
-
-  function abrirEdicion(id: string, cliente: Cliente) {
-    setEditando(id);
-    setBorrador({ ...cliente, alumno: tieneNombre(cliente) ? cliente.alumno : '', whatsapp: cliente.whatsapp });
-  }
-
-  function guardar(id: string) {
+  async function guardar() {
     if (!borrador) return;
-    onSave(id, tituloDeCliente(borrador));
+    await onGuardar(borrador);
     setEditando(null);
     setBorrador(null);
   }
+
+  if (cargando) return <p className="fx-vacio">Cargando expedientes…</p>;
+  if (error) return <p className="fx-vacio fx-error">No pude leer los expedientes: {error}</p>;
 
   return (
     <section className="fx-clientes">
@@ -66,9 +89,8 @@ export function FenixClientes({
         <div>
           <h2 className="fx-clientes-title">Expedientes</h2>
           <p className="fx-clientes-sub">
-            {incompletos > 0
-              ? `${incompletos} de ${expedientes.length} sin completar`
-              : `${expedientes.length} expedientes completos`}
+            {conteo.bloqueada ? `${conteo.bloqueada} esperando datos · ` : ''}
+            {expedientes.length} clientes
           </p>
         </div>
         <label className="fx-buscar">
@@ -77,24 +99,50 @@ export function FenixClientes({
             type="search"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar alumno, escuela o teléfono"
+            placeholder="Buscar alumno, escuela, teléfono o folio"
             aria-label="Buscar expediente"
           />
         </label>
       </header>
 
-      <ul className="fx-lista">
-        {expedientes.map(({ id, cliente }) => {
-          const falta = faltantes(cliente);
-          const enEdicion = editando === id;
-          return (
-            <li key={id} className={`fx-card${cliente.completo ? ' fx-card-ok' : ''}`}>
-              {enEdicion && borrador ? (
+      <div className="fx-filtros" role="tablist" aria-label="Filtrar por estado">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={filtro === 'todos'}
+          className={`fx-chip${filtro === 'todos' ? ' fx-chip-on' : ''}`}
+          onClick={() => setFiltro('todos')}
+        >
+          Todos <span>{expedientes.length}</span>
+        </button>
+        {ORDEN.filter((e) => conteo[e]).map((e) => (
+          <button
+            key={e}
+            type="button"
+            role="tab"
+            aria-selected={filtro === e}
+            className={`fx-chip ${ESTADO[e].clase}${filtro === e ? ' fx-chip-on' : ''}`}
+            onClick={() => setFiltro(e)}
+          >
+            {ESTADO[e].etiqueta} <span>{conteo[e]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="fx-tarjetas">
+        {visibles.map((e) => {
+          const falta = pendientes(e);
+          const Icono = ESTADO[e.estado].icono as React.ComponentType<{ 'aria-hidden'?: boolean }>;
+          const enEdicion = editando === e.id;
+
+          if (enEdicion && borrador) {
+            return (
+              <article key={e.id} className={`fx-tarjeta ${ESTADO[e.estado].clase} fx-tarjeta-edit`}>
                 <form
                   className="fx-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    guardar(id);
+                  onSubmit={(ev) => {
+                    ev.preventDefault();
+                    void guardar();
                   }}
                 >
                   <div className="fx-campos">
@@ -102,26 +150,79 @@ export function FenixClientes({
                       <span>Alumno</span>
                       <input
                         autoFocus
-                        value={borrador.alumno}
-                        onChange={(e) => setBorrador({ ...borrador, alumno: e.target.value })}
+                        value={borrador.alumno ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, alumno: ev.target.value })}
                         placeholder="Nombre y apellido"
                       />
                     </label>
                     <label>
-                      <span>Escuela y grado</span>
+                      <span>Escuela</span>
                       <input
-                        value={borrador.escuela}
-                        onChange={(e) => setBorrador({ ...borrador, escuela: e.target.value })}
-                        placeholder="Urbana 100, 4°A"
+                        value={borrador.escuela ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, escuela: ev.target.value })}
+                        placeholder="Urbana 100"
+                      />
+                    </label>
+                    <label>
+                      <span>Grado</span>
+                      <input
+                        value={borrador.grado ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, grado: ev.target.value })}
+                        placeholder="4°A"
+                      />
+                    </label>
+                    <label>
+                      <span>Mamá o tutor</span>
+                      <input
+                        value={borrador.tutor ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, tutor: ev.target.value })}
+                        placeholder="Jessica Rubí"
                       />
                     </label>
                     <label>
                       <span>WhatsApp</span>
                       <input
                         inputMode="tel"
-                        value={borrador.whatsapp}
-                        onChange={(e) => setBorrador({ ...borrador, whatsapp: e.target.value })}
+                        value={borrador.whatsapp ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, whatsapp: ev.target.value })}
                         placeholder="33 1234 5678"
+                      />
+                    </label>
+                    <label>
+                      <span>Folio</span>
+                      <input
+                        value={borrador.folio ?? ''}
+                        onChange={(ev) => setBorrador({ ...borrador, folio: ev.target.value })}
+                        placeholder="1145"
+                      />
+                    </label>
+                    <label>
+                      <span>Estado</span>
+                      <select
+                        value={borrador.estado ?? 'nueva'}
+                        onChange={(ev) =>
+                          setBorrador({ ...borrador, estado: ev.target.value as EstadoExpediente })
+                        }
+                      >
+                        {ORDEN.map((k) => (
+                          <option key={k} value={k}>
+                            {ESTADO[k].etiqueta}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <span>Total</span>
+                      <input
+                        inputMode="decimal"
+                        value={borrador.total ?? ''}
+                        onChange={(ev) =>
+                          setBorrador({
+                            ...borrador,
+                            total: ev.target.value ? Number(ev.target.value) : null,
+                          })
+                        }
+                        placeholder="1407.15"
                       />
                     </label>
                   </div>
@@ -141,35 +242,88 @@ export function FenixClientes({
                     </button>
                   </div>
                 </form>
-              ) : (
-                <>
-                  <div className="fx-avatar" aria-hidden>
-                    {cliente.completo ? <Check /> : <UserRound />}
+              </article>
+            );
+          }
+
+          return (
+            <article key={e.id} className={`fx-tarjeta ${ESTADO[e.estado].clase}`}>
+              <header className="fx-t-head">
+                <span className="fx-t-estado">
+                  <Icono aria-hidden />
+                  {ESTADO[e.estado].etiqueta}
+                </span>
+                {e.folio && <span className="fx-t-folio">#{e.folio}</span>}
+              </header>
+
+              <h3 className="fx-t-nombre">{e.alumno || 'Sin nombre'}</h3>
+
+              <dl className="fx-t-datos">
+                {(e.escuela || e.grado) && (
+                  <div>
+                    <dt>
+                      <School aria-hidden />
+                    </dt>
+                    <dd>
+                      {e.escuela || 'Escuela por definir'}
+                      {e.grado && ` · ${e.grado}`}
+                    </dd>
                   </div>
-                  <div className="fx-datos">
-                    <button type="button" className="fx-nombre" onClick={() => onOpen(id)}>
-                      {tieneNombre(cliente) ? cliente.alumno : 'Sin nombre'}
-                    </button>
-                    <p className="fx-meta">
-                      {cliente.escuela || 'Escuela por definir'}
-                      {cliente.whatsapp && ` · ${cliente.whatsapp}`}
-                      {cliente.fecha && ` · ${cliente.fecha}`}
-                    </p>
-                    {falta.length > 0 && <p className="fx-falta">Falta {falta.join(' y ')}</p>}
+                )}
+                {e.whatsapp && (
+                  <div>
+                    <dt>
+                      <Phone aria-hidden />
+                    </dt>
+                    <dd>
+                      {e.whatsapp}
+                      {e.tutor && ` · ${e.tutor}`}
+                    </dd>
                   </div>
+                )}
+              </dl>
+
+              {typeof e.total === 'number' && (
+                <p className="fx-t-total">
+                  ${e.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+              )}
+
+              {falta.length > 0 && (
+                <p className="fx-t-falta">
+                  <AlertTriangle aria-hidden />
+                  Falta {falta.join(', ')}
+                </p>
+              )}
+
+              <footer className="fx-t-pie">
+                <button
+                  type="button"
+                  className="fx-btn fi-touch-target"
+                  onClick={() => {
+                    setEditando(e.id);
+                    setBorrador({ ...e });
+                  }}
+                >
+                  {falta.length ? 'Completar' : 'Editar'}
+                </button>
+                {e.conversacionId && (
                   <button
                     type="button"
-                    className="fx-btn fi-touch-target"
-                    onClick={() => abrirEdicion(id, cliente)}
+                    className="fx-btn fx-btn-fantasma fi-touch-target"
+                    onClick={() => onAbrirChat(e.conversacionId as string)}
                   >
-                    {cliente.completo ? 'Editar' : 'Completar'}
+                    <MessageSquare aria-hidden />
+                    Cotización
                   </button>
-                </>
-              )}
-            </li>
+                )}
+              </footer>
+            </article>
           );
         })}
-      </ul>
+      </div>
+
+      {visibles.length === 0 && <p className="fx-vacio">Nada con ese filtro.</p>}
     </section>
   );
 }

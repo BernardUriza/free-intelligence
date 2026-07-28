@@ -25,6 +25,7 @@ import { authHeaders } from '@/lib/fenixToken';
 import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
+import { useExpedientes } from '@/lib/useExpedientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
@@ -48,6 +49,7 @@ export function FenixChat() {
     onMessagesChange: lib.persist,
   });
   const [vista, setVista] = useState<Vista>('chats');
+  const exp = useExpedientes();
 
   return (
     <AgentWorkspaceShell
@@ -78,13 +80,11 @@ export function FenixChat() {
       conversation={
         vista === 'clientes' ? (
           <FenixClientes
-            conversations={lib.conversations}
-            onSave={(id, titulo) =>
-              void lib.renameConversation(id, titulo).catch((e) =>
-                console.error('[fenix] rename failed', e),
-              )
-            }
-            onOpen={(id) => {
+            expedientes={exp.expedientes}
+            cargando={exp.cargando}
+            error={exp.error}
+            onGuardar={exp.guardar}
+            onAbrirChat={(id) => {
               setVista('chats');
               void lib.switchConversation(id).catch((e) => console.error('[fenix] switch failed', e));
             }}

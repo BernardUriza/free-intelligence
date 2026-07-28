@@ -293,9 +293,9 @@ body {
 .fx-clientes {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.9rem;
   width: 100%;
-  max-width: 54rem;
+  max-width: 68rem;
   margin: 0 auto;
   padding: 1.5rem 1rem calc(2rem + env(safe-area-inset-bottom));
   overflow-y: auto;
@@ -311,9 +311,9 @@ body {
 
 .fx-clientes-title {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 .fx-clientes-sub {
@@ -326,127 +326,183 @@ body {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  flex: 1 1 15rem;
-  max-width: 22rem;
+  flex: 1 1 16rem;
+  max-width: 24rem;
   padding: 0.5rem 0.7rem;
   border: 1px solid var(--fx-linea);
   border-radius: 11px;
   background: var(--fx-tenue);
 }
 
-.fx-buscar svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  opacity: 0.55;
-  flex-shrink: 0;
-}
+.fx-buscar svg { width: 0.95rem; height: 0.95rem; opacity: 0.55; flex-shrink: 0; }
+.fx-buscar input { width: 100%; border: 0; background: none; color: inherit; font-size: 0.86rem; outline: none; }
 
-.fx-buscar input {
-  width: 100%;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: 0.86rem;
-  outline: none;
-}
+/* Filtros por estado — cada uno con el color de su estado. */
+.fx-filtros { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
-.fx-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fx-card {
-  display: flex;
+.fx-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem 0.9rem;
+  gap: 0.35rem;
+  padding: 0.32rem 0.65rem;
   border: 1px solid var(--fx-linea);
-  border-radius: 13px;
-  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
-  /* La barra de color es la señal de estado: los incompletos arden. */
-  box-shadow: inset 3px 0 0 var(--fx-fuego);
-}
-
-.fx-card-ok {
-  box-shadow: inset 3px 0 0 rgb(255 255 255 / 0.14);
-}
-
-.fx-avatar {
-  display: grid;
-  place-items: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--fx-fuego) 15%, transparent);
-  color: var(--fx-fuego-ambar);
-}
-
-.fx-card-ok .fx-avatar {
-  background: rgb(255 255 255 / 0.07);
+  border-radius: 999px;
+  background: var(--fx-tenue);
   color: var(--glass-chat-text-muted, #94a3b8);
-}
-
-.fx-avatar svg {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
-.fx-datos {
-  flex: 1;
-  min-width: 0;
-}
-
-.fx-nombre {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-size: 0.94rem;
-  font-weight: 600;
-  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 550;
   cursor: pointer;
 }
 
-.fx-nombre:hover {
-  text-decoration: underline;
+.fx-chip span {
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.09);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.fx-meta {
-  margin: 0.1rem 0 0;
+.fx-chip-on { color: var(--glass-chat-text, #fff); border-color: currentColor; }
+
+/* Los colores de estado: el fuego de la marca se reserva para lo que ESTORBA
+   (bloqueada). Lo que fluye va en neutros y lo cerrado en verde, para que la
+   vista se lea en un vistazo sin tener que interpretar etiquetas. */
+.es-nueva { --es: #94a3b8; }
+.es-cotizando { --es: #6ea8fe; }
+.es-bloqueada { --es: var(--fx-fuego); }
+.es-entregada { --es: #a78bfa; }
+.es-cerrada { --es: #4ade80; }
+
+.fx-chip.es-nueva, .fx-chip.es-cotizando, .fx-chip.es-bloqueada,
+.fx-chip.es-entregada, .fx-chip.es-cerrada { color: var(--es); }
+
+.fx-tarjetas {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 700px) {
+  .fx-tarjetas { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1100px) {
+  .fx-tarjetas { grid-template-columns: repeat(3, 1fr); }
+}
+
+.fx-tarjeta {
+  display: flex;
+  flex-direction: column;
+  /* En grid los items son min-width:auto, así que un nombre largo ensancha la
+     columna y saca la tercera tarjeta de la pantalla. Medido: 87px de
+     desbordamiento antes de esta línea. */
+  min-width: 0;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem 0.75rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 14px;
+  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
+  /* La franja superior ES el estado: color primero, texto después. */
+  box-shadow: inset 0 3px 0 var(--es, var(--fx-linea));
+}
+
+.fx-tarjeta-edit { grid-column: 1 / -1; }
+
+.fx-t-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fx-t-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--es, inherit);
+  font-size: 0.73rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fx-t-estado svg { width: 0.85rem; height: 0.85rem; }
+
+.fx-t-folio {
   color: var(--glass-chat-text-muted, #94a3b8);
-  font-size: 0.79rem;
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-t-nombre {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.fx-falta {
-  margin: 0.25rem 0 0;
+.fx-t-datos { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+.fx-t-datos > div { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.fx-t-datos dt { display: grid; place-items: center; flex-shrink: 0; opacity: 0.5; }
+.fx-t-datos dt svg { width: 0.85rem; height: 0.85rem; }
+.fx-t-datos dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-t-total {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-t-falta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
   color: var(--fx-fuego-ambar);
   font-size: 0.76rem;
   font-weight: 550;
 }
 
+.fx-t-falta svg { width: 0.8rem; height: 0.8rem; flex-shrink: 0; }
+
+.fx-t-pie {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
 .fx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
   flex-shrink: 0;
-  padding: 0.45rem 0.8rem;
+  padding: 0.42rem 0.75rem;
   border: 1px solid var(--fx-linea);
   border-radius: 9px;
   background: var(--fx-tenue);
   color: inherit;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 550;
   cursor: pointer;
 }
 
-.fx-btn:hover {
-  border-color: color-mix(in srgb, var(--fx-fuego) 45%, transparent);
-}
+.fx-btn svg { width: 0.85rem; height: 0.85rem; }
+.fx-btn:hover { border-color: color-mix(in srgb, var(--fx-fuego) 45%, transparent); }
 
 .fx-btn-primario {
   border-color: transparent;
@@ -454,44 +510,41 @@ body {
   color: #fff;
 }
 
+.fx-btn-fantasma { background: none; }
+
+.fx-vacio {
+  padding: 2rem 1rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.fx-error { color: var(--fx-fuego-ambar); }
+
 /* ── Formulario del expediente ──────────────────────────────────────────── */
 
-.fx-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
-}
+.fx-form { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
 
-.fx-campos {
-  display: grid;
-  gap: 0.6rem;
-  grid-template-columns: 1fr;
-}
+.fx-campos { display: grid; gap: 0.6rem; grid-template-columns: 1fr; }
 
 @media (min-width: 640px) {
-  .fx-campos {
-    grid-template-columns: 1.2fr 1.2fr 0.9fr;
-  }
+  .fx-campos { grid-template-columns: repeat(4, 1fr); }
 }
 
-.fx-campos label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-}
+.fx-campos label { display: flex; flex-direction: column; gap: 0.28rem; }
 
 .fx-campos span {
   color: var(--glass-chat-text-muted, #94a3b8);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 550;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.fx-campos input {
+.fx-campos input,
+.fx-campos select {
   /* 16px exactos: por debajo, iOS hace zoom al enfocar el campo. */
-  padding: 0.55rem 0.7rem;
+  padding: 0.5rem 0.65rem;
   border: 1px solid var(--fx-linea);
   border-radius: 9px;
   background: rgb(0 0 0 / 0.25);
@@ -500,11 +553,9 @@ body {
   outline: none;
 }
 
-.fx-campos input:focus {
+.fx-campos input:focus,
+.fx-campos select:focus {
   border-color: color-mix(in srgb, var(--fx-fuego) 60%, transparent);
 }
 
-.fx-acciones {
-  display: flex;
-  gap: 0.5rem;
-}
+.fx-acciones { display: flex; gap: 0.5rem; }
