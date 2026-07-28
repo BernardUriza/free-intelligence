@@ -1,6 +1,6 @@
 # AIREBackend — el backend propio de Bernard, siempre-arriba y observable
 
-Status: Proposed
+Status: In progress — first cut shipped 2026-07-27 (the companion/complete turn)
 Proposed: 2026-07-13 by Bernard (dictado en sesión; visión, palabras suyas)
 
 ## What it is
@@ -63,5 +63,23 @@ Existe ya un AIRE corriendo local (visto en `127.0.0.1:8099/projects/aire/...`)
 
 ## Status / next step
 
-No construido. Siguiente paso cuando Bernard dé el go: auditar el AIRE local
-existente (:8099) y mapear su superficie actual contra el contrato AgentBackend.
+**First cut SHIPPED 2026-07-27.** `AIREBackend` vive en
+`apps/packages/fi-runner/fi_runner/backends/aire.py` — tercer `AgentBackend`,
+cliente HTTP de la puerta de AIRE (`gate.bernarduriza.com`, Bearer). `run_turn` +
+`run_turn_stream` implementados, registrado en `backends/__init__.py` y el
+top-level, extra `aire = ["httpx"]`, unit test `tests/test_aire_backend.py` (9
+pass), y **verificado E2E contra la puerta viva** (turno `complete` real, memoria
+en Postgres, $0.02/turno). Nada se borró: ClaudeCode/Codex conservan su
+continuidad; AIRE es el tercer sustrato que subsume SU propio path.
+
+El :8099 del texto original quedó **stale**: la puerta real hoy es
+`https://gate.bernarduriza.com` (el commit `8d65b83` movió la puerta ahí; `aire.*`
+es el front). Auditar el server actual = ya hecho al construir.
+
+**Alcance del corte:** el turno companion/texto (`mode=complete`), justo donde se
+desactivó el espejo `session_store` (#358/#359). Lo que la puerta NO recibe por
+turno (tools/model/system_prompt/images) se rechaza en voz alta y quedó archivado
+como **aire-server backlog #29** ("grow the door"). Siguiente paso cuando Bernard
+dé el go: cerrar el gap #1 (tools per-turn), que es el que desbloquea og118 sobre
+AIRE. Falta también rerutear `backend/policy/llm_router_policy.py` (el
+`Anthropic()` crudo) — turno complete simple, aparte.
