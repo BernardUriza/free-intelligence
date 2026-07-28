@@ -73,3 +73,29 @@ def test_persona_id_by_role_name_resolves_registered_personas():
 def test_persona_id_by_role_name_unknown_returns_none():
     """RESISTANCE: unknown Discord role names must not force a persona route."""
     assert persona_id_by_role_name("Moderadores") is None
+
+
+def test_every_persona_resolves_from_a_role_named_exactly_like_it():
+    """ARNÉS: a role is normally named EXACTLY like the persona, so every
+    display_name must resolve — including the compound ones.
+
+    This is the hole the old tests left: they asserted "Vultur" (the first word)
+    and never "Vultur Analytica", so `Unborn Being` and `Vultur Analytica`
+    silently resolved to None. Their role mention summoned nobody and the host
+    fell through to content routing — on 2026-07-27 a question addressed to
+    @Unborn Being was answered by Insult. Parametrized over the registry so a
+    NEW compound-named persona cannot reintroduce it.
+    """
+    from shared.personas.registry import PERSONAS
+
+    for persona_id, persona in PERSONAS.items():
+        assert persona_id_by_role_name(persona.display_name) == persona_id, (
+            f"role '{persona.display_name}' does not resolve to {persona_id}"
+        )
+
+
+def test_shortened_role_still_resolves_for_compound_names():
+    """RESISTANCE: adding the full name must not break the shortened role — a
+    server that named the role just "Vultur" or "Unborn" keeps working."""
+    assert persona_id_by_role_name("Vultur") == "vultur"
+    assert persona_id_by_role_name("Unborn") == "unborn_being"

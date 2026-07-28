@@ -14,6 +14,7 @@ failure doesn't kill the batch, and a sibling's agenda is never pursued.
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -22,7 +23,29 @@ import pytest
 
 from persona_gateway.config import CONFIG
 from persona_gateway.gateway import PersonaClient
+from persona_gateway.workers import agenda as agenda_worker
 from shared.personas import Persona
+from shared.time_context import MEXICO_CITY_TZ
+
+
+@pytest.fixture(autouse=True)
+def _daytime_clock(monkeypatch):
+    """Freeze the worker's clock inside the waking window for EVERY test here.
+
+    `AgendaWorker.drain` gained a daytime gate (Vultur poking at 02:39 CDMX) and
+    reads the real wall clock, so this whole suite silently became time-of-day
+    dependent: run it after `agenda_daytime_end` and all 11 tests fail on
+    `agenda_outside_daytime_window`, having never reached the code they assert
+    on. CI stayed green only because it happened to run during the day — a red
+    that waits for nightfall is worse than a red you can see. The window itself
+    is covered by `tests/test_agenda_worker_window.py`; here it must never be
+    the variable, so the clock is pinned (same monkeypatch shape as that suite).
+    """
+    monkeypatch.setattr(
+        agenda_worker,
+        "now_in_mexico_city",
+        lambda: datetime(2026, 7, 27, 13, 0, tzinfo=MEXICO_CITY_TZ),
+    )
 
 
 def _persona(persona_id: str = "vultur") -> Persona:

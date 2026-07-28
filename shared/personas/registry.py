@@ -194,6 +194,14 @@ def persona_id_by_role_name(role_name: str) -> str | None:
 
     Matching is case/accent-insensitive and intentionally based on registry data
     rather than Discord role ids, so recreated roles keep working.
+
+    The FULL display name is a candidate, not just its first word: a role is
+    normally named exactly like the persona, so "Unborn Being" and "Vultur
+    Analytica" — the two personas whose names are compound — resolved to None
+    and their role mention summoned nobody. The host then fell through to
+    routing by content and whoever the router liked answered instead
+    (2026-07-27: a question addressed to @Unborn Being was answered by Insult).
+    The first word stays a candidate too, for the shortened role ("Vultur").
     """
     role_key = _normalize_role_name(role_name)
     if not role_key:
@@ -202,6 +210,7 @@ def persona_id_by_role_name(role_name: str) -> str | None:
         display_first_word = persona.display_name.split(maxsplit=1)[0] if persona.display_name else ""
         candidates = [
             persona.persona_id,
+            persona.display_name,
             display_first_word,
             *persona.aliases,
         ]
