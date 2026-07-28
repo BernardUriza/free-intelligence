@@ -58,6 +58,7 @@ export function FenixChat() {
       sidebar={(shell) => (
         <FenixSidebar
           conversations={lib.conversations}
+          expedientes={exp.expedientes}
           activeId={lib.activeId}
           vista={vista}
           disabled={conversation.isStreaming}

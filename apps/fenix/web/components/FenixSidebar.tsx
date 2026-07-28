@@ -1,24 +1,44 @@
 'use client';
 
 /**
- * Barra lateral: la marca arriba, luego las dos vistas, luego la lista.
+ * Barra lateral: la marca arriba, las dos vistas, y las cotizaciones como
+ * MINI-TARJETAS.
  *
- * Sigue siendo deliberadamente plana — sin proyectos ni carpetas. La auditoría
- * mostró que el laberinto (cuatro chats llamados casi igual, títulos con
- * `<alumno>` sin sustituir) nace de tener demasiados contenedores. Lo que se
- * agrega no es una jerarquía nueva sino una LECTURA distinta de la misma lista:
- * Cotizaciones la ordena por recencia, Expedientes por lo que le falta.
+ * Antes era una lista de títulos truncados (`28 jul — Sofía Ramírez (Sec.
+ * Gó…`), y el corte caía justo encima del dato: en 290px de ancho, un renglón
+ * de texto plano gasta la mitad en la fecha y la otra mitad la pierde en la
+ * elipsis. La tarjeta usa dos líneas y una franja de color, así que en el mismo
+ * espacio caben el alumno, la escuela y el estado — legibles.
+ *
+ * Los datos NO se parsean del título: se leen del expediente, cruzado por
+ * `conversacionId`. El título es un resumen; el expediente es la verdad.
  */
 
 import Image from 'next/image';
 import { FileText, Plus, Trash2, Users } from 'lucide-react';
+import type { EstadoExpediente, Expediente } from '@/lib/useExpedientes';
 
 export type Vista = 'chats' | 'clientes';
 
 type Conversacion = { id: string; title: string };
 
+const CLASE_ESTADO: Record<EstadoExpediente, string> = {
+  nueva: 'es-nueva',
+  cotizando: 'es-cotizando',
+  bloqueada: 'es-bloqueada',
+  entregada: 'es-entregada',
+  cerrada: 'es-cerrada',
+};
+
+/** Fecha corta desde el título (`28 jul 1pm — …`), que es donde el equipo la puso. */
+function fechaDe(titulo: string): string {
+  const m = titulo.match(/^(\d{1,2}\s+\w{3,})/);
+  return m ? m[1] : '';
+}
+
 export function FenixSidebar({
   conversations,
+  expedientes,
   activeId,
   vista,
   disabled,
@@ -28,6 +48,7 @@ export function FenixSidebar({
   onDelete,
 }: {
   conversations: readonly Conversacion[];
+  expedientes: Expediente[];
   activeId: string | null;
   vista: Vista;
   disabled?: boolean;
@@ -36,6 +57,10 @@ export function FenixSidebar({
   onSwitch: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const porConversacion = new Map(
+    expedientes.filter((e) => e.conversacionId).map((e) => [e.conversacionId as string, e]),
+  );
+
   return (
     <nav className="fx-side" aria-label="Fénix">
       <div className="fx-marca">
@@ -75,27 +100,43 @@ export function FenixSidebar({
       </button>
 
       <ul className="fx-chats">
-        {conversations.map((c) => (
-          <li key={c.id} className={c.id === activeId ? 'fx-chat fx-chat-on' : 'fx-chat'}>
-            <button
-              type="button"
-              className="fx-chat-abrir fi-touch-target"
-              onClick={() => onSwitch(c.id)}
-              disabled={disabled}
+        {conversations.map((c) => {
+          const e = porConversacion.get(c.id);
+          const clase = e ? CLASE_ESTADO[e.estado] : '';
+          const alumno = e?.alumno?.trim() || 'Sin nombre';
+          const lugar = e ? [e.escuela, e.grado].filter(Boolean).join(' · ') : '';
+          const fecha = fechaDe(c.title);
+
+          return (
+            <li
+              key={c.id}
+              className={`fx-mini ${clase}${c.id === activeId ? ' fx-mini-on' : ''}`}
             >
-              {c.title || 'Sin nombre'}
-            </button>
-            <button
-              type="button"
-              className="fx-chat-borrar fi-touch-target"
-              aria-label={`Borrar ${c.title || 'la cotización'}`}
-              onClick={() => onDelete(c.id)}
-              disabled={disabled}
-            >
-              <Trash2 aria-hidden />
-            </button>
-          </li>
-        ))}
+              <button
+                type="button"
+                className="fx-mini-abrir fi-touch-target"
+                onClick={() => onSwitch(c.id)}
+                disabled={disabled}
+                title={c.title}
+              >
+                <span className="fx-mini-l1">
+                  <span className="fx-mini-nombre">{alumno}</span>
+                  {fecha && <span className="fx-mini-fecha">{fecha}</span>}
+                </span>
+                <span className="fx-mini-l2">{lugar || c.title}</span>
+              </button>
+              <button
+                type="button"
+                className="fx-mini-borrar fi-touch-target"
+                aria-label={`Borrar la cotización de ${alumno}`}
+                onClick={() => onDelete(c.id)}
+                disabled={disabled}
+              >
+                <Trash2 aria-hidden />
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

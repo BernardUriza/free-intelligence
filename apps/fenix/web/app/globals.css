@@ -138,44 +138,88 @@ body {
 .fx-chats {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  margin: 0.35rem 0 0;
+  gap: 0.25rem;
+  margin: 0.45rem 0 0;
   padding: 0;
   overflow-y: auto;
   list-style: none;
 }
 
-.fx-chat {
+/* Mini-tarjeta de cotización. Dos líneas en vez de un renglón truncado: en los
+   ~290px de la barra, el texto plano gastaba media línea en la fecha y perdía
+   el resto en la elipsis, justo encima del nombre. */
+.fx-mini {
   display: flex;
-  align-items: center;
-  gap: 0.2rem;
-  border-radius: 9px;
+  align-items: stretch;
+  gap: 0.15rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.03);
+  /* La franja izquierda ES el estado; sin ella habría que leer para saberlo. */
+  box-shadow: inset 3px 0 0 var(--es, transparent);
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.fx-chat-on {
-  background: rgb(255 255 255 / 0.07);
-  box-shadow: inset 2px 0 0 var(--fx-fuego);
+.fx-mini:hover {
+  background: rgb(255 255 255 / 0.06);
 }
 
-.fx-chat-abrir {
+.fx-mini-on {
+  background: rgb(255 255 255 / 0.08);
+  border-color: color-mix(in srgb, var(--es, var(--fx-fuego)) 45%, transparent);
+}
+
+.fx-mini-abrir {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
   flex: 1;
   min-width: 0;
-  padding: 0.5rem 0.6rem;
+  padding: 0.5rem 0.55rem;
   border: 0;
   background: none;
   color: inherit;
-  font-size: 0.83rem;
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
   cursor: pointer;
 }
 
-.fx-chat-borrar {
+.fx-mini-l1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.fx-mini-nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.83rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-mini-fecha {
+  flex-shrink: 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-mini-l2 {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-mini-borrar {
   display: grid;
   place-items: center;
-  padding: 0.4rem;
+  padding: 0 0.4rem;
   border: 0;
   background: none;
   color: inherit;
@@ -183,21 +227,16 @@ body {
   cursor: pointer;
 }
 
-.fx-chat:hover .fx-chat-borrar,
-.fx-chat-borrar:focus-visible {
-  opacity: 0.65;
+.fx-mini:hover .fx-mini-borrar,
+.fx-mini-borrar:focus-visible {
+  opacity: 0.6;
 }
 
 @media (hover: none) {
-  .fx-chat-borrar {
-    opacity: 0.5;
-  }
+  .fx-mini-borrar { opacity: 0.45; }
 }
 
-.fx-chat-borrar svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
+.fx-mini-borrar svg { width: 0.9rem; height: 0.9rem; }
 
 /* ── Pantalla de inicio ─────────────────────────────────────────────────── */
 
