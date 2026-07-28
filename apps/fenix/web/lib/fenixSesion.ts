@@ -1,0 +1,53 @@
+'use client';
+
+/**
+ * Sesión de Fénix — sin proveedor de identidad.
+ *
+ * Dos datos, con papeles distintos y conviene no confundirlos:
+ *
+ * - **token del mostrador** → AUTORIZA. Es el secreto de la papelería, se pega
+ *   una vez en las PCs de adentro y vive en su localStorage. Las máquinas del
+ *   cibercafé simplemente no lo tienen, que es exactamente la separación real
+ *   del local: adentro vs afuera, no persona vs persona.
+ * - **correo** → IDENTIFICA. Dice QUIÉN trabajó una cotización. No da acceso a
+ *   nada; escribirlo mal no abre ninguna puerta, sólo hace difícil rastrear
+ *   después quién la hizo.
+ */
+
+const LLAVE_TOKEN = 'fenix_admin_token';
+const LLAVE_CORREO = 'fenix_email';
+
+function leer(llave: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(llave);
+  } catch {
+    return null;
+  }
+}
+
+function escribir(llave: string, valor: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (valor) window.localStorage.setItem(llave, valor.trim());
+    else window.localStorage.removeItem(llave);
+  } catch {
+    /* modo privado */
+  }
+}
+
+export const getTokenMostrador = () => leer(LLAVE_TOKEN);
+export const setTokenMostrador = (v: string | null) => escribir(LLAVE_TOKEN, v);
+export const getCorreo = () => leer(LLAVE_CORREO);
+export const setCorreo = (v: string | null) => escribir(LLAVE_CORREO, v);
+
+/** Cabeceras de sesión. Se leen en cada llamada para que un cambio de sesión
+ *  aplique sin recargar la página. */
+export function sesionHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  const token = getTokenMostrador();
+  const correo = getCorreo();
+  if (token) h['X-Fenix-Admin'] = token;
+  if (correo) h['X-Fenix-Email'] = correo;
+  return h;
+}

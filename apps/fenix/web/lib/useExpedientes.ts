@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { authHeaders } from './fenixToken';
+import { sesionHeaders } from './fenixSesion';
 
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
 
@@ -53,18 +54,23 @@ export function useExpedientes() {
   // adivina en el cliente: ocultar un botón no protege un dato, la puerta está
   // en la API. Esto sólo evita pintar una vista que respondería 404.
   const [admin, setAdmin] = useState(false);
+  const [modoAbierto, setModoAbierto] = useState(false);
+  const [correoConocido, setCorreoConocido] = useState(true);
 
   const recargar = useCallback(async () => {
     try {
-      const rol = await fetch(`${API}/expedientes/rol`, { headers: authHeaders() });
-      const esAdmin = rol.ok ? Boolean((await rol.json()).admin) : false;
+      const rol = await fetch(`${API}/expedientes/rol`, { headers: { ...authHeaders(), ...sesionHeaders() } });
+      const datos = rol.ok ? await rol.json() : { admin: false };
+      const esAdmin = Boolean(datos.admin);
       setAdmin(esAdmin);
+      setModoAbierto(Boolean(datos.modoAbierto));
+      setCorreoConocido(datos.correoConocido !== false);
       if (!esAdmin) {
         setExpedientes([]);
         setError(null);
         return;
       }
-      const r = await fetch(`${API}/expedientes`, { headers: authHeaders() });
+      const r = await fetch(`${API}/expedientes`, { headers: { ...authHeaders(), ...sesionHeaders() } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       setExpedientes(j.expedientes ?? []);
@@ -84,7 +90,7 @@ export function useExpedientes() {
     async (datos: Partial<Expediente>) => {
       const r = await fetch(`${API}/expedientes`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
         body: JSON.stringify(datos),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -108,7 +114,7 @@ export function useExpedientes() {
   const descargarExcel = useCallback(async (datos: Record<string, unknown>) => {
     const r = await fetch(`${API}/expedientes/excel`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
       body: JSON.stringify(datos),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -128,12 +134,12 @@ export function useExpedientes() {
   const vistaExcel = useCallback(async (datos: Record<string, unknown>) => {
     const r = await fetch(`${API}/expedientes/excel/vista`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
       body: JSON.stringify(datos),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   }, []);
 
-  return { expedientes, admin, cargando, error, guardar, recargar, descargarExcel, vistaExcel };
+  return { expedientes, admin, modoAbierto, correoConocido, cargando, error, guardar, recargar, descargarExcel, vistaExcel };
 }

@@ -102,6 +102,9 @@ export function FenixChat() {
           conversations={lib.conversations}
           expedientes={exp.expedientes}
           admin={exp.admin}
+          modoAbierto={exp.modoAbierto}
+          correoConocido={exp.correoConocido}
+          onSesion={() => void exp.recargar()}
           activeId={lib.activeId}
           vista={vista}
           disabled={conversation.isStreaming}

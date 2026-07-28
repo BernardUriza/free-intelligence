@@ -1,57 +1,71 @@
-"""RBAC de Fénix — dos superficies sobre la misma IA.
+"""RBAC de Fénix — dos superficies sobre la misma IA, sin proveedor de identidad.
 
 La papelería tiene DOS públicos en el mismo local:
 
-- **admin** — el mostrador: cotiza, ve los expedientes de los clientes, descarga
-  los Excel. Es Lidia, Ximena, Diego.
-- **público** — el minicibercafé de afuera: niños haciendo tarea en PCs
-  compartidas, sesiones de 10-20 minutos.
+- **mostrador (admin)** — cotiza, ve los expedientes de los clientes, descarga
+  los Excel. Son Lidia, Ximena, Diego.
+- **cibercafé (público)** — niños haciendo tarea en PCs compartidas, sesiones
+  de 10-20 minutos.
 
-Es la MISMA IA con la misma persona; lo que cambia es qué puede tocar. Y el
-riesgo concreto que esto ataca no es abstracto: sin separación, cualquiera que
-abriera la app en una PC del cibercafé vería la lista completa de expedientes —
-nombres de alumnos, escuelas y **WhatsApps de las mamás** de otras familias, en
-una máquina donde se sienta quien sea. Son datos de menores.
+Misma IA, misma persona; cambia lo que puede tocar. Sin separación, cualquiera
+en el cibercafé vería la lista completa de expedientes: nombres de alumnos,
+escuelas y WhatsApps de las mamás de otras familias. Datos de menores en una
+máquina pública.
 
-POR QUÉ UNA LISTA DE CORREOS EN UNA VARIABLE Y NO UNA TABLA DE USUARIOS. Son
-tres personas en un mostrador. Una tabla de usuarios exige altas, bajas, cambios
-de contraseña y una pantalla para administrarlos — infraestructura para un
-problema que no existe todavía. La lista se edita en el deploy, se lee al
-arranque, y el día que sean quince personas se migra sin tocar a los llamadores:
-la decisión vive detrás de `es_admin()`.
+## Por qué un token de mostrador y no un proveedor de identidad
+
+Auth0 —o cualquier IdP— exige tenant, callbacks por entorno, refresh tokens y
+consentimiento, para distinguir a tres personas que trabajan detrás del mismo
+mostrador. La separación real aquí no es entre personas: es entre **las PCs de
+adentro y las de afuera**. Un secreto que vive en las máquinas del mostrador
+modela exactamente eso, y se revoca cambiando una variable de entorno.
+
+El correo (`X-Fenix-Email`) sirve para saber QUIÉN trabajó una cotización, no
+para autorizar: es identificación, no credencial. Autoriza el token.
 """
 
 from __future__ import annotations
 
+import hmac
 import os
 
-from fi_runner.auth import Principal
+
+def _token_mostrador() -> str:
+    return (os.getenv("FENIX_ADMIN_TOKEN") or "").strip()
 
 
-def _lista_admins() -> set[str]:
+def _correos_conocidos() -> set[str]:
     crudo = os.getenv("FENIX_ADMIN_EMAILS", "")
     return {c.strip().lower() for c in crudo.split(",") if c.strip()}
 
 
-def es_admin(principal: Principal) -> bool:
-    """¿Este caller puede ver los expedientes de los clientes?
-
-    Reglas, en orden:
-
-    1. Sin lista configurada → **modo abierto**, para que el desarrollo local no
-       exija montar Auth0. Es explícitamente inseguro y por eso el arranque lo
-       grita: en un despliegue público SIN la variable, todo el mundo es admin.
-    2. Con lista → sólo los correos de la lista. Cualquier otro es público,
-       incluido el bearer legacy: una credencial compartida no identifica a una
-       persona y no puede conceder acceso a datos de terceros.
-    """
-    admins = _lista_admins()
-    if not admins:
-        return True
-    correo = (principal.email or "").strip().lower()
-    return bool(correo) and correo in admins
-
-
 def modo_abierto() -> bool:
-    """True cuando no hay lista de admins configurada (todo el mundo es admin)."""
-    return not _lista_admins()
+    """Sin token configurado, todo el mundo es mostrador.
+
+    Es el default de desarrollo, para que la app corra sin ceremonia en local.
+    En un despliegue público SIN la variable, cualquiera vería los expedientes:
+    por eso el arranque lo advierte y el endpoint /rol lo reporta.
+    """
+    return not _token_mostrador()
+
+
+def es_admin(token_recibido: str | None) -> bool:
+    esperado = _token_mostrador()
+    if not esperado:
+        return True
+    # Comparación en tiempo constante: un `==` filtra el token carácter a
+    # carácter ante quien pueda medir la respuesta.
+    return bool(token_recibido) and hmac.compare_digest(token_recibido.strip(), esperado)
+
+
+def correo_conocido(correo: str | None) -> bool:
+    """¿Este correo está en la lista de la papelería?
+
+    NO autoriza — el token ya lo hizo. Sirve para marcar en la interfaz cuando
+    alguien trabaja con un correo que nadie registró, que suele significar un
+    dedazo al escribirlo y una cotización difícil de rastrear después.
+    """
+    conocidos = _correos_conocidos()
+    if not conocidos:
+        return True
+    return bool(correo) and correo.strip().lower() in conocidos

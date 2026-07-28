@@ -17,6 +17,7 @@
 import Image from 'next/image';
 import { FileText, Plus, Trash2, Users } from 'lucide-react';
 import type { EstadoExpediente, Expediente } from '@/lib/useExpedientes';
+import { FenixUsuario } from './FenixUsuario';
 
 export type Vista = 'chats' | 'clientes';
 
@@ -40,6 +41,9 @@ export function FenixSidebar({
   conversations,
   expedientes,
   admin,
+  modoAbierto,
+  correoConocido,
+  onSesion,
   activeId,
   vista,
   disabled,
@@ -51,6 +55,9 @@ export function FenixSidebar({
   conversations: readonly Conversacion[];
   expedientes: Expediente[];
   admin: boolean;
+  modoAbierto: boolean;
+  correoConocido: boolean;
+  onSesion: () => void;
   activeId: string | null;
   vista: Vista;
   disabled?: boolean;
@@ -154,6 +161,13 @@ export function FenixSidebar({
           );
         })}
       </ul>
+
+      <FenixUsuario
+        admin={admin}
+        modoAbierto={modoAbierto}
+        correoConocido={correoConocido}
+        onCambio={onSesion}
+      />
     </nav>
   );
 }
