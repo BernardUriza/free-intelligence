@@ -95,6 +95,10 @@ def guardar_cotizacion(
             "whatsapp": whatsapp,
             "folio": folio,
             "estado": "entregada" if items else "cotizando",
+            # El descuento SE PERSISTE. Sin esto el store asumía 15% siempre y
+            # el Excel de una cotización pactada al 10% salía con otro total —
+            # el número equivocado en el archivo que se le manda al cliente.
+            "descuento": descuento,
             "total": round(total * (1 - descuento), 2) if items else None,
             "items": items,
             "forrado": forrado,

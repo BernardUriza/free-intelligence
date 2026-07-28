@@ -360,3 +360,43 @@ eso.
 visor re-interpretara el input, podría mostrar algo distinto a lo que se
 descarga. Una vista previa infiel es peor que ninguna, porque se confía en ella
 para decidir si mandarla. Una sola fuente: el archivo.
+
+## H12 — el composer no tenía paddings (y og118 hacía trampa)
+
+`.glass-chat-composer` pintaba la caja —fondo, borde, radio, sombra, blur— y
+**no daba padding a nada**: el placeholder quedaba pegado al borde izquierdo y
+el botón de enviar contra la esquina. og118 lo tapaba con clases PROPIAS
+(`.og-composer-area`, `.og-composer-controls`) pasadas por **cinco** props de
+className distintas. O sea: el default del framework era feo y cada consumer
+tenía que descubrirlo y arreglarlo por su cuenta. Mismo patrón que H2.
+
+**Arreglo en el framework.** Las zonas del composer se marcan con
+`data-fi-composer-slot`, así que el tema puede vestirlas sin inventar clases:
+`area` (que era la ÚNICA zona sin marcar — se le añadió el atributo), `footer` y
+`header`. Un className del consumer sigue ganando por especificidad, así que
+og118 no cambia.
+
+Medido en el navegador: el texto pasó de pegado al borde a **15px** de respiro,
+con fenix sin pasar una sola clase de padding.
+
+## RBAC — dos superficies sobre la misma IA
+
+La papelería tiene dos públicos en el mismo local: el mostrador (cotiza, ve
+expedientes) y el minicibercafé de afuera (niños haciendo tarea en PCs
+compartidas). Sin separación, cualquiera en el cibercafé veía la lista completa
+de expedientes: nombres de alumnos, escuelas y WhatsApps de las mamás de otras
+familias. Datos de menores en una máquina pública.
+
+`rbac.py`: una lista de correos en `FENIX_ADMIN_EMAILS`. Sin lista → modo
+abierto (desarrollo local); con lista → sólo esos correos. El bearer compartido
+NUNCA es admin: una credencial compartida no identifica a una persona.
+
+Los endpoints de expedientes responden **404, no 403** — para el cibercafé esa
+superficie no existe; un 403 confirmaría que hay algo detrás. Verificado:
+`/expedientes` 404, `/expedientes/excel` 404, `/chat/stream` **200** (la tutoría
+vive). El frontend además no pinta ni la pestaña ni el historial.
+
+**Límite honesto:** esto es defensa en profundidad, no la puerta definitiva. El
+aislamiento real es del servidor, que guarda las conversaciones POR DUEÑO; con
+el bearer compartido todos comparten un mismo dueño por diseño. La separación
+de verdad llega con Auth0.

@@ -2380,25 +2380,30 @@ function Composer({
       onSend();
     }
   };
-  return /* @__PURE__ */ jsx19("div", { className: areaClassName, children: /* @__PURE__ */ jsx19(
-    AutoResizeTextarea,
-    {
-      ref: textareaRef,
-      id,
-      name,
-      value: message,
-      onChange: (e) => onMessageChange(e.target.value),
-      onKeyDown: handleKeyDown,
-      onPaste,
-      placeholder,
-      disabled,
-      maxRows,
-      showCounter: false,
-      wrapperClassName,
-      wrapperStyle,
-      className: textareaClassName
-    }
-  ) });
+  return (
+    // Marcado como slot para que el tema pueda darle su respiro sin que cada
+    // consumer tenga que pasar una clase propia: era la única zona del composer
+    // sin identificar, y por eso el padding acababa siendo trabajo del consumer.
+    /* @__PURE__ */ jsx19("div", { className: areaClassName, "data-fi-composer-slot": "area", children: /* @__PURE__ */ jsx19(
+      AutoResizeTextarea,
+      {
+        ref: textareaRef,
+        id,
+        name,
+        value: message,
+        onChange: (e) => onMessageChange(e.target.value),
+        onKeyDown: handleKeyDown,
+        onPaste,
+        placeholder,
+        disabled,
+        maxRows,
+        showCounter: false,
+        wrapperClassName,
+        wrapperStyle,
+        className: textareaClassName
+      }
+    ) })
+  );
 }
 
 // src/composer/ComposerFrame.tsx

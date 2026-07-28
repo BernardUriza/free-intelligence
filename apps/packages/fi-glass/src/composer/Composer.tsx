@@ -103,7 +103,10 @@ export function Composer({
   };
 
   return (
-    <div className={areaClassName}>
+    // Marcado como slot para que el tema pueda darle su respiro sin que cada
+    // consumer tenga que pasar una clase propia: era la única zona del composer
+    // sin identificar, y por eso el padding acababa siendo trabajo del consumer.
+    <div className={areaClassName} data-fi-composer-slot="area">
       <AutoResizeTextarea
         ref={textareaRef}
         id={id}

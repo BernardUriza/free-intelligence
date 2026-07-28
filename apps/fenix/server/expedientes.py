@@ -86,6 +86,7 @@ class ExpedienteStore:
         """
         for k in ("items", "forrado", "opcionales", "fuera"):
             e.setdefault(k, [])
+        e.setdefault("descuento", 0.15)
         e.setdefault("totalDeclarado", None)
         e.setdefault("desgloseIncompleto", False)
         return e
@@ -149,7 +150,11 @@ class ExpedienteStore:
             items_norm = _renglones(datos.get("items"))
             forrado_norm = _renglones(datos.get("forrado"))
             suma = sum(r["cantidad"] * r["precio"] for r in [*items_norm, *forrado_norm])
-            calculado = round(suma * (1 - float(datos.get("descuento") or 0.15)), 2)
+            try:
+                descuento = float(datos.get("descuento"))
+            except (TypeError, ValueError):
+                descuento = 0.15
+            calculado = round(suma * (1 - descuento), 2)
             incompleto = False
             if declarado:
                 try:
@@ -169,6 +174,7 @@ class ExpedienteStore:
                 "folio": (datos.get("folio") or "").strip(),
                 "estado": estado,
                 "total": datos.get("total"),
+                "descuento": descuento,
                 # Los renglones de la cotización. Viven aquí y no sólo en el
                 # hilo porque el Excel se genera del expediente: si el dato
                 # está únicamente en la conversación, el entregable depende de

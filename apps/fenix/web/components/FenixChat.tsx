@@ -88,6 +88,7 @@ export function FenixChat() {
         <FenixSidebar
           conversations={lib.conversations}
           expedientes={exp.expedientes}
+          admin={exp.admin}
           activeId={lib.activeId}
           vista={vista}
           disabled={conversation.isStreaming}
@@ -108,7 +109,7 @@ export function FenixChat() {
         />
       )}
       conversation={
-        vista === 'clientes' ? (
+        vista === 'clientes' && exp.admin ? (
           <FenixClientes
             expedientes={exp.expedientes}
             cargando={exp.cargando}

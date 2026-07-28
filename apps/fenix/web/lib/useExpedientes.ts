@@ -46,9 +46,21 @@ export function useExpedientes() {
   const [expedientes, setExpedientes] = useState<Expediente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // El rol decide qué superficie existe. Se pregunta al servidor y no se
+  // adivina en el cliente: ocultar un botón no protege un dato, la puerta está
+  // en la API. Esto sólo evita pintar una vista que respondería 404.
+  const [admin, setAdmin] = useState(false);
 
   const recargar = useCallback(async () => {
     try {
+      const rol = await fetch(`${API}/expedientes/rol`, { headers: authHeaders() });
+      const esAdmin = rol.ok ? Boolean((await rol.json()).admin) : false;
+      setAdmin(esAdmin);
+      if (!esAdmin) {
+        setExpedientes([]);
+        setError(null);
+        return;
+      }
       const r = await fetch(`${API}/expedientes`, { headers: authHeaders() });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
@@ -120,5 +132,5 @@ export function useExpedientes() {
     return r.json();
   }, []);
 
-  return { expedientes, cargando, error, guardar, recargar, descargarExcel, vistaExcel };
+  return { expedientes, admin, cargando, error, guardar, recargar, descargarExcel, vistaExcel };
 }

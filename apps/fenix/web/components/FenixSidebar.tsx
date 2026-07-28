@@ -39,6 +39,7 @@ function fechaDe(titulo: string): string {
 export function FenixSidebar({
   conversations,
   expedientes,
+  admin,
   activeId,
   vista,
   disabled,
@@ -49,6 +50,7 @@ export function FenixSidebar({
 }: {
   conversations: readonly Conversacion[];
   expedientes: Expediente[];
+  admin: boolean;
   activeId: string | null;
   vista: Vista;
   disabled?: boolean;
@@ -73,36 +75,48 @@ export function FenixSidebar({
         </div>
       </div>
 
-      <div className="fx-tabs" role="tablist" aria-label="Vistas">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={vista === 'chats'}
-          className={`fx-tab fi-touch-target${vista === 'chats' ? ' fx-tab-on' : ''}`}
-          onClick={() => onVista('chats')}
-        >
-          <FileText aria-hidden />
-          Cotizaciones
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={vista === 'clientes'}
-          className={`fx-tab fi-touch-target${vista === 'clientes' ? ' fx-tab-on' : ''}`}
-          onClick={() => onVista('clientes')}
-        >
-          <Users aria-hidden />
-          Expedientes
-        </button>
-      </div>
+      {/* La vista de expedientes no se le OFRECE a quien no puede abrirla: en el
+          cibercafé una pestaña que responde 404 sólo delata que hay algo detrás. */}
+      {admin && (
+        <div className="fx-tabs" role="tablist" aria-label="Vistas">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === 'chats'}
+            className={`fx-tab fi-touch-target${vista === 'chats' ? ' fx-tab-on' : ''}`}
+            onClick={() => onVista('chats')}
+          >
+            <FileText aria-hidden />
+            Cotizaciones
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === 'clientes'}
+            className={`fx-tab fi-touch-target${vista === 'clientes' ? ' fx-tab-on' : ''}`}
+            onClick={() => onVista('clientes')}
+          >
+            <Users aria-hidden />
+            Expedientes
+          </button>
+        </div>
+      )}
 
       <button type="button" className="fx-nueva fi-touch-target" onClick={onNew} disabled={disabled}>
         <Plus aria-hidden />
         Nueva cotización
       </button>
 
+      {/* El historial de la papelería es de la papelería. Sin esto, una PC del
+          cibercafé listaba las cotizaciones de todos los clientes con nombre y
+          escuela — la pestaña oculta no servía de nada si la barra las pinta.
+
+          OJO: esto es defensa en profundidad, NO la puerta. El aislamiento real
+          es del servidor, que guarda las conversaciones POR DUEÑO; con el bearer
+          compartido todos comparten un mismo dueño por diseño, así que la
+          separación de verdad llega con Auth0. */}
       <ul className="fx-chats">
-        {conversations.map((c) => {
+        {(admin ? conversations : []).map((c) => {
           const e = porConversacion.get(c.id);
           const clase = e ? CLASE_ESTADO[e.estado] : '';
           const alumno = e?.alumno?.trim() || 'Sin nombre';

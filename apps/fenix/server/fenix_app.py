@@ -43,6 +43,7 @@ from runner import build_runner  # noqa: E402
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
+from rbac import es_admin, modo_abierto  # noqa: E402
 
 _store: ExpedienteStore | None = None
 
@@ -79,9 +80,30 @@ class ExpedienteRequest(BaseModel):
 router = APIRouter(prefix="/expedientes", tags=["fenix"])
 
 
+def solo_admin(principal: Principal = Depends(get_principal)) -> Principal:
+    """Puerta de los expedientes.
+
+    404 y no 403 a propósito: para un caller del cibercafé, la superficie de
+    administración no existe. Un 403 confirmaría que hay algo detrás.
+    """
+    if not es_admin(principal):
+        raise HTTPException(status_code=404, detail="no encontrado")
+    return principal
+
+
+@router.get("/rol")
+async def rol(principal: Principal = Depends(get_principal)) -> dict:
+    """Qué puede hacer quien pregunta. El frontend pinta según esto."""
+    return {
+        "admin": es_admin(principal),
+        "email": principal.email,
+        "modoAbierto": modo_abierto(),
+    }
+
+
 @router.get("")
 async def listar(
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(solo_admin),
     store: ExpedienteStore = Depends(get_store),
 ) -> dict:
     return {"expedientes": store.listar(principal.sub), "estados": list(ESTADOS)}
@@ -90,7 +112,7 @@ async def listar(
 @router.put("")
 async def guardar(
     req: ExpedienteRequest,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(solo_admin),
     store: ExpedienteStore = Depends(get_store),
 ) -> dict:
     try:
@@ -104,7 +126,7 @@ async def guardar(
 @router.delete("/{expediente_id}")
 async def borrar(
     expediente_id: str,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(solo_admin),
     store: ExpedienteStore = Depends(get_store),
 ) -> dict:
     if not id_valido(expediente_id):
@@ -125,6 +147,9 @@ class PresupuestoRequest(BaseModel):
     grado: str = ""
     tutor: str = ""
     fecha: str = ""
+    # Sin default silencioso: el descuento pactado viaja con el expediente. Una
+    # cotización al 10% impresa al 15% es un total equivocado en el archivo que
+    # el cliente recibe.
     descuento: float = 0.15
     items: list[RenglonRequest] = []
     forrado: list[RenglonRequest] = []
@@ -145,7 +170,7 @@ def _a_presupuesto(req: "PresupuestoRequest") -> Presupuesto:
 @router.post("/excel/vista")
 async def excel_vista(
     req: "PresupuestoRequest",
-    _: Principal = Depends(get_principal),
+    _: Principal = Depends(solo_admin),
 ) -> dict:
     """La hoja parseada para el visor del navegador.
 
@@ -162,7 +187,7 @@ async def excel_vista(
 @router.post("/excel")
 async def excel(
     req: PresupuestoRequest,
-    _: Principal = Depends(get_principal),
+    _: Principal = Depends(solo_admin),
 ) -> Response:
     """El presupuesto en .xlsx — el entregable que se manda por WhatsApp.
 
@@ -205,7 +230,7 @@ class ExtraerRequest(BaseModel):
 @router.post("/extraer")
 async def extraer(
     req: ExtraerRequest,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(solo_admin),
     convs=Depends(get_conversation_store),
 ) -> dict:
     """Rellena el expediente leyendo una conversación YA existente.

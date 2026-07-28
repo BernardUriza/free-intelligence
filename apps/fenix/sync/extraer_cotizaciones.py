@@ -33,8 +33,24 @@ for i, c in enumerate(pendientes, 1):
         f"{API}/expedientes/extraer",
         data=json.dumps({"conversacion_id": c["id"], "corpus_id": CORPUS}).encode(),
         headers={"Content-Type": "application/json"}, method="POST")
+    # Reintentos con espera creciente. El límite de la cuenta se reporta como
+    # "monthly spend limit" aunque sea transitorio: en el primer lote tumbó 17
+    # conversaciones seguidas en 2 segundos cada una, y al reintentar una sola
+    # minutos después pasó a la primera. Un lote largo no puede morirse entero
+    # por un tope pasajero.
+    r = None
+    for intento in range(4):
+        try:
+            r = json.loads(urllib.request.urlopen(req, timeout=600).read())
+            break
+        except Exception as e:
+            if intento == 3:
+                raise
+            espera = 20 * (intento + 1)
+            print(f"       reintento {intento+1}/3 en {espera}s ({str(e)[:40]})", file=sys.stderr)
+            time.sleep(espera)
     try:
-        r = json.loads(urllib.request.urlopen(req, timeout=600).read())
+        assert r is not None
         dur = time.time() - inicio
         if r.get("guardado"):
             ok += 1

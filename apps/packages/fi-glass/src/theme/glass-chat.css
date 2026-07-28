@@ -119,6 +119,27 @@
   backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
 }
 
+/* El RESPIRO del composer, en el framework y no en cada consumer.
+   `.glass-chat-composer` pintaba la caja (fondo, borde, sombra, blur) pero no
+   daba padding a nada: el placeholder quedaba pegado al borde izquierdo y el
+   botón de enviar contra la esquina. og118 lo tapaba con dos clases propias
+   (.og-composer-area / .og-composer-controls), o sea que el default del
+   framework era feo y CADA consumer tenía que descubrirlo y arreglarlo.
+   Las zonas se marcan con data-fi-composer-slot, así que se pueden vestir sin
+   inventar clases nuevas y sin romper a quien ya pase las suyas: un className
+   del consumer sigue ganando por especificidad. */
+.glass-chat-composer [data-fi-composer-slot='area'] {
+  padding: 0.7rem 0.85rem 0.25rem;
+}
+
+.glass-chat-composer [data-fi-composer-slot='footer'] {
+  padding: 0 0.6rem 0.55rem;
+}
+
+.glass-chat-composer [data-fi-composer-slot='header'] {
+  padding: 0.45rem 0.85rem 0;
+}
+
 /* Composer textarea: transparent inside the frosted box. */
 .glass-chat-composer-input {
   width: 100%;
