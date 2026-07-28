@@ -258,6 +258,25 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
     return cached, el
 
 
+RunnerSelector = Callable[[str | None], tuple[Runner, Element | None]]
+
+
+def get_runner_selector() -> RunnerSelector:
+    """Quién contesta este turno — inyectable, como la identidad y los proyectos.
+
+    og118 elige por "elemento": un token del request selecciona la persona. Un
+    consumer puede tener OTRO criterio; fenix sirve dos públicos desde el mismo
+    servidor (el mostrador cotiza, las PC del cibercafé resuelven tareas) y la
+    persona correcta depende de quién llama, no de un token que el cliente
+    manda.
+
+    Sin este punto de inyección el consumer sólo tendría dos salidas: quemar un
+    slot de la tabla periódica —118 y contados— en la persona de otro producto,
+    o reimplementar /chat/stream entero para cambiar una línea.
+    """
+    return _runner_and_element
+
+
 # Built once from the ambient env. None when OG118_TTS_* / OG118_STT_* is
 # unset/incomplete — the voice routes turn that into an explicit 503, never a
 # crash.
@@ -508,6 +527,7 @@ async def chat_stream(
     principal: Principal = Depends(get_principal),
     registry: ProjectRegistry = Depends(get_project_registry),
     rag: RagStoreClient = Depends(get_rag_store),
+    seleccionar_runner: RunnerSelector = Depends(get_runner_selector),
 ) -> StreamingResponse:
     # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
     # from client-asserted into server-validated (no cross-account corpus reads).
@@ -516,7 +536,7 @@ async def chat_stream(
     if req.corpus_id and not principal.is_legacy_bearer and not registry.owns(req.corpus_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
 
-    runner, element = _runner_and_element(req.element)
+    runner, element = seleccionar_runner(req.element)
     external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
