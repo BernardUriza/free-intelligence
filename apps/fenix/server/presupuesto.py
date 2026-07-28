@@ -259,3 +259,73 @@ def nombre_archivo(p: Presupuesto) -> str:
     base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode()
     base = re.sub(r"[^A-Za-z0-9]+", "-", base).strip("-") or "cliente"
     return f"Presupuesto-{base}.xlsx"
+
+
+def a_vista(datos: bytes) -> dict:
+    """El .xlsx generado → JSON para el visor del navegador.
+
+    Se parsea EL ARCHIVO, no los datos de entrada. Si el visor se dibujara desde
+    el input, podría mostrar algo distinto a lo que se descarga — y una vista
+    previa que no es fiel al archivo es peor que ninguna, porque se confía en
+    ella. Una sola fuente: el archivo.
+    """
+    import openpyxl
+
+    ws = openpyxl.load_workbook(io.BytesIO(datos)).active
+    assert ws is not None
+
+    # Rangos combinados, para que el visor pinte las bandas como en Excel.
+    combinadas = {}
+    for rango in ws.merged_cells.ranges:
+        combinadas[(rango.min_row, rango.min_col)] = (
+            rango.max_col - rango.min_col + 1,
+            rango.max_row - rango.min_row + 1,
+        )
+    ocultas = {
+        (f, c)
+        for rango in ws.merged_cells.ranges
+        for f in range(rango.min_row, rango.max_row + 1)
+        for c in range(rango.min_col, rango.max_col + 1)
+        if (f, c) != (rango.min_row, rango.min_col)
+    }
+
+    filas = []
+    for f in range(1, ws.max_row + 1):
+        celdas = []
+        for c in range(1, 7):
+            if (f, c) in ocultas:
+                continue
+            celda = ws.cell(f, c)
+            fuente = celda.font
+            relleno = celda.fill
+            color_fondo = None
+            if relleno is not None and relleno.fgColor is not None and relleno.patternType:
+                rgb = relleno.fgColor.rgb
+                if isinstance(rgb, str) and len(rgb) == 8:
+                    color_fondo = f"#{rgb[2:]}"
+            color_texto = None
+            if fuente is not None and fuente.color is not None:
+                rgb = fuente.color.rgb
+                if isinstance(rgb, str) and len(rgb) == 8:
+                    color_texto = f"#{rgb[2:]}"
+            ancho, alto = combinadas.get((f, c), (1, 1))
+            valor = celda.value
+            celdas.append(
+                {
+                    "v": "" if valor is None else valor,
+                    "moneda": bool(celda.number_format and "$" in celda.number_format),
+                    "negrita": bool(fuente and fuente.bold),
+                    "cursiva": bool(fuente and fuente.italic),
+                    "tam": float(fuente.size) if fuente and fuente.size else 10.0,
+                    "fondo": color_fondo,
+                    "color": color_texto,
+                    "alineado": (celda.alignment.horizontal if celda.alignment else None) or "left",
+                    "cols": ancho,
+                    "filas": alto,
+                }
+            )
+        if celdas:
+            filas.append(celdas)
+
+    anchos = [ws.column_dimensions[c].width or 10 for c in "ABCDEF"]
+    return {"filas": filas, "anchos": anchos}

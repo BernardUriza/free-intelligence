@@ -57,7 +57,7 @@ export function FenixClientes({
   error: string | null;
   onGuardar: (datos: Partial<Expediente>) => Promise<unknown>;
   onAbrirChat: (conversacionId: string) => void;
-  onExcel: (e: Expediente) => Promise<unknown>;
+  onExcel: (e: Expediente) => void;
 }) {
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<EstadoExpediente | 'todos'>('todos');
@@ -340,10 +340,10 @@ export function FenixClientes({
                   <button
                     type="button"
                     className="fx-btn fx-btn-primario fi-touch-target"
-                    onClick={() => void onExcel(e)}
+                    onClick={() => onExcel(e)}
                   >
                     <Sheet aria-hidden />
-                    Excel
+                    Ver presupuesto
                   </button>
                 )}
                 <button

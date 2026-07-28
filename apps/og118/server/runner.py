@@ -11,11 +11,13 @@ maps it onto core's contracts.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
 from fi_runner import (
     ClaudeCodeBackend,
+    MCPServerSpec,
     Runner,
     ToolPolicy,
     active_corpus_binding,
@@ -29,6 +31,40 @@ from fi_runner import (
 # que se lee en runtime (P0 prompts-as-content), nunca inline en el código.
 PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (Path(__file__).parent / "prompts" / "persona.md"))
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
+
+
+def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
+    """MCP servers extra declarados por el consumer vía `FI_EXTRA_MCP`.
+
+    Permite que una app construida sobre este runtime (apps/fenix) sume su
+    propia herramienta sin que og118 la conozca ni la importe. Sin la variable
+    la lista es vacía y og118 se comporta exactamente igual que antes.
+
+    Formato: ``nombre:/ruta/modulo.py`` separados por coma. El módulo se corre
+    como ``python -m`` desde su propio directorio, igual que las capabilities de
+    fi-core — no se inventa un transporte nuevo.
+    """
+    crudo = os.getenv("FI_EXTRA_MCP", "").strip()
+    if not crudo:
+        return []
+    specs: list[MCPServerSpec] = []
+    for entrada in crudo.split(","):
+        if ":" not in entrada:
+            continue
+        nombre, ruta = entrada.split(":", 1)
+        modulo = Path(ruta.strip())
+        if not modulo.exists():
+            continue
+        specs.append(
+            MCPServerSpec(
+                name=nombre.strip(),
+                command=sys.executable,
+                args=[str(modulo)],
+                # El servidor necesita FENIX_EXPEDIENTES_PATH del entorno padre.
+                env_passthrough=True,
+            )
+        )
+    return specs
 
 
 def build_runner(
@@ -103,4 +139,9 @@ def build_runner(
         # #277 fix) so every companion inherits it; rag_store/task_tracker are MCP
         # tools, not builtins, so document search + the glass-box plan are unaffected.
         tool_policy=ToolPolicy.companion(),
+        # Punto de extensión para un segundo consumer: un MCP propio, declarado
+        # por entorno, sin que og118 tenga que conocerlo. fenix registra aquí su
+        # herramienta para guardar la cotización en el expediente del cliente.
+        # Formato: FI_EXTRA_MCP="nombre:/ruta/al/modulo.py[,otro:...]".
+        extra_mcp_servers=_extra_mcp_desde_entorno(),
     )

@@ -109,5 +109,16 @@ export function useExpedientes() {
     return nombre;
   }, []);
 
-  return { expedientes, cargando, error, guardar, recargar, descargarExcel };
+  /** La hoja parseada del MISMO archivo que se descarga, para el visor. */
+  const vistaExcel = useCallback(async (datos: Record<string, unknown>) => {
+    const r = await fetch(`${API}/expedientes/excel/vista`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(datos),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }, []);
+
+  return { expedientes, cargando, error, guardar, recargar, descargarExcel, vistaExcel };
 }

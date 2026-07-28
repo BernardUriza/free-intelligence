@@ -326,3 +326,37 @@ escribe solo** al cerrar una cotización. Hoy hay que pasarlos; el paso que falt
 es una herramienta MCP que le permita guardar el desglose en el expediente.
 Mientras tanto el botón "Excel" sólo aparece en los expedientes que ya tienen
 renglones — un botón que descarga una hoja vacía es peor que no tenerlo.
+
+## H11 cerrado — el círculo completo (27-jul)
+
+**El modelo ya guarda la cotización solo.** `apps/fenix/server/fenix_mcp.py`
+expone `guardar_cotizacion` por MCP stdio, y `runner.py` gana un punto de
+extensión genérico (`FI_EXTRA_MCP="nombre:/ruta/modulo.py"`) para que un
+consumer registre su herramienta sin que og118 la conozca. Sin la variable,
+og118 se comporta idéntico.
+
+Por qué una herramienta acotada y no `Bash`: con Bash el modelo podría escribir
+el archivo… y cualquier otro. Una herramienta le deja hacer EXACTAMENTE una
+cosa. El Excel lo sigue generando el servidor.
+
+**Verificado end-to-end**: se pidió "cotiza para Diego Sánchez…" y el modelo,
+sin que nadie se lo recordara, buscó los precios en la lista maestra y llamó
+`mcp__fenix-expedientes__guardar_cotizacion`. El expediente apareció con alumno,
+escuela, grado, WhatsApp y 3 renglones a precio de lista.
+
+**Discrepancia encontrada de paso**: el modelo escribió "$196.35" en su prosa y
+guardó $251.60 en la herramienta. El cálculo correcto es 2×65 + 159 + 7 = 296,
+−15% = **251.60**: el dato guardado está bien y la aritmética del texto no. Es
+un argumento a favor del diseño — **el Excel se genera del dato estructurado, no
+de la prosa**, así que el archivo sale correcto aunque el chat se equivoque.
+
+## Visor del presupuesto
+
+`POST /expedientes/excel/vista` genera el MISMO archivo que la descarga y lo
+parsea con openpyxl (celdas, colores, combinaciones, formatos). El visor pinta
+eso.
+
+**Por qué parsear el archivo y no dibujar desde los datos de entrada**: si el
+visor re-interpretara el input, podría mostrar algo distinto a lo que se
+descarga. Una vista previa infiel es peor que ninguna, porque se confía en ella
+para decidir si mandarla. Una sola fuente: el archivo.

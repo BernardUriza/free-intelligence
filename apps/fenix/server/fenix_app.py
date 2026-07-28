@@ -35,7 +35,7 @@ from pydantic import BaseModel  # noqa: E402
 from app import Principal, app, get_principal  # noqa: E402  (la app de og118)
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
-from presupuesto import Presupuesto, Renglon, generar, nombre_archivo  # noqa: E402
+from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
 
 _store: ExpedienteStore | None = None
 
@@ -125,6 +125,33 @@ class PresupuestoRequest(BaseModel):
     fuera: list[str] = []
 
 
+def _a_presupuesto(req: "PresupuestoRequest") -> Presupuesto:
+    conv = lambda rs: [Renglon(r.descripcion, r.cantidad, r.precio) for r in rs]  # noqa: E731
+    return Presupuesto(
+        alumno=req.alumno, escuela=req.escuela, grado=req.grado, tutor=req.tutor,
+        fecha=req.fecha, descuento=req.descuento,
+        items=conv(req.items), forrado=conv(req.forrado),
+        opcionales=conv(req.opcionales), fuera=list(req.fuera),
+    )
+
+
+@router.post("/excel/vista")
+async def excel_vista(
+    req: "PresupuestoRequest",
+    _: Principal = Depends(get_principal),
+) -> dict:
+    """La hoja parseada para el visor del navegador.
+
+    Genera el MISMO archivo que la descarga y lo parsea: la vista previa es el
+    archivo, no una re-interpretación de los datos. Si divergieran, el usuario
+    confiaría en una hoja que no es la que manda.
+    """
+    if not req.items and not req.forrado:
+        raise HTTPException(status_code=422, detail="un presupuesto sin renglones no es un presupuesto")
+    p = _a_presupuesto(req)
+    return {"nombre": nombre_archivo(p), **a_vista(generar(p))}
+
+
 @router.post("/excel")
 async def excel(
     req: PresupuestoRequest,
@@ -139,19 +166,7 @@ async def excel(
     if not req.items and not req.forrado:
         raise HTTPException(status_code=422, detail="un presupuesto sin renglones no es un presupuesto")
 
-    conv = lambda rs: [Renglon(r.descripcion, r.cantidad, r.precio) for r in rs]  # noqa: E731
-    p = Presupuesto(
-        alumno=req.alumno,
-        escuela=req.escuela,
-        grado=req.grado,
-        tutor=req.tutor,
-        fecha=req.fecha,
-        descuento=req.descuento,
-        items=conv(req.items),
-        forrado=conv(req.forrado),
-        opcionales=conv(req.opcionales),
-        fuera=list(req.fuera),
-    )
+    p = _a_presupuesto(req)
     datos = generar(p)
     return Response(
         content=datos,

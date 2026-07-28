@@ -20,11 +20,13 @@
 import { useMemo, useState } from 'react';
 import { AgentConversationSurface, AgentWorkspaceShell, useAgentConversation } from 'fi-glass/agent';
 import { useConversationLibrary, RemoteConversationLibrary } from 'fi-glass/conversation';
+import type { Expediente } from '@/lib/useExpedientes';
 import { useFenixAgent } from '@/lib/useFenixAgent';
 import { authHeaders } from '@/lib/fenixToken';
 import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
+import { FenixVisorExcel, type HojaVista } from './FenixVisorExcel';
 import { useExpedientes } from '@/lib/useExpedientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
@@ -50,8 +52,35 @@ export function FenixChat() {
   });
   const [vista, setVista] = useState<Vista>('chats');
   const exp = useExpedientes();
+  // El visor del presupuesto. Se guarda el expediente abierto para poder
+  // descargar exactamente lo que se está viendo.
+  const [verExcel, setVerExcel] = useState<Expediente | null>(null);
+  const [hoja, setHoja] = useState<HojaVista | null>(null);
+  const [hojaCargando, setHojaCargando] = useState(false);
+  const [hojaError, setHojaError] = useState<string | null>(null);
+
+  const datosDe = (e: Expediente) => ({
+    alumno: e.alumno, escuela: e.escuela, grado: e.grado, tutor: e.tutor,
+    items: e.items ?? [], forrado: e.forrado ?? [],
+    opcionales: e.opcionales ?? [], fuera: e.fuera ?? [],
+  });
+
+  async function abrirVisor(e: Expediente) {
+    setVerExcel(e);
+    setHoja(null);
+    setHojaError(null);
+    setHojaCargando(true);
+    try {
+      setHoja(await exp.vistaExcel(datosDe(e)));
+    } catch (err) {
+      setHojaError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setHojaCargando(false);
+    }
+  }
 
   return (
+    <>
     <AgentWorkspaceShell
       responsive
       toggleLabel="Fénix"
@@ -85,13 +114,7 @@ export function FenixChat() {
             cargando={exp.cargando}
             error={exp.error}
             onGuardar={exp.guardar}
-            onExcel={(e) =>
-              exp.descargarExcel({
-                alumno: e.alumno, escuela: e.escuela, grado: e.grado, tutor: e.tutor,
-                items: e.items ?? [], forrado: e.forrado ?? [],
-                opcionales: e.opcionales ?? [], fuera: e.fuera ?? [],
-              })
-            }
+            onExcel={(e) => void abrirVisor(e)}
             onAbrirChat={(id) => {
               setVista('chats');
               void lib.switchConversation(id).catch((e) => console.error('[fenix] switch failed', e));
@@ -114,5 +137,15 @@ export function FenixChat() {
         )
       }
     />
+      {verExcel && (
+        <FenixVisorExcel
+          hoja={hoja}
+          cargando={hojaCargando}
+          error={hojaError}
+          onCerrar={() => setVerExcel(null)}
+          onDescargar={() => exp.descargarExcel(datosDe(verExcel))}
+        />
+      )}
+    </>
   );
 }
