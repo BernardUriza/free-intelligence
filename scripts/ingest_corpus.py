@@ -44,6 +44,7 @@ import asyncio
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import asyncpg
@@ -57,6 +58,10 @@ _TEXT_SUFFIXES = {".txt", ".md"}
 # .xml = JATS full-text from PMC / Europe PMC (open-access articles). Tags are
 # stripped to plain text via the stdlib ElementTree — no extra dependency.
 _SUPPORTED_SUFFIXES = {".pdf", ".xml", *_TEXT_SUFFIXES}
+# Floor for salvaging a whole document the chunker rejected for being under its
+# 50-token min_chunk_size. Above this it is a real (if short) source worth one
+# chunk; below it there is nothing to retrieve — a stub, a caption, a title.
+_MIN_SALVAGE_CHARS = 120
 
 
 def slugify_stem(filename: str) -> str:
@@ -94,6 +99,39 @@ def discover_sources(persona_id: str) -> list[tuple[str, Path]]:
         ref = f"{prefix}-{slug}" if prefix else slug
         sources.append((f"{persona_id}:{ref}", path))
     return sources
+
+
+def prepare_chunks(
+    doc: str,
+    *,
+    chunker: Callable[..., list[str]],
+    chunk_size: int,
+    overlap: int,
+) -> tuple[list[str], str]:
+    """Document text → (chunks, status) with NO silent losses.
+
+    status ∈ {"chunked", "salvaged", "dropped", "no_text"}.
+
+    A whole document shorter than the chunker's `min_chunk_size` (50 tokens)
+    comes back as ZERO chunks. That used to vanish without a word — the source
+    counted as "processed", nothing was inserted, no warning fired — which
+    silently dropped the 14 shortest posts of the contraelamor corpus
+    (2026-07-27, found only by diffing Postgres against the files on disk).
+
+    The floor exists to reject a FRAGMENT of a large document, not to discard a
+    short document WHOLE, so a short-but-real source is salvaged as one chunk.
+    Below `_MIN_SALVAGE_CHARS` there is genuinely nothing to retrieve (a stub, a
+    caption) and it is dropped — but reported as dropped, never swallowed.
+    """
+    if not doc or not doc.strip():
+        return [], "no_text"
+    chunks = chunker(doc, chunk_size=chunk_size, overlap=overlap)
+    if chunks:
+        return chunks, "chunked"
+    stripped = doc.strip()
+    if len(stripped) >= _MIN_SALVAGE_CHARS:
+        return [stripped], "salvaged"
+    return [], "dropped"
 
 
 def extract_pdf_text(path: Path) -> str:
@@ -358,16 +396,33 @@ async def main() -> int:
     from khimeras_shared.deep_memory import chunk_text_for_embedding
 
     prepared: list[tuple[str, list[str]]] = []
+    empty: list[str] = []
+    salvaged: list[str] = []
     for source_ref, path in sources:
         print(f"\n=== {source_ref} ({path.name}) ===")
         doc = extract_source_text(path)
         print(f"  extracted {len(doc):,} chars (~{len(doc.split()):,} words)")
-        if not doc.strip():
+        chunks, status = prepare_chunks(doc, chunker=chunk_text_for_embedding, chunk_size=args.chunk_size, overlap=args.overlap)
+        if status == "no_text":
             print("  no extractable text, skipping")
+            empty.append(source_ref)
             continue
-        chunks = chunk_text_for_embedding(doc, chunk_size=args.chunk_size, overlap=args.overlap)
-        print(f"  produced {len(chunks)} chunks via fi_core.rag")
+        if status == "dropped":
+            empty.append(source_ref)
+            print(f"  produced 0 chunks and is under {_MIN_SALVAGE_CHARS} chars — DROPPED")
+            continue
+        if status == "salvaged":
+            salvaged.append(source_ref)
+            print("  chunker returned 0 (doc under its 50-token floor) → salvaged as 1 whole-document chunk")
+        else:
+            print(f"  produced {len(chunks)} chunks via fi_core.rag")
         prepared.append((source_ref, chunks))
+
+    # Never let a silent cap read as full coverage.
+    if salvaged:
+        print(f"\nSALVAGED as whole-document chunks ({len(salvaged)}): {', '.join(salvaged)}")
+    if empty:
+        print(f"\nDROPPED, nothing ingested ({len(empty)}): {', '.join(empty)}")
 
     if args.dry_run:
         total = sum(len(chunks) for _, chunks in prepared)
