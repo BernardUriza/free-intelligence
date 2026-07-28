@@ -7,182 +7,504 @@
    ~20 tokens `--glass-chat-*` que define glass-chat.css, y se activan con la
    clase `glass-chat` en <body>. Los nombres `--fi-bg/--fi-surface/--fi-text`
    NO EXISTEN — inventarlos deja el composer en blanco sobre negro. */
+:root {
+  /* El fuego de la marca, medido del logo real de la papelería (su avatar de
+     WhatsApp), no elegido a ojo. */
+  --fx-fuego: #e05000;
+  --fx-fuego-rojo: #e03020;
+  --fx-fuego-ambar: #e06000;
+  --fx-linea: rgb(255 255 255 / 0.08);
+  --fx-tenue: rgb(255 255 255 / 0.05);
+  /* fi-glass lee el acento como var(--fi-accent, var(--og-accent, …)); definir
+     --fi-accent es la vía limpia para un consumer que no es og118. */
+  --fi-accent: var(--fx-fuego);
+}
+
 html,
 body {
   height: 100%;
   margin: 0;
   background: var(--glass-chat-body, #020617);
-  color: var(--glass-chat-text, #ffffff);
+  color: var(--glass-chat-text, #fff);
   -webkit-font-smoothing: antialiased;
 }
 
-/* El acento de la marca. fi-glass lo lee como `var(--fi-accent, var(--og-accent, …))`,
-   así que definir --fi-accent es la vía limpia para un consumer que no es og118. */
-:root {
-  --fi-accent: var(--glass-chat-accent-text, #6ee7b7);
-}
+/* ── Barra lateral ──────────────────────────────────────────────────────── */
 
-.fenix-start {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 2rem 1rem;
-  text-align: center;
-}
-
-.fenix-start-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.fenix-start-sub {
-  font-size: 0.95rem;
-  opacity: 0.7;
-  max-width: 34ch;
-}
-
-.fenix-start-grid {
-  display: grid;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 46rem;
-  margin-top: 1.25rem;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 640px) {
-  .fenix-start-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-.fenix-start-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-  padding: 1rem;
-  border-radius: var(--glass-chat-radius, 16px);
-  border: 1px solid var(--glass-chat-surface-border, rgba(71,85,105,0.4));
-  background: var(--glass-chat-surface, rgba(30,41,59,0.6));
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.fenix-start-card:hover,
-.fenix-start-card:focus-visible {
-  border-color: var(--glass-chat-accent-text, #6ee7b7);
-  background: rgb(255 255 255 / 0.07);
-}
-
-.fenix-start-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  opacity: 0.85;
-}
-
-.fenix-start-card-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.fenix-start-card-help {
-  font-size: 0.8rem;
-  opacity: 0.65;
-  line-height: 1.35;
-}
-
-.fenix-sidebar {
+.fx-side {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding: 0.75rem;
   height: 100%;
+  padding: 0.75rem;
   padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }
 
-.fenix-new {
+.fx-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.15rem 0.35rem 0.6rem;
+}
+
+.fx-marca img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.fx-marca-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.fx-marca-txt strong {
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.fx-marca-txt span {
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+
+.fx-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 11px;
+  background: var(--fx-tenue);
+}
+
+.fx-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.3rem;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fx-tab svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.fx-tab-on {
+  background: rgb(255 255 255 / 0.09);
+  color: var(--glass-chat-text, #fff);
+}
+
+.fx-nueva {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  margin-top: 0.15rem;
   padding: 0.6rem 0.75rem;
-  border-radius: var(--glass-chat-radius, 16px);
-  border: 1px solid var(--glass-chat-surface-border, rgba(71,85,105,0.4));
-  background: var(--glass-chat-surface, rgba(30,41,59,0.6));
-  font-size: 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  /* El único elemento con el fuego de la marca en toda la barra: es la acción
+     principal, y si todo brilla nada destaca. */
+  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  color: #fff;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
 }
 
-.fenix-new:disabled {
-  opacity: 0.5;
+.fx-nueva:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-.fenix-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.fx-nueva svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.fx-chats {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
   overflow-y: auto;
+  list-style: none;
 }
 
-.fenix-item {
+.fx-chat {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  border-radius: 10px;
+  gap: 0.2rem;
+  border-radius: 9px;
 }
 
-.fenix-item-active {
-  background: rgb(255 255 255 / 0.08);
+.fx-chat-on {
+  background: rgb(255 255 255 / 0.07);
+  box-shadow: inset 2px 0 0 var(--fx-fuego);
 }
 
-.fenix-item-open {
+.fx-chat-abrir {
   flex: 1;
   min-width: 0;
-  text-align: left;
   padding: 0.5rem 0.6rem;
-  font-size: 0.875rem;
-  background: none;
   border: 0;
+  background: none;
   color: inherit;
-  cursor: pointer;
-  overflow: hidden;
+  font-size: 0.83rem;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-.fenix-item-del {
+.fx-chat-borrar {
   display: grid;
   place-items: center;
   padding: 0.4rem;
-  background: none;
   border: 0;
+  background: none;
   color: inherit;
   opacity: 0;
   cursor: pointer;
 }
 
-.fenix-item:hover .fenix-item-del,
-.fenix-item-del:focus-visible {
-  opacity: 0.7;
+.fx-chat:hover .fx-chat-borrar,
+.fx-chat-borrar:focus-visible {
+  opacity: 0.65;
 }
 
 @media (hover: none) {
-  .fenix-item-del {
-    opacity: 0.55;
+  .fx-chat-borrar {
+    opacity: 0.5;
   }
 }
 
-.fenix-item-del svg {
-  width: 1rem;
-  height: 1rem;
+.fx-chat-borrar svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* ── Pantalla de inicio ─────────────────────────────────────────────────── */
+
+.fx-inicio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.fx-inicio-logo {
+  width: min(420px, 78vw);
+  height: auto;
+  /* El master viene sobre su propio fondo casi negro; el modo multiply lo funde
+     con la página en vez de dejar un rectángulo flotando. */
+  mix-blend-mode: lighten;
+}
+
+.fx-inicio-sub {
+  max-width: 36ch;
+  margin-top: -0.4rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.fx-inicio-grid {
+  display: grid;
+  gap: 0.7rem;
+  width: 100%;
+  max-width: 46rem;
+  margin-top: 1.4rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .fx-inicio-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.fx-accion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--glass-chat-radius, 16px);
+  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.fx-accion:hover,
+.fx-accion:focus-visible {
+  border-color: color-mix(in srgb, var(--fx-fuego) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.fx-accion-ico {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.15rem;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--fx-fuego) 16%, transparent);
+  color: var(--fx-fuego-ambar);
+}
+
+.fx-accion-ico svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.fx-accion-titulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.fx-accion-ayuda {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.79rem;
+  line-height: 1.35;
+}
+
+/* ── Expedientes ────────────────────────────────────────────────────────── */
+
+.fx-clientes {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem calc(2rem + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.fx-clientes-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fx-clientes-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.fx-clientes-sub {
+  margin: 0.15rem 0 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.85rem;
+}
+
+.fx-buscar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 15rem;
+  max-width: 22rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 11px;
+  background: var(--fx-tenue);
+}
+
+.fx-buscar svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.fx-buscar input {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 0.86rem;
+  outline: none;
+}
+
+.fx-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fx-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 13px;
+  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
+  /* La barra de color es la señal de estado: los incompletos arden. */
+  box-shadow: inset 3px 0 0 var(--fx-fuego);
+}
+
+.fx-card-ok {
+  box-shadow: inset 3px 0 0 rgb(255 255 255 / 0.14);
+}
+
+.fx-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--fx-fuego) 15%, transparent);
+  color: var(--fx-fuego-ambar);
+}
+
+.fx-card-ok .fx-avatar {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+
+.fx-avatar svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.fx-datos {
+  flex: 1;
+  min-width: 0;
+}
+
+.fx-nombre {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fx-nombre:hover {
+  text-decoration: underline;
+}
+
+.fx-meta {
+  margin: 0.1rem 0 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.79rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-falta {
+  margin: 0.25rem 0 0;
+  color: var(--fx-fuego-ambar);
+  font-size: 0.76rem;
+  font-weight: 550;
+}
+
+.fx-btn {
+  flex-shrink: 0;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 9px;
+  background: var(--fx-tenue);
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.fx-btn:hover {
+  border-color: color-mix(in srgb, var(--fx-fuego) 45%, transparent);
+}
+
+.fx-btn-primario {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  color: #fff;
+}
+
+/* ── Formulario del expediente ──────────────────────────────────────────── */
+
+.fx-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.fx-campos {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .fx-campos {
+    grid-template-columns: 1.2fr 1.2fr 0.9fr;
+  }
+}
+
+.fx-campos label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.fx-campos span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fx-campos input {
+  /* 16px exactos: por debajo, iOS hace zoom al enfocar el campo. */
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.25);
+  color: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.fx-campos input:focus {
+  border-color: color-mix(in srgb, var(--fx-fuego) 60%, transparent);
+}
+
+.fx-acciones {
+  display: flex;
+  gap: 0.5rem;
 }

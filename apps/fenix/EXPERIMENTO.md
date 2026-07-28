@@ -214,3 +214,25 @@ No es un fallo de seguridad (nunca inventa), pero sí de completitud.
 **Pendiente #1 (reformulado):** medir el recall con una lista real de 15-20
 artículos y, si se degrada, subir el `top_k` de `search_documents` o partir la
 lista maestra en chunks por sección en vez de 16 bloques de ~1.4k chars.
+
+### H10 — `TITLE_MAX = 60` decapita datos en silencio
+`free-intelligence-core/src/conversation/helpers.ts` trunca todo título a 60
+caracteres. No avisa, no lanza, no marca: guarda lo que cabe.
+
+Fénix guarda el expediente del cliente EN el título (la convención que el equipo
+ya usaba: `fecha — alumno (escuela) — WhatsApp`), así que el corte se comía el
+teléfono — exactamente el dato que el formulario existe para capturar:
+
+```
+enviado:  28 jul — Sofía Ramírez (Sec. Gómez de Mendiola 2°) — 33 3448 8256
+guardado: 28 jul — Sofía Ramírez (Sec. Gómez de Mendiola 2°) — 33 3448
+```
+
+El formulario decía "guardado" y el número quedaba mutilado. Sólo se detectó
+leyendo el registro del servidor después de guardar, no en la UI.
+
+**Solución del lado del consumer** (fi-glass/core sin tocar): el presupuesto de
+60 caracteres se gasta por prioridad — fecha, alumno y teléfono son intocables;
+la ESCUELA se abrevia con elipsis hasta que el título quepa.
+**Arreglo de raíz sugerido:** que el truncado del framework sea visible (avisar,
+o exponer `TITLE_MAX`) en vez de recortar callado.

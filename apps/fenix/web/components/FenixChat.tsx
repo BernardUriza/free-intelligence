@@ -17,13 +17,14 @@
  * su trabajo. Ver .claude/EXPERIMENTO.md.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AgentConversationSurface, AgentWorkspaceShell, useAgentConversation } from 'fi-glass/agent';
 import { useConversationLibrary, RemoteConversationLibrary } from 'fi-glass/conversation';
 import { useFenixAgent } from '@/lib/useFenixAgent';
 import { authHeaders } from '@/lib/fenixToken';
 import { FenixStartScreen } from './FenixStartScreen';
-import { FenixSidebar } from './FenixSidebar';
+import { FenixSidebar, type Vista } from './FenixSidebar';
+import { FenixClientes } from './FenixClientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
@@ -46,33 +47,49 @@ export function FenixChat() {
     initialMessages: lib.activeMessages,
     onMessagesChange: lib.persist,
   });
+  const [vista, setVista] = useState<Vista>('chats');
 
   return (
     <AgentWorkspaceShell
       responsive
-      toggleLabel="Cotizaciones"
+      toggleLabel="Fénix"
       sidebar={(shell) => (
         <FenixSidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
+          vista={vista}
           disabled={conversation.isStreaming}
+          onVista={setVista}
           onNew={() => {
+            setVista('chats');
             lib.newConversation();
             shell.close();
           }}
           onSwitch={(id) => {
+            setVista('chats');
             void lib.switchConversation(id).catch((e) => console.error('[fenix] switch failed', e));
             shell.close();
           }}
           onDelete={(id) =>
             void lib.deleteConversation(id).catch((e) => console.error('[fenix] delete failed', e))
           }
-          onRename={(id, title) =>
-            void lib.renameConversation(id, title).catch((e) => console.error('[fenix] rename failed', e))
-          }
         />
       )}
       conversation={
+        vista === 'clientes' ? (
+          <FenixClientes
+            conversations={lib.conversations}
+            onSave={(id, titulo) =>
+              void lib.renameConversation(id, titulo).catch((e) =>
+                console.error('[fenix] rename failed', e),
+              )
+            }
+            onOpen={(id) => {
+              setVista('chats');
+              void lib.switchConversation(id).catch((e) => console.error('[fenix] switch failed', e));
+            }}
+          />
+        ) : (
         <AgentConversationSurface
           conversation={{ ...conversation, newConversation: lib.newConversation }}
           composerPlaceholder="Manda la foto de la lista, o pregunta un precio…"
@@ -88,6 +105,7 @@ export function FenixChat() {
           composerBoxClassName="glass-chat-composer"
           composerTextareaClassName="glass-chat-composer-input"
         />
+        )
       }
     />
   );

@@ -1,63 +1,93 @@
 'use client';
 
 /**
- * Lista de cotizaciones. Deliberadamente plana: sin proyectos, sin carpetas, sin
- * archivar. La auditoría mostró que el laberinto (4 chats llamados casi igual,
- * títulos con `<alumno>` sin sustituir) nace de tener demasiados contenedores.
- * Aquí sólo hay conversaciones, y el título se edita en el mismo renglón.
+ * Barra lateral: la marca arriba, luego las dos vistas, luego la lista.
+ *
+ * Sigue siendo deliberadamente plana — sin proyectos ni carpetas. La auditoría
+ * mostró que el laberinto (cuatro chats llamados casi igual, títulos con
+ * `<alumno>` sin sustituir) nace de tener demasiados contenedores. Lo que se
+ * agrega no es una jerarquía nueva sino una LECTURA distinta de la misma lista:
+ * Cotizaciones la ordena por recencia, Expedientes por lo que le falta.
  */
 
-import { Plus, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import { FileText, Plus, Trash2, Users } from 'lucide-react';
+
+export type Vista = 'chats' | 'clientes';
 
 type Conversacion = { id: string; title: string };
 
 export function FenixSidebar({
   conversations,
   activeId,
+  vista,
   disabled,
+  onVista,
   onNew,
   onSwitch,
   onDelete,
-  onRename,
 }: {
   conversations: readonly Conversacion[];
   activeId: string | null;
+  vista: Vista;
   disabled?: boolean;
+  onVista: (v: Vista) => void;
   onNew: () => void;
   onSwitch: (id: string) => void;
   onDelete: (id: string) => void;
-  onRename: (id: string, title: string) => void;
 }) {
   return (
-    <nav className="fenix-sidebar" aria-label="Cotizaciones">
-      <button
-        type="button"
-        className="fenix-new fi-touch-target"
-        onClick={onNew}
-        disabled={disabled}
-      >
+    <nav className="fx-side" aria-label="Fénix">
+      <div className="fx-marca">
+        <Image src="/branding/emblem.png" alt="" width={30} height={30} priority />
+        <div className="fx-marca-txt">
+          <strong>Fénix</strong>
+          <span>Escolar AI</span>
+        </div>
+      </div>
+
+      <div className="fx-tabs" role="tablist" aria-label="Vistas">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={vista === 'chats'}
+          className={`fx-tab fi-touch-target${vista === 'chats' ? ' fx-tab-on' : ''}`}
+          onClick={() => onVista('chats')}
+        >
+          <FileText aria-hidden />
+          Cotizaciones
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={vista === 'clientes'}
+          className={`fx-tab fi-touch-target${vista === 'clientes' ? ' fx-tab-on' : ''}`}
+          onClick={() => onVista('clientes')}
+        >
+          <Users aria-hidden />
+          Expedientes
+        </button>
+      </div>
+
+      <button type="button" className="fx-nueva fi-touch-target" onClick={onNew} disabled={disabled}>
         <Plus aria-hidden />
         Nueva cotización
       </button>
 
-      <ul className="fenix-list">
+      <ul className="fx-chats">
         {conversations.map((c) => (
-          <li key={c.id} className={c.id === activeId ? 'fenix-item fenix-item-active' : 'fenix-item'}>
+          <li key={c.id} className={c.id === activeId ? 'fx-chat fx-chat-on' : 'fx-chat'}>
             <button
               type="button"
-              className="fenix-item-open fi-touch-target"
+              className="fx-chat-abrir fi-touch-target"
               onClick={() => onSwitch(c.id)}
               disabled={disabled}
-              onDoubleClick={() => {
-                const t = window.prompt('Nombre de la cotización', c.title);
-                if (t && t.trim()) onRename(c.id, t.trim());
-              }}
             >
               {c.title || 'Sin nombre'}
             </button>
             <button
               type="button"
-              className="fenix-item-del fi-touch-target"
+              className="fx-chat-borrar fi-touch-target"
               aria-label={`Borrar ${c.title || 'la cotización'}`}
               onClick={() => onDelete(c.id)}
               disabled={disabled}

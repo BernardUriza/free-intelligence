@@ -5,10 +5,33 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Fénix',
-  description: 'El asistente de Servicios Papeleros Fénix',
+  description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+  icons: {
+    icon: [
+      { url: '/branding/favicon.ico', sizes: 'any' },
+      { url: '/branding/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/branding/icon-512.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: '/branding/apple-touch-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    title: 'Fénix',
+    description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+    images: [{ url: '/branding/og-image.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Fénix',
+    description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+    images: ['/branding/twitter-card.png'],
+  },
 };
 
 export const viewport: Viewport = {
+  // El mismo --glass-chat-body que pinta el fondo de la app, para que la barra
+  // del navegador en móvil no corte con un color distinto al de la página.
+  themeColor: '#020617',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
