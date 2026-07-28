@@ -28,6 +28,7 @@ import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
 import { FenixVisorExcel, type HojaVista } from './FenixVisorExcel';
 import { FenixBarraPresupuesto } from './FenixBarraPresupuesto';
+import { FenixEncabezado } from './FenixEncabezado';
 import { useExpedientes } from '@/lib/useExpedientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
@@ -71,6 +72,11 @@ export function FenixChat() {
   const presupuestoAbierto = exp.expedientes.find(
     (e) => e.conversacionId === lib.activeId && (e.items?.length ?? 0) > 0,
   );
+  // El expediente de la conversación abierta, tenga renglones o no: el
+  // encabezado debe decir de quién es aunque todavía no se haya cotizado.
+  const expedienteAbierto = exp.expedientes.find((e) => e.conversacionId === lib.activeId);
+  const tituloAbierto =
+    lib.conversations.find((c) => c.id === lib.activeId)?.title ?? null;
 
   async function abrirVisor(e: Expediente) {
     setVerExcel(e);
@@ -129,7 +135,11 @@ export function FenixChat() {
             }}
           />
         ) : (
-        <AgentConversationSurface
+        <div className="fx-conv">
+          {lib.activeId && (
+            <FenixEncabezado titulo={tituloAbierto} expediente={expedienteAbierto} />
+          )}
+          <AgentConversationSurface
           conversation={{ ...conversation, newConversation: lib.newConversation }}
           composerPlaceholder="Manda la foto de la lista, o pregunta un precio…"
           newChatLabel="Nueva cotización"
@@ -149,7 +159,8 @@ export function FenixChat() {
           // era el hallazgo H2 y ahora sobra — que es exactamente lo que debía
           // pasar al consolidar en el framework.
           composerBoxClassName="glass-chat-composer"
-        />
+          />
+        </div>
         )
       }
     />

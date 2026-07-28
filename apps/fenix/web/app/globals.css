@@ -841,3 +841,94 @@ body {
   border-color: color-mix(in srgb, var(--fx-fuego-rojo) 55%, transparent);
   background: color-mix(in srgb, var(--fx-fuego-rojo) 14%, var(--glass-chat-surface, rgba(30,41,59,.6)));
 }
+
+/* ── Encabezado del chat ────────────────────────────────────────────────── */
+
+/* El surface de fi-glass llena el alto que le den; al anteponerle el
+   encabezado, el contenedor tiene que repartir: fila fija arriba, resto para
+   la conversación. Sin esto el transcript desborda y el composer se sale. */
+.fx-conv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.fx-conv > :last-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.fx-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fx-4);
+  padding: var(--fx-3) var(--fx-4);
+  border-bottom: 1px solid var(--fx-linea);
+  /* La franja del estado, igual que en las tarjetas: el color dice en qué va
+     la cotización sin que haya que leer. */
+  box-shadow: inset 0 -2px 0 var(--es, transparent);
+}
+
+.fx-cab-txt { min-width: 0; }
+
+.fx-cab-nombre {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-cab-meta {
+  margin: 0.1rem 0 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-cab-datos {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
+  flex-shrink: 0;
+}
+
+.fx-cab-tel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: var(--fx-1) var(--fx-2);
+  border-radius: var(--fx-radio-sm);
+  background: var(--fx-tenue);
+  color: inherit;
+  font-size: 0.78rem;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-cab-tel:hover { background: rgb(255 255 255 / 0.1); }
+.fx-cab-tel svg { width: 0.8rem; height: 0.8rem; opacity: 0.6; }
+
+.fx-cab-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--es, var(--glass-chat-text-muted, #94a3b8));
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fx-cab-estado svg { width: 0.85rem; height: 0.85rem; }
+
+@media (max-width: 640px) {
+  .fx-cab { padding: var(--fx-2) var(--fx-3); }
+  .fx-cab-estado { display: none; }
+}
