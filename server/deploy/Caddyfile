@@ -3,10 +3,13 @@
 # port the AIRE door is reachable on from the internet: the Bearer token never
 # crosses a plaintext hop. The device listener (9099) stays plain HTTP by design
 # (device reports, [[device-verb-protocol]]) — Caddy fronts the LLM door only.
+#
+# The door lives at gate.bernarduriza.com; the human-facing front owns the clean
+# aire.bernarduriza.com (a CNAME to Azure Container Apps, its own managed cert).
 {
 	email bernarduriza@gmail.com
 }
 
-aire.bernarduriza.com {
+gate.bernarduriza.com {
 	reverse_proxy 127.0.0.1:8088
 }
