@@ -17,16 +17,27 @@
  * su trabajo. Ver .claude/EXPERIMENTO.md.
  */
 
+import { useMemo } from 'react';
 import { AgentConversationSurface, AgentWorkspaceShell, useAgentConversation } from 'fi-glass/agent';
-import { useConversationLibrary, useIndexedDBConversationLibrary } from 'fi-glass/conversation';
+import { useConversationLibrary, RemoteConversationLibrary } from 'fi-glass/conversation';
 import { useFenixAgent } from '@/lib/useFenixAgent';
+import { authHeaders } from '@/lib/fenixToken';
 import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar } from './FenixSidebar';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
+const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
 
 export function FenixChat() {
-  const library = useIndexedDBConversationLibrary('fenix');
+  // El historial es del NEGOCIO, no del navegador de quien abrió la app. Con
+  // IndexedDB, las cotizaciones vivían en la máquina donde se escribieron: quien
+  // abriera fenix en otro dispositivo veía la papelería vacía, y las 35 sesiones
+  // que ya existen en claude.ai no tendrían dónde aterrizar. El store del
+  // servidor las hace visibles desde cualquier lado y migrables de una vez.
+  const library = useMemo(
+    () => new RemoteConversationLibrary({ baseUrl: API, headers: authHeaders }),
+    [],
+  );
   const lib = useConversationLibrary(library);
   const agent = useFenixAgent(lib.activeId);
   const conversation = useAgentConversation(agent, {

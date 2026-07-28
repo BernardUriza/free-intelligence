@@ -63,13 +63,33 @@ acabaría con cinco listas maestras compitiendo entre sí. Por eso el slug se co
 en el primer paréntesis: `lista-de-precios-y-reglas-de-venta.md` sobrevive a las
 reescrituras y siempre se reemplaza a sí mismo.
 
-## Lo que este script NO migra todavía
+## Las conversaciones (`importar_conversaciones.py`)
 
-**Las conversaciones.** El Project tiene 35 sesiones Cowork y 17 chats con
-cotizaciones reales. No están aquí porque falta una decisión de arquitectura:
-hoy fenix guarda sus conversaciones en el **IndexedDB del navegador**
-(`useIndexedDBConversationLibrary`), así que importarlas al servidor no las haría
-aparecer en la UI. El camino canónico es mover fenix a
-`RemoteConversationLibrary` — el primitivo ya existe en fi-glass y og118 lo usa
-cuando hay sesión iniciada — para que el historial sea del negocio y no del
-navegador de quien lo abrió. Ver `../EXPERIMENTO.md`.
+Mismo ritual, otro script. Trae el HISTORIAL en vez de los documentos.
+
+**1. Exportar las sesiones Cowork** desde claude.ai (el snippet completo está en
+el encabezado del script; usa `/v1/code/sessions` + `/events`, que requieren los
+headers `anthropic-version` y `x-organization-uuid` o devuelven 400).
+
+**2. Delta y aplicar:**
+
+```bash
+python3 importar_conversaciones.py ../../../.fenix-convs.json --dry-run
+python3 importar_conversaciones.py ../../../.fenix-convs.json
+```
+
+Primera corrida: **33 conversaciones, 323 mensajes** (las 35 menos dos sesiones
+`__warming__` vacías). Idempotente por hash igual que los docs.
+
+Dos decisiones dentro del script que conviene no deshacer:
+
+- **Los mensajes se ordenan por timestamp.** El API de eventos no garantiza el
+  orden de lectura, y un hilo desordenado se lee como una conversación distinta
+  a la que ocurrió — el usuario preguntando después de que ya le respondieron.
+- **Un fallo NO se registra en `estado.json`.** Si se registrara igual, la
+  siguiente corrida daría esa conversación por importada y se perdería en
+  silencio. Por eso el script termina con código 1 si hubo fallos.
+
+**Esto exige que fenix use `RemoteConversationLibrary`** (el store del
+servidor). Con el IndexedDB del navegador, el historial quedaría en la máquina
+donde se corrió el script y nadie más lo vería.
