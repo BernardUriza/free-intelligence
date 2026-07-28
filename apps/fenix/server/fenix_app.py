@@ -30,7 +30,9 @@ if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
 from fastapi import APIRouter, Depends, Header, HTTPException  # noqa: E402
+from fastapi.dependencies.utils import get_parameterless_sub_dependant  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
+from fastapi.routing import APIRoute  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 from app import (  # noqa: E402  (la app de og118)
@@ -327,3 +329,35 @@ async def extraer(
 
 
 app.include_router(router)
+
+
+# Rutas que og118 sirve abiertas y en la papelería NO pueden estarlo. El título
+# de cada conversación lleva el nombre del alumno, la escuela y el WhatsApp de la
+# mamá: una PC del cibercafé podía pedir `GET /conversations` y leer la lista
+# completa. Ocultarlas en la barra era cosmética — la puerta es ésta.
+#
+# Se inyecta la dependencia en las rutas heredadas en vez de interponer un
+# middleware: el middleware quedaría POR FUERA del CORS de og118 y el navegador
+# vería un error de red opaco en lugar del 404, que es justo lo que el cliente
+# distingue para pintar la vista pública.
+_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
+
+
+def _cerrar_rutas_heredadas() -> list[str]:
+    puerta = Depends(solo_admin)
+    cerradas: list[str] = []
+    for ruta in app.routes:
+        if isinstance(ruta, APIRoute) and ruta.path.startswith(_RUTAS_DEL_MOSTRADOR):
+            ruta.dependencies.append(puerta)
+            ruta.dependant.dependencies.insert(
+                0, get_parameterless_sub_dependant(depends=puerta, path=ruta.path)
+            )
+            cerradas.append(ruta.path)
+    return cerradas
+
+
+_CERRADAS = _cerrar_rutas_heredadas()
+if not _CERRADAS:  # og118 renombró o movió sus rutas y la puerta quedó sin poner
+    raise RuntimeError(
+        "no se cerró ninguna ruta heredada: revisa _RUTAS_DEL_MOSTRADOR contra las de og118"
+    )

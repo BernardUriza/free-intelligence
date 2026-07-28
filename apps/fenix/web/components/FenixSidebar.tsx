@@ -111,17 +111,13 @@ export function FenixSidebar({
 
       <button type="button" className="fx-nueva fi-touch-target" onClick={onNew} disabled={disabled}>
         <Plus aria-hidden />
-        Nueva cotización
+        {admin ? 'Nueva cotización' : 'Empezar de nuevo'}
       </button>
 
-      {/* El historial de la papelería es de la papelería. Sin esto, una PC del
-          cibercafé listaba las cotizaciones de todos los clientes con nombre y
-          escuela — la pestaña oculta no servía de nada si la barra las pinta.
-
-          OJO: esto es defensa en profundidad, NO la puerta. El aislamiento real
-          es del servidor, que guarda las conversaciones POR DUEÑO; con el bearer
-          compartido todos comparten un mismo dueño por diseño, así que la
-          separación de verdad llega con Auth0. */}
+      {/* La lista de cotizaciones es del mostrador. Esto es defensa en
+          profundidad y no la puerta: la puerta está en el servidor, que responde
+          404 en /conversations sin el token del mostrador. Una PC del ciber ni
+          siquiera recibe la lista que aquí se dejaría de pintar. */}
       <ul className="fx-chats">
         {(admin ? conversations : []).map((c) => {
           const e = porConversacion.get(c.id);

@@ -19,10 +19,15 @@
 
 import { useMemo, useState } from 'react';
 import { AgentConversationSurface, AgentWorkspaceShell, useAgentConversation } from 'fi-glass/agent';
-import { useConversationLibrary, RemoteConversationLibrary } from 'fi-glass/conversation';
+import {
+  useConversationLibrary,
+  EphemeralConversationLibrary,
+  RemoteConversationLibrary,
+} from 'fi-glass/conversation';
 import type { Expediente } from '@/lib/useExpedientes';
 import { useFenixAgent } from '@/lib/useFenixAgent';
 import { authHeaders } from '@/lib/fenixToken';
+import { sesionHeaders } from '@/lib/fenixSesion';
 import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
@@ -35,14 +40,31 @@ const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null }
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
 
 export function FenixChat() {
-  // El historial es del NEGOCIO, no del navegador de quien abrió la app. Con
-  // IndexedDB, las cotizaciones vivían en la máquina donde se escribieron: quien
-  // abriera fenix en otro dispositivo veía la papelería vacía, y las 35 sesiones
-  // que ya existen en claude.ai no tendrían dónde aterrizar. El store del
-  // servidor las hace visibles desde cualquier lado y migrables de una vez.
+  const exp = useExpedientes();
+  // Dos superficies, dos memorias.
+  //
+  // En el MOSTRADOR el historial es del NEGOCIO, no del navegador de quien abrió
+  // la app. Con IndexedDB las cotizaciones vivían en la máquina donde se
+  // escribieron: quien abriera fenix en otro dispositivo veía la papelería
+  // vacía, y las 35 sesiones que ya existen en claude.ai no tendrían dónde
+  // aterrizar. El store del servidor las hace visibles desde cualquier lado.
+  //
+  // En las PCs del CIBERCAFÉ guardar es el error, no la funcionalidad: son
+  // turnos de veinte minutos en una máquina compartida, y cualquier memoria
+  // —servidor o IndexedDB, que es del navegador y no de la persona— le enseña
+  // al siguiente niño la conversación del anterior. La librería efímera muere
+  // al cerrar la pestaña, que es exactamente la vida útil de esa sesión.
   const library = useMemo(
-    () => new RemoteConversationLibrary({ baseUrl: API, headers: authHeaders }),
-    [],
+    () =>
+      exp.admin
+        ? new RemoteConversationLibrary({
+            baseUrl: API,
+            // Las dos credenciales, no sólo el bearer: `/conversations` ahora
+            // exige el token del mostrador igual que los expedientes.
+            headers: () => ({ ...authHeaders(), ...sesionHeaders() }),
+          })
+        : new EphemeralConversationLibrary(),
+    [exp.admin],
   );
   const lib = useConversationLibrary(library);
   const agent = useFenixAgent(lib.activeId);
@@ -53,7 +75,6 @@ export function FenixChat() {
     onMessagesChange: lib.persist,
   });
   const [vista, setVista] = useState<Vista>('chats');
-  const exp = useExpedientes();
   // El visor del presupuesto. Se guarda el expediente abierto para poder
   // descargar exactamente lo que se está viendo.
   const [verExcel, setVerExcel] = useState<Expediente | null>(null);
@@ -144,8 +165,12 @@ export function FenixChat() {
           )}
           <AgentConversationSurface
           conversation={{ ...conversation, newConversation: lib.newConversation }}
-          composerPlaceholder="Manda la foto de la lista, o pregunta un precio…"
-          newChatLabel="Nueva cotización"
+          composerPlaceholder={
+            exp.admin
+              ? 'Manda la foto de la lista, o pregunta un precio…'
+              : 'Pregunta lo que sea de tu tarea…'
+          }
+          newChatLabel={exp.admin ? 'Nueva cotización' : 'Empezar de nuevo'}
           showNewChatButton={false}
           aboveComposer={
             presupuestoAbierto ? (
@@ -155,7 +180,12 @@ export function FenixChat() {
               />
             ) : null
           }
-          emptyState={<FenixStartScreen onPick={(prompt) => void conversation.send(prompt)} />}
+          emptyState={
+            <FenixStartScreen
+              admin={exp.admin}
+              onPick={(prompt) => void conversation.send(prompt)}
+            />
+          }
           imageAttachments
           // El textarea ya NO necesita `composerTextareaClassName`: el arreglo
           // subió a fi-glass y el componente aplica su propia clase. Esta línea

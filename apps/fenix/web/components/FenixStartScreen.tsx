@@ -11,7 +11,7 @@
  */
 
 import Image from 'next/image';
-import { FileImage, FileText, Search } from 'lucide-react';
+import { BookOpen, FileImage, FileText, PencilLine, Search, Sigma } from 'lucide-react';
 
 const ACCIONES = [
   {
@@ -34,7 +34,39 @@ const ACCIONES = [
   },
 ];
 
-export function FenixStartScreen({ onPick }: { onPick: (prompt: string) => void }) {
+// Las PC de afuera son de niños haciendo tarea en turnos de veinte minutos. La
+// pantalla de inicio del mostrador les ofrecería cotizar listas y consultar
+// precios de mayoreo: la herramienta correcta, con el trabajo equivocado
+// encima.
+const ACCIONES_TAREA = [
+  {
+    icon: Sigma,
+    titulo: 'Ayúdame con matemáticas',
+    ayuda: 'Te explico el procedimiento, no sólo el resultado',
+    prompt: 'Ayúdame a entender este problema de matemáticas paso a paso: ',
+  },
+  {
+    icon: BookOpen,
+    titulo: 'Explícame un tema',
+    ayuda: 'Con palabras fáciles y un ejemplo',
+    prompt: 'Explícame de forma sencilla, con un ejemplo: ',
+  },
+  {
+    icon: PencilLine,
+    titulo: 'Revisa lo que escribí',
+    ayuda: 'Ortografía y cómo mejorarlo',
+    prompt: 'Revisa mi texto y dime cómo mejorarlo (sin escribirlo por mí): ',
+  },
+];
+
+export function FenixStartScreen({
+  onPick,
+  admin,
+}: {
+  onPick: (prompt: string) => void;
+  admin: boolean;
+}) {
+  const acciones = admin ? ACCIONES : ACCIONES_TAREA;
   return (
     <div className="fx-inicio">
       <Image
@@ -46,10 +78,12 @@ export function FenixStartScreen({ onPick }: { onPick: (prompt: string) => void 
         priority
       />
       <p className="fx-inicio-sub">
-        Los precios salen siempre de la lista maestra. Nunca de internet.
+        {admin
+          ? 'Los precios salen siempre de la lista maestra. Nunca de internet.'
+          : 'Pregunta lo de tu tarea. Esta computadora no guarda la conversación.'}
       </p>
       <div className="fx-inicio-grid">
-        {ACCIONES.map(({ icon: Icon, titulo, ayuda, prompt }) => (
+        {acciones.map(({ icon: Icon, titulo, ayuda, prompt }) => (
           <button
             key={titulo}
             type="button"

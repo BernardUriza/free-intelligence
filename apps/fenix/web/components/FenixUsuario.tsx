@@ -40,7 +40,17 @@ export function FenixUsuario({
   const [abierto, setAbierto] = useState(false);
   const [correo, setCorreoLocal] = useState('');
   const [token, setTokenLocal] = useState('');
+  // Lo que hay guardado, en estado y no leído de localStorage al pintar: el
+  // servidor no tiene localStorage, así que leerlo durante el render hace que
+  // pinte una píldora vacía y el cliente otra con iniciales — React tira todo
+  // el árbol por esa discrepancia.
+  const [guardado, setGuardado] = useState({ correo: '', token: '' });
   const caja = useRef<HTMLDivElement>(null);
+
+  const releer = () =>
+    setGuardado({ correo: getCorreo() ?? '', token: getTokenMostrador() ?? '' });
+
+  useEffect(releer, []);
 
   useEffect(() => {
     setCorreoLocal(getCorreo() ?? '');
@@ -64,6 +74,7 @@ export function FenixUsuario({
   function guardar() {
     setCorreo(correo || null);
     setTokenMostrador(token || null);
+    releer();
     setAbierto(false);
     onCambio();
   }
@@ -71,11 +82,12 @@ export function FenixUsuario({
   function salir() {
     setTokenMostrador(null);
     setTokenLocal('');
+    releer();
     setAbierto(false);
     onCambio();
   }
 
-  const correoGuardado = getCorreo();
+  const correoGuardado = guardado.correo;
   const etiqueta = correoGuardado || (admin ? 'Mostrador' : 'Público');
   const subtitulo = modoAbierto
     ? 'sin token · acceso total'
@@ -115,7 +127,7 @@ export function FenixUsuario({
             <button type="button" className="fx-btn fx-btn-primario fi-touch-target" onClick={guardar}>
               Guardar
             </button>
-            {getTokenMostrador() && (
+            {guardado.token && (
               <button type="button" className="fx-btn fi-touch-target" onClick={salir}>
                 <LogOut aria-hidden />
                 Salir del mostrador
