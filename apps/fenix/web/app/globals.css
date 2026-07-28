@@ -1103,3 +1103,96 @@ body {
   border-top: 1px solid var(--fx-linea);
   margin-top: var(--fx-1);
 }
+
+/* --- Cibercafé: la llave suelta y el aviso antes de perder la conversación --- */
+
+/* Abajo a la izquierda, el mismo lugar donde vive la píldora en el mostrador:
+   quien la busca ya sabe dónde mirar, y el menú abre hacia arriba con espacio.
+   Arriba solapaba el encabezado del chat (medido: .fx-cab ocupa 0→49px). */
+.fx-llave-suelta {
+  position: fixed;
+  left: var(--fx-3);
+  bottom: calc(var(--fx-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+}
+
+.fx-llave-suelta .fx-user-caja { margin-top: 0; }
+
+/* El menú se ancla a una caja de 44px; sin esto heredaría ese ancho. */
+.fx-llave-suelta .fx-user-menu {
+  right: auto;
+  width: min(320px, calc(100vw - 2 * var(--fx-3)));
+}
+
+.fx-user-compacto {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0.35;
+  transition: opacity 140ms var(--fx-salida);
+}
+
+.fx-user-compacto:hover,
+.fx-user-compacto:focus-visible { opacity: 1; }
+
+.fx-user-compacto svg { width: 18px; height: 18px; }
+
+.fx-modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--fx-4);
+  background: rgb(0 0 0 / 0.62);
+  backdrop-filter: blur(3px);
+  animation: fx-aparece 140ms var(--fx-salida);
+}
+
+.fx-modal {
+  position: relative;
+  width: min(440px, 100%);
+  padding: var(--fx-5);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio);
+  background: var(--glass-chat-body, #020617);
+  box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.7);
+}
+
+.fx-modal h2 {
+  margin: 0 0 var(--fx-2);
+  font-size: 1.05rem;
+  font-weight: 650;
+  padding-right: var(--fx-5);
+}
+
+.fx-modal p {
+  margin: 0 0 var(--fx-4);
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.fx-modal-x {
+  position: absolute;
+  top: var(--fx-2);
+  right: var(--fx-2);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--fx-radio-sm);
+  background: transparent;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  cursor: pointer;
+}
+
+.fx-modal-x:hover { color: inherit; background: rgb(255 255 255 / 0.06); }
+.fx-modal-x svg { width: 18px; height: 18px; }
+
+.fx-modal-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-2);
+}

@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { authHeaders } from './fenixToken';
-import { sesionHeaders } from './fenixSesion';
+import { fenixHeaders } from './fenixSesion';
 
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8119';
 
@@ -59,7 +58,7 @@ export function useExpedientes() {
 
   const recargar = useCallback(async () => {
     try {
-      const rol = await fetch(`${API}/expedientes/rol`, { headers: { ...authHeaders(), ...sesionHeaders() } });
+      const rol = await fetch(`${API}/expedientes/rol`, { headers: fenixHeaders() });
       const datos = rol.ok ? await rol.json() : { admin: false };
       const esAdmin = Boolean(datos.admin);
       setAdmin(esAdmin);
@@ -70,7 +69,7 @@ export function useExpedientes() {
         setError(null);
         return;
       }
-      const r = await fetch(`${API}/expedientes`, { headers: { ...authHeaders(), ...sesionHeaders() } });
+      const r = await fetch(`${API}/expedientes`, { headers: fenixHeaders() });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       setExpedientes(j.expedientes ?? []);
@@ -90,7 +89,7 @@ export function useExpedientes() {
     async (datos: Partial<Expediente>) => {
       const r = await fetch(`${API}/expedientes`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
+        headers: { 'Content-Type': 'application/json', ...fenixHeaders() },
         body: JSON.stringify(datos),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -114,7 +113,7 @@ export function useExpedientes() {
   const descargarExcel = useCallback(async (datos: Record<string, unknown>) => {
     const r = await fetch(`${API}/expedientes/excel`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
+      headers: { 'Content-Type': 'application/json', ...fenixHeaders() },
       body: JSON.stringify(datos),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -134,7 +133,7 @@ export function useExpedientes() {
   const vistaExcel = useCallback(async (datos: Record<string, unknown>) => {
     const r = await fetch(`${API}/expedientes/excel/vista`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders(), ...sesionHeaders() },
+      headers: { 'Content-Type': 'application/json', ...fenixHeaders() },
       body: JSON.stringify(datos),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

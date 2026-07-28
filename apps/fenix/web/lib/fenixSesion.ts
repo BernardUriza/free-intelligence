@@ -14,6 +14,8 @@
  *   después quién la hizo.
  */
 
+import { authHeaders } from './fenixToken';
+
 const LLAVE_TOKEN = 'fenix_admin_token';
 const LLAVE_CORREO = 'fenix_email';
 
@@ -41,10 +43,19 @@ export const setTokenMostrador = (v: string | null) => escribir(LLAVE_TOKEN, v);
 export const getCorreo = () => leer(LLAVE_CORREO);
 export const setCorreo = (v: string | null) => escribir(LLAVE_CORREO, v);
 
-/** Cabeceras de sesión. Se leen en cada llamada para que un cambio de sesión
- *  aplique sin recargar la página. */
-export function sesionHeaders(): Record<string, string> {
-  const h: Record<string, string> = {};
+/**
+ * TODAS las cabeceras que el servidor espera: el bearer del backend más las de
+ * sesión. Se leen en cada llamada para que un cambio aplique sin recargar.
+ *
+ * Es UNA función y no dos a propósito. Cuando eran `authHeaders()` y
+ * `sesionHeaders()` por separado, olvidar la segunda no rompía nada visible —
+ * el servidor simplemente atendía como público. Pasó dos veces: la librería de
+ * conversaciones se ganó su propio 404, y `/chat/stream` le dio al MOSTRADOR la
+ * persona del cibercafé, que contesta tareas en vez de cotizar. Ninguna de las
+ * dos falló en los tests: los sitios de llamada no se testean, se olvidan.
+ */
+export function fenixHeaders(): Record<string, string> {
+  const h: Record<string, string> = { ...authHeaders() };
   const token = getTokenMostrador();
   const correo = getCorreo();
   if (token) h['X-Fenix-Admin'] = token;

@@ -24,16 +24,18 @@ import {
   EphemeralConversationLibrary,
   RemoteConversationLibrary,
 } from 'fi-glass/conversation';
+import { conversationFileName, conversationToMarkdown } from '@free-intelligence/core';
 import type { Expediente } from '@/lib/useExpedientes';
 import { useFenixAgent } from '@/lib/useFenixAgent';
-import { authHeaders } from '@/lib/fenixToken';
-import { sesionHeaders } from '@/lib/fenixSesion';
+import { fenixHeaders } from '@/lib/fenixSesion';
 import { FenixStartScreen } from './FenixStartScreen';
 import { FenixSidebar, type Vista } from './FenixSidebar';
 import { FenixClientes } from './FenixClientes';
 import { FenixVisorExcel, type HojaVista } from './FenixVisorExcel';
 import { FenixBarraPresupuesto } from './FenixBarraPresupuesto';
 import { FenixEncabezado } from './FenixEncabezado';
+import { FenixGuardarAntesDeIrse } from './FenixGuardarAntesDeIrse';
+import { FenixUsuario } from './FenixUsuario';
 import { useExpedientes } from '@/lib/useExpedientes';
 
 const FENIX_AUTHOR = { id: 'fenix', name: 'Fénix', symbol: null, engine: null };
@@ -61,7 +63,7 @@ export function FenixChat() {
             baseUrl: API,
             // Las dos credenciales, no sólo el bearer: `/conversations` ahora
             // exige el token del mostrador igual que los expedientes.
-            headers: () => ({ ...authHeaders(), ...sesionHeaders() }),
+            headers: fenixHeaders,
           })
         : new EphemeralConversationLibrary(),
     [exp.admin],
@@ -75,6 +77,7 @@ export function FenixChat() {
     onMessagesChange: lib.persist,
   });
   const [vista, setVista] = useState<Vista>('chats');
+  const [porGuardar, setPorGuardar] = useState(false);
   // El visor del presupuesto. Se guarda el expediente abierto para poder
   // descargar exactamente lo que se está viendo.
   const [verExcel, setVerExcel] = useState<Expediente | null>(null);
@@ -99,6 +102,39 @@ export function FenixChat() {
   const tituloAbierto =
     lib.conversations.find((c) => c.id === lib.activeId)?.title ?? null;
 
+  // En el cibercafé empezar otra conversación BORRA la anterior, así que se
+  // ofrece llevársela justo en ese momento. En el mostrador no: ahí el
+  // historial vive en el servidor y nada se pierde.
+  function nuevaConversacion() {
+    if (!exp.admin && conversation.messages.length > 0) {
+      setPorGuardar(true);
+      return;
+    }
+    lib.newConversation();
+  }
+
+  function descargarConversacion() {
+    const registro = {
+      id: lib.activeId ?? 'conversacion',
+      title: tituloAbierto || 'Conversación',
+      createdAt: lib.activeRecord?.createdAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      preview: '',
+      schemaVersion: 1,
+      messages: conversation.messages,
+    };
+    const texto = conversationToMarkdown(registro, {
+      labels: { assistant: 'Fénix' },
+      source: 'Computadoras públicas de Servicios Papeleros Fénix',
+    });
+    const url = URL.createObjectURL(new Blob([texto], { type: 'text/markdown;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = conversationFileName(registro);
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function abrirVisor(e: Expediente) {
     setVerExcel(e);
     setHoja(null);
@@ -118,7 +154,11 @@ export function FenixChat() {
     <AgentWorkspaceShell
       responsive
       toggleLabel="Fénix"
-      sidebar={(shell) => (
+      // Sin barra en el cibercafé. No es que estorbe: es la única pieza que
+      // sigue prometiendo un historial que ahí no existe — una columna vacía
+      // donde el mostrador tiene 33 chats. Sin `sidebar`, el shell tampoco
+      // pinta el toggle del drawer (fi-glass lo omite entero).
+      sidebar={!exp.admin ? undefined : (shell) => (
         <FenixSidebar
           conversations={lib.conversations}
           expedientes={exp.expedientes}
@@ -132,7 +172,7 @@ export function FenixChat() {
           onVista={setVista}
           onNew={() => {
             setVista('chats');
-            lib.newConversation();
+            nuevaConversacion();
             shell.close();
           }}
           onSwitch={(id) => {
@@ -160,18 +200,23 @@ export function FenixChat() {
           />
         ) : (
         <div className="fx-conv">
-          {lib.activeId && (
+          {/* El encabezado dice de quién es la cotización abierta — dato del
+              mostrador. En el cibercafé el título es la propia pregunta del
+              niño: no informa nada y ocupa la franja superior del chat. */}
+          {exp.admin && lib.activeId && (
             <FenixEncabezado titulo={tituloAbierto} expediente={expedienteAbierto} />
           )}
           <AgentConversationSurface
-          conversation={{ ...conversation, newConversation: lib.newConversation }}
+          conversation={{ ...conversation, newConversation: nuevaConversacion }}
           composerPlaceholder={
             exp.admin
               ? 'Manda la foto de la lista, o pregunta un precio…'
               : 'Pregunta lo que sea de tu tarea…'
           }
           newChatLabel={exp.admin ? 'Nueva cotización' : 'Empezar de nuevo'}
-          showNewChatButton={false}
+          // Sin barra, la afordancia de empezar otra tiene que vivir en el
+          // composer — y fi-glass ya la trae, no hay que inventarla.
+          showNewChatButton={!exp.admin}
           aboveComposer={
             presupuestoAbierto ? (
               <FenixBarraPresupuesto
@@ -197,6 +242,38 @@ export function FenixChat() {
         )
       }
     />
+      {/* La píldora vive al pie de la barra, y en el cibercafé no hay barra.
+          Sin esto, una PC NUEVA del mostrador arranca en público y no tiene
+          dónde pegar su token: el callejón sin salida que la barra tapaba.
+          Discreta a propósito — quien la necesita la busca una sola vez. */}
+      {!exp.admin && (
+        <div className="fx-llave-suelta">
+          <FenixUsuario
+            admin={exp.admin}
+            modoAbierto={exp.modoAbierto}
+            correoConocido={exp.correoConocido}
+            compacto
+            onCambio={() => void exp.recargar()}
+          />
+        </div>
+      )}
+
+      {porGuardar && (
+        <FenixGuardarAntesDeIrse
+          turnos={conversation.messages.length}
+          onDescargar={() => {
+            descargarConversacion();
+            setPorGuardar(false);
+            lib.newConversation();
+          }}
+          onSeguirSinGuardar={() => {
+            setPorGuardar(false);
+            lib.newConversation();
+          }}
+          onCancelar={() => setPorGuardar(false)}
+        />
+      )}
+
       {verExcel && (
         <FenixVisorExcel
           hoja={hoja}

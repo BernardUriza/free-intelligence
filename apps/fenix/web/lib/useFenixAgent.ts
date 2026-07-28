@@ -21,7 +21,8 @@ import {
   type AgentStreamEvent,
   type AgentTurnState,
 } from '@free-intelligence/core';
-import { authHeaders, AUTH401 } from './fenixToken';
+import { AUTH401 } from './fenixToken';
+import { fenixHeaders } from './fenixSesion';
 
 const API = process.env.NEXT_PUBLIC_FENIX_API ?? 'http://localhost:8118';
 const CORPUS = process.env.NEXT_PUBLIC_FENIX_CORPUS ?? '';
@@ -154,7 +155,7 @@ export function useFenixAgent(sessionId: string | null): AgentHook {
     try {
       const res = await fetch(`${API}/chat/stream`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: { 'Content-Type': 'application/json', ...fenixHeaders() },
         body: JSON.stringify({
           message: text,
           session_id: sid,

@@ -62,6 +62,44 @@ def test_sin_token_configurado_todo_es_mostrador(app_fenix, monkeypatch):
     assert datos["modoAbierto"] is True
 
 
+def test_el_cibercafe_habla_con_el_tutor_y_el_mostrador_con_la_papeleria(app_fenix):
+    """Dos productos, un servidor. La persona la decide quién llama.
+
+    La de la papelería tiene prohibido internet y sólo cotiza de la lista
+    maestra: en el cibercafé contestaba "esa pregunta no es de mi cancha" a
+    cualquier duda de tarea.
+    """
+    import fenix_app
+
+    publico = fenix_app._selector_por_rol(x_fenix_admin=None)
+    mostrador = fenix_app._selector_por_rol(x_fenix_admin="token-de-prueba")
+
+    runner_publico, elemento = publico(None)
+    assert elemento is None
+    assert runner_publico is fenix_app._tutor()
+    assert mostrador(None)[0] is not runner_publico
+
+
+def test_el_cibercafe_no_puede_pedir_la_persona_del_mostrador(app_fenix):
+    """El elemento es el selector de persona de og118; aquí sería la puerta
+    trasera que este selector existe para cerrar."""
+    import fenix_app
+
+    publico = fenix_app._selector_por_rol(x_fenix_admin=None)
+    for intento in (None, "", "oxigeno", "53", "papeleria"):
+        assert publico(intento)[0] is fenix_app._tutor()
+
+
+def test_la_persona_del_tutor_existe_y_permite_buscar(app_fenix):
+    """El caso de uso de Bernard —investigar el resultado de un evento— muere si
+    esta persona hereda el "no busques en internet" de la papelería."""
+    import fenix_app
+
+    texto = fenix_app.TUTOR_PATH.read_text(encoding="utf-8").lower()
+    assert "internet" in texto
+    assert "no pidas datos personales" in texto
+
+
 def test_se_cerro_alguna_ruta_heredada(app_fenix):
     """El guardia contra el silencio: si og118 mueve sus rutas, esto lo grita."""
     import fenix_app

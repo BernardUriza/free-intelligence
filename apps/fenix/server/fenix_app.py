@@ -40,7 +40,9 @@ from app import (  # noqa: E402  (la app de og118)
     app,
     get_conversation_store,
     get_principal,
+    get_runner_selector,
 )
+from fi_runner import load_prompt  # noqa: E402
 from runner import build_runner  # noqa: E402
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
@@ -329,6 +331,51 @@ async def extraer(
 
 
 app.include_router(router)
+
+
+# --- Quién contesta según desde dónde preguntan ------------------------------
+#
+# El mismo servidor atiende dos productos. La persona de la papelería tiene
+# prohibido internet y sólo cotiza de la lista maestra — correcto en el
+# mostrador, inservible en el cibercafé: verificado en runtime, ante "¿quién
+# ganó el Mundial de 2022?" contesta "esa pregunta no es de mi cancha".
+#
+# El criterio es quién llama, no un token que el cliente elija: si la persona
+# dependiera de un campo del request, cualquiera pediría la del mostrador.
+TUTOR_PATH = Path(__file__).parent / "prompts" / "tutor.md"
+
+_runner_tutor = None
+
+
+def _tutor():
+    """El runner del cibercafé, construido la primera vez que alguien pregunta.
+
+    Perezoso porque la mayoría de los arranques son del mostrador y no vale
+    pagar el costo de un runner que quizá nadie use. `load_prompt` relee por
+    mtime, así que editar `tutor.md` aplica sin reiniciar.
+    """
+    global _runner_tutor
+    if _runner_tutor is None:
+        _runner_tutor = build_runner(persona_text=load_prompt(TUTOR_PATH))
+    return _runner_tutor
+
+
+def _selector_por_rol(
+    x_fenix_admin: str | None = Header(default=None),
+):
+    base = get_runner_selector()
+    if es_admin(x_fenix_admin):
+        return base
+
+    def _publico(_token: str | None):
+        # El elemento se ignora a propósito: es el selector de persona de og118,
+        # y dejarlo vivo aquí sería la puerta trasera que este selector cierra.
+        return _tutor(), None
+
+    return _publico
+
+
+app.dependency_overrides[get_runner_selector] = _selector_por_rol
 
 
 # Rutas que og118 sirve abiertas y en la papelería NO pueden estarlo. El título

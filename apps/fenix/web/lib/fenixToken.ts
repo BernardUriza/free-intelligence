@@ -44,6 +44,15 @@ export function clearToken(): void {
   }
 }
 
+/**
+ * INTERNA — sólo la usa `fenixHeaders()` en `fenixSesion.ts`.
+ *
+ * Una llamada al servidor con esto y nada más viaja SIN el token del mostrador,
+ * así que el servidor la atiende como público: la lista de conversaciones
+ * responde 404 y `/chat/stream` contesta con la persona del cibercafé. No falla
+ * ruidosamente — hace algo distinto de lo que quien escribió la llamada creía.
+ * Usa `fenixHeaders()`.
+ */
 export function authHeaders(): Record<string, string> {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};

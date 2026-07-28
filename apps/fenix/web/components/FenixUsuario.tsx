@@ -30,11 +30,15 @@ export function FenixUsuario({
   admin,
   modoAbierto,
   correoConocido,
+  compacto = false,
   onCambio,
 }: {
   admin: boolean;
   modoAbierto: boolean;
   correoConocido: boolean;
+  /** Sólo la llave, sin texto. Para el cibercafé, donde no hay barra donde
+   *  anclarla y el niño no tiene por qué leer nada de cuentas. */
+  compacto?: boolean;
   onCambio: () => void;
 }) {
   const [abierto, setAbierto] = useState(false);
@@ -139,22 +143,36 @@ export function FenixUsuario({
 
       <button
         type="button"
-        className="fx-user fi-touch-target"
+        className={`fx-user fi-touch-target${compacto ? ' fx-user-compacto' : ''}`}
         aria-haspopup="dialog"
         aria-expanded={abierto}
+        aria-label={compacto ? 'Entrar como mostrador' : undefined}
+        title={compacto ? 'Entrar como mostrador' : undefined}
         onClick={() => setAbierto((v) => !v)}
       >
-        <span className={`fx-user-av${admin && !modoAbierto ? ' fx-user-av-admin' : ''}`} aria-hidden>
-          {correoGuardado ? iniciales(correoGuardado) : admin ? <ShieldCheck /> : <User />}
-        </span>
-        <span className="fx-user-txt">
-          <strong>{etiqueta}</strong>
-          <span>{subtitulo}</span>
-        </span>
-        {/* Un correo fuera de la lista suele ser un dedazo, y deja cotizaciones
-            difíciles de rastrear. Se avisa sin bloquear: no es una credencial. */}
-        {admin && !correoConocido && <span className="fx-user-alerta" aria-label="Correo no registrado" />}
-        {!admin && <KeyRound className="fx-user-llave" aria-hidden />}
+        {compacto ? (
+          <KeyRound aria-hidden />
+        ) : (
+          <>
+            <span
+              className={`fx-user-av${admin && !modoAbierto ? ' fx-user-av-admin' : ''}`}
+              aria-hidden
+            >
+              {correoGuardado ? iniciales(correoGuardado) : admin ? <ShieldCheck /> : <User />}
+            </span>
+            <span className="fx-user-txt">
+              <strong>{etiqueta}</strong>
+              <span>{subtitulo}</span>
+            </span>
+            {/* Un correo fuera de la lista suele ser un dedazo, y deja
+                cotizaciones difíciles de rastrear. Se avisa sin bloquear: no
+                es una credencial. */}
+            {admin && !correoConocido && (
+              <span className="fx-user-alerta" aria-label="Correo no registrado" />
+            )}
+            {!admin && <KeyRound className="fx-user-llave" aria-hidden />}
+          </>
+        )}
       </button>
     </div>
   );
