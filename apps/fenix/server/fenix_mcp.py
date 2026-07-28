@@ -62,6 +62,16 @@ def guardar_cotizacion(
     fuera: Annotated[
         list[str], Field(description="Artículos que Fénix no maneja, sólo la descripción.")
     ] = [],
+    total_declarado: Annotated[
+        float | None,
+        Field(
+            description=(
+                "El TOTAL que se le dio al cliente, si la conversación lo dice. Sirve para "
+                "detectar que el desglose quedó incompleto: si no cuadra con la suma de los "
+                "renglones, el expediente se marca y no se manda un Excel con un total falso."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Guarda el desglose de la cotización en el expediente del cliente.
 
@@ -90,9 +100,17 @@ def guardar_cotizacion(
             "forrado": forrado,
             "opcionales": opcionales,
             "fuera": fuera,
+            "totalDeclarado": total_declarado,
         },
     )
     renglones = len(guardado.get("items", [])) + len(guardado.get("forrado", []))
+    if guardado.get("desgloseIncompleto"):
+        return (
+            f"Guardado PARCIAL en el expediente de {guardado['alumno'] or 'cliente sin nombre'}: "
+            f"{renglones} renglones suman ${guardado['total']}, pero la conversación decía "
+            f"${total_declarado}. El expediente queda marcado como incompleto para que nadie "
+            "mande un Excel con un total que no es el que se cotizó."
+        )
     return (
         f"Cotización guardada en el expediente de {guardado['alumno'] or 'cliente sin nombre'}: "
         f"{renglones} renglones, total ${guardado['total']}. "

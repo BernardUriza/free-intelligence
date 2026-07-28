@@ -86,6 +86,8 @@ class ExpedienteStore:
         """
         for k in ("items", "forrado", "opcionales", "fuera"):
             e.setdefault(k, [])
+        e.setdefault("totalDeclarado", None)
+        e.setdefault("desgloseIncompleto", False)
         return e
 
     def listar(self, owner: str) -> list[dict]:
@@ -139,6 +141,22 @@ class ExpedienteStore:
             elif completo and estado == "bloqueada":
                 estado = "cotizando"
 
+            # Un desglose que no llega al total que se le dio al cliente es una
+            # trampa: el Excel saldría con una cifra menor y parecería correcto.
+            # Se marca para que la UI lo advierta en vez de dejar mandar el
+            # archivo a ciegas.
+            declarado = datos.get("totalDeclarado")
+            items_norm = _renglones(datos.get("items"))
+            forrado_norm = _renglones(datos.get("forrado"))
+            suma = sum(r["cantidad"] * r["precio"] for r in [*items_norm, *forrado_norm])
+            calculado = round(suma * (1 - float(datos.get("descuento") or 0.15)), 2)
+            incompleto = False
+            if declarado:
+                try:
+                    incompleto = abs(float(declarado) - calculado) > 1.0
+                except (TypeError, ValueError):
+                    incompleto = False
+
             expediente = {
                 "id": eid,
                 "ownerId": owner,
@@ -155,11 +173,13 @@ class ExpedienteStore:
                 # hilo porque el Excel se genera del expediente: si el dato
                 # está únicamente en la conversación, el entregable depende de
                 # volver a pedírselo al modelo cada vez.
-                "items": _renglones(datos.get("items")),
-                "forrado": _renglones(datos.get("forrado")),
+                "items": items_norm,
+                "forrado": forrado_norm,
                 "opcionales": _renglones(datos.get("opcionales")),
                 "fuera": [str(x).strip() for x in (datos.get("fuera") or []) if str(x).strip()],
                 "notas": (datos.get("notas") or "").strip(),
+                "totalDeclarado": declarado,
+                "desgloseIncompleto": incompleto,
                 "creado": (anterior or {}).get("creado") or _ahora(),
                 "actualizado": _ahora(),
             }
