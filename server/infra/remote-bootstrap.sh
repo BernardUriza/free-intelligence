@@ -42,6 +42,32 @@ install_runtime() {
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
 }
 
+install_caddy() {
+  echo "    [remote] Caddy — TLS reverse proxy for the LLM door (443 -> 127.0.0.1:8088)…"
+  if ! command -v caddy >/dev/null 2>&1; then
+    local APT="apt-get -o DPkg::Lock::Timeout=300"
+    $APT install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+      | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+      > /etc/apt/sources.list.d/caddy-stable.list
+    $APT update -qq && $APT install -y -qq caddy >/dev/null
+  fi
+  install -D -m 644 "$REMOTE_DIR/server/deploy/Caddyfile" /etc/caddy/Caddyfile
+  systemctl enable --now caddy >/dev/null 2>&1 || true
+  systemctl reload caddy 2>/dev/null || systemctl restart caddy
+}
+
+ensure_firewall() {
+  echo "    [remote] ufw — allow ssh/http/https/listener, default-deny the rest…"
+  command -v ufw >/dev/null 2>&1 || apt-get install -y -qq ufw >/dev/null
+  ufw allow 22/tcp >/dev/null   # SSH first — never lock the box out
+  ufw allow 80/tcp >/dev/null   # ACME challenge + redirect
+  ufw allow 443/tcp >/dev/null  # the TLS LLM door
+  ufw allow 9099/tcp >/dev/null # the device listener (plain, by design)
+  ufw --force enable >/dev/null
+}
+
 install_units() {
   echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
   cp "$REMOTE_DIR/server/deploy/aire-listener.service" "$REMOTE_DIR/server/deploy/aire-device.service" \
@@ -94,4 +120,6 @@ install_runtime
 wire_door_env
 restore_door_memory
 install_units
+install_caddy
+ensure_firewall
 verify_units

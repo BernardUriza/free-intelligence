@@ -38,6 +38,7 @@ compose_env() {
   fi
   append_secret "$VERB_TOKEN_FILE" "AIRE_VERB_TOKEN="   "the verbs (MKDIR/ALLOW/REVOKE)"
   append_secret "$LLM_TOKEN_FILE"  "AIRE_AUTH_TOKEN="   "the engine's LLM door"
+  append_secret "$CANARY_TOKEN_FILE" "AIRE_CANARY_TOKEN=" "the revocable Azure-front door"
   append_secret "$OAUTH_FILE"      "CLAUDE_CODE_OAUTH_TOKEN=" "the engine's Anthropic auth"
   append_secret "$WHITELIST_FILE"  "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
   ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'

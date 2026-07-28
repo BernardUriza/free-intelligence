@@ -20,6 +20,7 @@ DEPLOY_KEY="$HOME/.secrets/aire-github-deploy-key.txt"   # read-only, private re
 PEN_SECRET="$HOME/.secrets/aire-postgres.txt"
 VERB_TOKEN_FILE="$HOME/.secrets/aire-verb-token.txt"
 LLM_TOKEN_FILE="$HOME/.secrets/aire-llm-token.txt"
+CANARY_TOKEN_FILE="$HOME/.secrets/aire-canary-token.txt"   # revocable Azure-front key
 OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 REPO_URL="git@github.com:BernardUriza/aire-server.git"

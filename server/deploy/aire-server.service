@@ -1,5 +1,5 @@
 [Unit]
-Description=AIRE server — the engine's HTTP surface (SSR + SSE, port 8088)
+Description=AIRE server — the engine's HTTP surface (SSE events, localhost only)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,7 +11,9 @@ Environment=AIRE_ISOLATE_CONFIG=1
 Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=AIRE_WORKSPACES=/opt/aire/workspaces
 EnvironmentFile=-/etc/aire/env
-ExecStart=/opt/aire/.venv/bin/uvicorn aire.server:app --host 0.0.0.0 --port 8088
+# Bound to loopback: Caddy (443, auto-TLS) is the ONLY public face of the LLM
+# door — the Bearer token never travels on a plaintext port. See deploy/Caddyfile.
+ExecStart=/opt/aire/.venv/bin/uvicorn aire.server:app --host 127.0.0.1 --port 8088
 Restart=always
 RestartSec=2
 

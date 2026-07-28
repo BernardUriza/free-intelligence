@@ -15,11 +15,14 @@ This module is only the wiring: the app, the auth middleware, `/health`, and the
 routers. The endpoints live in `messages.py` and `artifacts.py` (one surface per
 module — the thirty-line file law); the engine singleton lives in `deps.py`.
 
-AUTHENTICATION — the LLM door (``AIRE_AUTH_TOKEN``). Every turn burns real
-Anthropic tokens, so everything except ``/health`` is gated by a long secret
-only Bernard holds: ``Authorization: Bearer <token>``. Unset token = fail
-CLOSED (503): a forgotten env var must never mean an open LLM. Comparison is
-constant-time.
+AUTHENTICATION — the LLM door. Every turn burns real Anthropic tokens, so
+everything except ``/health`` is gated by a long Bearer secret. Two tokens are
+accepted: ``AIRE_AUTH_TOKEN`` (Bernard's own) and an optional
+``AIRE_CANARY_TOKEN`` — a second, independently revocable key handed to a
+lower-trust consumer (the Azure front). A leak of the canary is revoked by
+dropping that one env var and restarting; Bernard's own key never rotates for
+it. Both fail CLOSED (503) when neither is set: a forgotten env var must never
+mean an open LLM. Comparison is constant-time.
 """
 
 from __future__ import annotations
@@ -35,7 +38,9 @@ from . import artifacts, init_project, messages
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
-AUTH_TOKEN = os.environ.get("AIRE_AUTH_TOKEN", "")
+ACCEPTED_TOKENS = tuple(
+    t for t in (os.environ.get("AIRE_AUTH_TOKEN", ""), os.environ.get("AIRE_CANARY_TOKEN", "")) if t
+)
 
 app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
 
@@ -47,13 +52,20 @@ def _presented_token(request: Request) -> str:
     return ""
 
 
+def _accepted(presented: str) -> bool:
+    ok = False
+    for token in ACCEPTED_TOKENS:  # check every token — no short-circuit timing leak
+        ok |= hmac.compare_digest(presented, token)
+    return ok
+
+
 @app.middleware("http")
 async def llm_door(request: Request, call_next: Any) -> Any:
     if request.url.path == "/health":
         return await call_next(request)
-    if not AUTH_TOKEN:
-        return JSONResponse({"detail": "AIRE_AUTH_TOKEN is not configured"}, status_code=503)
-    if not hmac.compare_digest(_presented_token(request), AUTH_TOKEN):
+    if not ACCEPTED_TOKENS:
+        return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
+    if not _accepted(_presented_token(request)):
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
 
