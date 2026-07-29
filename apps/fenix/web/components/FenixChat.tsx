@@ -132,7 +132,10 @@ export function FenixChat() {
     a.href = url;
     a.download = conversationFileName(registro);
     a.click();
-    URL.revokeObjectURL(url);
+    // Revocar en el mismo tick corre carrera con el inicio de la descarga:
+    // Chrome la arranca sincrónicamente y aguanta, otros navegadores se quedan
+    // con un archivo vacío. Un tick basta y no filtra nada.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   async function abrirVisor(e: Expediente) {

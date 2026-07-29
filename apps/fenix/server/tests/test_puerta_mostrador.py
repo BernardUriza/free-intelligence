@@ -10,6 +10,7 @@ renombra `/conversations`, el filtro deja de encontrarlas y el hueco se reabre
 sin que nada falle. Aquí falla.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 
@@ -54,12 +55,40 @@ def test_el_rol_distingue_mostrador_de_publico(app_fenix):
 
 
 def test_sin_token_configurado_todo_es_mostrador(app_fenix, monkeypatch):
-    """El default de desarrollo, explícito para que nadie lo despliegue así."""
+    """El modo abierto sigue existiendo — pero hay que pedirlo (ver abajo)."""
     monkeypatch.delenv("FENIX_ADMIN_TOKEN", raising=False)
     c = _cliente(app_fenix)
     datos = c.get("/expedientes/rol").json()
     assert datos["admin"] is True
     assert datos["modoAbierto"] is True
+
+
+def test_el_arranque_se_niega_a_dejar_el_negocio_abierto_por_descuido(monkeypatch):
+    """Un warning en un log no es un guardia.
+
+    Un deploy que olvidara `FENIX_ADMIN_TOKEN` servía la lista completa de
+    expedientes —alumnos, escuelas, WhatsApps de las mamás— y se veía igual que
+    uno correcto: arrancaba bien y nadie lee la salida de un contenedor sano.
+    """
+    from rbac import ConfiguracionInsegura, exigir_config
+
+    monkeypatch.delenv("FENIX_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("FENIX_MODO_ABIERTO", raising=False)
+    with pytest.raises(ConfiguracionInsegura):
+        exigir_config()
+
+
+def test_el_modo_abierto_se_alcanza_tecleandolo(monkeypatch):
+    """Un estado inseguro por omisión es un accidente; declarado, una decisión."""
+    from rbac import exigir_config
+
+    monkeypatch.delenv("FENIX_ADMIN_TOKEN", raising=False)
+    monkeypatch.setenv("FENIX_MODO_ABIERTO", "1")
+    exigir_config()
+
+    monkeypatch.setenv("FENIX_ADMIN_TOKEN", "algo")
+    monkeypatch.delenv("FENIX_MODO_ABIERTO", raising=False)
+    exigir_config()
 
 
 def test_el_cibercafe_habla_con_el_tutor_y_el_mostrador_con_la_papeleria(app_fenix):

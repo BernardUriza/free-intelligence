@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 from typing import Any
 from pathlib import Path
 
@@ -53,7 +54,11 @@ from runner import build_runner  # noqa: E402
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
-from rbac import correo_conocido, es_admin, modo_abierto  # noqa: E402
+from rbac import correo_conocido, es_admin, exigir_config, modo_abierto  # noqa: E402
+
+# Antes de montar nada: un arranque con los expedientes abiertos por descuido
+# revienta aquí, donde se ve, y no dentro de un contenedor que parece sano.
+exigir_config()
 
 _store: ExpedienteStore | None = None
 
@@ -351,6 +356,10 @@ app.include_router(router)
 TUTOR_PATH = Path(__file__).parent / "prompts" / "tutor.md"
 
 _runner_tutor = None
+# `_selector_por_rol` es una dependencia SÍNCRONA, así que FastAPI la corre en un
+# threadpool: dos primeras peticiones entran de verdad en paralelo y construían
+# dos runners. El candado no protege datos, evita el trabajo duplicado.
+_candado_tutor = threading.Lock()
 
 
 def _tutor():
@@ -372,11 +381,13 @@ def _tutor():
     """
     global _runner_tutor
     if _runner_tutor is None:
-        _runner_tutor = build_runner(
-            persona_text=load_prompt(TUTOR_PATH),
-            capabilities=["task_tracker"],
-            extra_mcp_servers=[],
-        )
+        with _candado_tutor:
+            if _runner_tutor is None:
+                _runner_tutor = build_runner(
+                    persona_text=load_prompt(TUTOR_PATH),
+                    capabilities=["task_tracker"],
+                    extra_mcp_servers=[],
+                )
     return _runner_tutor
 
 

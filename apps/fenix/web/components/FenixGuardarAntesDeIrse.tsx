@@ -9,6 +9,7 @@
  * cuando el trabajo se va a perder, y sólo si hay trabajo que perder.
  */
 
+import { useEffect, useRef } from 'react';
 import { Download, RotateCcw, X } from 'lucide-react';
 
 export function FenixGuardarAntesDeIrse({
@@ -22,6 +23,41 @@ export function FenixGuardarAntesDeIrse({
   onSeguirSinGuardar: () => void;
   onCancelar: () => void;
 }) {
+  const caja = useRef<HTMLDivElement>(null);
+
+  // Escape cierra y el foco no se escapa del diálogo. Se abre con el teclado
+  // (el botón de empezar otra está en el composer), así que sin esto el foco se
+  // quedaba atrás en la conversación y Tab paseaba por botones tapados.
+  useEffect(() => {
+    const previo = document.activeElement as HTMLElement | null;
+    caja.current?.querySelector<HTMLElement>('.fx-btn-primario')?.focus();
+
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancelar();
+        return;
+      }
+      if (e.key !== 'Tab' || !caja.current) return;
+      const focusables = caja.current.querySelectorAll<HTMLElement>('button');
+      if (!focusables.length) return;
+      const primero = focusables[0];
+      const ultimo = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === primero) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primero.focus();
+      }
+    };
+
+    window.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('keydown', tecla);
+      previo?.focus?.();
+    };
+  }, [onCancelar]);
+
   return (
     <div className="fx-modal-fondo" role="presentation" onClick={onCancelar}>
       <div
@@ -29,6 +65,7 @@ export function FenixGuardarAntesDeIrse({
         role="dialog"
         aria-modal="true"
         aria-labelledby="fx-guardar-titulo"
+        ref={caja}
         onClick={(e) => e.stopPropagation()}
       >
         <button type="button" className="fx-modal-x fi-touch-target" onClick={onCancelar} aria-label="Cancelar">

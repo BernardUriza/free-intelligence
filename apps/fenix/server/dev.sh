@@ -21,8 +21,12 @@ if [[ -z "${FENIX_ADMIN_TOKEN:-}" && -f "$HOME/.secrets/fenix.txt" ]]; then
   FENIX_ADMIN_TOKEN="$(grep '^FENIX_ADMIN_TOKEN=' "$HOME/.secrets/fenix.txt" | cut -d= -f2-)"
   export FENIX_ADMIN_TOKEN
 fi
+# Sin token el servidor se niega a arrancar (rbac.exigir_config). Este script es
+# para local, así que declara el modo abierto a propósito — un deploy que no lo
+# haga falla ruidosamente, que es justo lo que se quiere.
 if [[ -z "${FENIX_ADMIN_TOKEN:-}" ]]; then
-  echo "AVISO: sin FENIX_ADMIN_TOKEN — todos los visitantes son mostrador." >&2
+  echo "AVISO: sin FENIX_ADMIN_TOKEN — modo abierto local, todos son mostrador." >&2
+  export FENIX_MODO_ABIERTO=1
 fi
 
 export FI_PERSONA_PATH="$REPO/apps/fenix/server/prompts/persona.md"
