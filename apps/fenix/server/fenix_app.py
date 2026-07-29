@@ -35,13 +35,19 @@ from fastapi.responses import Response  # noqa: E402
 from fastapi.routing import APIRoute  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from app import (  # noqa: E402  (la app de og118)
+from app import (  # noqa: E402  (el runtime de og118)
     Principal,
-    app,
+    create_app,
     get_conversation_store,
     get_principal,
     get_runner_selector,
 )
+
+# Instancia PROPIA, no la de og118. Fénix endurece rutas que og118 sirve
+# abiertas; hacerlo sobre su objeto compartido le viajaba de vuelta — con
+# FENIX_ADMIN_TOKEN en el entorno rompía 12 de sus tests, porque en una sesión
+# de pytest los dos módulos comparten proceso.
+app = create_app()
 from fi_runner import load_prompt  # noqa: E402
 from runner import build_runner  # noqa: E402
 
@@ -348,15 +354,29 @@ _runner_tutor = None
 
 
 def _tutor():
-    """El runner del cibercafé, construido la primera vez que alguien pregunta.
+    """El runner del cibercafé: otra persona Y otro cinturón de herramientas.
 
-    Perezoso porque la mayoría de los arranques son del mostrador y no vale
-    pagar el costo de un runner que quizá nadie use. `load_prompt` relee por
-    mtime, así que editar `tutor.md` aplica sin reiniciar.
+    Cambiar sólo la persona no acotaba NADA. Con las capabilities de og118, este
+    runner heredaba `rag_store` —search, ingest, delete_document, delete_corpus—
+    y el MCP de expedientes, todo apuntando al negocio. Comprobado en runtime:
+    una petición SIN ninguna credencial llamó `search_documents` y devolvió
+    precios textuales de la lista maestra. Con las destructivas presentes, un
+    `delete_corpus` desde una PC del ciber se lleva el activo del que depende
+    cotizar.
+
+    `task_tracker` se queda: es el plan/steps del glass-box, en memoria y sin
+    alcance a datos. Lo que se va es todo lo que toca el negocio.
+
+    Perezoso porque la mayoría de los arranques son del mostrador. `load_prompt`
+    relee por mtime, así que editar `tutor.md` aplica sin reiniciar.
     """
     global _runner_tutor
     if _runner_tutor is None:
-        _runner_tutor = build_runner(persona_text=load_prompt(TUTOR_PATH))
+        _runner_tutor = build_runner(
+            persona_text=load_prompt(TUTOR_PATH),
+            capabilities=["task_tracker"],
+            extra_mcp_servers=[],
+        )
     return _runner_tutor
 
 

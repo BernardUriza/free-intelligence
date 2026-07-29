@@ -69,7 +69,7 @@ export function FenixChat() {
     [exp.admin],
   );
   const lib = useConversationLibrary(library);
-  const agent = useFenixAgent(lib.activeId);
+  const agent = useFenixAgent(lib.activeId, exp.admin);
   const conversation = useAgentConversation(agent, {
     author: FENIX_AUTHOR,
     conversationId: lib.activeId,

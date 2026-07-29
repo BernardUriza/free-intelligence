@@ -90,6 +90,29 @@ def test_el_cibercafe_no_puede_pedir_la_persona_del_mostrador(app_fenix):
         assert publico(intento)[0] is fenix_app._tutor()
 
 
+def test_el_runner_publico_no_alcanza_los_datos_del_negocio(app_fenix):
+    """La persona decide lo que el modelo QUIERE; las capabilities lo que PUEDE.
+
+    Comprobado en runtime antes de este arreglo: una petición SIN ninguna
+    credencial llamó `mcp__fi-core-rag-store__search_documents` y devolvió
+    precios textuales de la lista maestra. El mismo cinturón traía
+    `delete_corpus` —que se lleva el activo del que depende cotizar— y el MCP
+    de expedientes, que escribe fichas de clientes sin verificar nada.
+    """
+    import fenix_app
+
+    tutor = fenix_app._tutor()
+    herramientas = " ".join(str(s) for s in (tutor.capabilities or []))
+    assert "rag_store" not in herramientas
+    assert not (tutor.extra_mcp_servers or []), "el tutor no lleva el MCP de expedientes"
+
+    # El del mostrador SÍ los necesita: sin rag_store no puede leer la lista
+    # maestra, que es su trabajo entero.
+    from app import _runner
+
+    assert "rag_store" in " ".join(str(s) for s in (_runner.capabilities or []))
+
+
 def test_la_persona_del_tutor_existe_y_permite_buscar(app_fenix):
     """El caso de uso de Bernard —investigar el resultado de un evento— muere si
     esta persona hereda el "no busques en internet" de la papelería."""
@@ -98,6 +121,21 @@ def test_la_persona_del_tutor_existe_y_permite_buscar(app_fenix):
     texto = fenix_app.TUTOR_PATH.read_text(encoding="utf-8").lower()
     assert "internet" in texto
     assert "no pidas datos personales" in texto
+
+
+def test_endurecer_fenix_no_toca_la_app_de_og118(app_fenix):
+    """Las dos apps, vivas en el mismo proceso, con puertas distintas.
+
+    Cuando Fénix mutaba el objeto `app` compartido, su cierre viajaba de vuelta:
+    con FENIX_ADMIN_TOKEN en el entorno, 12 tests de og118 fallaban con 404 en
+    rutas que og118 sirve abiertas a propósito. Aquí se afirma lo contrario.
+    """
+    import app as og118
+
+    assert _cliente(app_fenix).get("/conversations").status_code == 404
+    assert _cliente(og118.app).get("/conversations").status_code == 200
+    assert app_fenix is not og118.app
+    assert og118.get_runner_selector not in og118.app.dependency_overrides
 
 
 def test_se_cerro_alguna_ruta_heredada(app_fenix):

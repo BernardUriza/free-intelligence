@@ -125,12 +125,19 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
   }
 }
 
-export function useFenixAgent(sessionId: string | null): AgentHook {
+export function useFenixAgent(sessionId: string | null, admin: boolean): AgentHook {
   const [turn, setTurn] = useState<AgentTurnState>(initialAgentTurnState());
   const [isStreaming, setIsStreaming] = useState(false);
   const sessionIdRef = useRef<string | null>(sessionId);
   sessionIdRef.current = sessionId;
   const abortRef = useRef<AbortController | null>(null);
+  // El corpus del NEGOCIO sólo viaja desde el mostrador. Es una constante
+  // NEXT_PUBLIC_, o sea horneada en el bundle y legible por cualquiera, y el
+  // binding de fi-runner la convierte en "busca proactivamente en ese corpus":
+  // mandarla desde una PC pública era servirle la lista maestra al modelo y
+  // encima ordenarle usarla.
+  const adminRef = useRef(admin);
+  adminRef.current = admin;
 
   const send = useCallback(async (message: string, meta?: AgentSendMeta) => {
     const text = message.trim();
@@ -163,7 +170,7 @@ export function useFenixAgent(sessionId: string | null): AgentHook {
           // fenix precarga SIEMPRE el corpus de la papelería: aquí no hay selector
           // de proyecto que el equipo pueda olvidar. Es la diferencia de producto
           // contra og118, no una limitación.
-          ...(CORPUS ? { corpus_id: CORPUS } : {}),
+          ...(CORPUS && adminRef.current ? { corpus_id: CORPUS } : {}),
           ...(images ? { images: images.map((i) => ({ media_type: i.mediaType, data: i.data })) } : {}),
         }),
         signal: controller.signal,
