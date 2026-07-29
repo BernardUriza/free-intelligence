@@ -13,6 +13,14 @@ from typing import Any
 from .contract import ToolCall, TurnResult
 
 
+def turn_cost(event: dict[str, Any]) -> float:
+    """The dollars a `result` event reports (0.0 when absent) — the engine's
+    per-turn accounting reads it off the drained stream, not the SDK directly."""
+    usage = getattr(event.get("result"), "usage", None) or {}
+    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
+    return float(cost) if cost else 0.0
+
+
 @dataclass
 class _State:
     parts: list[str] = field(default_factory=list)

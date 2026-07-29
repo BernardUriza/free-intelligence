@@ -14,7 +14,7 @@ from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 from ..keys import sdk_session_uuid
 from .contract import BudgetExceeded
 from .detach import Detached
-from .drain import drain
+from .drain import drain, turn_cost
 from .options import DEFAULT_MODE, build_options
 from .pool import Pool
 
@@ -26,12 +26,6 @@ WORKSPACES = Path(os.environ.get(
 MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
 # The same ceiling given to the SDK, kept to RECOGNISE a cut turn (#23).
 TURN_CAP_USD = float(os.environ["AIRE_MAX_BUDGET_USD"]) if os.environ.get("AIRE_MAX_BUDGET_USD") else None
-
-
-def turn_cost(event: dict[str, Any]) -> float:
-    usage = getattr(event.get("result"), "usage", None) or {}
-    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
-    return float(cost) if cost else 0.0
 
 
 class Engine:
@@ -64,8 +58,6 @@ class Engine:
             await self.pool.evict(now)
             client = self.pool.clients.get(key)
             if client is None:
-                # Tools (like mode) are fixed at the session's first turn: the pooled
-                # client is built once, so a later turn's different `tools` is ignored.
                 await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
