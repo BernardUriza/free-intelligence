@@ -167,6 +167,72 @@ def test_endurecer_fenix_no_toca_la_app_de_og118(app_fenix):
     assert og118.get_runner_selector not in og118.app.dependency_overrides
 
 
+class _RunnerFalso:
+    """Un turno que no llama al modelo.
+
+    Sin esto, probar la cuota gastaría cuota real y tardaría minutos — el
+    absurdo exacto que estos tests existen para prevenir.
+    """
+
+    async def run_stream(self, *_a, **_k):
+        yield {"type": "result", "result": {"text": "ok"}}
+        yield {"type": "done"}
+
+
+@pytest.fixture
+def sin_modelo(app_fenix):
+    """Cablea el runner falso en la app, respetando el turno real de la cuota."""
+    import app as og118
+
+    app_fenix.dependency_overrides[og118.get_runner_selector] = lambda: (
+        lambda _token: (_RunnerFalso(), None)
+    )
+    yield app_fenix
+    app_fenix.dependency_overrides.pop(og118.get_runner_selector, None)
+
+
+def test_el_publico_agota_su_cuota_de_turnos(sin_modelo, monkeypatch):
+    """`/chat/stream` es el único endpoint que cuesta dinero y no lo protegía nada.
+
+    Se ejercita la RUTA real, no la clase: un límite que existe pero no está
+    cableado al endpoint es exactamente el fake-green que esto previene.
+    """
+    import fenix_app
+
+    monkeypatch.setattr(fenix_app, "_CUOTA", fenix_app.cuota_publica())
+    fenix_app._CUOTA.por_minuto = 2
+    c = _cliente(sin_modelo)
+
+    cuerpo = {"message": "hola"}
+    codigos = [c.post("/chat/stream", json=cuerpo).status_code for _ in range(3)]
+    assert codigos[-1] == 429, f"el tercer turno público debió cortarse: {codigos}"
+
+    respuesta = c.post("/chat/stream", json=cuerpo)
+    assert respuesta.headers.get("Retry-After")
+    assert respuesta.json()["detail"]["code"] == "CUOTA_AGOTADA"
+
+
+def test_al_mostrador_no_se_le_corta_una_venta(sin_modelo, monkeypatch):
+    """Cotizar treinta artículos son muchos turnos seguidos; frenar eso cuesta
+    más que lo que la cuota previene."""
+    import fenix_app
+
+    monkeypatch.setattr(fenix_app, "_CUOTA", fenix_app.cuota_publica())
+    fenix_app._CUOTA.por_minuto = 1
+    c = _cliente(sin_modelo)
+
+    for _ in range(5):
+        r = c.post("/chat/stream", json={"message": "hola"}, headers=ADMIN)
+        assert r.status_code != 429
+
+
+def test_se_puso_cuota_en_la_ruta_que_cuesta(app_fenix):
+    """Si og118 mueve /chat/stream, el gasto se queda sin techo en silencio."""
+    import fenix_app
+
+    assert "/chat/stream" in fenix_app._CON_CUOTA
+
+
 def test_se_cerro_alguna_ruta_heredada(app_fenix):
     """El guardia contra el silencio: si og118 mueve sus rutas, esto lo grita."""
     import fenix_app

@@ -30,7 +30,7 @@ OG118 = Path(__file__).resolve().parents[2] / "og118" / "server"
 if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
-from fastapi import APIRouter, Depends, Header, HTTPException  # noqa: E402
+from fastapi import APIRouter, Depends, Header, HTTPException, Request  # noqa: E402
 from fastapi.dependencies.utils import get_parameterless_sub_dependant  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
 from fastapi.routing import APIRoute  # noqa: E402
@@ -54,6 +54,7 @@ from runner import build_runner  # noqa: E402
 
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
+from cuota import CuotaAgotada, clave_de, cuota_publica  # noqa: E402
 from rbac import correo_conocido, es_admin, exigir_config, modo_abierto  # noqa: E402
 
 # Antes de montar nada: un arranque con los expedientes abiertos por descuido
@@ -421,18 +422,76 @@ app.dependency_overrides[get_runner_selector] = _selector_por_rol
 _RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
 
 
+def _inyectar(ruta: APIRoute, dependencia) -> None:
+    ruta.dependencies.append(dependencia)
+    ruta.dependant.dependencies.insert(
+        0, get_parameterless_sub_dependant(depends=dependencia, path=ruta.path)
+    )
+
+
 def _cerrar_rutas_heredadas() -> list[str]:
     puerta = Depends(solo_admin)
     cerradas: list[str] = []
     for ruta in app.routes:
         if isinstance(ruta, APIRoute) and ruta.path.startswith(_RUTAS_DEL_MOSTRADOR):
-            ruta.dependencies.append(puerta)
-            ruta.dependant.dependencies.insert(
-                0, get_parameterless_sub_dependant(depends=puerta, path=ruta.path)
-            )
+            _inyectar(ruta, puerta)
             cerradas.append(ruta.path)
     return cerradas
 
+
+# --- El presupuesto de turnos del cibercafé ----------------------------------
+#
+# `/chat/stream` es el único endpoint que cuesta dinero, y en la superficie
+# pública no lo protege nada: autenticar no sirve ahí porque el bearer vive en
+# el navegador de una máquina donde cualquiera se sienta. Ver `cuota.py`.
+#
+# Se inyecta igual que la puerta del mostrador, en la ruta heredada, para no
+# tocar og118 ni inventar un segundo mecanismo.
+_CUOTA = cuota_publica()
+
+
+def _cobrar_turno(
+    request: Request,
+    x_fenix_admin: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> None:
+    # El mostrador no se limita: cotizar una lista de treinta artículos son
+    # muchos turnos seguidos, y frenar una venta a media captura cuesta más que
+    # lo que esto previene.
+    if es_admin(x_fenix_admin):
+        return
+    clave = clave_de(request.client.host if request.client else None, x_forwarded_for)
+    try:
+        _CUOTA.consumir(clave)
+    except CuotaAgotada as agotada:
+        # 429 con el tiempo real de espera, no un 500 ni un silencio: el niño
+        # tiene que entender que le toca esperar, no creer que se descompuso.
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "CUOTA_AGOTADA",
+                "message": "Ya usaste muchas preguntas seguidas. Espera un momento y sigue.",
+                "retry_after": agotada.segundos,
+            },
+            headers={"Retry-After": str(agotada.segundos)},
+        ) from agotada
+
+
+def _poner_cuota() -> list[str]:
+    cobro = Depends(_cobrar_turno)
+    puestas: list[str] = []
+    for ruta in app.routes:
+        if isinstance(ruta, APIRoute) and ruta.path == "/chat/stream":
+            _inyectar(ruta, cobro)
+            puestas.append(ruta.path)
+    return puestas
+
+
+_CON_CUOTA = _poner_cuota()
+if not _CON_CUOTA:  # og118 movió /chat/stream y el gasto quedó sin techo
+    raise RuntimeError(
+        "no se puso cuota en /chat/stream: revisa el path contra el de og118"
+    )
 
 _CERRADAS = _cerrar_rutas_heredadas()
 if not _CERRADAS:  # og118 renombró o movió sus rutas y la puerta quedó sin poner

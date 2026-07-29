@@ -179,6 +179,21 @@ export function useFenixAgent(sessionId: string | null, admin: boolean): AgentHo
         apply({ type: 'error', message: `${AUTH401}: token de acceso inválido o ausente` });
         return;
       }
+      if (res.status === 429) {
+        // La cuota del cibercafé. Sin esto el niño ve un error crudo y cree que
+        // se descompuso; lo que pasa es que le toca esperar, y el servidor ya
+        // dice cuánto.
+        const espera = Math.max(1, Number(res.headers.get('Retry-After') ?? 0));
+        const [cantidad, unidad] =
+          espera > 90 ? [Math.ceil(espera / 60), 'minuto'] : [espera, 'segundo'];
+        apply({
+          type: 'error',
+          message:
+            `Ya usaste muchas preguntas seguidas. Espera ${cantidad} ` +
+            `${unidad}${cantidad === 1 ? '' : 's'} y sigue preguntando.`,
+        });
+        return;
+      }
       if (!res.body) throw new Error('no response body');
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
