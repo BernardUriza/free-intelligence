@@ -20,6 +20,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from .deps import get_engine
 from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy
+from .engine.tools import UnknownTool, clean_tools
 from .names import InvalidName, clean
 
 router = APIRouter()
@@ -42,19 +43,34 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     body = await request.json()
     message = str(body.get("message", body.get("prompt", ""))).strip()
     mode = safe_mode(body.get("mode"))
+    tools = safe_tools(body.get("tools"), mode)
     # An empty message is NOT a turn: sending it to the SDK is a real query that
     # spends money for nothing. The edge cuts it before it touches the agent.
     if not message:
         raise HTTPException(status_code=422, detail="empty message")
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
-        return await _launch_background(project, session, message, mode)
-    return EventSourceResponse(_events(project, session, message, mode))
+        return await _launch_background(project, session, message, mode, tools)
+    return EventSourceResponse(_events(project, session, message, mode, tools))
 
 
-async def _launch_background(project: str, session: str, message: str, mode: str) -> JSONResponse:
+def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
+    """Validate the `tools` field against the vetted registry (#29). A tool turn
+    needs the agentic loop, so tools with mode=complete is a 422, not a silent
+    prompt-and-hang."""
+    try:
+        names = clean_tools(raw)
+    except UnknownTool as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if names and mode == "complete":
+        raise HTTPException(status_code=422, detail="tools require mode=agent")
+    return tuple(names)
+
+
+async def _launch_background(project: str, session: str, message: str, mode: str,
+                             tools: tuple[str, ...]) -> JSONResponse:
     engine = await get_engine()
     try:
-        engine.launch_detached(project, session, message, mode)
+        engine.launch_detached(project, session, message, mode, tools)
     except RuntimeError as exc:  # a turn already runs on this session
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse({"status": "accepted", "session": session}, status_code=202)
@@ -69,10 +85,11 @@ async def session_status(project: str, session: str) -> JSONResponse:
                          "running": engine.detached.running(f"{project}/{session}")})
 
 
-async def _events(project: str, session: str, message: str, mode: str) -> AsyncIterator[ServerSentEvent]:
+async def _events(project: str, session: str, message: str, mode: str,
+                  tools: tuple[str, ...]) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
-        async for ev in engine.run_stream(project, session, message, mode):
+        async for ev in engine.run_stream(project, session, message, mode, tools):
             yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
     except BudgetExceeded as exc:
         # The spend ceiling was hit BEFORE the turn touched the API. Tell the

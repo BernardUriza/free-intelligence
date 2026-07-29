@@ -56,18 +56,21 @@ class Engine:
     async def has_session(self, project: str, session: str) -> bool:
         return bool(await self.session_store.load(self.session_key(project, session)))
 
-    async def _client_for(self, project: str, session: str, mode: str) -> tuple[Any, asyncio.Lock]:
+    async def _client_for(self, project: str, session: str, mode: str,
+                          tools: tuple[str, ...] = ()) -> tuple[Any, asyncio.Lock]:
         key = f"{project}/{session}"
         async with self.pool.guard:
             now = time.monotonic()
             await self.pool.evict(now)
             client = self.pool.clients.get(key)
             if client is None:
+                # Tools (like mode) are fixed at the session's first turn: the pooled
+                # client is built once, so a later turn's different `tools` is ignored.
                 await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
                                         str(self._cwd(project)),
-                                        sdk_session_uuid(session), mode, resuming)
+                                        sdk_session_uuid(session), mode, resuming, tools)
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
                 self.pool.clients[key] = client
@@ -76,20 +79,21 @@ class Engine:
         return client, lock
 
     async def run_stream(self, project: str, session: str, prompt: str,
-                         mode: str = DEFAULT_MODE) -> AsyncIterator[dict[str, Any]]:
+                         mode: str = DEFAULT_MODE,
+                         tools: tuple[str, ...] = ()) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues."""
         if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
             raise BudgetExceeded(
                 f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
         async with self.pool.slot():
-            async for event in self._turn(project, session, prompt, mode):
+            async for event in self._turn(project, session, prompt, mode, tools):
                 yield event
 
     async def _turn(self, project: str, session: str, prompt: str,
-                    mode: str) -> AsyncIterator[dict[str, Any]]:
+                    mode: str, tools: tuple[str, ...] = ()) -> AsyncIterator[dict[str, Any]]:
         key = f"{project}/{session}"
-        client, lock = await self._client_for(project, session, mode)
+        client, lock = await self._client_for(project, session, mode, tools)
         spent = False
         try:
             async with lock:  # serializes turns on the same client (not concurrency-safe)
@@ -115,16 +119,18 @@ class Engine:
         self._seen_cost[key] = cost
         return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
-    def launch_detached(self, project: str, session: str, prompt: str, mode: str) -> None:
+    def launch_detached(self, project: str, session: str, prompt: str, mode: str,
+                        tools: tuple[str, ...] = ()) -> None:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
         finishes even if the caller hangs up. Raises if one already runs here."""
         self.detached.launch(
             f"{project}/{session}",
-            lambda: self._drain_detached(project, session, prompt, mode))
+            lambda: self._drain_detached(project, session, prompt, mode, tools))
 
-    async def _drain_detached(self, project: str, session: str, prompt: str, mode: str) -> None:
+    async def _drain_detached(self, project: str, session: str, prompt: str, mode: str,
+                              tools: tuple[str, ...] = ()) -> None:
         try:
-            async for ev in self.run_stream(project, session, prompt, mode):
+            async for ev in self.run_stream(project, session, prompt, mode, tools):
                 # No client listens in background — surface an error (a budget cut).
                 if ev.get("type") == "error":
                     print(f"DETACHED {project}/{session} {ev.get('error')}: {ev.get('detail', '')}")
