@@ -80,6 +80,14 @@ of its own contract, not views, and are explicitly allowed:
    write to the table (the ALLOW/REVOKE verbs), so the read is a startup load kept
    in lockstep with those writes — no polling, no query per connection.
 
-Neither is a waiter read. If Bernard vetoes either, that feature moves out of
-scope — his call. Any THIRD read that serves a view is a violation; it belongs in
-the front.
+3. **The `memory` tool's `recall`** (`engine/memory_tool.py`, backlog #29) — the
+   agent searching its OWN transcript in `claude_session_store` through a per-turn
+   tool. It is the SAME family as exception 1 (the agent reading its own memory),
+   not a waiter read: the result feeds the AGENT (a tool result), never a human
+   view. Session-scoped by construction (the server closes over the casita's
+   project_key), so one project can never read another's transcript. Authorized by
+   Bernard 2026-07-29 when he chose "an in-process memory server over AIRE's own
+   Postgres" as the first tenant of the tool registry.
+
+None is a waiter read. If Bernard vetoes any, that feature moves out of scope —
+his call. Any read that serves a VIEW is a violation; it belongs in the front.

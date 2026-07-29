@@ -1,6 +1,6 @@
 # Grow the door — per-turn model / tools / images for the fi-runner AIREBackend
 
-Status: **Proposed** 2026-07-27 by Claude (surfaced building fi-runner's AIREBackend)
+Status: **In progress** — the tools MECHANISM + gap #1 (per-turn tools) shipped 2026-07-29
 Proposed: 2026-07-27
 
 ## What it is
@@ -59,8 +59,30 @@ The four gaps, in the order fi will need them:
 
 ## Status / next step
 
-Not built. The first-cut backend ships with each gap rejected loudly + documented,
-so nothing lies. Next when Bernard greenlights: start with #1 (per-turn tools),
-because it is the one that unblocks a real consumer. See fi-runner backlog
-`fi-runner-aire-backend.md` (the consumer side) and
-[[ssh-is-a-missing-endpoint]].
+**The mechanism + gap #1 (per-turn tools) SHIPPED 2026-07-29.** Bernard chose the
+"in-process registry AIRE ships" shape (never arbitrary specs — that would be RCE
+on the root droplet). What landed:
+
+- `engine/tools.py` — the registry: a turn selects vetted servers BY NAME
+  (`{"tools":["memory"]}`); a dict/spec/unknown name is refused (the RCE vector is
+  closed, unit-verified).
+- `engine/memory_tool.py` — the first tenant: an in-process `memory` server with a
+  `recall` tool over AIRE's OWN `claude_session_store`, session-scoped to the
+  casita's project_key (a new sanctioned read, [[write-only-daemon]] §3).
+- Wired through `messages.py` → `core.py` → `options.py`; tools require `mode=agent`
+  (a 422 otherwise); tools are fixed at the session's first turn (like mode).
+- **Verified E2E** against a local daemon on the real Postgres: the agent called
+  `mcp__memory__recall` through the door (mode=agent, $0.21), and `recall` retrieves
+  real transcript rows (tested directly against a prod project_key). Thirty-line law
+  green.
+
+Remaining gaps (this item stays open until they close or Bernard scopes them out):
+- **Gap #2/#3/#4** — per-turn `system_prompt` / `model` / `images` (unbuilt).
+- **The consumer side**: fi-runner's `AIREBackend` still REJECTS `mcp_servers` —
+  next it must translate a consumer's tool needs into registry tool NAMES and pass
+  `tools=[…]` to the door. That unblocks discord-bot's real turn on AIRE.
+- **More registry tenants**: `memory/recall` is AIRE-agnostic (its own transcript).
+  Consumer-specific servers (og118's rag_store, discord-bot's persona_memory) are a
+  further identity fork — does AIRE host consumer schemas? — deferred to Bernard.
+
+See fi-runner backlog `fi-runner-aire-backend.md` and [[ssh-is-a-missing-endpoint]].
