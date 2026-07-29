@@ -67,10 +67,18 @@ def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
     return specs
 
 
+# Lo que og118 le da a un turno normal. Nombrado porque ahora hay un consumer
+# que necesita MENOS: la persona decide lo que el modelo QUIERE hacer, las
+# capabilities lo que PUEDE. Cambiar sólo la primera no acota nada.
+CAPACIDADES_POR_DEFECTO = ["task_tracker", "rag_store"]
+
+
 def build_runner(
     persona_path: Path = PERSONA_PATH,
     persona_text: str | None = None,
     session_store: Any | None = None,
+    capabilities: list[str] | None = None,
+    extra_mcp_servers: list[MCPServerSpec] | None = None,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -114,7 +122,13 @@ def build_runner(
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
         # hashing zero-model embedder by default (no LLM, no network for retrieval).
-        capabilities=["task_tracker", "rag_store"],
+        # Un runner de MENOS privilegio se pide aquí, no se insinúa en el prompt.
+        # `rag_store` expone ingest/delete_document/delete_corpus sobre el corpus
+        # del negocio, y `active_corpus_binding` es un addendum al prompt, no una
+        # frontera: instruye al modelo a usar un corpus, no le impide tocar otro.
+        # Una superficie pública que herede la lista completa puede leerla,
+        # envenenarla o borrarla.
+        capabilities=CAPACIDADES_POR_DEFECTO if capabilities is None else list(capabilities),
         # proj-corpusbind consumer wiring: when /chat/stream carries a corpus_id
         # (the user's active project), this binding folds "search ONLY corpus X"
         # into the turn's system prompt so the agent's rag_store tools retrieve
@@ -143,5 +157,9 @@ def build_runner(
         # por entorno, sin que og118 tenga que conocerlo. fenix registra aquí su
         # herramienta para guardar la cotización en el expediente del cliente.
         # Formato: FI_EXTRA_MCP="nombre:/ruta/al/modulo.py[,otro:...]".
-        extra_mcp_servers=_extra_mcp_desde_entorno(),
+        # Lista vacía explícita = sin las herramientas del consumer. `None` (el
+        # default) lee el entorno y se comporta como siempre.
+        extra_mcp_servers=(
+            _extra_mcp_desde_entorno() if extra_mcp_servers is None else list(extra_mcp_servers)
+        ),
     )
