@@ -19,7 +19,7 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 | [RESONANCE — hands-free, screenless voice-call mode for og118](og118-resonance-voice-mode.md) | Proposed | 2026-06-29 |
 | [B3-FIGLASS-UX-DISTRIBUTION-1 — distribution contracts (tokens/semantic/cards/scroll/CQ)](b3-figlass-ux-distribution.md) | Done — 6/6 shipped (#306-312) | 2026-06-30 |
 | [OG118-SESSION-DELETE-CASCADE-1 — borrar conversación debe borrar su sesión nativa del store](og118-session-store-delete-cascade.md) | Proposed | 2026-07-13 |
-| [AIREBACKEND-1 — el backend propio siempre-arriba y observable (SSH/API), vs ClaudeCode/Codex](fi-runner-aire-backend.md) | Proposed | 2026-07-13 |
+| [AIREBACKEND-1 — el backend propio siempre-arriba y observable (SSH/API), vs ClaudeCode/Codex](fi-runner-aire-backend.md) | In progress (first cut shipped 2026-07-27) | 2026-07-13 |
 | [CONV-CONCURRENCY-1 — pin/título pierden en last-write-wins entre dispositivos](og118-conv-concurrency.md) | Proposed | 2026-07-13 |
 | [OG118-EXTERNAL-CORPUS-GAP-1 — elementos externos ignoran el Project activo en silencio](og118-external-elements-corpus-gap.md) | Done (2026-07-14, RAG server-side) | 2026-07-14 |
 | [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai): grid de cards + workspace detalle, primitivas en fi-glass](figlass-projects-page.md) | Proposed | 2026-07-14 |
