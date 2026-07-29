@@ -37,7 +37,7 @@ def test_rejects_vision_loudly() -> None:
 
 def test_rejects_per_turn_tools_loudly() -> None:
     spec = MCPServerSpec(name="rag", command="python", args=["-m", "rag"])
-    with pytest.raises(BackendError, match="no per-turn MCP tools"):
+    with pytest.raises(BackendError, match="cannot forward local MCP servers"):
         AIREBackend._reject_unsupported([spec], None)
 
 
@@ -136,6 +136,55 @@ async def test_run_turn_raises_on_no_result(monkeypatch: Any) -> None:
             tool_policy=ToolPolicy(),
             session_id="s",
         )
+
+
+@pytest.mark.asyncio
+async def test_registry_tools_force_agent_mode(monkeypatch: Any) -> None:
+    """A backend with registry_tools runs turns in agent mode (the door needs it)."""
+    b = AIREBackend(
+        project="p", gate_url="https://g", auth_token="t", registry_tools=("memory",)
+    )
+    seen: dict[str, Any] = {}
+
+    async def fake_stream(session: str, message: str, mode: str) -> AsyncIterator[dict[str, Any]]:
+        seen["mode"] = mode
+        yield {"type": "result", "result": {"text": "ok"}}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    async for _ in b.run_turn_stream(
+        system_prompt="",
+        user_message="hi",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        session_id="s",
+    ):
+        pass
+    assert seen["mode"] == "agent"
+
+
+@pytest.mark.asyncio
+async def test_no_registry_tools_keeps_default_mode(monkeypatch: Any) -> None:
+    b = AIREBackend(
+        project="p", gate_url="https://g", auth_token="t", default_mode="complete"
+    )
+    seen: dict[str, Any] = {}
+
+    async def fake_stream(session: str, message: str, mode: str) -> AsyncIterator[dict[str, Any]]:
+        seen["mode"] = mode
+        yield {"type": "result", "result": {"text": "ok"}}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    async for _ in b.run_turn_stream(
+        system_prompt="",
+        user_message="hi",
+        mcp_servers=[],
+        tool_policy=ToolPolicy(),
+        session_id="s",
+    ):
+        pass
+    assert seen["mode"] == "complete"
 
 
 async def _anoop(*args: Any, **kwargs: Any) -> None:

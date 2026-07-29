@@ -78,6 +78,7 @@ class AIREBackend:
         auth_token: str | None = None,
         default_model: str | None = None,
         default_mode: str = "complete",
+        registry_tools: tuple[str, ...] = (),
         timeout: float = 300.0,
     ) -> None:
         # The AIRE casita this backend addresses. AIRE validates it
@@ -92,10 +93,15 @@ class AIREBackend:
         # AIRE picks the model server-side; kept for interface symmetry and to
         # warn when a caller asks for a per-turn model we cannot enforce yet.
         self.default_model = default_model
-        # "complete" = no tools, the substitute for the raw API (the first cut).
-        # "agent" would ask AIRE to run tools, but per-turn tool config is a door
-        # gap — leave it on "complete" until the door grows.
+        # "complete" = no tools, the substitute for the raw API. When registry_tools
+        # is set the turn runs in "agent" mode instead (the door requires it).
         self.default_mode = default_mode
+        # Vetted AIRE-registry tool NAMES this backend requests each turn (e.g.
+        # ("memory",)), sent as the door's `tools` field (aire-server #29). These
+        # are NOT the caller's local MCPServerSpecs — those cannot cross the wire
+        # and are still rejected. A consumer that wants tools on AIRE names them
+        # here; the door mounts the matching in-process server server-side.
+        self.registry_tools = tuple(registry_tools)
         self.timeout = timeout
         # /init state: the casita's fixed prompt last written, so we re-init only
         # when the system_prompt actually changes (idempotent, but a round trip).
@@ -139,9 +145,10 @@ class AIREBackend:
             )
         if mcp_servers:
             raise BackendError(
-                f"AIREBackend runs no per-turn MCP tools ({len(mcp_servers)} requested): "
-                "AIRE configures tools server-side, not per turn. Grow the door first "
-                "(aire-server backlog), or use ClaudeCodeBackend for tool turns."
+                f"AIREBackend cannot forward local MCP servers ({len(mcp_servers)} given): "
+                "they run in the caller's process and cannot cross the wire. For tools on "
+                "AIRE, pass registry_tools=(...) with the names of servers AIRE ships "
+                "(e.g. \"memory\"); AIRE mounts them server-side."
             )
 
     async def _ensure_prompt(self, system_prompt: str) -> None:
@@ -187,11 +194,14 @@ class AIREBackend:
     ) -> AsyncIterator[dict[str, Any]]:
         """POST the turn and yield AIRE's SSE events as dicts. Each ``data:`` line
         is a full event object carrying its own ``type`` (AIRE's ``_plain(ev)``)."""
+        body: dict[str, Any] = {"mode": mode, "message": message}
+        if self.registry_tools:
+            body["tools"] = list(self.registry_tools)
         async with self._http().stream(
             "POST",
             f"{self.gate_url}/projects/{self.project}/sessions/{session}/messages",
             headers=self._headers,
-            json={"mode": mode, "message": message},
+            json=body,
         ) as res:
             if res.status_code >= 400:
                 body = (await res.aread()).decode("utf-8", "replace")
@@ -248,7 +258,10 @@ class AIREBackend:
         await self._ensure_prompt(system_prompt)
         # AIRE keys memory by (project, session); a one-shot needs a throwaway name.
         session = session_id or uuid.uuid4().hex
-        async for ev in self._stream_events(session, user_message, self.default_mode):
+        # The door requires mode=agent whenever tools are requested (complete has
+        # no agentic loop); a tool-free backend keeps its configured default_mode.
+        mode = "agent" if self.registry_tools else self.default_mode
+        async for ev in self._stream_events(session, user_message, mode):
             kind = ev.get("type")
             if kind == "text":
                 text = ev.get("text") or ""
