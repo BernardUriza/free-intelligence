@@ -11,25 +11,74 @@ maps it onto core's contracts.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
 from fi_runner import (
     ClaudeCodeBackend,
+    MCPServerSpec,
     Runner,
     ToolPolicy,
     active_corpus_binding,
     load_prompt,
 )
 
-PERSONA_PATH = Path(__file__).parent / "prompts" / "persona.md"
+# La persona base es CONFIGURABLE por entorno para que un segundo consumer
+# (apps/fenix) corra este mismo runtime con su propia voz, sin duplicar el
+# servidor: "1 build → N consumers". Sin la variable, la ruta es exactamente la
+# de antes, así que og118 no cambia en nada. El prompt sigue viviendo en un .md
+# que se lee en runtime (P0 prompts-as-content), nunca inline en el código.
+PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (Path(__file__).parent / "prompts" / "persona.md"))
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
+
+
+def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
+    """MCP servers extra declarados por el consumer vía `FI_EXTRA_MCP`.
+
+    Permite que una app construida sobre este runtime (apps/fenix) sume su
+    propia herramienta sin que og118 la conozca ni la importe. Sin la variable
+    la lista es vacía y og118 se comporta exactamente igual que antes.
+
+    Formato: ``nombre:/ruta/modulo.py`` separados por coma. El módulo se corre
+    como ``python -m`` desde su propio directorio, igual que las capabilities de
+    fi-core — no se inventa un transporte nuevo.
+    """
+    crudo = os.getenv("FI_EXTRA_MCP", "").strip()
+    if not crudo:
+        return []
+    specs: list[MCPServerSpec] = []
+    for entrada in crudo.split(","):
+        if ":" not in entrada:
+            continue
+        nombre, ruta = entrada.split(":", 1)
+        modulo = Path(ruta.strip())
+        if not modulo.exists():
+            continue
+        specs.append(
+            MCPServerSpec(
+                name=nombre.strip(),
+                command=sys.executable,
+                args=[str(modulo)],
+                # El servidor necesita FENIX_EXPEDIENTES_PATH del entorno padre.
+                env_passthrough=True,
+            )
+        )
+    return specs
+
+
+# Lo que og118 le da a un turno normal. Nombrado porque ahora hay un consumer
+# que necesita MENOS: la persona decide lo que el modelo QUIERE hacer, las
+# capabilities lo que PUEDE. Cambiar sólo la primera no acota nada.
+CAPACIDADES_POR_DEFECTO = ["task_tracker", "rag_store"]
 
 
 def build_runner(
     persona_path: Path = PERSONA_PATH,
     persona_text: str | None = None,
     session_store: Any | None = None,
+    capabilities: list[str] | None = None,
+    extra_mcp_servers: list[MCPServerSpec] | None = None,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -73,7 +122,13 @@ def build_runner(
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
         # hashing zero-model embedder by default (no LLM, no network for retrieval).
-        capabilities=["task_tracker", "rag_store"],
+        # Un runner de MENOS privilegio se pide aquí, no se insinúa en el prompt.
+        # `rag_store` expone ingest/delete_document/delete_corpus sobre el corpus
+        # del negocio, y `active_corpus_binding` es un addendum al prompt, no una
+        # frontera: instruye al modelo a usar un corpus, no le impide tocar otro.
+        # Una superficie pública que herede la lista completa puede leerla,
+        # envenenarla o borrarla.
+        capabilities=CAPACIDADES_POR_DEFECTO if capabilities is None else list(capabilities),
         # proj-corpusbind consumer wiring: when /chat/stream carries a corpus_id
         # (the user's active project), this binding folds "search ONLY corpus X"
         # into the turn's system prompt so the agent's rag_store tools retrieve
@@ -98,4 +153,13 @@ def build_runner(
         # #277 fix) so every companion inherits it; rag_store/task_tracker are MCP
         # tools, not builtins, so document search + the glass-box plan are unaffected.
         tool_policy=ToolPolicy.companion(),
+        # Punto de extensión para un segundo consumer: un MCP propio, declarado
+        # por entorno, sin que og118 tenga que conocerlo. fenix registra aquí su
+        # herramienta para guardar la cotización en el expediente del cliente.
+        # Formato: FI_EXTRA_MCP="nombre:/ruta/al/modulo.py[,otro:...]".
+        # Lista vacía explícita = sin las herramientas del consumer. `None` (el
+        # default) lee el entorno y se comporta como siempre.
+        extra_mcp_servers=(
+            _extra_mcp_desde_entorno() if extra_mcp_servers is None else list(extra_mcp_servers)
+        ),
     )

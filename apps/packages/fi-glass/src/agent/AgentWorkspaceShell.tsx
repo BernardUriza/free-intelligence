@@ -123,7 +123,7 @@ function ensureToggleStyle(): void {
     .fi-aws-toggle:hover { background: rgba(255,255,255,0.08); }
     .fi-aws-toggle:active { background: rgba(255,255,255,0.12); }
     .fi-aws-toggle:focus-visible {
-      outline: 2px solid var(--og-accent, #34d399); outline-offset: 2px;
+      outline: 2px solid var(--fi-accent, #34d399); outline-offset: 2px;
     }
   `;
   document.head.appendChild(el);

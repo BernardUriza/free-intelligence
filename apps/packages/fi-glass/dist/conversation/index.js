@@ -1,5 +1,28 @@
 'use client';
 
+// src/conversation/EphemeralConversationLibrary.ts
+var EphemeralConversationLibrary = class {
+  constructor() {
+    this.records = /* @__PURE__ */ new Map();
+  }
+  async list() {
+    return [...this.records.values()].map(({ messages: _messages, ...summary }) => summary).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+  async get(id) {
+    const found = this.records.get(id);
+    return found ? structuredClone(found) : null;
+  }
+  async put(record) {
+    this.records.set(record.id, structuredClone(record));
+  }
+  async delete(id) {
+    this.records.delete(id);
+  }
+  async clear() {
+    this.records.clear();
+  }
+};
+
 // src/conversation/IndexedDBConversationLibrary.ts
 import { summarizeConversation } from "@free-intelligence/core";
 var DEFAULT_DB_NAME = "free-intelligence-conversations";
@@ -355,6 +378,7 @@ function useIndexedDBConversationLibrary(identityKey, options = {}) {
   );
 }
 export {
+  EphemeralConversationLibrary,
   IndexedDBConversationLibrary,
   RemoteConversationLibrary,
   migrateConversationLibrary,

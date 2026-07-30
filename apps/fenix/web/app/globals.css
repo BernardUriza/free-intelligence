@@ -1,0 +1,1198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* fi-glass NO trae paleta de color: sus tokens propios son sólo de MATERIAL
+   (--glass-blur, --glass-opacity, --glass-saturation). La paleta vive en los
+   ~20 tokens `--glass-chat-*` que define glass-chat.css, y se activan con la
+   clase `glass-chat` en <body>. Los nombres `--fi-bg/--fi-surface/--fi-text`
+   NO EXISTEN — inventarlos deja el composer en blanco sobre negro. */
+:root {
+  /* ESCALA DE ESPACIADO. Una sola progresión para toda la app: antes cada
+     bloque inventaba su propio 0.35/0.45/0.7rem y el ritmo vertical no
+     cuadraba en ningún lado. Base 4px, que es la que ya usan los touch targets.
+     Cualquier valor fuera de esta escala en el resto del archivo es un bug. */
+  --fx-1: 0.25rem;   /*  4px */
+  --fx-2: 0.5rem;    /*  8px */
+  --fx-3: 0.75rem;   /* 12px */
+  --fx-4: 1rem;      /* 16px */
+  --fx-5: 1.5rem;    /* 24px */
+  --fx-6: 2rem;      /* 32px */
+  --fx-radio: 12px;
+  --fx-radio-sm: 9px;
+  /* Una sola curva de movimiento: la retroalimentación se siente del mismo
+     material en toda la app. */
+  --fx-salida: 160ms cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* El fuego de la marca, medido del logo real de la papelería (su avatar de
+     WhatsApp), no elegido a ojo. */
+  --fx-fuego: #e05000;
+  --fx-fuego-rojo: #e03020;
+  --fx-fuego-ambar: #e06000;
+  --fx-linea: rgb(255 255 255 / 0.08);
+  --fx-tenue: rgb(255 255 255 / 0.05);
+  /* fi-glass lee el acento como var(--fi-accent, var(--og-accent, …)); definir
+     --fi-accent es la vía limpia para un consumer que no es og118. */
+  --fi-accent: var(--fx-fuego);
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--glass-chat-body, #020617);
+  color: var(--glass-chat-text, #fff);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Barra lateral ──────────────────────────────────────────────────────── */
+
+.fx-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-3);
+  height: 100%;
+  padding: var(--fx-3);
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.fx-marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.15rem 0.35rem 0.6rem;
+}
+
+.fx-marca img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.fx-marca-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.fx-marca-txt strong {
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.fx-marca-txt span {
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+
+.fx-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: 11px;
+  background: var(--fx-tenue);
+}
+
+.fx-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.3rem;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.fx-tab svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.fx-tab-on {
+  background: rgb(255 255 255 / 0.09);
+  color: var(--glass-chat-text, #fff);
+}
+
+.fx-nueva {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  /* El único elemento con el fuego de la marca en toda la barra: es la acción
+     principal, y si todo brilla nada destaca. */
+  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fx-nueva:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fx-nueva svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.fx-chats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-1);
+  margin: 0.45rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* Mini-tarjeta de cotización. Dos líneas en vez de un renglón truncado: en los
+   ~290px de la barra, el texto plano gastaba media línea en la fecha y perdía
+   el resto en la elipsis, justo encima del nombre. */
+.fx-mini {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.03);
+  /* La franja izquierda ES el estado; sin ella habría que leer para saberlo. */
+  box-shadow: inset 3px 0 0 var(--es, transparent);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.fx-mini:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+
+.fx-mini-on {
+  background: rgb(255 255 255 / 0.08);
+  border-color: color-mix(in srgb, var(--es, var(--fx-fuego)) 45%, transparent);
+}
+
+.fx-mini-abrir {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  flex: 1;
+  min-width: 0;
+  padding: var(--fx-2) var(--fx-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fx-mini-l1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.fx-mini-nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.83rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-mini-fecha {
+  flex-shrink: 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-mini-l2 {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-mini-borrar {
+  display: grid;
+  place-items: center;
+  padding: 0 0.4rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fx-mini:hover .fx-mini-borrar,
+.fx-mini-borrar:focus-visible {
+  opacity: 0.6;
+}
+
+@media (hover: none) {
+  .fx-mini-borrar { opacity: 0.45; }
+}
+
+.fx-mini-borrar svg { width: 0.9rem; height: 0.9rem; }
+
+/* ── Pantalla de inicio ─────────────────────────────────────────────────── */
+
+.fx-inicio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.fx-inicio-logo {
+  width: min(420px, 78vw);
+  height: auto;
+  /* El master viene sobre su propio fondo casi negro; el modo multiply lo funde
+     con la página en vez de dejar un rectángulo flotando. */
+  mix-blend-mode: lighten;
+}
+
+.fx-inicio-sub {
+  max-width: 36ch;
+  margin-top: -0.4rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.9rem;
+}
+
+.fx-inicio-grid {
+  display: grid;
+  gap: var(--fx-3);
+  width: 100%;
+  max-width: 46rem;
+  margin-top: 1.4rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .fx-inicio-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.fx-accion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--fx-1);
+  padding: var(--fx-4) var(--fx-4) var(--fx-5);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--glass-chat-radius, 16px);
+  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.fx-accion:hover,
+.fx-accion:focus-visible {
+  border-color: color-mix(in srgb, var(--fx-fuego) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.fx-accion-ico {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.15rem;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--fx-fuego) 16%, transparent);
+  color: var(--fx-fuego-ambar);
+}
+
+.fx-accion-ico svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.fx-accion-titulo {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.fx-accion-ayuda {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.79rem;
+  line-height: 1.35;
+}
+
+/* ── Expedientes ────────────────────────────────────────────────────────── */
+
+.fx-clientes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-4);
+  width: 100%;
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: var(--fx-5) var(--fx-4) calc(var(--fx-6) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.fx-clientes-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fx-clientes-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.fx-clientes-sub {
+  margin: 0.15rem 0 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.85rem;
+}
+
+.fx-buscar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 16rem;
+  max-width: 24rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 11px;
+  background: var(--fx-tenue);
+}
+
+.fx-buscar svg { width: 0.95rem; height: 0.95rem; opacity: 0.55; flex-shrink: 0; }
+.fx-buscar input { width: 100%; border: 0; background: none; color: inherit; font-size: 0.86rem; outline: none; }
+
+/* Filtros por estado — cada uno con el color de su estado. */
+.fx-filtros { display: flex; flex-wrap: wrap; gap: var(--fx-2); }
+
+.fx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.65rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 999px;
+  background: var(--fx-tenue);
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.fx-chip span {
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.09);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-chip-on { color: var(--glass-chat-text, #fff); border-color: currentColor; }
+
+/* Los colores de estado: el fuego de la marca se reserva para lo que ESTORBA
+   (bloqueada). Lo que fluye va en neutros y lo cerrado en verde, para que la
+   vista se lea en un vistazo sin tener que interpretar etiquetas. */
+.es-nueva { --es: #94a3b8; }
+.es-cotizando { --es: #6ea8fe; }
+.es-bloqueada { --es: var(--fx-fuego); }
+.es-entregada { --es: #a78bfa; }
+.es-cerrada { --es: #4ade80; }
+
+.fx-chip.es-nueva, .fx-chip.es-cotizando, .fx-chip.es-bloqueada,
+.fx-chip.es-entregada, .fx-chip.es-cerrada { color: var(--es); }
+
+.fx-tarjetas {
+  display: grid;
+  gap: var(--fx-3);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 700px) {
+  .fx-tarjetas { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1100px) {
+  .fx-tarjetas { grid-template-columns: repeat(3, 1fr); }
+}
+
+.fx-tarjeta {
+  display: flex;
+  flex-direction: column;
+  /* En grid los items son min-width:auto, así que un nombre largo ensancha la
+     columna y saca la tercera tarjeta de la pantalla. Medido: 87px de
+     desbordamiento antes de esta línea. */
+  min-width: 0;
+  gap: var(--fx-2);
+  padding: var(--fx-4) var(--fx-4) var(--fx-3);
+  border: 1px solid var(--fx-linea);
+  border-radius: 14px;
+  background: var(--glass-chat-surface, rgba(30, 41, 59, 0.6));
+  /* La franja superior ES el estado: color primero, texto después. */
+  box-shadow: inset 0 3px 0 var(--es, var(--fx-linea));
+}
+
+.fx-tarjeta-edit { grid-column: 1 / -1; }
+
+.fx-t-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fx-t-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--es, inherit);
+  font-size: 0.73rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fx-t-estado svg { width: 0.85rem; height: 0.85rem; }
+
+.fx-t-folio {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.73rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-t-nombre {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-t-nombre svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+  opacity: 0.45;
+}
+
+.fx-t-datos { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+.fx-t-datos > div { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+.fx-t-datos dt { display: grid; place-items: center; flex-shrink: 0; opacity: 0.5; }
+.fx-t-datos dt svg { width: 0.85rem; height: 0.85rem; }
+.fx-t-datos dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-t-total {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-t-falta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--fx-fuego-ambar);
+  font-size: 0.76rem;
+  font-weight: 550;
+}
+
+.fx-t-falta svg { width: 0.8rem; height: 0.8rem; flex-shrink: 0; }
+
+.fx-t-pie {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.fx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  padding: var(--fx-2) var(--fx-3);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio-sm);
+  background: var(--fx-tenue);
+  color: inherit;
+  font-size: 0.79rem;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.fx-btn svg { width: 0.85rem; height: 0.85rem; }
+.fx-btn:hover { border-color: color-mix(in srgb, var(--fx-fuego) 45%, transparent); }
+
+.fx-btn-primario {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  color: #fff;
+}
+
+.fx-btn-fantasma { background: none; }
+
+.fx-vacio {
+  padding: 2rem 1rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.fx-error { color: var(--fx-fuego-ambar); }
+
+/* ── Formulario del expediente ──────────────────────────────────────────── */
+
+.fx-form { display: flex; flex-direction: column; gap: var(--fx-4); width: 100%; }
+
+.fx-campos { display: grid; gap: var(--fx-3); grid-template-columns: 1fr; }
+
+@media (min-width: 640px) {
+  .fx-campos { grid-template-columns: repeat(4, 1fr); }
+}
+
+.fx-campos label { display: flex; flex-direction: column; gap: 0.28rem; }
+
+.fx-campos span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.7rem;
+  font-weight: 550;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fx-campos input,
+.fx-campos select {
+  /* 16px exactos: por debajo, iOS hace zoom al enfocar el campo. */
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.25);
+  color: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.fx-campos input:focus,
+.fx-campos select:focus {
+  border-color: color-mix(in srgb, var(--fx-fuego) 60%, transparent);
+}
+
+.fx-acciones { display: flex; gap: 0.5rem; }
+
+/* ── Retroalimentación visual ───────────────────────────────────────────── */
+
+/* Un solo anillo de foco para toda la app. Sin esto, el recorrido con teclado
+   dependía del outline por defecto del navegador, invisible sobre el fondo
+   oscuro. */
+.fx-side :focus-visible,
+.fx-clientes :focus-visible,
+.fx-inicio :focus-visible {
+  outline: 2px solid var(--fx-fuego-ambar);
+  outline-offset: 2px;
+  border-radius: var(--fx-radio-sm);
+}
+
+/* Todo lo clicable responde al presionar: sin esto, en táctil no hay señal de
+   que el toque registró hasta que la pantalla cambia. */
+.fx-btn:active,
+.fx-nueva:active,
+.fx-accion:active,
+.fx-chip:active,
+.fx-mini-abrir:active {
+  transform: scale(0.985);
+}
+
+.fx-btn,
+.fx-nueva,
+.fx-chip,
+.fx-mini,
+.fx-tarjeta,
+.fx-accion {
+  transition: background var(--fx-salida), border-color var(--fx-salida),
+    transform var(--fx-salida), box-shadow var(--fx-salida);
+}
+
+/* Estado de guardado del formulario. El botón dice lo que está pasando en vez
+   de quedarse mudo mientras la petición viaja. */
+.fx-btn[data-estado='guardando'] {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+.fx-btn[data-estado='guardado'] {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.fx-girando {
+  animation: fx-giro 0.9s linear infinite;
+}
+
+@keyframes fx-giro {
+  to { transform: rotate(360deg); }
+}
+
+/* La tarjeta recién guardada parpadea una vez: confirma CUÁL cambió cuando la
+   lista se reordena sola al cambiar de estado. */
+.fx-tarjeta[data-recien] {
+  animation: fx-destello 1.1s var(--fx-salida);
+}
+
+@keyframes fx-destello {
+  0% { box-shadow: inset 0 3px 0 var(--es), 0 0 0 2px color-mix(in srgb, var(--es) 55%, transparent); }
+  100% { box-shadow: inset 0 3px 0 var(--es), 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-btn, .fx-nueva, .fx-chip, .fx-mini, .fx-tarjeta, .fx-accion { transition: none; }
+  .fx-girando, .fx-tarjeta[data-recien] { animation: none; }
+}
+
+/* ── Visor del presupuesto ──────────────────────────────────────────────── */
+
+.fx-visor-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--fx-4);
+  background: rgb(0 0 0 / 0.62);
+  backdrop-filter: blur(3px);
+  animation: fx-aparece 140ms var(--fx-salida);
+}
+
+@keyframes fx-aparece {
+  from { opacity: 0; }
+}
+
+.fx-visor {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: min(88vh, 900px);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio);
+  background: var(--glass-chat-body, #020617);
+  box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.7);
+  overflow: hidden;
+}
+
+.fx-visor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fx-4);
+  padding: var(--fx-3) var(--fx-4);
+  border-bottom: 1px solid var(--fx-linea);
+}
+
+.fx-visor-titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.fx-visor-titulo strong {
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-visor-titulo span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.75rem;
+}
+
+.fx-visor-acciones {
+  display: flex;
+  gap: var(--fx-2);
+  flex-shrink: 0;
+}
+
+.fx-visor-cuerpo {
+  padding: var(--fx-5);
+  overflow: auto;
+  /* El papel se ve claro aunque la app sea oscura: es una hoja de cálculo, y
+     verla en el mismo color con que se imprime evita sorpresas al mandarla. */
+  background: #2a2f3a;
+}
+
+.fx-hoja-marco {
+  width: max-content;
+  min-width: 100%;
+  margin: 0 auto;
+  padding: var(--fx-5) var(--fx-4);
+  background: #fff;
+  box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.55);
+}
+
+.fx-hoja {
+  border-collapse: collapse;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  table-layout: fixed;
+}
+
+.fx-hoja td {
+  padding: 3px 6px;
+  border: 1px solid #d9d9d9;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .fx-visor-cuerpo { padding: var(--fx-3); }
+  .fx-hoja-marco { padding: var(--fx-3); }
+  .fx-hoja td { padding: 2px 4px; }
+}
+
+/* ── Barra del presupuesto (dentro del chat) ────────────────────────────── */
+
+.fx-barra-pres {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-3);
+  margin-bottom: var(--fx-2);
+  padding: var(--fx-2) var(--fx-3);
+  border: 1px solid color-mix(in srgb, var(--fx-fuego) 35%, transparent);
+  border-radius: var(--fx-radio);
+  background: color-mix(in srgb, var(--fx-fuego) 10%, var(--glass-chat-surface, rgba(30,41,59,.6)));
+}
+
+.fx-barra-pres > svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  color: var(--fx-fuego-ambar);
+}
+
+.fx-barra-pres-txt {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.fx-barra-pres-txt strong { font-size: 0.88rem; }
+
+.fx-barra-pres-txt span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Un desglose que no cuadra con el total cotizado se ve distinto: quien va a
+   mandarlo debe notarlo antes de mandarlo. */
+.fx-barra-pres-alerta {
+  border-color: color-mix(in srgb, var(--fx-fuego-rojo) 55%, transparent);
+  background: color-mix(in srgb, var(--fx-fuego-rojo) 14%, var(--glass-chat-surface, rgba(30,41,59,.6)));
+}
+
+/* ── Encabezado del chat ────────────────────────────────────────────────── */
+
+/* El surface de fi-glass llena el alto que le den; al anteponerle el
+   encabezado, el contenedor tiene que repartir: fila fija arriba, resto para
+   la conversación. Sin esto el transcript desborda y el composer se sale. */
+.fx-conv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.fx-conv > :last-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.fx-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fx-4);
+  padding: var(--fx-3) var(--fx-4);
+  border-bottom: 1px solid var(--fx-linea);
+  /* La franja del estado, igual que en las tarjetas: el color dice en qué va
+     la cotización sin que haya que leer. */
+  box-shadow: inset 0 -2px 0 var(--es, transparent);
+}
+
+.fx-cab-txt { min-width: 0; }
+
+.fx-cab-nombre {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-cab-meta {
+  margin: 0.1rem 0 0;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-cab-datos {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
+  flex-shrink: 0;
+}
+
+.fx-cab-tel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: var(--fx-1) var(--fx-2);
+  border-radius: var(--fx-radio-sm);
+  background: var(--fx-tenue);
+  color: inherit;
+  font-size: 0.78rem;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-cab-tel:hover { background: rgb(255 255 255 / 0.1); }
+.fx-cab-tel svg { width: 0.8rem; height: 0.8rem; opacity: 0.6; }
+
+.fx-cab-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--es, var(--glass-chat-text-muted, #94a3b8));
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.fx-cab-estado svg { width: 0.85rem; height: 0.85rem; }
+
+@media (max-width: 640px) {
+  .fx-cab { padding: var(--fx-2) var(--fx-3); }
+  .fx-cab-estado { display: none; }
+}
+
+/* ── Píldora de usuario ─────────────────────────────────────────────────── */
+
+.fx-user-caja { position: relative; margin-top: auto; }
+
+.fx-user {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
+  width: 100%;
+  margin-top: auto;
+  padding: var(--fx-2);
+  border: 1px solid transparent;
+  border-radius: var(--fx-radio);
+  background: var(--fx-tenue);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fx-user-caja .fx-user { margin-top: 0; }
+.fx-user-local { cursor: default; }
+.fx-user:hover { border-color: var(--fx-linea); }
+
+.fx-user-av {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.fx-user-av img { width: 100%; height: 100%; object-fit: cover; }
+.fx-user-av svg { width: 0.95rem; height: 0.95rem; }
+
+.fx-user-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.fx-user-txt strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-user-txt > span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-user-alerta {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--fx-fuego-rojo);
+}
+
+.fx-user-menu {
+  position: absolute;
+  bottom: calc(100% + var(--fx-2));
+  left: 0;
+  right: 0;
+  padding: var(--fx-2);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio);
+  background: var(--glass-chat-body, #020617);
+  box-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.7);
+  z-index: 20;
+}
+
+.fx-user-menu-cab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--fx-2);
+  border-bottom: 1px solid var(--fx-linea);
+  margin-bottom: var(--fx-2);
+}
+
+.fx-user-menu-cab strong { font-size: 0.85rem; }
+.fx-user-menu-cab > span { color: var(--glass-chat-text-muted, #94a3b8); font-size: 0.72rem; }
+
+.fx-user-rol {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: var(--fx-1);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.fx-user-rol svg { width: 0.8rem; height: 0.8rem; }
+.fx-user-rol-admin { color: #4ade80; }
+
+.fx-user-salir {
+  display: flex;
+  align-items: center;
+  gap: var(--fx-2);
+  width: 100%;
+  padding: var(--fx-2);
+  border: 0;
+  border-radius: var(--fx-radio-sm);
+  background: none;
+  color: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.fx-user-salir:hover { background: rgb(255 255 255 / 0.07); }
+.fx-user-salir svg { width: 0.9rem; height: 0.9rem; opacity: 0.7; }
+
+.fx-user-av-admin { background: linear-gradient(135deg, #059669, #4ade80); }
+.fx-user-llave { width: 0.85rem; height: 0.85rem; flex-shrink: 0; opacity: 0.4; }
+
+.fx-user-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: var(--fx-2);
+}
+
+.fx-user-campo > span {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fx-user-campo input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio-sm);
+  background: rgb(0 0 0 / 0.25);
+  color: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.fx-user-campo input:focus { border-color: color-mix(in srgb, var(--fx-fuego) 60%, transparent); }
+
+.fx-user-campo small {
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.fx-user-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-2);
+  padding: var(--fx-2);
+  border-top: 1px solid var(--fx-linea);
+  margin-top: var(--fx-1);
+}
+
+/* --- Cibercafé: la llave suelta y el aviso antes de perder la conversación --- */
+
+/* Abajo a la izquierda, el mismo lugar donde vive la píldora en el mostrador:
+   quien la busca ya sabe dónde mirar, y el menú abre hacia arriba con espacio.
+   Arriba solapaba el encabezado del chat (medido: .fx-cab ocupa 0→49px). */
+.fx-llave-suelta {
+  position: fixed;
+  left: var(--fx-3);
+  bottom: calc(var(--fx-3) + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+}
+
+.fx-llave-suelta .fx-user-caja { margin-top: 0; }
+
+/* El menú se ancla a una caja de 44px; sin esto heredaría ese ancho. */
+.fx-llave-suelta .fx-user-menu {
+  right: auto;
+  width: min(320px, calc(100vw - 2 * var(--fx-3)));
+}
+
+.fx-user-compacto {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0.35;
+  transition: opacity 140ms var(--fx-salida);
+}
+
+.fx-user-compacto:hover,
+.fx-user-compacto:focus-visible { opacity: 1; }
+
+.fx-user-compacto svg { width: 18px; height: 18px; }
+
+.fx-modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--fx-4);
+  background: rgb(0 0 0 / 0.62);
+  backdrop-filter: blur(3px);
+  animation: fx-aparece 140ms var(--fx-salida);
+}
+
+.fx-modal {
+  position: relative;
+  width: min(440px, 100%);
+  padding: var(--fx-5);
+  border: 1px solid var(--fx-linea);
+  border-radius: var(--fx-radio);
+  background: var(--glass-chat-body, #020617);
+  box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.7);
+}
+
+.fx-modal h2 {
+  margin: 0 0 var(--fx-2);
+  font-size: 1.05rem;
+  font-weight: 650;
+  padding-right: var(--fx-5);
+}
+
+.fx-modal p {
+  margin: 0 0 var(--fx-4);
+  color: var(--glass-chat-text-muted, #94a3b8);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.fx-modal-x {
+  position: absolute;
+  top: var(--fx-2);
+  right: var(--fx-2);
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--fx-radio-sm);
+  background: transparent;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  cursor: pointer;
+}
+
+.fx-modal-x:hover { color: inherit; background: rgb(255 255 255 / 0.06); }
+.fx-modal-x svg { width: 18px; height: 18px; }
+
+.fx-modal-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fx-2);
+}

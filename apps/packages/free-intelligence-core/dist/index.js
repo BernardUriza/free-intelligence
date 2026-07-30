@@ -251,6 +251,30 @@ function applyConversationEvent(state, event) {
   }
 }
 
+// src/conversation/markdown.ts
+function etiqueta(m, o) {
+  if (m.role === "user") return o.labels?.user ?? "T\xFA";
+  if (m.role === "assistant") return o.labels?.assistant ?? "Asistente";
+  return m.role;
+}
+function conversationToMarkdown(record, options = {}) {
+  const partes = [`# ${record.title || "Conversaci\xF3n"}`, ""];
+  const fecha = record.createdAt || record.updatedAt;
+  if (fecha) partes.push(`*${new Date(fecha).toLocaleString()}*`, "");
+  if (options.source) partes.push(`*${options.source}*`, "");
+  for (const m of record.messages) {
+    const contenido = (m.content ?? "").trim();
+    if (!contenido) continue;
+    partes.push(`## ${etiqueta(m, options)}`, "", contenido, "");
+  }
+  return `${partes.join("\n").trimEnd()}
+`;
+}
+function conversationFileName(record) {
+  const base = (record.title || "conversacion").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60).replace(/-+$/, "");
+  return `${base || "conversacion"}.md`;
+}
+
 // src/conversation/helpers.ts
 var CONVERSATION_SCHEMA_VERSION = 1;
 var DEFAULT_TITLE = "New chat";
@@ -381,6 +405,8 @@ export {
   CONVERSATION_SCHEMA_VERSION,
   applyAgentEvent,
   applyConversationEvent,
+  conversationFileName,
+  conversationToMarkdown,
   createConversationRecord,
   deriveConversationPreview,
   deriveConversationTitle,

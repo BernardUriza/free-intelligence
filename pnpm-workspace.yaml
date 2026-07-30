@@ -4,4 +4,5 @@ packages:
   - 'apps/packages/*'
   - 'apps/og118/web'
   - 'apps/activist-os/web'
+  - 'apps/fenix/web'
   - 'apps/aurity/packages/*'

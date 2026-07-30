@@ -500,7 +500,7 @@ function MessageAuthorHeader({
         "data-fi-author-avatar": "",
         style: {
           ...AVATAR,
-          background: isUser ? "var(--fi-author-user-bg, rgba(124,58,237,0.8))" : "var(--fi-author-agent-bg, var(--og-accent, #34d399))",
+          background: isUser ? "var(--fi-author-user-bg, rgba(124,58,237,0.8))" : "var(--fi-author-agent-bg, var(--fi-accent, #34d399))",
           color: isUser ? "var(--fi-author-user-fg, #fff)" : "var(--fi-author-agent-fg, #0a0f1e)"
         },
         children: avatarToken(author)
@@ -564,7 +564,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx7("span", { style: { color: "var(--fi-accent, var(--og-accent, #34d399))" }, children: model })
+        /* @__PURE__ */ jsx7("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
       ]
     }
   );

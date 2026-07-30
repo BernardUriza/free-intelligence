@@ -197,3 +197,5 @@ Icon?
 apps/og118/server/fi_rag_store.h5
 apps/og118/server/fi_rag_store.h5.lock
 apps/og118/server/conversations/
+.bench-tmp/
+*.tsbuildinfo

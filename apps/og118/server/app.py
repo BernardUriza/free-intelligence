@@ -21,7 +21,7 @@ import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
@@ -169,14 +169,11 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
         _session_store = None
 
 
-app = FastAPI(title="og118 server", version="0.0.0", lifespan=_lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Las rutas se declaran sobre un ROUTER, no sobre una app concreta, para que
+# `create_app()` pueda emitir instancias independientes: `include_router` levanta
+# objetos APIRoute NUEVOS por instancia, así que un consumer que necesite
+# endurecer una ruta heredada muta la suya y no la de og118.
+router = APIRouter()
 
 # The ceiling on ANY request body, enforced before the body is read.
 #
@@ -194,7 +191,6 @@ app.add_middleware(
 MAX_REQUEST_BODY_BYTES = 32 * 1024 * 1024
 
 
-@app.middleware("http")
 async def cap_request_body(request: Request, call_next):
     """Reject an oversized body from its Content-Length, before reading it.
 
@@ -256,6 +252,25 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
         )
         _element_runners[el.id] = cached
     return cached, el
+
+
+RunnerSelector = Callable[[str | None], tuple[Runner, Element | None]]
+
+
+def get_runner_selector() -> RunnerSelector:
+    """Quién contesta este turno — inyectable, como la identidad y los proyectos.
+
+    og118 elige por "elemento": un token del request selecciona la persona. Un
+    consumer puede tener OTRO criterio; fenix sirve dos públicos desde el mismo
+    servidor (el mostrador cotiza, las PC del cibercafé resuelven tareas) y la
+    persona correcta depende de quién llama, no de un token que el cliente
+    manda.
+
+    Sin este punto de inyección el consumer sólo tendría dos salidas: quemar un
+    slot de la tabla periódica —118 y contados— en la persona de otro producto,
+    o reimplementar /chat/stream entero para cambiar una línea.
+    """
+    return _runner_and_element
 
 
 # Built once from the ambient env. None when OG118_TTS_* / OG118_STT_* is
@@ -468,12 +483,12 @@ def _sse(event: dict) -> str:
     return f"data: {json.dumps(payload, default=str)}\n\n"
 
 
-@app.get("/health")
+@router.get("/health")
 async def health() -> dict:
     return {"ok": True}
 
 
-@app.get("/elements")
+@router.get("/elements")
 async def list_elements() -> dict:
     """The active "elementos" the UI selector offers (OG118-ELEMENTS-ADR-1).
 
@@ -502,12 +517,13 @@ async def list_elements() -> dict:
     }
 
 
-@app.post("/chat/stream")
+@router.post("/chat/stream")
 async def chat_stream(
     req: ChatRequest,
     principal: Principal = Depends(get_principal),
     registry: ProjectRegistry = Depends(get_project_registry),
     rag: RagStoreClient = Depends(get_rag_store),
+    seleccionar_runner: RunnerSelector = Depends(get_runner_selector),
 ) -> StreamingResponse:
     # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
     # from client-asserted into server-validated (no cross-account corpus reads).
@@ -516,7 +532,7 @@ async def chat_stream(
     if req.corpus_id and not principal.is_legacy_bearer and not registry.owns(req.corpus_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
 
-    runner, element = _runner_and_element(req.element)
+    runner, element = seleccionar_runner(req.element)
     external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
@@ -633,7 +649,7 @@ async def chat_stream(
     )
 
 
-@app.post("/tts/synthesize")
+@router.post("/tts/synthesize")
 async def tts_synthesize(
     req: TTSRequest,
     _: Principal = Depends(get_principal),
@@ -701,7 +717,7 @@ class TranscriptResponse(BaseModel):
     text: str
 
 
-@app.post("/stt/transcribe")
+@router.post("/stt/transcribe")
 async def stt_transcribe(
     audio: UploadFile = File(...),
     _: Principal = Depends(get_principal),
@@ -782,7 +798,7 @@ class ProjectCreateRequest(BaseModel):
     name: str | None = None
 
 
-@app.post("/projects")
+@router.post("/projects")
 async def create_project(
     req: ProjectCreateRequest,
     principal: Principal = Depends(get_principal),
@@ -795,7 +811,7 @@ async def create_project(
     return {"project_id": project["id"], "name": project["name"]}
 
 
-@app.get("/projects")
+@router.get("/projects")
 async def list_projects(
     principal: Principal = Depends(get_principal),
     registry: ProjectRegistry = Depends(get_project_registry),
@@ -804,7 +820,7 @@ async def list_projects(
     return {"projects": registry.list_for(principal.sub)}
 
 
-@app.delete("/projects/{project_id}")
+@router.delete("/projects/{project_id}")
 async def delete_project(
     project_id: str,
     principal: Principal = Depends(get_principal),
@@ -824,7 +840,7 @@ async def delete_project(
     return {"deleted": project_id}
 
 
-@app.post("/projects/{project_id}/upload")
+@router.post("/projects/{project_id}/upload")
 async def upload_project_document(
     project_id: str,
     file: UploadFile = File(...),
@@ -915,7 +931,7 @@ class ConversationRecordRequest(BaseModel):
     schemaVersion: int
 
 
-@app.get("/conversations")
+@router.get("/conversations")
 async def list_conversations(
     principal: Principal = Depends(get_principal),
     store: ConversationStore = Depends(get_conversation_store),
@@ -924,7 +940,7 @@ async def list_conversations(
     return {"conversations": store.list_for(principal.sub)}
 
 
-@app.get("/conversations/{conversation_id}")
+@router.get("/conversations/{conversation_id}")
 async def get_conversation(
     conversation_id: str,
     principal: Principal = Depends(get_principal),
@@ -938,7 +954,7 @@ async def get_conversation(
     return record
 
 
-@app.put("/conversations/{conversation_id}")
+@router.put("/conversations/{conversation_id}")
 async def put_conversation(
     conversation_id: str,
     record: ConversationRecordRequest,
@@ -965,7 +981,7 @@ async def put_conversation(
     return {"id": conversation_id}
 
 
-@app.delete("/conversations/{conversation_id}")
+@router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: str,
     principal: Principal = Depends(get_principal),
@@ -977,10 +993,50 @@ async def delete_conversation(
     return {"deleted": conversation_id}
 
 
-@app.delete("/conversations")
+@router.delete("/conversations")
 async def clear_conversations(
     principal: Principal = Depends(get_principal),
     store: ConversationStore = Depends(get_conversation_store),
 ) -> dict:
     """Remove every conversation the caller owns (the library `clear()`)."""
     return {"cleared": store.clear_for(principal.sub)}
+
+
+def create_app(dependencies: list | None = None) -> FastAPI:
+    """Una instancia NUEVA e independiente del servidor de og118.
+
+    Existe porque `apps/fenix` monta este runtime y necesita endurecer rutas que
+    og118 sirve abiertas (`/conversations`, `/projects`): al hacerlo sobre el
+    objeto `app` compartido, la mutación viajaba a og118 — verificado, con
+    FENIX_ADMIN_TOKEN en el entorno rompía 12 de sus propios tests, porque en
+    una sesión de pytest ambos módulos comparten proceso.
+
+    `include_router` construye APIRoute nuevos por instancia, así que las rutas
+    de una app no son las de la otra y `dependency_overrides` es por-app. Un
+    consumer toma la suya y la modifica sin tocar la de nadie.
+    """
+    # `dependencies` corren en TODA ruta de esta instancia y sólo de ésta — es
+    # el punto de extensión para un consumer que necesite endurecer rutas que
+    # og118 sirve abiertas. Antes se mutaban los objetos APIRoute heredados;
+    # eso dependía de que `include_router` los COPIARA, y FastAPI 0.141 dejó de
+    # hacerlo: dos apps que incluyen el mismo router comparten los mismos
+    # objetos, así que la mutación le viajaba de vuelta a og118.
+    application = FastAPI(
+        title="og118 server",
+        version="0.0.0",
+        lifespan=_lifespan,
+        dependencies=dependencies or [],
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=_ALLOWED_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    application.middleware("http")(cap_request_body)
+    application.include_router(router)
+    return application
+
+
+# La instancia de og118. `uvicorn app:app` y sus tests siguen apuntando aquí.
+app = create_app()

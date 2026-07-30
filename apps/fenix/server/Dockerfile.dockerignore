@@ -1,0 +1,20 @@
+# Con alcance a ESTE Dockerfile (BuildKit lee <dockerfile>.dockerignore antes
+# que el de la raíz), así que no afecta ningún otro build del repo.
+#
+# Hace falta porque el `.dockerignore` de la raíz excluye `apps/` entero — es de
+# la era del backend viejo, cuando la imagen no vivía ahí. Sin este archivo el
+# build muere en el primer COPY con "file does not exist", y el mensaje engaña:
+# el directorio SÍ existe, sólo está excluido del contexto.
+*
+!apps/packages/fi-core
+!apps/packages/fi-runner
+!apps/og118/server
+!apps/fenix/server
+
+# Se vuelven a excluir los árboles pesados que caen dentro de lo permitido.
+**/node_modules
+**/.venv
+**/.venv-build
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
