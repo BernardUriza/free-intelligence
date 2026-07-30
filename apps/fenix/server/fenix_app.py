@@ -504,8 +504,14 @@ def _poner_cuota() -> list[str]:
 
 _CON_CUOTA = _poner_cuota()
 if not _CON_CUOTA:  # og118 movió /chat/stream y el gasto quedó sin techo
+    # El mensaje lleva las rutas que SÍ vio: sin eso, un fallo aquí sólo dice
+    # que no encontró la ruta, no si el problema es el nombre, el tipo de
+    # objeto, o que la app llegó vacía. Diagnosticarlo a ciegas cuesta un ciclo
+    # de build + deploy por hipótesis.
+    _vistas = [f"{r.path} ({type(r).__name__})" for r in app.routes]
     raise RuntimeError(
-        "no se puso cuota en /chat/stream: revisa el path contra el de og118"
+        "no se puso cuota en /chat/stream, que es la única ruta que cuesta "
+        f"dinero. Rutas encontradas: {_vistas}"
     )
 
 _CERRADAS = _cerrar_rutas_heredadas()
