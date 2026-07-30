@@ -1,0 +1,9 @@
+# Lo que Fénix suma sobre og118. El resto —FastAPI, fi-core, fi-runner, mcp,
+# pydantic— lo instala la imagen de og118, que es el runtime que Fénix monta.
+#
+# openpyxl genera el .xlsx del presupuesto EN EL SERVIDOR. No es opcional: al
+# modelo se le bloquea Bash/Write por seguridad (ToolPolicy.companion), así que
+# sin esta librería el entregable que se le manda a la mamá por WhatsApp no
+# existe — y la falla aparecería hasta el primer clic en "Descargar Excel", no
+# al arrancar.
+openpyxl>=3.1

@@ -29,11 +29,23 @@ if [[ -z "${FENIX_ADMIN_TOKEN:-}" ]]; then
   export FENIX_MODO_ABIERTO=1
 fi
 
-# Este script es para LOCAL: aquí el único usuario es Bernard, así que la
-# suscripción personal es legítima y se declara. Un despliegue que atienda a la
-# papelería o al cibercafé exige ANTHROPIC_API_KEY (arranque.py) — servir a
-# terceros con el token de suscripción rompe el ToS de Anthropic.
-if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+# La credencial del modelo. Con llave de API se puede atender a terceros; con el
+# token de suscripción NO (uso personal, ToS de Anthropic) — `arranque.py` lo
+# exige y aborta si encuentra las dos, porque el SDK elige por entorno y ahí no
+# se puede afirmar cuál paga.
+if [[ -z "${ANTHROPIC_API_KEY:-}" && -f "$HOME/.secrets/fenix-anthropic-api-key.txt" ]]; then
+  ANTHROPIC_API_KEY="$(grep '^ANTHROPIC_API_KEY=' "$HOME/.secrets/fenix-anthropic-api-key.txt" | cut -d= -f2-)"
+  export ANTHROPIC_API_KEY
+fi
+
+if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+  # Este script suele lanzarse desde una sesión que YA trae el token OAuth en el
+  # entorno (Claude Code lo exporta). Heredarlo aquí dispararía el aborto por
+  # ambigüedad, así que se quita explícitamente: con llave, manda la llave.
+  unset CLAUDE_CODE_OAUTH_TOKEN
+else
+  # Sin llave, el único usuario es Bernard en su máquina y la suscripción es
+  # legítima. Se declara a propósito, no por omisión.
   export FENIX_USO_PERSONAL=1
 fi
 
