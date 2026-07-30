@@ -57,11 +57,6 @@ from app import (  # noqa: E402  (el runtime de og118)
     get_runner_selector,
 )
 
-# Instancia PROPIA, no la de og118. Fénix endurece rutas que og118 sirve
-# abiertas; hacerlo sobre su objeto compartido le viajaba de vuelta — con
-# FENIX_ADMIN_TOKEN en el entorno rompía 12 de sus tests, porque en una sesión
-# de pytest los dos módulos comparten proceso.
-app = create_app()
 from fi_runner import load_prompt  # noqa: E402
 from runner import build_runner  # noqa: E402
 
@@ -357,6 +352,68 @@ async def extraer(
     }
 
 
+# --- La puerta y el presupuesto, en UNA dependencia de la app ----------------
+#
+# Corre en toda ruta de ESTA instancia y sólo de ésta. Antes se mutaban los
+# objetos APIRoute heredados de og118 para inyectarles la dependencia — eso
+# dependía de que `include_router` los COPIARA, y FastAPI 0.141 dejó de
+# hacerlo: dos apps que incluyen el mismo router comparten los MISMOS objetos.
+# Con esa versión, la mutación le viajaba de vuelta a og118 y, peor, la
+# búsqueda plana en `app.routes` encontraba cero rutas, así que ni la cuota ni
+# la puerta se aplicaban. Se descubrió desplegando; en local la versión vieja
+# seguía copiando y los tests pasaban.
+#
+# Una dependencia pasada al constructor no depende de ningún detalle interno:
+# es la API pública para "esto aplica a toda mi app".
+_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
+
+# `/chat/stream` es la única ruta que cuesta dinero, y en la superficie pública
+# no la protege nada más: autenticar no sirve ahí porque el bearer vive en el
+# navegador de una máquina donde cualquiera se sienta. Ver `cuota.py`.
+_CUOTA = cuota_publica()
+
+
+def _puerta(
+    request: Request,
+    x_fenix_admin: str | None = Header(default=None),
+    x_forwarded_for: str | None = Header(default=None),
+) -> None:
+    """Qué puede tocar quien llama, y cuánto puede gastar."""
+    ruta = request.url.path
+    admin = es_admin(x_fenix_admin)
+
+    # El historial de la papelería lleva nombre del alumno, escuela y el
+    # WhatsApp de la mamá. 404 y no 403: para una PC del cibercafé esa
+    # superficie no existe; un 403 confirmaría que hay algo detrás.
+    if ruta.startswith(_RUTAS_DEL_MOSTRADOR) and not admin:
+        raise HTTPException(status_code=404, detail="no encontrado")
+
+    # El mostrador no se limita: cotizar una lista de treinta artículos son
+    # muchos turnos seguidos, y frenar una venta a media captura cuesta más que
+    # lo que esto previene.
+    if ruta == "/chat/stream" and not admin:
+        clave = clave_de(request.client.host if request.client else None, x_forwarded_for)
+        try:
+            _CUOTA.consumir(clave)
+        except CuotaAgotada as agotada:
+            # 429 con el tiempo real de espera, no un 500 ni un silencio: el
+            # niño tiene que entender que le toca esperar, no creer que se
+            # descompuso.
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "code": "CUOTA_AGOTADA",
+                    "message": "Ya usaste muchas preguntas seguidas. Espera un momento y sigue.",
+                    "retry_after": agotada.segundos,
+                },
+                headers={"Retry-After": str(agotada.segundos)},
+            ) from agotada
+
+
+# Instancia PROPIA de og118, con la puerta puesta desde el constructor. La
+# dependencia es por-app: og118 nunca la ve.
+app = create_app(dependencies=[Depends(_puerta)])
+
 app.include_router(router)
 
 
@@ -423,122 +480,3 @@ def _selector_por_rol(
 
 
 app.dependency_overrides[get_runner_selector] = _selector_por_rol
-
-
-# Rutas que og118 sirve abiertas y en la papelería NO pueden estarlo. El título
-# de cada conversación lleva el nombre del alumno, la escuela y el WhatsApp de la
-# mamá: una PC del cibercafé podía pedir `GET /conversations` y leer la lista
-# completa. Ocultarlas en la barra era cosmética — la puerta es ésta.
-#
-# Se inyecta la dependencia en las rutas heredadas en vez de interponer un
-# middleware: el middleware quedaría POR FUERA del CORS de og118 y el navegador
-# vería un error de red opaco en lugar del 404, que es justo lo que el cliente
-# distingue para pintar la vista pública.
-_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
-
-
-def _rutas_api():
-    """Todas las APIRoute de la app, descendiendo en los routers incluidos.
-
-    Iterar `app.routes` plano NO basta: en FastAPI reciente `include_router` ya
-    no aplana las rutas ahí — mete un objeto envoltorio que las contiene. Como
-    `requirements.txt` pide `fastapi>=0.110` sin fijar, el contenedor trajo una
-    versión más nueva que el venv local y la búsqueda plana encontró CERO rutas:
-    ni la cuota ni la puerta del mostrador se aplicaban.
-
-    No arrancó igual porque los dos guardias son fail-loud. Ésta es la razón de
-    que lo sean: una dependencia cambió de forma bajo los pies y el servidor
-    prefirió no existir antes que servir el negocio sin techo de gasto.
-    """
-    pendientes = list(app.routes)
-    while pendientes:
-        r = pendientes.pop()
-        if isinstance(r, APIRoute):
-            yield r
-        hijas = getattr(r, "routes", None)
-        if hijas:
-            pendientes.extend(hijas)
-
-
-def _inyectar(ruta: APIRoute, dependencia) -> None:
-    ruta.dependencies.append(dependencia)
-    ruta.dependant.dependencies.insert(
-        0, get_parameterless_sub_dependant(depends=dependencia, path=ruta.path)
-    )
-
-
-def _cerrar_rutas_heredadas() -> list[str]:
-    puerta = Depends(solo_admin)
-    cerradas: list[str] = []
-    for ruta in _rutas_api():
-        if ruta.path.startswith(_RUTAS_DEL_MOSTRADOR):
-            _inyectar(ruta, puerta)
-            cerradas.append(ruta.path)
-    return cerradas
-
-
-# --- El presupuesto de turnos del cibercafé ----------------------------------
-#
-# `/chat/stream` es el único endpoint que cuesta dinero, y en la superficie
-# pública no lo protege nada: autenticar no sirve ahí porque el bearer vive en
-# el navegador de una máquina donde cualquiera se sienta. Ver `cuota.py`.
-#
-# Se inyecta igual que la puerta del mostrador, en la ruta heredada, para no
-# tocar og118 ni inventar un segundo mecanismo.
-_CUOTA = cuota_publica()
-
-
-def _cobrar_turno(
-    request: Request,
-    x_fenix_admin: str | None = Header(default=None),
-    x_forwarded_for: str | None = Header(default=None),
-) -> None:
-    # El mostrador no se limita: cotizar una lista de treinta artículos son
-    # muchos turnos seguidos, y frenar una venta a media captura cuesta más que
-    # lo que esto previene.
-    if es_admin(x_fenix_admin):
-        return
-    clave = clave_de(request.client.host if request.client else None, x_forwarded_for)
-    try:
-        _CUOTA.consumir(clave)
-    except CuotaAgotada as agotada:
-        # 429 con el tiempo real de espera, no un 500 ni un silencio: el niño
-        # tiene que entender que le toca esperar, no creer que se descompuso.
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "code": "CUOTA_AGOTADA",
-                "message": "Ya usaste muchas preguntas seguidas. Espera un momento y sigue.",
-                "retry_after": agotada.segundos,
-            },
-            headers={"Retry-After": str(agotada.segundos)},
-        ) from agotada
-
-
-def _poner_cuota() -> list[str]:
-    cobro = Depends(_cobrar_turno)
-    puestas: list[str] = []
-    for ruta in _rutas_api():
-        if ruta.path == "/chat/stream":
-            _inyectar(ruta, cobro)
-            puestas.append(ruta.path)
-    return puestas
-
-
-_CON_CUOTA = _poner_cuota()
-if not _CON_CUOTA:  # og118 movió /chat/stream y el gasto quedó sin techo
-    # El mensaje lleva las rutas que SÍ vio: sin eso, un fallo aquí sólo dice
-    # que no encontró la ruta, no si el problema es el nombre, el tipo de
-    # objeto, o que la app llegó vacía. Diagnosticarlo a ciegas cuesta un ciclo
-    # de build + deploy por hipótesis.
-    _vistas = sorted({r.path for r in _rutas_api()})
-    raise RuntimeError(
-        "no se puso cuota en /chat/stream, que es la única ruta que cuesta "
-        f"dinero. Rutas encontradas: {_vistas}"
-    )
-
-_CERRADAS = _cerrar_rutas_heredadas()
-if not _CERRADAS:  # og118 renombró o movió sus rutas y la puerta quedó sin poner
-    raise RuntimeError(
-        "no se cerró ninguna ruta heredada: revisa _RUTAS_DEL_MOSTRADOR contra las de og118"
-    )

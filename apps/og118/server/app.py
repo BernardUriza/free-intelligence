@@ -1002,7 +1002,7 @@ async def clear_conversations(
     return {"cleared": store.clear_for(principal.sub)}
 
 
-def create_app() -> FastAPI:
+def create_app(dependencies: list | None = None) -> FastAPI:
     """Una instancia NUEVA e independiente del servidor de og118.
 
     Existe porque `apps/fenix` monta este runtime y necesita endurecer rutas que
@@ -1015,7 +1015,18 @@ def create_app() -> FastAPI:
     de una app no son las de la otra y `dependency_overrides` es por-app. Un
     consumer toma la suya y la modifica sin tocar la de nadie.
     """
-    application = FastAPI(title="og118 server", version="0.0.0", lifespan=_lifespan)
+    # `dependencies` corren en TODA ruta de esta instancia y sólo de ésta — es
+    # el punto de extensión para un consumer que necesite endurecer rutas que
+    # og118 sirve abiertas. Antes se mutaban los objetos APIRoute heredados;
+    # eso dependía de que `include_router` los COPIARA, y FastAPI 0.141 dejó de
+    # hacerlo: dos apps que incluyen el mismo router comparten los mismos
+    # objetos, así que la mutación le viajaba de vuelta a og118.
+    application = FastAPI(
+        title="og118 server",
+        version="0.0.0",
+        lifespan=_lifespan,
+        dependencies=dependencies or [],
+    )
     application.add_middleware(
         CORSMiddleware,
         allow_origins=_ALLOWED_ORIGINS,

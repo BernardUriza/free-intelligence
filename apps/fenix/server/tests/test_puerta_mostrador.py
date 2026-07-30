@@ -5,9 +5,10 @@ cuenta. En la papelería no puede serlo — el título de cada conversación lle
 nombre del alumno, su escuela y el WhatsApp de la mamá, y las PCs del cibercafé
 llegan al mismo servidor.
 
-Estos tests existen porque la puerta se pone MUTANDO rutas ajenas: si og118
-renombra `/conversations`, el filtro deja de encontrarlas y el hueco se reabre
-sin que nada falle. Aquí falla.
+La puerta es una dependencia a nivel de app, así que se prueba por
+COMPORTAMIENTO: qué responde cada ruta según quién llame. Si og118 renombrara
+`/conversations`, estos tests fallarían — sin depender de cómo esté puesto el
+candado por dentro.
 """
 
 import pytest
@@ -268,16 +269,10 @@ def test_al_mostrador_no_se_le_corta_una_venta(sin_modelo, monkeypatch):
         assert r.status_code != 429
 
 
-def test_se_puso_cuota_en_la_ruta_que_cuesta(app_fenix):
-    """Si og118 mueve /chat/stream, el gasto se queda sin techo en silencio."""
-    import fenix_app
-
-    assert "/chat/stream" in fenix_app._CON_CUOTA
-
-
-def test_se_cerro_alguna_ruta_heredada(app_fenix):
-    """El guardia contra el silencio: si og118 mueve sus rutas, esto lo grita."""
-    import fenix_app
-
-    assert "/conversations" in fenix_app._CERRADAS
-    assert "/projects" in fenix_app._CERRADAS
+# Los dos tests que afirmaban sobre `_CERRADAS` y `_CON_CUOTA` se borraron junto
+# con el mecanismo que medían: probaban que la MUTACIÓN de rutas había ocurrido,
+# no que la puerta funcionara. La regresión que cuidaban —og118 renombra una ruta
+# y el candado deja de aplicarse en silencio— la atrapan mejor los tests de
+# comportamiento de arriba: si /conversations dejara de estar cerrada, o
+# /chat/stream dejara de cobrar cuota, fallan ellos, sin depender de cómo esté
+# implementado el candado por dentro.
