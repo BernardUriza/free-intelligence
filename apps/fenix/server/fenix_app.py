@@ -437,6 +437,29 @@ app.dependency_overrides[get_runner_selector] = _selector_por_rol
 _RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
 
 
+def _rutas_api():
+    """Todas las APIRoute de la app, descendiendo en los routers incluidos.
+
+    Iterar `app.routes` plano NO basta: en FastAPI reciente `include_router` ya
+    no aplana las rutas ahí — mete un objeto envoltorio que las contiene. Como
+    `requirements.txt` pide `fastapi>=0.110` sin fijar, el contenedor trajo una
+    versión más nueva que el venv local y la búsqueda plana encontró CERO rutas:
+    ni la cuota ni la puerta del mostrador se aplicaban.
+
+    No arrancó igual porque los dos guardias son fail-loud. Ésta es la razón de
+    que lo sean: una dependencia cambió de forma bajo los pies y el servidor
+    prefirió no existir antes que servir el negocio sin techo de gasto.
+    """
+    pendientes = list(app.routes)
+    while pendientes:
+        r = pendientes.pop()
+        if isinstance(r, APIRoute):
+            yield r
+        hijas = getattr(r, "routes", None)
+        if hijas:
+            pendientes.extend(hijas)
+
+
 def _inyectar(ruta: APIRoute, dependencia) -> None:
     ruta.dependencies.append(dependencia)
     ruta.dependant.dependencies.insert(
@@ -447,8 +470,8 @@ def _inyectar(ruta: APIRoute, dependencia) -> None:
 def _cerrar_rutas_heredadas() -> list[str]:
     puerta = Depends(solo_admin)
     cerradas: list[str] = []
-    for ruta in app.routes:
-        if isinstance(ruta, APIRoute) and ruta.path.startswith(_RUTAS_DEL_MOSTRADOR):
+    for ruta in _rutas_api():
+        if ruta.path.startswith(_RUTAS_DEL_MOSTRADOR):
             _inyectar(ruta, puerta)
             cerradas.append(ruta.path)
     return cerradas
@@ -495,8 +518,8 @@ def _cobrar_turno(
 def _poner_cuota() -> list[str]:
     cobro = Depends(_cobrar_turno)
     puestas: list[str] = []
-    for ruta in app.routes:
-        if isinstance(ruta, APIRoute) and ruta.path == "/chat/stream":
+    for ruta in _rutas_api():
+        if ruta.path == "/chat/stream":
             _inyectar(ruta, cobro)
             puestas.append(ruta.path)
     return puestas
@@ -508,7 +531,7 @@ if not _CON_CUOTA:  # og118 movió /chat/stream y el gasto quedó sin techo
     # que no encontró la ruta, no si el problema es el nombre, el tipo de
     # objeto, o que la app llegó vacía. Diagnosticarlo a ciegas cuesta un ciclo
     # de build + deploy por hipótesis.
-    _vistas = [f"{r.path} ({type(r).__name__})" for r in app.routes]
+    _vistas = sorted({r.path for r in _rutas_api()})
     raise RuntimeError(
         "no se puso cuota en /chat/stream, que es la única ruta que cuesta "
         f"dinero. Rutas encontradas: {_vistas}"
