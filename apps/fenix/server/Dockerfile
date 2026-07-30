@@ -42,7 +42,11 @@ RUN useradd --create-home --uid 10001 fenix
 # maestra— van aquí. En Azure este directorio es un volumen de Azure Files: sin
 # él, cada reinicio del contenedor borra las cotizaciones de los clientes.
 RUN mkdir -p /opt/fi/data && chown fenix:fenix /opt/fi/data
-ENV FI_RAG_STORE_PATH=/opt/fi/data/fi_rag_store.h5 \
+# Dónde vive el runtime de og118 DENTRO de la imagen. El layout del monorepo
+# (`apps/fenix/server` junto a `apps/og118/server`) no sobrevive aquí, así que
+# el cálculo relativo de fenix_app.py apuntaría a un directorio inexistente.
+ENV FI_OG118_DIR=/opt/fi/server \
+    FI_RAG_STORE_PATH=/opt/fi/data/fi_rag_store.h5 \
     FENIX_EXPEDIENTES_PATH=/opt/fi/data/expedientes.json \
     OG118_CONVERSATIONS_PATH=/opt/fi/data/conversations \
     OG118_PROJECT_REGISTRY_PATH=/opt/fi/data/projects.json \

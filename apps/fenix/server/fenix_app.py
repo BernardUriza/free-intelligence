@@ -26,7 +26,20 @@ from pathlib import Path
 
 # El runtime de og118 es el que se reusa; su directorio entra al path para poder
 # importarlo sin instalarlo como paquete.
-OG118 = Path(__file__).resolve().parents[2] / "og118" / "server"
+#
+# La ruta es CONFIGURABLE porque el layout del monorepo no sobrevive al
+# contenedor: en el repo, og118 está en `../og118/server` relativo a este
+# archivo; en la imagen los dos viven en /opt/fi (`fenix` y `server`), así que
+# el cálculo relativo apuntaba a un directorio inexistente y el arranque moría
+# con `ModuleNotFoundError: No module named 'app'`. Sólo se veía desplegando.
+OG118 = Path(
+    os.environ.get("FI_OG118_DIR") or Path(__file__).resolve().parents[2] / "og118" / "server"
+)
+if not (OG118 / "app.py").exists():
+    raise RuntimeError(
+        f"no encuentro el runtime de og118 en {OG118}. Declara FI_OG118_DIR con la "
+        "ruta del directorio que contiene app.py."
+    )
 if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
