@@ -42,7 +42,7 @@ from .backend import (
     mcp_server_token,
     mcp_tool_id,
 )
-from .backends import ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
+from .backends import AIREBackend, ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
 from .conversation import (
     ConversationStore,
     InMemoryConversationStore,
@@ -93,6 +93,7 @@ __all__ = [
     "mcp_tool_id",
     "mcp_server_token",
     "mcp_server_of",
+    "AIREBackend",
     "ClaudeCodeBackend",
     "CodexBackend",
     "ProviderConfig",
