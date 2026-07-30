@@ -1,0 +1,165 @@
+name: Deploy Fénix backend (ACR + Container App)
+
+# Construye la imagen de Fénix (linux/amd64) y la despliega en Azure Container
+# Apps. Reusa el ACR y el ENTORNO de og118 a propósito: un entorno de Container
+# Apps nuevo cuesta aparte, y Fénix corre el mismo runtime — no hay nada que
+# aislar salvo los datos, que van en su propio volumen.
+#
+# LA DIFERENCIA QUE IMPORTA CONTRA og118: aquí la credencial del modelo es
+# ANTHROPIC_API_KEY, no el token OAuth de suscripción. Fénix atiende a la
+# papelería y a los niños del cibercafé — terceros — y servirlos con la
+# suscripción personal de Bernard rompe el ToS de Anthropic. `arranque.py` se
+# niega a arrancar sin la llave, y también si encuentra las dos credenciales a
+# la vez: el SDK elige por entorno y ahí no se puede afirmar cuál paga.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/fenix/server/**'
+      - 'apps/packages/fi-core/**'
+      - 'apps/packages/fi-runner/**'
+      - '.github/workflows/fenix-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: fenix-backend-deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RG: ${{ vars.OG118_RESOURCE_GROUP }}
+  LOCATION: ${{ vars.OG118_LOCATION }}
+  ACR: ${{ vars.OG118_ACR_NAME }}
+  ACA_ENV: ${{ vars.OG118_CONTAINERAPP_ENV }}
+  APP: fenix-api
+  IMAGE: fenix-server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Buildx
+        # El driver por defecto (`docker`) rechaza `--cache-to type=registry`.
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build linux/amd64 + push a ACR
+        run: |
+          az acr login -n "$ACR"
+          # BuildKit lee apps/fenix/server/Dockerfile.dockerignore ANTES que el
+          # .dockerignore de la raíz — que excluye `apps/` entero y haría fallar
+          # el primer COPY con un "file does not exist" que engaña, porque el
+          # directorio sí existe.
+          #
+          # El cache en el registry es lo que evita que este ACR crezca ~400 MB
+          # por deploy: el runner es efímero, así que sin cache externo cada capa
+          # se reconstruye con digest nuevo y se re-sube entera.
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache,mode=min" \
+            -f apps/fenix/server/Dockerfile \
+            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" \
+            --push .
+
+      - name: Crear o actualizar el Container App
+        # La réplica ÚNICA no es un detalle de costo: la cuota de turnos y las
+        # sesiones viven en memoria del proceso, así que con más de una réplica
+        # dejan de ser globales y el techo de gasto deja de ser un techo.
+        env:
+          IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/fenix-server:${{ github.sha }}
+          API_KEY: ${{ secrets.FENIX_ANTHROPIC_API_KEY }}
+          ADMIN_TOKEN: ${{ secrets.FENIX_ADMIN_TOKEN }}
+          ACCESS_TOKEN: ${{ secrets.FENIX_ACCESS_TOKEN }}
+          ALLOWED_ORIGINS: ${{ vars.FENIX_ALLOWED_ORIGINS }}
+          ADMIN_EMAILS: ${{ vars.FENIX_ADMIN_EMAILS }}
+        run: |
+          COMUNES=(
+            "ANTHROPIC_API_KEY=secretref:anthropic-api-key"
+            "FENIX_ADMIN_TOKEN=secretref:fenix-admin-token"
+            "OG118_ACCESS_TOKEN=secretref:access-token"
+            "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
+            "FENIX_ADMIN_EMAILS=$ADMIN_EMAILS"
+            # Detrás del ingress de ACA el IP del cliente llega en
+            # X-Forwarded-For. Sin declararlo, TODO el público comparte un solo
+            # cubo de cuota: más restrictivo, no menos, pero injusto.
+            "FENIX_PROXY_CONFIABLE=1"
+            # HDF5 pelea con el bloqueo de SMB; seguro porque la app está
+            # clavada en una sola réplica (un solo escritor).
+            "HDF5_USE_FILE_LOCKING=FALSE"
+          )
+          if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
+            az containerapp secret set -n "$APP" -g "$RG" \
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN"
+            az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
+              --set-env-vars "${COMUNES[@]}" \
+              --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN"
+          else
+            az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
+              --image "$IMG" \
+              --registry-server "$ACR.azurecr.io" --registry-identity system \
+              --target-port 8118 --ingress external \
+              --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN" \
+              --env-vars "${COMUNES[@]}"
+          fi
+
+      - name: Volumen persistente para los datos del negocio (idempotente)
+        # Sin esto, cada redeploy borra las cotizaciones de los clientes: el
+        # disco del contenedor es efímero. Aquí viven expedientes.json, las
+        # conversaciones y el corpus de la lista maestra.
+        env:
+          SA: fenixdatastore
+          SHARE: fenixdata
+        run: |
+          az storage account show -n "$SA" -g "$RG" >/dev/null 2>&1 \
+            || az storage account create -n "$SA" -g "$RG" -l "$LOCATION" --sku Standard_LRS --kind StorageV2
+          KEY=$(az storage account keys list -n "$SA" -g "$RG" --query "[0].value" -o tsv)
+          az storage share exists --name "$SHARE" --account-name "$SA" --account-key "$KEY" --query exists -o tsv | grep -qi true \
+            || az storage share create --name "$SHARE" --account-name "$SA" --account-key "$KEY" --quota 5
+          az containerapp env storage show -n "$ACA_ENV" -g "$RG" --storage-name "$SHARE" >/dev/null 2>&1 \
+            || az containerapp env storage set -n "$ACA_ENV" -g "$RG" --storage-name "$SHARE" \
+                 --azure-file-account-name "$SA" --azure-file-account-key "$KEY" \
+                 --azure-file-share-name "$SHARE" --access-mode ReadWrite
+          MOUNTED=$(az containerapp show -n "$APP" -g "$RG" \
+            --query "length(properties.template.volumes[?name=='fenixdata-vol'])" -o tsv 2>/dev/null || echo 0)
+          if [ "${MOUNTED:-0}" = "0" ]; then
+            python3 -m pip install --quiet pyyaml
+            az containerapp show -n "$APP" -g "$RG" -o yaml > /tmp/aca.yaml
+            # El script exporta el YAML con la sección de secrets QUITADA: los
+            # secretos exportados vienen redactados a null y un roundtrip los
+            # borraría. Por eso este paso corre DESPUÉS de fijarlos.
+            python3 apps/og118/server/scripts/aca_add_volume.py /tmp/aca.yaml fenixdata-vol fenixdata /opt/fi/data
+            az containerapp update -n "$APP" -g "$RG" --yaml /tmp/aca.yaml
+            echo "fenixdata-vol montado en /opt/fi/data"
+          else
+            echo "el volumen ya estaba montado"
+          fi
+
+      - name: Verificar que el que quedó sirviendo responde
+        # Art. 2: un deploy "exitoso" que no responde es un fake-green. El
+        # arranque falla a propósito si la configuración deja el negocio abierto
+        # o usa la credencial equivocada, así que un /health 200 aquí también
+        # confirma que esas invariantes pasaron.
+        run: |
+          FQDN=$(az containerapp show -n "$APP" -g "$RG" --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "https://$FQDN"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$FQDN/health" || true)
+            [ "$CODE" = "200" ] && { echo "health 200 tras $((i*10))s"; exit 0; }
+            sleep 10
+          done
+          echo "no respondió 200 en 5 min — revisa los logs del Container App"
+          az containerapp logs show -n "$APP" -g "$RG" --tail 40 || true
+          exit 1
