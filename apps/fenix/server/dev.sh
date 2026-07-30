@@ -29,6 +29,14 @@ if [[ -z "${FENIX_ADMIN_TOKEN:-}" ]]; then
   export FENIX_MODO_ABIERTO=1
 fi
 
+# Este script es para LOCAL: aquí el único usuario es Bernard, así que la
+# suscripción personal es legítima y se declara. Un despliegue que atienda a la
+# papelería o al cibercafé exige ANTHROPIC_API_KEY (arranque.py) — servir a
+# terceros con el token de suscripción rompe el ToS de Anthropic.
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+  export FENIX_USO_PERSONAL=1
+fi
+
 export FI_PERSONA_PATH="$REPO/apps/fenix/server/prompts/persona.md"
 export FI_EXTRA_MCP="fenix-expedientes:$REPO/apps/fenix/server/fenix_mcp.py"
 export FENIX_EXPEDIENTES_PATH="$DATOS/expedientes.json"

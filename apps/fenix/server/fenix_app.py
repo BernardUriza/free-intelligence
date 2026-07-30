@@ -55,10 +55,12 @@ from runner import build_runner  # noqa: E402
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
 from cuota import CuotaAgotada, clave_de, cuota_publica  # noqa: E402
-from rbac import correo_conocido, es_admin, exigir_config, modo_abierto  # noqa: E402
+from arranque import exigir_config  # noqa: E402
+from rbac import correo_conocido, es_admin, modo_abierto  # noqa: E402
 
-# Antes de montar nada: un arranque con los expedientes abiertos por descuido
-# revienta aquí, donde se ve, y no dentro de un contenedor que parece sano.
+# Antes de montar nada. Dos configuraciones se ven idénticas a un servidor sano
+# y no lo son: la que deja los expedientes abiertos y la que atiende a terceros
+# con la suscripción personal. Revientan aquí, donde se ven.
 exigir_config()
 
 _store: ExpedienteStore | None = None

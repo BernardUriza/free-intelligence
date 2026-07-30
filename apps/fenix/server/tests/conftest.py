@@ -27,6 +27,9 @@ def app_fenix(tmp_path, monkeypatch):
     el store, y ningún test debe escribir en los datos reales de la papelería.
     """
     monkeypatch.setenv("FENIX_ADMIN_TOKEN", "token-de-prueba")
+    # Los tests no atienden a nadie: se declara uso personal para que la
+    # invariante de ToS no bloquee el import.
+    monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
     monkeypatch.setenv("FENIX_EXPEDIENTES_PATH", str(tmp_path / "expedientes.json"))
     monkeypatch.setenv("OG118_PROJECT_REGISTRY_PATH", str(tmp_path / "projects.json"))
     monkeypatch.setenv("OG118_CONVERSATIONS_PATH", str(tmp_path / "conversations"))

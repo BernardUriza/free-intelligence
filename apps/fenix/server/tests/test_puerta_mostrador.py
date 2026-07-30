@@ -70,25 +70,67 @@ def test_el_arranque_se_niega_a_dejar_el_negocio_abierto_por_descuido(monkeypatc
     expedientes —alumnos, escuelas, WhatsApps de las mamás— y se veía igual que
     uno correcto: arrancaba bien y nadie lee la salida de un contenedor sano.
     """
-    from rbac import ConfiguracionInsegura, exigir_config
+    from arranque import ConfiguracionInsegura, exigir_puerta
 
     monkeypatch.delenv("FENIX_ADMIN_TOKEN", raising=False)
     monkeypatch.delenv("FENIX_MODO_ABIERTO", raising=False)
     with pytest.raises(ConfiguracionInsegura):
-        exigir_config()
+        exigir_puerta()
 
 
 def test_el_modo_abierto_se_alcanza_tecleandolo(monkeypatch):
     """Un estado inseguro por omisión es un accidente; declarado, una decisión."""
-    from rbac import exigir_config
+    from arranque import exigir_puerta
 
     monkeypatch.delenv("FENIX_ADMIN_TOKEN", raising=False)
     monkeypatch.setenv("FENIX_MODO_ABIERTO", "1")
-    exigir_config()
+    exigir_puerta()
 
     monkeypatch.setenv("FENIX_ADMIN_TOKEN", "algo")
     monkeypatch.delenv("FENIX_MODO_ABIERTO", raising=False)
-    exigir_config()
+    exigir_puerta()
+
+
+def test_atender_a_terceros_exige_llave_de_api(monkeypatch):
+    """El token OAuth es de suscripción: su licencia es de USO PERSONAL.
+
+    Los niños del cibercafé y el equipo de la papelería son terceros. Servirlos
+    con ese token rompe el ToS de Anthropic aunque funcione igual de bien — que
+    es justo lo que lo vuelve peligroso: no falla.
+    """
+    from arranque import CredencialEquivocada, exigir_credencial_de_terceros
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("FENIX_USO_PERSONAL", raising=False)
+    with pytest.raises(CredencialEquivocada):
+        exigir_credencial_de_terceros()
+
+
+def test_las_dos_credenciales_a_la_vez_es_ambiguedad_prohibida(monkeypatch):
+    """El SDK elige el modo LEYENDO EL ENTORNO.
+
+    Un contenedor con las dos variables puede seguir cobrándole a la suscripción
+    personal sin avisar, y se ve idéntico a uno correcto. La ambigüedad es el
+    defecto, no el olvido.
+    """
+    from arranque import CredencialEquivocada, exigir_credencial_de_terceros
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-falsa")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "sk-ant-oat01-falsa")
+    with pytest.raises(CredencialEquivocada):
+        exigir_credencial_de_terceros()
+
+
+def test_la_llave_sola_basta_y_el_uso_personal_se_declara(monkeypatch):
+    from arranque import exigir_credencial_de_terceros
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-api03-falsa")
+    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    exigir_credencial_de_terceros()
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
+    exigir_credencial_de_terceros()
 
 
 def test_el_cibercafe_habla_con_el_tutor_y_el_mostrador_con_la_papeleria(app_fenix):

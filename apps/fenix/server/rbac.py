@@ -40,37 +40,8 @@ def _correos_conocidos() -> set[str]:
 
 
 def modo_abierto() -> bool:
-    """Todo el mundo es mostrador. Requiere pedirlo a propósito — ver `exigir_config`."""
+    """Todo el mundo es mostrador. Requiere declararlo — ver `arranque.exigir_puerta`."""
     return not _token_mostrador()
-
-
-class ConfiguracionInsegura(RuntimeError):
-    """El servidor arrancaría con los expedientes abiertos y nadie lo pidió."""
-
-
-def exigir_config() -> None:
-    """Falla el arranque si la configuración deja el negocio abierto sin querer.
-
-    Antes esto era un warning al arrancar. Un warning en un log no es un
-    guardia: nadie lee la salida de un contenedor que arrancó bien, así que un
-    deploy que olvidara `FENIX_ADMIN_TOKEN` servía la lista completa de
-    expedientes —nombres de alumnos, escuelas, WhatsApps de las mamás— y se veía
-    exactamente igual que uno correcto.
-
-    El modo abierto sigue existiendo porque en local es cómodo, pero ahora hay
-    que TECLEARLO: `FENIX_MODO_ABIERTO=1`. Un estado inseguro que se alcanza por
-    omisión es un accidente esperando; uno que exige una variable explícita es
-    una decisión.
-    """
-    if _token_mostrador():
-        return
-    if (os.getenv("FENIX_MODO_ABIERTO") or "").strip() in ("1", "true", "yes"):
-        return
-    raise ConfiguracionInsegura(
-        "sin FENIX_ADMIN_TOKEN los expedientes quedan abiertos a cualquiera que "
-        "alcance el servidor. Pon el token, o declara el modo abierto a "
-        "propósito con FENIX_MODO_ABIERTO=1 (sólo para local)."
-    )
 
 
 def es_admin(token_recibido: str | None) -> bool:
