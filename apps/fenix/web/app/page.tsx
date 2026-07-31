@@ -1,8 +1,36 @@
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import './landing.css';
 
 const WHATSAPP = '5213338582967';
+
+const TITULO = 'La lista de tu hijo, cotizada el mismo día';
+const RESUMEN =
+  'Mándanos la foto de la lista escolar por WhatsApp y te regresamos el ' +
+  'presupuesto con el descuento de temporada. Papelería en San Juan Bosco, Guadalajara.';
+
+// La portada se anuncia como NEGOCIO; el layout raíz describe la herramienta.
+// Quien comparte este link por WhatsApp es una mamá, no alguien buscando software.
+export const metadata: Metadata = {
+  title: 'Servicios Papeleros Fénix — cotizamos tu lista escolar',
+  description: RESUMEN,
+  openGraph: {
+    type: 'website',
+    locale: 'es_MX',
+    url: 'https://www.serviciosfenix.com.mx',
+    siteName: 'Servicios Papeleros Fénix',
+    title: TITULO,
+    description: RESUMEN,
+    images: [{ url: '/branding/og-image.png', width: 1200, height: 630, alt: TITULO }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITULO,
+    description: RESUMEN,
+    images: ['/branding/twitter-card.png'],
+  },
+};
 
 export default function Landing() {
   return (
