@@ -1,0 +1,283 @@
+/* La portada de Servicios Papeleros Fénix.
+ *
+ * Deliberadamente OPUESTA a la app: la herramienta es oscura porque se usa
+ * horas seguidas frente a una pantalla; esto se lee una vez, desde el celular,
+ * mientras alguien decide si escribe por WhatsApp. Va en papel — que además es
+ * lo que la papelería vende.
+ *
+ * Colores explícitos, sin heredar los tokens de fi-glass: el <body> lleva la
+ * clase `glass-chat`, que fija un fondo casi negro. Si esta hoja dependiera de
+ * esas variables, la portada saldría oscura por accidente el día que alguien
+ * cambie el tema de la app.
+ */
+
+.lp {
+  --papel: #fdfaf4;
+  --papel-hondo: #f5efe3;
+  --tinta: #1a1712;
+  --tinta-suave: #5e564a;
+  --fuego: #e05000;
+  --fuego-hondo: #c23a00;
+  --linea: #e6dcc9;
+
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: var(--papel);
+  color: var(--tinta);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lp-ancho {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* --- Portada ------------------------------------------------------------- */
+
+.lp-hero {
+  padding: clamp(3rem, 9vw, 6rem) 0 clamp(2.5rem, 6vw, 4rem);
+  text-align: center;
+}
+
+.lp-logo {
+  width: min(380px, 78vw);
+  height: auto;
+  margin: 0 auto clamp(1.5rem, 4vw, 2.5rem);
+  display: block;
+}
+
+.lp-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.9rem, 6vw, 3.1rem);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.lp-hero h1 em {
+  font-style: normal;
+  color: var(--fuego);
+}
+
+.lp-hero p {
+  margin: 0 auto;
+  max-width: 34rem;
+  font-size: clamp(1rem, 2.6vw, 1.2rem);
+  color: var(--tinta-suave);
+  text-wrap: pretty;
+}
+
+.lp-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;              /* dedo, no cursor: esto se abre del celular */
+  padding: 0.8rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.lp-btn-fuego {
+  background: linear-gradient(135deg, var(--fuego), var(--fuego-hondo));
+  color: #fff;
+  box-shadow: 0 8px 20px -8px rgb(224 80 0 / 0.55);
+}
+
+.lp-btn-fuego:hover { transform: translateY(-1px); box-shadow: 0 12px 26px -8px rgb(224 80 0 / 0.65); }
+
+.lp-btn-linea {
+  background: transparent;
+  border-color: var(--linea);
+  color: var(--tinta);
+}
+
+.lp-btn-linea:hover { border-color: var(--fuego); color: var(--fuego); }
+
+/* --- Lo que hace --------------------------------------------------------- */
+
+.lp-seccion { padding: clamp(2.5rem, 7vw, 4.5rem) 0; }
+
+.lp-seccion h2 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.35rem, 4vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lp-seccion .lp-bajada {
+  margin: 0 0 clamp(1.5rem, 4vw, 2.25rem);
+  color: var(--tinta-suave);
+  max-width: 42rem;
+}
+
+.lp-tarjetas {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.lp-tarjeta {
+  padding: 1.5rem;
+  border: 1px solid var(--linea);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.lp-tarjeta h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.lp-tarjeta p { margin: 0; color: var(--tinta-suave); font-size: 0.95rem; }
+
+.lp-num {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  margin-bottom: 0.9rem;
+  border-radius: 10px;
+  background: var(--papel-hondo);
+  color: var(--fuego);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* --- El cibercafé: franja de acento para separarla del resto ------------- */
+
+.lp-franja {
+  background: var(--papel-hondo);
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
+}
+
+.lp-franja .lp-seccion { display: grid; gap: 1.5rem; align-items: center; }
+
+@media (min-width: 720px) {
+  .lp-franja .lp-seccion { grid-template-columns: 1.1fr 1fr; gap: 3rem; }
+}
+
+.lp-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
+
+.lp-lista li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  color: var(--tinta-suave);
+}
+
+.lp-lista li::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 7px; height: 7px;
+  margin-top: 0.6rem;
+  border-radius: 50%;
+  background: var(--fuego);
+}
+
+/* --- Visitar ------------------------------------------------------------- */
+
+.lp-datos {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 1.5rem;
+}
+
+.lp-dato {
+  padding: 1.15rem 1.25rem;
+  border: 1px solid var(--linea);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.lp-dato span {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+  margin-bottom: 0.3rem;
+}
+
+.lp-dato a, .lp-dato strong {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--tinta);
+  text-decoration: none;
+  font-style: normal;
+}
+
+.lp-dato a:hover { color: var(--fuego); }
+
+.lp-pie {
+  padding: 2.5rem 0 3.5rem;
+  border-top: 1px solid var(--linea);
+  color: var(--tinta-suave);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-btn { transition: none; }
+  .lp-btn-fuego:hover { transform: none; }
+}
+
+/* --- La marca en portada ------------------------------------------------- */
+
+.lp-marca {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.lp-ave {
+  width: clamp(96px, 22vw, 150px);
+  height: auto;
+  /* El ave sale de un PNG cuyo fondo se recortó por luminancia; una sombra
+     suave le devuelve el asiento que tenía sobre el fondo oscuro. */
+  filter: drop-shadow(0 6px 14px rgb(224 80 0 / 0.22));
+}
+
+.lp-nombre {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  font-weight: 700;
+  font-size: clamp(2.4rem, 7vw, 3.4rem);
+  letter-spacing: -0.03em;
+  color: var(--tinta);
+}
+
+.lp-nombre span {
+  margin-top: 0.5rem;
+  font-size: clamp(0.62rem, 1.7vw, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+/* El acento del hero también en los títulos de sección que lo pidan. */
+.lp-seccion h2 em { font-style: normal; color: var(--fuego); }
