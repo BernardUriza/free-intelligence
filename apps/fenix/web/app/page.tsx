@@ -145,6 +145,12 @@ export default function Landing() {
             <li>Revisa lo que el niño escribió — no lo escribe por él.</li>
             <li>No guarda la conversación: al terminar, se borra.</li>
           </ul>
+          {/* La puerta de los niños, en la franja donde se les habla. Antes la
+              única entrada decía "Entrar al mostrador": el letrero correcto para
+              Ximena y Lidia, y el equivocado para un niño de once años. */}
+          <Link className="lp-btn lp-btn-fuego lp-btn-tarea" href="/app/">
+            Abrir el asistente de tareas
+          </Link>
         </section>
       </div>
 
@@ -173,7 +179,7 @@ export default function Landing() {
       <footer className="lp-pie lp-ancho">
         <p>
           Servicios Papeleros Fénix · Guadalajara, Jalisco ·{' '}
-          <Link href="/app/">Entrar al mostrador</Link>
+          <Link href="/app/">Abrir el asistente</Link>
         </p>
       </footer>
     </div>

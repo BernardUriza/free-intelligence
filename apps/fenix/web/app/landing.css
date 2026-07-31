@@ -281,3 +281,7 @@
 
 /* El acento del hero también en los títulos de sección que lo pidan. */
 .lp-seccion h2 em { font-style: normal; color: var(--fuego); }
+
+/* El botón de los niños vive dentro de la franja, no en la fila de acciones
+   del hero: se alinea al inicio y respira de la lista que lo precede. */
+.lp-btn-tarea { align-self: start; margin-top: 1.5rem; }
