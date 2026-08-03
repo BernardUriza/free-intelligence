@@ -13,7 +13,7 @@ from fastapi import APIRouter, Header
 
 from persona_runner.core import config
 from persona_runner.core.auth import check_auth
-from persona_runner.engine import session_pool
+from persona_runner.engine import auth_failure, session_pool
 
 log = structlog.get_logger()
 
@@ -24,8 +24,14 @@ router = APIRouter()
 async def health() -> dict:
     """Public liveness probe. Always 200. Body reflects state for monitoring."""
     claude_md_path = config.WORKSPACE_ROOT / "CLAUDE.md"
+    # A configured token proves a string was injected, never that upstream still
+    # accepts it. `credentials_rejected` is the only field here that reflects a
+    # REAL turn's verdict — the 2026-08-03 outage had every other field green
+    # while no persona could answer anyone.
+    rejected = auth_failure.last_failure()
     return {
-        "status": "ok",
+        "status": "degraded" if rejected else "ok",
+        "credentials_rejected": rejected,
         "service": "persona-runner",
         "workspace_present": config.WORKSPACE_ROOT.exists(),
         "persona_present": config.PERSONA_PATH.exists(),

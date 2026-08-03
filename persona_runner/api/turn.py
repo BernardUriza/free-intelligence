@@ -20,7 +20,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
-from persona_runner.engine import session_pool
+from persona_runner.engine import auth_failure, session_pool
 from persona_runner.engine.framing import fold_history, frame_turn_text, query_input_for
 
 log = structlog.get_logger()
@@ -127,6 +127,27 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         )
         await session_pool.close_client(key)
         raise HTTPException(502, f"agent loop failed: {type(e).__name__}: {e}") from e
+
+    # A revoked/expired token comes back as ordinary text, not an exception, so
+    # without this the 401 would be logged as a completed turn and returned 200
+    # — mute personas with every proxy green (see engine/auth_failure.py).
+    if auth_failure.looks_like_credential_failure(state):
+        auth_failure.mark_failure(state["text"])
+        log.error(
+            "agent_runner_auth_failed",
+            channel_id=req.channel_id,
+            user_id=req.user_id,
+            persona_id=req.persona_id,
+            detail=state["text"][:200],
+            elapsed_ms=int((time.monotonic() - start) * 1000),
+        )
+        await session_pool.close_client(key)
+        # 500, not 502: the caller retries 502/503 as "mid-restart", and no
+        # number of retries fixes a dead credential — it needs a human rotating
+        # the token. A defined internal error is exactly what this is.
+        raise HTTPException(500, "agent auth failed: credentials rejected upstream")
+
+    auth_failure.clear_failure()
 
     log.info(
         "agent_runner_turn_complete",
