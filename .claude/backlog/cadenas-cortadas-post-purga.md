@@ -103,3 +103,49 @@ queda, y su borrado está subordinado al re-hogar del #5.
 
 El item #2 (dashboard SWA) tiene su propio archivo desde 2026-07-20:
 [[dashboard-data-plane-fossil]] — la decisión de recablear-vs-congelar vive ahí.
+
+
+## RESUELTO 2026-08-06 — el consolidador se borró entero, código y job
+
+Bernard, ante la disyuntiva descongelar-vs-borrar: **"lo que sea más radical"**.
+
+La auditoría forense de ese día reveló que "congelado por diseño" era un
+eufemismo. El job **estaba fallando en producción** antes de congelarse:
+
+    fact-consolidation-29732100  Failed  2026-07-13
+    fact-consolidation-29729220  Failed  2026-07-11
+    fact-consolidation-29726340  Failed  2026-07-09
+
+con causa concreta en los logs — `consolidator_run_started {"users": 2}` seguido
+de `POST /v1/judge → 422 Unprocessable Content`: la imagen congelada hablaba un
+esquema que el runner ya no acepta. El "congelamiento" del 07-15 fue moverle el
+cron al **31 de febrero**, una fecha que no existe. Un cron imposible no frena
+una falla: la esconde.
+
+Y el job muerto seguía montando **cuatro secretos vivos** (`postgres-url`,
+`discord-token`, `insult-agent-runner-token`, `acr-password`) sobre la imagen
+`insult-bot:d6fa36c` — pre-purga, sin parches, sin supervisión.
+
+Borrado ejecutado:
+  - ACA Job `fact-consolidation` (backup fuera de todo repo en
+    `~/.secrets/azure-job-backups/`, chmod 600). `az containerapp job list -g
+    insult-rg` ahora devuelve VACÍO.
+  - `khimeras_shared/consolidation/` — 5 archivos
+  - sus 3 suites + `prompts_md/memory_consolidator_judge.md` — 1,226 líneas
+  - referencias huérfanas en `scripts/dr_inventory.sh`, `docs/runbook_dr.md`,
+    `.github/workflows/cd.yml`, `CLAUDE.md`, `.claude/rules/architecture.md`
+
+**El costo, asumido y escrito, no escondido:** se fue con él
+`filter_clinical_destruction`, la guarda que impedía borrar un fact clínico de
+Alex sin importar lo que pidiera el juez. Era irrelevante sin consolidador —nada
+podaba— pero es cara de reconstruir. Vive en git. Si el consolidador vuelve,
+vuelve CON su guarda y CON su consumidor en el mismo PR, nunca antes.
+
+**Consecuencia que queda abierta:** los facts son ADD-only y ahora nada los poda
+jamás. Está escrito en `CLAUDE.md` § Memory & facts para que no sorprenda a nadie
+dentro de tres meses.
+
+Bonus del barrido: `scripts/dr_inventory.sh` listaba `discord-bot` (retirado a
+cero) y **omitía `khimeras-host`** (la app viva). Un runbook de recuperación ante
+desastres que enumera mal las apps es peligroso justo cuando se necesita.
+Corregido a `(persona-gateway persona-runner khimeras-host)`.

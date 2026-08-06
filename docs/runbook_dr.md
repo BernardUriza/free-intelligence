@@ -58,7 +58,6 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
 5. **`discord-bot`** — la plomería. Depende del runner (`PERSONA_RUNNER_URL`).
 6. **`persona-gateway`** — las personas hermanas. Depende del runner y del `.env`
    completo (un token faltante → esa persona simplemente no arranca).
-7. **Jobs** (`insult-canary`, `fact-consolidation`) — no bloquean a nadie.
 8. **Alertas + action group** — `docs/runbook_alerts.md`.
 
 ## Los secretos: qué puede el agente y qué te necesita a ti
@@ -101,9 +100,6 @@ en `~/secrets/insult-oauth-token.txt` estaba **stale** — el vivo se respaldó 
   un paquete top-level nuevo que no esté ahí → `ModuleNotFoundError` al boot.
   Lo guarda `tests/arch/test_runner_dockerfile_copies_imports.py` — corre la
   suite antes de culpar a la infra.
-- **`fact-consolidation` importa `personas.insult.config.settings`**, que exige
-  `discord_token`. El job necesita el secret `discord-token` + su env aunque no
-  hable con Discord. Sin él: `Failed` al primer run.
 - **`az containerapp job create --command "python" "-m" ...` con flags falla.**
   Usa YAML con `command` como lista.
 - **`az acr build` está roto en el Mac** (pyexpat de Homebrew). Deja que el CD
@@ -119,8 +115,6 @@ Aplicada aquí, servicio por servicio:
 | `persona-runner` | `POST /v1/turn` real devuelve texto en la voz correcta (200 + `end_turn`) |
 | `discord-bot` | mandar un mensaje en **#general** y ver a Insult responder con el `VERSION_TAG` esperado |
 | `persona-gateway` | dirigirse a una persona (`frugi, …`) en **#general** y ver que contesta **en su propia voz** |
-| `insult-canary` | un run `Succeeded` con `canary_probe_sent` → `canary_probe_ok` |
-| `fact-consolidation` | un run `Succeeded` (falla ruidosamente si le falta `DISCORD_TOKEN`) |
 
 Un `/health` 200 y un `serving:true` son **proxies que pueden mentir** — es
 exactamente la clase de fake-green que costó 14 minutos de bot muerto el

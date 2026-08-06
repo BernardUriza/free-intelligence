@@ -171,8 +171,9 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   without redeploy. Call `load_prompt("<name>")` inside the function that uses
   the prompt, NOT at module level, so hot-reload actually works.
 - Current `prompts_md/` set: `facts_extraction`, `image_transcript`,
-  `memory_consolidator_judge`, `other_people_header`, `reminder_delivery`,
-  `self_reflection`.
+  `other_people_header`, `reminder_delivery`, `self_reflection`.
+  (`memory_consolidator_judge` se borró el 2026-08-06 con el consolidador
+  entero — ver CLAUDE.md § Memory & facts.)
 - Exception: ≤5-line structural fragments the prompt builder concatenates may
   stay inline — scaffolding, not content humans iterate.
 - History: convention detected 2026-05-12 while debugging flat replies; the old

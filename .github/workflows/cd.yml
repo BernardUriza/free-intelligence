@@ -7,7 +7,6 @@ name: CD
 #
 # Surfaces and the image each consumes:
 #   * discord-bot        <- insult-bot image       (Dockerfile)
-#   * fact-consolidation <- insult-bot image       (same image, cron job)
 #   * persona-gateway     <- persona-gateway image   (Dockerfile.gateway)
 #       (ALICE runs here as a gateway persona since v4.21.110; the legacy
 #        alice-bot Container App + Dockerfile.alice were retired 2026-07-05)
@@ -43,15 +42,6 @@ on:
         type: boolean
         default: false
 
-# ONE deploy at a time, newest wins. Four CD runs raced over the same ACR and
-# the same Container Apps on 2026-08-06; two were cancelled mid-build and NOTHING
-# reached prod for an hour, while an older run could have landed AFTER a newer one
-# and left production on a stale SHA. Cancelling the superseded run is both faster
-# and more correct on a trunk-based repo: the newest commit is the one that should
-# be live. Safe to cancel because every stage is idempotent — the bases are
-# content-addressed, and `detect` diffs against the SHA each app is RUNNING, so a
-# half-applied deploy self-heals on the next run.
-#
 # ONE deploy at a time, and they QUEUE — they do not cancel each other.
 #
 # `cancel-in-progress: true` looked right (newest commit is the one that should be
@@ -145,10 +135,10 @@ jobs:
     # workflow_dispatch has no workflow_run payload, so allow it through too.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
-      build_gw: ${{ needs.detect.outputs.build_gw }}
-      build_runner: ${{ needs.detect.outputs.build_runner }}
-      build_host: ${{ needs.detect.outputs.build_host }}
-      surfaces: ${{ needs.detect.outputs.surfaces }}
+      build_gw: ${{ steps.detect.outputs.build_gw }}
+      build_runner: ${{ steps.detect.outputs.build_runner }}
+      build_host: ${{ steps.detect.outputs.build_host }}
+      surfaces: ${{ steps.detect.outputs.surfaces }}
 
     steps:
       - uses: actions/checkout@v5

@@ -14,8 +14,8 @@ set -uo pipefail
 
 RG=insult-rg
 ENVNAME=prod-env
-APPS=(discord-bot persona-gateway persona-runner)
-JOBS=(insult-canary fact-consolidation)
+APPS=(persona-gateway persona-runner khimeras-host)
+JOBS=()
 
 fp() { printf '%s' "${1:-}" | shasum -a 256 | cut -c1-12; }
 hdr() { printf '\n\033[1m══ %s\033[0m\n' "$1"; }

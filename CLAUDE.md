@@ -108,11 +108,19 @@ never a mute bot.**
 (`POSTGRES_URL`). Facts grow ADD-only — the extractor runs in the background via
 `/v1/judge`, and `merge_facts_additive` unions onto the full live auto set before
 `save_facts` (a raw `save_facts(subset)` is a hard-delete in disguise, the 2026-06-03
-P0). Consolidation (`khimeras_shared/consolidation/`) runs by cron with a
-two-layer clinical guard: the conservative judge prompt (`prompts_md/
-memory_consolidator_judge.md`, "NEVER DELETE health/trauma") **plus** a code guard
-(`filter_clinical_destruction`) that refuses any DELETE of a clinical fact regardless
-of what the judge asked — the cluster that protects Alex.
+P0). **Nada poda los facts hoy**: el consolidador (`khimeras_shared/consolidation/`,
+688 líneas + su guarda clínica `filter_clinical_destruction`, la que protegía a
+Alex) se BORRÓ el 2026-08-06 junto con su job de Azure. No fue una limpieza
+cosmética: el job llevaba fallando en producción desde el 2026-07-09 (3 de 3 runs
+`Failed`, un 422 del `/v1/judge` contra un esquema viejo), se "congeló" el 07-15
+moviéndole el cron al **31 de febrero** — una fecha que no existe — y quedó un año
+luz de poder correr: entrypoint `python -m personas.insult` sobre un paquete
+borrado, imagen `insult-bot:d6fa36c` pre-purga sin parches, y CUATRO secretos
+vivos colgando (`postgres-url`, `discord-token`, `insult-agent-runner-token`,
+`acr-password`). Un cron imposible no es un freno, es una falla escondida.
+Consecuencia asumida: los facts crecen sin techo. Si se reconstruye, se
+reconstruye CON su consumidor y su guarda clínica en el mismo PR — el código vive
+en git (`git show <commit>^:khimeras_shared/consolidation/`).
 
 **Model routing** (`persona_runner/routing/`): `route_for_session` picks the tier
 (Haiku/Sonnet/Opus) per session from the preset + disclosure severity, with a 24h
