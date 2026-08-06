@@ -33,7 +33,7 @@ from khimeras_shared.stt import (
     transcribe_voice_message,
     wake_susurro,
 )
-from shared.personas.registry import persona_id_by_bot_user_id, persona_id_by_role_name
+from shared.personas.registry import get_persona, persona_id_by_bot_user_id, persona_id_by_role_name
 
 log = structlog.get_logger()
 
@@ -183,10 +183,32 @@ class HostClient(discord.Client):
         except Exception:
             log.exception("host_voice_echo_failed", channel_id=str(message.channel.id))
 
+    def _context_author(self, message: discord.Message) -> str:
+        """The name this author gets in the routing brain's context block.
+
+        For a persona it is the REGISTRY display name ("Frugívoro"), never
+        `Member.display_name` — that returns the per-guild nickname ("frugi"), and
+        `host_routing.md` maps only the canonical names. It is also exactly what
+        `messages.user_name` holds in Postgres, so the context the brain reads in
+        production is byte-identical to the one `scripts/router_eval.py` measures.
+        """
+        persona_id = self.dispatch_loop.mention_targets.get(str(message.author.id))
+        if persona_id:
+            persona = get_persona(persona_id)
+            if persona and persona.display_name:
+                return persona.display_name
+        return getattr(message.author, "display_name", "") or "?"
+
     async def on_message(self, message: discord.Message) -> None:
         voice_text = "" if message.author.bot else await self.transcribe_voice(message)
         if voice_text:
             await self.echo_transcript(message, voice_text)
+        if self.user is None or message.author.id != self.user.id:
+            self.dispatch_loop.remember(
+                channel_id=str(message.channel.id),
+                author_name=self._context_author(message),
+                text=f"{message.content or ''}\n{voice_text}".strip(),
+            )
         self._ingest(message, time.time(), voice_text)
 
     @tasks.loop(seconds=TICK_SECONDS)

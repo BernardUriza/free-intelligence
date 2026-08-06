@@ -16,6 +16,7 @@ never routes another bot's output or a `!command`.
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -29,6 +30,14 @@ log = structlog.get_logger()
 
 COMMAND_PREFIXES = ("!", "/")
 
+# How many recent channel messages ride to the routing brain as context. Mirrors
+# the dead `_fetch_router_context` (personas/insult/cogs/chat/stages.py, killed in
+# 2f8d9ad) and `scripts/router_eval.py::ROUTER_CONTEXT_MESSAGES` — the eval measures
+# the router against THIS number, so they move together or the eval measures another
+# system.
+CONTEXT_MESSAGES = 8
+CONTEXT_LINE_CHARS = 300
+
 
 @dataclass
 class HostDispatchLoop:
@@ -40,6 +49,41 @@ class HostDispatchLoop:
     role_resolver: Callable[[str], str | None] = persona_id_by_role_name
     _names: dict[str, str] = field(default_factory=dict)
     _forced_targets: dict[str, list[str]] = field(default_factory=dict)
+    _context: dict[str, deque[str]] = field(default_factory=dict)
+
+    def remember(self, *, channel_id: str, author_name: str, text: str) -> None:
+        """Keep the last `CONTEXT_MESSAGES` lines of a channel for the routing brain.
+
+        Called for EVERY message, personas included — a persona's reply is half of
+        what makes the next message a continuation, and `handle_message` drops bot
+        authors before anything is retained. Format is the canonical
+        `name: text[:300]`, oldest first, byte-identical to the deleted
+        `_fetch_router_context` and to `scripts/router_eval.py`, so the eval and
+        production measure the same system.
+
+        `author_name` must be the persona's REGISTRY display name, never
+        `discord.Member.display_name`: the latter returns the per-guild nickname
+        ("frugi") while `host_routing.md` maps only the canonical one ("Frugívoro").
+        A nickname in the context block is a name the brain cannot resolve.
+
+        In-memory on purpose: the host has no `POSTGRES_URL`, and it does not need
+        one — every message already passes through `on_message`.
+        """
+        line = text.strip()
+        if not line:
+            return
+        buffer = self._context.setdefault(channel_id, deque(maxlen=CONTEXT_MESSAGES))
+        buffer.append(f"{author_name or '?'}: {line[:CONTEXT_LINE_CHARS]}")
+
+    def context_for(self, channel_id: str) -> str | None:
+        """The recent-conversation block for `channel_id`, or None when empty.
+
+        None (not "") is the contract `route_and_dispatch` expects: it means route
+        WITHOUT context, which keeps the payload byte-identical to the pre-context
+        router instead of shipping an empty header.
+        """
+        buffer = self._context.get(channel_id)
+        return "\n".join(buffer) if buffer else None
 
     def handle_message(
         self,
@@ -134,6 +178,7 @@ class HostDispatchLoop:
                 channel_id=channel_id,
                 text=combined,
                 user_name=self._names.pop(key, ""),
+                context=self.context_for(channel_id),
                 trigger_message_id=message_id,
                 forced_targets=self._forced_targets.pop(key, None),
                 voice_transcript=voice_transcript,
