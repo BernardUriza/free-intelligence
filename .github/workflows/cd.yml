@@ -52,15 +52,22 @@ on:
 # content-addressed, and `detect` diffs against the SHA each app is RUNNING, so a
 # half-applied deploy self-heals on the next run.
 #
-# `cancel-in-progress` is CONDITIONAL because the concurrency group is evaluated
-# BEFORE the jobs' `if`. A CD triggered by a RED CI skips every job — but it still
-# joins the group, and with an unconditional `true` that empty run cancelled a
-# manual deploy that was mid-build (2026-08-06, run 31119484497). Only a run that
-# will actually deploy is allowed to cancel one: a dispatch, or a workflow_run
-# whose CI was green.
+# ONE deploy at a time, and they QUEUE — they do not cancel each other.
+#
+# `cancel-in-progress: true` looked right (newest commit is the one that should be
+# live) and starved the pipeline instead: this repo is worked by several agents at
+# once, so a new commit lands every few minutes, every in-flight CD gets cancelled
+# by the next one, and NOTHING ever reaches prod. Measured 2026-08-06: runs
+# cancelled at 902s in queue, three P0 fixes stuck behind an infinite preemption
+# chain while the apps sat on a SHA from hours earlier.
+#
+# Queuing converges where cancelling could not: every run finishes, and since
+# `detect` diffs against the SHA each app is RUNNING (not HEAD~1), a superseded
+# run simply finds nothing left to do and the last one leaves the correct state.
+# Slower per commit, but it actually deploys — which is the whole point.
 concurrency:
   group: cd-deploy
-  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+  cancel-in-progress: false
 
 env:
   NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
