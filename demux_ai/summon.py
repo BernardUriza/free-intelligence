@@ -21,8 +21,8 @@ the agent runner returns no tool_calls):
 - the runner-down failover in ``_stage_call_llm``.
 
 Env contract (names are legacy wire config, renaming them is an Azure ops
-change tracked separately): ``ALICE_INVITE_URL`` points at the gateway's
-`/invite`; ``INSULT_TO_ALICE_TOKEN`` is the shared bearer token.
+change tracked separately): ``GATEWAY_INVITE_URL`` points at the gateway's
+`/invite`; ``GATEWAY_INVITE_TOKEN`` is the shared bearer token.
 """
 
 from __future__ import annotations
@@ -54,27 +54,27 @@ async def summon_persona(
     got a response; the sibling arriving late is acceptable, the sibling not
     arriving at all is also acceptable (just suboptimal).
     """
-    url = os.environ.get("ALICE_INVITE_URL", "http://localhost:8788/invite")
-    token = os.environ.get("INSULT_TO_ALICE_TOKEN", "")
+    url = os.environ.get("GATEWAY_INVITE_URL", "http://localhost:8788/invite")
+    token = os.environ.get("GATEWAY_INVITE_TOKEN", "")
 
     # Always log entry so we can prove the function executed even when the
     # outcome is silent (e.g. early returns). Token length only, never the
     # value. URL host visible because internal Container App DNS is not
     # secret.
     log.info(
-        "invoke_alice_called",
+        "summon_called",
         channel_id=channel_id,
         url_host=url.split("/")[2] if "//" in url else "?",
         token_len=len(token),
     )
 
     if not token:
-        log.warning("invoke_alice_no_token_configured")
+        log.warning("summon_no_token_configured")
         return False
 
     reason = tool_input.get("reason", "").strip()
     if not reason:
-        log.warning("invoke_alice_empty_reason")
+        log.warning("summon_empty_reason")
         return False
 
     payload = {
@@ -96,7 +96,7 @@ async def summon_persona(
         # follow_redirects=True because Azure Container Apps internal ingress
         # 301s http→https. Without this httpx returns the 301 as-is and we
         # treat the redirect as a rejection. Discovered v3.9.13 in prod logs:
-        # `invoke_alice_rejected status: 301 body: ""`.
+        # `summon_rejected status: 301 body: ""`.
         async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
             resp = await client.post(
                 url,
@@ -105,22 +105,22 @@ async def summon_persona(
             )
         if resp.status_code == 202:
             log.info(
-                "invoke_alice_accepted",
+                "summon_accepted",
                 channel_id=channel_id,
                 reason_preview=reason[:80],
             )
             return True
         log.warning(
-            "invoke_alice_rejected",
+            "summon_rejected",
             status=resp.status_code,
             body=resp.text[:200],
         )
         return False
     except httpx.HTTPError as e:
-        log.warning("invoke_alice_http_error", error=str(e), error_type=type(e).__name__)
+        log.warning("summon_http_error", error=str(e), error_type=type(e).__name__)
         return False
     except Exception as e:
         # Catch-all so the caller's tracked-task wrapper sees a clean
         # `background_task_ok` only when we genuinely succeeded.
-        log.exception("invoke_alice_unexpected_error", error=str(e), error_type=type(e).__name__)
+        log.exception("summon_unexpected_error", error=str(e), error_type=type(e).__name__)
         return False

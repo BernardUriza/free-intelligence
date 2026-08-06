@@ -7,14 +7,15 @@ runner), the invite endpoint must live here too — otherwise ALICE runs on two
 hosts with the same token (double replies) and the legacy container cannot be
 retired (it is the sole `/invite` host). See `.claude/rules/sibling-personas.md`.
 
-Insult is the only authorized caller. Auth is the same shared bearer token
-(`INSULT_TO_ALICE_TOKEN`) the legacy endpoint used, so repointing
-`discord-bot.ALICE_INVITE_URL` at the gateway needs no caller change.
+The host is the caller. Auth is a shared bearer token (`GATEWAY_INVITE_TOKEN`),
+carried over from the legacy ALICE-only endpoint this replaced — renamed
+2026-08-06 because the endpoint summons ANY persona and the old name made every
+log line and env var claim otherwise.
 
 Endpoint contract (unchanged from the legacy server):
 
     POST /invite
-    Authorization: Bearer <INSULT_TO_ALICE_TOKEN>
+    Authorization: Bearer <GATEWAY_INVITE_TOKEN>
     Content-Type: application/json
     { "channel_id": "...", "guild_id": "...", "channel_name": "general", "reason": "..." }
 
@@ -45,10 +46,9 @@ from persona_gateway.gateway import PersonaClient
 log = structlog.get_logger()
 
 # Which persona /invite summons when the request carries no persona_id. The
-# legacy endpoint was ALICE-only and Insult's `invoke_alice` tool carries no
-# persona_id, so the bare wire contract still maps /invite → "alice"; the
-# optional `persona_id` field (HOST 5/6 slice C) lets the LLM router cutover
-# summon any gateway persona through the same endpoint.
+# legacy endpoint was ALICE-only, so the bare wire contract still maps
+# /invite → "alice"; the optional `persona_id` field (HOST 5/6 slice C) lets a
+# caller summon any gateway persona through the same endpoint.
 INVITE_PERSONA_ID = DEFAULT_INVITE_PERSONA_ID
 
 # A persona is "mute-suspected" only if the last addressed message it saw is

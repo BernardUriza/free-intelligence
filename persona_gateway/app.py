@@ -50,7 +50,7 @@ def _build_shared() -> tuple[
 
     Also builds the susurro TTS client so each persona can speak its own 🔊 audio.
     TTS is OPTIONAL — when SUSURRO_KEY is unset the client is None and voice is
-    simply off. The `/invite` bearer token (INSULT_TO_ALICE_TOKEN) is the same
+    simply off. The `/invite` bearer token (GATEWAY_INVITE_TOKEN) is the same
     secret the legacy alice-bot endpoint used. The last element is the one-shot
     judge client (runner /v1/judge) that drives the automatic fact-extraction
     backstop — same runner URL + token as the turn client, a different endpoint.
@@ -81,7 +81,7 @@ def _build_shared() -> tuple[
         dm_stt_enabled=stt_client is not None,
         auto_tts_min_chars=CONFIG.auto_tts_min_chars,
     )
-    invite_token = config.insult_to_alice_token.get_secret_value()
+    invite_token = config.gateway_invite_token.get_secret_value()
     return memory, agent_client, tts_client, stt_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
 
 

@@ -77,7 +77,7 @@ def test_invite_bad_token_is_401():
 
 
 def test_invite_unconfigured_token_is_503():
-    # RESISTANCE: gateway booted without INSULT_TO_ALICE_TOKEN → fail closed.
+    # RESISTANCE: gateway booted without GATEWAY_INVITE_TOKEN → fail closed.
     client = _ready_client()
     app = build_invite_app({INVITE_PERSONA_ID: client}, "")
     with TestClient(app) as http:

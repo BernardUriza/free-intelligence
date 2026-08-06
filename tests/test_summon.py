@@ -29,8 +29,8 @@ def _mock_async_client(status_code: int = 202, text: str = ""):
 
 @pytest.fixture(autouse=True)
 def _invite_env(monkeypatch):
-    monkeypatch.setenv("ALICE_INVITE_URL", "http://gateway.internal/invite")
-    monkeypatch.setenv("INSULT_TO_ALICE_TOKEN", "t0ken")
+    monkeypatch.setenv("GATEWAY_INVITE_URL", "http://gateway.internal/invite")
+    monkeypatch.setenv("GATEWAY_INVITE_TOKEN", "t0ken")
 
 
 async def test_202_returns_true_and_payload_carries_all_fields():
@@ -66,7 +66,7 @@ async def test_optional_fields_omitted_when_absent():
 
 
 async def test_missing_token_returns_false_without_calling(monkeypatch):
-    monkeypatch.setenv("INSULT_TO_ALICE_TOKEN", "")
+    monkeypatch.setenv("GATEWAY_INVITE_TOKEN", "")
     ctx, client = _mock_async_client(202)
     with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
         ok = await summon_persona({"reason": "ven"}, channel_id="123")
