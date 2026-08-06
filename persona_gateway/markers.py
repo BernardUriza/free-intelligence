@@ -18,6 +18,7 @@ from __future__ import annotations
 import structlog
 
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
+from khimeras_shared.invite_marker import parse_invite, strip_invites
 from khimeras_shared.markers import parse_remind_cancels, strip_remind_cancels
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
@@ -52,7 +53,37 @@ class MarkerRouter:
         text = await self._route_remind_cancel(text, channel_id=channel_id, user_id=user_id)
         text = await self._route_remind(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
         text = await self._route_remember(text, channel_id=channel_id, user_id=user_id)
+        # LAST and unconditional: whatever happens above, `[INVITE:]` must not
+        # survive into Discord. See `_route_invite`.
+        text = self._route_invite(text, channel_id=channel_id, user_id=user_id)
         return text
+
+    def _route_invite(self, text: str, *, channel_id: str, user_id: str) -> str:
+        """Strip `[INVITE:]` — always — and record that a summon was wanted.
+
+        The summon pipeline died with `personas/` on 2026-07-14 and nothing
+        replaced it, so this marker had no parser AND no stripper. On 2026-07-31
+        that shipped an internal note about Bernard's own suicidal ideation
+        straight into the channel, addressed to a sibling who never came.
+
+        Stripping is therefore unconditional and lives at the END of the chain:
+        no branch above can skip it. The log line is the honest half — it says
+        out loud that a persona wanted a sibling and could not get one, instead
+        of the silence that hid this for a month. Wiring the actual summon
+        (late-bound sibling lookup -> `PersonaClient.dispatch_invite`) is the
+        next change; it touches gateway boot order, so it does not ride here.
+        """
+        reason = parse_invite(text)
+        if reason is None:
+            return text
+        log.warning(
+            "persona_gateway_invite_marker_unrouted",
+            persona_id=self.persona.persona_id,
+            channel_id=channel_id,
+            user_id=user_id,
+            reason_len=len(reason),
+        )
+        return strip_invites(text)
 
     async def _route_research(self, text: str, *, channel_id: str, guild_id: str | None, user_id: str) -> str:
         prompt = parse_research(text)

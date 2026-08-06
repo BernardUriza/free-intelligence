@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 
 from khimeras_shared.agenda_marker import strip_agenda
+from khimeras_shared.invite_marker import strip_invites
 from khimeras_shared.reactions import strip_reactions
 from khimeras_shared.remember_marker import strip_remembers
 from khimeras_shared.remind_marker import strip_reminds
@@ -95,5 +96,5 @@ def strip_delivery_markers(text: str) -> str:
     after REMIND, `[REMIND_CANCEL:` has the underscore in between.
     """
     return strip_remembers(
-        strip_reminds(strip_remind_cancels(strip_agenda(strip_research(strip_reactions(text or "")))))
+        strip_reminds(strip_remind_cancels(strip_agenda(strip_research(strip_invites(strip_reactions(text or ""))))))
     ).strip()
