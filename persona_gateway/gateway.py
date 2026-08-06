@@ -410,6 +410,15 @@ class PersonaClient(discord.Client):
             )
             return
 
+        # Un turno aceptado es un turno VISTO. `/health` detecta la mudez
+        # comparando este sello contra `last_turn_delivered`, y hasta hoy sólo se
+        # estampaba en el camino de @mención — o sea en NINGUNO de los turnos que
+        # el sistema realmente sirve, porque post-cutover el host es dueño de la
+        # recepción y todo entra por aquí. Una persona que tomaba un invite y no
+        # contestaba se veía idéntica a una sin tráfico: la señal anti-boot-zombie
+        # del 2026-06-13 llevaba apagada justo donde pasa todo.
+        self.last_message_seen = time.time()
+
         recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
         instruction = invite_instruction(invited_by, reason)
         log.info(
