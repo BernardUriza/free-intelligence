@@ -35,6 +35,18 @@ on:
         type: boolean
         default: false
 
+# ONE deploy at a time, newest wins. Four CD runs raced over the same ACR and
+# the same Container Apps on 2026-08-06; two were cancelled mid-build and NOTHING
+# reached prod for an hour, while an older run could have landed AFTER a newer one
+# and left production on a stale SHA. Cancelling the superseded run is both faster
+# and more correct on a trunk-based repo: the newest commit is the one that should
+# be live. Safe to cancel because every stage is idempotent — the bases are
+# content-addressed, and `detect` diffs against the SHA each app is RUNNING, so a
+# half-applied deploy self-heals on the next run.
+concurrency:
+  group: cd-deploy
+  cancel-in-progress: true
+
 env:
   NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
   RG: insult-rg

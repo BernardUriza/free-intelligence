@@ -14,6 +14,13 @@ on:
   pull_request:
     branches: [main]
 
+# One CI per ref: pushing twice in a minute used to run both to completion and
+# make the second deploy wait behind a run nobody was reading any more. The
+# newest commit is the only one whose result matters.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 # Conda-native CI per memory feedback_no_pypi_only_conda.
 # All jobs install from environment.yml via `setup-micromamba`.
 # environment.yml channels: bernardurizaorozco (for fi-core) →
