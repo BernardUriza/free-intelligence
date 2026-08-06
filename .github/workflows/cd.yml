@@ -22,6 +22,14 @@ name: CD
 # detection diffs each image's paths between the SHA the Container App is RUNNING
 # and the new SHA. Diffing against the running image (not HEAD~1) is self-healing:
 # if a prior deploy was skipped or failed, the diff still spans back to reality.
+#
+# Four stages (2026-08-06 — the CD ran 15-22min and 87% of it was builds):
+#   bases   -> the shared conda/toolchain images, content-addressed; a tag lookup
+#              on any commit that doesn't touch dependencies
+#   detect  -> which surfaces changed, and the build matrix that follows from it
+#   build   -> one runner PER image, in parallel; the stage costs the slowest
+#              image instead of the sum of all three
+#   deploy  -> containerapp update + the health/turn checks that prove it serves
 
 on:
   workflow_run:
@@ -115,13 +123,18 @@ jobs:
               --build-arg BASE_IMAGE="$ACR/khimeras-base:${{ steps.tags.outputs.base_tag }}" .
           fi
 
-  deploy:
-    name: Build & Deploy to Azure
+  # --- Stage 2: what actually changed ------------------------------------
+  detect:
+    name: Detect changed surfaces
     runs-on: ubuntu-latest
-    needs: bases
     # workflow_run fires on success AND failure; only deploy on a green CI.
     # workflow_dispatch has no workflow_run payload, so allow it through too.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      build_gw: ${{ needs.detect.outputs.build_gw }}
+      build_runner: ${{ needs.detect.outputs.build_runner }}
+      build_host: ${{ needs.detect.outputs.build_host }}
+      surfaces: ${{ needs.detect.outputs.surfaces }}
 
     steps:
       - uses: actions/checkout@v5
@@ -196,6 +209,20 @@ jobs:
             echo "build_host=$BUILD_HOST"
           } >> "$GITHUB_OUTPUT"
 
+          # The build matrix carries ONLY the surfaces that changed, so the fan-out
+          # spawns no idle runners and the job skips entirely when nothing moved.
+          # `base_tag_key` indexes the bases job's outputs at build time.
+          SURFACES=$(jq -cn --arg gw "$BUILD_GW" --arg rn "$BUILD_RUNNER" --arg ho "$BUILD_HOST" '
+            [
+              {image:"persona-gateway", file:"Dockerfile.gateway",
+               base_repo:"khimeras-base", base_tag_key:"base_tag", want:$gw},
+              {image:"persona-runner", file:"infra/azure/runner.Dockerfile",
+               base_repo:"khimeras-runner-base", base_tag_key:"runner_base_tag", want:$rn},
+              {image:"khimeras-host", file:"Dockerfile.host",
+               base_repo:"khimeras-base", base_tag_key:"base_tag", want:$ho}
+            ] | map(select(.want == "true") | del(.want))')
+          echo "surfaces=$SURFACES" >> "$GITHUB_OUTPUT"
+
           echo "## CD change detection" >> "$GITHUB_STEP_SUMMARY"
           echo "new sha: \`$NEW_SHA\` (force=$FORCE)" >> "$GITHUB_STEP_SUMMARY"
           echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
@@ -204,44 +231,69 @@ jobs:
           echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
           echo "| khimeras-host (dormant until provisioned) | \`${HOST_SHA:0:7}\` | $BUILD_HOST |" >> "$GITHUB_STEP_SUMMARY"
 
-      # --- Builds (only what changed) ---
 
-      - name: Build persona-gateway image
-        if: ${{ steps.detect.outputs.build_gw == 'true' }}
+  # --- Stage 3: the three images, IN PARALLEL --------------------------------
+  #
+  # They used to be three sequential steps in one job: 459s + 220s + 213s, so a
+  # deploy paid the SUM of the builds even though nothing links them. Fanning out
+  # makes the stage cost the SLOWEST image instead. The matrix is built by
+  # `detect`, so only changed surfaces spawn a runner and an unchanged commit
+  # skips the whole stage.
+  build:
+    name: Build ${{ matrix.surface.image }}
+    runs-on: ubuntu-latest
+    needs: [bases, detect]
+    if: ${{ needs.detect.outputs.surfaces != '[]' }}
+    strategy:
+      # One broken image must not cancel its siblings: the others are still
+      # deployable, and a fail-fast here would hide which of them also broke.
+      fail-fast: false
+      matrix:
+        surface: ${{ fromJSON(needs.detect.outputs.surfaces) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build ${{ matrix.surface.image }} image
         run: |
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image persona-gateway:${{ env.NEW_SHA }} --image persona-gateway:latest \
-            --file Dockerfile.gateway \
-            --build-arg BASE_IMAGE="$ACR/khimeras-base:${{ needs.bases.outputs.base_tag }}" .
+            --image "${{ matrix.surface.image }}:$NEW_SHA" \
+            --image "${{ matrix.surface.image }}:latest" \
+            --file "${{ matrix.surface.file }}" \
+            --build-arg BASE_IMAGE="$ACR/${{ matrix.surface.base_repo }}:${{ needs.bases.outputs[matrix.surface.base_tag_key] }}" .
 
-      - name: Build persona-runner image
-        if: ${{ steps.detect.outputs.build_runner == 'true' }}
-        run: |
-          az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image persona-runner:${{ env.NEW_SHA }} --image persona-runner:latest \
-            --file infra/azure/runner.Dockerfile \
-            --build-arg BASE_IMAGE="$ACR/khimeras-runner-base:${{ needs.bases.outputs.runner_base_tag }}" .
-
-      - name: Build khimeras-host image
-        if: ${{ steps.detect.outputs.build_host == 'true' }}
-        run: |
-          az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image khimeras-host:${{ env.NEW_SHA }} --image khimeras-host:latest \
-            --file Dockerfile.host \
-            --build-arg BASE_IMAGE="$ACR/khimeras-base:${{ needs.bases.outputs.base_tag }}" .
+  # --- Stage 4: deploy what was rebuilt, then prove it serves ----------------
+  deploy:
+    name: Deploy & verify
+    runs-on: ubuntu-latest
+    needs: [detect, build]
+    # `build` is skipped when nothing changed; !cancelled() lets the
+    # nothing-to-deploy notice still run, while a failed build blocks the deploy.
+    if: ${{ !cancelled() && needs.detect.result == 'success' && needs.build.result != 'failure' }}
+    steps:
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # --- Deploys (only what was rebuilt) ---
 
       - name: Deploy persona-gateway
         # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
-        if: ${{ steps.detect.outputs.build_gw == 'true' }}
+        if: ${{ needs.detect.outputs.build_gw == 'true' }}
         continue-on-error: true
         run: |
           az containerapp update --name persona-gateway --resource-group "$RG" \
             --image "$ACR/persona-gateway:${{ env.NEW_SHA }}"
 
       - name: Deploy persona-runner
-        if: ${{ steps.detect.outputs.build_runner == 'true' }}
+        if: ${{ needs.detect.outputs.build_runner == 'true' }}
         continue-on-error: true
         run: |
           az containerapp update --name persona-runner --resource-group "$RG" \
@@ -251,14 +303,14 @@ jobs:
         # Dormant until Bernard provisions the `khimeras-host` Container App + its
         # HOST_DISCORD_TOKEN (the cutover atom). continue-on-error so a not-yet-
         # created host never breaks the run — the image is already in ACR, ready.
-        if: ${{ steps.detect.outputs.build_host == 'true' }}
+        if: ${{ needs.detect.outputs.build_host == 'true' }}
         continue-on-error: true
         run: |
           az containerapp update --name khimeras-host --resource-group "$RG" \
             --image "$ACR/khimeras-host:${{ env.NEW_SHA }}"
 
       - name: Verify persona-gateway health
-        if: ${{ steps.detect.outputs.build_gw == 'true' }}
+        if: ${{ needs.detect.outputs.build_gw == 'true' }}
         run: |
           if az containerapp show -n persona-gateway -g "$RG" --query "name" -o tsv 2>/dev/null; then
             az containerapp show -n persona-gateway -g "$RG" --query "properties.latestRevisionName" -o tsv
@@ -277,7 +329,7 @@ jobs:
           fi
 
       - name: Verify persona-runner health
-        if: ${{ steps.detect.outputs.build_runner == 'true' }}
+        if: ${{ needs.detect.outputs.build_runner == 'true' }}
         run: |
           if az containerapp show -n persona-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
             az containerapp show -n persona-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
@@ -353,5 +405,5 @@ jobs:
           fi
 
       - name: Nothing-to-deploy notice
-        if: ${{ steps.detect.outputs.build_gw != 'true' && steps.detect.outputs.build_runner != 'true' && steps.detect.outputs.build_host != 'true' }}
+        if: ${{ needs.detect.outputs.build_gw != 'true' && needs.detect.outputs.build_runner != 'true' && needs.detect.outputs.build_host != 'true' }}
         run: echo "No surface changed since its running SHA — nothing built or deployed."
