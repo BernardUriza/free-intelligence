@@ -464,3 +464,48 @@ async def test_non_filter_api_error_still_raises_and_is_not_retried():
     router = DirectAzureLLMRouter(client=client)
     with pytest.raises(RuntimeError):
         await router.route("hola", context="ctx")
+
+
+class TestRouterBudgetIsEnforced:
+    """El cap de $5/semana que Bernard autorizó (d194292, 2026-06-21) dejó de
+    cumplirse cuando la purga se llevó a su único llamador: `RouterBudget` quedó
+    intacto en el árbol, con cero consumidores, mientras el router seguía
+    gastando. Un mes en producción sin tope y sin una sola señal roja — el módulo
+    escrito para no hacer fake-green era él mismo un fake-green.
+
+    Estos tests son el mecanismo que faltaba: si alguien vuelve a desconectar el
+    cap, se ponen rojos."""
+
+    @pytest.mark.asyncio
+    async def test_over_the_cap_it_degrades_instead_of_calling_azure(self):
+        from demux_ai.router_budget import RouterBudget
+
+        spent = RouterBudget(weekly_cap_usd=0.0001)
+        spent.record(1_000_000, 1_000_000)
+        client = _FakeAzureClient("vultur")
+        decision = await DirectAzureLLMRouter(client=client, budget=spent).route("reseña de Dune")
+
+        assert decision.target == "insult", "rebasar el cap debe degradar al default, no elegir persona"
+        assert decision.reason == "llm_budget_exceeded"
+
+    @pytest.mark.asyncio
+    async def test_under_the_cap_it_routes_normally(self):
+        from demux_ai.router_budget import RouterBudget
+
+        decision = await DirectAzureLLMRouter(
+            client=_FakeAzureClient("vultur"), budget=RouterBudget(weekly_cap_usd=5.0)
+        ).route("reseña de Dune")
+
+        assert decision.target == "vultur"
+        assert decision.reason == "llm_vultur"
+
+    @pytest.mark.asyncio
+    async def test_every_call_is_charged_to_the_week(self):
+        """Sin `record` el contador nunca sube y el cap no puede morder jamás —
+        que es exactamente el estado en el que estuvo un mes."""
+        from demux_ai.router_budget import RouterBudget
+
+        budget = RouterBudget(weekly_cap_usd=5.0)
+        assert budget.spent_this_week() == 0.0
+        await DirectAzureLLMRouter(client=_FakeAzureClient("insult"), budget=budget).route("hola")
+        assert budget.spent_this_week() > 0.0

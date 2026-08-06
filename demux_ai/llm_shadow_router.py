@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from demux_ai.router_budget import RouterBudget
 from khimeras_shared.prompts import PromptCache, load_prompt
 
 if TYPE_CHECKING:
@@ -168,9 +169,15 @@ class DirectAzureLLMRouter:
     compatible: same ``route(text) -> LLMShadowDecision`` contract, so it drops
     into ``TurnRuntimeDeps.llm_shadow_route`` behind the same seam."""
 
-    def __init__(self, client: object | None = None, deployment: str | None = None) -> None:
+    def __init__(
+        self,
+        client: object | None = None,
+        deployment: str | None = None,
+        budget: RouterBudget | None = None,
+    ) -> None:
         self._client = client  # injectable for tests (no Azure, no spend)
         self._deployment = deployment or os.environ.get("AZURE_OPENAI_GPT_DEPLOYMENT", _DEFAULT_DEPLOYMENT)
+        self._budget = RouterBudget() if budget is None else budget
 
     def _ensure_client(self) -> object:
         if self._client is None:
@@ -201,7 +208,24 @@ class DirectAzureLLMRouter:
         and if the bare message is filtered too, fall back to the same
         ``DEFAULT_TARGET`` an unparseable reply already falls back to. Silence is
         never the answer — the personas run on Claude and are perfectly able to
-        reply while gpt-4.1 refuses to route."""
+        reply while gpt-4.1 refuses to route.
+
+        El cap semanal se consulta ANTES de gastar. Bernard lo autorizó en
+        `d194292` (2026-06-21, $5/semana) y `RouterBudget` existe desde entonces
+        para hacerlo cumplir — pero la purga se llevó a su único llamador y el
+        router siguió gastando un mes sin tope, con el módulo intacto en el árbol
+        diciendo en su propio docstring que era "an honored constraint, not a
+        fake-green". Rebasar el cap degrada al `DEFAULT_TARGET`, el mismo
+        fail-safe que ya usa el filtro de contenido: el ruteo se vuelve tonto,
+        nunca mudo."""
+        if not self._budget.can_spend():
+            log.warning(
+                "host_router_budget_exceeded",
+                spent_usd=round(self._budget.spent_this_week(), 4),
+                cap_usd=self._budget.cap_usd,
+                target=DEFAULT_TARGET,
+            )
+            return LLMShadowDecision(target=DEFAULT_TARGET, reason="llm_budget_exceeded")
         try:
             return await self._complete(text, context)
         except Exception as e:
@@ -259,6 +283,7 @@ class DirectAzureLLMRouter:
         usage = resp.usage
         input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        spent_usd = self._budget.record(input_tokens, output_tokens)
         log.info(
             "host_router_llm_response",
             model=self._deployment,
@@ -267,6 +292,8 @@ class DirectAzureLLMRouter:
             output_tokens=output_tokens,
             latency_ms=latency_ms,
             backend="azure_direct",
+            spent_usd=round(spent_usd, 4),
+            cap_usd=self._budget.cap_usd,
         )
         return LLMShadowDecision(
             target=target,
