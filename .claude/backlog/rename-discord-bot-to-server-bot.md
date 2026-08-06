@@ -2,6 +2,27 @@
 
 Status: In progress (ACR hecho 2026-07-25; RG + repo + apps pendientes)
 Proposed: 2026-06-18 by Bernard
+Re-verificado: 2026-08-06 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+
+## Estado real al 2026-08-06 (auditoría — dos cosas cambiaron desde el 07-25)
+
+- **Las 3 apps del repo SÍ pullean de `serverbotacr`**: persona-gateway,
+  persona-runner y khimeras-host corren `serverbotacr.azurecr.io/<app>:e4f38d7`.
+- ⚠️ **`susurro-gateway` volvió a `insultacr`**: hoy corre
+  `insultacr.azurecr.io/susurro-gateway:30ee47e5` (tiene ambos registries
+  configurados). Se le repuntó el 07-25, pero su propio CD —que vive en el repo
+  `susurro` y publica a `insultacr`— lo devolvió al ACR viejo en el siguiente
+  deploy. Repuntar la app sin repuntar el CD del repo dueño es reversible por
+  diseño: para que la migración pegue hay que tocar ESE workflow.
+- ✅ **El job `insult-canary` YA NO EXISTE** — se borró hoy (v4.32.27, `ccea31e`,
+  *"muere el canary zombie"*); `architecture.md` llevaba seis semanas afirmando
+  que estaba borrado y era falso. `az containerapp job list -g insult-rg` ahora
+  devuelve **un solo job**.
+- ❌ **`fact-consolidation` sigue vivo y sigue apuntando a la imagen muerta**
+  (`insultacr.azurecr.io/insult-bot:d6fa36c7`, cron `0 0 31 2 *` = 31-feb).
+  Sigue siendo el bloqueador del borrado limpio de `insultacr`, junto con la app
+  `discord-bot` retirada (min=0) y los 3 proyectos ajenos.
+- `az acr list -g insult-rg` → **`insultacr` y `serverbotacr` coexisten**.
 
 ## PROGRESO 2026-07-25 — el ACR ya está migrado
 
@@ -23,6 +44,10 @@ Nombre válido: `serverbotacr` (los ACR NO admiten guiones → NO "serverbot-acr
   (cron `0 0 31 2 *` = 31-feb, fecha imposible → nunca dispara; últimos runs Failed
   9-13 jul, muerto desde antes) e `insult-canary` (el canary retirado). Ambos
   candidatos a BORRAR — su imagen `insult-bot:d6fa36c7` ya no existe (purgada).
+  **Actualización 2026-08-06:** `insult-canary` BORRADO (v4.32.27 `ccea31e`).
+  `fact-consolidation` sigue ahí — su borrado cruza con el item
+  [[cadenas-cortadas-post-purga]] #5 (es la maquinaria congelada por seguridad
+  clínica de Alex: primero se re-hogar, después se borra el job viejo).
 - La app `discord-bot` retired (min=0, sin scale rules) también apunta a
   insult-bot; inocua pero bloquea el borrado limpio de insultacr.
 

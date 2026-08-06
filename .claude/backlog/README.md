@@ -2,24 +2,58 @@
 
 Roadmap / feature ideas que NO son reglas de comportamiento (esas viven en
 `.claude/rules/`). Un item por archivo. Regla padre: `backlog-handling.md`
-en el engineering-playbook. Items Done se retiran del folder (limpieza
-2026-07-05); su historia vive en git.
+en el engineering-playbook. Items Done se retiran del folder (limpiezas
+2026-07-05 y 2026-08-06); su historia vive en git.
+
+**Última auditoría contra el repo y prod: 2026-08-06** (`git log`/`git show`,
+`grep -rn`, `az containerapp list|show|job list`, `az acr list`). Cada status de
+abajo se re-verificó ese día; los que no se pudieron verificar lo dicen.
 
 | Item | Status | Hook |
 |---|---|---|
-| [Cadenas cortadas post-purga + código muerto](cadenas-cortadas-post-purga.md) | Triaged (2026-07-15) + auditoría 2026-07-20 | superficies con datos vivos y disparador muerto (dashboard/serenityops/RAG/consolidation congelados). La auditoría 2026-07-20 confirma que `flows/` era el único muerto-invisible (borrado v4.29.x); los 3 con cero callers restantes (consolidation, router_budget, LLMShadowRouter) son congelados/dormantes por diseño — decisión de descongelar-vs-borrar pendiente |
-| [rename `discord-bot` → `server-bot`](rename-discord-bot-to-server-bot.md) | Proposed | el sistema ya no es solo Discord cognitivo; rename del repo/sistema (NO de la plomería de Discord) cuando exista el host del demux |
-| [ML-stack CVE tax](ml-stack-cve-audit.md) | Proposed | `sentence-transformers`→torch/transformers (embeddings, EN USO) arrastra un CVE tax perpetuo sin fix upstream; mitigado con ignore-list justificado en ci.yml. Root: migrar embeddings a Azure OpenAI (mata el tax + aligera la imagen). Fork arquitectura+costo de Bernard |
-| [LLM shadow router token bloat](llm-shadow-router-token-bloat.md) | Done (token bloat); cutover PENDIENTE | fix `DirectAzureLLMRouter` desplegado + medido (9509→115 tokens). Lo vivo del item: A.2.3 ≥50 direct calls → cutover gpt-4.1 (NO-GO hoy: 26% divergencia, falsos positivos peli/Netflix→vultur) |
+| [Cadenas cortadas post-purga + código muerto](cadenas-cortadas-post-purga.md) | Triaged (2026-07-15) · re-verificado 2026-08-06 sin cambios | los 4 congelados siguen congelados y los 3 cero-callers (consolidation, `RouterBudget`, `class LLMShadowRouter`) siguen sin dueño ni fecha. El job `fact-consolidation` sigue en cron 31-feb con la imagen pre-purga; su hermano zombie `insult-canary` sí murió hoy (v4.32.27) |
+| [Dashboard: data plane fósil](dashboard-data-plane-fossil.md) | Proposed (2026-07-20) | cero uploaders de los blobs desde el retiro del plumbing; pill "connected" verde sobre datos muertos. Fork de Bernard: recablear upload desde persona-gateway o congelar la superficie (KQL/Postgres ya son la observabilidad real) |
+| [La proactividad murió en la purga](proactividad-muerta-restaurar-en-el-host.md) | Accepted (2026-08-06, dirección de Bernard) | `2f8d9ad` borró 1,184 líneas de sistema proactivo y nunca se replantaron; restaurarlo en el host como banda de agentes. *(Item creado hoy por una sesión paralela — su contenido no se auditó aquí)* |
+| [Graceful turn drain en deploys](graceful-turn-drain-on-deploy.md) | **In progress** (era "Proposed", mentía a la baja) | paso 1 HECHO (retry 502/503, v4.32.1); el drenaje real NO: sin gate SIGTERM en runner/gateway y `terminationGracePeriodSeconds: null` en `persona-runner` |
+| [Builder de turno unificado](turn-builder-unificado.md) | Proposed — parcialmente adelantado | `TurnContextBuilder` ya unificó contexto/guidance/corpus, pero `TurnSpec`/`TurnBuilder` no existen, `_handle` y `respond_to_invite` siguen artesanales y NO hay arnés de paridad en `tests/arch/` |
+| [Frugívoro persona](frugivoro-persona.md) | In progress — **corpus RAG ya vivo**; falta el benchmark | el item pedía 4 pasos para "activar" el corpus: 3 verificados en repo (namespace `__corpus_vegan__` en el registry, `scripts/ingest_corpus.py`, `data/corpus/frugivoro/` + MANIFEST, RAG generalizado v4.24.0/4.24.4) y el 4º (ingesta corrida contra prod) **sin verificar** — no se consultó Postgres. Vivo sólo el benchmark ético §1–§3 |
+| [rename `discord-bot` → `server-bot`](rename-discord-bot-to-server-bot.md) | In progress (ACR parcial) | las 3 apps del repo pullean de `serverbotacr`, pero **`susurro-gateway` volvió a `insultacr`** (su CD vive en otro repo). `insultacr` no se puede borrar: 3 proyectos ajenos + el job `fact-consolidation` + la app retirada. RG→`server-rg` = reconstrucción con downtime, agendada por Bernard |
+| [Renombrar Frugi → Fruggy](rename-frugi-to-fruggy.md) | Proposed — sin arrancar | el registry sigue con `display_name="Frugívoro"` y `aliases=[frugivoro, frugi, frugívoro]`; `grep -rin "fruggy"` sólo pega en este backlog |
+| [CVE exploitability review](cve-exploitability-review.md) | Proposed — **cero bumps ejecutados** (faltaba en este índice) | análisis entregado 2026-07-19 con 8 bumps disponibles y un ignore a soltar (`CVE-2026-3219`, "MITIGADO"); a 2026-08-06 `environment.yml` y `ci.yml` siguen igual. Colateral vigente: `persona-runner` tiene `ingress.external: true` |
+| [ML-stack CVE tax](ml-stack-cve-audit.md) | Proposed | `sentence-transformers`→torch/transformers sigue EN USO, pero sólo por 2 consumidores vivos (`memory/connection.py`, `memory/minilm_embedder.py`) — las rutas `personas/insult/core/*` que citaba murieron en la purga. El RAG de corpus YA embebe con Azure ada-002: el precedente existe y hoy hay dos motores de embeddings conviviendo |
 
-- [Dashboard: data plane fósil](dashboard-data-plane-fossil.md) — Proposed (2026-07-20). Cero uploaders de los blobs desde el retiro del plumbing; pill "connected" verde sobre datos muertos. Fork de Bernard: recablear upload desde persona-gateway o congelar la superficie (KQL/Postgres ya son la observabilidad real).
-- [ADN nivelado: bio + estilo + gustos propios](personas-dna-bio-estilo-gustos.md) — Done (2026-07-16, los 5 slices en un día). Plantilla + 5 personas con bio/estilo/self-facts + ReflectionWorker (gate semanal durable → gustos `self_declared` en agent_facts).
-- [Builder de turno unificado](turn-builder-unificado.md) — Proposed (2026-07-16). Mata la clase "invite path olvidado" (3 bugs en 48h: reactions, imágenes, corpus). TurnSpec + builder único + arnés de paridad mention↔invite. Timing de Bernard.
-- [Dedup persona.md vs insult.md](dedup-persona-md-fallback.md) — Done (2026-07-16). `persona.md` raíz borrado; `shared/personas/insult.md` es la única fuente. PERSONA_PATH → `/app/personas/insult.md`; arnés anti-drift invertido en tombstone.
-- [Frugívoro persona](frugivoro-persona.md) — In progress. Persona LIVE en prod (registry + gateway, v4.21.115); pendiente el corpus RAG de erudición (`__corpus_vegan__`) y el benchmark ético vs el GPT competidor.
-- [Cross-turn durable research jobs](cross-turn-research-jobs.md) — Proposed (2026-07-05). @mention → ack ya → worker durable corre el job multi-step → postea la respuesta al canal después. Async-real que NO encaja en og118 (stateless) pero SÍ aquí. Reusa el molde `reminders` (tabla + drain loop + retry) + `/v1/turn`; slice = tabla `research_jobs` + repo + `@tasks.loop`. GO del primer slice = Bernard.
-- [Renombrar Frugi → Fruggy](rename-frugi-to-fruggy.md) — Proposed (2026-07-05). Alias/display de la persona Frugívoro: "frugi" → "Fruggy". Slice en `shared/personas/registry.py` + grep total del nombre; forks del owner: ¿rename completo (display + username Discord) o solo alias, y ¿muere `frugi` como legacy?
-- [Renombrar `vultur-gateway` → `persona-gateway`](rename-vultur-gateway-to-persona-gateway.md) — Done (2026-07-05, v4.21.119 `17fc427`, GO de Bernard). RENAME-1b live: persona-gateway en prod-env, 3/3 personas ready, ALICE_INVITE_URL re-apuntado, vultur-gateway borrado, cd.yml/docs renombrados.
+## Retirados (Done verificado, 2026-08-06 — historia en git)
+
+- **LLM shadow router / token bloat** — Done por partida doble. El token bloat se
+  arregló en v4.21.82 (`716e1cd`, 9509→115 tokens con `DirectAzureLLMRouter`) y
+  **el cutover a gpt-4.1 lleva LIVE desde el 2026-07-08** (`88481c9` v4.22.19:
+  *"el cutover gpt-4.1 está LIVE"*), que además borró el shadow determinista
+  (`demux_ai/shadow_router.py`) y su harness (`scripts/shadow_divergence_report.py`).
+  Hoy el router ES el host: `demux_ai/__main__.py:25` → `run_host(DirectAzureLLMRouter())`
+  en el Container App `khimeras-host` (Running, min=1). **El "26% de divergencia,
+  falsos positivos peli/Netflix→vultur" que este índice citaba como NO-GO nunca
+  existió: `diverged` era `target != "insult"`, o sea el NOMBRE del campo contando
+  cada ruteo correcto a un hermano como divergencia.** La ventana A.2.3 quedó
+  superada por la instrumentación de hoy: `host_dispatched` con
+  `has_context`/`prev_target`/`switched` (v4.32.28-30) + `scripts/router_health.py`
+  + `scripts/router_eval.py --no-context`, doctrinado en
+  `.claude/rules/router-observability.md`.
+- **Cross-turn durable research jobs** — Done v4.22.34 (`82ac0ff`, 2026-07-10),
+  no "Proposed" como decía este índice: tabla `research_jobs`
+  (`postgres_schema.sql:178`), marcador `[RESEARCH:]` → `save_research_job`
+  (`persona_gateway/markers.py:135`) y `ResearchWorker.drain` que corre el job en
+  el runner y postea el reporte de vuelta (`persona_gateway/workers/research.py`),
+  con recuperación de jobs colgados.
+- **ADN nivelado: bio + estilo + gustos propios** — Done 2026-07-16. Verificado:
+  alice/vultur/frugivoro/unborn_being tienen `## Biografía` + estilo + "lo que sé
+  sobre mí"; `persona_gateway/workers/reflection.py:78` escribe a `agent_facts`
+  con `provenance="self_declared"`.
+- **Dedup `persona.md` vs `insult.md`** — Done 2026-07-16. Verificado: `persona.md`
+  raíz no existe y el tombstone `test_root_persona_md_stays_dead`
+  (`tests/shared/test_registry_insult.py:32`) lo mantiene muerto.
+- **Renombrar `vultur-gateway` → `persona-gateway`** — Done 2026-07-05 (v4.21.119
+  `17fc427`). Verificado: `az containerapp list -g insult-rg` muestra
+  `persona-gateway` (Running, min=1) y ningún `vultur-gateway`.
 
 ## Retirados (Done, 2026-07-05 — historia en git)
 

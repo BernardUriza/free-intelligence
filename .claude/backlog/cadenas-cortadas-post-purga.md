@@ -1,6 +1,8 @@
 # Cadenas cortadas por la purga de `personas/` — triage revivir/congelar
 
-Status: Triaged (2026-07-15)
+Status: Triaged (2026-07-15) · auditoría de código muerto 2026-07-20 ·
+**re-verificado sin cambios 2026-08-06** (los 3 congelados siguen congelados y
+sin dueño asignado; ver el bloque final)
 Proposed: 2026-07-14 by la autopsia 10-agentes; decidido 2026-07-15 by Bernard+Claude
 
 La purga de `personas/` (2f8d9ad) mató el `debug_server` y varios scripts de tooling
@@ -79,3 +81,25 @@ re-descubrirlos en la próxima auditoría:
 **Decisión de Bernard pendiente** (sin fecha forzada): descongelar-y-re-cablear vs.
 borrar. Los tres son reversibles vía git. El peso va hacia **mantener** en los tres
 — consolidation por Alex, los dos del host por ser infra en construcción, no basura.
+
+## Re-verificación 2026-08-06 (auditoría del backlog)
+
+Los cuatro congelados y los tres cero-callers siguen EXACTAMENTE igual; nadie
+descongeló nada en 17 días. Receipts:
+
+| Cosa | Estado hoy | Cómo se verificó |
+|---|---|---|
+| #1 html_artifacts (revivido) | sigue vivo | `az containerapp show -n persona-runner ... env` → `ARTIFACT_BASE_URL=https://persona-runner.greendune-53f1f4af.eastus2.azurecontainerapps.io` |
+| #5 job `fact-consolidation` | congelado, intacto | `az containerapp job list -g insult-rg` → único job, cron `0 0 31 2 *`, imagen PRE-PURGA `insultacr.azurecr.io/insult-bot:d6fa36c7` |
+| `khimeras_shared/consolidation/` | 0 importadores vivos (sólo sus propios módulos + tests) | `grep -rn "khimeras_shared.consolidation" --include='*.py' .` |
+| `demux_ai/router_budget.py` | `RouterBudget` sólo se construye en `tests/core/test_router_budget.py` | `grep -rn "RouterBudget" --include='*.py' .` |
+| `class LLMShadowRouter` | sigue muerta-pero-presente; el vivo es `DirectAzureLLMRouter` (`demux_ai/__main__.py:25`, `scripts/router_eval.py:140`) | mismo grep |
+
+Nota de cruce: el job `insult-canary` —el OTRO job huérfano que este repo daba
+por borrado desde el 21-jun— resultó ser un zombie real y **se borró hoy**
+(v4.32.27, `ccea31e`). Es la misma clase de mentira que esta auditoría persigue:
+un doc afirmando una deleción que nunca ocurrió. `fact-consolidation` es el que
+queda, y su borrado está subordinado al re-hogar del #5.
+
+El item #2 (dashboard SWA) tiene su propio archivo desde 2026-07-20:
+[[dashboard-data-plane-fossil]] — la decisión de recablear-vs-congelar vive ahí.

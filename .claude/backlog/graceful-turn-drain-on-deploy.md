@@ -1,11 +1,22 @@
 # Graceful turn drain — deploys must not kill in-flight turns
 
-Status: Proposed
+Status: **In progress** — paso 1 (retry 502/503) HECHO v4.32.1; el drenaje real
+(pasos 2 y 3) sigue SIN construir. Re-verificado 2026-08-06.
 Proposed: 2026-07-06 by Claude (Art. 9, receipt del incidente del mismo día)
 
+Verificación 2026-08-06 (Art. 2, receipts):
+- `grep -rn "SIGTERM" persona_runner/ persona_gateway/` → el único handler vivo
+  está en `persona_runner/workspace_renderer.py` (un loop aparte). Ni el
+  `_lifespan` de `persona_runner/runner.py` ni `persona_gateway/boot.py` cierran
+  la puerta a turnos nuevos al recibir la señal.
+- `az containerapp show -n persona-runner -g insult-rg --query
+  properties.template.terminationGracePeriodSeconds` → **`null`** (sigue el
+  default de la plataforma; nunca se subió a ~60s).
+
 ## What it is
-Todo restart del Container App `discord-bot` (deploy del CD, `az containerapp
-update` de un env var, revision swap) mata los turnos EN VUELO: el proceso
+Todo restart de un Container App vivo (`persona-gateway`, `persona-runner`,
+`khimeras-host` — el nombre `discord-bot` del receipt original es el app hoy
+RETIRADO a 0) mata los turnos EN VUELO: el proceso
 recibe SIGTERM y muere a media pipeline, el usuario queda en visto — sin
 respuesta y sin siquiera el error in-character de `core/errors.py`. Postgres
 resolvió la pérdida de DATOS (2026-05-13); la pérdida del TURNO sigue viva.
@@ -55,8 +66,9 @@ la rev nueva y responderlo tarde) o solo drenar limpio. Drenar limpio es el 90%
 del valor con 10% del riesgo; el replay cruza con dedup (`_processed`).
 
 ## Status / next step
-No construido. `personas/insult/bot.py` murió en la purga — los dos hosts vivos
-son `persona_gateway/boot.py` y el `persona_runner`.
+Parcial: el retry ya está en prod, el DRENAJE no. `personas/insult/bot.py` murió
+en la purga — los hosts vivos son `persona_gateway/boot.py`, el `persona_runner`
+y (desde el cutover) `khimeras-host`.
 
 Orden sugerido (el retry primero: es 20 líneas y cubre el caso real de hoy):
 1. ✅ **HECHO (2026-07-24, v4.32.1)** — Retry 502/503 en

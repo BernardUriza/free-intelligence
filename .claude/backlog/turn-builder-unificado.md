@@ -1,7 +1,28 @@
 # Builder de turno unificado — matar la clase "invite path olvidado"
 
-Status: Proposed
+Status: Proposed — **parcialmente adelantado por el destripe del gateway, pero la
+asimetría que lo motiva SIGUE VIVA**. Re-verificado 2026-08-06.
 Proposed: 2026-07-16 by Claude (meta-hallazgo del /cruel-critic, Art. 9)
+
+## Verificación 2026-08-06 (qué se movió sin cerrar el item)
+
+- **Adelantado**: `persona_gateway/turn_context.py` (`TurnContextBuilder`, nacido
+  en el destripe del God Object — a026661 v4.22.57 / f52f807 v4.27.6) YA
+  centraliza la mitad cara: contexto reciente, `guidance_for_turn`, bloque de
+  corpus (`append_corpus_block`), facts relevantes y reminders. Esa mitad ya no
+  se cablea dos veces.
+- **NO hecho**: `grep -rn "TurnSpec\|TurnBuilder" --include='*.py' .` → **cero
+  hits**. `_handle` (gateway.py:248) y `respond_to_invite` (gateway.py:383)
+  siguen siendo dos entry points artesanales: cada uno arma por su cuenta el
+  `ask`, los `attachment_blocks` (`self._ingest.attachment_blocks`, con su propio
+  try/except sólo en el invite) y el STT de DM.
+- **NO hecho**: el arnés de paridad. `ls tests/arch/` → sólo
+  `test_dockerfiles_log_json.py`, `test_import_smoke.py`,
+  `test_routing_prompt_promises_are_kept.py`. Nada obliga a que una capacidad
+  nueva se pruebe en AMBOS paths.
+- La clase de bug siguió cobrando piezas después de capturar el item: v4.32.7
+  (DM muertos), v4.32.13 (nota de voz en DM en silencio), v4.32.26/27 (el
+  marcador de invitación filtrado y luego ALICE incovocable).
 
 ## What it is
 Tres bugs de la MISMA clase en 48h: reactions sin target en invites (fix

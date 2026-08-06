@@ -1,6 +1,9 @@
 # Renombrar Frugi → Fruggy
 
-Status: Proposed
+Status: Proposed — sin arrancar (re-verificado 2026-08-06:
+`shared/personas/registry.py` sigue con `display_name="Frugívoro"` y
+`aliases=["frugivoro", "frugi", "frugívoro"]`; `grep -rin "fruggy"` en el repo
+sólo devuelve este item)
 Proposed: 2026-07-05 by Bernard
 
 ## What it is

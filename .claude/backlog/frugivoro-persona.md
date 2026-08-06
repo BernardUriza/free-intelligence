@@ -1,6 +1,7 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
-Status: In progress — persona LIVE en prod; corpus RAG + benchmark pendientes
+Status: **In progress — persona LIVE y corpus RAG YA VIVO; lo único pendiente es
+el benchmark ético (§1–§3)**. Actualizado 2026-08-06.
 Proposed: 2026-06-29 by Bernard
 
 ## What it is
@@ -191,7 +192,37 @@ Concrete because it clones the ALICE/Vultur path already shipped:
   brain — recommend Claude sibling (canonical, zero new infra).
 
 ## Status / next step
-In progress (actualizado 2026-07-05, verificado contra el repo/prod):
+
+### Actualización 2026-08-06 (auditoría del backlog — verificado en repo)
+
+De los 4 "pendientes para ACTIVARLO" del bloque de 2026-07-05, **3 están
+verificados en el repo y el 4º (haber CORRIDO la ingesta contra el Postgres de
+prod) no se pudo verificar desde esta auditoría** — el commit v4.24.4 la da por
+corrida, pero eso es narrativa de commit, no un conteo de filas. El texto de
+abajo quedó fósil y se conserva sólo como historia:
+
+- **Namespace vivo**: `shared/personas/registry.py` → la entrada `frugivoro`
+  lleva `corpus_namespace="__corpus_vegan__"` (comentario propio: *"el 'later
+  hardening step' por fin (2026-07-16)"*).
+- **Ingesta**: el script per-persona genérico existe (`scripts/ingest_corpus.py`,
+  generalización del `ingest_film_corpus.py` borrado) y v4.24.0 (`d6b1297`,
+  *"cada persona con su corpus — RAG generalizado"*) cableó la consulta del
+  corpus en el turno de CUALQUIER persona.
+- **Fuentes**: `data/corpus/frugivoro/` con MANIFEST versionado (Williams 1883
+  dominio público + 2 reviews PMC CC-BY); v4.24.4 (`3dabf55`) añadió soporte
+  `.xml` JATS *"frugívoro recupera sus 2 reviews"*.
+- **Contenido propio**: `khimeras_shared/corpus/vegan_gastronomy.md` creció con
+  frutas/IG-GL/tofu (`ed9ba53`, `8a3115a`, `19baad6`).
+- **Sin verificar desde aquí**: el conteo real de chunks de `__corpus_vegan__` en
+  el Postgres de prod (requiere `POSTGRES_URL` + regla de firewall para esta IP;
+  no se corrió en esta auditoría). El MANIFEST de frugívoro, a diferencia del de
+  Vultur, no anota el número de chunks vivos.
+
+**Lo único vivo del item**: el benchmark ético §1–§3 (matriz de evaluación,
+prompts, scoring pairwise vs el GPT competidor) — cero artefactos en el repo.
+Y el volcado de conocimiento vivencial de Bernard respaldado con literatura.
+
+### Historia — estado de 2026-07-05 (fósil, ya superado)
 - **LIVE**: DNA `shared/personas/frugivoro.md`, registry entry (`gateway_enabled=True`,
   bot_user_id `1521273256236023989`, aliases frugi/frugívoro), respondiendo en
   #general; hard vegan identity endurecida en v4.21.115.
