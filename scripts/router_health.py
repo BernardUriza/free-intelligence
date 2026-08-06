@@ -12,7 +12,7 @@ Cada bloque contesta una pregunta que un turno individual NO puede contestar:
   CONTEXTO     ¿los turnos llevan conversación, o rutean a ciegas?
   CONTINUIDAD  ¿cuántos turnos cambian de persona, y cuántos de esos cambios
                ocurrieron SIN contexto (el secuestro de continuaciones)?
-  ESFUERZO     ¿el effort que el prompt pide llega, y varía?
+  PARSEO       ¿el cerebro contesta la palabra sola, o agrega prosa?
   MUDEZ        ¿las ramas de fallo se dispararon? Un cero aquí es bueno, PERO
                ver la sección "ramas que no pueden sonar".
 
@@ -174,18 +174,20 @@ def main() -> int:
     else:
         print("  sin antecedentes todavía (el primer turno de cada canal no tiene).")
 
-    _section("ESFUERZO — el effort que el prompt pide, ¿llega?")
+    _section("CALIDAD DE PARSEO — ¿el cerebro contesta como se le pidió?")
     rows = _query(
-        base + '| where ev == "host_dispatched" | summarize n=count() by effort=tostring(p.effort) | order by n desc',
+        base + '| where ev == "host_dispatched" | summarize n=count() by reason=tostring(p.reason) | order by n desc',
         token,
     )
-    if rows:
-        for effort, n in rows:
-            print(f"  {(effort or '(vacío)'):12} {n:5}")
-        if len(rows) == 1 and not rows[0][0]:
-            verdicts.append("🟡 ESFUERZO: llega vacío siempre — el modelo lo emite y el código lo pierde.")
-    else:
-        print("  sin datos — el campo `effort` se emite desde v4.32.28.")
+    for reason, n in rows:
+        print(f"  {reason:24} {n:5}")
+    sucio = sum(n for r, n in rows if r.endswith("_loose") or r == "llm_unparseable")
+    limpio = sum(n for _, n in rows)
+    if sucio and limpio:
+        verdicts.append(
+            f"🟡 PARSEO: {sucio}/{limpio} respuestas llegaron sucias (_loose/unparseable) — "
+            f"el modelo está agregando prosa en vez de la palabra sola."
+        )
 
     _section("MUDEZ — las ramas de fallo")
     rows = _query(

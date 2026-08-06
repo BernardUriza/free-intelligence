@@ -307,57 +307,24 @@ def test_routing_instruction_encodes_intent_not_mention():
 
 
 @pytest.mark.asyncio
-async def test_route_parses_target_and_effort_two_lines():
-    # The brain now replies target on line 1, effort on line 2. Both extracted;
-    # the target clean-match survives (first-line match, not whole-text).
-    router = LLMShadowRouter(llm=_FakeLLM("insult\nheavy"))
+async def test_a_reply_with_extra_prose_after_the_word_still_clean_matches():
+    """Lo único que valía la pena de los seis tests de `effort` borrados el
+    2026-08-06: el parser matchea la PRIMERA LÍNEA, no el texto entero, así que
+    un modelo que se pone charlatán después de la palabra sigue dando un
+    clean match en vez de degradar a `_loose`."""
+    router = LLMShadowRouter(llm=_FakeLLM("insult\nporque es un desahogo personal"))
     decision = await router.route("investígame con rigor el barrio bravo")
     assert decision.target == "insult"
-    assert decision.reason == "llm_insult"  # still CLEAN, not _loose
-    assert decision.effort == "heavy"
+    assert decision.reason == "llm_insult"
 
 
-@pytest.mark.asyncio
-async def test_route_parses_light_effort():
-    router = LLMShadowRouter(llm=_FakeLLM("insult\nlight"))
-    decision = await router.route("hola")
-    assert decision.target == "insult"
-    assert decision.effort == "light"
-
-
-@pytest.mark.asyncio
-async def test_route_effort_defaults_normal_when_absent():
-    # Old-style one-word reply (no effort line) → the middle budget, never light.
-    router = LLMShadowRouter(llm=_FakeLLM("vultur"))
-    decision = await router.route("reseña de Dune")
-    assert decision.target == "vultur"
-    assert decision.effort == "normal"
-
-
-@pytest.mark.asyncio
-async def test_route_effort_defaults_normal_when_unparseable():
-    router = LLMShadowRouter(llm=_FakeLLM("insult\n¯\\_(ツ)_/¯"))
-    decision = await router.route("x")
-    assert decision.effort == "normal"
-
-
-@pytest.mark.asyncio
-async def test_direct_route_parses_effort_too():
-    client = _FakeAzureClient("frugivoro\nnormal")
-    router = DirectAzureLLMRouter(client=client)
-    decision = await router.route("qué ceno")
-    assert decision.target == "frugivoro"
-    assert decision.effort == "normal"
-
-
-def test_routing_instruction_describes_effort_estimate():
-    # The brain must be TOLD to estimate effort, with the heavy triggers pinned so
-    # a "con rigor" investigation gets the long budget instead of timing out.
+def test_the_prompt_asks_for_one_word_only():
+    """El prompt pedía DOS líneas (persona + effort). El effort se borró de los
+    dos lados; si el formato vuelve a pedir dos líneas sin consumidor, este test
+    y el arnés de tests/arch/ lo cazan."""
     instr = llm_shadow_router._routing_instruction().lower()
-    assert "effort" in instr
-    for effort in ("light", "normal", "heavy"):
-        assert effort in instr
-    assert "rigor" in instr  # the exact trigger from the 2026-07-10 incident
+    assert "one lowercase word" in instr
+    assert "effort" not in instr
 
 
 def test_routing_instruction_gives_personal_disclosure_back_to_the_host():

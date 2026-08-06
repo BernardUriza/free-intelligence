@@ -10,10 +10,12 @@ solo día, todas en el mismo prompt (`demux_ai/prompts/host_routing.md`):
 2. **`recovered_without_context`** (bf67e08) reintentaba sin contexto cuando el
    filtro de Azure rechazaba el prompt — imposible de alcanzar, porque nunca
    había contexto que quitar.
-3. **`effort`**: el prompt le pide al modelo una estimación y le asegura que
+3. **`effort`**: el prompt le pedía al modelo una estimación y le aseguraba que
    "this sets how long the persona is given to work", y el valor no tenía UN
    SOLO consumidor. El prompt le mentía al modelo sobre una consecuencia
-   inexistente.
+   inexistente. **Borrado el mismo día** (v4.32.30) en vez de parkeado: un valor
+   sin consumidor es deuda, no una feature en pausa ([[migrations-end-with-deletion]]).
+   Si vuelve, vuelve CON su consumidor en el mismo PR.
 
 Ninguna de las tres se veía en producción: el log decía `llm_insult` (clean
 match) en cada turno, que se lee como salud. Son primas del arnés
@@ -32,8 +34,8 @@ from pathlib import Path
 
 import pytest
 
-from demux_ai import dispatch, host_loop
-from demux_ai.llm_shadow_router import _VALID_EFFORTS, _VALID_TARGETS
+from demux_ai import dispatch, host_loop, llm_shadow_router
+from demux_ai.llm_shadow_router import _VALID_TARGETS
 
 PROMPT = Path(__file__).resolve().parents[2] / "demux_ai" / "prompts" / "host_routing.md"
 
@@ -65,27 +67,26 @@ def test_if_the_prompt_asks_for_a_conversation_block_someone_must_provide_it(pro
     assert "context" in signature.parameters, "route_and_dispatch no acepta contexto"
 
 
-def test_if_the_prompt_asks_for_an_effort_estimate_the_value_must_reach_somewhere_observable(prompt_text: str):
-    """La promesa #3. `effort` se calculaba y se tiraba: cero consumidores. No
-    exige que el effort MODIFIQUE la conducta (eso es una decisión de diseño de
-    Bernard, no de un test) — exige que sea observable, para que su utilidad se
-    pueda medir en vez de suponerse."""
-    if "EFFORT" not in prompt_text.upper():
-        pytest.skip("el prompt ya no pide una estimación de esfuerzo")
+def test_the_effort_estimate_stays_deleted_on_both_sides(prompt_text: str):
+    """La promesa #3, ahora en su forma de guardia contra el regreso a medias.
 
-    dispatch_src = inspect.getsource(dispatch)
-    assert "effort" in dispatch_src, (
-        "el prompt le pide al modelo un effort y le promete que define su tiempo de trabajo, "
-        "pero el valor no llega a ningún lado observable — es una mentira al modelo y "
-        "razonamiento gastado en una decisión que se tira"
+    El effort se borró de los DOS lados el 2026-08-06: la sección del prompt y el
+    campo del código. La falla que este test previene es que vuelva por uno solo
+    — que alguien reponga la sección del prompt (barato: es un `.md` hot-reload)
+    sin consumidor, y el modelo vuelva a gastar razonamiento en un valor que se
+    tira. Si vuelve, vuelve COMPLETO: prompt + parser + un consumidor real, en el
+    mismo PR."""
+    asks_for_effort = "effort" in prompt_text.lower()
+    parses_effort = "effort" in inspect.getsource(llm_shadow_router).lower().replace("``effort``", "")
+    reaches_telemetry = "effort" in inspect.getsource(dispatch)
+
+    if not asks_for_effort:
+        assert not parses_effort, "el prompt ya no pide effort pero el código lo sigue parseando — código muerto"
+        return
+    assert reaches_telemetry or parses_effort, (
+        "el prompt volvió a pedirle un effort al modelo, prometiéndole que define su tiempo "
+        "de trabajo, pero el código no lo consume ni lo observa — la mentira de 2026-08-06 regresó"
     )
-
-
-@pytest.mark.parametrize("effort", _VALID_EFFORTS)
-def test_every_effort_the_parser_accepts_is_named_in_the_prompt(effort: str, prompt_text: str):
-    """Al revés que las anteriores: lo que el CÓDIGO acepta tiene que estar en el
-    prompt, o el modelo jamás lo emitirá y la rama del parser es inalcanzable."""
-    assert effort in prompt_text.lower(), f"el parser acepta '{effort}' pero el prompt nunca se lo enseña al modelo"
 
 
 @pytest.mark.parametrize("target", _VALID_TARGETS)

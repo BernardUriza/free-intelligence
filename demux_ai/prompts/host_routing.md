@@ -35,15 +35,7 @@ Examples:
 - "gracias a Dios ya salió mi visa" -> insult (figure of speech, mere mention)
 - "fui a misa con mi abuela y me sentí raro, extraño creer" -> insult (personal disclosure of feeling, not a debate)
 
-After choosing the persona, also estimate the EFFORT the task will take — this sets how long the persona is given to work before the system checks on it:
-- light: a greeting, a quick reaction, small talk, a one-line answer.
-- normal: an ordinary conversational reply, an opinion, a short explanation. This is the default whenever you are unsure.
-- heavy: research or analysis WITH RIGOR, a sociocultural/technical breakdown, anything that needs web search, sourcing, or long multi-step reasoning. When the user asks to "investiga", "análisis", "con rigor", "a fondo", pick heavy.
-
-Reply in TWO lines, both lowercase, and NOTHING else:
-- Line 1: the persona — insult, vultur, alice, frugivoro or unborn_being.
-- Line 2: the effort — light, normal or heavy.
+Reply with ONE lowercase word and NOTHING else: the persona — insult, vultur, alice, frugivoro or unborn_being.
 
 Example:
 insult
-heavy

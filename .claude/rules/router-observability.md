@@ -37,7 +37,7 @@ algo que un turno individual no puede:
 | **SESGO** | ¿el cerebro elige, o contesta siempre lo mismo? | un target ≥90% |
 | **CONTEXTO** | ¿los turnos llevan conversación o rutean a ciegas? | 0% = RULE 1 inalcanzable |
 | **CONTINUIDAD** | ¿cuántos cambios de persona, y cuántos SIN contexto? | cambios ciegos > 0 |
-| **ESFUERZO** | ¿el `effort` que el prompt pide llega y varía? | siempre vacío = se pierde |
+| **PARSEO** | ¿el cerebro contesta la palabra sola o agrega prosa? | `_loose`/`unparseable` > 0 |
 | **MUDEZ** | ¿se dispararon las ramas de fallo? | cualquier evento > 0 |
 
 El umbral de sesgo (90%) es **el mismo que este repo ya usa para el anti-drift
@@ -56,7 +56,6 @@ Desde v4.32.28 (`demux_ai/dispatch.py`):
 | `context_lines` | tamaño real del bloque; si cae a 1-2, la ventana se está vaciando |
 | `prev_target` | a quién fue el turno anterior de ese canal |
 | `switched` | si esta decisión cambió de persona |
-| `effort` | la estimación que el prompt pide |
 
 `host_mention_shortcircuit` lleva además `fanout` (cuántas personas despertó una
 frase) y su propio `prev_target`. **Separa siempre los turnos por mención de los
@@ -90,16 +89,18 @@ fallar no prueba nada*). Tres casos reales, todos el mismo día:
    cuando Azure filtraba el prompt — **inalcanzable**, porque nunca había
    contexto que quitar. Su cero en KQL no significaba "no pasó", significaba "no
    puede pasar".
-3. **`effort`**: el prompt le promete al modelo que define su tiempo de trabajo,
-   y el valor **no tenía un solo consumidor**. Una mentira al modelo y
-   razonamiento gastado en una decisión que se tiraba.
+3. **`effort`**: el prompt le prometía al modelo que definía su tiempo de
+   trabajo, y el valor **no tenía un solo consumidor**. Una mentira al modelo y
+   razonamiento gastado en una decisión que se tiraba. **Borrado de los dos
+   lados el mismo día** (v4.32.30) en vez de parkeado — un valor sin consumidor
+   es deuda, no una feature en pausa. Si vuelve, vuelve CON su consumidor en el
+   mismo PR.
 
 **Antes de leer un cero como salud, pregunta: si esto estuviera roto ahora mismo,
 ¿este contador podría subir?** Si la respuesta es no, el contador es decorativo.
 
 El arnés que cierra la clase es `tests/arch/test_routing_prompt_promises_are_kept.py`:
-si el prompt promete algo (un bloque de contexto, una estimación de effort, un
-target válido), el código tiene que proveerlo o consumirlo, demostrable en CI. Es
+si el prompt promete algo (un bloque de contexto, un target válido), el código tiene que proveerlo o consumirlo, demostrable en CI. Es
 primo de `test_every_counted_event_has_a_live_emitter` (contadores oyendo eventos
 sin emisor) y de [[migrations-end-with-deletion]]: **la promesa sobrevive al
 mecanismo que la cumplía, y nadie se entera porque nada se pone rojo.**
@@ -117,9 +118,16 @@ python scripts/router_eval.py --limit 30 --dry-run    # cero gasto
 ```
 
 `--no-context` es el contrafactual: mide **qué aporta el contexto** corriendo el
-mismo set en ambas condiciones. Medido el 2026-08-06: 10.0% → 20.0% de ruteo a
-especialistas, +26% de tokens de entrada, cero latencia añadida, y el desahogo
-personal sigue protegido ("presión invisible" se queda en insult en ambas).
+mismo set en ambas condiciones. Medido el 2026-08-06 con el prompt ya sin
+`effort`: **13.3% sin contexto → 16.7% con contexto**, +26% de tokens de entrada,
+cero latencia añadida, y el desahogo personal sigue protegido ("presión
+invisible" se queda en insult en ambas condiciones).
+
+Los 5 ruteos con contexto son 4 frugívoro legítimos + 1 mención explícita: cero
+falsos positivos. Antes de borrar el `effort` el mismo set daba 10.0% → 20.0%,
+pero uno de esos 6 era sobre-ruteo ("Holii, si hay que ver peli" → vultur, que es
+coordinación social, no petición de crítica) y se corrigió solo al simplificar el
+prompt a una palabra. **Menos ruteos y mejores.**
 
 **El reparto no es el veredicto.** Cada ruteo a un especialista se revisa a mano:
 ¿el mensaje PEDÍA a esa persona, o sólo mencionaba su tema? En la corrida

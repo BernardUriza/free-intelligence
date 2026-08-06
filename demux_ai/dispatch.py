@@ -169,6 +169,5 @@ async def route_and_dispatch(
         context_lines=len(context.splitlines()) if context else 0,
         prev_target=prev_target or "",
         switched=bool(prev_target) and prev_target != target,
-        effort=getattr(decision, "effort", ""),
     )
     return decision
