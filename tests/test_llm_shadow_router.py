@@ -413,3 +413,87 @@ async def test_direct_route_logs_host_router_llm_error_and_reraises():
     assert len(events) == 1
     assert events[0]["error_type"] == "RuntimeError"
     assert events[0]["backend"] == "azure_direct"
+
+
+class _ContentFilterError(Exception):
+    """Shape of the Azure 400 the content filter raises (openai.BadRequestError
+    carries ``code='content_filter'`` and this message verbatim)."""
+
+    code = "content_filter"
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Error code: 400 - {'error': {'message': \"The response was filtered due to "
+            "the prompt triggering Azure OpenAI's content management policy.\"}}"
+        )
+
+
+class _FilteringCompletions:
+    """Rejects any prompt carrying the recent-conversation block, answers a bare
+    message — the real 2026-08-06 failure: an inert 'explica mejor lo anterior'
+    died because the WINDOW behind it mentioned drugs, not the message itself."""
+
+    def __init__(self, reply: str, filter_bare: bool = False) -> None:
+        self.reply = reply
+        self.filter_bare = filter_bare
+        self.calls: list[str] = []
+
+    async def create(self, *, model, messages, **kwargs):
+        user_text = messages[1]["content"]
+        self.calls.append(user_text)
+        if self.filter_bare or "Recent channel conversation" in user_text:
+            raise _ContentFilterError()
+        return _FakeCompletion(self.reply, 40, 1)
+
+
+@pytest.mark.asyncio
+async def test_content_filtered_context_retries_without_it_and_keeps_the_real_target():
+    """A poisoned context must not cost the routing DECISION. Dropping the window
+    and re-asking recovers the target the brain would have picked all along."""
+    client = _FakeAzureClient("vultur")
+    completions = _FilteringCompletions("vultur")
+    client.chat.completions = completions
+    router = DirectAzureLLMRouter(client=client)
+
+    with structlog.testing.capture_logs() as logs:
+        decision = await router.route("explica mejor lo anterior", context="bernard: fumo un porro")
+
+    assert decision.target == "vultur"
+    assert decision.reason == "llm_vultur"
+    assert len(completions.calls) == 2
+    assert "Recent channel conversation" in completions.calls[0]
+    assert completions.calls[1] == "explica mejor lo anterior"
+    filtered = [e for e in logs if e["event"] == "host_router_content_filtered"]
+    assert filtered and filtered[0]["recovered_without_context"] is True
+
+
+@pytest.mark.asyncio
+async def test_content_filtered_message_falls_back_to_default_target_never_silence():
+    """RESISTANCE: when even the bare message is filtered, the brain has no
+    opinion — that is the SAME case as an unparseable reply, so it takes the same
+    default. Raising here reached the host as total silence in prod."""
+    client = _FakeAzureClient("insult")
+    completions = _FilteringCompletions("insult", filter_bare=True)
+    client.chat.completions = completions
+    router = DirectAzureLLMRouter(client=client)
+
+    with structlog.testing.capture_logs() as logs:
+        decision = await router.route("algo", context="contexto")
+
+    assert decision.target == llm_shadow_router.DEFAULT_TARGET
+    assert decision.reason == "llm_content_filtered"
+    assert len(completions.calls) == 2
+    filtered = [e for e in logs if e["event"] == "host_router_content_filtered"]
+    assert filtered and filtered[-1]["recovered_without_context"] is False
+
+
+@pytest.mark.asyncio
+async def test_non_filter_api_error_still_raises_and_is_not_retried():
+    """RESISTANCE: the content-filter recovery must not swallow a transport
+    failure — a timeout is not a brain declining to answer, it stays loud and is
+    never re-sent (that would double the spend on every Azure blip)."""
+    client = _FakeAzureClient("insult")
+    client.chat.completions = _ExplodingCompletions()
+    router = DirectAzureLLMRouter(client=client)
+    with pytest.raises(RuntimeError):
+        await router.route("hola", context="ctx")

@@ -47,6 +47,7 @@ _DEFAULT_API_VERSION = "2024-10-21"
 # The default target when the host LLM gives nothing parseable. Mirrors the
 # deterministic shadow's ``_DEFAULT_TARGET`` → Insult downstream.
 _DEFAULT_TARGET = "insult"
+DEFAULT_TARGET = _DEFAULT_TARGET
 
 # Valid routing targets the host brain may pick. Mirrors the Insult host plus the
 # registered sibling personas (shared/personas/registry.py). Kept as a constant —
@@ -117,6 +118,17 @@ def _parse_target(text: str) -> tuple[str, str]:
         if target in lowered:
             return target, f"llm_{target}_loose"
     return _DEFAULT_TARGET, "llm_unparseable"
+
+
+def _is_content_filter(error: BaseException) -> bool:
+    """True when Azure OpenAI rejected the PROMPT under its content management
+    policy (HTTP 400, ``code='content_filter'``). Checked structurally first and
+    by message text second, because the SDK surfaces the code on the exception
+    for a real API error but callers/tests may only carry the message."""
+    if getattr(error, "code", None) == "content_filter":
+        return True
+    message = str(error)
+    return "content management policy" in message or "'content_filter'" in message
 
 
 def _parse_effort(text: str) -> str:
@@ -197,7 +209,48 @@ class DirectAzureLLMRouter:
         (shape-compatible contract). Returns the parsed target + reason + REAL
         token counts (``usage.prompt_tokens`` is the number the whole exercise is
         measuring). Raises on a hard API failure — the caller wraps it so a shadow
-        fault stays invisible to the turn."""
+        fault stays invisible to the turn.
+
+        Azure's content filter is the exception that must NOT raise. It rejects
+        the whole prompt with a 400, and the prompt carries the recent channel
+        conversation — so one drug/self-harm/sexual turn anywhere in the window
+        poisons every later message in that thread, including a message as inert
+        as "explica mejor lo anterior". A filtered prompt is a brain that refuses
+        to have an opinion, not a transport failure: retry WITHOUT the context
+        (usually the poisoned half, and the current message routes fine alone),
+        and if the bare message is filtered too, fall back to the same
+        ``DEFAULT_TARGET`` an unparseable reply already falls back to. Silence is
+        never the answer — the personas run on Claude and are perfectly able to
+        reply while gpt-4.1 refuses to route."""
+        try:
+            return await self._complete(text, context)
+        except Exception as e:
+            if not _is_content_filter(e):
+                raise
+            if context:
+                try:
+                    decision = await self._complete(text, None)
+                except Exception as retry_error:
+                    if not _is_content_filter(retry_error):
+                        raise
+                else:
+                    log.warning(
+                        "host_router_content_filtered",
+                        model=self._deployment,
+                        target=decision.target,
+                        recovered_without_context=True,
+                    )
+                    return decision
+            log.warning(
+                "host_router_content_filtered",
+                model=self._deployment,
+                target=DEFAULT_TARGET,
+                recovered_without_context=False,
+            )
+            return LLMShadowDecision(target=DEFAULT_TARGET, reason="llm_content_filtered")
+
+    async def _complete(self, text: str, context: str | None) -> LLMShadowDecision:
+        """One routing completion against Azure. Raises on any API failure."""
         client = self._ensure_client()
         start = time.monotonic()
         try:
@@ -244,4 +297,4 @@ class DirectAzureLLMRouter:
         )
 
 
-__all__ = ["DirectAzureLLMRouter", "LLMShadowDecision", "LLMShadowRouter"]
+__all__ = ["DEFAULT_TARGET", "DirectAzureLLMRouter", "LLMShadowDecision", "LLMShadowRouter"]

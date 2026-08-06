@@ -20,6 +20,7 @@ from typing import Any, Protocol
 
 import structlog
 
+from demux_ai.llm_shadow_router import DEFAULT_TARGET
 from demux_ai.summon import summon_persona
 
 log = structlog.get_logger()
@@ -27,6 +28,23 @@ log = structlog.get_logger()
 
 class _Router(Protocol):
     async def route(self, text: str, context: str | None = None) -> Any: ...
+
+
+@dataclass(frozen=True)
+class RouterFaultDecision:
+    """Decision shape used when the router brain itself faulted.
+
+    A dead receptionist must not mute the house. The provider split is the whole
+    resilience play — the host runs on Azure gpt-4.1 and every persona runs on
+    the Claude runner — so an Azure outage (or a content-filter rejection) leaves
+    the personas perfectly able to answer, and returning None here threw that
+    away: the user got NO reply, NO "…", and no signal anything had failed. The
+    router already defaults to Insult when the brain replies with garbage; a
+    brain that raises is the same case for the turn, so it gets the same default.
+    """
+
+    target: str
+    reason: str = "router_fault"
 
 
 @dataclass(frozen=True)
@@ -55,12 +73,13 @@ async def route_and_dispatch(
     forced_targets: list[str] | None = None,
     voice_transcript: str = "",
 ) -> Any | None:
-    """Route `text` to a persona and summon it. Returns the router decision (for
-    telemetry) or None if routing faulted.
+    """Route `text` to a persona and summon it. Returns the decision that was
+    acted on (for telemetry) — never None once a message has been received.
 
     The persona is reached through the gateway `/invite`; the reason carries the
     user's ask verbatim (capped) so the summoned persona reads what it's answering.
-    A routing exception is logged and swallowed — the host keeps receiving.
+    A routing exception is logged and degrades to `DEFAULT_TARGET` — the host keeps
+    receiving AND the user still gets an answer.
 
     `voice_transcript` rides UNCAPPED and separate from the capped reason: the
     host owns susurro, so this is the persona's only copy of what was said, and
@@ -108,8 +127,8 @@ async def route_and_dispatch(
     try:
         decision = await router.route(text, context)
     except Exception:
-        log.exception("host_dispatch_router_failed", channel_id=channel_id)
-        return None
+        log.exception("host_dispatch_router_failed", channel_id=channel_id, fallback=DEFAULT_TARGET)
+        decision = RouterFaultDecision(target=DEFAULT_TARGET)
 
     target = getattr(decision, "target", None)
     if not target:

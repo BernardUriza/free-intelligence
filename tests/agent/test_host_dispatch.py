@@ -91,13 +91,22 @@ async def test_one_failed_summon_never_costs_the_other_personas():
     assert summon.await_count == 2
 
 
-async def test_router_exception_returns_none_and_summons_nobody():
-    """RESISTANCE: a routing fault must never wedge the host or dispatch blind."""
+async def test_router_exception_still_summons_the_default_persona():
+    """RESISTANCE: a routing fault must never wedge the host — and must never mute
+    it either. The host runs on Azure gpt-4.1 while every persona runs on the
+    Claude runner, so an Azure fault leaves the personas able to answer; the old
+    `return None` threw that away and the user got total silence, with no reply,
+    no "…" and no signal. Degrade to the default target, exactly like an
+    unparseable brain reply already does."""
     router = SimpleNamespace(route=AsyncMock(side_effect=RuntimeError("azure down")))
-    with patch.object(dispatch, "summon_persona", new=AsyncMock()) as summon:
-        result = await dispatch.route_and_dispatch(router, channel_id="C1", text="hola")
-    assert result is None
-    summon.assert_not_awaited()
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as summon:
+        result = await dispatch.route_and_dispatch(router, channel_id="C1", text="hola", user_name="bernard")
+    assert result is not None
+    assert result.target == dispatch.DEFAULT_TARGET
+    assert result.reason == "router_fault"
+    summon.assert_awaited_once()
+    assert summon.await_args.kwargs["persona_id"] == dispatch.DEFAULT_TARGET
+    assert "hola" in summon.await_args.args[0]["reason"]
 
 
 async def test_no_target_summons_nobody():
