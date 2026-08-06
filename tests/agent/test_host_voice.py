@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 
+from demux_ai.batch import DEFAULT_WINDOW_SECONDS
 from demux_ai.host_client import HostClient
 from demux_ai.host_loop import HostDispatchLoop
 from khimeras_shared.stt import WAKE_ETA_SECONDS, SusurroSttClient
@@ -67,7 +68,7 @@ async def test_transcript_becomes_the_routable_text():
         new=AsyncMock(return_value="oye, ¿qué opinas de Hereditary?"),
     ):
         await client.on_message(_voice_message())
-    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + DEFAULT_WINDOW_SECONDS + 1)
     assert due[0][1] == "oye, ¿qué opinas de Hereditary?\n[adjuntó: voice-message.ogg]"
     assert due[0][2] == "999"
 
@@ -79,14 +80,14 @@ async def test_stt_failure_degrades_to_the_filename_note():
         new=AsyncMock(side_effect=RuntimeError("susurro down")),
     ):
         await client.on_message(_voice_message())
-    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + DEFAULT_WINDOW_SECONDS + 1)
     assert due[0][1] == "[adjuntó: voice-message.ogg]"
 
 
 async def test_no_stt_client_keeps_the_old_behaviour():
     client = _client(with_stt=False)
     await client.on_message(_voice_message())
-    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + DEFAULT_WINDOW_SECONDS + 1)
     assert due[0][1] == "[adjuntó: voice-message.ogg]"
 
 
@@ -148,7 +149,7 @@ async def test_a_failing_echo_never_blocks_the_routing():
         new=AsyncMock(return_value="sigo llegando"),
     ):
         await client.on_message(msg)
-    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + DEFAULT_WINDOW_SECONDS + 1)
     assert due[0][3] == "sigo llegando"
 
 
@@ -159,7 +160,7 @@ async def test_text_plus_voice_keeps_both():
         new=AsyncMock(return_value="y esto lo dije hablando"),
     ):
         await client.on_message(_voice_message(content="mira esto"))
-    due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
+    due = client.dispatch_loop.batcher.pop_due(now=time.time() + DEFAULT_WINDOW_SECONDS + 1)
     assert due[0][1] == "mira esto\ny esto lo dije hablando\n[adjuntó: voice-message.ogg]"
 
 

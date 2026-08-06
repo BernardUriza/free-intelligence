@@ -6,6 +6,13 @@ become ONE routed turn, not three. This is the debounce: messages accumulate per
 key (channel:author) and flush as one combined text once the burst goes quiet for
 `window_seconds`.
 
+The window is 15s (was 3s until 2026-08-06). Three seconds only catches a burst
+of keystrokes; it splits a person THINKING between messages — the pause to recall
+a title, to find the link, to write the second half of the idea — into separate
+routed turns, each classified blind to the other (the host router gets no channel
+context, so a fragment that lands alone routes alone). Fifteen seconds buys the
+whole thought at the cost of up to 15s before the turn even starts dispatching.
+
 Pure and clock-injected on purpose. The old Insult batcher (now deleted) wired an
 `asyncio` timer per batch, which is a pain to test deterministically. Here the core
 is a plain accumulator with a `pop_due(now)` the host's loop polls — so the batching
@@ -17,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-DEFAULT_WINDOW_SECONDS = 3.0
+DEFAULT_WINDOW_SECONDS = 15.0
 
 
 @dataclass
