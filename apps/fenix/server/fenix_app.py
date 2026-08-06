@@ -65,6 +65,9 @@ from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  
 from cuota import CuotaAgotada, clave_de, cuota_publica  # noqa: E402
 from arranque import exigir_config  # noqa: E402
 from bitacora import Bitacora  # noqa: E402
+from regularizacion import Cuadernillo, Ejemplo, Ejercicio, Paso  # noqa: E402
+from regularizacion import generar as generar_pdf  # noqa: E402
+from regularizacion import nombre_archivo as nombre_pdf  # noqa: E402
 from rbac import acceso_valido, correo_conocido, es_admin, hay_contrasena, modo_abierto  # noqa: E402
 
 # Antes de montar nada. Dos configuraciones se ven idénticas a un servidor sano
@@ -130,6 +133,88 @@ async def rol(
         "correoConocido": correo_conocido(x_fenix_email) if admin else True,
         "modoAbierto": modo_abierto(),
     }
+
+
+class PasoRequest(BaseModel):
+    que: str
+    porque: str = ""
+
+
+class EjemploRequest(BaseModel):
+    enunciado: str
+    pasos: list[PasoRequest] = []
+    resultado: str = ""
+
+
+class EjercicioRequest(BaseModel):
+    enunciado: str
+    respuesta: str = ""
+    pista: str = ""
+    renglones: int = 3
+
+
+class CuadernilloRequest(BaseModel):
+    tema: str
+    grado: str = ""
+    alumno: str = ""
+    fecha: str = ""
+    se_atora_en: str = ""
+    explicacion: list[str] = []
+    ejemplos: list[EjemploRequest] = []
+    ejercicios: list[EjercicioRequest] = []
+    fuentes: list[str] = []
+    color: bool = True
+    tokens: int = 0
+
+
+@router.post("/regularizacion")
+async def regularizacion_pdf(req: CuadernilloRequest) -> Response:
+    """El cuadernillo en PDF, con su precio ya calculado e impreso.
+
+    SIN `solo_admin` a propósito: esto lo pide el niño desde el cibercafé, que es
+    justamente quien lo va a pagar. Lo protege la misma puerta que `/chat/stream`
+    —contraseña y cuota—, no el token del mostrador.
+
+    El precio no se recibe del cliente: lo calcula el servidor con `tarifa.py`.
+    Si viajara en el request, cualquiera podría pedir su cuadernillo a $10.
+    """
+    if not req.tema.strip():
+        raise HTTPException(status_code=422, detail="un cuadernillo sin tema no es un cuadernillo")
+
+    c = Cuadernillo(
+        tema=req.tema,
+        grado=req.grado,
+        alumno=req.alumno,
+        fecha=req.fecha,
+        se_atora_en=req.se_atora_en,
+        explicacion=list(req.explicacion),
+        ejemplos=[
+            Ejemplo(
+                enunciado=e.enunciado,
+                pasos=[Paso(p.que, p.porque) for p in e.pasos],
+                resultado=e.resultado,
+            )
+            for e in req.ejemplos
+        ],
+        ejercicios=[
+            Ejercicio(e.enunciado, e.respuesta, e.pista, e.renglones) for e in req.ejercicios
+        ],
+        fuentes=list(req.fuentes),
+        color=req.color,
+        tokens=req.tokens,
+    )
+    datos = generar_pdf(c)
+    d = c.precio()
+    return Response(
+        content=datos,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_pdf(c)}"',
+            # Para que el mostrador pueda mostrar el precio sin abrir el PDF.
+            "X-Fenix-Precio": str(d.total),
+            "Access-Control-Expose-Headers": "Content-Disposition, X-Fenix-Precio",
+        },
+    )
 
 
 @router.get("/bitacora")
