@@ -32,12 +32,16 @@ TOKEN = "s3cr3t-token"  # noqa: S105 — fixture token, not a real secret
 
 
 def _ready_client() -> SimpleNamespace:
-    return SimpleNamespace(user=SimpleNamespace(id=1503983124982534284), respond_to_invite=AsyncMock())
+    return SimpleNamespace(
+        user=SimpleNamespace(id=1503983124982534284),
+        respond_to_invite=AsyncMock(),
+        bind_siblings=lambda _p: None,
+    )
 
 
 def _booting_client() -> SimpleNamespace:
     """Logged in to nothing yet: on_ready has not fired, so .user is None."""
-    return SimpleNamespace(user=None, respond_to_invite=AsyncMock())
+    return SimpleNamespace(user=None, respond_to_invite=AsyncMock(), bind_siblings=lambda _p: None)
 
 
 # --- 3. /health tells the truth about serving -------------------------------
@@ -202,7 +206,7 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
     monkeypatch.setattr(
         app_mod,
         "PersonaClient",
-        lambda *a, **kw: SimpleNamespace(user=None, start=fake_start),
+        lambda *a, **kw: SimpleNamespace(user=None, start=fake_start, bind_siblings=lambda _p: None),
     )
 
     server = SimpleNamespace(started=False)

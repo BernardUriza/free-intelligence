@@ -217,6 +217,13 @@ async def _main() -> None:
         log.error("persona_gateway_nothing_to_start", note="no persona token configured")
         return
 
+    # Every client now exists, so each can reach its siblings: this is what makes
+    # a persona's `[INVITE:]` actually summon one. Without it the marker is only
+    # stripped and the sibling never arrives — the state prod was in from the
+    # 2026-07-14 purge until 2026-08-06.
+    for client in personas.values():
+        client.bind_siblings(personas)
+
     boot = GatewayBootState()
 
     # The HTTP server binds BEFORE Postgres and before any Discord login, so the

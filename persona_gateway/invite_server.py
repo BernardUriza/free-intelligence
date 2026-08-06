@@ -36,9 +36,11 @@ from fastapi import FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from persona_gateway.boot import GatewayBootState
+from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID
 
 if TYPE_CHECKING:
-    from persona_gateway.gateway import PersonaClient
+    from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID
+from persona_gateway.gateway import PersonaClient
 
 log = structlog.get_logger()
 
@@ -47,7 +49,7 @@ log = structlog.get_logger()
 # persona_id, so the bare wire contract still maps /invite → "alice"; the
 # optional `persona_id` field (HOST 5/6 slice C) lets the LLM router cutover
 # summon any gateway persona through the same endpoint.
-INVITE_PERSONA_ID = "alice"
+INVITE_PERSONA_ID = DEFAULT_INVITE_PERSONA_ID
 
 # A persona is "mute-suspected" only if the last addressed message it saw is
 # older than this AND no reply followed. A single turn's runner call can take

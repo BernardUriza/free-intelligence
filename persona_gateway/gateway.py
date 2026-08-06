@@ -327,6 +327,16 @@ class PersonaClient(discord.Client):
         # never sit between the user and their reply.
         self._vision.spawn(self.judge_client, str(message.id), attachment_blocks)
 
+    def bind_siblings(self, personas: dict[str, PersonaClient]) -> None:
+        """Hand this client the live persona registry, once every client exists.
+
+        Late-bound because `[INVITE:]` summons a sibling that does not exist yet
+        when this one is constructed. The gateway runs every persona in ONE
+        process, so the summon is a direct call to the sibling's guarded
+        `dispatch_invite` — no HTTP hop back through `/invite`, no second token.
+        """
+        self._markers.bind_siblings(personas)
+
     async def dispatch_invite(
         self,
         *,

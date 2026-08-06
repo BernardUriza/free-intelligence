@@ -15,6 +15,8 @@ the ack still sends — better a persona who over-promised once than a silent dr
 
 from __future__ import annotations
 
+import asyncio
+
 import structlog
 
 from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
@@ -25,6 +27,7 @@ from khimeras_shared.remember_marker import parse_remembers, persist_remembers, 
 from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
 from khimeras_shared.research_marker import parse_research, strip_research
 from shared.personas import Persona
+from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID as INVITE_PERSONA_ID
 
 log = structlog.get_logger()
 
@@ -35,6 +38,15 @@ class MarkerRouter:
     def __init__(self, persona: Persona, memory: MemoryStore) -> None:
         self.persona = persona
         self.memory = memory
+        # Late-bound in `app._main` once every PersonaClient exists: the gateway
+        # runs all personas in ONE process, so a summon is a direct call to the
+        # sibling's guarded `dispatch_invite` — no HTTP hop, no second token.
+        self._siblings: dict[str, object] = {}
+        self._bg_tasks: set[asyncio.Task[None]] = set()
+
+    def bind_siblings(self, personas: dict[str, object]) -> None:
+        """Give this router the live persona registry so `[INVITE:]` can summon."""
+        self._siblings = personas
 
     async def route(
         self,
@@ -55,10 +67,10 @@ class MarkerRouter:
         text = await self._route_remember(text, channel_id=channel_id, user_id=user_id)
         # LAST and unconditional: whatever happens above, `[INVITE:]` must not
         # survive into Discord. See `_route_invite`.
-        text = self._route_invite(text, channel_id=channel_id, user_id=user_id)
+        text = await self._route_invite(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
         return text
 
-    def _route_invite(self, text: str, *, channel_id: str, user_id: str) -> str:
+    async def _route_invite(self, text: str, *, channel_id: str, guild_id: str | None, user_id: str) -> str:
         """Strip `[INVITE:]` — always — and record that a summon was wanted.
 
         The summon pipeline died with `personas/` on 2026-07-14 and nothing
@@ -76,14 +88,43 @@ class MarkerRouter:
         reason = parse_invite(text)
         if reason is None:
             return text
-        log.warning(
-            "persona_gateway_invite_marker_unrouted",
+        # STRIP FIRST, unconditionally: every path below may fail, and none of
+        # them is allowed to let the marker reach a human.
+        text = strip_invites(text)
+
+        if self.persona.persona_id == INVITE_PERSONA_ID:
+            return text
+        target = self._siblings.get(INVITE_PERSONA_ID)
+        if target is None or getattr(target, "user", None) is None:
+            log.warning(
+                "persona_gateway_invite_target_unavailable",
+                persona_id=self.persona.persona_id,
+                target=INVITE_PERSONA_ID,
+                channel_id=channel_id,
+                known=sorted(self._siblings),
+            )
+            return text
+
+        task = asyncio.create_task(
+            target.dispatch_invite(  # type: ignore[attr-defined]
+                channel_id=channel_id,
+                guild_id=guild_id,
+                channel_name=None,
+                reason=reason,
+                invited_by=self.persona.persona_id,
+            )
+        )
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
+        log.info(
+            "persona_gateway_invite_summoned",
             persona_id=self.persona.persona_id,
+            target=INVITE_PERSONA_ID,
             channel_id=channel_id,
             user_id=user_id,
-            reason_len=len(reason),
+            reason_preview=reason[:80],
         )
-        return strip_invites(text)
+        return text
 
     async def _route_research(self, text: str, *, channel_id: str, guild_id: str | None, user_id: str) -> str:
         prompt = parse_research(text)

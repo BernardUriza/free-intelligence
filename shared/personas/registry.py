@@ -21,6 +21,13 @@ from __future__ import annotations
 import unicodedata
 from dataclasses import dataclass, field
 
+# The sibling a bare `[INVITE:]` marker summons. It lives here because the
+# registry is the source of truth for who the personas ARE — `persona_gateway`
+# imports it from here, and putting it in the gateway instead would force
+# `markers.py` to import `invite_server.py`, which imports `gateway.py`, which
+# imports `markers.py`. One home, no cycle.
+DEFAULT_INVITE_PERSONA_ID = "alice"
+
 
 @dataclass(frozen=True)
 class Persona:
