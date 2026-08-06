@@ -109,8 +109,30 @@ def prohibir_candado_heredado() -> None:
     )
 
 
+def exigir_contrasena_publica() -> None:
+    """Sin contraseña, la URL ES la credencial — y una URL se descubre sola.
+
+    `/chat/stream` es lo único que gasta dinero y está expuesto a internet. La
+    cuota acota cuánto se puede quemar, pero no impide que un desconocido quede
+    conectado a la llave de API de la papelería: basta con dar con la
+    dirección, y las direcciones se comparten, se indexan y se escanean.
+
+    El modo sin contraseña sigue existiendo para local, pero hay que teclearlo.
+    Igual que con la puerta del mostrador: un estado inseguro por omisión es un
+    accidente esperando; declarado, es una decisión.
+    """
+    if _var("FENIX_TUTOR_PASSWORD") or _declarado("FENIX_TUTOR_ABIERTO"):
+        return
+    raise ConfiguracionInsegura(
+        "sin FENIX_TUTOR_PASSWORD cualquiera que descubra la URL puede gastar la "
+        "llave de API de la papelería. Pon la contraseña, o declara el acceso "
+        "abierto a propósito con FENIX_TUTOR_ABIERTO=1 (sólo para local)."
+    )
+
+
 def exigir_config() -> None:
     """Todas las invariantes, en el orden en que duelen."""
     exigir_puerta()
     exigir_credencial_de_terceros()
     prohibir_candado_heredado()
+    exigir_contrasena_publica()

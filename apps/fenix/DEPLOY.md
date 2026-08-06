@@ -49,12 +49,59 @@ niega a arrancar**, a propósito (`arranque.py`).
 ```
 ANTHROPIC_API_KEY=…          # sin ella no arranca (ToS: los niños son terceros)
 FENIX_ADMIN_TOKEN=…          # sin él los expedientes quedan abiertos; no arranca
+FENIX_TUTOR_PASSWORD=…       # sin ella la URL ES la credencial; no arranca
 FENIX_PROXY_CONFIABLE=1      # detrás del ingress de ACA, o todos comparten un cubo de cuota
 FENIX_ADMIN_EMAILS=lidia@…,ximena@…
-FENIX_CUOTA_POR_MINUTO=8     # defaults; suben o bajan sin redeploy
+FENIX_CUOTA_POR_MINUTO=15    # defaults; suben o bajan sin redeploy
 FENIX_CUOTA_POR_HORA=60
+FENIX_BITACORA_PATH=…        # opcional; por defecto, junto a los expedientes
 HDF5_USE_FILE_LOCKING=FALSE  # HDF5 pelea con SMB; seguro porque hay una sola réplica
 ```
+
+### Las tres credenciales protegen cosas distintas
+
+| | Separa | Se pega en | Si se filtra |
+|---|---|---|---|
+| `FENIX_ADMIN_TOKEN` | las PC de adentro de las de afuera | las PC del mostrador | alguien ve los expedientes de las familias |
+| `FENIX_TUTOR_PASSWORD` | **la papelería de internet** | las PC del ciber (y el celular de quien quiera usarlo) | vuelve el riesgo de hoy: gasto ajeno, acotado por la cuota |
+| La cuota de turnos | nada — **acota el gasto** | no se pega, es del servidor | — |
+
+La contraseña del tutor **no impide que un niño se la pase a otro**: en una sala
+donde cualquiera se sienta, un secreto compartido acaba escrito en un papel. Ése
+no es su trabajo. Su trabajo es que quien descubra la URL desde fuera —un
+escáner, un enlace reenviado, un buscador— no pueda gastar la llave de API. El
+techo de gasto sigue siendo la cuota, y por eso van juntas.
+
+### Los dos límites de la cuota no se mueven juntos
+
+Las dos PC del ciber salen por el mismo router: para la cuota son **un solo
+cliente** y comparten el cubo.
+
+- **Por minuto (15)** es lo que se siente en la sala. Subirlo NO sube el techo de
+  gasto, sólo permite que dos niños pregunten a la vez sin estorbarse.
+- **Por hora (60)** ES el techo: lo máximo que alguien puede quemar en una hora.
+  Se sube con cuidado aunque haya contraseña.
+
+Ambos se cambian sin redeploy (`az containerapp update --set-env-vars`).
+
+### La bitácora — qué se preguntó y desde dónde
+
+Una línea JSON por turno en el volumen (`bitacora.jsonl`, rota a los 5 MB
+conservando una generación): cuándo, IP real del visitante, rol, la pregunta
+recortada a 300 caracteres, y si se cortó por cuota o por falta de contraseña.
+No guarda la respuesta del modelo ni ningún nombre.
+
+Se lee desde el mostrador, nunca desde la sala:
+
+```
+GET /expedientes/bitacora?limite=200     (requiere X-Fenix-Admin)
+```
+
+El **resumen va primero a propósito**: lo que se mira al abrirla no es la lista
+de preguntas, es si hay una IP desconocida acumulando turnos.
+
+Escribir la bitácora nunca tumba un turno: si el disco falla, el niño igual
+recibe su respuesta y la línea se pierde.
 
 **NUNCA** poner `CLAUDE_CODE_OAUTH_TOKEN`: es credencial de suscripción y su
 licencia es de uso personal.

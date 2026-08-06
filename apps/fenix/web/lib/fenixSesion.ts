@@ -12,12 +12,18 @@
  * - **correo** → IDENTIFICA. Dice QUIÉN trabajó una cotización. No da acceso a
  *   nada; escribirlo mal no abre ninguna puerta, sólo hace difícil rastrear
  *   después quién la hizo.
+ * - **contraseña de acceso** → DEJA ENTRAR al asistente de tareas. Separa la
+ *   papelería de internet, no a una persona de otra: se teclea una vez en cada
+ *   PC del cibercafé y se queda. Quien descubra la URL desde fuera no la tiene.
+ *   No sustituye a la cuota de turnos: un secreto que usan varios niños termina
+ *   compartido, así que el techo de gasto sigue siendo la cuota.
  */
 
 import { authHeaders } from './fenixToken';
 
 const LLAVE_TOKEN = 'fenix_admin_token';
 const LLAVE_CORREO = 'fenix_email';
+const LLAVE_ACCESO = 'fenix_acceso';
 
 function leer(llave: string): string | null {
   if (typeof window === 'undefined') return null;
@@ -42,6 +48,8 @@ export const getTokenMostrador = () => leer(LLAVE_TOKEN);
 export const setTokenMostrador = (v: string | null) => escribir(LLAVE_TOKEN, v);
 export const getCorreo = () => leer(LLAVE_CORREO);
 export const setCorreo = (v: string | null) => escribir(LLAVE_CORREO, v);
+export const getAcceso = () => leer(LLAVE_ACCESO);
+export const setAcceso = (v: string | null) => escribir(LLAVE_ACCESO, v);
 
 /**
  * TODAS las cabeceras que el servidor espera: el bearer del backend más las de
@@ -58,7 +66,9 @@ export function fenixHeaders(): Record<string, string> {
   const h: Record<string, string> = { ...authHeaders() };
   const token = getTokenMostrador();
   const correo = getCorreo();
+  const acceso = getAcceso();
   if (token) h['X-Fenix-Admin'] = token;
   if (correo) h['X-Fenix-Email'] = correo;
+  if (acceso) h['X-Fenix-Acceso'] = acceso;
   return h;
 }

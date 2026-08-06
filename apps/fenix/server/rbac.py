@@ -34,6 +34,34 @@ def _token_mostrador() -> str:
     return (os.getenv("FENIX_ADMIN_TOKEN") or "").strip()
 
 
+def _contrasena_acceso() -> str:
+    return (os.getenv("FENIX_TUTOR_PASSWORD") or "").strip()
+
+
+def hay_contrasena() -> bool:
+    return bool(_contrasena_acceso())
+
+
+def acceso_valido(recibida: str | None) -> bool:
+    """La contraseña del cibercafé — un muro contra internet, no contra la sala.
+
+    Es distinta del token de mostrador y protege de otra cosa. El token separa
+    las PCs de adentro de las de afuera; esta contraseña separa **la papelería
+    de internet**: sin ella, cualquiera que descubra la URL puede gastar la
+    llave de API, y una URL se descubre sola (se comparte, se indexa, se
+    escanea).
+
+    Lo que NO hace, y hay que decirlo: no impide que un niño se la pase a otro.
+    En una sala donde cualquiera se sienta, un secreto compartido termina
+    escrito en un papel — por eso la cuota de turnos sigue siendo el techo de
+    gasto, y ésta sólo levanta el piso. Las dos, no una.
+    """
+    esperada = _contrasena_acceso()
+    if not esperada:
+        return True
+    return bool(recibida) and hmac.compare_digest(recibida.strip(), esperada)
+
+
 def _correos_conocidos() -> set[str]:
     crudo = os.getenv("FENIX_ADMIN_EMAILS", "")
     return {c.strip().lower() for c in crudo.split(",") if c.strip()}
