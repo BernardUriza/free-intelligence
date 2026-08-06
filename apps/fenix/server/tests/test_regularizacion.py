@@ -1,15 +1,27 @@
-"""El cuadernillo y su precio — el entregable de $25 y por qué no cuesta $26.
+"""El cuadernillo y su precio — el entregable de $50 y por qué no cuesta $51.
 
-La escalera de precios la fijó la dirección: $10 la lámina suelta, $25 la
-regularización completa, y $25 es el TOPE de la papelería. Estos tests existen
-porque un techo que se puede rebasar no es un techo, y porque el precio va
-IMPRESO: si sale mal, se cobra mal en el mostrador y nadie lo revisa.
+La escalera la fijó la dueña: $10 la lámina suelta, $50 la regularización
+completa, y $50 es el TOPE de la papelería. Arrancó en $25 y Lidia lo subió al
+ver el primer cuadernillo ("los chavos son solventes más que antes"), así que
+los tests se escriben contra las CONSTANTES y no contra números a mano: la
+tarifa se va a volver a mover y un test con el precio quemado sólo avisaría de
+que cambió, no de que esté mal.
+
+Existen porque un techo que se puede rebasar no es un techo, y porque el precio
+va IMPRESO: si sale mal, se cobra mal en el mostrador y nadie lo revisa.
 """
 
 from fastapi.testclient import TestClient
 
 from regularizacion import Cuadernillo, Ejemplo, Ejercicio, Paso, generar, nombre_archivo
-from tarifa import PISO, TECHO, calcular
+from tarifa import (
+    PISO,
+    TECHO,
+    VALE_EJEMPLOS,
+    VALE_EJERCICIOS,
+    VALE_RESPUESTAS,
+    calcular,
+)
 
 
 def test_la_lamina_suelta_cuesta_el_piso():
@@ -19,7 +31,7 @@ def test_la_lamina_suelta_cuesta_el_piso():
 
 
 def test_la_regularizacion_completa_llega_justo_al_techo():
-    """Los escalones suman exactamente $25: ni sobra ni falta valor que cobrar."""
+    """Los escalones suman exactamente el techo: ni sobra ni falta valor que cobrar."""
     d = calcular(
         color=True,
         tiene_ejemplos=True,
@@ -31,8 +43,8 @@ def test_la_regularizacion_completa_llega_justo_al_techo():
     assert d.total == TECHO
 
 
-def test_nada_en_esta_papeleria_pasa_de_veinticinco():
-    """El techo es duro. Una mamá que sabe que nunca pagará más de $25 decide
+def test_nada_en_esta_papeleria_pasa_del_techo():
+    """El techo es duro. Una mamá que sabe de antemano cuánto es lo máximo decide
     más rápido que una que tiene que preguntar."""
     exagerado = calcular(
         color=True,
@@ -163,8 +175,12 @@ def test_el_cliente_no_puede_dictar_su_propio_precio(app_fenix):
         },
     )
     assert r.status_code == 200
-    # El servidor lo recalcula: lámina + ejemplos + ejercicios + respuestas.
-    assert int(r.headers["X-Fenix-Precio"]) == 10 + 4 + 5 + 3
+    # El servidor lo recalcula: lámina + ejemplos + ejercicios + respuestas. Se
+    # arma con las constantes y no con números a mano — la dueña ya reescaló la
+    # tarifa una vez ($25 → $50) y un test con el precio quemado sólo avisa de
+    # que cambió, no de que esté mal.
+    esperado = PISO + VALE_EJEMPLOS + VALE_EJERCICIOS + VALE_RESPUESTAS
+    assert int(r.headers["X-Fenix-Precio"]) == esperado
 
 
 def test_un_cuadernillo_sin_tema_se_rechaza(app_fenix):

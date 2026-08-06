@@ -10,9 +10,17 @@ LA ESCALERA, decidida por la dirección (Bernard, 6/ago/2026):
 - **$10** — la lámina suelta. Una infografía de un tema ("la cultura postpunk a
   lo largo de la historia del arte"): se explica, se cita de dónde salió, se
   imprime y ya.
-- **$25** — la regularización completa, y es el **TOPE**. Nada en esta papelería
-  cuesta más de $25, aunque el trabajo haya sido enorme. Un techo que la mamá
+- **$50** — la regularización completa, y es el **TOPE**. Nada en esta papelería
+  cuesta más de $50, aunque el trabajo haya sido enorme. Un techo que la mamá
   conoce de antemano vende más que un precio que hay que preguntar.
+
+EL TECHO LO SUBIÓ LA DUEÑA, no el costo. Arrancó en $25 y Lidia lo corrigió el
+6/ago viendo el primer cuadernillo: *"sobre todo ese de regularización, yo lo
+incrementaría a 40 o 50 dependiendo; pues al día de hoy los chavos creo que son
+solventes más que antes."* Ella conoce a las mamás del barrio y yo sólo tenía el
+precio del mercado; su dato gana. Su "40 o 50 **dependiendo**" es exactamente
+esta escalera: un cuadernillo sin investigación cae en ~$43 y el completo en
+$50. Y sigue siendo 3× más barato que una hora de maestro particular ($100-300).
 
 Entre los dos extremos, el precio sube por LO QUE EL NIÑO SE LLEVA, no por lo
 que trabajó el modelo. Ésa es la diferencia entre cobrar valor y cobrar esfuerzo:
@@ -32,15 +40,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 PISO = 10
-TECHO = 25
-DESCUENTO_BLANCO_Y_NEGRO = 3
+TECHO = 50
+DESCUENTO_BLANCO_Y_NEGRO = 5
 
 # Cada escalón es algo que el cliente puede VER en la hoja. Sumados dan
-# exactamente el techo: la regularización completa vale $25 y ni un peso más.
-VALE_EJEMPLOS = 4  # ejemplos resueltos paso a paso, lo del pizarrón
-VALE_EJERCICIOS = 5  # ejercicios para que los haga solo
-VALE_RESPUESTAS = 3  # la hoja que se separa para quien revisa
-VALE_INVESTIGACION = 3  # fuentes verificadas, no inventadas
+# exactamente el techo: la regularización completa vale $50 y ni un peso más.
+# El de ejercicios pesa más que el resto a propósito — es lo único que obliga al
+# niño a trabajar, y es lo que distingue estudiar de leer una lámina bonita.
+VALE_EJEMPLOS = 10  # ejemplos resueltos paso a paso, lo del pizarrón
+VALE_EJERCICIOS = 15  # ejercicios para que los haga solo
+VALE_RESPUESTAS = 8  # la hoja que se separa para quien revisa
+VALE_INVESTIGACION = 7  # fuentes verificadas, no inventadas
 
 # A partir de aquí se considera que hubo investigación de verdad y no sólo
 # redacción. Es un umbral de TOKENS porque buscar, leer y verificar es lo que
