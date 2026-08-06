@@ -98,6 +98,14 @@ async def main() -> int:
         help="corta el pool en este instante ISO-8601 (ej. 2026-07-09T04:11:00Z). "
         "Sin él, el eval toma los mensajes MÁS RECIENTES y evalúa un conjunto distinto cada día.",
     )
+    ap.add_argument(
+        "--no-context",
+        action="store_true",
+        help="rutea SIN el bloque de conversación reciente — el contrafactual que mide qué "
+        "aporta el contexto. Es lo que corre HOY en prod: el host no tiene POSTGRES_URL y "
+        "host_loop.tick nunca pasa `context`, así que RULE 1 del prompt (continuación, la de "
+        "máxima prioridad) es inalcanzable. Corre el mismo set con y sin esta flag y compara.",
+    )
     ap.add_argument("--out", default="scratchpad/router_eval.json")
     args = ap.parse_args()
 
@@ -136,7 +144,7 @@ async def main() -> int:
 
     for n, (idx, r) in enumerate(cases, 1):
         text = str(r["content"])
-        context = _context_block(rows, idx)
+        context = None if args.no_context else _context_block(rows, idx)
         try:
             d = await router.route(text, context)
         except Exception as exc:  # una falla no debe tirar el eval entero
