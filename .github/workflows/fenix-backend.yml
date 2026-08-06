@@ -81,14 +81,20 @@ jobs:
           IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/fenix-server:${{ github.sha }}
           API_KEY: ${{ secrets.FENIX_ANTHROPIC_API_KEY }}
           ADMIN_TOKEN: ${{ secrets.FENIX_ADMIN_TOKEN }}
-          ACCESS_TOKEN: ${{ secrets.FENIX_ACCESS_TOKEN }}
           ALLOWED_ORIGINS: ${{ vars.FENIX_ALLOWED_ORIGINS }}
           ADMIN_EMAILS: ${{ vars.FENIX_ADMIN_EMAILS }}
         run: |
+          # Sin OG118_ACCESS_TOKEN a propósito. Ese bearer es de og118, que es
+          # de una sola cuenta; aquí corría ANTES de la puerta de Fénix y hacía
+          # que /chat/stream contestara 401 a las PCs del cibercafé — con la
+          # página cargando entera, porque /expedientes/rol es ruta propia y sí
+          # pasaba. El niño escribía su pregunta y recibía un error, y en los
+          # logs no fallaba nada. Aquí autoriza FENIX_ADMIN_TOKEN y lo público
+          # lo acota la cuota de turnos; `arranque.py` se niega a arrancar si la
+          # variable reaparece.
           COMUNES=(
             "ANTHROPIC_API_KEY=secretref:anthropic-api-key"
             "FENIX_ADMIN_TOKEN=secretref:fenix-admin-token"
-            "OG118_ACCESS_TOKEN=secretref:access-token"
             "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
             "FENIX_ADMIN_EMAILS=$ADMIN_EMAILS"
             # Detrás del ingress de ACA el IP del cliente llega en
@@ -101,17 +107,17 @@ jobs:
           )
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN"
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars "${COMUNES[@]}" \
-              --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN"
+              --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN" "OG118_ACCESS_TOKEN"
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
               --registry-server "$ACR.azurecr.io" --registry-identity system \
               --target-port 8118 --ingress external \
               --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN" \
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" \
               --env-vars "${COMUNES[@]}"
           fi
 

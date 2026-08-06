@@ -20,6 +20,10 @@ class CredencialEquivocada(RuntimeError):
     """Se atendería a terceros con una credencial de uso personal."""
 
 
+class CandadoHeredado(RuntimeError):
+    """El candado de og118 dejaría al cibercafé sin poder preguntar."""
+
+
 def _var(nombre: str) -> str:
     return (os.getenv(nombre) or "").strip()
 
@@ -78,7 +82,35 @@ def exigir_credencial_de_terceros() -> None:
     )
 
 
+def prohibir_candado_heredado() -> None:
+    """`OG118_ACCESS_TOKEN` aquí deja mudo al cibercafé, y el servidor se ve sano.
+
+    og118 es de una sola cuenta y protege sus rutas con un bearer compartido.
+    Fénix atiende a dos públicos y separa distinto: el mostrador se identifica
+    con `FENIX_ADMIN_TOKEN`, y lo público lo acota la cuota de turnos — un
+    bearer no sirve en una PC donde cualquiera se sienta, porque para usarlo
+    habría que dejárselo escrito.
+
+    Con la variable puesta, ese bearer corre ANTES de la puerta: `/chat/stream`
+    contesta 401 y la puerta nunca llega a autorizar. La página carga, pinta el
+    logo y las tarjetas —`/expedientes/rol` es ruta propia y sí pasa—, así que
+    el niño escribe su pregunta y recibe un error. Nada falla en los logs.
+
+    En los tests la variable no existe, así que el bearer deja pasar todo y la
+    cuota se ejercita como si nada: verde en local, mudo en producción.
+    """
+    if not _var("OG118_ACCESS_TOKEN"):
+        return
+    raise CandadoHeredado(
+        "OG118_ACCESS_TOKEN está puesto: el bearer de og118 corre antes que la "
+        "puerta de Fénix y /chat/stream responderá 401 a las PCs del cibercafé, "
+        "con la página cargando bien. Quítalo del despliegue — aquí autoriza "
+        "FENIX_ADMIN_TOKEN y acota la cuota de turnos."
+    )
+
+
 def exigir_config() -> None:
     """Todas las invariantes, en el orden en que duelen."""
     exigir_puerta()
     exigir_credencial_de_terceros()
+    prohibir_candado_heredado()

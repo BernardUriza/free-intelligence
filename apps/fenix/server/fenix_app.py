@@ -365,7 +365,13 @@ async def extraer(
 #
 # Una dependencia pasada al constructor no depende de ningún detalle interno:
 # es la API pública para "esto aplica a toda mi app".
-_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
+#
+# El audio entra aquí porque quitar el bearer de og118 —que es lo que devuelve
+# la palabra al cibercafé— lo dejaría sin ningún candado, y transcribir y
+# sintetizar cuestan dinero por segundo. Ningún cliente de Fénix los llama: el
+# niño escribe y lee. Si mañana el mostrador quiere dictado, ya pasa con su
+# token; lo que no puede es quedar abierto a internet mientras nadie lo usa.
+_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects", "/tts/synthesize", "/stt/transcribe")
 
 # `/chat/stream` es la única ruta que cuesta dinero, y en la superficie pública
 # no la protege nada más: autenticar no sirve ahí porque el bearer vive en el
