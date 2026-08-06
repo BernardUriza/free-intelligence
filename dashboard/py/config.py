@@ -1,6 +1,6 @@
 """Dashboard configuration."""
 
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 
 # Azure Blob Storage URLs (public read access)
 STORAGE_BASE = "https://insultstorage.blob.core.windows.net"
@@ -19,3 +19,9 @@ ALICE_LOGS_URL = f"{ALICE_BLOB_BASE}/logs.json"
 
 # Refresh interval (ms)
 REFRESH_INTERVAL = 30_000  # 30 seconds
+
+# Data-age thresholds (seconds) applied to the producer's own timestamp inside
+# metrics.json. The blob answers 200 forever, so age — not HTTP status — is the
+# only signal that can turn this dashboard red.
+FRESH_MAX_AGE_SECONDS = 300
+STALE_MAX_AGE_SECONDS = 3600

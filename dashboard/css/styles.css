@@ -110,6 +110,48 @@ body {
 
 .status-live { color: var(--green); border-color: rgba(46, 204, 113, 0.3); }
 .status-error { color: var(--red); border-color: rgba(231, 76, 60, 0.3); }
+.status-stale { color: var(--yellow); border-color: rgba(243, 156, 18, 0.35); }
+.status-dead {
+  color: var(--red);
+  border-color: rgba(231, 76, 60, 0.45);
+  background: rgba(231, 76, 60, 0.12);
+  font-weight: 600;
+}
+
+/* Staleness banner — the dashboard says out loud how old its data is. */
+.stale-banner {
+  margin: 0.75rem 0.85rem 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.08);
+}
+
+.stale-banner-stale {
+  border-color: rgba(243, 156, 18, 0.35);
+  background: rgba(243, 156, 18, 0.08);
+}
+
+.stale-banner-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  margin-bottom: 0.3rem;
+}
+
+.stale-banner-stale .stale-banner-title { color: var(--yellow); }
+
+.stale-banner-body {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* Fossil data must not read as live: dim the numbers, kill the "alive" pulse. */
+.data-stale .bento { opacity: 0.55; filter: saturate(0.5); }
+.data-stale .logo-dot { background: var(--red); animation: none; }
 
 /* Bento — mobile-first: 2-col stat cards, single-col panels, vertical scroll.
    Desktop overrides at the bottom of the file restore the 4-col grid layout. */

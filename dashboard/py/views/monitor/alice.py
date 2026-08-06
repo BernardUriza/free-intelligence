@@ -11,7 +11,14 @@ def render_alice_card():
     if el is None:
         return
     if not store.alice_metrics:
-        el.innerHTML = '<div class="alice-empty">ALICE no ha reportado todavía</div>'
+        el.clear()
+        msg = (
+            "Sin datos: el blob alice-bot/metrics.json no existe (404). "
+            "El container alice-bot fue eliminado; nadie va a escribirlo."
+            if store.alice_missing
+            else "ALICE no ha reportado todavía"
+        )
+        el <= html.DIV(msg, Class="alice-empty")
         return
 
     counters = store.alice_metrics.get("counters", {}) or {}

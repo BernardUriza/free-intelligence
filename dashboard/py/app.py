@@ -34,12 +34,12 @@ def fetch_data():
 
 
 def _on_metrics(req):
-    if req.status == 200:
-        store.metrics = json.loads(req.text)
-        views.render_metrics()
-        views.update_status("live", "connected")
-    else:
-        views.update_status("error", f"HTTP {req.status}")
+    if req.status != 200:
+        views.report_unreachable()
+        return
+    store.metrics = json.loads(req.text)
+    views.render_metrics()
+    views.report_data(store.metrics.get("timestamp"))
 
 
 def _on_logs(req):
@@ -60,12 +60,15 @@ def _on_facts(req):
 
 
 def _on_alice_metrics(req):
+    store.alice_missing = req.status != 200
     if req.status == 200:
         try:
             store.alice_metrics = json.loads(req.text)
-            views.render_alice_card()
         except Exception:
             store.alice_metrics = {}
+    else:
+        store.alice_metrics = {}
+    views.render_alice_card()
 
 
 def _on_facts_and_render(req):
