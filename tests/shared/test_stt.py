@@ -9,9 +9,16 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
-from khimeras_shared.stt import SttTranscript, build_susurro_stt_client, transcribe_voice_message
+from khimeras_shared.stt import (
+    STT_COLD_START_ATTEMPTS,
+    STT_TIMEOUT_S,
+    SttTranscript,
+    build_susurro_stt_client,
+    transcribe_voice_message,
+)
 
 
 def _mock_async_client(*, json_body: dict | None = None, raise_status: Exception | None = None):
@@ -128,3 +135,79 @@ class TestTranscribeVoiceMessage:
             result = await transcribe_voice_message(b"d", base_url="https://sus.example.com", api_key="k")
 
         assert result is None
+
+
+class TestColdStartRetry:
+    """Susurro runs scale-to-zero: a voice note is often the request that wakes
+    it, and the boot outlives the read timeout. One attempt made transcription a
+    coin flip against Azure's start time (3 of 10 notes lost on 2026-08-06)."""
+
+    @staticmethod
+    def _sequenced_client(effects: list):
+        """AsyncClient mock whose POST replays `effects` in order — an exception
+        raises, a dict answers as a transcript body."""
+        post = AsyncMock()
+
+        async def _post(*args, **kwargs):
+            effect = effects[min(post.await_count - 1, len(effects) - 1)]
+            if isinstance(effect, BaseException):
+                raise effect
+            resp = MagicMock()
+            resp.json = MagicMock(return_value=effect)
+            resp.raise_for_status = MagicMock()
+            return resp
+
+        post.side_effect = _post
+        http = MagicMock()
+        http.post = post
+        http.__aenter__ = AsyncMock(return_value=http)
+        http.__aexit__ = AsyncMock(return_value=False)
+        return MagicMock(return_value=http), post
+
+    @pytest.mark.asyncio
+    async def test_cold_start_timeout_retries_and_transcribes(self):
+        """THE bug: the first POST dies waiting on the container boot, the second
+        hits a warm server. The note must survive, not land as 'no me entra'."""
+        factory, post = self._sequenced_client(
+            [
+                httpx.ReadTimeout("timed out"),
+                {"success": True, "transcript": "lo que dije en la nota", "engine": "azure-whisper"},
+            ]
+        )
+
+        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+            result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
+
+        assert result == "lo que dije en la nota"
+        assert post.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_gives_up_after_the_bounded_attempts(self):
+        """RESISTANCE: a susurro that is genuinely down must not retry forever —
+        the turn still has to reach the persona, degraded but alive."""
+        factory, post = self._sequenced_client([httpx.ReadTimeout("timed out")])
+
+        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+            result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
+
+        assert result is None
+        assert post.await_count == STT_COLD_START_ATTEMPTS
+
+    @pytest.mark.asyncio
+    async def test_auth_rejection_is_not_retried(self):
+        """RESISTANCE: a 401 is the server understanding us and saying no.
+        Retrying only doubles the wait before the same answer."""
+        denied = httpx.HTTPStatusError("401", request=MagicMock(), response=MagicMock(status_code=401))
+        factory, post = self._sequenced_client([denied])
+
+        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+            result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
+
+        assert result is None
+        assert post.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_timeout_absorbs_a_container_boot(self):
+        """The read timeout must outlast a Container Apps cold start. At 30s the
+        boot landed ON the deadline (14:58:32 note, 14:58:55 boot, 14:59:02 death)."""
+        assert STT_TIMEOUT_S >= 60.0
