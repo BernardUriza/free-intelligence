@@ -51,9 +51,16 @@ on:
 # be live. Safe to cancel because every stage is idempotent — the bases are
 # content-addressed, and `detect` diffs against the SHA each app is RUNNING, so a
 # half-applied deploy self-heals on the next run.
+#
+# `cancel-in-progress` is CONDITIONAL because the concurrency group is evaluated
+# BEFORE the jobs' `if`. A CD triggered by a RED CI skips every job — but it still
+# joins the group, and with an unconditional `true` that empty run cancelled a
+# manual deploy that was mid-build (2026-08-06, run 31119484497). Only a run that
+# will actually deploy is allowed to cancel one: a dispatch, or a workflow_run
+# whose CI was green.
 concurrency:
   group: cd-deploy
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
 env:
   NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
