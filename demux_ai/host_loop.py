@@ -50,6 +50,7 @@ class HostDispatchLoop:
     _names: dict[str, str] = field(default_factory=dict)
     _forced_targets: dict[str, list[str]] = field(default_factory=dict)
     _context: dict[str, deque[str]] = field(default_factory=dict)
+    _last_target: dict[str, str] = field(default_factory=dict)
 
     def remember(self, *, channel_id: str, author_name: str, text: str) -> None:
         """Keep the last `CONTEXT_MESSAGES` lines of a channel for the routing brain.
@@ -169,7 +170,12 @@ class HostDispatchLoop:
 
     async def tick(self, now: float) -> list:
         """Flush every due batch and dispatch it. Returns the routing decisions
-        (for telemetry/tests). One batch's dispatch fault never blocks the others."""
+        (for telemetry/tests). One batch's dispatch fault never blocks the others.
+
+        `prev_target` viaja SOLO como telemetría: mide continuidad, no la impone.
+        La afinidad de sesión de verdad (stay bias / idle timeout) es una decisión
+        de diseño aparte; esto es lo que permite medirla ANTES de decidirla.
+        """
         decisions = []
         for key, combined, message_id, voice_transcript in self.batcher.pop_due(now):
             channel_id = key.split(":", 1)[0]
@@ -182,6 +188,10 @@ class HostDispatchLoop:
                 trigger_message_id=message_id,
                 forced_targets=self._forced_targets.pop(key, None),
                 voice_transcript=voice_transcript,
+                prev_target=self._last_target.get(channel_id),
             )
             decisions.append(decision)
+            landed = getattr(decision, "target", None)
+            if landed:
+                self._last_target[channel_id] = landed
         return decisions

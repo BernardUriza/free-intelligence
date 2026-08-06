@@ -72,6 +72,7 @@ async def route_and_dispatch(
     trigger_message_id: str | None = None,
     forced_targets: list[str] | None = None,
     voice_transcript: str = "",
+    prev_target: str | None = None,
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the decision that was
     acted on (for telemetry) — never None once a message has been received.
@@ -121,6 +122,12 @@ async def route_and_dispatch(
                 target=persona_id,
                 accepted=outcome,
                 mentioned=list(forced_targets),
+                # El bypass por mención NO pasa por el cerebro, así que sin este
+                # campo los turnos mencionados y los ruteados se mezclan en KQL y
+                # cualquier tasa de sesgo sale contaminada. `fanout` mide además
+                # cuántas personas despertó una sola frase.
+                prev_target=prev_target or "",
+                fanout=len(forced_targets),
             )
         return MentionDecision(target=forced_targets[0], targets=tuple(forced_targets))
 
@@ -152,5 +159,16 @@ async def route_and_dispatch(
         target=target,
         accepted=accepted,
         reason=getattr(decision, "reason", ""),
+        # --- instrumentación del ruteo (2026-08-06) ---
+        # Sin estos campos el 97.6% de sesgo hacia insult fue INVISIBLE por tres
+        # semanas: `reason` decía `llm_insult` (clean match) en cada turno, que se
+        # lee como salud. Lo que faltaba era con QUÉ decidió el cerebro y contra
+        # QUÉ venía. Cada campo existe para una pregunta que KQL hoy no podía
+        # contestar — ver .claude/rules/router-observability.md.
+        has_context=context is not None,
+        context_lines=len(context.splitlines()) if context else 0,
+        prev_target=prev_target or "",
+        switched=bool(prev_target) and prev_target != target,
+        effort=getattr(decision, "effort", ""),
     )
     return decision
