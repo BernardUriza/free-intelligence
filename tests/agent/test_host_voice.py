@@ -17,10 +17,23 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
+import pytest
 
 from demux_ai.host_client import HostClient
 from demux_ai.host_loop import HostDispatchLoop
-from khimeras_shared.stt import SusurroSttClient
+from khimeras_shared.stt import WAKE_ETA_SECONDS, SusurroSttClient
+
+
+@pytest.fixture(autouse=True)
+def _susurro_awake():
+    """Default every test to a WARM susurro so the wake path stays opt-in.
+
+    Without this the suite would drive the real probe against a fake host and
+    sit through the wake deadline — and, worse, the cold path would ride along
+    invisibly in tests that are about something else.
+    """
+    with patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=True)):
+        yield
 
 
 def _voice_message(*, is_bot: bool = False, content: str = "") -> SimpleNamespace:
@@ -148,3 +161,105 @@ async def test_text_plus_voice_keeps_both():
         await client.on_message(_voice_message(content="mira esto"))
     due = client.dispatch_loop.batcher.pop_due(now=time.time() + 10)
     assert due[0][1] == "mira esto\ny esto lo dije hablando\n[adjuntó: voice-message.ogg]"
+
+
+class TestSleepingSusurroIsAnnounced:
+    """Susurro stays scale-to-zero on purpose (asleep it costs nothing), so a
+    voice note is routinely the request that boots it — ~30s of silence during
+    which the user has no idea anything is happening. Bernard's ask: say it out
+    loud, give the estimate, prove the pipeline with a hello-world clip, then
+    deliver his audio."""
+
+    async def test_a_warm_susurro_announces_nothing(self):
+        """RESISTANCE: the common case must stay silent. Announcing a wake that
+        isn't happening turns every voice note into channel noise."""
+        msg = _voice_message()
+        client = _client()
+        with (
+            patch("demux_ai.host_client.wake_susurro", new=AsyncMock(return_value=True)) as wake,
+            patch("demux_ai.host_client.transcribe_voice_message", new=AsyncMock(return_value="ya estaba despierto")),
+        ):
+            await client.on_message(msg)
+        wake.assert_not_awaited()
+        assert msg.channel.send.await_count == 1
+        assert "dijo:" in msg.channel.send.await_args.args[0]
+
+    async def test_a_sleeping_susurro_warns_with_an_eta_then_delivers(self):
+        """THE ask: tell him it's asleep and how long, wake it, then hand over
+        the transcript — instead of 30 silent seconds ending in 'no me entra'."""
+        msg = _voice_message()
+        client = _client()
+        with (
+            patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=False)),
+            patch("demux_ai.host_client.wake_susurro", new=AsyncMock(return_value=True)) as wake,
+            patch("demux_ai.host_client.transcribe_voice_message", new=AsyncMock(return_value="lo que dije dormido")),
+        ):
+            await client.on_message(msg)
+
+        wake.assert_awaited_once()
+        notice, echo = (call.args[0] for call in msg.channel.send.await_args_list)
+        assert "dormido" in notice
+        assert str(WAKE_ETA_SECONDS) in notice
+        assert echo == ">>> 🔊 **bern dijo:**\nlo que dije dormido\n🎙️"
+
+    async def test_the_wake_happens_before_the_transcription(self):
+        """The hello-world probe exists to run FIRST: transcribing before the
+        pipeline is confirmed is what made the note a coin flip."""
+        order: list[str] = []
+
+        async def _wake(**_kwargs):
+            order.append("wake")
+            return True
+
+        async def _transcribe(*_args, **_kwargs):
+            order.append("transcribe")
+            return "por fin"
+
+        client = _client()
+        with (
+            patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=False)),
+            patch("demux_ai.host_client.wake_susurro", new=_wake),
+            patch("demux_ai.host_client.transcribe_voice_message", new=_transcribe),
+        ):
+            await client.on_message(_voice_message())
+
+        assert order == ["wake", "transcribe"]
+
+    async def test_a_failed_wake_says_so_and_still_tries(self):
+        """RESISTANCE: a wake that never lands must not swallow the audio — the
+        attempt may still succeed, and silence is the failure we're killing."""
+        msg = _voice_message()
+        client = _client()
+        transcribe = AsyncMock(return_value="pasé de todos modos")
+        with (
+            patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=False)),
+            patch("demux_ai.host_client.wake_susurro", new=AsyncMock(return_value=False)),
+            patch("demux_ai.host_client.transcribe_voice_message", new=transcribe),
+        ):
+            await client.on_message(msg)
+
+        transcribe.assert_awaited_once()
+        notices = [call.args[0] for call in msg.channel.send.await_args_list]
+        assert any("No logré despertar" in n for n in notices)
+        assert notices[-1].endswith("🎙️")
+
+    async def test_a_text_message_never_probes_susurro(self):
+        """RESISTANCE: no audio, no probe. A chatty channel must not poll the
+        gateway (and keep it awake) on every ordinary message."""
+        msg = _voice_message()
+        msg.attachments = []
+        client = _client()
+        with patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=False)) as probe:
+            await client.on_message(msg)
+        probe.assert_not_awaited()
+
+    async def test_a_non_audio_attachment_never_probes_susurro(self):
+        """RESISTANCE: an image is not a voice note — the document lane must not
+        pay for a susurro boot."""
+        msg = _voice_message()
+        msg.attachments = [SimpleNamespace(content_type="image/png", filename="foto.png", read=AsyncMock())]
+        msg.flags = SimpleNamespace(voice=False)
+        client = _client()
+        with patch("demux_ai.host_client.susurro_is_awake", new=AsyncMock(return_value=False)) as probe:
+            await client.on_message(msg)
+        probe.assert_not_awaited()

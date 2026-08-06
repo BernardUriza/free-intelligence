@@ -25,10 +25,13 @@ from discord.ext import tasks
 from demux_ai.host_loop import HostDispatchLoop
 from khimeras_shared.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
+    WAKE_ETA_SECONDS,
     SusurroSttClient,
     build_susurro_stt_client,
     is_audio_attachment,
+    susurro_is_awake,
     transcribe_voice_message,
+    wake_susurro,
 )
 from shared.personas.registry import persona_id_by_bot_user_id, persona_id_by_role_name
 
@@ -83,14 +86,20 @@ class HostClient(discord.Client):
         """
         if self._stt_client is None or not getattr(message, "attachments", None):
             return ""
-        parts: list[str] = []
-        for attachment in message.attachments:
-            if not is_audio_attachment(
+        audio_attachments = [
+            attachment
+            for attachment in message.attachments
+            if is_audio_attachment(
                 content_type=getattr(attachment, "content_type", None),
                 filename=getattr(attachment, "filename", None),
                 voice_message=bool(getattr(message.flags, "voice", False)),
-            ):
-                continue
+            )
+        ]
+        if not audio_attachments:
+            return ""
+        await self._ensure_susurro_awake(message)
+        parts: list[str] = []
+        for attachment in audio_attachments:
             try:
                 audio = await attachment.read()
                 transcript = await transcribe_voice_message(
@@ -107,6 +116,45 @@ class HostClient(discord.Client):
         if parts:
             log.info("host_stt_transcribed", parts=len(parts), length=sum(len(p) for p in parts))
         return "\n".join(parts)
+
+    async def _ensure_susurro_awake(self, message: discord.Message) -> None:
+        """Wake susurro before transcribing, and SAY SO while it boots.
+
+        Susurro is kept scale-to-zero on purpose (it costs nothing asleep), so a
+        voice note is routinely the request that boots it — roughly 30 seconds
+        during which the user has no idea anything is happening. Before this, the
+        wait ended in "el audio no me entra" and the note was simply lost.
+
+        The honest UX Bernard asked for: probe first (a warm susurro announces
+        nothing at all), and when it IS asleep tell him it is asleep, give him
+        the estimate, boot it, prove the pipeline with a hello-world clip, and
+        only then transcribe his audio. Fail-soft throughout — a failed
+        announcement or a wake that never lands must not stop the attempt, since
+        the transcription itself may still succeed.
+        """
+        if self._stt_client is None:
+            return
+        if await susurro_is_awake(base_url=self._stt_client.base_url):
+            return
+        await self._say_sidecar(
+            message,
+            f"🔊 El servidor de transcripción está dormido. Dame ~{WAKE_ETA_SECONDS} s "
+            f"para despertarlo y te entrego tu audio.",
+        )
+        woke = await wake_susurro(base_url=self._stt_client.base_url, api_key=self._stt_client.api_key)
+        if not woke:
+            await self._say_sidecar(
+                message,
+                "🔊 No logré despertar el servidor de transcripción. Voy a intentar tu audio de todos modos.",
+            )
+
+    async def _say_sidecar(self, message: discord.Message, text: str) -> None:
+        """Post an operational note to the channel: raw send, no version tag, no
+        chunking — same sidecar shape as the transcript echo, never a turn."""
+        try:
+            await message.channel.send(text)
+        except Exception:
+            log.exception("host_voice_notice_failed", channel_id=str(message.channel.id))
 
     async def on_ready(self) -> None:
         log.info("host_ready", bot_id=self.user.id if self.user else None)
