@@ -12,16 +12,11 @@
 # connects when HOST_DISCORD_TOKEN is set on its Container App AND Insult's
 # omnipresence is stood down — Bernard's atom + go.
 
-FROM quay.io/condaforge/miniforge3:26.1.1-3
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-base:latest
+FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
-
-COPY environment.yml .
-RUN mamba env update -n base -f environment.yml \
- && mamba clean --all --yes \
- && find /opt/conda/ -follow -type f -name '*.a' -delete \
- && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
 # The host's import graph: demux_ai → khimeras_shared (+ shared/ read at runtime
 # for persona guidance). No persona_gateway/persona_runner — it reaches personas

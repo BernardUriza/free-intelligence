@@ -1,15 +1,10 @@
 # Insult Agent SDK Runner — Container Apps image.
 #
-# Conda-native base (memory: feedback_no_pypi_only_conda). Uses Quay.io
-# to dodge the Docker Hub anonymous-pull rate limit (same reason MCR
-# replaced python:3.14-slim originally — see reference_dockerfile_base_mcr).
-#
-# Runs:
-#   - Node 22 + @anthropic-ai/claude-code CLI (for the Agent SDK loop) —
-#     Node installed via conda-forge, not apt, so the whole stack is
-#     conda-managed.
-#   - Python 3.14 + the env from environment.yml (FastAPI runner +
-#     workspace_renderer + asyncpg + the shared deps).
+# Built on `khimeras-runner-base` (infra/azure/runner-base.Dockerfile), which
+# owns the whole toolchain — the conda env from environment.yml, Node 22, the
+# Claude Code CLI and Playwright's Chromium. This image is COPY layers only, so
+# a code commit no longer reinstalls ~260s of dependencies nor re-pushes a
+# multi-GB Chromium.
 #
 # Workspace state is NOT in the image. It comes from an Azure Files mount at
 # /data/insult-workspace populated by the workspace_renderer (Postgres -> markdown).
@@ -18,35 +13,11 @@
 # is a single co-located process. Splitting Node and Python would mean inter-container
 # IPC which is overkill at this scale.
 
-FROM quay.io/condaforge/miniforge3:26.1.1-3
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-runner-base:latest
+FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
-
-# Install the conda env into `base`, then add Node 22 from conda-forge.
-# Node-from-conda avoids the NodeSource apt repo + the OS-version-specific
-# Bookworm-has-18 dance — everything stays inside one package manager.
-COPY environment.yml .
-RUN mamba env update -n base -f environment.yml \
- && mamba install -n base -c conda-forge -y 'nodejs>=22,<23' \
- && mamba clean --all --yes \
- && find /opt/conda/ -follow -type f -name '*.a' -delete \
- && find /opt/conda/ -follow -type f -name '*.pyc' -delete
-
-# Install Claude Code CLI globally via npm (npm comes from the conda
-# nodejs package). OAuth Max credentials get mounted at runtime via
-# /home/runner/.claude/.credentials.json (NOT baked into the image).
-RUN npm install -g --silent @anthropic-ai/claude-code
-
-# Playwright MCP server + headless Chromium for scraping JS-heavy / social-media
-# sites (IG/FB/TikTok/X) that web_search cannot reach. Chromium lives at
-# PLAYWRIGHT_BROWSERS_PATH so the non-root runner user can read it. apt deps
-# (libnss3, libgbm, libxcomposite, libxdamage, libasound, etc.) are pulled in
-# by `--with-deps`, which needs root — done here before the USER switch below.
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
-RUN npm install -g --silent @playwright/mcp \
- && npx -y playwright install --with-deps chromium \
- && chmod -R a+rX /opt/playwright-browsers
 
 # Copy the runner's real import graph (post-castigo 2026-07-14 — `personas/`
 # no existe; el engine conductual vive en khimeras_shared.behavior):

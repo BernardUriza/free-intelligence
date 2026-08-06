@@ -6,10 +6,10 @@
 # offline (the "Vultur no responde" class). This gives the gateway the same
 # always-on Azure Container App home that alice-bot has.
 #
-# Conda base + environment.yml shared with Insult/ALICE (memory:
-# feedback_no_pypi_only_conda) — one dependency tree, ACR layer cache reuse.
-# Quay.io over Docker Hub to dodge the anonymous-pull rate limit (memory:
-# reference_dockerfile_base_mcr).
+# Built on `khimeras-base` (Dockerfile.base), which owns the conda env from
+# environment.yml (memory: feedback_no_pypi_only_conda). This image is COPY
+# layers only — the dependency install is shared with every other surface and
+# paid once per environment.yml change instead of once per commit per image.
 #
 # Differences from the ALICE image:
 # - NO Node.js / codex layer. The gateway does NOT run an LLM: it is a thin HTTP
@@ -23,16 +23,11 @@
 #   missing package can't ship a ModuleNotFound image (the PR #26 P0 class).
 # - No EXPOSE / ingress: Discord traffic is outbound only, like Insult's plumbing.
 
-FROM quay.io/condaforge/miniforge3:26.1.1-3
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-base:latest
+FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
-
-COPY environment.yml .
-RUN mamba env update -n base -f environment.yml \
- && mamba clean --all --yes \
- && find /opt/conda/ -follow -type f -name '*.a' -delete \
- && find /opt/conda/ -follow -type f -name '*.pyc' -delete
 
 # The gateway's import graph: persona_gateway → khimeras_shared.{memory,persona,
 # runner} + shared.personas. No persona package (the runner owns persona DNA).
@@ -40,7 +35,8 @@ COPY persona_gateway/ persona_gateway/
 COPY khimeras_shared/ khimeras_shared/
 COPY shared/ shared/
 
-# See Dockerfile: ConsoleRenderer's ANSI escapes break every KQL field predicate.
+# Pinned in the image, not in an Azure env var somebody must remember: the
+# guarantee travels with the artifact even if the base ever changes.
 ENV LOG_FORMAT=json
 
 CMD ["python", "-m", "persona_gateway", "run"]
