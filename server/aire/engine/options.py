@@ -52,7 +52,16 @@ DEFAULT_MODE = "agent"
 
 
 def _env(project: str) -> dict[str, str]:
-    env = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+    # The recursion scrub (#30): the day ANTHROPIC_BASE_URL lands in
+    # /etc/aire/env, every spawned CLI would call the daemon back — an infinite
+    # loop inside the droplet. The SDK merges this dict ON TOP of os.environ
+    # (subprocess_cli.py:431), so a var cannot be removed by omission: the base
+    # URL is pinned to the real API (deterministic, no falsy-string semantics
+    # to trust) and the gateway token is blanked ("" is falsy to the CLI's
+    # env checks — its own log says "…is missing; ignoring").
+    env = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+           "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+           "ANTHROPIC_AUTH_TOKEN": ""}
     if os.environ.get("AIRE_ISOLATE_CONFIG") == "1":
         # In a container: no Keychain, the credential comes in via env and
         # CLAUDE_CONFIG_DIR keeps the container from storing anything. NOT
