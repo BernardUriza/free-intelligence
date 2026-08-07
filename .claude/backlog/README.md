@@ -50,6 +50,8 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 
 | 30 | **The gateway door** — a Messages-API-compatible `POST /v1/messages` that proxies straight to `api.anthropic.com` and mirrors both halves into Postgres, so Claude Code (and anything else that speaks Anthropic) points at AIRE by env var, Bedrock-style. The client half already ships: `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_CUSTOM_HEADERS` are all in the installed binary. Hard constraint: it must NOT go through the engine (that would recurse into the CLI). Details: [`30-the-gateway-door.md`](30-the-gateway-door.md) | **Done** — router + append-only `aire_gateway_log` mirror + engine env scrub shipped & verified live 2026-08-07; the four forks (editor on the critical path, per-token budgets #28) stay open |
 
+| 31 | **Credential failover** — an ordered credential chain for the engine: primary OAuth → backup OAuth (a DIFFERENT seat/account, else it shares the same weekly pool and is worthless) → metered API key (never resets, budget-capped). Detects the lying-green limit-hit result (limit phrase + zero usage, same family as #23), rotates, retries; all dry → a real `credentials_exhausted` error naming the soonest reset. Born 2026-08-07 when the droplet's token burned its weekly pool mid-day. Details: [`31-credential-failover.md`](31-credential-failover.md) | Proposed |
+
 ---
 
 **The only one that matters today is #5.** Everything else is plumbing until chapter 2
