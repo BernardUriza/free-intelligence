@@ -7,3 +7,10 @@
 # existe — y la falla aparecería hasta el primer clic en "Descargar Excel", no
 # al arrancar.
 openpyxl>=3.1
+
+# reportlab genera el PDF del cuadernillo de regularización, por la MISMA razón
+# que openpyxl genera el Excel: al modelo se le bloquea Bash/Write, así que si
+# la librería falta, el niño se va con una conversación en pantalla en vez de la
+# hoja impresa que pagó. Y la falla aparecería al primer "Descargar", no al
+# arrancar.
+reportlab>=4.0

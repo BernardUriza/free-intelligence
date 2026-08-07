@@ -98,9 +98,18 @@ def cuota_publica() -> Cuota:
     Los defaults salen del uso real: dos PC, turnos de veinte minutos, unos diez
     mensajes por sesión. 60 por hora deja holgura de sobra para dos niños
     trabajando y aun así corta en seco un bucle que, sin esto, haría miles.
+
+    **Los dos límites hacen cosas distintas y por eso no se mueven juntos.**
+    Las dos PC del cibercafé salen por el mismo router, así que para la cuota
+    son un solo cliente y comparten el cubo. El límite POR MINUTO es el que se
+    siente en la sala —dos niños preguntando a la vez se estorban— y subirlo no
+    sube el techo de gasto, sólo permite la ráfaga. El límite POR HORA sí ES el
+    techo: 60 turnos/hora es lo máximo que alguien puede quemar en una hora, y
+    ése no se toca a la ligera aunque haya contraseña, porque una contraseña que
+    usan varios niños termina compartida.
     """
     return Cuota(
-        por_minuto=_entero("FENIX_CUOTA_POR_MINUTO", 8),
+        por_minuto=_entero("FENIX_CUOTA_POR_MINUTO", 15),
         por_hora=_entero("FENIX_CUOTA_POR_HORA", 60),
     )
 

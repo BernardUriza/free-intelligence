@@ -269,6 +269,141 @@ def test_al_mostrador_no_se_le_corta_una_venta(sin_modelo, monkeypatch):
         assert r.status_code != 429
 
 
+def test_el_candado_de_og118_deja_mudo_al_cibercafe(sin_modelo, monkeypatch):
+    """El bug que estos tests no veían porque en local la variable no existe.
+
+    Verificado en producción el 6/ago: la página cargaba entera —logo, tarjetas,
+    `/expedientes/rol` en 200 porque es ruta propia de Fénix— y al preguntar
+    "¿cuánto es 7 por 8?" devolvía `AUTH401`. El bearer de og118 corre antes que
+    la puerta, así que la cuota nunca llegaba a autorizar a nadie.
+
+    Aquí se reproduce esa configuración a propósito: es la única forma de que un
+    test en local hable de lo que pasa en el contenedor.
+    """
+    import app as og118
+
+    c = _cliente(sin_modelo)
+    assert c.post("/chat/stream", json={"message": "hola"}).status_code == 200
+
+    monkeypatch.setattr(og118, "_ACCESS_TOKEN", "el-bearer-del-contenedor")
+    assert c.post("/chat/stream", json={"message": "hola"}).status_code == 401
+
+
+def test_el_arranque_se_niega_a_quedarse_mudo(monkeypatch):
+    """Un 401 en la cara de un niño no se detecta leyendo logs de un contenedor sano."""
+    from arranque import CandadoHeredado, prohibir_candado_heredado
+
+    monkeypatch.delenv("OG118_ACCESS_TOKEN", raising=False)
+    prohibir_candado_heredado()
+
+    monkeypatch.setenv("OG118_ACCESS_TOKEN", "heredado")
+    with pytest.raises(CandadoHeredado):
+        prohibir_candado_heredado()
+
+
+def test_el_audio_no_queda_abierto_al_quitar_el_bearer(app_fenix):
+    """Transcribir y sintetizar cuestan por segundo, y ningún cliente los llama.
+
+    Al quitar el bearer de og118 —lo que devuelve la palabra al cibercafé— estas
+    dos rutas se quedaban sin ningún candado. El niño escribe y lee; el dictado,
+    si algún día se usa, entra con el token del mostrador.
+    """
+    c = _cliente(app_fenix)
+    for ruta in ("/tts/synthesize", "/stt/transcribe"):
+        assert c.post(ruta, json={}).status_code == 404, f"{ruta} quedó abierta"
+
+
+def test_sin_contrasena_el_publico_no_gasta_un_turno(sin_modelo, monkeypatch):
+    """El miedo concreto: alguien descubre la URL y la usa para lo que sea.
+
+    La contraseña se comprueba ANTES de la cuota — un escáner no debe llevarse
+    un turno de modelo por acertar la dirección, ni gastar el presupuesto del
+    niño que sí la tiene.
+    """
+    monkeypatch.setenv("FENIX_TUTOR_PASSWORD", "la-de-la-papeleria")
+    c = _cliente(sin_modelo)
+
+    r = c.post("/chat/stream", json={"message": "hola"})
+    assert r.status_code == 401
+    assert r.json()["detail"]["code"] == "ACCESO_REQUERIDO"
+
+    ok = c.post("/chat/stream", json={"message": "hola"}, headers={"X-Fenix-Acceso": "la-de-la-papeleria"})
+    assert ok.status_code == 200
+
+
+def test_el_mostrador_no_necesita_la_contrasena_del_ciber(sin_modelo, monkeypatch):
+    """Son dos cosas distintas: el token separa adentro de afuera, la
+    contraseña separa la papelería de internet."""
+    monkeypatch.setenv("FENIX_TUTOR_PASSWORD", "la-de-la-papeleria")
+    c = _cliente(sin_modelo)
+    assert c.post("/chat/stream", json={"message": "hola"}, headers=ADMIN).status_code == 200
+
+
+def test_la_bitacora_anota_lo_que_se_pregunta(sin_modelo, monkeypatch, tmp_path):
+    """Un límite de gasto sin registro es media protección: impide que el daño
+    sea grande, pero no permite enterarse de que ocurrió."""
+    import fenix_app
+    from bitacora import Bitacora
+
+    monkeypatch.delenv("FENIX_TUTOR_PASSWORD", raising=False)
+    monkeypatch.setattr(fenix_app, "_BITACORA", Bitacora(tmp_path / "bitacora.jsonl"))
+    c = _cliente(sin_modelo)
+
+    c.post("/chat/stream", json={"message": "¿cuánto es 7 por 8?"})
+    turnos = fenix_app._BITACORA.leer()
+    assert len(turnos) == 1
+    assert turnos[0]["texto"] == "¿cuánto es 7 por 8?"
+    assert turnos[0]["rol"] == "publico"
+    assert turnos[0]["cortado"] is False
+
+
+def test_la_bitacora_registra_al_que_se_queda_afuera(sin_modelo, monkeypatch, tmp_path):
+    """Los intentos fallidos son la señal que esta bitácora existe para dar:
+    un turno normal no dice nada, mil rebotes desde una IP desconocida sí."""
+    import fenix_app
+    from bitacora import Bitacora
+
+    monkeypatch.setenv("FENIX_TUTOR_PASSWORD", "la-de-la-papeleria")
+    monkeypatch.setattr(fenix_app, "_BITACORA", Bitacora(tmp_path / "bitacora.jsonl"))
+    c = _cliente(sin_modelo)
+
+    c.post("/chat/stream", json={"message": "hola"})
+    turnos = fenix_app._BITACORA.leer()
+    assert turnos[0]["cortado"] is True
+    assert turnos[0]["motivo"] == "sin_contrasena"
+    assert "texto" not in turnos[0], "a quien no entró no se le guarda el texto"
+
+
+def test_el_cuerpo_sobrevive_a_leerlo_en_la_puerta(sin_modelo, monkeypatch, tmp_path):
+    """La puerta lee el JSON para anotarlo; si eso consumiera el stream, el
+    endpoint recibiría un cuerpo vacío y todo turno moriría en 422."""
+    import fenix_app
+    from bitacora import Bitacora
+
+    monkeypatch.delenv("FENIX_TUTOR_PASSWORD", raising=False)
+    monkeypatch.setattr(fenix_app, "_BITACORA", Bitacora(tmp_path / "bitacora.jsonl"))
+    assert _cliente(sin_modelo).post("/chat/stream", json={"message": "hola"}).status_code == 200
+
+
+def test_la_bitacora_solo_se_lee_desde_el_mostrador(app_fenix):
+    """Lleva lo que preguntaron niños; no se sirve a la sala."""
+    c = _cliente(app_fenix)
+    assert c.get("/expedientes/bitacora").status_code == 404
+    assert c.get("/expedientes/bitacora", headers=ADMIN).status_code == 200
+
+
+def test_el_arranque_exige_la_contrasena_del_ciber(monkeypatch):
+    from arranque import ConfiguracionInsegura, exigir_contrasena_publica
+
+    monkeypatch.delenv("FENIX_TUTOR_PASSWORD", raising=False)
+    monkeypatch.delenv("FENIX_TUTOR_ABIERTO", raising=False)
+    with pytest.raises(ConfiguracionInsegura):
+        exigir_contrasena_publica()
+
+    monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")
+    exigir_contrasena_publica()
+
+
 # Los dos tests que afirmaban sobre `_CERRADAS` y `_CON_CUOTA` se borraron junto
 # con el mecanismo que medían: probaban que la MUTACIÓN de rutas había ocurrido,
 # no que la puerta funcionara. La regresión que cuidaban —og118 renombra una ruta

@@ -24,11 +24,21 @@
      material en toda la app. */
   --fx-salida: 160ms cubic-bezier(0.2, 0, 0.2, 1);
 
-  /* El fuego de la marca, medido del logo real de la papelería (su avatar de
-     WhatsApp), no elegido a ojo. */
+  /* Los colores los eligió la dueña de una carta numerada, por número, el
+     6-ago-2026 — ver apps/fenix/branding/COLORES.md. Pidió "naranja y verde
+     pasto, que son los que identifican a la papelería", y de los quince tonos
+     escogió dos naranjas y un verde.
+
+     El ROJO se fue: era lo único que no era de la casa. `--fx-fuego` (el que ya
+     estaba, medido de su logo real) lo confirmó, y le sumó el naranja vivo, así
+     que la rampa de fuego se abre en vez de reemplazarse. */
   --fx-fuego: #e05000;
-  --fx-fuego-rojo: #e03020;
+  --fx-fuego-vivo: #f76707;
   --fx-fuego-ambar: #e06000;
+  /* El verde no compite con el naranja: marca lo que CONFIRMA — lo correcto,
+     lo revisado, lo que ya quedó. En una papelería escolar es el color de la
+     palomita, y por eso nunca se usa para una acción. */
+  --fx-pasto: #37b24d;
   --fx-linea: rgb(255 255 255 / 0.08);
   --fx-tenue: rgb(255 255 255 / 0.05);
   /* fi-glass lee el acento como var(--fi-accent, var(--og-accent, …)); definir
@@ -134,7 +144,7 @@ body {
   border-radius: 11px;
   /* El único elemento con el fuego de la marca en toda la barra: es la acción
      principal, y si todo brilla nada destaca. */
-  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  background: linear-gradient(135deg, var(--fx-fuego-vivo), var(--fx-fuego-ambar));
   color: #fff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -571,7 +581,7 @@ body {
 
 .fx-btn-primario {
   border-color: transparent;
-  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  background: linear-gradient(135deg, var(--fx-fuego-vivo), var(--fx-fuego-ambar));
   color: #fff;
 }
 
@@ -838,8 +848,8 @@ body {
 /* Un desglose que no cuadra con el total cotizado se ve distinto: quien va a
    mandarlo debe notarlo antes de mandarlo. */
 .fx-barra-pres-alerta {
-  border-color: color-mix(in srgb, var(--fx-fuego-rojo) 55%, transparent);
-  background: color-mix(in srgb, var(--fx-fuego-rojo) 14%, var(--glass-chat-surface, rgba(30,41,59,.6)));
+  border-color: color-mix(in srgb, var(--fx-fuego-vivo) 55%, transparent);
+  background: color-mix(in srgb, var(--fx-fuego-vivo) 14%, var(--glass-chat-surface, rgba(30,41,59,.6)));
 }
 
 /* ── Encabezado del chat ────────────────────────────────────────────────── */
@@ -963,7 +973,7 @@ body {
   height: 2rem;
   flex-shrink: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--fx-fuego-rojo), var(--fx-fuego-ambar));
+  background: linear-gradient(135deg, var(--fx-fuego-vivo), var(--fx-fuego-ambar));
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
@@ -1002,7 +1012,7 @@ body {
   height: 0.5rem;
   flex-shrink: 0;
   border-radius: 50%;
-  background: var(--fx-fuego-rojo);
+  background: var(--fx-fuego-vivo);
 }
 
 .fx-user-menu {

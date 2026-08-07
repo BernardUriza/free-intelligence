@@ -80,6 +80,7 @@ free-intelligence/
 │   └── core/            # Legacy (DI refactor pending)
 ├── apps/
 │   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
+│   ├── fenix/           # LIVE: the stationery shop — real users (see below)
 │   ├── packages/
 │   │   ├── fi-glass/    # the chat framework (aurity is its SSOT)
 │   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
@@ -95,6 +96,22 @@ free-intelligence/
 ## 🔗 Quick Links
 
 - **Production:** https://app.og118.ai — the app that actually ships today
+- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site, with real users
+
+### `apps/fenix` has REAL USERS — the "no launch, no users" clause does NOT cover it
+
+The **Project Status** section below says this repo has no users. That is true of
+og118 and false of `apps/fenix`: children at the shop's internet café use
+`/app/` for homework today, and Bernard's mother's team runs the business on it.
+
+Two consequences that override the "delete it, refactor it now" freedom below:
+
+- **A broken deploy is a shop that cannot work**, not a red build. It ships on
+  its own workflow (`fenix-backend.yml`) to Azure Container Apps `fenix-api`.
+- **It runs on og118's server** (`create_app()` + its own door), so a change in
+  `apps/og118/server` reaches Fénix's users. `apps/fenix/DEPLOY.md` documents the
+  gate, the public quota and — most importantly — **why `OG118_ACCESS_TOKEN` must
+  never be set here**: it silenced the café for days while every page looked fine.
 
 ### ⚠️ The "staging" that is actually PRODUCTION
 
