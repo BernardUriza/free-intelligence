@@ -48,6 +48,8 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 | 28 | **Per-token budget** — the canary key is revocable but not independently capped; a leaked canary can burn the whole global `AIRE_MAX_BUDGET_USD` before it is noticed. Details: [`28-per-token-budget.md`](28-per-token-budget.md) | Proposed |
 | 29 | **Grow the door — per-turn model / tools / images** for fi-runner's new `AIREBackend`. The first-cut backend covers the companion/complete turn; `mcp_servers` (per-turn tools), per-turn `system_prompt`, `model`, and `images` are rejected loudly because the door takes only `{message, mode}`. Each is a [[ssh-is-a-missing-endpoint]] gap. #1 (tools) is the one that unblocks a real consumer (og118 on AIRE). Details: [`29-grow-the-door-per-turn.md`](29-grow-the-door-per-turn.md) | **In progress** — mechanism + gap #1 (per-turn tools, in-process `memory` registry) shipped & verified E2E 2026-07-29 |
 
+| 30 | **The gateway door** — a Messages-API-compatible `POST /v1/messages` that proxies straight to `api.anthropic.com` and mirrors both halves into Postgres, so Claude Code (and anything else that speaks Anthropic) points at AIRE by env var, Bedrock-style. The client half already ships: `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_CUSTOM_HEADERS` are all in the installed binary. Hard constraint: it must NOT go through the engine (that would recurse into the CLI). Details: [`30-the-gateway-door.md`](30-the-gateway-door.md) | Proposed |
+
 ---
 
 **The only one that matters today is #5.** Everything else is plumbing until chapter 2
