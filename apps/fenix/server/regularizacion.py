@@ -50,10 +50,15 @@ from reportlab.platypus import (
 
 from tarifa import Desglose, calcular
 
-# Los mismos de la marca (app/globals.css): el cuadernillo se imprime en la
-# misma papelería que el cartel y tiene que verse de la misma casa.
+# Los mismos de la marca, elegidos por la dueña de una carta numerada el
+# 6-ago-2026 (ver apps/fenix/branding/COLORES.md): el cuadernillo se imprime en
+# la misma papelería que el cartel y tiene que verse de la misma casa.
 FUEGO = colors.HexColor("#e05000")
-FUEGO_ROJO = colors.HexColor("#e03020")
+FUEGO_VIVO = colors.HexColor("#f76707")
+# El verde marca lo que ya está resuelto: la hoja de respuestas de quien revisa.
+# Impreso importa más que en pantalla — es lo que separa la hoja del niño de la
+# de su mamá cuando el fajo sale de la impresora y hay que repartirlo.
+PASTO = colors.HexColor("#37b24d")
 TINTA = colors.HexColor("#1a1712")
 TINTA_SUAVE = colors.HexColor("#5e564a")
 LINEA = colors.HexColor("#e6dcc9")
@@ -322,9 +327,14 @@ def _hoja_de_respuestas(c: Cuadernillo, s: dict) -> list:
     con_respuesta = [e for e in c.ejercicios if e.respuesta]
     if not con_respuesta:
         return []
+    # En verde y no en naranja: cuando el fajo sale de la impresora hay que
+    # repartirlo, y este encabezado es lo único que distingue la hoja de quien
+    # revisa de las del niño. Un color distinto se ve desde el otro lado del
+    # mostrador; un título más no.
+    verde = ParagraphStyle("seccion_verde", parent=s["seccion"], textColor=PASTO)
     piezas: list = [
         PageBreak(),
-        Paragraph("Para quien revisa", s["seccion"]),
+        Paragraph("Para quien revisa", verde),
         Paragraph(
             "Esta hoja se separa. Aquí están las respuestas para poder corregir sin "
             "tener que estudiar el tema.",
@@ -346,7 +356,7 @@ def _hoja_de_respuestas(c: Cuadernillo, s: dict) -> list:
         TableStyle(
             [
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("BACKGROUND", (0, 0), (-1, 0), TINTA),
+                ("BACKGROUND", (0, 0), (-1, 0), PASTO),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("LINEBELOW", (0, 0), (-1, -1), 0.5, LINEA),
                 ("TOPPADDING", (0, 0), (-1, -1), 6),

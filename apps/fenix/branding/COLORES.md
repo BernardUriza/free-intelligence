@@ -21,14 +21,17 @@ extremos de la rampa de fuego que el ave ya usa. `#E05000` es literalmente el
 `--fx-fuego` que estaba en `globals.css`, así que lo que hizo fue **confirmar el
 naranja existente y sumarle uno más vivo** — la identidad no cambia, se abre.
 
-## Verdes pasto — PENDIENTE
+## Verde pasto — CONFIRMADO (Lidia, 6-ago-2026, "verde 10")
 
-Los verdes de la carta van del **8 al 15** y **todavía no elige**. Bernard,
-6-ago: *"ahorita te digo qué verdes"*.
+| | Hex | Era el |
+|---|---|---|
+| **10** | `#37B24D` | "pasto vivo" |
 
-**Hasta que lleguen, no se repinta nada.** Media paleta pintada es peor que la
-paleta vieja: obliga a una segunda pasada por los tres lados y deja carteles
-impresos que ya no combinan con la app.
+**El verde no compite con el naranja: confirma.** Marca lo que ya está resuelto o
+lo que tranquiliza —la hoja de respuestas de quien revisa, la franja donde se
+explica que el asistente no le hace la tarea al niño— y **nunca una acción**. En
+un botón le quitaría al naranja el único trabajo que tiene, que es decir dónde
+hay que picar. En una papelería escolar el verde es el color de la palomita.
 
 ## Lo que NO se toca
 
