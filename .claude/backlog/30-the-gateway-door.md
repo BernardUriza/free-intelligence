@@ -8,84 +8,181 @@ un Bedrock?")
 ## What it is
 
 A second door on the daemon: an endpoint that speaks the **Anthropic Messages
-API wire format** (`POST /v1/messages`, SSE), proxies each request straight to
-`api.anthropic.com`, and mirrors both halves of the exchange into Postgres on
-the way through. Any client that already knows how to talk to Anthropic — Claude
-Code first — points at AIRE by env var and needs no other change.
+API wire format**, proxies each request straight to `api.anthropic.com`, and
+mirrors both halves of the exchange into Postgres on the way through. Any client
+that already knows how to talk to Anthropic — Claude Code first — points at AIRE
+by env var and needs no other change.
 
-The client half already exists and needs nothing built. Verified against the
-Claude Code binary on Bernard's Mac (`versions/2.1.224`, 2026-08-07):
+**This is not a hypothesis.** Claude Code ships first-class support for exactly
+this, with a published wire contract:
 
-```
-ANTHROPIC_BASE_URL          ANTHROPIC_AUTH_TOKEN       ANTHROPIC_CUSTOM_HEADERS
-CLAUDE_CODE_USE_BEDROCK     ANTHROPIC_BEDROCK_BASE_URL CLAUDE_CODE_USE_VERTEX
-```
+- [Connect Claude Code to an LLM gateway](https://code.claude.com/docs/en/llm-gateway-connect)
+- [Gateway protocol reference](https://code.claude.com/docs/en/llm-gateway-protocol) — the contract below
+- LiteLLM, TrueFoundry and others already ship Anthropic-format gateways Claude
+  Code drives in production, so the shape is proven by someone other than us.
 
-So the shape is exactly the Bedrock analogy:
-
-```
+```bash
 ANTHROPIC_BASE_URL=https://gate.bernarduriza.com \
 ANTHROPIC_AUTH_TOKEN=<a per-consumer AIRE token> \
-ANTHROPIC_CUSTOM_HEADERS='X-Aire-Project: aire-server' \
 claude
 ```
 
-`ANTHROPIC_CUSTOM_HEADERS` is what closes the one real gap: Claude Code has no
-notion of `project_key`, so the routing key rides in a header the user sets.
+## The wire contract (verified against the protocol reference, 2026-08-07)
 
-## The one hard constraint — it must NOT go through the engine
+**Endpoints.** Only one is required:
+
+| Path | Required? | Note |
+|---|---|---|
+| `POST /v1/messages` | **yes** | inference posts to `/v1/messages?beta=true` — match on the PATH, not the full URL |
+| `POST /v1/messages/count_tokens` | optional | absent → Claude Code estimates context locally |
+| `GET /v1/models?limit=1000` | optional | only for `/model` picker discovery; 3s timeout, **any redirect is treated as failure** (watch Caddy's http→https) |
+| `HEAD /` | best-effort probe | may be rejected without breaking anything |
+
+**Auth.** `ANTHROPIC_AUTH_TOKEN` → `Authorization: Bearer`; `ANTHROPIC_API_KEY`
+→ `x-api-key`. The daemon should accept both.
+
+**Forward unchanged, byte-for-byte:** `anthropic-version`, `anthropic-beta`
+(comma-separated, **never allowlist individual values** — the set grows every
+Claude Code release), and every `anthropic-*` request header and body field.
+A gateway pinned to today's observed list breaks on the release that adds the
+next capability. **Error response bodies too** — Claude Code pattern-matches the
+upstream's error wording to auto-retry and disable a rejected capability; wrap
+an error in our own envelope and the recovery path dies even with the right
+status code.
+
+**Streaming is mandatory and has a byte watchdog.** Responses must stream —
+buffering a complete response before relaying stalls the client. Worse: on an
+`ANTHROPIC_BASE_URL` connection Claude Code counts **every byte** the gateway
+relays, including SSE `ping` events and comment lines, and **aborts a stream
+that goes silent for 300 seconds**. Upstream pings are the only traffic during
+long thinking pauses, so a proxy that swallows or batches them kills sessions
+mid-thought. Pass-through, ping included, or nothing.
+
+**The system-prompt attribution block.** Claude Code prepends an attribution
+block as the FIRST entry of the `system` array. `api.anthropic.com` strips it
+positionally — only if it arrives unchanged and first. Reordering the array,
+prepending another block, or flattening it to a string defeats the strip: the
+block then reaches the model AND the prompt-cache key. Forward `system` exactly
+as received.
+
+**WAF.** Claude Code prompts carry XML-style tags and source code, which match
+cross-site-scripting body rules. Whatever sits in front (Caddy today) must not
+inspect/rewrite the `/v1/messages` body — a short curl test passes while a real
+session 403s.
+
+## What Claude Code hands us for free (correcting the first draft of this item)
+
+The first draft said we'd need `ANTHROPIC_CUSTOM_HEADERS` to carry a session
+key. Half wrong — Claude Code **already sends its own attribution headers on
+every request**, and the gateway may consume them without forwarding:
+
+| Header | What it is |
+|---|---|
+| `x-claude-code-session-id` | unique id for the current Claude Code session — aggregate a whole session without parsing bodies |
+| `x-claude-code-agent-id` | the subagent that issued the request (present only for spawned agents) |
+| `x-claude-code-parent-agent-id` | the agent that spawned it, for nested agents |
+
+So the mirror's session key arrives for free, and **subagent traffic is
+attributable** — the parallel-agent tree reconstructs from headers alone.
+`ANTHROPIC_CUSTOM_HEADERS` (documented for exactly "a tenant identifier or a
+routing key") is still how a `project_key` would ride:
+
+```bash
+ANTHROPIC_CUSTOM_HEADERS='X-Aire-Project: aire-server'
+```
+
+Note these IDs identify an agent, not a person — don't treat them as identity.
+
+## The hard constraint — it must NOT go through the engine
 
 The existing door (`POST /projects/{p}/sessions/{s}/messages`) is served by the
-Agent SDK, which launches the Claude Code CLI as a subprocess. Serving
-`/v1/messages` from that same engine would be:
+Agent SDK, which **spawns the Claude Code CLI as a subprocess**. Verified in the
+installed SDK, not assumed:
 
-    Claude Code → AIRE → Agent SDK → Claude Code (subprocess) → api.anthropic.com
+- `subprocess_cli.py:89` — `shutil.which("claude")`
+- `subprocess_cli.py:225` — `cmd = [self._cli_path, "--output-format", "stream-json", …]`
+- `subprocess_cli.py:474` — `anyio.open_process(cmd, …, env=process_env)`
+- `subprocess_cli.py:431` — `process_env = {**inherited_env, …}` where
+  `inherited_env` is **`os.environ`** minus `CLAUDECODE`
 
-The gateway door sits at a **lower level than the engine**: a streaming
-pass-through proxy that never touches `engine/`. It forwards headers verbatim
-(`anthropic-beta`, `cache_control` blocks, `anthropic-version`) and streams SSE
-back byte-for-byte, or it silently breaks prompt caching and thinking blocks.
-Buffering the body is not an option on a 512MB box — pass-through only.
+Anthropic's own docs confirm the design: *"The Agent SDK has no gateway-specific
+options; it passes environment variables to the Claude Code process it spawns…
+Python: `ClaudeAgentOptions(env=…)` merges on top of the inherited environment."*
+
+Two consequences, and the second is a live footgun:
+
+1. Serving `/v1/messages` from the engine would recurse:
+   `Claude Code → AIRE → Agent SDK → claude (subprocess) → api.anthropic.com`.
+   The gateway door sits **below** the engine — a streaming proxy that never
+   touches `engine/`.
+2. **The day `ANTHROPIC_BASE_URL` lands in `/etc/aire/env`, every CLI the engine
+   spawns inherits it and calls the daemon back — an infinite loop inside the
+   droplet.** The engine must scrub `ANTHROPIC_BASE_URL` (and
+   `ANTHROPIC_AUTH_TOKEN`) from the child env via `ClaudeAgentOptions.env`, or
+   the gateway must never be configured process-wide on the box.
+   Checked 2026-08-07: neither var appears anywhere in `server/` today, so the
+   trap is future, not present.
 
 ## What it changes about the memory
 
 This door sees a different granularity than the SDK door: raw API turns
-(`messages[]` in, content blocks out), not an SDK session transcript. That is
-not a defect — it is the level a gateway operates at — but it means a third
-table (or a discriminated column), not a write into `claude_session_store`.
-Every write is still an append, so [[write-only-daemon]] holds unchanged.
+(`messages[]` in, content blocks out) keyed by `x-claude-code-session-id`, not
+an SDK session transcript. That is the level a gateway operates at — it means a
+third table (or a discriminated column), not a write into
+`claude_session_store`. Every write is still an append, so
+[[write-only-daemon]] holds unchanged.
+
+## The price Bernard pays (each verified in the docs, none is a guess)
+
+1. **Voice dictation stops working.** It reaches a claude.ai transcription
+   endpoint and is unavailable while `ANTHROPIC_AUTH_TOKEN` / `ANTHROPIC_API_KEY`
+   / an `apiKeyHelper` is active. Bernard dictates — this is the sharpest cost.
+2. **Remote Control stops working.** Since Claude Code v2.1.196 it is disabled
+   whenever `ANTHROPIC_BASE_URL` points at a non-Anthropic host; a claude.ai
+   login is not enough to restore it.
+3. **Fast mode reports unavailable.** Its availability check goes straight to
+   `api.anthropic.com` and ignores the base URL; authenticated with only a
+   bearer token, Claude Code treats fast mode as disabled without even sending
+   the check. Recoverable with `CLAUDE_CODE_SKIP_FAST_MODE_ORG_CHECK=1`.
+4. Minor: the WebFetch domain-safety preflight still calls `api.anthropic.com`
+   (`skipWebFetchPreflight: true` to silence); an auth-conflict warning appears
+   while a claude.ai login is also saved (`/logout` clears it).
+
+All four are per-shell — `unset ANTHROPIC_BASE_URL` and the editor is back on
+first-party — so the practical shape is **opt-in per session, not machine-wide**.
 
 ## Canonical path to reuse (Art. 6)
 
-- The existing FastAPI + SSE + Bearer-auth shape in [`aire/server.py`](../../server/aire/server.py)
-  and [`aire/messages.py`](../../server/aire/messages.py) — the new router is a
+- The FastAPI + SSE + Bearer-auth shape already in
+  [`aire/server.py`](../../server/aire/server.py) and
+  [`aire/messages.py`](../../server/aire/messages.py) — the new router is a
   sibling, not a rewrite.
-- The mirror discipline already in [`aire/store.py`](../../server/aire/store.py) /
+- The append discipline in [`aire/store.py`](../../server/aire/store.py) /
   [`aire/mirror.py`](../../server/aire/mirror.py) — uuid-dedup, eager append.
-- Do NOT reinvent an LLM gateway (LiteLLM, Portkey, Helicone all exist). AIRE's
-  reason to be its own is the mirror into the OWNER's Postgres; the proxy part
-  is thin on purpose.
+- Do NOT reinvent an LLM gateway (LiteLLM, Portkey, Helicone all ship one).
+  AIRE's reason to be its own is the mirror into the OWNER's Postgres; the proxy
+  half is thin on purpose.
 
 ## The decision that's Bernard's
 
-1. **Is the daemon allowed on the critical path of his own editor?** Every
-   Claude Code turn would route through a $4/mo droplet in NYC. It is I/O, not
-   compute, but a dead droplet means a dead editor. A local-first fallback
-   (`unset ANTHROPIC_BASE_URL`) is one keystroke, but the failure mode is his to
-   accept. See [[do-budget]].
-2. **Per-consumer tokens.** The gateway needs a token per client that maps to a
-   project key and (backlog #28) carries its own spend cap — a leaked editor
-   token should not be able to burn the global budget.
-3. **Whether the mirror stores the full request body**, prompts included. That
-   is his codebase going into his own database — deliberate, but it should be a
-   decision and not a side effect.
+1. **Is the daemon allowed on the critical path of his own editor?** Every turn
+   routes through a $4/mo droplet in NYC; a dead droplet is a dead editor. The
+   escape is one `unset`, but the failure mode is his to accept ([[do-budget]]).
+2. **Are the three dead features acceptable** (dictation, Remote Control, fast
+   mode) — and is per-session opt-in the right default rather than a global
+   `settings.json`?
+3. **Per-consumer tokens** mapping to a project key, each with its own spend cap
+   (backlog #28) — a leaked editor token must not burn the global budget.
+4. **Does the mirror store full request bodies, prompts included?** That is his
+   codebase entering his own database — deliberate, not a side effect.
 
 ## Status / next step
 
 Not built. Nothing blocks the design: the client half ships in the binary today
-and the daemon already has the FastAPI/SSE/auth/mirror pieces. What's missing is
-the router, the header→project mapping, and a decision on the three forks above.
+(`versions/2.1.224` carries `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`,
+`ANTHROPIC_CUSTOM_HEADERS`), the contract is published, and the daemon already
+has the FastAPI/SSE/auth/mirror pieces. Missing: the router, the header→project
+mapping, the child-env scrub in the engine, and the four forks above.
 
-Related: [[ssh-is-a-missing-endpoint]] (the formula that produced this item — a
-need the API can't serve becomes a new endpoint), backlog #28 (per-token
-budget), #29 (growing the SDK door).
+Related: [[ssh-is-a-missing-endpoint]] (the formula that produced this item),
+backlog #28 (per-token budget), #29 (growing the SDK door).
