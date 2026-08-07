@@ -1,6 +1,8 @@
 # Credential failover — the engine survives a burned weekly pool
 
-Status: Proposed
+Status: **Mechanism shipped 2026-08-07** — rotor + detection + rotate-and-retry
++ real `credentials_exhausted` error live; the backup slots are EMPTY until
+Bernard mints them (his atoms, below).
 Proposed: 2026-08-07 by Bernard, minutes after living the failure: the droplet's
 `CLAUDE_CODE_OAUTH_TOKEN` hit its weekly limit ("resets Aug 10, 8pm UTC") and
 every engine turn went dead while `/health` stayed green. "Si esto pasa, debe
@@ -80,7 +82,33 @@ login), and decide whether a metered API key sits at the end of the chain.
 
 ## Status / next step
 
-Mechanism buildable now; slots fill when Bernard mints them.
+**Shipped 2026-08-07** (the mechanism; slots fill when Bernard mints them):
+
+- `engine/credentials.py` — the rotor: chain from env (unset slots skipped;
+  with none set, one ambient slot injects nothing — local Keychain auth
+  untouched), `limit_hit` predicate (phrase AND all-zero usage), cooldown of
+  `AIRE_CREDENTIAL_COOLDOWN_S` (default 1h — no English-date parsing of the
+  reset phrase; the hourly probe heals the chain when the pool refills).
+- `engine/turn.py` — the turn lifecycle at the result seam (#23's layer): a
+  burned attempt suppresses its lying result, logs `CREDENTIAL-EXHAUSTED
+  <slot>`, retires the poisoned client, cools the slot, retries once on the
+  next one. All dry → SSE `error` `credentials_exhausted` with the cooling
+  list and `next probe in <n>s`.
+- `infra/lib/secrets.sh` + `provision-do.sh` — the two optional slots compose
+  from `~/.secrets/aire-claude-oauth-backup.txt` and
+  `~/.secrets/aire-api-key-fallback.txt`; a missing file skips the slot.
+- **API-key slot verified headless** (2026-08-07, bogus key against the real
+  CLI): with `ANTHROPIC_API_KEY` set and `CLAUDE_CODE_OAUTH_TOKEN` blanked the
+  CLI dispatches straight to `/v1/messages` — no interactive approval. (A bad
+  key rides the CLI's own 11-attempt retry backoff before failing; a valid one
+  answers immediately.)
+- Tests: `tests/test_credentials.py` — rotor ordering/skip-empty/cooldown/
+  all-dry, the detection predicate both ways, rotate-and-retry over a faked
+  drain, and the slot env composing with the #30 scrub.
+
+Bernard's atoms unchanged: mint the backup OAuth from a DIFFERENT seat
+(`claude setup-token` under that login), decide the metered key. The chain
+activates each slot the moment its env var appears — no code change needed.
 
 Related: #23 (the lying empty result — same detection family), #25 (cumulative
 ceiling — governs the metered slot), #30 (the gateway door — explicitly out of
