@@ -1,6 +1,6 @@
 # The gateway door — `POST /v1/messages`, so Claude Code points at AIRE
 
-Status: Proposed
+Status: Done (mechanism shipped 2026-08-07; the four forks below stay Bernard's)
 Proposed: 2026-08-07 by Bernard ("¿algún día voy a poder usar Claude Code pero
 que en vez de pegarle al endpoint de Anthropic le pegue a este? ¿como si fuera
 un Bedrock?")
@@ -178,11 +178,30 @@ first-party — so the practical shape is **opt-in per session, not machine-wide
 
 ## Status / next step
 
-Not built. Nothing blocks the design: the client half ships in the binary today
-(`versions/2.1.224` carries `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`,
-`ANTHROPIC_CUSTOM_HEADERS`), the contract is published, and the daemon already
-has the FastAPI/SSE/auth/mirror pieces. Missing: the router, the header→project
-mapping, the child-env scrub in the engine, and the four forks above.
+**Shipped 2026-08-07.** What landed:
+
+- `server/aire/gateway.py` — the router: `POST /v1/messages` (query forwarded,
+  path matched), `POST /v1/messages/count_tokens`, `GET /v1/models`. Streaming
+  byte-for-byte pass-through (httpx, `aiter_raw`), pings and SSE comments
+  included; errors relayed unwrapped; auth pass-through (upstream judges the
+  credential — the `/v1/` prefix is exempt from AIRE's own Bearer door).
+  Upstream override for tests: `AIRE_GATEWAY_UPSTREAM`.
+- `server/aire/gateway_mirror.py` + `gateway_assemble.py` — the NEW append-only
+  `aire_gateway_log` table (created lazily as role `aire`, so the reader's
+  default-privileges grant covers it): one `request` row before the relay, one
+  `response` row when the stream ends (deltas assembled server-side into the
+  final message + stop_reason + usage). Mirror failures never fail the relay.
+- The recursion scrub in `engine/options.py` — every spawned CLI gets
+  `ANTHROPIC_BASE_URL` pinned to `https://api.anthropic.com` and
+  `ANTHROPIC_AUTH_TOKEN` blanked, so a gateway var in `/etc/aire/env` can never
+  loop the engine back into the daemon.
+- Tests: `server/tests/test_gateway.py` — real-socket relay (incremental, not
+  buffered), header forwarding, unwrapped errors, and both mirror rows, against
+  a fake upstream with delays.
+
+Still open (the forks above, all Bernard's): whether his editor actually rides
+through the droplet, per-consumer tokens with budgets (#28), and the
+header→project mapping beyond the `X-Aire-Project` column already mirrored.
 
 Related: [[ssh-is-a-missing-endpoint]] (the formula that produced this item),
 backlog #28 (per-token budget), #29 (growing the SDK door).
