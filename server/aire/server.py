@@ -34,7 +34,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import artifacts, init_project, messages
+from . import artifacts, gateway, init_project, messages
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
@@ -53,15 +53,22 @@ def _presented_token(request: Request) -> str:
 
 
 def _accepted(presented: str) -> bool:
+    # Compared as BYTES: compare_digest on str raises TypeError on non-ASCII
+    # input (seen live 2026-08-07 — a garbled Bearer token 500ed instead of 401).
     ok = False
     for token in ACCEPTED_TOKENS:  # check every token — no short-circuit timing leak
-        ok |= hmac.compare_digest(presented, token)
+        ok |= hmac.compare_digest(presented.encode("utf-8"), token.encode("utf-8"))
     return ok
 
 
 @app.middleware("http")
 async def llm_door(request: Request, call_next: Any) -> Any:
     if request.url.path == "/health":
+        return await call_next(request)
+    # The gateway door (#30) is auth-PASS-THROUGH, not auth-free: the caller's
+    # own Anthropic credential rides upstream and upstream judges it. AIRE
+    # spends nothing of its own there. Per-consumer AIRE tokens are backlog #28.
+    if request.url.path.startswith("/v1/"):
         return await call_next(request)
     if not ACCEPTED_TOKENS:
         return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
@@ -88,5 +95,6 @@ async def health() -> JSONResponse:
 
 
 app.include_router(messages.router)   # POST a turn (SSE or #22a background), GET status
+app.include_router(gateway.router)    # /v1/* — the gateway door (#30), Messages wire format
 app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
 app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)

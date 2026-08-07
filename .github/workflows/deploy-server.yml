@@ -44,6 +44,9 @@ jobs:
           git sparse-checkout set --cone server 2>/dev/null || true
           git fetch --all
           git reset --hard origin/main
+          # A new direct dependency (e.g. httpx for the gateway door) must land
+          # with the code that imports it — provisioning is not the only installer.
+          /opt/aire/.venv/bin/pip install -q --no-input -r server/requirements.txt
           install -m 644 server/deploy/aire-listener.service server/deploy/aire-device.service \
                          server/deploy/aire-server.service \
                          server/deploy/aire-sweep.service server/deploy/aire-sweep.timer \
