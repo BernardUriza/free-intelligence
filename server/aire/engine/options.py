@@ -51,7 +51,7 @@ MODES: dict[str, dict[str, Any]] = {
 DEFAULT_MODE = "agent"
 
 
-def _env(project: str) -> dict[str, str]:
+def _env(project: str, credential_env: dict[str, str] | None = None) -> dict[str, str]:
     # The recursion scrub (#30): the day ANTHROPIC_BASE_URL lands in
     # /etc/aire/env, every spawned CLI would call the daemon back — an infinite
     # loop inside the droplet. The SDK merges this dict ON TOP of os.environ
@@ -69,7 +69,9 @@ def _env(project: str) -> dict[str, str]:
         cfg = Path("/tmp/aire-config") / project
         cfg.mkdir(parents=True, exist_ok=True)
         env["CLAUDE_CONFIG_DIR"] = str(cfg)
-    return env
+    # The active credential slot (#31) rides ON TOP of the scrub — the key sets
+    # are disjoint, so the base-URL pin and the injected credential coexist.
+    return env | (credential_env or {})
 
 
 def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> None:
@@ -87,7 +89,8 @@ def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> No
 
 
 def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
-                  mode: str, resuming: bool, tools: tuple[str, ...] = ()) -> Any:
+                  mode: str, resuming: bool, tools: tuple[str, ...] = (),
+                  credential_env: dict[str, str] | None = None) -> Any:
     from claude_agent_sdk import ClaudeAgentOptions
     policy = MODES.get(mode, MODES[DEFAULT_MODE])
     casita = _casita_prompt(cwd)
@@ -99,7 +102,7 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
         "cwd": cwd,
         "setting_sources": [],  # do NOT inherit the machine's CLAUDE.md/settings
         "strict_mcp_config": True,  # do NOT inherit the host machine's MCP servers
-        "env": _env(project),
+        "env": _env(project, credential_env),
         "session_store": session_store,
         "session_store_flush": "eager",  # no loss window if the process dies
         "hooks": cage_hooks(cwd),  # confine file tools to the casita (#24)
@@ -108,11 +111,8 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
     if budget := os.environ.get("AIRE_MAX_BUDGET_USD"):
         kwargs["max_budget_usd"] = float(budget)
     # session_id=<uuid> SETS the id of a session being BORN; resume=<uuid>
-    # RECOVERS an existing one. Mutually exclusive: passing session_id on a
-    # continuation does NOT resume — it starts a new session, clobbering the id
-    # and losing the memory. That is why the caller asks the store, not the pool.
-    if resuming:
-        kwargs["resume"] = session_uuid
-    else:
-        kwargs["session_id"] = session_uuid
+    # RECOVERS an existing one. Mutually exclusive: session_id on a continuation
+    # starts a NEW session, clobbering the id and losing the memory — which is
+    # why the caller asks the store, not the pool.
+    kwargs["resume" if resuming else "session_id"] = session_uuid
     return ClaudeAgentOptions(**kwargs)

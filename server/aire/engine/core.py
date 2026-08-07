@@ -13,10 +13,11 @@ from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
 from .contract import BudgetExceeded
+from .credentials import Rotor
 from .detach import Detached
-from .drain import drain, turn_cost
 from .options import DEFAULT_MODE, build_options
 from .pool import Pool
+from .turn import run_turn
 
 WORKSPACES = Path(os.environ.get(
     "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
@@ -35,6 +36,8 @@ class Engine:
         self._spend_usd = 0.0  # cumulative, process lifetime — the global backstop
         self._seen_cost: dict[str, float] = {}  # per-client last acc cost, for the delta
         self.detached = Detached()  # fire-and-forget background turns (#22a)
+        self.rotor = Rotor()  # the credential chain (#31)
+        self.slot_of: dict[str, str] = {}  # key → the slot each pooled client was born with
 
     def _cwd(self, project: str) -> Path:
         ws = WORKSPACES / project
@@ -51,7 +54,8 @@ class Engine:
         return bool(await self.session_store.load(self.session_key(project, session)))
 
     async def _client_for(self, project: str, session: str, mode: str,
-                          tools: tuple[str, ...] = ()) -> tuple[Any, asyncio.Lock]:
+                          tools: tuple[str, ...] = (),
+                          slot: Any = None) -> tuple[Any, asyncio.Lock]:
         key = f"{project}/{session}"
         async with self.pool.guard:
             now = time.monotonic()
@@ -62,10 +66,13 @@ class Engine:
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
                                         str(self._cwd(project)),
-                                        sdk_session_uuid(session), mode, resuming, tools)
+                                        sdk_session_uuid(session), mode, resuming, tools,
+                                        credential_env=slot.env if slot else None)
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
                 self.pool.clients[key] = client
+                if slot is not None:
+                    self.slot_of[key] = slot.name
             self.pool.used[key] = now
             lock = self.pool.locks.setdefault(key, asyncio.Lock())
         return client, lock
@@ -79,29 +86,16 @@ class Engine:
             raise BudgetExceeded(
                 f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
         async with self.pool.slot():
-            async for event in self._turn(project, session, prompt, mode, tools):
+            # The turn lifecycle (attempts, budget cut, credential failover)
+            # lives in turn.py — the #23/#31 detections share the result seam.
+            async for event in run_turn(self, project, session, prompt, mode, tools):
                 yield event
 
-    async def _turn(self, project: str, session: str, prompt: str,
-                    mode: str, tools: tuple[str, ...] = ()) -> AsyncIterator[dict[str, Any]]:
-        key = f"{project}/{session}"
-        client, lock = await self._client_for(project, session, mode, tools)
-        spent = False
-        try:
-            async with lock:  # serializes turns on the same client (not concurrency-safe)
-                await client.query(prompt)
-                async for event in drain(client):
-                    if event.get("type") == "result":
-                        spent = self._account(key, turn_cost(event))
-                    yield event
-                if spent:
-                    yield {"type": "error", "error": "budget_exhausted",
-                           "detail": f"the turn reached the ${TURN_CAP_USD:.2f} ceiling and was "
-                                     "CUT — its work may be incomplete. The spent client is "
-                                     "retired; send the turn again to continue."}
-        finally:
-            if spent:
-                await self._retire(project, session)
+    def _budget_cut_event(self) -> dict[str, Any]:
+        return {"type": "error", "error": "budget_exhausted",
+                "detail": f"the turn reached the ${TURN_CAP_USD:.2f} ceiling and was "
+                          "CUT — its work may be incomplete. The spent client is "
+                          "retired; send the turn again to continue."}
 
     def _account(self, key: str, cost: float) -> bool:
         """Bank this turn's spend and report whether the client hit the ceiling.
@@ -136,6 +130,7 @@ class Engine:
         `resume=` and the memory is untouched ([[log-is-the-truth]])."""
         key = f"{project}/{session}"
         self._seen_cost.pop(key, None)  # its spend is banked; the reborn client starts at 0
+        self.slot_of.pop(key, None)
         async with self.pool.guard:
             await self.pool.close_one(key)
 
