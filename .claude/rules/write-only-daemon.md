@@ -13,7 +13,11 @@ Postgres the daemon **only appends**.
    analytics, browsing, dashboards, or debugging tools. The daemon holds the pen
    ([[log-is-the-truth]]); it never holds the menu.
 1b. **No HTML, ever.** The daemon never returns a view — not SSR, not a landing
-   page, not a rendered transcript. JSON health + SSE events are its only mouths.
+   page, not a rendered transcript. JSON health + SSE events are its only mouths,
+   and since 2026-08-07 that includes the gateway door (`/v1/*`, backlog #30),
+   which only RELAYS Anthropic's own JSON/SSE byte-for-byte — it renders nothing
+   and reads nothing; its mirror APPENDS raw API turns to `aire_gateway_log`
+   (created as role `aire`, so the reader's default-privileges grant covers it).
    Violated once (2026-07-14: an SSR page served `load_transcript` from here);
    reverted the same hour. The front renders; the daemon speaks events.
 2. **Every reader is a waiter, and every waiter lives in `front/`** — the

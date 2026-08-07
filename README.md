@@ -26,7 +26,10 @@ units 24/7:
   line is also mirrored to an append-only Postgres table (the pen). The `MKDIR`
   verb (token-gated) creates session casitas.
 - **`aire-server`** (`aire/server.py`) — the engine's HTTP surface on :8088:
-  SSE events only, Bearer-gated, budget-capped.
+  SSE events, Bearer-gated, budget-capped. Since 2026-08-07 it also serves the
+  **gateway door** (`/v1/messages` and friends): an Anthropic-wire-format
+  pass-through that any Claude client can point at via `ANTHROPIC_BASE_URL`,
+  mirrored into Postgres on the way through.
 - **`aire-sweep.timer`** — the broom (30-day retention).
 - **`aire-device`** (`demo_device.py`) — the simulated GPS device that pushed
   `KEEPALIVE` heartbeats. **Retired 2026-07-14**: it proved the chassis (24k
@@ -52,17 +55,18 @@ each one came back `active`. Runbooks: [`infra/`](infra/README.md)
 (provisioning + the $20/mo budget law) and [`deploy/`](deploy/README.md)
 (the CI/CD contract).
 
-## Two doors to the same brain
+## Three doors to the same brain
 
-The droplet answers to **two** kinds of caller, and they are not the same door:
+The droplet answers to **three** kinds of caller, and they are not the same door:
 
-| | **The SSH door** | **The AIRE door** |
-|---|---|---|
-| How | `ssh -t` + `tmux` + the `claude` CLI | `POST /projects/{p}/sessions/{s}/messages` (SSE) |
-| Who | **a human, in a terminal — only** | your apps, and every agent |
-| Surface | the Claude Code TUI, live, remote | events; the front renders them |
-| Memory | the disk, mirrored every minute → **deathless** | Postgres, written directly → **deathless** |
-| Casita | `workspaces/{ts}_{uuid}_{name}/` (MKDIR) | `workspaces/<project>/`, or an existing casita by name |
+| | **The SSH door** | **The AIRE door** | **The gateway door** (#30) |
+|---|---|---|---|
+| How | `ssh -t` + `tmux` + the `claude` CLI | `POST /projects/{p}/sessions/{s}/messages` (SSE) | `POST /v1/messages` — the Anthropic wire format, proxied |
+| Who | **a human, in a terminal — only** | your apps, and every agent | any Anthropic client: `ANTHROPIC_BASE_URL=https://gate.bernarduriza.com claude` |
+| Surface | the Claude Code TUI, live, remote | events; the front renders them | byte-for-byte SSE relay from `api.anthropic.com` |
+| Auth | Bernard's key | AIRE's Bearer token | **pass-through** — the caller's own credential, AIRE stores none |
+| Memory | the disk, mirrored every minute → **deathless** | Postgres, written directly → **deathless** | both halves of every turn appended to `aire_gateway_log` → **deathless** |
+| Casita | `workspaces/{ts}_{uuid}_{name}/` (MKDIR) | `workspaces/<project>/`, or an existing casita by name | none — raw API turns, keyed by `x-claude-code-session-id` |
 
 **One memory, two doors** (2026-07-20). The SSH door's transcript is no longer
 mortal: `mirror.py` carries it to `claude_session_store` every minute and
@@ -71,6 +75,16 @@ can now **continue a session the CLI started** — a session name that already i
 a UUID is honoured verbatim, and a project may name an existing casita, so the
 `project_key` lands exactly where the CLI wrote. Verified live: a session born
 in tmux answered over HTTP with its full memory.
+
+**The third door made AIRE a Bedrock** (2026-08-07, backlog #30). Claude Code
+ships first-class [LLM-gateway support](https://code.claude.com/docs/en/llm-gateway-connect):
+point `ANTHROPIC_BASE_URL` at the gate and every turn of your editor routes
+through AIRE — relayed untouched (headers verbatim, errors unwrapped, pings
+included, never buffered) and remembered in your own Postgres. Verified live the
+day it shipped: `ANTHROPIC_BASE_URL=https://gate.bernarduriza.com claude -p`
+answered through the droplet, and both halves of the turn landed in
+`aire_gateway_log`. The engine's spawned CLIs are pinned to `api.anthropic.com`
+so the gateway can never recurse into itself.
 
 **An agent NEVER drives the daemon through SSH.** Reaching for SSH is the tell
 of a missing endpoint — build the endpoint and use it
@@ -115,8 +129,12 @@ eternal — AI is just the *transform* (the repo's law:
 ## Where it's going: a substitute AND an enhancer of the Claude API
 
 Your apps stop calling `api.anthropic.com` and call AIRE — same slot (an HTTP
-endpoint, not a library), plus what the raw API will never give you:
+endpoint, not a library), plus what the raw API will never give you. Since
+2026-08-07 the substitution is **literal**: the gateway door speaks the
+Anthropic wire format itself, so anything built for the Claude API — Claude
+Code first — points at AIRE with one env var and zero code changes.
 
+- **`/v1/messages`** — the drop-in: the real Anthropic API, proxied and remembered.
 - **`?mode=complete`** — the substitute: a bare turn, no tools.
 - **`?mode=agent`** — the enhancer: a full Claude Code session that executes tools.
 - **It remembers** (transcript mirrored to your Postgres, survives any container)
@@ -163,9 +181,11 @@ missing glue around the SDK, callable from any language.
 | **The tracer that proves the thesis** — write → kill the box → remember | ✅ **Done 2026-07-20** (backlog #5), and not simulated: the droplet was re-provisioned, `workspaces/` came back EMPTY, and the resumed session rebuilt volume 1 of the ants book from its Postgres memory before writing volume 2. Two books now live in the store, both readable at `/claude` |
 | The broom (retention, backups, metrics) | Retention live (sweep + logrotate + the /tmp broom); **DB backups live via Azure** (7-day point-in-time restore, verified 2026-07-20); metrics partial (weight on `/claude`; cost needs persistence) |
 | The budget ceiling | ✅ A cut turn now emits a real `budget_exhausted` error and retires its spent client (fixed + verified 2026-07-20). Open: at $1.00 a long agent job still needs batching — Bernard's spend call (backlog #23) |
+| **The gateway door** (backlog #30) | ✅ **Live** 2026-08-07 — `/v1/messages` (+ `count_tokens`, `/v1/models`) proxied to Anthropic byte-for-byte and mirrored to `aire_gateway_log`; auth pass-through; verified with real Claude Code through the gate and both mirror rows in Postgres. Spawned CLIs pinned to `api.anthropic.com` (no recursion) |
+| **Credential failover** (backlog #31) | ✅ Mechanism live 2026-08-07 — the engine detects a burned weekly pool (the lying zero-usage result), logs `CREDENTIAL-EXHAUSTED`, rotates `primary → backup → metered API key` and retries; all dry → a real `credentials_exhausted` error. **Backup slots empty until Bernard mints them** (a different seat's OAuth + a dedicated API key) |
 
 Roadmap: [`.claude/backlog/`](.claude/backlog/README.md). Agent context:
-[`CLAUDE.md`](CLAUDE.md). Story and pitch: [`docs/`](docs/).
+[`CLAUDE.md`](CLAUDE.md). Story and pitch: [`server/docs/`](server/docs/).
 
 ## License
 

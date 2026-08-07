@@ -19,6 +19,8 @@ see [`../deploy/README.md`](../deploy/README.md).
 | SSH key | `~/.ssh/aire_vm` | ed25519, dedicated; generated if absent |
 | Deploy key | `~/.secrets/aire-github-deploy-key.txt` | read-only GitHub key — the repo is PRIVATE, the droplet clones over SSH |
 | Pen secret | `~/.secrets/aire-postgres.txt` | optional `AIRE_DATABASE_URL`; without it the listener runs file-only |
+| Backup OAuth (#31) | `~/.secrets/aire-claude-oauth-backup.txt` | optional `CLAUDE_CODE_OAUTH_TOKEN_BACKUP=` — a DIFFERENT seat/account (same account = same weekly pool); missing file skips the slot |
+| Fallback API key (#31) | `~/.secrets/aire-api-key-fallback.txt` | optional `ANTHROPIC_API_KEY_FALLBACK=` — metered last resort, never resets, budget-capped; missing file skips the slot |
 
 The droplet runs as **root** (that's how DO works), so the `deploy/*.service`
 units use `User=root` and the CI restarts without `sudo`.

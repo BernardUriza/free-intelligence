@@ -37,7 +37,9 @@ memory. To contradict anything here, verify it first the same way.
    Bernard's settled conclusion (re-affirmed 2026-07-14 after an SSR page briefly
    shipped here and scared him — that surface was reverted the same hour). The old
    "the server is the interface / streaming SSR" thesis is DEAD in this repo: the
-   daemon's only mouths are `/health` (JSON) and the message endpoint (SSE events).
+   daemon's only mouths are `/health` (JSON), the message endpoint (SSE events),
+   and — since 2026-08-07 (backlog #30) — the gateway door (`/v1/*`), which only
+   relays Anthropic's own JSON/SSE byte-for-byte and never renders anything.
    **Every human-facing view — live or stored — lives in [`front/`](front/)**
    (this monorepo's other half, live on Container Apps), which may render the
    daemon's SSE stream however it wants. Do not re-propose SSR-from-the-daemon
@@ -125,6 +127,29 @@ memory. To contradict anything here, verify it first the same way.
   project may name an EXISTING casita (128-char allowlist). That is what lets the AIRE
   door continue a session the CLI started: same `cwd` → same `project_key` → the store
   finds the memory. **One memory, two doors** — verified live 2026-07-20.
+- **Claude Code is a first-class gateway client** (verified 2026-08-07 against the
+  published [gateway protocol](https://code.claude.com/docs/en/llm-gateway-protocol)):
+  `ANTHROPIC_BASE_URL` points it at any Anthropic-format endpoint; only
+  `POST /v1/messages` is required; `anthropic-beta` must be forwarded verbatim
+  (never allowlisted); error bodies must relay unwrapped (the CLI pattern-matches
+  their wording to auto-retry); a 300s byte watchdog counts SSE pings, so a proxy
+  that buffers or swallows them aborts streams mid-thinking. That contract is what
+  the **gateway door** (`aire/gateway.py`, backlog #30) implements — a third door,
+  auth-pass-through, mirrored to `aire_gateway_log` (created as `aire`, so the
+  reader sees it). The SDK spawns the CLI with an env inherited from `os.environ`
+  (`subprocess_cli.py:431`), so `engine/options.py` pins every spawned CLI's
+  `ANTHROPIC_BASE_URL` to `api.anthropic.com` — the gateway can never recurse.
+- **A burned weekly pool returns a LYING SUCCESS, not an error** — measured live
+  2026-08-07: result text "You've hit your weekly limit · resets …", usage all
+  zeros, `total_cost_usd: 0`. Same family as the #23 budget lie. The engine's
+  credential rotor (`engine/credentials.py` + `turn.py`, backlog #31) detects it
+  (phrase AND zero usage, both required), logs `CREDENTIAL-EXHAUSTED`, rotates
+  `primary → backup → metered API key` with a 1h cooldown, and emits a real
+  `credentials_exhausted` error when all slots are dry. The API-key slot works
+  headless: `ANTHROPIC_API_KEY` set + `CLAUDE_CODE_OAUTH_TOKEN=""` dispatches
+  with no interactive approval. Backup slots activate the moment their env vars
+  appear in `/etc/aire/env`; two OAuth tokens from the SAME account share one
+  pool — a same-account backup is a placebo.
 
 ## Discarded routes (don't re-propose them)
 
