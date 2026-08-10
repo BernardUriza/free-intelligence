@@ -27,8 +27,15 @@ async def test_runner_allowlist_includes_required_builtins():
 
 
 class _FakeOptions:
-    def __init__(self, allowed_tools):
+    """The guard reads BOTH directions since 2026-08-10, so a fake that only
+    carries an allowlist is no longer a valid options object — `tools` (what the
+    model can reach at all) is now part of the contract. See
+    tests/arch/test_persona_capability_surface_is_bounded.py."""
+
+    def __init__(self, allowed_tools, tools=None):
         self.allowed_tools = allowed_tools
+        self.tools = list(runner_options.REQUIRED_BUILTIN_TOOLS) if tools is None else tools
+        self.disallowed_tools = list(runner_options.FORBIDDEN_BUILTIN_TOOLS)
 
 
 def test_verify_required_tools_raises_when_missing():
