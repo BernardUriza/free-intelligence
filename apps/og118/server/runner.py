@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fi_runner import (
+    COMPANION_BLOCKED_BUILTINS,
     ClaudeCodeBackend,
     MCPServerSpec,
     Runner,
@@ -72,6 +73,62 @@ def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
 # capabilities lo que PUEDE. Cambiar sólo la primera no acota nada.
 CAPACIDADES_POR_DEFECTO = ["task_tracker", "rag_store"]
 
+# Los ÚNICOS builtins de Claude Code que este runtime expone al modelo. En el
+# SDK, `allowed_tools` gobierna el PERMISO (cuáles corren sin preguntar) y
+# `tools` gobierna la DISPONIBILIDAD (cuáles existen en el contexto del modelo).
+# Sin setear `tools`, el modelo recibe el preset COMPLETO de Claude Code menos el
+# denylist de `ToolPolicy.companion()` — y un denylist es una foto: la tool con
+# forma de shell que el preset gane mañana entra sola y en silencio, dentro de un
+# contenedor con ingress público que carga CLAUDE_CODE_OAUTH_TOKEN,
+# OG118_ACCESS_TOKEN y las llaves de TTS/STT en el env. En discord-bot (misma
+# forma de bug, sin denylist) un turno real de producción llamó `Bash` 5 veces.
+#
+# WebSearch/WebFetch se quedan porque son load-bearing: el tutor del cibercafé
+# (apps/fenix, prompts/tutor.md «CUANDO BUSCAS EN INTERNET») corre este mismo
+# build_runner con capabilities=["task_tracker"] y su búsqueda de datos reales
+# sólo puede venir de estos builtins. Para og118 base y el mostrador de fenix la
+# prohibición de internet es de persona (prompt), no de capability — recortarles
+# el builtin rompería al tutor, que comparte el runtime.
+BUILTINS_DISPONIBLES = ("WebSearch", "WebFetch")
+
+
+def _verificar_superficie_acotada(options: Any) -> None:
+    """Revienta FUERTE si la superficie de capacidad quedó sin acotar.
+
+    Dos direcciones, porque fallan al revés: un allowlist olvida lo que nunca
+    nombró; un denylist olvida lo que todavía no existía. `tools=None` significa
+    el preset entero — nunca puede salir de aquí así."""
+    disponibles = getattr(options, "tools", None)
+    if not isinstance(disponibles, list):
+        raise RuntimeError(
+            "El runner dejó `tools` sin setear: el modelo recibe el preset completo "
+            "de Claude Code (Bash, Write, Edit incluidos) dentro del contenedor que "
+            "carga el token OAuth y las llaves del env. `allowed_tools` gobierna el "
+            "permiso, no la disponibilidad — setea `tools` a una lista explícita."
+        )
+    coladas = sorted(set(disponibles) & set(COMPANION_BLOCKED_BUILTINS))
+    if coladas:
+        raise RuntimeError(
+            f"El runner expone builtins prohibidos {coladas} a una superficie cuyo "
+            f"input es lo que cualquiera escriba en el chat (tools={sorted(disponibles)})"
+        )
+
+
+class BackendAcotado(ClaudeCodeBackend):
+    """ClaudeCodeBackend cuya superficie de builtins está ACOTADA por lista.
+
+    fi_runner nunca setea `ClaudeAgentOptions.tools`, así que cualquier consumidor
+    suyo hereda el preset completo por default. Este subclass es la costura
+    documentada (`build_options` — "the seam a consumer can call"): fija la
+    disponibilidad a `BUILTINS_DISPONIBLES` y verifica en cada construcción, para
+    que la garantía no dependa de que nadie toque el default del framework."""
+
+    def build_options(self, **kwargs: Any) -> Any:
+        options = super().build_options(**kwargs)
+        options.tools = list(BUILTINS_DISPONIBLES)
+        _verificar_superficie_acotada(options)
+        return options
+
 
 def build_runner(
     persona_path: Path = PERSONA_PATH,
@@ -108,7 +165,7 @@ def build_runner(
         # survives a recycled container and the per-turn re-send disappears.
         # None (the default, and today's deploy) keeps the turn byte-identical:
         # client history replay stays the continuity.
-        backend=ClaudeCodeBackend(default_model=model, session_store=session_store),
+        backend=BackendAcotado(default_model=model, session_store=session_store),
         # The Runner must KNOW the model, not just the backend: it is the Runner
         # that stamps the answer's provenance (TurnResult.model → the "powered by"
         # chip). Configured only on the backend, `Runner.model` stayed None and the
