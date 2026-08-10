@@ -215,16 +215,24 @@ jobs:
 
           # The build matrix carries ONLY the surfaces that changed, so the fan-out
           # spawns no idle runners and the job skips entirely when nothing moved.
-          # `base_tag_key` indexes the bases job's outputs at build time.
+          #
+          # It is a list of BARE NAMES, never a list of objects, and that is not a
+          # style choice. An object carries `{` and `}`, and this repo's
+          # AZURE_CREDENTIALS is stored as pretty-printed JSON — Actions registers
+          # each of its lines as a secret, so the lines holding a lone brace turn
+          # EVERY brace in every log and output into "a secret". The masker then
+          # dropped this output whole (`Skip output 'surfaces' since it may contain
+          # secret`), `fromJSON('')` blew up the matrix, and `deploy` skipped: three
+          # surfaces sat un-deployed for days while CI stayed green (2026-08-10, the
+          # commit that closed the Bash hole could not reach prod). A brace-free
+          # array survives the masker. The real cure is storing that secret as
+          # single-line JSON (`jq -c`); this shape keeps CD alive meanwhile.
           SURFACES=$(jq -cn --arg gw "$BUILD_GW" --arg rn "$BUILD_RUNNER" --arg ho "$BUILD_HOST" '
             [
-              {image:"persona-gateway", file:"Dockerfile.gateway",
-               base_repo:"khimeras-base", base_tag_key:"base_tag", want:$gw},
-              {image:"persona-runner", file:"infra/azure/runner.Dockerfile",
-               base_repo:"khimeras-runner-base", base_tag_key:"runner_base_tag", want:$rn},
-              {image:"khimeras-host", file:"Dockerfile.host",
-               base_repo:"khimeras-base", base_tag_key:"base_tag", want:$ho}
-            ] | map(select(.want == "true") | del(.want))')
+              ("persona-gateway" | select($gw == "true")),
+              ("persona-runner"  | select($rn == "true")),
+              ("khimeras-host"   | select($ho == "true"))
+            ]')
           echo "surfaces=$SURFACES" >> "$GITHUB_OUTPUT"
 
           echo "## CD change detection" >> "$GITHUB_STEP_SUMMARY"
@@ -244,10 +252,10 @@ jobs:
   # `detect`, so only changed surfaces spawn a runner and an unchanged commit
   # skips the whole stage.
   build:
-    name: Build ${{ matrix.surface.image }}
+    name: Build ${{ matrix.surface }}
     runs-on: ubuntu-latest
     needs: [bases, detect]
-    if: ${{ needs.detect.outputs.surfaces != '[]' }}
+    if: ${{ needs.detect.outputs.surfaces != '[]' && needs.detect.outputs.surfaces != '' }}
     strategy:
       # One broken image must not cancel its siblings: the others are still
       # deployable, and a fail-fast here would hide which of them also broke.
@@ -264,13 +272,27 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build ${{ matrix.surface.image }} image
+      # The per-surface dockerfile and base image are resolved HERE, from the bare
+      # name, instead of riding along in the matrix — see the detect step for why
+      # the matrix cannot carry objects. An unknown name fails loudly rather than
+      # building the wrong dockerfile.
+      - name: Build ${{ matrix.surface }} image
+        env:
+          BASE_TAG: ${{ needs.bases.outputs.base_tag }}
+          RUNNER_BASE_TAG: ${{ needs.bases.outputs.runner_base_tag }}
         run: |
+          set -euo pipefail
+          case "${{ matrix.surface }}" in
+            persona-gateway) FILE="Dockerfile.gateway";              BASE="khimeras-base:$BASE_TAG" ;;
+            persona-runner)  FILE="infra/azure/runner.Dockerfile";   BASE="khimeras-runner-base:$RUNNER_BASE_TAG" ;;
+            khimeras-host)   FILE="Dockerfile.host";                 BASE="khimeras-base:$BASE_TAG" ;;
+            *) echo "unknown surface '${{ matrix.surface }}' — detect and build disagree"; exit 1 ;;
+          esac
           az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image "${{ matrix.surface.image }}:$NEW_SHA" \
-            --image "${{ matrix.surface.image }}:latest" \
-            --file "${{ matrix.surface.file }}" \
-            --build-arg BASE_IMAGE="$ACR/${{ matrix.surface.base_repo }}:${{ needs.bases.outputs[matrix.surface.base_tag_key] }}" .
+            --image "${{ matrix.surface }}:$NEW_SHA" \
+            --image "${{ matrix.surface }}:latest" \
+            --file "$FILE" \
+            --build-arg BASE_IMAGE="$ACR/$BASE" .
 
   # --- Stage 4: deploy what was rebuilt, then prove it serves ----------------
   deploy:
