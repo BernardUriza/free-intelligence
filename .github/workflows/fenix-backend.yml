@@ -17,6 +17,12 @@ on:
     branches: [main]
     paths:
       - 'apps/fenix/server/**'
+      # La imagen COPYa apps/og118/server (Fénix importa ese runtime tal cual):
+      # sin esta ruta, un fix al runtime compartido —incluido el cerco de
+      # seguridad de la superficie de tools— nunca llegaba al contenedor de
+      # Fénix hasta un deploy casual futuro. El filtro observa lo que la
+      # imagen contiene, no lo que el directorio se llama.
+      - 'apps/og118/server/**'
       - 'apps/packages/fi-core/**'
       - 'apps/packages/fi-runner/**'
       - '.github/workflows/fenix-backend.yml'
