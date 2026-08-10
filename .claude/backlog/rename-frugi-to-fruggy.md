@@ -1,9 +1,9 @@
 # Renombrar Frugi → Fruggy
 
-Status: Proposed — sin arrancar (re-verificado 2026-08-06:
-`shared/personas/registry.py` sigue con `display_name="Frugívoro"` y
-`aliases=["frugivoro", "frugi", "frugívoro"]`; `grep -rin "fruggy"` en el repo
-sólo devuelve este item)
+Status: **In progress** (2026-08-10) — slice 1 (alias `fruggy` en el registry)
+abierto como issue #36, el primer issue de Alex. Estado del código sin cambios
+todavía: `shared/personas/registry.py` sigue con `display_name="Frugívoro"` y
+`aliases=["frugivoro", "frugi", "frugívoro"]`.
 Proposed: 2026-07-05 by Bernard
 
 ## What it is
@@ -42,6 +42,16 @@ entrada `"frugivoro"` (aliases `["frugivoro", "frugi", "frugívoro"]`,
 
 ## Status / next step
 
-No arrancado. Desbloquea con un GO de Bernard; el slice del registry es
-trivial (una línea + tests de aliases si existen). Relacionado:
-[[frugivoro-persona]] (el item padre de la persona).
+**Slice 1 en curso — issue #36** (`gh issue view 36`), el primer issue de Alex.
+Scope decidido el 2026-08-10 al abrirlo, para que sea tamaño-de-arranque:
+
+- **SÍ**: agregar `fruggy` a `aliases` en `registry.py:133` + test positivo +
+  test de resistencia. `test_no_two_personas_share_a_role_candidate`
+  (`tests/shared/test_registry_insult.py:104`) ya guarda la colisión.
+- **NO** (queda para un slice posterior, decisión de Bernard): `display_name`,
+  el username del bot en el Discord Developer Portal, el `persona_id`, el DNA,
+  el `token_env`, y los ~129 hits de "frugi" en docs/corpus/tests.
+- **`frugi` sobrevive** como alias legacy en este slice — matarlo es parte de la
+  decisión de rename completo, no del arranque de alguien que no conoce el repo.
+
+Relacionado: [[frugivoro-persona]] (el item padre de la persona).
