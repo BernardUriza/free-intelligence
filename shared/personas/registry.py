@@ -130,7 +130,9 @@ PERSONAS: dict[str, Persona] = {
         persona_file="frugivoro.md",
         token_env="FRUGIVORO_DISCORD_TOKEN",  # nosec B106 — env-var NAME, not a secret
         bot_user_id="1521273256236023989",  # Discord app/bot id, created 2026-06-29
-        aliases=["frugivoro", "frugi", "frugívoro"],
+        # "fruggy" es el apodo real de cariño en #general (issue #36): sin él, un
+        # "fruggy, ¿esto lleva huevo?" no le llegaba a nadie y se perdía.
+        aliases=["frugivoro", "frugi", "frugívoro", "fruggy"],
         avatar=None,
         tts_voice="fable",
         gateway_enabled=True,
