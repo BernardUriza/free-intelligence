@@ -57,10 +57,22 @@ def test_serve_route_is_defined_on_the_router():
 
 # --- publish side: no more dead-link fake-green ---
 
+import pytest  # noqa: E402
+
 import khimeras_shared.html_artifacts as html_store  # noqa: E402
 from persona_runner import mcp_tools  # noqa: E402
+from persona_runner.mcp_tools import turn_context  # noqa: E402
 
 _publish = mcp_tools.publish_html_artifact.handler
+
+
+@pytest.fixture(autouse=True)
+def _bound_principal():
+    """La autoría del artefacto la pone el turno, no el modelo (2026-08-10), así
+    que publicar fuera de un turno atado ya no es un escenario válido."""
+    token = turn_context.bind_turn_principal(user_id="907264175246569543", channel_id="1489180895264116736")
+    yield
+    turn_context.reset_turn_principal(token)
 
 
 async def test_publish_fails_loud_when_base_url_unconfigured(monkeypatch):

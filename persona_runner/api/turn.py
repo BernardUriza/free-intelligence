@@ -22,6 +22,7 @@ from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine import auth_failure, session_pool
 from persona_runner.engine.framing import fold_history, frame_turn_text, query_input_for
+from persona_runner.mcp_tools import turn_context
 
 log = structlog.get_logger()
 
@@ -91,6 +92,10 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     }
     is_first_turn = not session_pool.is_open(key)
 
+    # Whose data the memory tools may touch, decided HERE and never asked of the
+    # model. Bound around the whole turn — the SDK invokes tools while
+    # `receive_response()` is draining, so the scope must outlive `query()`.
+    principal_token = turn_context.bind_turn_principal(user_id=req.user_id, channel_id=req.channel_id)
     try:
         async with lock:
             # Race-free freshness: only under the lock does "not open" mean THIS
@@ -127,6 +132,8 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
         )
         await session_pool.close_client(key)
         raise HTTPException(502, f"agent loop failed: {type(e).__name__}: {e}") from e
+    finally:
+        turn_context.reset_turn_principal(principal_token)
 
     # A revoked/expired token comes back as ordinary text, not an exception, so
     # without this the 401 would be logged as a completed turn and returned 200

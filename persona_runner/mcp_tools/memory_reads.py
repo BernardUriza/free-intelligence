@@ -1,26 +1,36 @@
-"""Read-only MCP tools over the memory data plane — facts, messages, disclosures, arcs."""
+"""Read-only MCP tools over the memory data plane — facts, messages, disclosures, arcs.
+
+Ninguna de estas tools recibe `user_id` ni `channel_id`: los toma del principal
+atado por el servidor para ESE turno (`turn_context`). No es cosmética de
+firmas — es la diferencia entre un gate de capacidades y una autorización.
+Mientras la identidad era un parámetro, el modelo podía nombrar a cualquiera, y
+el 2026-08-10 lo hizo: le atribuyó a Bernard un fact de Alex y le habló de la
+muerte de su madre, que está viva. Los dos ids son snowflakes legítimos, así que
+validar el formato no habría cambiado nada. La identidad la pone el servidor o
+no es identidad.
+"""
 
 from __future__ import annotations
 
 from claude_agent_sdk import tool
 
 from persona_runner.mcp_tools import shared
+from persona_runner.mcp_tools.turn_context import current_principal
 
 
 @tool(
     "get_user_facts",
     (
-        "Return everything Insult knows about a specific user — their accumulated "
-        "facts from prior conversations, grouped by category. Use this whenever you "
-        "need to ground a response in what you already know about the person you're "
-        "addressing. Returns one fact per line."
+        "Return everything you know about the person you are talking to right now — "
+        "their accumulated facts from prior conversations, grouped by category. Use "
+        "this whenever you need to ground a response in what you already know about "
+        "them. Returns one fact per line. It always reads the user of the current "
+        "turn; there is no way to ask about somebody else, by design."
     ),
-    {"user_id": str},
+    {},
 )
 async def get_user_facts(args: dict) -> dict:
-    user_id = (args.get("user_id") or "").strip()
-    if not user_id:
-        return shared._error("user_id is required")
+    user_id = current_principal().user_id
     conn = await shared._connect()
     if conn is None:
         return shared._error("Postgres unreachable")
@@ -45,16 +55,15 @@ async def get_user_facts(args: dict) -> dict:
 @tool(
     "get_recent_messages",
     (
-        "Return the last N messages in a channel (chronological, oldest first). "
+        "Return the last N messages in THIS channel (chronological, oldest first). "
         "Use when you need fresh context about what was just said. Default limit "
-        "is 50 — keep it low unless you really need more."
+        "is 50 — keep it low unless you really need more. Always the current "
+        "channel; other channels, including other people's DMs, are not reachable."
     ),
-    {"channel_id": str, "limit": int},
+    {"limit": int},
 )
 async def get_recent_messages(args: dict) -> dict:
-    channel_id = (args.get("channel_id") or "").strip()
-    if not channel_id:
-        return shared._error("channel_id is required")
+    channel_id = current_principal().channel_id
     limit = max(1, min(int(args.get("limit") or 50), 200))
     conn = await shared._connect()
     if conn is None:
@@ -85,13 +94,13 @@ async def get_recent_messages(args: dict) -> dict:
         "need to recall a specific topic the user mentioned earlier but it's "
         "not in the recent window. Returns matched messages with timestamps."
     ),
-    {"channel_id": str, "query": str, "limit": int},
+    {"query": str, "limit": int},
 )
 async def search_messages(args: dict) -> dict:
-    channel_id = (args.get("channel_id") or "").strip()
+    channel_id = current_principal().channel_id
     query = (args.get("query") or "").strip()
-    if not channel_id or not query:
-        return shared._error("channel_id and query are required")
+    if not query:
+        return shared._error("query is required")
     limit = max(1, min(int(args.get("limit") or 10), 50))
     conn = await shared._connect()
     if conn is None:
@@ -123,12 +132,10 @@ async def search_messages(args: dict) -> dict:
         "medication, crisis events, etc.). Use when calibrating tone — high "
         "recent severity means soften the abrasive register."
     ),
-    {"user_id": str, "days": int},
+    {"days": int},
 )
 async def get_disclosure_log(args: dict) -> dict:
-    user_id = (args.get("user_id") or "").strip()
-    if not user_id:
-        return shared._error("user_id is required")
+    user_id = current_principal().user_id
     import time
 
     days = max(1, min(int(args.get("days") or 30), 365))
@@ -166,25 +173,22 @@ async def get_disclosure_log(args: dict) -> dict:
         "scores (0.0-1.0) and timestamps. Default top_k is 5; raise to 10 "
         "for broader recall, lower to 3 for precision."
     ),
-    {"user_id": str, "query": str, "top_k": int},
+    {"query": str, "top_k": int},
 )
 async def deep_memory(args: dict) -> dict:
     from khimeras_shared.deep_memory import query_user_memory
 
-    user_id = (args.get("user_id") or "").strip()
+    # El guard de namespaces reservados (`__chatgpt_archive__`, con el historial
+    # íntimo de Bernard sacado a propósito del auto-recall en 2026-06-03) vivía
+    # aquí como un `startswith("__")` sobre el parámetro. Ya no hace falta:
+    # el id lo pone el servidor y es siempre un snowflake de Discord, así que no
+    # hay parámetro que envenenar. Fue, además, la única defensa de este tipo en
+    # las seis tools — pensada contra archivos sintéticos y nunca contra OTRA
+    # PERSONA, que resultó ser el agujero real.
+    user_id = current_principal().user_id
     query = (args.get("query") or "").strip()
-    if not user_id or not query:
-        return shared._error("user_id and query are required")
-    # Reserved synthetic namespaces are NOT user memory and must never be
-    # reachable through this agent-facing tool. `__chatgpt_archive__` holds
-    # Bernard's intimate ChatGPT history (health/sexuality/sensitive) that was
-    # DELIBERATELY routed out of auto-recall (hybrid privacy choice, 2026-06-03);
-    # `__corpus_film__` is shared topic knowledge with its own retrieval path
-    # (query_corpus). Real users are Discord snowflakes — a `__`-prefixed id can
-    # only be an attempt (by the model or a crafted message) to read an archive
-    # that must stay out of any public turn.
-    if user_id.startswith("__"):
-        return shared._error(f"'{user_id}' is a reserved namespace, not a user — not accessible here")
+    if not query:
+        return shared._error("query is required")
     top_k = max(1, min(int(args.get("top_k") or 5), 20))
     results = await query_user_memory(user_id=user_id, query=query, top_k=top_k)
     if not results:
@@ -208,13 +212,11 @@ async def deep_memory(args: dict) -> dict:
         "(phase, recovery_signals, turns_in_phase). Use when deciding whether "
         "to lean abrasive or hold space."
     ),
-    {"user_id": str, "channel_id": str},
+    {},
 )
 async def get_emotional_arc(args: dict) -> dict:
-    user_id = (args.get("user_id") or "").strip()
-    channel_id = (args.get("channel_id") or "").strip()
-    if not user_id or not channel_id:
-        return shared._error("user_id and channel_id are required")
+    principal = current_principal()
+    user_id, channel_id = principal.user_id, principal.channel_id
     conn = await shared._connect()
     if conn is None:
         return shared._error("Postgres unreachable")

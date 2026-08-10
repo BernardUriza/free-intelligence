@@ -21,14 +21,19 @@ from persona_runner.mcp_tools import shared
         "Do NOT publish anything containing secrets, tokens, or private content "
         "the user wouldn't share publicly."
     ),
-    {"title": str, "html_content": str, "user_id": str},
+    {"title": str, "html_content": str},
 )
 async def publish_html_artifact(args: dict) -> dict:
     from khimeras_shared.html_artifacts import insert_artifact
+    from persona_runner.mcp_tools.turn_context import current_principal
 
     title = (args.get("title") or "").strip()
     html_content = args.get("html_content") or ""
-    user_id = (args.get("user_id") or "").strip() or None
+    # La autoría la pone el servidor, igual que en las tools de memoria. Antes la
+    # escribía el modelo, así que un artefacto público podía quedar firmado a
+    # nombre de quien no lo pidió — la misma clase de confusión de principal que
+    # el 2026-08-10 le atribuyó a Bernard un fact de Alex.
+    user_id = current_principal().user_id
     if not title:
         return shared._error("title is required")
     if not html_content:

@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 
 import pytest
 
@@ -69,6 +70,19 @@ def test_no_shell_shaped_builtin_is_reachable(options, forbidden):
 def test_browser_evaluate_is_not_a_permitted_playwright_tool():
     """JS arbitrario = shell con otra puerta. Un fetch() saca el env entero."""
     assert "browser_evaluate" not in PLAYWRIGHT_ALLOWED_TOOLS
+
+
+def test_the_judge_declares_itself_toolless_and_actually_is():
+    """El judge decía en un comentario "No tools" y podía alcanzar Bash.
+
+    Corre con `bypassPermissions`, así que `allowed_tools=[]` no lo dejaba sin
+    herramientas — sólo sin herramientas PRE-APROBADAS, que bypass aprueba de
+    todas formas. La superficie de una utilidad one-shot se declara con
+    `tools=[]`, y esto lo demuestra leyendo el código que de verdad corre.
+    """
+    source = Path(__file__).resolve().parents[2] / "persona_runner" / "api" / "judge.py"
+    text = source.read_text(encoding="utf-8")
+    assert "tools=[]," in text, "el judge no deshabilita los builtins con tools=[]"
 
 
 def test_required_builtins_survive_the_lockdown(options):

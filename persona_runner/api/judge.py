@@ -62,7 +62,12 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     options = ClaudeAgentOptions(
         system_prompt=req.system_prompt,
         model=chosen_model,
-        # No tools, no MCP servers — pure one-shot utility.
+        # No tools, no MCP servers — pure one-shot utility. `tools=[]` is what
+        # actually makes that true: it DISABLES every built-in. `allowed_tools=[]`
+        # alone only means "none are pre-approved", and the tools it omits stay
+        # available — which `bypassPermissions` below then auto-approves. This
+        # comment claimed toolless while the judge could reach Bash (2026-08-10).
+        tools=[],
         allowed_tools=[],
         mcp_servers={},
         permission_mode="bypassPermissions",
