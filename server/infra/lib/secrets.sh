@@ -46,6 +46,13 @@ compose_env() {
   append_secret "$OAUTH_BACKUP_FILE"     "CLAUDE_CODE_OAUTH_TOKEN_BACKUP=" "the failover backup OAuth (#31)"
   append_secret "$API_KEY_FALLBACK_FILE" "ANTHROPIC_API_KEY_FALLBACK="     "the failover metered API key (#31)"
   append_secret "$WHITELIST_FILE"  "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
+  # The invitation flow (#32). Without these the request-access button answers
+  # 503 and says so — it never silently posts a stranger into a void.
+  append_secret "$ACCESS_FILE" "AIRE_ACCESS_SECRET="    "the approve link's signature (#32)"
+  append_secret "$ACCESS_FILE" "AIRE_OWNER_EMAIL="      "who the doorman mails (#32)"
+  append_secret "$ACCESS_FILE" "AIRE_GATE_PUBLIC_URL="  "the approve link's own host (#32)"
+  append_secret "$ACCESS_FILE" "AIRE_FRONT_URL="        "where the approval receipt renders (#32)"
+  append_secret "$RESEND_FILE" "RESEND_API_KEY="        "the mail transport (#32)"
   ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'
   if [[ -n "$ENV_CONTENT" ]]; then
     printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"

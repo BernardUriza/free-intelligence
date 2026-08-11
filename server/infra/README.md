@@ -21,6 +21,8 @@ see [`../deploy/README.md`](../deploy/README.md).
 | Pen secret | `~/.secrets/aire-postgres.txt` | optional `AIRE_DATABASE_URL`; without it the listener runs file-only |
 | Backup OAuth (#31) | `~/.secrets/aire-claude-oauth-backup.txt` | optional `CLAUDE_CODE_OAUTH_TOKEN_BACKUP=` — a DIFFERENT seat/account (same account = same weekly pool); missing file skips the slot |
 | Fallback API key (#31) | `~/.secrets/aire-api-key-fallback.txt` | optional `ANTHROPIC_API_KEY_FALLBACK=` — metered last resort, never resets, budget-capped; missing file skips the slot |
+| Invitations (#32) | `~/.secrets/aire-access.txt` | `AIRE_ACCESS_SECRET=` (signs the approve link), `AIRE_OWNER_EMAIL=`, `AIRE_GATE_PUBLIC_URL=`, `AIRE_FRONT_URL=` |
+| Mail transport (#32) | `~/.secrets/resend-aire.txt` | `RESEND_API_KEY=` — Resend, whose free tier mails the account's own address with no verified domain. Missing → the request-access button answers 503 and says so |
 
 The droplet runs as **root** (that's how DO works), so the `deploy/*.service`
 units use `User=root` and the CI restarts without `sudo`.

@@ -32,7 +32,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import artifacts, gateway, init_project, messages
+from . import access, artifacts, gateway, init_project, messages
 from .bearer import ACCEPTED_TOKENS, accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -48,6 +48,10 @@ async def llm_door(request: Request, call_next: Any) -> Any:
     # own Anthropic credential rides upstream and upstream judges it. AIRE
     # spends nothing of its own there. Per-consumer AIRE tokens are backlog #28.
     if request.url.path.startswith("/v1/"):
+        return await call_next(request)
+    # The approve link (#32) is clicked from a mail client, which cannot carry a
+    # Bearer token. Its HMAC signature IS its authentication — see access.py.
+    if request.url.path == "/access/approve":
         return await call_next(request)
     if not ACCEPTED_TOKENS:
         return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
@@ -77,3 +81,4 @@ app.include_router(messages.router)   # POST a turn (SSE or #22a background), GE
 app.include_router(gateway.router)    # /v1/* — the gateway door (#30), Messages wire format
 app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
 app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)
+app.include_router(access.router)     # #32 — a stranger asks to be let in; Bernard's inbox decides
