@@ -27,38 +27,17 @@ mean an open LLM. Comparison is constant-time.
 
 from __future__ import annotations
 
-import hmac
-import os
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from . import artifacts, gateway, init_project, messages
+from .bearer import ACCEPTED_TOKENS, accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
-ACCEPTED_TOKENS = tuple(
-    t for t in (os.environ.get("AIRE_AUTH_TOKEN", ""), os.environ.get("AIRE_CANARY_TOKEN", "")) if t
-)
-
 app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
-
-
-def _presented_token(request: Request) -> str:
-    header = request.headers.get("authorization", "")
-    if header.lower().startswith("bearer "):
-        return header[7:].strip()
-    return ""
-
-
-def _accepted(presented: str) -> bool:
-    # Compared as BYTES: compare_digest on str raises TypeError on non-ASCII
-    # input (seen live 2026-08-07 — a garbled Bearer token 500ed instead of 401).
-    ok = False
-    for token in ACCEPTED_TOKENS:  # check every token — no short-circuit timing leak
-        ok |= hmac.compare_digest(presented.encode("utf-8"), token.encode("utf-8"))
-    return ok
 
 
 @app.middleware("http")
@@ -72,7 +51,7 @@ async def llm_door(request: Request, call_next: Any) -> Any:
         return await call_next(request)
     if not ACCEPTED_TOKENS:
         return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
-    if not _accepted(_presented_token(request)):
+    if not accepted(presented_token(request)):
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
 

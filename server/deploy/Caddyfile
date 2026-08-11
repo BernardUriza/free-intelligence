@@ -11,5 +11,13 @@
 }
 
 gate.bernarduriza.com {
-	reverse_proxy 127.0.0.1:8088
+	# The nickname generator (backlog #32) is its own process on 8090 so the
+	# engine never pays the model's memory. Same Bearer secrets, checked inside
+	# that app — the front proxies with its token, so the browser never holds one.
+	handle /nickname* {
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8088
+	}
 }

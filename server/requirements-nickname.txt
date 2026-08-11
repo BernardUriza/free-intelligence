@@ -1,0 +1,7 @@
+# The nickname service (backlog #32) — deliberately NOT in requirements.txt.
+# These weights only ever load in `aire-nickname.service`; the engine must never
+# pay their memory. onnxruntime + numpy + tokenizers is the whole stack: no
+# torch, no transformers, because neither fits beside the daemon on a 512MB box.
+onnxruntime
+numpy
+tokenizers

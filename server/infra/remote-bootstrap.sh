@@ -42,6 +42,11 @@ install_runtime() {
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
 }
 
+install_nickname_model() {
+  echo "    [remote] the landing's model (MiniLM int8, avx2 — backlog #32)…"
+  VENV="$REMOTE_DIR/.venv" REPO="$REMOTE_DIR" bash "$REMOTE_DIR/server/infra/install-nickname.sh"
+}
+
 install_caddy() {
   echo "    [remote] Caddy — TLS reverse proxy for the LLM door (443 -> 127.0.0.1:8088)…"
   if ! command -v caddy >/dev/null 2>&1; then
@@ -71,13 +76,14 @@ ensure_firewall() {
 install_units() {
   echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
   cp "$REMOTE_DIR/server/deploy/aire-listener.service" "$REMOTE_DIR/server/deploy/aire-device.service" \
-     "$REMOTE_DIR/server/deploy/aire-server.service" \
+     "$REMOTE_DIR/server/deploy/aire-server.service" "$REMOTE_DIR/server/deploy/aire-nickname.service" \
      "$REMOTE_DIR/server/deploy/aire-sweep.service" "$REMOTE_DIR/server/deploy/aire-sweep.timer" \
      "$REMOTE_DIR/server/deploy/aire-mirror.service" "$REMOTE_DIR/server/deploy/aire-mirror.timer" \
      "$REMOTE_DIR/server/deploy/aire-tmpclean.service" "$REMOTE_DIR/server/deploy/aire-tmpclean.timer" /etc/systemd/system/
   cp "$REMOTE_DIR/server/deploy/logrotate-aire" /etc/logrotate.d/aire
   systemctl daemon-reload
-  systemctl enable --now aire-listener aire-server aire-sweep.timer aire-mirror.timer aire-tmpclean.timer
+  systemctl enable --now aire-listener aire-server aire-nickname \
+    aire-sweep.timer aire-mirror.timer aire-tmpclean.timer
 }
 
 verify_units() {
@@ -86,7 +92,7 @@ verify_units() {
   # is-active with multiple units exits 0 if AT LEAST ONE is active — check each
   # unit on its own so a dead one actually fails the bootstrap.
   local u
-  for u in aire-listener aire-server aire-sweep.timer; do
+  for u in aire-listener aire-server aire-nickname aire-sweep.timer; do
     if ! systemctl --quiet is-active "$u"; then
       echo "$u is NOT active"
       systemctl status "$u" --no-pager || true
@@ -117,6 +123,7 @@ echo "    [remote] /etc/aire (out-of-band secrets)…"
 install -d -m 700 /etc/aire
 sync_repo
 install_runtime
+install_nickname_model
 wire_door_env
 restore_door_memory
 install_units
