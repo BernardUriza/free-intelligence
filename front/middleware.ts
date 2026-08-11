@@ -24,6 +24,11 @@ import { COOKIE, valid } from "./lib/session.ts";
  *   already signed in never sees the landing: they are sent straight there.
  * - `/api/nickname` — the landing's generator. It forwards a sentence to the
  *   droplet's model and returns two words; it touches no Postgres either.
+ * - `/api/access` — the request-access button. It asks the daemon to mail Bernard
+ *   a signed link; it reads nothing back.
+ * - `/approved` — where that link lands. An email must open on whatever device is
+ *   in hand, so it cannot sit behind the console password. It states nothing it
+ *   was not handed in the URL.
  */
 
 export async function middleware(request: NextRequest) {
@@ -66,5 +71,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/health|api/nickname|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api/health|api/nickname|api/access|approved|_next/static|_next/image|favicon.ico).*)",
+  ],
 };

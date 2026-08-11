@@ -18,24 +18,45 @@ export default function NicknameGame() {
   const [name, setName] = useState("");
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [asked, setAsked] = useState(false);
+
+  async function post(url: string, body: object) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const parsed = (await response.json()) as Named & { detail?: string };
+    if (!response.ok) throw new Error(parsed.detail ?? "it did not answer");
+    return parsed;
+  }
 
   async function name_me() {
     if (!text.trim() || thinking) return;
     setThinking(true);
     setError("");
+    setAsked(false);
     try {
-      const response = await fetch("/api/nickname", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const body = (await response.json()) as Named & { detail?: string };
-      if (!response.ok) throw new Error(body.detail ?? "it did not answer");
-      setName(body.nickname);
+      setName((await post("/api/nickname", { text })).nickname);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setThinking(false);
+    }
+  }
+
+  async function request_access() {
+    if (!name.trim() || asking) return;
+    setAsking(true);
+    setError("");
+    try {
+      await post("/api/access", { nickname: name.trim(), blurb: text });
+      setAsked(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAsking(false);
     }
   }
 
@@ -74,6 +95,16 @@ export default function NicknameGame() {
             aria-label="your nickname"
           />
           <span className="label">and you may edit that, it is your name</span>
+
+          {asked ? (
+            <p className="asked">
+              Asked. Bernard has it in his inbox — if he says yes, you are in.
+            </p>
+          ) : (
+            <button className="ask" onClick={request_access} disabled={asking || !name.trim()}>
+              {asking ? "knocking…" : "request access"}
+            </button>
+          )}
         </div>
       )}
     </div>

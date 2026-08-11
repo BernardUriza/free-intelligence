@@ -442,6 +442,23 @@ summary {
   outline: 0;
   border-bottom-color: var(--accent);
 }
+.game .named button.ask {
+  margin-top: 14px;
+  background: none;
+  color: var(--ink-2);
+  border: 1px solid var(--edge);
+  padding: 8px 18px;
+}
+.game .named button.ask:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-2);
+}
+.game .named .asked {
+  margin: 16px 0 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
 .game .wrong {
   margin: 12px 0 0;
   color: var(--hot);
