@@ -49,6 +49,18 @@ que es lo contrario.
 
 De aquí en adelante las instrucciones van por **Discord**, no por el teclado.
 
+**Y ahí se acaban los comandos del operador — todos, no solo los del trabajo.**
+El setup termina cuando los comandos que ya corriste funcionaron; lo que sigue
+es abrir Claude Code y devolver el teclado. Un `git pull`, una limpieza de rama,
+un `--version` después de ese punto **también** son de la persona: se convierten
+en un prompt que elle le manda a su Claude Code. AnyDesk se queda solo para
+mirar.
+
+Los prompts los redacta el operador **en Discord** y los manda la persona. No es
+burocracia: en `#general` está Insult, así que cada prompt que pasa por ahí lo ve
+el bot y puede sugerir e irse enterando de cómo va la sesión. Un comando tecleado
+por AnyDesk es invisible para todos menos para quien lo tecleó.
+
 ### Fase 4 — El trabajo (el resto de la sesión)
 
 El primer prompt lo escribe la persona con sus manos:
