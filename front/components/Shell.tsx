@@ -28,10 +28,10 @@ export default async function Shell({
   return (
     <div className="shell">
       <nav>
-        <div className="brand">
+        <Link href="/console" className="brand">
           <b>AIRE front 🌬️</b>
           <span>the waiter — read-only</span>
-        </div>
+        </Link>
 
         <h2>tables</h2>
         {list.length === 0 ? (

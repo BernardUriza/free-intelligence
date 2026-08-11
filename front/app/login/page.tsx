@@ -13,11 +13,13 @@ export const dynamic = "force-dynamic";
  * the one that sends them somewhere else. Only same-site paths are honoured.
  */
 
+const HOME = "/console";
+
 function safeNext(next: string | undefined): string {
-  if (!next) return "/";
+  if (!next) return HOME;
   // Must be a path on THIS site: one leading slash, and not `//evil.com` (which a
   // browser reads as a protocol-relative URL to another host) and not `/\evil.com`.
-  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return "/";
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return HOME;
   return next;
 }
 
@@ -31,7 +33,7 @@ async function signIn(formData: FormData) {
   const next = safeNext(String(formData.get("next") ?? ""));
 
   if (!sameSecret(typed, expected)) {
-    redirect(`/login?wrong=1${next === "/" ? "" : `&next=${encodeURIComponent(next)}`}`);
+    redirect(`/login?wrong=1${next === HOME ? "" : `&next=${encodeURIComponent(next)}`}`);
   }
 
   (await cookies()).set(COOKIE, await mint(expected), {

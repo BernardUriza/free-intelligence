@@ -14,9 +14,16 @@ import { COOKIE, valid } from "./lib/session.ts";
  * broke automated navigation outright (`ERR_INVALID_AUTH_CREDENTIALS`). A login is
  * a page, like every other page here: server-rendered HTML, no client JavaScript.
  *
- * `/api/health` is the single exception, because a liveness probe cannot carry a
- * credential — so it is also the one route that must give nothing away. It reports
- * that it can read; it never reports WHAT.
+ * Three routes skip it, and each passes the same test: it discloses nothing about
+ * the schema, the data, or the existence of either.
+ *
+ * - `/api/health` — a liveness probe cannot carry a credential. It reports that it
+ *   can read; it never reports WHAT.
+ * - `/` — the landing (backlog #32), a page that opens no database connection.
+ *   Everything the console actually shows moved to `/console`, and a visitor who is
+ *   already signed in never sees the landing: they are sent straight there.
+ * - `/api/nickname` — the landing's generator. It forwards a sentence to the
+ *   droplet's model and returns two words; it touches no Postgres either.
  */
 
 export async function middleware(request: NextRequest) {
@@ -35,9 +42,16 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const signedIn = await valid(request.cookies.get(COOKIE)?.value, expected);
 
+  if (pathname === "/") {
+    // The landing is for strangers. Someone already inside gets the room, not the
+    // poster on its door.
+    if (signedIn) return NextResponse.redirect(new URL("/console", request.url));
+    return NextResponse.next();
+  }
+
   if (pathname === "/login") {
     // Already in? Don't show the door to someone standing inside the room.
-    if (signedIn) return NextResponse.redirect(new URL("/", request.url));
+    if (signedIn) return NextResponse.redirect(new URL("/console", request.url));
     return NextResponse.next();
   }
 
@@ -47,10 +61,10 @@ export async function middleware(request: NextRequest) {
   // generic home page they did not ask for.
   const login = new URL("/login", request.url);
   const wanted = pathname + search;
-  if (wanted !== "/") login.searchParams.set("next", wanted);
+  if (wanted !== "/console") login.searchParams.set("next", wanted);
   return NextResponse.redirect(login);
 }
 
 export const config = {
-  matcher: ["/((?!api/health|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/health|api/nickname|_next/static|_next/image|favicon.ico).*)"],
 };

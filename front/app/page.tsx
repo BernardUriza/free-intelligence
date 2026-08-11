@@ -1,74 +1,44 @@
 import Link from "next/link";
-import Shell from "../components/Shell.tsx";
-import { tables, where } from "../lib/db.ts";
+import NicknameGame from "../components/NicknameGame.tsx";
 
-export const dynamic = "force-dynamic";
+/**
+ * The one page a stranger may see. It is public on purpose, so it obeys the rule
+ * that governs every unauthenticated route here: it discloses nothing about the
+ * schema, the data, or the existence of either. It opens no database connection —
+ * there is no import of `lib/db.ts` above, and there must never be one.
+ *
+ * Signed-in visitors never land here: the middleware sends them to `/console`.
+ */
 
-/** The index — what the daemon has written. EC-GPS's PHP console, first screen. */
-export default async function Home() {
-  const { host, database } = where();
+export const metadata = {
+  title: "AIRE — the agent that does not forget",
+  description:
+    "An HTTP server that wraps the Claude Agent SDK and mirrors every session's transcript to Postgres.",
+};
 
-  let list;
-  try {
-    list = await tables();
-  } catch (err) {
-    return (
-      <Shell>
-        <h1>The database is unreachable</h1>
-        <p className="sub">The waiter cannot read what it cannot reach.</p>
-        <div className="err">{err instanceof Error ? err.message : String(err)}</div>
-      </Shell>
-    );
-  }
-
-  if (list.length === 0) {
-    return (
-      <Shell>
-        <h1>Nothing written yet</h1>
-        <p className="sub">
-          The database is empty — the daemon has not appended a single row.
-        </p>
-      </Shell>
-    );
-  }
-
-  const total = list.reduce((sum, t) => sum + t.rows, 0);
-
+export default function Landing() {
   return (
-    <Shell>
-      <h1>
-        {database}
-        <span className="ro">read only</span>
-      </h1>
-      <p className="sub">
-        What the daemon has written — {list.length} table{list.length === 1 ? "" : "s"},{" "}
-        {total.toLocaleString("en-US")} rows. The pen is in <code>aire-server</code>; this
-        page never writes.
-        <br />
-        {host}
+    <div className="land">
+      <h1>AIRE 🌬️</h1>
+      <p className="tag">Artificial Intelligence Reflector Envelope</p>
+
+      <p className="lede">
+        Your agent forgets everything when its container dies. AIRE does not.
       </p>
-      <div className="panel">
-        <table>
-          <thead>
-            <tr>
-              <th>table</th>
-              <th>rows</th>
-              <th>size</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((t) => (
-              <tr key={t.name}>
-                <td>
-                  <Link href={`/t/${t.name}`}>{t.name}</Link>
-                </td>
-                <td>{t.rows.toLocaleString("en-US")}</td>
-                <td>{t.size}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Shell>
+
+      <NicknameGame />
+
+      <p>
+        It wraps the Claude Agent SDK behind HTTP and mirrors every session&apos;s
+        transcript into Postgres as it happens. The log is the truth; the process
+        that writes it is disposable. Kill the machine, ask again, and the
+        conversation continues.
+      </p>
+
+      <p className="foot">
+        <Link href="/console">console →</Link>
+        <span>private · access is by invitation</span>
+      </p>
+    </div>
   );
 }

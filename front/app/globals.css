@@ -64,6 +64,13 @@ nav .brand {
   border-bottom: 1px solid var(--hairline);
   margin-bottom: 12px;
 }
+nav a.brand {
+  color: var(--ink);
+}
+nav a.brand:hover {
+  background: none;
+  text-decoration: none;
+}
 nav .brand b {
   display: block;
   font-size: 15px;
@@ -320,6 +327,138 @@ details {
 summary {
   color: var(--ink-2);
   cursor: pointer;
+}
+
+.land {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 14vh 24px 10vh;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.land h1 {
+  font-size: 30px;
+  margin: 0;
+  color: var(--ink);
+}
+.land .tag {
+  margin: 2px 0 26px;
+  color: var(--muted);
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.land .lede {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+.land h2 {
+  margin: 32px 0 8px;
+  font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.land ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.land li {
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+}
+.land li b {
+  color: var(--ink);
+}
+.land code {
+  font: 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+}
+.game {
+  margin: 28px 0 32px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.game label {
+  display: block;
+  margin-bottom: 8px;
+  font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.game textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  min-height: 74px;
+}
+.game .row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.game button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.game .hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.game .named {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+  text-align: center;
+}
+.game .named .label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.game .named input {
+  width: 100%;
+  margin: 6px 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--edge);
+  border-radius: 0;
+  padding: 4px 0;
+  text-align: center;
+  color: var(--ink);
+  font: 600 27px/1.3 inherit;
+  letter-spacing: -0.02em;
+}
+.game .named input:focus {
+  outline: 0;
+  border-bottom-color: var(--accent);
+}
+.game .wrong {
+  margin: 12px 0 0;
+  color: var(--hot);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.land .foot {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+.land .foot span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .gate {
