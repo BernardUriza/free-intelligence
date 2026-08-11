@@ -66,6 +66,8 @@ export default function NicknameGame() {
         <div className="named">
           <span className="label">you are</span>
           <input
+            id="nickname"
+            name="nickname"
             value={name}
             onChange={(e) => setName(e.target.value)}
             spellCheck={false}

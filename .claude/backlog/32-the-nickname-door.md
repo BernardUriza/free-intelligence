@@ -92,11 +92,34 @@ dies alone; the daemon must not fall with it.
 | # | Slice | State |
 |---|---|---|
 | a | Public `/`, console to `/console`, signed-in redirect | **Done 2026-08-11** — build green, `/` static, landing leaks no table name |
-| b | The nickname service on the droplet (MiniLM int8 ONNX, own unit, `MemoryMax`) + the landing game UI calling it | In progress |
+| b | The nickname service on the droplet (MiniLM int8 ONNX, own unit, `MemoryMax`) + the landing game UI calling it | **Done 2026-08-11** — verified E2E through the real browser on the friendly domain |
 | c | Request-access → mail to Bernard with an HMAC-signed link | Not started — blocked on decisions 1 & 2 |
 | d | Approval mints a per-nickname token (`aire_token`, daemon-side) + the front's confirmation page | Not started — blocked on decision 3 |
 
+## Slice (b), as measured live (2026-08-11)
+
+Not "it should work" — what was observed:
+
+- `aire-nickname.service` **active**, holding **88.9 MiB** against its `MemoryMax=200M`
+  (the estimate was ~140 MB; it came in lighter), with the engine and listener
+  untouched beside it.
+- `POST https://gate.bernarduriza.com/nickname` from **outside** the droplet:
+  **401 without a token**, real names with one.
+- In Chrome on **https://aire.bernarduriza.com** (the friendly domain, not the
+  Azure hostname): typed a sentence about repairing antique clocks → **"midnight
+  almanac"**, then edited it in place to "midnight almanac the second". The whole
+  loop a stranger will walk.
+- Gates intact after the move: `/` → 200 anonymous, `/console` → 307 to `/login`,
+  `/api/nickname` → 405 on GET.
+
+**One honest miss.** Expanding the vocabulary from the 40+40 that was browser-tested
+to 60+60 shifted the centroid — centering is vocabulary-dependent — and "soy contador
+y odio mi trabajo", which produced *clerical pelican* in the test, now produces
+*pedal velodrome*. Four of five samples still land; that one regressed. The lever is
+the word list, and the word list is Bernard's taste to set.
+
 ## Status / next step
 
-Slice (a) landed. Slice (b) is buildable now with no spend and no open decision.
-Slices (c) and (d) each wait on one answer from Bernard above — neither blocks (b).
+Slices (a) and (b) are live. Slices (c) and (d) each wait on one answer from Bernard
+above. The vocabulary is the open craft question: it is what gives the game its
+register, and it is not an engineering decision.
