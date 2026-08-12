@@ -260,6 +260,44 @@ through the gateway answered *"the slot works"* — banking **$0.000044** for
 14 in / 6 out tokens on Haiku, which is exactly `14×$1/M + 6×$5/M`. The price
 table matches real Anthropic usage to the cent's eighth decimal.
 
+## The first real consumer — insult.ai, 2026-08-11
+
+Bernard accepted the consumer-terms risk explicitly (*"yo acepto el riesgo… porque
+solamente lo estoy usando yo mismo"*) and asked for a consumer. He named
+insult.ai; it is the right pick and the wiring turned out to be smaller than
+expected, for a reason worth writing down:
+
+**His own apps do not need an invited key at all.** The gateway is
+auth-pass-through: `persona-runner` keeps sending its own
+`CLAUDE_CODE_OAUTH_TOKEN`, AIRE relays it, **spends nothing**, and still mirrors
+every turn into `aire_gateway_log`. The invited key and the lending path are for
+people who are not him. For him it is one environment variable and no budget
+surface at all.
+
+The change: `ANTHROPIC_BASE_URL=https://gate.bernarduriza.com` on the
+`persona-runner` Container App (`insult-rg`), revision `--0000154` → `--0000155`.
+Nothing else — it authenticates exactly as before.
+
+**Verified before touching production** (the auth mode matters: the Agent SDK
+spawns the CLI, so OAuth must survive the base-URL swap) — a local `claude -p`
+with `CLAUDE_CODE_OAUTH_TOKEN` and `ANTHROPIC_BASE_URL` pointed at the gate
+answered *"pass-through works"*. **Then verified in production** through the
+runner's own contract: `POST /v1/turn` returned an in-character insult and
+`session_uuid 3ae90978…`; `aire_gateway_log` holds that exact session id with
+both halves and `out=720`, matching the runner's reported `output_tokens`.
+
+**The cost, stated plainly:** AIRE's single $4 droplet is now in insult.ai's
+critical path. If the droplet dies, insult stops answering. Reverting is one
+command and needs no deploy:
+
+```
+az containerapp update -n persona-runner -g insult-rg \
+  --remove-env-vars ANTHROPIC_BASE_URL
+```
+
+Known limit to watch as volume grows: `ResponseTap` buffers each response fully
+in RAM to assemble it for the mirror, on a 512 MB box with 175 MB free.
+
 ## What is still open, and it is Bernard's
 
 The slot is chosen; **what fills it** carries two costs worth revisiting:
