@@ -73,14 +73,18 @@ dies alone; the daemon must not fall with it.
 
 ## The decisions that are Bernard's
 
-1. **His personal address.** `~/CLAUDE.md` records `bernarduriza@gmail.com`; this
-   session runs as `vegdevida@gmail.com`. Assumed the former — one word from him
-   changes it.
-2. **The mail transport.** Nothing exists yet: `~/.secrets/` holds no SMTP, Resend,
-   Postmark or SendGrid credential. Cheapest paths are Resend's free tier (3 000
-   mail/month, an API key) or Gmail SMTP with an app password. Either way it is a
-   new secret file + a `provision-do.sh` line ([[device-verb-protocol]]'s
-   persistence law: a knob that only lives in a running process is not shipped).
+1. ~~**His personal address.**~~ **Resolved 2026-08-11:** `bernarduriza@gmail.com`,
+   the address `~/CLAUDE.md` records. Lives in `~/.secrets/aire-access.txt`.
+2. ~~**The mail transport.**~~ **Resolved 2026-08-11: Resend.** The reason is
+   specific, not a preference — its free tier mails the account's OWN address with
+   no verified domain and no DNS records, and the only recipient this system ever
+   has is Bernard. A Gmail app password would also have worked and was rejected: it
+   is a credential to his whole mailbox, where this is a sending-only key revocable
+   without touching anything else. He already had a three-year-old Resend account
+   with two keys whose values were never saved, so a THIRD key (`aire-invitations`,
+   sending access only) was created rather than regenerating one — regeneration
+   would have invalidated whatever the old ones feed ([[secrets-management]]).
+   Homes: `~/.secrets/resend-aire.txt`, restored by `infra/lib/secrets.sh`.
 3. **Multi-tenant tokens do not exist yet.** `server/aire/server.py` accepts exactly
    two constants from the environment — `AIRE_AUTH_TOKEN` and `AIRE_CANARY_TOKEN`.
    Issuing a token *per nickname* means a real `aire_token` table and a lookup on
@@ -93,8 +97,8 @@ dies alone; the daemon must not fall with it.
 |---|---|---|
 | a | Public `/`, console to `/console`, signed-in redirect | **Done 2026-08-11** — build green, `/` static, landing leaks no table name |
 | b | The nickname service on the droplet (MiniLM int8 ONNX, own unit, `MemoryMax`) + the landing game UI calling it | **Done 2026-08-11** — verified E2E through the real browser on the friendly domain |
-| c | Request-access → mail to Bernard with an HMAC-signed link | Not started — blocked on decisions 1 & 2 |
-| d | Approval mints a per-nickname token (`aire_token`, daemon-side) + the front's confirmation page | Not started — blocked on decision 3 |
+| c | Request-access → mail to Bernard with an HMAC-signed link | **Done 2026-08-11** — decisions 1 & 2 resolved below; smoke test landed in the real inbox |
+| d | Approval mints a per-nickname token (`aire_token`, daemon-side) + the door accepts it | Not started — blocked on decision 3 |
 
 ## Slice (b), as measured live (2026-08-11)
 
@@ -118,8 +122,32 @@ y odio mi trabajo", which produced *clerical pelican* in the test, now produces
 *pedal velodrome*. Four of five samples still land; that one regressed. The lever is
 the word list, and the word list is Bernard's taste to set.
 
+## Slice (c), as measured live (2026-08-11)
+
+The whole path walked in the real browser, one stranger's worth:
+
+- Typed *"I run a tiny bakery and I get up at four in the morning to start the
+  ovens"* → **hungry foundry**. Edited it to *"the four-o-clock hungry foundry"* and
+  pressed **request access**.
+- The mail landed in the real Gmail inbox at **6:23 PM**, subject *"AIRE — the
+  four-o-clock hungry foundry wants in"* — carrying the **edited** name, which is
+  the point: the name is the visitor's, not the model's.
+- Clicking the link in the mail redirected to
+  `/approved?n=the four-o-clock hungry foundry`, and the row came back from Postgres
+  read as **`aire_reader`** with `approved = t` — so the table was created as role
+  `aire` and the DDL rule held.
+- A **tampered signature** (`?n=impostor&t=…deadbeef`) redirected to `?bad=1` and
+  approved nothing.
+
+The transport was smoke-tested before being wired, and the check that mattered was
+his inbox, not Resend's `200` — an API accepting a message is not a message
+delivered.
+
 ## Status / next step
 
-Slices (a) and (b) are live. Slices (c) and (d) each wait on one answer from Bernard
-above. The vocabulary is the open craft question: it is what gives the game its
-register, and it is not an engineering decision.
+Slices (a), (b) and (c) are live. Slice (d) — the per-nickname token and the door
+that accepts it — is the only one left, and it is where a leaked invitation becomes
+a spend event, so it is also [[28-per-token-budget]]'s natural home.
+
+The vocabulary stays the open craft question: it is what gives the game its
+register, and it is Bernard's taste, not an engineering decision.
