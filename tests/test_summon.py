@@ -95,3 +95,21 @@ async def test_network_error_swallowed_returns_false():
     with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
         ok = await summon_persona({"reason": "ven"}, channel_id="123")
     assert ok is False
+
+
+async def test_read_budget_outlasts_a_cold_gateway_boot():
+    """A scaled-to-zero gateway must not be mistaken for a dead one.
+
+    Container Apps' ingress holds the request open while the replica boots, so
+    the cold start shows up as READ latency, not as a connection error. The old
+    flat 5.0s budget expired mid-boot and dropped the summon silently; the read
+    now has to outlast a real boot (~20-35s measured on this environment) while
+    CONNECT stays short so a genuinely unreachable gateway still fails fast.
+    """
+    ctx, _ = _mock_async_client(202)
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx) as cliente:
+        await summon_persona({"reason": "ven"}, channel_id="123")
+
+    timeout = cliente.call_args.kwargs["timeout"]
+    assert timeout.read >= 60.0, "el read no aguanta un arranque en frio"
+    assert timeout.connect <= 10.0, "el connect dejo de fallar rapido"

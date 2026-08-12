@@ -27,9 +27,17 @@ The durable host is `persona-gateway`:
   `khimeras_shared/` + `shared/` (its real import graph), guarded against the
   ModuleNotFound copy-gap class by
   `tests/arch/test_runner_dockerfile_copies_imports.py`.
-- **Container App**: `prod-env`, **`minReplicas=maxReplicas=1`** — a Discord
-  bot with >1 replica connects N times and posts DUPLICATE replies; single
-  instance is mandatory. **No ingress** (Discord is outbound-only). Secrets:
+- **Container App**: `prod-env`, **`minReplicas=maxReplicas=1`** — and BOTH
+  halves are load-bearing, for opposite reasons. `max=1`: a Discord bot with >1
+  replica connects N times and posts DUPLICATE replies. `min=1`: the gateway
+  HOLDS each persona's Discord websocket, and a DM never issues an `/invite`
+  that could wake it (Discord isolates DM channels per bot user, so the host
+  cannot see a DM — `persona_gateway/routing.py::should_respond`). Scaled to
+  zero the personas are offline and every DM dies unheard — the 2026-07-27 "en
+  su app no contestan" incident through a different door. **`min=1` here is a
+  product requirement, not a cost oversight**: it survived a 2026-08-12 cost
+  sweep that took every other app in the subscription to `min=0`, and the
+  reason is written down so the next sweep does not "discover" the saving again. **No ingress** (Discord is outbound-only). Secrets:
   `postgres-url`, `agent-runner-token`, `vultur-discord-token`; env mirrors
   discord-bot's runner wiring (`PERSONA_RUNNER_URL` plain value).
 - **`cd.yml`** builds + deploys + startup-health-checks (`persona_gateway_starting`)

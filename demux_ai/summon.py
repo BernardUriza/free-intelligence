@@ -34,6 +34,34 @@ import structlog
 
 log = structlog.get_logger()
 
+# Container Apps' ingress HOLDS a request open while a scaled-to-zero replica
+# boots instead of refusing it, so a SLEEPING gateway looks like a hang, never
+# like a connection error — the only signal is latency. (Same trap
+# `khimeras_shared.stt` documents for susurro, and the reason the runner client
+# splits its budget the same way in `khimeras_shared/runner/agent_client.py`.)
+#
+# A flat 5s budget therefore turned "the gateway is cold" into a DROPPED summon:
+# the persona simply never arrived and `summon_http_error` was the only trace.
+# min=1 hides it most of the time but does NOT remove it — every deploy, every
+# revision swap and every restart hands the host a gateway that is still booting,
+# and a boot measured on this environment takes ~20-35s.
+#
+# Splitting the budget keeps the fast failure where it belongs: a gateway that
+# is genuinely unreachable still dies on CONNECT in seconds, while the read
+# waits out the boot. Safe because this call is fire-and-forget in the
+# background — no user turn blocks on it (see `summon_persona`'s docstring).
+#
+# This fix does NOT make persona-gateway safe to scale to zero, and nobody
+# should read it as a licence to try: the gateway holds each persona's Discord
+# websocket, and a DM never produces an `/invite` to wake it (Discord isolates
+# DM channels per bot user, so the host cannot see a DM — see
+# `persona_gateway/routing.py::should_respond`). Scaled to zero the personas are
+# simply offline and every DM dies unheard, which is the 2026-07-27 "en su app
+# no contestan" incident reached through a different door. min=1 there is a
+# product requirement, not a cost oversight.
+SUMMON_CONNECT_TIMEOUT_S = 5.0
+SUMMON_READ_TIMEOUT_S = 90.0
+
 
 async def summon_persona(
     tool_input: dict,
@@ -97,7 +125,8 @@ async def summon_persona(
         # 301s http→https. Without this httpx returns the 301 as-is and we
         # treat the redirect as a rejection. Discovered v3.9.13 in prod logs:
         # `summon_rejected status: 301 body: ""`.
-        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+        timeout = httpx.Timeout(SUMMON_READ_TIMEOUT_S, connect=SUMMON_CONNECT_TIMEOUT_S)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             resp = await client.post(
                 url,
                 json=payload,
