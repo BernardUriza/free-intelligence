@@ -120,6 +120,101 @@ private func elHistorialViajaSinElTurnoNuevo() async {
     expect(vistos.last?.contains { $0.content == "nuevo" } == false, "y NO incluye el mensaje en curso")
 }
 
+private func derivacionesIgualesQueCore() {
+    print("título y preview derivan igual que free-intelligence-core")
+    expect(ConversationSchema.title([]) == "New chat", "sin mensajes → New chat")
+    expect(
+        ConversationSchema.title([ChatMessage(role: .assistant, content: "yo hablo primero")]) == "New chat",
+        "sin mensaje de usuario → New chat"
+    )
+    expect(
+        ConversationSchema.title([
+            ChatMessage(role: .user, content: "  hola   mundo \n raro  ")
+        ]) == "hola mundo raro",
+        "colapsa espacios y recorta"
+    )
+    let largo = String(repeating: "a", count: 80)
+    let corto = ConversationSchema.title([ChatMessage(role: .user, content: largo)])
+    expect(corto.count == 60, "título tope 60 (fue \(corto.count))")
+    expect(corto.hasSuffix("…"), "y termina en elipsis")
+    expect(
+        ConversationSchema.preview([
+            ChatMessage(role: .user, content: "primero"),
+            ChatMessage(role: .assistant, content: "ultimo"),
+            ChatMessage(role: .user, content: "   ")
+        ]) == "ultimo",
+        "preview = último NO vacío de cualquier rol"
+    )
+}
+
+@MainActor
+private func persisteAlCerrarElTurno() async {
+    print("el turno se persiste con la forma que el servidor exige")
+    var guardados: [ConversationRecord] = []
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.author(id: "53", name: "Yodo"), .text("respuesta"), .done]),
+        persist: { guardados.append($0) },
+        restore: { _ in nil },
+        now: { "2026-08-12T21:00:00Z" }
+    )
+    model.send("pregunta")
+    await settle()
+
+    expect(guardados.count == 1, "se guardó una vez al cerrar el turno")
+    guard let r = guardados.first else { return }
+    expect(r.id == "abc-123", "el id del path es el de la conversación")
+    expect(r.schemaVersion == 1, "schemaVersion 1, como core")
+    expect(r.messages.count == 2, "usuario + asistente")
+    expect(r.title == "pregunta", "título del primer mensaje de usuario")
+    expect(r.preview == "respuesta", "preview del último mensaje")
+    expect(r.messages.last?.author == "Yodo", "la autoría sobrevive al guardado")
+    expect(r.messages.first?.timestamp != nil, "los mensajes llevan timestamp")
+}
+
+@MainActor
+private func restauraElHiloAlArrancar() async {
+    print("al arrancar recupera el hilo del servidor")
+    let previo = ConversationRecord.from(
+        id: "abc-123",
+        messages: [
+            ChatMessage(role: .user, content: "de ayer"),
+            ChatMessage(role: .assistant, content: "te contesté ayer", author: "Yodo")
+        ],
+        createdAt: "2026-08-11T10:00:00Z",
+        now: "2026-08-11T10:00:05Z"
+    )
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.done]),
+        persist: { _ in },
+        restore: { _ in previo },
+        now: { "2026-08-12T21:00:00Z" }
+    )
+    await model.restoreThread()
+
+    expect(model.messages.count == 2, "el hilo vuelve (llegaron \(model.messages.count))")
+    expect(model.messages.last?.author == "Yodo", "con su autoría intacta")
+    expect(model.messages.first?.role == .user, "y con los roles bien")
+}
+
+@MainActor
+private func elIdDeConversacionEsElSessionID() async {
+    print("el id de conversación viaja como session_id, no uno aleatorio")
+    var visto: String?
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: { _, sessionID, _ in
+            visto = sessionID
+            return AsyncThrowingStream { $0.finish() }
+        },
+        now: { "2026-08-12T21:00:00Z" }
+    )
+    model.send("x")
+    await settle()
+    expect(visto == "abc-123", "session_id == id de conversación (fue \(visto ?? "nil"))")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -129,6 +224,10 @@ struct Harness {
         await cancelarNoDuplicaLaBurbuja()
         await elErrorNoInventaBurbuja()
         await elHistorialViajaSinElTurnoNuevo()
+        derivacionesIgualesQueCore()
+        await persisteAlCerrarElTurno()
+        await restauraElHiloAlArrancar()
+        await elIdDeConversacionEsElSessionID()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }

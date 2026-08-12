@@ -15,6 +15,7 @@ struct ContentView: View {
         Group {
             if auth.isSignedIn {
                 conversation
+                    .task { await chat.restoreThread() }
             } else {
                 signIn
             }

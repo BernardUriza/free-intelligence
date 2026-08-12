@@ -10,6 +10,7 @@ struct ChatMessage: Identifiable, Encodable {
     let role: Role
     var content: String
     var author: String?
+    var timestamp: String?
 
     enum CodingKeys: String, CodingKey {
         case role
@@ -95,6 +96,43 @@ struct Og118Client {
                 }
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    func loadConversation(id: String) async throws -> ConversationRecord? {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations/\(id)"))
+        try await authorize(&request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        if http.statusCode == 404 { return nil }
+        if http.statusCode == 401 { throw Og118Error.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+        return try JSONDecoder().decode(ConversationRecord.self, from: data)
+    }
+
+    func saveConversation(_ record: ConversationRecord) async throws {
+        var request = URLRequest(
+            url: Config.apiBase.appendingPathComponent("conversations/\(record.id)")
+        )
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        try await authorize(&request)
+        request.httpBody = try JSONEncoder().encode(record)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        if http.statusCode == 401 { throw Og118Error.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+    }
+
+    private func authorize(_ request: inout URLRequest) async throws {
+        let token = try await accessToken()
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
     }
 

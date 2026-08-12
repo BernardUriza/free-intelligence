@@ -13,8 +13,9 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | Qué | Cómo se comprobó | Resultado |
 |---|---|---|
 | Los fuentes compilan | `swiftc -typecheck` contra el SDK de macOS | 0 errores, 0 warnings |
-| La lógica del turno **se ejecuta** y hace lo que dice | arnés de `Tests/`, corrido de verdad | 14/14 verde |
+| La lógica del turno **se ejecuta** y hace lo que dice | arnés de `Tests/`, corrido de verdad | 32/32 verde |
 | El arnés detecta el bug si vuelve | mutación: quitar la guarda de `fold()` | rojo, "hubo 2" burbujas, exit 1 |
+| El JSON que emite Swift **lo acepta el servidor** | `ConversationRecordRequest.model_validate` sobre el JSON real | acepta; id válido; `author` preservado |
 | `project.yml` es válido | `xcodegen generate` | genera `OG118.xcodeproj` |
 | La API de producción responde | `curl /health` (tras cold start) | `200` |
 | El cliente Auth0 existe y acepta el callback | `GET /authorize` con el `client_id` y el `redirect_uri` reales | `302` al login, sin *Unknown client* ni *Callback URL mismatch* |
@@ -41,6 +42,33 @@ swiftc -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
 No es XCTest a propósito: XCTest necesita Xcode, y el punto del arnés es
 verificar **mientras Xcode no está**. Cuando Xcode entre, se convierte en un
 test target sin reescribir los asserts.
+
+### Cruzar la frontera de lenguaje
+
+Los asserts de Swift no prueban que el **servidor** acepte lo que Swift emite —
+ese borde es donde estas cosas truenan. El JSON del record se valida contra el
+Pydantic real:
+
+```bash
+cd apps/og118/server
+.venv/bin/python -c "
+import json, sys; sys.path.insert(0, '.')
+from app import ConversationRecordRequest
+ConversationRecordRequest.model_validate(json.load(open('/tmp/record.json')))
+print('el servidor acepta el JSON de Swift')"
+```
+
+## Persistencia
+
+El transcript vive en el servidor, no en el teléfono: `PUT /conversations/{id}`
+al cerrar cada turno y `GET` al arrancar. El id de conversación se guarda en
+`UserDefaults` y **es también el `session_id`** que viaja en `/chat/stream` —
+así lo manda el contrato de core (*"Stable id. Doubles as the backend session_id
+for the same thread"*), y por eso no se genera un uuid aparte por lanzamiento.
+
+Título, preview y truncado replican `free-intelligence-core` al carácter
+(tope 60 y 120, colapso de espacios, elipsis) para que el mismo hilo se lea
+igual en la web y en el teléfono.
 
 ## Construir
 
@@ -89,7 +117,8 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 | `Auth.swift` | Auth0 PKCE con `ASWebAuthenticationSession` + refresh |
 | `Og118Client.swift` | `POST /chat/stream` y el parser de frames SSE |
 | `StreamEvent.swift` | frames nativos de fi-runner → eventos tipados |
-| `ChatModel.swift` | un turno vivo + el fold a transcript |
+| `ChatModel.swift` | un turno vivo, el fold a transcript y la persistencia |
+| `ConversationRecord.swift` | el record de `/conversations` + las derivaciones de core |
 | `ContentView.swift` | login, transcript y composer |
 
 El parser corta por línea en blanco y toma las líneas `data:`, igual que

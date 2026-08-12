@@ -6,6 +6,7 @@ final class ChatModel: ObservableObject {
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: String?
     @Published private(set) var isStreaming = false
+    @Published private(set) var isRestoring = false
     @Published var errorMessage: String?
 
     typealias Stream = (
@@ -13,17 +14,52 @@ final class ChatModel: ObservableObject {
         _ sessionID: String,
         _ history: [ChatMessage]
     ) -> AsyncThrowingStream<StreamEvent, Error>
+    typealias Persist = (ConversationRecord) async throws -> Void
+    typealias Restore = (String) async throws -> ConversationRecord?
 
-    private let sessionID = UUID().uuidString
+    let conversationID: String
+
     private let stream: Stream
+    private let persist: Persist?
+    private let restore: Restore?
+    private let now: () -> String
+    private var createdAt: String
     private var turn: Task<Void, Never>?
 
-    init(stream: @escaping Stream) {
+    init(
+        conversationID: String = ConversationIdentity.current(),
+        stream: @escaping Stream,
+        persist: Persist? = nil,
+        restore: Restore? = nil,
+        now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) }
+    ) {
+        self.conversationID = conversationID
         self.stream = stream
+        self.persist = persist
+        self.restore = restore
+        self.now = now
+        self.createdAt = now()
     }
 
     convenience init(client: Og118Client) {
-        self.init(stream: client.stream)
+        self.init(
+            stream: client.stream,
+            persist: client.saveConversation,
+            restore: client.loadConversation
+        )
+    }
+
+    func restoreThread() async {
+        guard let restore, messages.isEmpty, !isRestoring else { return }
+        isRestoring = true
+        defer { isRestoring = false }
+        do {
+            guard let record = try await restore(conversationID) else { return }
+            createdAt = record.createdAt
+            messages = record.chatMessages
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func send(_ text: String) {
@@ -31,7 +67,7 @@ final class ChatModel: ObservableObject {
         guard !trimmed.isEmpty, !isStreaming else { return }
 
         let history = messages
-        messages.append(ChatMessage(role: .user, content: trimmed))
+        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now()))
         liveText = ""
         liveAuthor = nil
         errorMessage = nil
@@ -39,11 +75,10 @@ final class ChatModel: ObservableObject {
 
         turn = Task {
             do {
-                for try await event in stream(trimmed, sessionID, history) {
+                for try await event in stream(trimmed, conversationID, history) {
                     apply(event)
                 }
             } catch is CancellationError {
-                // el fold ya lo hizo cancel()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -77,9 +112,47 @@ final class ChatModel: ObservableObject {
         guard isStreaming else { return }
         isStreaming = false
         if !liveText.isEmpty {
-            messages.append(ChatMessage(role: .assistant, content: liveText, author: liveAuthor))
+            messages.append(
+                ChatMessage(
+                    role: .assistant,
+                    content: liveText,
+                    author: liveAuthor,
+                    timestamp: now()
+                )
+            )
         }
         liveText = ""
         liveAuthor = nil
+        save()
+    }
+
+    private func save() {
+        guard let persist, !messages.isEmpty else { return }
+        let record = ConversationRecord.from(
+            id: conversationID,
+            messages: messages,
+            createdAt: createdAt,
+            now: now()
+        )
+        Task {
+            do {
+                try await persist(record)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+enum ConversationIdentity {
+    private static let key = "og118.conversation.id"
+
+    static func current(defaults: UserDefaults = .standard) -> String {
+        if let existing = defaults.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        let fresh = UUID().uuidString
+        defaults.set(fresh, forKey: key)
+        return fresh
     }
 }
