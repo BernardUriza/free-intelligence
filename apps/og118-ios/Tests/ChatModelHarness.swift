@@ -259,6 +259,122 @@ private func laListaEscondeLosArchivados() async {
     expect(modelo.summaries.first?.id == "1", "y es la correcta")
 }
 
+@MainActor
+private func laRedCaidaNoTeDesloguea() async {
+    print("perder la red NO borra la sesión; un rechazo de Auth0 sí")
+    var guardado: String? = "refresh-viejo"
+    func deps(_ fallo: AuthError) -> AuthDependencies {
+        AuthDependencies(
+            exchange: { _ in throw fallo },
+            keychainRead: { guardado },
+            keychainSave: { guardado = $0; return true },
+            keychainDelete: { guardado = nil }
+        )
+    }
+
+    let sinRed = Auth(deps: deps(.transport("The Internet connection appears to be offline.")))
+    expect(sinRed.isSignedIn, "arranca con sesión restaurada del Keychain")
+    do { _ = try await sinRed.token(); expect(false, "debía fallar") } catch {}
+    expect(sinRed.isSignedIn, "SIGUE con sesión tras un fallo de red")
+    expect(guardado != nil, "el refresh token SIGUE en el Keychain")
+
+    guardado = "refresh-revocado"
+    let revocado = Auth(deps: deps(.rejected(403)))
+    do { _ = try await revocado.token(); expect(false, "debía fallar") } catch {}
+    expect(revocado.isSignedIn == false, "un 403 sí cierra la sesión")
+    expect(guardado == nil, "y sí limpia el Keychain")
+
+    expect(AuthError.transport("x").revokesSession == false, "transporte no revoca")
+    expect(AuthError.rejected(401).revokesSession, "401 revoca")
+    expect(AuthError.rejected(500).revokesSession == false, "un 500 del servidor NO revoca")
+}
+
+@MainActor
+private func elKeychainMudoAvisa() async {
+    print("si el Keychain no guarda, el usuario se entera")
+    let auth = Auth(deps: AuthDependencies(
+        exchange: { _ in TokenResponse(accessToken: "at", refreshToken: "rt", expiresIn: 3600) },
+        keychainRead: { "previo" },
+        keychainSave: { _ in false },
+        keychainDelete: {}
+    ))
+    _ = try? await auth.token()
+    expect(auth.storageWarning != nil, "hay aviso cuando el guardado falla")
+    expect(auth.isSignedIn, "pero la sesión de esta corrida sigue viva")
+}
+
+@MainActor
+private func cancelarNoPersisteRespuestaAMedias() async {
+    print("cancelar no guarda la respuesta truncada ni la manda como history")
+    var guardados: [ConversationRecord] = []
+    var historiales: [[ChatMessage]] = []
+    let model = ChatModel(
+        conversationID: "c1",
+        stream: { _, _, history in
+            historiales.append(history)
+            return AsyncThrowingStream { continuation in
+                let t = Task {
+                    for i in 0..<200 {
+                        if Task.isCancelled { break }
+                        continuation.yield(.text("frag\(i) "))
+                        try? await Task.sleep(nanoseconds: 2_000_000)
+                    }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in t.cancel() }
+            }
+        },
+        persist: { guardados.append($0) },
+        restore: { _ in nil },
+        now: { "2026-08-12T22:00:00Z" }
+    )
+    model.send("pregunta larga")
+    try? await Task.sleep(nanoseconds: 60_000_000)
+    model.cancel()
+    await settle()
+
+    expect(model.messages.filter { $0.role == .assistant }.isEmpty, "no queda respuesta a medias")
+    expect(guardados.isEmpty, "y NO se persistió nada del turno cancelado")
+
+    model.send("segunda")
+    await settle()
+    let ultimo = historiales.last ?? []
+    expect(
+        ultimo.contains { $0.content.hasPrefix("frag") } == false,
+        "el fragmento cancelado NO viaja como history"
+    )
+}
+
+@MainActor
+private func losGuardadosNoSePisan() async {
+    print("dos turnos seguidos guardan EN ORDEN, nunca en paralelo")
+    var enVuelo = 0
+    var maxEnVuelo = 0
+    var ordenRecibido: [Int] = []
+    let model = ChatModel(
+        conversationID: "c2",
+        stream: canned([.text("r"), .done]),
+        persist: { record in
+            enVuelo += 1
+            maxEnVuelo = max(maxEnVuelo, enVuelo)
+            let n = record.messages.count
+            try? await Task.sleep(nanoseconds: UInt64((6 - n) * 20_000_000))
+            ordenRecibido.append(n)
+            enVuelo -= 1
+        },
+        restore: { _ in nil },
+        now: { "2026-08-12T22:00:00Z" }
+    )
+    model.send("uno")
+    await settle()
+    model.send("dos")
+    await settle()
+    try? await Task.sleep(nanoseconds: 300_000_000)
+
+    expect(maxEnVuelo == 1, "nunca hubo dos PUT simultáneos (máximo \(maxEnVuelo))")
+    expect(ordenRecibido == [2, 4], "llegaron en orden creciente \(ordenRecibido)")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -274,6 +390,10 @@ struct Harness {
         await elIdDeConversacionEsElSessionID()
         await cambiarDeHiloNoMezclaMensajes()
         await laListaEscondeLosArchivados()
+        await laRedCaidaNoTeDesloguea()
+        await elKeychainMudoAvisa()
+        await cancelarNoPersisteRespuestaAMedias()
+        await losGuardadosNoSePisan()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }

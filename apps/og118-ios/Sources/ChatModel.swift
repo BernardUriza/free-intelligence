@@ -25,6 +25,7 @@ final class ChatModel: ObservableObject {
     private let now: () -> String
     private var createdAt: String
     private var turn: Task<Void, Never>?
+    private var saveChain: Task<Void, Never>?
 
     init(
         conversationID: String = ConversationIdentity.current(),
@@ -112,7 +113,17 @@ final class ChatModel: ObservableObject {
     func cancel() {
         turn?.cancel()
         turn = nil
-        fold()
+        discardLiveTurn()
+    }
+
+    /// Un turno cancelado NO deja respuesta. Persistir el texto a medias lo
+    /// devolvería como `history` en el turno siguiente y el modelo leería su
+    /// propia frase mutilada como contexto.
+    private func discardLiveTurn() {
+        guard isStreaming else { return }
+        isStreaming = false
+        liveText = ""
+        liveAuthor = nil
     }
 
     private func apply(_ event: StreamEvent) {
@@ -149,6 +160,9 @@ final class ChatModel: ObservableObject {
         save()
     }
 
+    /// Los guardados van encadenados: dos PUT concurrentes al mismo id se
+    /// resuelven last-write-wins en el servidor, así que un snapshot viejo que
+    /// llegue tarde borraría el turno más reciente.
     private func save() {
         guard let persist, !messages.isEmpty else { return }
         let record = ConversationRecord.from(
@@ -157,11 +171,13 @@ final class ChatModel: ObservableObject {
             createdAt: createdAt,
             now: now()
         )
-        Task {
+        let previous = saveChain
+        saveChain = Task { [weak self] in
+            await previous?.value
             do {
                 try await persist(record)
             } catch {
-                errorMessage = error.localizedDescription
+                await MainActor.run { self?.errorMessage = error.localizedDescription }
             }
         }
     }
