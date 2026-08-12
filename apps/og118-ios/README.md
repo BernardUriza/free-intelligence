@@ -19,11 +19,32 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | `project.yml` es válido | `xcodegen generate` | genera `OG118.xcodeproj` |
 | La API de producción responde | `curl /health` (tras cold start) | `200` |
 | El cliente Auth0 existe y acepta el callback | `GET /authorize` con el `client_id` y el `redirect_uri` reales | `302` al login, sin *Unknown client* ni *Callback URL mismatch* |
-| **Corre en un iPhone** | **no probado** | **requiere Xcode, que no está instalado** |
+| **Compila para iOS** | `xcodebuild -sdk iphonesimulator` con Xcode 26.6 | `** BUILD SUCCEEDED **` |
+| **Arranca y se ve** | instalada y lanzada en un simulador iPhone 16 Pro / iOS 26.5 | login renderiza con la identidad de og118 |
+| **Corre en el iPhone físico** | **no probado** | falta conectar el teléfono por cable |
 
-La fila del iPhone es la que importa: **la app nunca ha arrancado en un
-teléfono**. Hasta que lo haga y complete una vuelta de chat contra el servidor
-real, se presume rota.
+Ya arranca y se ve como og118, pero **nadie ha completado todavía una vuelta de
+chat real** — login de Auth0 contra el tenant, SSE del servidor, respuesta
+pintada. Eso sigue presumiéndose roto hasta que ocurra.
+
+## Correrla en el simulador
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer
+cd apps/og118-ios && xcodegen generate
+xcodebuild -project OG118.xcodeproj -scheme OG118 -sdk iphonesimulator \
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/og118-dd build
+SIM=$(xcrun simctl create og118-test com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro \
+  com.apple.CoreSimulator.SimRuntime.iOS-26-5)
+xcrun simctl boot "$SIM"
+xcrun simctl install "$SIM" /tmp/og118-dd/Build/Products/Debug-iphonesimulator/og118.app
+xcrun simctl launch "$SIM" com.bernard.og118
+xcrun simctl io "$SIM" screenshot /tmp/og118.png
+```
+
+El simulador **no necesita cuenta de desarrollador ni firma** (`Sign to Run
+Locally`). Los $99 y el Modo desarrollador sólo hacen falta para el teléfono
+físico.
 
 ## Correr el arnés sin Xcode
 
@@ -123,6 +144,7 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 | `ChatModel.swift` | un turno vivo, el fold a transcript y la persistencia |
 | `ConversationRecord.swift` | el record de `/conversations` + las derivaciones de core |
 | `ContentView.swift` | login, transcript, composer y hoja de conversaciones |
+| `Theme.swift` | los tokens de og118 (`--og-bg-deep`, `--og-accent`) traducidos a SwiftUI |
 
 El parser corta por línea en blanco y toma las líneas `data:`, igual que
 `useOg118Agent.ts`. El `session_id` lo manda el cliente y es estable por sesión

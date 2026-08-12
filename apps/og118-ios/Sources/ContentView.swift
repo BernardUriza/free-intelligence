@@ -15,7 +15,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            GlassBackground()
             if auth.isSignedIn {
                 conversation
                     .task { await chat.restoreThread() }
@@ -24,26 +25,29 @@ struct ContentView: View {
                 signIn
             }
         }
+        .preferredColorScheme(.dark)
+        .tint(Theme.accent)
     }
 
     private var signIn: some View {
         VStack(spacing: 20) {
             Text("og118")
                 .font(.largeTitle.bold())
+                .foregroundStyle(Theme.text)
             Text("Inicia sesión para continuar.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textMuted)
             Button {
                 Task { await startSignIn() }
             } label: {
                 Text(signingIn ? "Abriendo…" : "Iniciar sesión")
-                    .frame(maxWidth: 260, minHeight: 50)
+                    .frame(maxWidth: 220)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(AccentButtonStyle())
             .disabled(signingIn)
             if let signInError {
                 Text(signInError)
                     .font(.footnote)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.danger)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -93,6 +97,7 @@ struct ContentView: View {
                     showingConversations = true
                 } label: {
                     Image(systemName: "line.3.horizontal")
+                        .foregroundStyle(Theme.textMuted)
                         .frame(width: 44, height: 44)
                 }
                 Spacer()
@@ -100,6 +105,7 @@ struct ContentView: View {
                     chat.startNew()
                 } label: {
                     Image(systemName: "square.and.pencil")
+                        .foregroundStyle(Theme.textMuted)
                         .frame(width: 44, height: 44)
                 }
             }
@@ -119,7 +125,7 @@ struct ContentView: View {
                     if let error = chat.errorMessage {
                         Text(error)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.danger)
                     }
                 }
                 .padding(12)
@@ -132,29 +138,44 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(role == .user ? "Tú" : (author ?? "og118"))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(role == .user ? Theme.accent : Theme.textMuted)
             Text(text)
                 .font(.body)
+                .foregroundStyle(Theme.text)
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
-        .background(role == .user ? Color.secondary.opacity(0.12) : Color.clear)
+        .background(role == .user ? Theme.bubbleUser : Theme.bubbleAssistant)
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(role == .user ? Theme.bubbleUserBorder : Theme.bubbleBorder, lineWidth: 1)
+        )
     }
 
     private var composer: some View {
         HStack(spacing: 8) {
             TextField("Escribe…", text: $draft, axis: .vertical)
                 .lineLimit(1...5)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .foregroundStyle(Theme.text)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
+                .background(Theme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.radius)
+                        .stroke(Theme.surfaceBorder, lineWidth: 1)
+                )
             Button {
                 chat.send(draft)
                 draft = ""
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.title2)
+                    .foregroundStyle(Theme.accent)
                     .frame(width: 44, height: 44)
             }
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chat.isStreaming)
