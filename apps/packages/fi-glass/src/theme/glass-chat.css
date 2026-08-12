@@ -57,6 +57,15 @@
      and rendering `<div class="glass-chat-watermark" aria-hidden />`. */
   --glass-chat-watermark-image: none;
   --glass-chat-watermark-opacity: 0.08;
+  /* Placement is responsive because `contain` on a PORTRAIT viewport sizes the
+     mark to the full WIDTH and centers it — landing exactly on centered content
+     (a login screen reads it as a broken duplicate wordmark, not as texture).
+     Below the breakpoint the mark is capped and dropped off the vertical
+     center; a consumer can retune either without touching the framework. */
+  --glass-chat-watermark-size: contain;
+  --glass-chat-watermark-position: center;
+  --glass-chat-watermark-size-compact: min(58vw, 280px);
+  --glass-chat-watermark-position-compact: center 78%;
 
   /* Text. */
   --glass-chat-text: #ffffff;
@@ -89,8 +98,8 @@
   position: fixed;
   inset: 0;
   background-image: var(--glass-chat-watermark-image);
-  background-size: contain;
-  background-position: center;
+  background-size: var(--glass-chat-watermark-size);
+  background-position: var(--glass-chat-watermark-position);
   background-repeat: no-repeat;
   opacity: var(--glass-chat-watermark-opacity);
   pointer-events: none;
@@ -98,6 +107,13 @@
      content with zero consumer coordination (no z-index choreography needed). */
   z-index: -1;
   filter: blur(0.5px);
+}
+
+@media (max-width: 768px) {
+  .glass-chat-watermark {
+    background-size: var(--glass-chat-watermark-size-compact);
+    background-position: var(--glass-chat-watermark-position-compact);
+  }
 }
 
 /* Header band: the signature emerald→cyan gradient. */
