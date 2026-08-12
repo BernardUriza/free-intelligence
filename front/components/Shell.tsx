@@ -49,6 +49,9 @@ export default async function Shell({
         <Link href="/claude" className={active === "~claude" ? "on" : ""}>
           claude
         </Link>
+        <Link href="/gateway" className={active === "~gateway" ? "on" : ""}>
+          gateway
+        </Link>
         <Link href="/monster" className={active === "~monster" ? "on" : ""}>
           the monster
         </Link>

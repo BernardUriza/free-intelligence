@@ -425,3 +425,57 @@ export async function claudeTranscript(projectKey: string, sessionId: string): P
     [projectKey, sessionId],
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * The gateway's memory (#30/#32): raw API turns, as the door relayed  *
+ * them. Two rows per exchange — the request the consumer sent and the *
+ * response Anthropic returned — correlated by `exchange` and paired   *
+ * here, because a half-turn is not a turn.                            *
+ * ------------------------------------------------------------------ */
+
+export type GatewayTurn = {
+  exchange: string; ts: string; model: string | null; session_id: string | null;
+  project: string | null; stop_reason: string | null; status: number | null;
+  input_tokens: number | null; output_tokens: number | null; asked: string | null;
+};
+export type GatewayHalves = { request: unknown; response: unknown; ts: string; model: string | null };
+
+export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
+  // `asked` is the TAIL of the last text block, not the head: a Claude Code turn
+  // opens with pages of system-reminder scaffolding and ends with what the human
+  // actually said, so the last 160 chars are the readable part.
+  return read<GatewayTurn>(
+    `
+    SELECT q.exchange,
+           coalesce(a.ts, q.ts)::text          AS ts,
+           coalesce(a.model, q.model)          AS model,
+           q.session_id, q.project,
+           a.stop_reason, a.status,
+           (a.usage->>'input_tokens')::int     AS input_tokens,
+           (a.usage->>'output_tokens')::int    AS output_tokens,
+           right(
+             CASE WHEN jsonb_typeof(m.content) = 'string' THEN m.content #>> '{}'
+                  ELSE (SELECT b.v ->> 'text'
+                        FROM jsonb_array_elements(m.content) WITH ORDINALITY AS b(v, n)
+                        WHERE b.v ->> 'type' = 'text' ORDER BY b.n DESC LIMIT 1)
+             END, 160)                         AS asked
+    FROM aire_gateway_log q
+    LEFT JOIN aire_gateway_log a ON a.exchange = q.exchange AND a.kind = 'response'
+    CROSS JOIN LATERAL (SELECT jsonb_path_query_first(q.body, '$.messages[last].content') AS content) m
+    WHERE q.kind = 'request'
+    ORDER BY q.seq DESC LIMIT $1
+    `,
+    [limit],
+  );
+}
+
+export async function gatewayExchange(exchange: string): Promise<GatewayHalves | null> {
+  const rows = await read<{ kind: string; body: unknown; ts: string; model: string | null }>(
+    `SELECT kind, body, ts::text AS ts, model FROM aire_gateway_log WHERE exchange = $1 ORDER BY seq`,
+    [exchange],
+  );
+  if (rows.length === 0) return null;
+  const request = rows.find((r) => r.kind === "request")?.body ?? null;
+  const answer = rows.find((r) => r.kind === "response");
+  return { request, response: answer?.body ?? null, ts: rows[0].ts, model: answer?.model ?? rows[0].model };
+}
