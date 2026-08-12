@@ -1,4 +1,4 @@
-name: Deploy og118 backend (ACR + Container App)
+name: Deploy og118 backend (GHCR + Container App)
 
 # Builds the og118 FastAPI + fi-runner image (linux/amd64) and deploys it to an
 # Azure Container App. Path-filtered to og118 + its Python substrate only —
@@ -9,8 +9,9 @@ name: Deploy og118 backend (ACR + Container App)
 # local arm64 image from Gate 1 is dev-only.
 #
 # One-time bootstrap (identity, secrets, variables, roles) is documented in
-# apps/og118/DEPLOY.md. The resources (ACR, env, app) are created idempotently
-# here, so a fresh run reproduces the deploy.
+# apps/og118/DEPLOY.md. The env and the app are created idempotently here, so a
+# fresh run reproduces the deploy; the registry is ghcr.io, which needs no
+# provisioning at all.
 
 on:
   push:
@@ -29,14 +30,19 @@ concurrency:
 permissions:
   id-token: write   # OIDC
   contents: read
+  packages: write   # push to ghcr.io
 
 env:
   RG: ${{ vars.OG118_RESOURCE_GROUP }}
   LOCATION: ${{ vars.OG118_LOCATION }}
-  ACR: ${{ vars.OG118_ACR_NAME }}
   ACA_ENV: ${{ vars.OG118_CONTAINERAPP_ENV }}
   APP: ${{ vars.OG118_API_NAME }}
   IMAGE: og118-server
+  # GHCR replaced og118acr on 2026-08-12: the ACR billed a per-registry unit
+  # (~$5/mo) plus storage overage, and GitHub already hosts this repo's packages
+  # for free. The registry layer cache moves with it — same `:buildcache` tag,
+  # same mode=min rationale below.
+  REGISTRY: ghcr.io/bernarduriza/free-intelligence
 
 jobs:
   deploy:
@@ -51,10 +57,12 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Ensure ACR (idempotent)
-        run: |
-          az acr show -n "$ACR" -g "$RG" >/dev/null 2>&1 \
-            || az acr create -n "$ACR" -g "$RG" -l "$LOCATION" --sku Basic --admin-enabled false
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Buildx (docker-container driver)
         # REQUIRED for the registry cache below: buildx's DEFAULT `docker` driver
@@ -63,9 +71,8 @@ jobs:
         # `docker-container` driver, which supports it.
         uses: docker/setup-buildx-action@v3
 
-      - name: Build linux/amd64 + push to ACR (registry layer cache)
+      - name: Build linux/amd64 + push to GHCR (registry layer cache)
         run: |
-          az acr login -n "$ACR"
           # BuildKit on the amd64 runner honors apps/og118/server/Dockerfile.dockerignore
           # (scoped) and builds natively — no QEMU, no arm64.
           # SHA-only tag: :latest is mutable and can race across concurrent deploys.
@@ -86,10 +93,10 @@ jobs:
           # never lands in the runner's local image store, so a separate
           # `docker push` would fail with "image not found".
           docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache" \
-            --cache-to "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache,mode=min" \
+            --cache-from "type=registry,ref=$REGISTRY/$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$REGISTRY/$IMAGE:buildcache,mode=min" \
             -f apps/og118/server/Dockerfile \
-            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" \
+            -t "$REGISTRY/$IMAGE:${{ github.sha }}" \
             --push .
 
       - name: Ensure Container Apps environment (idempotent)
@@ -106,7 +113,8 @@ jobs:
         # papelería/third-party plan is deferred; if it returns, switch back to an
         # ANTHROPIC_API_KEY (commercial API). No ANTHROPIC_API_KEY here.
         env:
-          IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/og118-server:${{ github.sha }}
+          IMG: ghcr.io/bernarduriza/free-intelligence/og118-server:${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ACCESS_TOKEN: ${{ secrets.OG118_ACCESS_TOKEN }}
           ALLOWED_ORIGINS: ${{ vars.OG118_ALLOWED_ORIGINS }}
@@ -126,9 +134,10 @@ jobs:
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
-              --registry-server "$ACR.azurecr.io" --registry-identity system \
+              --registry-server ghcr.io \
+              --registry-username BernardUriza --registry-password "$GHCR_TOKEN" \
               --target-port 8118 --ingress external \
-              --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+              --min-replicas 0 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
               --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN" \
               --env-vars \
                 "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
@@ -278,18 +287,6 @@ jobs:
               "OG118_EXTERNAL_RUNNER_URL=$RUNNER_URL" \
               "OG118_EXTERNAL_RUNNER_TOKEN=secretref:og118-external-runner-token"
 
-      - name: Ensure AcrPull for the app's managed identity (idempotent)
-        # --registry-identity system wires the pull, but the role assignment can
-        # lag on first create. Assign it explicitly (needs Owner on og118-rg, per
-        # DEPLOY.md). Idempotent: ignore "already exists".
-        run: |
-          PID=$(az containerapp show -n "$APP" -g "$RG" --query identity.principalId -o tsv)
-          ACR_ID=$(az acr show -n "$ACR" -g "$RG" --query id -o tsv)
-          az role assignment create \
-            --assignee-object-id "$PID" --assignee-principal-type ServicePrincipal \
-            --role AcrPull --scope "$ACR_ID" 2>/dev/null \
-            || echo "AcrPull already assigned"
-
       - name: Health check
         run: |
           FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
@@ -300,23 +297,11 @@ jobs:
           done
           echo "health check failed"; exit 1
 
-      - name: Prune old images (retention)
-        # Runs LAST and only on a green health check — a failed deploy keeps every
-        # old image so a rollback stays possible.
-        #
-        # og118acr is Basic (10 GB included). Untended, it reached 18.3 GB / 54
-        # manifests at ~375 MB each; a manual purge on 2026-07-25 brought it to
-        # 2.0 GB. This step is what keeps it there instead of re-growing.
-        #
-        # The filter matches ONLY 40-hex commit SHAs (the tag this workflow
-        # pushes). The anchors are load-bearing: acr purge does a PARTIAL regex
-        # match, so an unanchored `.*` would also match `:buildcache` and delete
-        # the layer cache on every deploy — turning the step above back into a
-        # full rebuild. --untagged then reclaims the previous cache manifest,
-        # which `--cache-to` orphans each run.
-        continue-on-error: true
-        run: |
-          az acr run --registry "$ACR" --cmd \
-            "acr purge --filter '$IMAGE:^[0-9a-f]{40}$' --ago 30d --keep 5 --untagged" \
-            /dev/null
-          az acr show-usage -n "$ACR" -o table
+      # The ACR retention step that used to run here is GONE with the registry it
+      # served. It was COST control, not hygiene: og118acr was Basic (10 GB
+      # included) and, untended, reached 18.3 GB / 54 manifests at ~375 MB each,
+      # so every deploy had to purge to stay inside the tier. GHCR charges nothing
+      # for container storage (GitHub commits to one month's notice before that
+      # changes), so there is no bill to defend and no step to run. If version
+      # hygiene is ever wanted here, it comes back deliberately — not as a
+      # continue-on-error step that pretends to prune.
