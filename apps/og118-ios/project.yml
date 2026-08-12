@@ -1,0 +1,40 @@
+name: OG118
+options:
+  bundleIdPrefix: com.bernard
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+targets:
+  OG118:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118
+        PRODUCT_NAME: og118
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: og118
+    info:
+      path: Sources/Info.plist
+      properties:
+        OG118Auth0ClientID: $(OG118_AUTH0_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: com.bernard.og118
+            CFBundleURLSchemes:
+              - com.bernard.og118
