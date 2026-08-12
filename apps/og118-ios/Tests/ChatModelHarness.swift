@@ -12,7 +12,7 @@ private func expect(_ condition: Bool, _ what: String) {
 }
 
 private func canned(_ events: [StreamEvent]) -> ChatModel.Stream {
-    { _, _, _ in
+    { _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             for event in events { continuation.yield(event) }
             continuation.finish()
@@ -61,7 +61,7 @@ private func elResultadoGanaALosDeltas() async {
 @MainActor
 private func cancelarNoDuplicaLaBurbuja() async {
     print("cancelar a media respuesta no deja dos burbujas")
-    let model = ChatModel(stream: { _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             let task = Task {
                 for i in 0..<200 {
@@ -88,7 +88,7 @@ private func cancelarNoDuplicaLaBurbuja() async {
 @MainActor
 private func elErrorNoInventaBurbuja() async {
     print("un stream que truena no fabrica respuesta")
-    let model = ChatModel(stream: { _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             continuation.finish(throwing: Og118Error.unauthorized)
         }
@@ -103,7 +103,7 @@ private func elErrorNoInventaBurbuja() async {
 private func elHistorialViajaSinElTurnoNuevo() async {
     print("el history que se manda no incluye el mensaje del turno en curso")
     var vistos: [[ChatMessage]] = []
-    let model = ChatModel(stream: { _, _, history in
+    let model = ChatModel(stream: { _, _, history, _, _ in
         vistos.append(history)
         return AsyncThrowingStream { continuation in
             continuation.yield(.text("respuesta"))
@@ -204,7 +204,7 @@ private func elIdDeConversacionEsElSessionID() async {
     var visto: String?
     let model = ChatModel(
         conversationID: "abc-123",
-        stream: { _, sessionID, _ in
+        stream: { _, sessionID, _, _, _ in
             visto = sessionID
             return AsyncThrowingStream { $0.finish() }
         },
@@ -310,7 +310,7 @@ private func cancelarNoPersisteRespuestaAMedias() async {
     var historiales: [[ChatMessage]] = []
     let model = ChatModel(
         conversationID: "c1",
-        stream: { _, _, history in
+        stream: { _, _, history, _, _ in
             historiales.append(history)
             return AsyncThrowingStream { continuation in
                 let t = Task {
@@ -375,6 +375,62 @@ private func losGuardadosNoSePisan() async {
     expect(ordenRecibido == [2, 4], "llegaron en orden creciente \(ordenRecibido)")
 }
 
+@MainActor
+private func elElementoYElProyectoViajanEnElTurno() async {
+    print("el elemento y el proyecto activos viajan en cada turno")
+    var vistos: [(String?, String?)] = []
+    let suite = "og118.harness.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { UserDefaults.standard.removePersistentDomain(forName: suite) }
+
+    let model = ChatModel(
+        conversationID: "c3",
+        stream: { _, _, _, corpus, element in
+            vistos.append((corpus, element))
+            return AsyncThrowingStream { continuation in
+                continuation.yield(.text("r"))
+                continuation.finish()
+            }
+        },
+        now: { "2026-08-12T23:00:00Z" },
+        defaults: defaults
+    )
+
+    model.send("sin contexto")
+    await settle()
+    expect(vistos.last?.0 == nil && vistos.last?.1 == nil, "sin selección no viaja nada")
+
+    model.element = "yodo"
+    model.corpusID = "project-abc"
+    model.send("con contexto")
+    await settle()
+    expect(vistos.last?.1 == "yodo", "viaja el elemento (fue \(vistos.last?.1 ?? "nil"))")
+    expect(vistos.last?.0 == "project-abc", "viaja el corpus (fue \(vistos.last?.0 ?? "nil"))")
+}
+
+private func elJSONOmiteLoQueNoSeEligio() {
+    print("el JSON omite element/corpus_id cuando no hay selección")
+    struct Sonda: Encodable {
+        let message: String
+        let sessionID: String
+        let corpusID: String?
+        let element: String?
+        enum CodingKeys: String, CodingKey {
+            case message
+            case element
+            case sessionID = "session_id"
+            case corpusID = "corpus_id"
+        }
+    }
+    let enc = JSONEncoder()
+    let vacio = String(data: try! enc.encode(Sonda(message: "m", sessionID: "s", corpusID: nil, element: nil)), encoding: .utf8)!
+    let lleno = String(data: try! enc.encode(Sonda(message: "m", sessionID: "s", corpusID: "p1", element: "yodo")), encoding: .utf8)!
+    expect(!vacio.contains("element"), "sin elemento la clave NO aparece (no manda null)")
+    expect(!vacio.contains("corpus_id"), "sin proyecto la clave NO aparece")
+    expect(lleno.contains("\"element\":\"yodo\""), "con elemento sí aparece")
+    expect(lleno.contains("\"corpus_id\":\"p1\""), "con proyecto sí aparece")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -394,6 +450,8 @@ struct Harness {
         await elKeychainMudoAvisa()
         await cancelarNoPersisteRespuestaAMedias()
         await losGuardadosNoSePisan()
+        await elElementoYElProyectoViajanEnElTurno()
+        elJSONOmiteLoQueNoSeEligio()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }

@@ -19,7 +19,8 @@ private struct RootView: View {
         let client = Og118Client(accessToken: { try await auth.token() })
         return ContentView(
             chat: ChatModel(client: client),
-            conversations: ConversationsModel(client: client)
+            conversations: ConversationsModel(client: client),
+            catalog: CatalogModel(client: client)
         )
     }
 }

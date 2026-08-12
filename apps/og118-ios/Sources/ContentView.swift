@@ -4,14 +4,17 @@ struct ContentView: View {
     @EnvironmentObject private var auth: Auth
     @StateObject private var chat: ChatModel
     @StateObject private var conversations: ConversationsModel
+    @StateObject private var catalog: CatalogModel
     @State private var draft = ""
     @State private var signingIn = false
     @State private var signInError: String?
     @State private var showingConversations = false
+    @State private var showingContext = false
 
-    init(chat: ChatModel, conversations: ConversationsModel) {
+    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel) {
         _chat = StateObject(wrappedValue: chat)
         _conversations = StateObject(wrappedValue: conversations)
+        _catalog = StateObject(wrappedValue: catalog)
     }
 
     var body: some View {
@@ -21,6 +24,8 @@ struct ContentView: View {
                 conversation
                     .task { await chat.restoreThread() }
                     .sheet(isPresented: $showingConversations) { conversationsSheet }
+                    .sheet(isPresented: $showingContext) { contextSheet }
+                    .task { await catalog.refresh() }
             } else {
                 signIn
             }
@@ -90,6 +95,55 @@ struct ContentView: View {
         }
     }
 
+    private var contextSheet: some View {
+        NavigationStack {
+            List {
+                Section("Elemento") {
+                    contextRow(titulo: "og118 (base)", activo: chat.element == nil) {
+                        chat.element = nil
+                    }
+                    ForEach(catalog.elements) { elemento in
+                        contextRow(
+                            titulo: elemento.displayLabel,
+                            activo: chat.element == elemento.token
+                        ) { chat.element = elemento.token }
+                    }
+                }
+                Section("Proyecto") {
+                    contextRow(titulo: "Sin proyecto", activo: chat.corpusID == nil) {
+                        chat.corpusID = nil
+                    }
+                    ForEach(catalog.projects) { proyecto in
+                        contextRow(titulo: proyecto.name, activo: chat.corpusID == proyecto.id) {
+                            chat.corpusID = proyecto.id
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Contexto del turno")
+        }
+    }
+
+    private func contextRow(
+        titulo: String,
+        activo: Bool,
+        accion: @escaping () -> Void
+    ) -> some View {
+        Button {
+            accion()
+            showingContext = false
+        } label: {
+            HStack {
+                Text(titulo)
+                Spacer()
+                if activo {
+                    Image(systemName: "checkmark").foregroundStyle(Theme.accent)
+                }
+            }
+            .frame(minHeight: 44)
+        }
+    }
+
     private var conversation: some View {
         VStack(spacing: 0) {
             HStack {
@@ -99,6 +153,22 @@ struct ContentView: View {
                     Image(systemName: "line.3.horizontal")
                         .foregroundStyle(Theme.textMuted)
                         .frame(width: 44, height: 44)
+                }
+                Spacer()
+                Button {
+                    showingContext = true
+                } label: {
+                    VStack(spacing: 1) {
+                        Text(catalog.elementName(for: chat.element))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
+                        if let proyecto = catalog.projectName(for: chat.corpusID) {
+                            Text(proyecto)
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                    .frame(minHeight: 44)
                 }
                 Spacer()
                 Button {

@@ -12,17 +12,30 @@ final class ChatModel: ObservableObject {
     typealias Stream = (
         _ message: String,
         _ sessionID: String,
-        _ history: [ChatMessage]
+        _ history: [ChatMessage],
+        _ corpusID: String?,
+        _ element: String?
     ) -> AsyncThrowingStream<StreamEvent, Error>
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
 
     @Published private(set) var conversationID: String
 
+    /// Elemento activo (token que el registry resuelve) y proyecto activo
+    /// (su id ES el corpus_id). Ausentes = companion base sin corpus, que es
+    /// exactamente lo que el servidor entiende por omitir los campos.
+    @Published var element: String? {
+        didSet { TurnContextStore.saveElement(element, defaults: defaults) }
+    }
+    @Published var corpusID: String? {
+        didSet { TurnContextStore.saveCorpus(corpusID, defaults: defaults) }
+    }
+
     private let stream: Stream
     private let persist: Persist?
     private let restore: Restore?
     private let now: () -> String
+    private let defaults: UserDefaults
     private var createdAt: String
     private var turn: Task<Void, Never>?
     private var saveChain: Task<Void, Never>?
@@ -32,9 +45,13 @@ final class ChatModel: ObservableObject {
         stream: @escaping Stream,
         persist: Persist? = nil,
         restore: Restore? = nil,
-        now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) }
+        now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) },
+        defaults: UserDefaults = .standard
     ) {
         self.conversationID = conversationID
+        self.defaults = defaults
+        self.element = TurnContextStore.loadElement(defaults: defaults)
+        self.corpusID = TurnContextStore.loadCorpus(defaults: defaults)
         self.stream = stream
         self.persist = persist
         self.restore = restore
@@ -67,7 +84,7 @@ final class ChatModel: ObservableObject {
         guard id != conversationID else { return }
         cancel()
         conversationID = id
-        ConversationIdentity.set(id)
+        ConversationIdentity.set(id, defaults: defaults)
         messages = []
         liveText = ""
         liveAuthor = nil
@@ -78,7 +95,7 @@ final class ChatModel: ObservableObject {
 
     func startNew() {
         cancel()
-        conversationID = ConversationIdentity.fresh()
+        conversationID = ConversationIdentity.fresh(defaults: defaults)
         messages = []
         liveText = ""
         liveAuthor = nil
@@ -99,7 +116,7 @@ final class ChatModel: ObservableObject {
 
         turn = Task {
             do {
-                for try await event in stream(trimmed, conversationID, history) {
+                for try await event in stream(trimmed, conversationID, history, corpusID, element) {
                     apply(event)
                 }
             } catch is CancellationError {

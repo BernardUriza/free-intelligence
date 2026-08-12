@@ -39,11 +39,15 @@ private struct ChatRequest: Encodable {
     let message: String
     let sessionID: String
     let history: [ChatMessage]
+    let corpusID: String?
+    let element: String?
 
     enum CodingKeys: String, CodingKey {
         case message
         case history
+        case element
         case sessionID = "session_id"
+        case corpusID = "corpus_id"
     }
 }
 
@@ -53,7 +57,9 @@ struct Og118Client {
     func stream(
         message: String,
         sessionID: String,
-        history: [ChatMessage]
+        history: [ChatMessage],
+        corpusID: String?,
+        element: String?
     ) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -70,7 +76,13 @@ struct Og118Client {
                     }
 
                     request.httpBody = try JSONEncoder().encode(
-                        ChatRequest(message: message, sessionID: sessionID, history: history)
+                        ChatRequest(
+                            message: message,
+                            sessionID: sessionID,
+                            history: history,
+                            corpusID: corpusID,
+                            element: element
+                        )
                     )
 
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -97,6 +109,26 @@ struct Og118Client {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    func listElements() async throws -> [Element] {
+        try await get("elements", as: ElementList.self).elements
+    }
+
+    func listProjects() async throws -> [Project] {
+        try await get("projects", as: ProjectList.self).projects
+    }
+
+    private func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent(path))
+        try await authorize(&request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        if http.statusCode == 401 { throw Og118Error.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+        return try JSONDecoder().decode(T.self, from: data)
     }
 
     func listConversations() async throws -> [ConversationSummary] {
