@@ -541,8 +541,9 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 2. CI runs (GitHub Actions: lint, tests, audit, security) — monitor with `gh run watch --exit-status`
 3. On CI success, CD triggers automatically (workflow_run on CI completion)
 4. CD detects which surfaces changed, builds the per-surface images
-   (`persona-gateway`, `persona-runner`, `khimeras-host`), pushes to ACR
-   (`insultacr`), and deploys each changed Container App in `insult-rg`
+   (`persona-gateway`, `persona-runner`, `khimeras-host`) on the runner with
+   buildx, pushes them to `ghcr.io/bernarduriza/discord-bot`, and deploys each
+   changed Container App in `insult-rg`
 5. Monitor CD deployment via `az` CLI:
    - `gh run list --workflow=cd.yml --limit=3` to check CD run status
    - `az containerapp show --name persona-gateway -g insult-rg --query "properties.latestRevisionName"` to verify new revision
@@ -550,6 +551,6 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 6. Once deployed, verify the persona responds in #general (version-tag probe via the debug Chrome)
 
 ### Key Resources
-- **ACR**: insultacr.azurecr.io (legacy repo `insult-bot:<sha>` still exists; live images are `persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`)
+- **Registry**: `ghcr.io/bernarduriza/discord-bot` (`persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`, plus the content-addressed `khimeras-base` / `khimeras-runner-base`). No ACR since 2026-08-12 — see `architecture.md` § Registry.
 - **Container Apps**: persona-gateway, persona-runner, khimeras-host (resource group: insult-rg); `discord-bot` retired at scale 0
 - **CD workflow**: `.github/workflows/cd.yml` — triggers on CI success on main

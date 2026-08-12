@@ -12,9 +12,20 @@ Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 | **discord-bot** | RETIRED — scaled to 0 | The legacy plumbing container (ex `insult-bot`, renamed 2026-05-14). Dead FQDN; do not treat as a live host. |
 | *(alice-bot)* | DELETED | The legacy gpt-4.1 ALICE container no longer exists; ALICE runs through the gateway on the runner. |
 
-**ACR artifact caveat:** live images are `persona-gateway:<sha>`,
-`persona-runner:<sha>`, `khimeras-host:<sha>` in `insultacr.azurecr.io`; the
-legacy `insult-bot:<sha>` repo name lingers as an artifact only.
+**Registry (2026-08-12 — GHCR, no ACR):** live images are
+`persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>` under
+`ghcr.io/bernarduriza/discord-bot`, built on the GitHub runner. The two Azure
+registries this repo used are history: images moved `insultacr` → `serverbotacr`
+on 2026-07-25 and off Azure entirely on 2026-08-12. `az acr build` was billing
+ACR task vCPU-seconds ON TOP of the runner minutes the CD already spent waiting
+for it; GitHub charges nothing for container storage or bandwidth.
+
+**The `insult-bot` image is GONE, and `discord-bot` still points at it.** That
+repo was deleted from `insultacr` in the 2026-07-25 move and nobody repointed
+the retired app, so its revisions read `Unhealthy` — a migration that moved the
+image and never closed the loop ([[migrations-end-with-deletion]]). It serves
+nobody (scaled to 0, dead FQDN); the honest fix is deleting the app, not
+rebuilding the image.
 
 **Name history (for reading old logs/memories):** `insult-bot` (the original
 monolith) → renamed `discord-bot` 2026-05-14 (RENAME-1b) → demuxed into
