@@ -447,7 +447,10 @@ export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
   return read<GatewayTurn>(
     `
     SELECT q.exchange,
-           coalesce(a.ts, q.ts)::text          AS ts,
+           -- epoch MILLIS as text: that is what freshness() parses, the same
+           -- shape claude_session_store.mtime already has. A timestamptz::text
+           -- here renders an empty cell — and the cell carries the row's link.
+           (extract(epoch FROM coalesce(a.ts, q.ts)) * 1000)::bigint::text AS ts,
            coalesce(a.model, q.model)          AS model,
            q.session_id, q.project,
            a.stop_reason, a.status,
@@ -471,7 +474,8 @@ export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
 
 export async function gatewayExchange(exchange: string): Promise<GatewayHalves | null> {
   const rows = await read<{ kind: string; body: unknown; ts: string; model: string | null }>(
-    `SELECT kind, body, ts::text AS ts, model FROM aire_gateway_log WHERE exchange = $1 ORDER BY seq`,
+    `SELECT kind, body, (extract(epoch FROM ts) * 1000)::bigint::text AS ts, model
+     FROM aire_gateway_log WHERE exchange = $1 ORDER BY seq`,
     [exchange],
   );
   if (rows.length === 0) return null;
