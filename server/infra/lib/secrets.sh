@@ -53,6 +53,10 @@ compose_env() {
   append_secret "$ACCESS_FILE" "AIRE_GATE_PUBLIC_URL="  "the approve link's own host (#32)"
   append_secret "$ACCESS_FILE" "AIRE_FRONT_URL="        "where the approval receipt renders (#32)"
   append_secret "$RESEND_FILE" "RESEND_API_KEY="        "the mail transport (#32)"
+  # What ONE invited stranger may spend before their key answers 402 (#32d/#28).
+  # Absent, tokens.py falls back to $1.00 — this is the knob that decides how much
+  # a leaked invitation can cost, so it belongs in provisioning, not in a shell.
+  append_secret "$ACCESS_FILE" "AIRE_INVITE_BUDGET_USD=" "the per-invite ceiling (#32d/#28)"
   ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'
   if [[ -n "$ENV_CONTENT" ]]; then
     printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"

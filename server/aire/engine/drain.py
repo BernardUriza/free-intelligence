@@ -15,8 +15,18 @@ from .contract import ToolCall, TurnResult
 
 def turn_cost(event: dict[str, Any]) -> float:
     """The dollars a `result` event reports (0.0 when absent) — the engine's
-    per-turn accounting reads it off the drained stream, not the SDK directly."""
-    usage = getattr(event.get("result"), "usage", None) or {}
+    per-turn accounting reads it off the drained stream, not the SDK directly.
+
+    The result reaches this in TWO shapes: the SDK's dataclass, straight from the
+    turn loop, and a plain dict once the HTTP surface has flattened it for the
+    wire. Reading only the first answered 0.0 to the second, so an invited key
+    (#32d) billed nothing on every turn and its ceiling could never bite — a
+    money function that silently returns 0 for a shape it does not know is
+    indistinguishable from a free turn. Both shapes are read here."""
+    result = event.get("result")
+    usage = getattr(result, "usage", None)
+    if usage is None and isinstance(result, dict):
+        usage = result.get("usage")
     cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
     return float(cost) if cost else 0.0
 

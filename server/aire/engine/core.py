@@ -12,9 +12,10 @@ from typing import Any
 from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
-from .contract import BudgetExceeded
+from .contract import BudgetExceeded, CostSink
 from .credentials import Rotor
 from .detach import Detached
+from .drain import turn_cost
 from .options import DEFAULT_MODE, build_options
 from .pool import Pool
 from .turn import run_turn
@@ -106,17 +107,23 @@ class Engine:
         return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
     def launch_detached(self, project: str, session: str, prompt: str, mode: str,
-                        tools: tuple[str, ...] = ()) -> None:
+                        tools: tuple[str, ...] = (), on_cost: CostSink | None = None) -> None:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
-        finishes even if the caller hangs up. Raises if one already runs here."""
+        finishes even if the caller hangs up. Raises if one already runs here.
+
+        `on_cost` is what a per-caller ceiling hangs on: the socket is gone, so a
+        turn nobody watches must still bill whoever launched it. Without it a
+        capped key (#32d) bought unlimited turns by adding one flag to the body."""
         self.detached.launch(
             f"{project}/{session}",
-            lambda: self._drain_detached(project, session, prompt, mode, tools))
+            lambda: self._drain_detached(project, session, prompt, mode, tools, on_cost))
 
     async def _drain_detached(self, project: str, session: str, prompt: str, mode: str,
-                              tools: tuple[str, ...] = ()) -> None:
+                              tools: tuple[str, ...] = (), on_cost: CostSink | None = None) -> None:
         try:
             async for ev in self.run_stream(project, session, prompt, mode, tools):
+                if on_cost is not None and ev.get("type") == "result":
+                    await on_cost(turn_cost(ev))
                 # No client listens in background — surface an error (a budget cut).
                 if ev.get("type") == "error":
                     print(f"DETACHED {project}/{session} {ev.get('error')}: {ev.get('detail', '')}")

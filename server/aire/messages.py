@@ -52,7 +52,7 @@ async def post_message(project: str, session: str, request: Request) -> Any:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
-        return await _launch_background(project, session, message, mode, tools)
+        return await _launch_background(project, session, message, mode, tools, holder)
     return EventSourceResponse(_events(project, session, message, mode, tools, holder))
 
 
@@ -69,11 +69,21 @@ def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
     return tuple(names)
 
 
+async def _bank(holder: Any, cost: float) -> None:
+    """Charge one turn to the invited key that asked for it (#32d/#28). A real
+    result that bills nothing is PRINTED, never swallowed: that is precisely what
+    a ceiling looks like while it is not biting, and it stayed invisible once."""
+    if cost <= 0:
+        print(f"INVITE {holder.nickname}: a turn banked $0 — the ceiling is not biting", flush=True)
+    await tokens.charge(holder.nickname, cost)
+
+
 async def _launch_background(project: str, session: str, message: str, mode: str,
-                             tools: tuple[str, ...]) -> JSONResponse:
+                             tools: tuple[str, ...], holder: Any = None) -> JSONResponse:
     engine = await get_engine()
+    sink = (lambda cost: _bank(holder, cost)) if holder is not None else None
     try:
-        engine.launch_detached(project, session, message, mode, tools)
+        engine.launch_detached(project, session, message, mode, tools, sink)
     except RuntimeError as exc:  # a turn already runs on this session
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse({"status": "accepted", "session": session}, status_code=202)
@@ -96,7 +106,7 @@ async def _events(project: str, session: str, message: str, mode: str,
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":
-                await tokens.charge(holder.nickname, turn_cost(_plain(ev)))
+                await _bank(holder, turn_cost(ev))
             yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
     except BudgetExceeded as exc:
         # The spend ceiling was hit BEFORE the turn touched the API. Tell the
