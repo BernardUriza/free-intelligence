@@ -136,6 +136,78 @@ def test_count_tokens_and_models_pass_through(doors):
     asyncio.run(go())
 
 
+def test_an_invited_key_is_served_with_aires_own_credential(doors, monkeypatch):
+    """#32: the caller carries no Anthropic credential — AIRE lends its own, and
+    the upstream must see AIRE's token plus the beta an OAuth token requires,
+    never the invite key itself."""
+    from aire import lending, tokens
+    key = "aire_test_invited_key"
+    banked = []
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+
+    async def fake_charge(nickname, usd):  # async, so the real await path is exercised
+        banked.append((nickname, usd))
+
+    monkeypatch.setattr(tokens, "charge", fake_charge)
+    monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
+                        tokens.Holder("test invitee", 1.0, 0.0))
+
+    async def go():
+        headers = {"authorization": f"Bearer {key}", "anthropic-version": "2023-06-01",
+                   "anthropic-beta": "context-1m-2025-08-07"}
+        async with httpx.AsyncClient(timeout=30) as client:
+            async with client.stream("POST", f"{doors.aire}/v1/messages",
+                                     json=BODY, headers=headers) as r:
+                assert r.status_code == 200
+                async for _ in r.aiter_raw():
+                    pass
+
+    asyncio.run(go())
+    seen = fake_upstream.state["headers"]
+    assert seen["authorization"] == "Bearer oat-aires-own"
+    assert key not in seen["authorization"], "the invite key must never reach Anthropic"
+    assert seen["anthropic-beta"] == f"context-1m-2025-08-07,{lending.OAUTH_BETA}"
+    assert banked and banked[0][0] == "test invitee"
+    assert banked[0][1] > 0, "a real turn that banks $0 is a ceiling that cannot bite"
+    assert lending._inflight.get("test invitee") is None, "the slot was returned"
+
+
+def test_a_spent_invited_key_is_refused_before_upstream(doors, monkeypatch):
+    from aire import tokens
+    key = "aire_test_spent_key"
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+    monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
+                        tokens.Holder("broke invitee", 0.05, 0.06))
+
+    async def go():
+        async with httpx.AsyncClient(timeout=30) as client:
+            return await client.post(f"{doors.aire}/v1/messages", json=BODY,
+                                     headers={"authorization": f"Bearer {key}"})
+
+    r = asyncio.run(go())
+    assert r.status_code == 402
+    assert "spent its budget" in r.json()["error"]["message"]
+
+
+def test_a_caller_with_their_own_credential_is_still_pass_through(doors, monkeypatch):
+    """The lending path must not capture the door: an unrecognised Bearer is a
+    stranger's own Anthropic credential and rides upstream untouched."""
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+
+    async def go():
+        async with httpx.AsyncClient(timeout=30) as client:
+            async with client.stream("POST", f"{doors.aire}/v1/messages", json=BODY,
+                                     headers=_headers(str(uuid.uuid4()))) as r:
+                async for _ in r.aiter_raw():
+                    pass
+
+    asyncio.run(go())
+    seen = fake_upstream.state["headers"]
+    assert seen["authorization"] == "Bearer sk-ant-test-not-a-real-key"
+    assert seen["x-api-key"] == "sk-test-key"
+    assert seen["anthropic-beta"] == "context-1m-2025-08-07,output-128k-2025-02-19"
+
+
 async def _mirror_rows(sid: str, want: int = 2, timeout: float = 8.0):
     import asyncpg
     conn = await asyncpg.connect(os.environ["AIRE_DSN"])

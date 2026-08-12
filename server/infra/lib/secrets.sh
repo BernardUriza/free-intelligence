@@ -57,6 +57,10 @@ compose_env() {
   # Absent, tokens.py falls back to $1.00 — this is the knob that decides how much
   # a leaked invitation can cost, so it belongs in provisioning, not in a shell.
   append_secret "$ACCESS_FILE" "AIRE_INVITE_BUDGET_USD=" "the per-invite ceiling (#32d/#28)"
+  # How many turns one invited key may have in flight at once (#32e). The ceiling
+  # is banked when a turn ENDS, so this is what stops N sockets opened together
+  # from each passing the gate before any of them pays. Absent, lending.py uses 2.
+  append_secret "$ACCESS_FILE" "AIRE_INVITE_CONCURRENCY=" "the per-invite slot limit (#32e)"
   ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'
   if [[ -n "$ENV_CONTENT" ]]; then
     printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"

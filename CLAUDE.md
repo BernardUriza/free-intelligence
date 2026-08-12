@@ -44,6 +44,19 @@ memory. To contradict anything here, verify it first the same way.
    (this monorepo's other half, live on Container Apps), which may render the
    daemon's SSE stream however it wants. Do not re-propose SSR-from-the-daemon
    (Art. 7).
+0b. **The gateway door is auth-pass-through EXCEPT for an invited key** (2026-08-11,
+   backlog #32). A caller carrying their own Anthropic credential is relayed and
+   AIRE spends nothing on them. An invited key has no credential by construction —
+   that is what being invited means — so for those callers AIRE lends its OWN
+   (`aire/lending.py`) and prices the turn from tokens (`aire/pricing.py` +
+   `prices.json`), because Anthropic reports tokens and a ceiling needs dollars.
+   Two consequences to keep in mind before touching this: the lent credential is
+   the same `CLAUDE_CODE_OAUTH_TOKEN` **the engine dispatches with**, so an
+   invited key burning the weekly pool starves the engine too (the coupling #31's
+   rotor exists to survive, and the argument for provisioning a metered
+   `ANTHROPIC_API_KEY`, which `lending.credential()` prefers when present); and an
+   OAuth token is refused by `/v1/messages` unless `anthropic-beta:
+   oauth-2025-04-20` rides with it, appended to whatever betas the caller sent.
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
 3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE

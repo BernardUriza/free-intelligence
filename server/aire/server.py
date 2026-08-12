@@ -34,7 +34,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import access, artifacts, gateway, init_project, messages, tokens
+from . import access, artifacts, gateway, init_project, lending, messages, tokens
 from .bearer import ACCEPTED_TOKENS, accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -62,11 +62,8 @@ app = FastAPI(
 async def llm_door(request: Request, call_next: Any) -> Any:
     if request.url.path == "/health":
         return await call_next(request)
-    # The gateway door (#30) is auth-PASS-THROUGH, not auth-free: the caller's
-    # own Anthropic credential rides upstream and upstream judges it. AIRE
-    # spends nothing of its own there. Per-consumer AIRE tokens are backlog #28.
     if request.url.path.startswith("/v1/"):
-        return await call_next(request)
+        return _admit_gateway(request) or await call_next(request)
     # The approve/revoke links (#32) are clicked from a mail client, which cannot
     # carry a Bearer token. Their HMAC signature IS their authentication, and the
     # verb is signed INTO it so one cannot be replayed as the other — access.py.
@@ -79,6 +76,27 @@ async def llm_door(request: Request, call_next: Any) -> Any:
         return await call_next(request)
     refusal = _admit_invited(request, presented)
     return refusal if refusal else await call_next(request)
+
+
+def _admit_gateway(request: Request) -> JSONResponse | None:
+    """The gateway door stays auth-PASS-THROUGH for anyone carrying their own
+    Anthropic credential — AIRE spends nothing on them and judges nothing. An
+    INVITED key is the exception: it has no credential of its own, so AIRE lends
+    its own up to that key's ceiling (#32). `None` means carry on."""
+    holder = tokens.identify(presented_token(request))
+    if holder is None:
+        return None
+    if holder.exhausted():
+        return JSONResponse(
+            {"type": "error", "error": {"type": "invalid_request_error",
+             "message": f"AIRE: {holder.nickname} has spent its budget"}}, status_code=402)
+    if not lending.enter(holder.nickname):
+        return JSONResponse(
+            {"type": "error", "error": {"type": "rate_limit_error",
+             "message": f"AIRE: {holder.nickname} already has {lending.MAX_INFLIGHT} turns in flight"}},
+            status_code=429)
+    request.state.holder = holder
+    return None
 
 
 def _admit_invited(request: Request, presented: str) -> JSONResponse | None:

@@ -87,10 +87,17 @@ async def log_request(exchange: str, headers: Any, body: bytes) -> None:
 class ResponseTap:
     """Accumulates the relayed bytes on the side; on finish, assembles the final
     message (gateway_assemble) and appends the response half. Feeding is
-    synchronous and cheap — the relay yields each chunk before anything else."""
+    synchronous and cheap — the relay yields each chunk before anything else.
 
-    def __init__(self, exchange: str, status: int, content_type: str) -> None:
+    `on_usage` is how an invited key pays for the credential AIRE lent it (#32).
+    It runs in its OWN try, before the mirror's: the mirror is best-effort by
+    design, and letting a dead database silence a charge would make the spend
+    ceiling depend on the logger."""
+
+    def __init__(self, exchange: str, status: int, content_type: str,
+                 on_usage: Any = None) -> None:
         self.exchange, self.status, self.content_type = exchange, status, content_type
+        self.on_usage = on_usage
         self.raw = bytearray()
         self.done = False
 
@@ -101,14 +108,20 @@ class ResponseTap:
         if self.done:
             return
         self.done = True
+        message = assemble(bytes(self.raw), self.content_type)
+        fields = message if isinstance(message, dict) else {}
+        if self.on_usage is not None:
+            try:
+                await self.on_usage(fields.get("usage"), str(fields.get("model") or ""))
+            except Exception as exc:  # noqa: BLE001 — loud: an uncharged turn is free money
+                print(f"GATEWAY-BILLING failed: {type(exc).__name__}: {exc}", flush=True)
         try:
-            await _append_response(self)
+            await _append_response(self, message)
         except Exception as exc:  # noqa: BLE001 — same law as log_request
             print(f"GATEWAY-MIRROR response append failed: {type(exc).__name__}: {exc}")
 
 
-async def _append_response(tap: ResponseTap) -> None:
-    message = assemble(bytes(tap.raw), tap.content_type)
+async def _append_response(tap: ResponseTap, message: Any) -> None:
     fields = message if isinstance(message, dict) else {}
     await (await _get_pool()).execute(
         "INSERT INTO aire_gateway_log (exchange, kind, model, body, stop_reason,"
