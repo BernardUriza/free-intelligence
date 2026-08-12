@@ -1,18 +1,18 @@
-"""Request access — the second half of the landing (backlog #32, slice c).
+"""Request access — the second half of the landing (backlog #32, slices c and d).
 
 A stranger who liked the name the model gave them presses one button. Bernard
 gets an email with a link. Clicking that link IS the approval — there is no
-console to log into, no queue to remember, no second factor to invent.
+console to log into, no queue to remember, no second factor to invent — and it
+mints that nickname's key, which arrives in a second mail with its own revoke
+link. Nobody is ever asked for an email address: the visitor leaves a name, and
+Bernard hands over the key however he likes. AIRE stores no stranger's contact.
 
-Two things this deliberately does NOT do, and they are slice (d): mint a token
-for the approved nickname, and teach `server.py` to accept it. Recording an
-approval nobody enforces is honest; issuing a credential nobody checks would be
-theatre.
-
-The signature is what makes a link in an inbox safe to trust. `/access/approve`
-cannot carry a Bearer token — it is clicked from a mail client — so the HMAC
-over `nickname|expiry` IS its authentication, verified in constant time. An
-unsigned approve URL would let anyone who guesses a nickname approve themselves.
+The signature is what makes a link in an inbox safe to trust. These routes cannot
+carry a Bearer token — they are clicked from a mail client — so the HMAC over
+`verb|nickname|expiry` IS their authentication, verified in constant time. The
+verb is signed in, so an approve link cannot be replayed as a revoke by editing
+the path, and an unsigned URL would let anyone who guesses a nickname let
+themselves in.
 """
 
 from __future__ import annotations
@@ -21,13 +21,12 @@ import hashlib
 import hmac
 import os
 import time
-from html import escape
 
 import asyncpg
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from . import mail
+from . import mail, tokens
 
 router = APIRouter(prefix="/access")
 DDL = (
@@ -44,17 +43,19 @@ def _secret() -> bytes:
     return os.environ.get("AIRE_ACCESS_SECRET", "").encode("utf-8")
 
 
-def _sign(nickname: str, expiry: int) -> str:
-    payload = f"{nickname}|{expiry}".encode("utf-8")
+def _sign(nickname: str, expiry: int, verb: str = "approve") -> str:
+    payload = f"{verb}|{nickname}|{expiry}".encode("utf-8")
     digest = hmac.new(_secret(), payload, hashlib.sha256).hexdigest()[:32]
     return f"{expiry}.{digest}"
 
 
-def _valid(nickname: str, ticket: str) -> bool:
+def _valid(nickname: str, ticket: str, verb: str = "approve") -> bool:
+    """The verb is INSIDE the signature, so an approve link can never be replayed
+    as a revoke link (or the reverse) by editing the path."""
     expiry, _, _ = ticket.partition(".")
     if not expiry.isdigit() or int(expiry) < time.time():
         return False
-    return hmac.compare_digest(_sign(nickname, int(expiry)), ticket)
+    return hmac.compare_digest(_sign(nickname, int(expiry), verb), ticket)
 
 
 def _throttled() -> bool:
@@ -90,17 +91,6 @@ async def _approve(nickname: str) -> None:
         await conn.close()
 
 
-def _invitation(nickname: str, blurb: str, link: str) -> str:
-    return (
-        f"<p><b>{escape(nickname)}</b> wants in.</p>"
-        f"<blockquote>{escape(blurb or '(said nothing)')}</blockquote>"
-        f"<p>Clicking this approves them — nothing else is needed:</p>"
-        f'<p><a href="{escape(link)}">approve {escape(nickname)}</a></p>'
-        f"<p style='color:#888;font-size:12px'>The link expires in 14 days. "
-        f"Ignoring it is a refusal.</p>"
-    )
-
-
 @router.post("/request")
 async def request_access(request: Request) -> JSONResponse:
     if not _secret() or not mail.configured():
@@ -118,7 +108,7 @@ async def request_access(request: Request) -> JSONResponse:
     link = f"{base}/access/approve?n={nickname}&t={_sign(nickname, expiry)}"
     await _record(nickname, blurb)
     try:
-        await mail.send(f"AIRE — {nickname} wants in", _invitation(nickname, blurb, link))
+        await mail.send(f"AIRE — {nickname} wants in", mail.invitation(nickname, blurb, link))
     except Exception as exc:  # noqa: BLE001 — the visitor deserves the truth
         return JSONResponse({"detail": f"could not reach the owner: {exc}"}, status_code=502)
     _sent.append(time.time())
@@ -129,9 +119,29 @@ async def request_access(request: Request) -> JSONResponse:
 async def approve(n: str = "", t: str = "") -> RedirectResponse:
     """Bernard clicks this from his inbox. The daemon writes (it holds the pen)
     and hands the rendering to the front, which is the only half allowed to show
-    a human anything."""
+    a human anything.
+
+    The minted key goes back by MAIL, never in the redirect: a secret in a URL
+    lands in browser history and in the front's access logs, and this one is a
+    working credential."""
     front = os.environ.get("AIRE_FRONT_URL", "https://aire.bernarduriza.com")
     if not n or not _valid(n, t):
         return RedirectResponse(f"{front}/approved?bad=1", status_code=303)
     await _approve(n)
+    key = await tokens.mint(n)
+    base = os.environ.get("AIRE_GATE_PUBLIC_URL", "https://gate.bernarduriza.com")
+    expiry = int(time.time()) + LINK_TTL_S
+    revoke_link = f"{base}/access/revoke?n={n}&t={_sign(n, expiry, 'revoke')}"
+    await mail.send(f"AIRE — the key for {n}", mail.key_issued(n, key, revoke_link))
     return RedirectResponse(f"{front}/approved?n={n}", status_code=303)
+
+
+@router.get("/revoke")
+async def revoke(n: str = "", t: str = "") -> RedirectResponse:
+    """The undo, in the same inbox as the key. Revoking is idempotent — clicking
+    an old revoke link twice is not an error, it is the same answer."""
+    front = os.environ.get("AIRE_FRONT_URL", "https://aire.bernarduriza.com")
+    if not n or not _valid(n, t, "revoke"):
+        return RedirectResponse(f"{front}/approved?bad=1", status_code=303)
+    await tokens.revoke(n)
+    return RedirectResponse(f"{front}/approved?revoked={n}", status_code=303)

@@ -27,17 +27,35 @@ mean an open LLM. Comparison is constant-time.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from . import access, artifacts, gateway, init_project, messages
+from . import access, artifacts, gateway, init_project, messages, tokens
 from .bearer import ACCEPTED_TOKENS, accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
-app = FastAPI(title="AIRE", description="Substitute for and enhancer of the Claude API")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """The invited keys (#32d), once. A database that is down must not make the
+    door refuse Bernard's own token too — it degrades to the two constants."""
+    try:
+        await tokens.load()
+    except Exception as exc:  # noqa: BLE001 — a blank roster survives; a dead door does not
+        print(f"invite tokens unavailable at startup: {exc!r}", flush=True)
+    yield
+
+
+app = FastAPI(
+    title="AIRE",
+    description="Substitute for and enhancer of the Claude API",
+    lifespan=lifespan,
+)
 
 
 @app.middleware("http")
@@ -49,15 +67,34 @@ async def llm_door(request: Request, call_next: Any) -> Any:
     # spends nothing of its own there. Per-consumer AIRE tokens are backlog #28.
     if request.url.path.startswith("/v1/"):
         return await call_next(request)
-    # The approve link (#32) is clicked from a mail client, which cannot carry a
-    # Bearer token. Its HMAC signature IS its authentication — see access.py.
-    if request.url.path == "/access/approve":
+    # The approve/revoke links (#32) are clicked from a mail client, which cannot
+    # carry a Bearer token. Their HMAC signature IS their authentication, and the
+    # verb is signed INTO it so one cannot be replayed as the other — access.py.
+    if request.url.path in ("/access/approve", "/access/revoke"):
         return await call_next(request)
     if not ACCEPTED_TOKENS:
         return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
-    if not accepted(presented_token(request)):
+    presented = presented_token(request)
+    if accepted(presented):
+        return await call_next(request)
+    refusal = _admit_invited(request, presented)
+    return refusal if refusal else await call_next(request)
+
+
+def _admit_invited(request: Request, presented: str) -> JSONResponse | None:
+    """An invited stranger's own key (#32d). It carries a ceiling of its own, so a
+    leaked invitation cannot burn the global budget (#28) — and an empty one is a
+    402, not a 401: the key is real, its money is gone. `None` means admitted."""
+    holder = tokens.identify(presented)
+    if holder is None:
         return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    return await call_next(request)
+    if holder.exhausted():
+        return JSONResponse(
+            {"detail": f"{holder.nickname} has spent its budget", "error": "token_budget_spent"},
+            status_code=402,
+        )
+    request.state.holder = holder
+    return None
 
 
 @app.get("/health")

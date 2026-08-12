@@ -18,8 +18,10 @@ from fastapi.responses import JSONResponse
 from sse_starlette.event import ServerSentEvent
 from sse_starlette.sse import EventSourceResponse
 
+from . import tokens
 from .deps import get_engine
 from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy
+from .engine.drain import turn_cost
 from .engine.tools import UnknownTool, clean_tools
 from .names import InvalidName, clean
 
@@ -48,9 +50,10 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     # spends money for nothing. The edge cuts it before it touches the agent.
     if not message:
         raise HTTPException(status_code=422, detail="empty message")
+    holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
         return await _launch_background(project, session, message, mode, tools)
-    return EventSourceResponse(_events(project, session, message, mode, tools))
+    return EventSourceResponse(_events(project, session, message, mode, tools, holder))
 
 
 def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
@@ -86,10 +89,14 @@ async def session_status(project: str, session: str) -> JSONResponse:
 
 
 async def _events(project: str, session: str, message: str, mode: str,
-                  tools: tuple[str, ...]) -> AsyncIterator[ServerSentEvent]:
+                  tools: tuple[str, ...], holder: Any = None) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
         async for ev in engine.run_stream(project, session, message, mode, tools):
+            # An invited key pays for its own turn (#32d/#28). Banked as the result
+            # passes, not at the end: a dropped socket must not make a turn free.
+            if holder is not None and ev.get("type") == "result":
+                await tokens.charge(holder.nickname, turn_cost(_plain(ev)))
             yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
     except BudgetExceeded as exc:
         # The spend ceiling was hit BEFORE the turn touched the API. Tell the
