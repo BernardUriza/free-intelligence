@@ -29,10 +29,18 @@ def check(path: Path) -> list[str]:
 
 
 def main() -> int:
-    files = [p for p in sorted(Path(".").glob("*.py")) + sorted(Path("aire").rglob("*.py"))
-             if str(p) not in EXEMPT]
-    bad = [b for p in files for b in check(p)]
-    print("\n".join(bad) if bad else "thirty-line law: all green")
+    # Anchored to THIS file, not the caller's cwd. Globbing relatively made the
+    # gate print "all green" after checking ZERO files whenever it was run from
+    # anywhere but server/ — a check that cannot go red proves nothing, and this
+    # one hid two real violations on 2026-08-11 before it was caught.
+    root = Path(__file__).resolve().parent.parent
+    files = [p for p in sorted(root.glob("*.py")) + sorted((root / "aire").rglob("*.py"))
+             if str(p.relative_to(root)) not in EXEMPT]
+    if not files:
+        print(f"the law found nothing to check under {root} — that is a broken gate, not a pass")
+        return 1
+    bad = [b.replace(f"{root}/", "") for p in files for b in check(p)]
+    print("\n".join(bad) if bad else f"thirty-line law: all green ({len(files)} files)")
     return 1 if bad else 0
 
 
