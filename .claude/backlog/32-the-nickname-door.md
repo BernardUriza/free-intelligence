@@ -184,22 +184,74 @@ The cost is unknowable before the turn runs; the ceiling refuses the NEXT one. A
 small ceiling with an expensive first turn (a cold cache costs ~$0.108) can double
 its allowance once.
 
-## Status / next step
+## Slice (e), the consumer — the fork Bernard resolved 2026-08-11
 
-All four slices are live and measured. What is left is not a slice, it is a
-question that surfaced from the verification and is Bernard's:
+Verifying (d) surfaced the real gap: **an invited key fitted no lock.** It was
+accepted on the message, artifacts and init endpoints — reachable by `curl` and
+by nothing else — while the door a real client uses, the gateway (`/v1/*`, #30),
+skipped the invited-key check entirely because it is auth-pass-through. His call,
+verbatim: *"haz que /v1/* acepte la llave de invitado y que AIRE ponga su
+credencial hasta el techo de esa llave."*
 
-**An invited key has no consumer.** It is accepted on the message, artifacts and
-init endpoints — reachable by hand with `curl`, and by nothing else. The door a
-real client would use, the gateway (`/v1/*`, #30), is skipped in the middleware
-BEFORE the invited-key check, because it is auth-pass-through: the caller's own
-Anthropic credential rides upstream and AIRE spends nothing there. So the stranger
-who walks the whole funnel leaves holding a key that fits no lock they own.
+**Pass-through remains the default.** A caller carrying their own Anthropic
+credential is relayed untouched and AIRE spends nothing on them (pinned by a
+test). Only an invited key — which has no credential by construction — is served
+with AIRE's own.
 
-Making the gateway accept an AIRE key means AIRE lending ITS credential to a
-stranger — a different product than the one the gateway is today, and the reason
-the per-key ceiling exists at all. That is an architecture-and-money fork, not an
-implementation detail.
+Three things it needed, none guessable from the code alone:
+
+1. **`lending.py`, the terms of the loan.** An OAuth token is presented as
+   `Authorization: Bearer` AND requires `anthropic-beta: oauth-2025-04-20` —
+   `/v1/messages` refuses it without the beta. The caller's own betas are
+   APPENDED to, never replaced: the gateway's law is that beta headers forward
+   verbatim, and an allowlist there breaks clients as they ship new betas.
+2. **`pricing.py` + `prices.json`.** Anthropic reports TOKENS; a ceiling needs
+   dollars — the engine's door never needed this because the SDK hands it
+   `total_cost_usd` already computed. Cache is priced by TTL (1h write ×2, 5m
+   ×1.25, read ×0.1). Two biases toward not overspending: an unrecognised model
+   is charged at the DEAREST rate in the table, and list prices are used even
+   where an introductory discount is live.
+3. **A concurrency slot per key.** The ceiling banks when a turn ENDS, so N
+   sockets opened together would all pass the gate before any of them paid — a
+   leaked invitation could spend N× its ceiling. `AIRE_INVITE_CONCURRENCY`
+   (default 2) joins provisioning so the limit survives a kill test.
+
+**Verified live at `802755b` on the real client**, not on a proxy:
+
+```
+ANTHROPIC_BASE_URL=https://gate.bernarduriza.com \
+ANTHROPIC_AUTH_TOKEN=<invite key>  claude -p "…"   →  "the door works"
+```
+
+That turn banked **$0.094235** against a **$0.05** ceiling; the next request
+answered **402 `AIRE: drowsy almanac has spent its budget`** — on the gateway AND
+on the engine door. A caller with their own credential was relayed with headers
+untouched. After the revoke link the key answers 401, and that 401 comes from
+**Anthropic, not AIRE**: an unrecognised key falls back to pass-through and
+upstream judges it.
+
+**The operational finding that matters more than the code:** one cold Claude Code
+turn costs ~$0.09, because its system prompt and tool schemas are the payload. An
+invite ceiling below ~$0.20 is therefore decoration — the first turn alone blows
+through it and the ceiling only refuses the second. Set `AIRE_INVITE_BUDGET_USD`
+well above one cold turn.
+
+## The decision that is still Bernard's
+
+**Which credential AIRE lends.** `lending.credential()` prefers a metered
+`ANTHROPIC_API_KEY` and falls back to `CLAUDE_CODE_OAUTH_TOKEN`. The droplet has
+only the second, so today AIRE lends **the same OAuth token the engine dispatches
+with** — the Max subscription. Two consequences to weigh:
+
+- **Coupling:** an invited key burning the weekly pool starves the engine. That
+  is the failure [[31-credential-failover]]'s rotor exists to survive, now
+  reachable by a stranger instead of only by Bernard's own work.
+- **Terms:** serving third parties from a personal subscription is plausibly
+  outside Anthropic's consumer terms. A metered API key minted for AIRE is the
+  clean path, costs nothing until used, and the code already prefers it — the
+  only reason it is unused is that the slot was never filled (the same atom #31
+  is waiting on). Fénix's key was deliberately NOT reused: a credential is
+  deployed only where Bernard said it goes.
 
 The vocabulary stays the open craft question: it is what gives the game its
 register, and it is Bernard's taste, not an engineering decision.
