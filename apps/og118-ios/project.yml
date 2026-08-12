@@ -1,0 +1,33 @@
+name: OG118
+options:
+  bundleIdPrefix: ai.og118
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+targets:
+  OG118:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ai.og118.app
+        PRODUCT_NAME: og118
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: og118
+    info:
+      path: Sources/Info.plist
+      properties:
+        OG118Auth0ClientID: $(OG118_AUTH0_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: ai.og118.app
+            CFBundleURLSchemes:
+              - og118
