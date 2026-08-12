@@ -11,6 +11,41 @@ private extension Data {
     }
 }
 
+private enum Keychain {
+    private static var service: String { "\(Config.bundleIdentifier).auth" }
+    private static let account = "auth0-refresh-token"
+
+    private static var base: [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+    }
+
+    static func save(_ value: String) {
+        delete()
+        var query = base
+        query[kSecValueData as String] = Data(value.utf8)
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    static func read() -> String? {
+        var query = base
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func delete() {
+        SecItemDelete(base as CFDictionary)
+    }
+}
+
 private struct TokenResponse: Decodable {
     let accessToken: String
     let refreshToken: String?
@@ -51,6 +86,12 @@ final class Auth: NSObject, ObservableObject {
     private var refreshToken: String?
     private var expiresAt: Date?
 
+    override init() {
+        super.init()
+        refreshToken = Keychain.read()
+        isSignedIn = refreshToken != nil
+    }
+
     func signIn() async throws {
         let clientID = Config.auth0ClientID
         guard !clientID.isEmpty else { throw AuthError.missingClientID }
@@ -70,17 +111,28 @@ final class Auth: NSObject, ObservableObject {
         if let accessToken, let expiresAt, expiresAt > Date().addingTimeInterval(60) {
             return accessToken
         }
-        if refreshToken != nil {
-            try await refresh()
-            if let accessToken { return accessToken }
+        guard refreshToken != nil else {
+            signOut()
+            throw AuthError.notSignedIn
         }
-        throw AuthError.notSignedIn
+        do {
+            try await refresh()
+        } catch {
+            signOut()
+            throw error
+        }
+        guard let accessToken else {
+            signOut()
+            throw AuthError.notSignedIn
+        }
+        return accessToken
     }
 
     func signOut() {
         accessToken = nil
         refreshToken = nil
         expiresAt = nil
+        Keychain.delete()
         isSignedIn = false
     }
 
@@ -153,7 +205,10 @@ final class Auth: NSObject, ObservableObject {
 
         let decoded = try JSONDecoder().decode(TokenResponse.self, from: data)
         accessToken = decoded.accessToken
-        if let newRefresh = decoded.refreshToken { refreshToken = newRefresh }
+        if let newRefresh = decoded.refreshToken {
+            refreshToken = newRefresh
+            Keychain.save(newRefresh)
+        }
         expiresAt = Date().addingTimeInterval(TimeInterval(decoded.expiresIn ?? 3600))
         isSignedIn = true
     }

@@ -4,16 +4,26 @@ import Foundation
 final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
-    @Published private(set) var author: String?
+    @Published private(set) var liveAuthor: String?
     @Published private(set) var isStreaming = false
     @Published var errorMessage: String?
 
+    typealias Stream = (
+        _ message: String,
+        _ sessionID: String,
+        _ history: [ChatMessage]
+    ) -> AsyncThrowingStream<StreamEvent, Error>
+
     private let sessionID = UUID().uuidString
-    private let client: Og118Client
+    private let stream: Stream
     private var turn: Task<Void, Never>?
 
-    init(client: Og118Client) {
-        self.client = client
+    init(stream: @escaping Stream) {
+        self.stream = stream
+    }
+
+    convenience init(client: Og118Client) {
+        self.init(stream: client.stream)
     }
 
     func send(_ text: String) {
@@ -23,19 +33,17 @@ final class ChatModel: ObservableObject {
         let history = messages
         messages.append(ChatMessage(role: .user, content: trimmed))
         liveText = ""
-        author = nil
+        liveAuthor = nil
         errorMessage = nil
         isStreaming = true
 
         turn = Task {
             do {
-                for try await event in client.stream(
-                    message: trimmed,
-                    sessionID: sessionID,
-                    history: history
-                ) {
+                for try await event in stream(trimmed, sessionID, history) {
                     apply(event)
                 }
+            } catch is CancellationError {
+                // el fold ya lo hizo cancel()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -50,11 +58,12 @@ final class ChatModel: ObservableObject {
     }
 
     private func apply(_ event: StreamEvent) {
+        guard isStreaming else { return }
         switch event {
         case .text(let delta):
             liveText += delta
         case .author(_, let name):
-            author = name
+            liveAuthor = name
         case .result(let text, _):
             if !text.isEmpty { liveText = text }
         case .failure(let message):
@@ -65,10 +74,12 @@ final class ChatModel: ObservableObject {
     }
 
     private func fold() {
+        guard isStreaming else { return }
+        isStreaming = false
         if !liveText.isEmpty {
-            messages.append(ChatMessage(role: .assistant, content: liveText))
+            messages.append(ChatMessage(role: .assistant, content: liveText, author: liveAuthor))
         }
         liveText = ""
-        isStreaming = false
+        liveAuthor = nil
     }
 }

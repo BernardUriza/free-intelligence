@@ -13,13 +13,34 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | Qué | Cómo se comprobó | Resultado |
 |---|---|---|
 | Los fuentes compilan | `swiftc -typecheck` contra el SDK de macOS | 0 errores, 0 warnings |
+| La lógica del turno **se ejecuta** y hace lo que dice | arnés de `Tests/`, corrido de verdad | 14/14 verde |
+| El arnés detecta el bug si vuelve | mutación: quitar la guarda de `fold()` | rojo, "hubo 2" burbujas, exit 1 |
 | `project.yml` es válido | `xcodegen generate` | genera `OG118.xcodeproj` |
 | La API de producción responde | `curl /health` (tras cold start) | `200` |
 | El cliente Auth0 existe y acepta el callback | `GET /authorize` con el `client_id` y el `redirect_uri` reales | `302` al login, sin *Unknown client* ni *Callback URL mismatch* |
 | **Corre en un iPhone** | **no probado** | **requiere Xcode, que no está instalado** |
 
-La última fila es la que importa: **esto no se ha ejecutado nunca**. Hasta que
-arranque en el teléfono y complete una vuelta de chat, se presume roto.
+La fila del iPhone es la que importa: **la app nunca ha arrancado en un
+teléfono**. Hasta que lo haga y complete una vuelta de chat contra el servidor
+real, se presume rota.
+
+## Correr el arnés sin Xcode
+
+`ChatModel` recibe su stream inyectado, así que la lógica del turno —fold,
+autoría, cancelación, historial— se ejecuta sin red, sin UI y sin Xcode:
+
+```bash
+cd apps/og118-ios
+SDK=$(xcrun --show-sdk-path --sdk macosx)
+swiftc -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
+  Sources/ChatModel.swift Sources/Og118Client.swift Sources/StreamEvent.swift \
+  Sources/Config.swift Tests/ChatModelHarness.swift
+/tmp/og118-harness
+```
+
+No es XCTest a propósito: XCTest necesita Xcode, y el punto del arnés es
+verificar **mientras Xcode no está**. Cuando Xcode entre, se convierte en un
+test target sin reescribir los asserts.
 
 ## Construir
 
