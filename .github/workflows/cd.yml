@@ -59,11 +59,23 @@ concurrency:
   group: cd-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write   # push to ghcr.io
+
 env:
   NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
   RG: insult-rg
-  REGISTRY: serverbotacr
-  ACR: serverbotacr.azurecr.io
+  # GHCR replaced serverbotacr on 2026-08-12. The registry was a Basic ACR: a
+  # per-registry unit every month plus storage, and its `az acr build` tasks
+  # billed vCPU-seconds ON TOP of the runner minutes this job already paid while
+  # it sat waiting for them. Building here instead removes both charges; GitHub
+  # does not bill container storage or bandwidth.
+  #
+  # The four-stage shape below is UNCHANGED — content-addressed bases, diff
+  # against the running SHA, one runner per image, deploy what was rebuilt. Only
+  # the builder and the registry moved.
+  REGISTRY: ghcr.io/bernarduriza/discord-bot
 
 jobs:
   # --- Stage 1: shared bases, rebuilt ONLY when their inputs change ---------
@@ -86,10 +98,14 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Azure Login
-        uses: azure/login@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
 
       - name: Compute content-addressed base tags
         id: tags
@@ -103,28 +119,36 @@ jobs:
           echo "base: \`$BASE_TAG\` · runner-base: \`$RUNNER_BASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build khimeras-base if absent
+        # `docker manifest inspect` is the GHCR equivalent of the old
+        # `az acr repository show` probe: it asks the registry for the tag and
+        # exits non-zero when it isn't there, so the fast path stays a pure tag
+        # lookup on every commit that doesn't touch dependencies.
         run: |
           set -euo pipefail
           TAG="${{ steps.tags.outputs.base_tag }}"
-          if az acr repository show --name "$REGISTRY" --image "khimeras-base:$TAG" >/dev/null 2>&1; then
-            echo "khimeras-base:$TAG already in ACR — skipping (this is the fast path)."
+          if docker manifest inspect "$REGISTRY/khimeras-base:$TAG" >/dev/null 2>&1; then
+            echo "khimeras-base:$TAG already in GHCR — skipping (this is the fast path)."
           else
-            az acr build --registry "$REGISTRY" --resource-group "$RG" \
-              --image "khimeras-base:$TAG" --image khimeras-base:latest \
-              --file Dockerfile.base .
+            docker buildx build --platform linux/amd64 \
+              -f Dockerfile.base \
+              -t "$REGISTRY/khimeras-base:$TAG" \
+              -t "$REGISTRY/khimeras-base:latest" \
+              --push .
           fi
 
       - name: Build khimeras-runner-base if absent
         run: |
           set -euo pipefail
           TAG="${{ steps.tags.outputs.runner_base_tag }}"
-          if az acr repository show --name "$REGISTRY" --image "khimeras-runner-base:$TAG" >/dev/null 2>&1; then
-            echo "khimeras-runner-base:$TAG already in ACR — skipping."
+          if docker manifest inspect "$REGISTRY/khimeras-runner-base:$TAG" >/dev/null 2>&1; then
+            echo "khimeras-runner-base:$TAG already in GHCR — skipping."
           else
-            az acr build --registry "$REGISTRY" --resource-group "$RG" \
-              --image "khimeras-runner-base:$TAG" --image khimeras-runner-base:latest \
-              --file infra/azure/runner-base.Dockerfile \
-              --build-arg BASE_IMAGE="$ACR/khimeras-base:${{ steps.tags.outputs.base_tag }}" .
+            docker buildx build --platform linux/amd64 \
+              -f infra/azure/runner-base.Dockerfile \
+              --build-arg BASE_IMAGE="$REGISTRY/khimeras-base:${{ steps.tags.outputs.base_tag }}" \
+              -t "$REGISTRY/khimeras-runner-base:$TAG" \
+              -t "$REGISTRY/khimeras-runner-base:latest" \
+              --push .
           fi
 
   # --- Stage 2: what actually changed ------------------------------------
@@ -267,10 +291,14 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Azure Login
-        uses: azure/login@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
 
       # The per-surface dockerfile and base image are resolved HERE, from the bare
       # name, instead of riding along in the matrix — see the detect step for why
@@ -288,11 +316,12 @@ jobs:
             khimeras-host)   FILE="Dockerfile.host";                 BASE="khimeras-base:$BASE_TAG" ;;
             *) echo "unknown surface '${{ matrix.surface }}' — detect and build disagree"; exit 1 ;;
           esac
-          az acr build --registry "$REGISTRY" --resource-group "$RG" \
-            --image "${{ matrix.surface }}:$NEW_SHA" \
-            --image "${{ matrix.surface }}:latest" \
-            --file "$FILE" \
-            --build-arg BASE_IMAGE="$ACR/$BASE" .
+          docker buildx build --platform linux/amd64 \
+            -f "$FILE" \
+            --build-arg BASE_IMAGE="$REGISTRY/$BASE" \
+            -t "$REGISTRY/${{ matrix.surface }}:$NEW_SHA" \
+            -t "$REGISTRY/${{ matrix.surface }}:latest" \
+            --push .
 
   # --- Stage 4: deploy what was rebuilt, then prove it serves ----------------
   deploy:
@@ -316,14 +345,14 @@ jobs:
         continue-on-error: true
         run: |
           az containerapp update --name persona-gateway --resource-group "$RG" \
-            --image "$ACR/persona-gateway:${{ env.NEW_SHA }}"
+            --image "$REGISTRY/persona-gateway:${{ env.NEW_SHA }}"
 
       - name: Deploy persona-runner
         if: ${{ needs.detect.outputs.build_runner == 'true' }}
         continue-on-error: true
         run: |
           az containerapp update --name persona-runner --resource-group "$RG" \
-            --image "$ACR/persona-runner:${{ env.NEW_SHA }}"
+            --image "$REGISTRY/persona-runner:${{ env.NEW_SHA }}"
 
       - name: Deploy khimeras-host
         # Dormant until Bernard provisions the `khimeras-host` Container App + its
@@ -333,7 +362,7 @@ jobs:
         continue-on-error: true
         run: |
           az containerapp update --name khimeras-host --resource-group "$RG" \
-            --image "$ACR/khimeras-host:${{ env.NEW_SHA }}"
+            --image "$REGISTRY/khimeras-host:${{ env.NEW_SHA }}"
 
       - name: Verify persona-gateway health
         if: ${{ needs.detect.outputs.build_gw == 'true' }}
