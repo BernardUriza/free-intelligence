@@ -99,6 +99,18 @@ struct Og118Client {
         }
     }
 
+    func listConversations() async throws -> [ConversationSummary] {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations"))
+        try await authorize(&request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        if http.statusCode == 401 { throw Og118Error.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+        return try JSONDecoder().decode(ConversationList.self, from: data).conversations
+    }
+
     func loadConversation(id: String) async throws -> ConversationRecord? {
         var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations/\(id)"))
         try await authorize(&request)

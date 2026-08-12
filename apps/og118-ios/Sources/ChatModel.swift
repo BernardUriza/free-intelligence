@@ -17,7 +17,7 @@ final class ChatModel: ObservableObject {
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
 
-    let conversationID: String
+    @Published private(set) var conversationID: String
 
     private let stream: Stream
     private let persist: Persist?
@@ -60,6 +60,29 @@ final class ChatModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func open(_ id: String) async {
+        guard id != conversationID else { return }
+        cancel()
+        conversationID = id
+        ConversationIdentity.set(id)
+        messages = []
+        liveText = ""
+        liveAuthor = nil
+        errorMessage = nil
+        createdAt = now()
+        await restoreThread()
+    }
+
+    func startNew() {
+        cancel()
+        conversationID = ConversationIdentity.fresh()
+        messages = []
+        liveText = ""
+        liveAuthor = nil
+        errorMessage = nil
+        createdAt = now()
     }
 
     func send(_ text: String) {
@@ -151,8 +174,47 @@ enum ConversationIdentity {
         if let existing = defaults.string(forKey: key), !existing.isEmpty {
             return existing
         }
-        let fresh = UUID().uuidString
-        defaults.set(fresh, forKey: key)
-        return fresh
+        return fresh(defaults: defaults)
+    }
+
+    static func set(_ id: String, defaults: UserDefaults = .standard) {
+        defaults.set(id, forKey: key)
+    }
+
+    @discardableResult
+    static func fresh(defaults: UserDefaults = .standard) -> String {
+        let id = UUID().uuidString
+        defaults.set(id, forKey: key)
+        return id
+    }
+}
+
+@MainActor
+final class ConversationsModel: ObservableObject {
+    @Published private(set) var summaries: [ConversationSummary] = []
+    @Published private(set) var isLoading = false
+    @Published var errorMessage: String?
+
+    typealias List = () async throws -> [ConversationSummary]
+
+    private let list: List
+
+    init(list: @escaping List) {
+        self.list = list
+    }
+
+    convenience init(client: Og118Client) {
+        self.init(list: client.listConversations)
+    }
+
+    func refresh() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            summaries = try await list().filter { !$0.isArchived }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

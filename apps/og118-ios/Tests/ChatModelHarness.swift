@@ -215,6 +215,50 @@ private func elIdDeConversacionEsElSessionID() async {
     expect(visto == "abc-123", "session_id == id de conversación (fue \(visto ?? "nil"))")
 }
 
+@MainActor
+private func cambiarDeHiloNoMezclaMensajes() async {
+    print("abrir otro hilo no arrastra los mensajes del anterior")
+    let otro = ConversationRecord.from(
+        id: "hilo-b",
+        messages: [ChatMessage(role: .user, content: "soy el hilo B")],
+        createdAt: "2026-08-10T10:00:00Z",
+        now: "2026-08-10T10:00:01Z"
+    )
+    let model = ChatModel(
+        conversationID: "hilo-a",
+        stream: canned([.text("respuesta de A"), .done]),
+        persist: { _ in },
+        restore: { id in id == "hilo-b" ? otro : nil },
+        now: { "2026-08-12T21:00:00Z" }
+    )
+    model.send("hola A")
+    await settle()
+    expect(model.messages.count == 2, "el hilo A tiene su par")
+
+    await model.open("hilo-b")
+    expect(model.conversationID == "hilo-b", "cambió el id activo")
+    expect(model.messages.count == 1, "sólo lo del hilo B (hubo \(model.messages.count))")
+    expect(model.messages.first?.content == "soy el hilo B", "y es el contenido de B")
+
+    model.startNew()
+    expect(model.messages.isEmpty, "una conversación nueva arranca vacía")
+    expect(model.conversationID != "hilo-b", "y con id distinto")
+}
+
+@MainActor
+private func laListaEscondeLosArchivados() async {
+    print("la lista oculta los archivados")
+    let modelo = ConversationsModel(list: {
+        [
+            ConversationSummary(id: "1", title: "viva", createdAt: "a", updatedAt: "b", preview: "x", pinnedAt: nil, archivedAt: nil),
+            ConversationSummary(id: "2", title: "archivada", createdAt: "a", updatedAt: "b", preview: "x", pinnedAt: nil, archivedAt: "2026-08-01T00:00:00Z")
+        ]
+    })
+    await modelo.refresh()
+    expect(modelo.summaries.count == 1, "sólo la viva (quedaron \(modelo.summaries.count))")
+    expect(modelo.summaries.first?.id == "1", "y es la correcta")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -228,6 +272,8 @@ struct Harness {
         await persisteAlCerrarElTurno()
         await restauraElHiloAlArrancar()
         await elIdDeConversacionEsElSessionID()
+        await cambiarDeHiloNoMezclaMensajes()
+        await laListaEscondeLosArchivados()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }

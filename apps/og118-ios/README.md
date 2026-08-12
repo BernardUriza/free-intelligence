@@ -13,7 +13,7 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | Qué | Cómo se comprobó | Resultado |
 |---|---|---|
 | Los fuentes compilan | `swiftc -typecheck` contra el SDK de macOS | 0 errores, 0 warnings |
-| La lógica del turno **se ejecuta** y hace lo que dice | arnés de `Tests/`, corrido de verdad | 32/32 verde |
+| La lógica del turno **se ejecuta** y hace lo que dice | arnés de `Tests/`, corrido de verdad | 40/40 verde |
 | El arnés detecta el bug si vuelve | mutación: quitar la guarda de `fold()` | rojo, "hubo 2" burbujas, exit 1 |
 | El JSON que emite Swift **lo acepta el servidor** | `ConversationRecordRequest.model_validate` sobre el JSON real | acepta; id válido; `author` preservado |
 | `project.yml` es válido | `xcodegen generate` | genera `OG118.xcodeproj` |
@@ -35,7 +35,7 @@ cd apps/og118-ios
 SDK=$(xcrun --show-sdk-path --sdk macosx)
 swiftc -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
   Sources/ChatModel.swift Sources/Og118Client.swift Sources/StreamEvent.swift \
-  Sources/Config.swift Tests/ChatModelHarness.swift
+  Sources/Config.swift Sources/ConversationRecord.swift Tests/ChatModelHarness.swift
 /tmp/og118-harness
 ```
 
@@ -69,6 +69,9 @@ for the same thread"*), y por eso no se genera un uuid aparte por lanzamiento.
 Título, preview y truncado replican `free-intelligence-core` al carácter
 (tope 60 y 120, colapso de espacios, elipsis) para que el mismo hilo se lea
 igual en la web y en el teléfono.
+
+`GET /conversations` alimenta la hoja para cambiar de hilo; los archivados se
+filtran del listado.
 
 ## Construir
 
@@ -119,7 +122,7 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 | `StreamEvent.swift` | frames nativos de fi-runner → eventos tipados |
 | `ChatModel.swift` | un turno vivo, el fold a transcript y la persistencia |
 | `ConversationRecord.swift` | el record de `/conversations` + las derivaciones de core |
-| `ContentView.swift` | login, transcript y composer |
+| `ContentView.swift` | login, transcript, composer y hoja de conversaciones |
 
 El parser corta por línea en blanco y toma las líneas `data:`, igual que
 `useOg118Agent.ts`. El `session_id` lo manda el cliente y es estable por sesión

@@ -7,6 +7,23 @@ struct PersistedMessage: Codable {
     let author: String?
 }
 
+struct ConversationSummary: Codable, Identifiable {
+    let id: String
+    let title: String
+    let createdAt: String
+    let updatedAt: String
+    let preview: String?
+    let pinnedAt: String?
+    let archivedAt: String?
+
+    var isArchived: Bool { archivedAt != nil }
+    var isPinned: Bool { pinnedAt != nil }
+}
+
+struct ConversationList: Codable {
+    let conversations: [ConversationSummary]
+}
+
 struct ConversationRecord: Codable {
     let id: String
     let title: String

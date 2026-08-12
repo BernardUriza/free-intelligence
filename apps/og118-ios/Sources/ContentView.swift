@@ -3,12 +3,15 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var auth: Auth
     @StateObject private var chat: ChatModel
+    @StateObject private var conversations: ConversationsModel
     @State private var draft = ""
     @State private var signingIn = false
     @State private var signInError: String?
+    @State private var showingConversations = false
 
-    init(chat: ChatModel) {
+    init(chat: ChatModel, conversations: ConversationsModel) {
         _chat = StateObject(wrappedValue: chat)
+        _conversations = StateObject(wrappedValue: conversations)
     }
 
     var body: some View {
@@ -16,6 +19,7 @@ struct ContentView: View {
             if auth.isSignedIn {
                 conversation
                     .task { await chat.restoreThread() }
+                    .sheet(isPresented: $showingConversations) { conversationsSheet }
             } else {
                 signIn
             }
@@ -47,8 +51,59 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var conversationsSheet: some View {
+        NavigationStack {
+            List {
+                Button {
+                    chat.startNew()
+                    showingConversations = false
+                } label: {
+                    Label("Nueva conversación", systemImage: "square.and.pencil")
+                        .frame(minHeight: 44)
+                }
+                ForEach(conversations.summaries) { summary in
+                    Button {
+                        Task {
+                            await chat.open(summary.id)
+                            showingConversations = false
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(summary.title).font(.body)
+                            if let preview = summary.preview, !preview.isEmpty {
+                                Text(preview)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .frame(minHeight: 44, alignment: .leading)
+                    }
+                }
+            }
+            .navigationTitle("Conversaciones")
+            .task { await conversations.refresh() }
+        }
+    }
+
     private var conversation: some View {
         VStack(spacing: 0) {
+            HStack {
+                Button {
+                    showingConversations = true
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                        .frame(width: 44, height: 44)
+                }
+                Spacer()
+                Button {
+                    chat.startNew()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .frame(width: 44, height: 44)
+                }
+            }
+            .padding(.horizontal, 8)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(chat.messages) { message in
