@@ -51,10 +51,14 @@ struct ContentView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(chat.messages) { message in
-                        bubble(role: message.role, text: message.content)
+                        bubble(role: message.role, text: message.content, author: message.author)
                     }
-                    if chat.isStreaming || !chat.liveText.isEmpty {
-                        bubble(role: .assistant, text: chat.liveText.isEmpty ? "…" : chat.liveText)
+                    if chat.isStreaming {
+                        bubble(
+                            role: .assistant,
+                            text: chat.liveText.isEmpty ? "…" : chat.liveText,
+                            author: chat.liveAuthor
+                        )
                     }
                     if let error = chat.errorMessage {
                         Text(error)
@@ -68,9 +72,9 @@ struct ContentView: View {
         }
     }
 
-    private func bubble(role: ChatMessage.Role, text: String) -> some View {
+    private func bubble(role: ChatMessage.Role, text: String, author: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(role == .user ? "Tú" : (chat.author ?? "og118"))
+            Text(role == .user ? "Tú" : (author ?? "og118"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Text(text)

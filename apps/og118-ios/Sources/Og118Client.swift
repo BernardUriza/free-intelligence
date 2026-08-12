@@ -9,6 +9,7 @@ struct ChatMessage: Identifiable, Encodable {
     var id = UUID()
     let role: Role
     var content: String
+    var author: String?
 
     enum CodingKeys: String, CodingKey {
         case role
