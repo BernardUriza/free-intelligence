@@ -76,6 +76,27 @@ cd $HOME; git clone https://github.com/<owner>/<repo>.git
 Si ya tiene GitHub configurado en esa máquina, el Credential Manager resuelve el
 acceso al repo privado sin pedir nada. En la sesión 1 el clone fueron **3.6 MiB**.
 
+### Activa los hooks — un comando, y hay que correrlo
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git **no** activa hooks al clonar, ni siquiera los que están en el repo. Sin este
+comando, la persona commitea sin ninguna red: sin gate de ruff (el mismo que CI
+va a reprobarle), sin la revisión de `environment.yml`, y sin el candado de
+versión que exige que `pyproject.toml` y `VERSION_TAG` se muevan **juntos y
+coincidiendo**.
+
+**Por qué está en la checklist y no como nota al pie (2026-08-12):** el hook
+vivía en `.git/hooks/`, que no se versiona — o sea que protegía exactamente una
+máquina, la de Bernard, mientras quien más lo necesita es quien está aprendiendo.
+Además listaba `personas/insult/__init__.py`, borrado en la purga de julio, y
+salía en verde con **medio** bump: decía "bump all 3" pero pasaba con el primero
+que encontrara. Bumpear sólo `pyproject.toml` desplegaba un bot cuyo tag de
+versión mentía — y ese tag es justo con lo que se verifica que un deploy aterrizó
+(`.claude/rules/testing.md`). Verificar el deploy se volvía un volado.
+
 ## AnyDesk
 
 - La licencia gratis permite **una sola sesión**. Si tienes otra abierta (por
@@ -94,6 +115,7 @@ acceso al repo privado sin pedir nada. En la sesión 1 el clone fueron **3.6 MiB
 - [ ] Claude Code instalado y en el PATH
 - [ ] Cuenta decidida y login hecho (por la persona)
 - [ ] Repo clonado
+- [ ] **`git config core.hooksPath .githooks` corrido** (sin esto no hay hooks)
 - [ ] Invite de colaborador aceptado
 - [ ] Entorno mínimo de Python + pytest (**no** el env pesado)
 - [ ] **Tests en verde en su máquina, antes de tocar código**

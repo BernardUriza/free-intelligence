@@ -1,0 +1,168 @@
+#!/usr/bin/env bash
+# Pre-commit hook for discord-bot:
+# 1. Auto-sync shared/personas/insult.md capabilities from code
+# 2. Ruff lint gate on staged Python files (matches CI)
+# 3. Ruff format check gate on staged Python files (matches CI)
+# 4. environment.yml resolver check when staged (catches duplicate deps)
+# 5. Version bump enforcement — BOTH version files, and they must AGREE
+#
+# Why this hook exists:
+# - 2026-05-19: two consecutive CI breaks both shipped to main because
+#   nothing local caught them. First was 7 files needing ruff format,
+#   second was fi-core declared twice in requirements.txt from different
+#   branches. Both broke CI, both broke CD, both stalled the runner on
+#   an old sha for hours. This hook would have blocked both.
+# - All bypasses are explicit (--no-verify), so emergencies still work.
+#
+# Post-conda migration (v3.9.72+): requirements.txt is gone; dependency
+# dup detection now scans environment.yml. The pattern that bit us
+# (fi-core declared twice) translates 1:1 — conda's resolver fails on
+# duplicates with a similar ResolutionImpossible-style error.
+#
+# Tracked here (2026-08-12) instead of .git/hooks/ so contributors get it:
+# .git/hooks/ is not versioned, so for a month this hook protected exactly
+# one machine. Install with `git config core.hooksPath .githooks`.
+
+set -e
+
+# Pick ruff: prefer .venv (legacy local), fall back to conda env on PATH.
+# Conda env activation is the user's responsibility (`conda activate
+# discord-bot`); when active, `ruff` is on PATH directly.
+if [ -x .venv/bin/ruff ]; then
+    RUFF=.venv/bin/ruff
+elif command -v ruff >/dev/null; then
+    RUFF=ruff
+else
+    echo "pre-commit WARN: no ruff found in .venv or PATH. Activate conda env: conda activate discord-bot"
+fi
+
+# --- Step 1: Auto-sync capabilities ---
+PYTHON=${PYTHON:-python3}
+[ -x .venv/bin/python ] && PYTHON=.venv/bin/python
+$PYTHON scripts/sync_capabilities.py 2>/dev/null
+if git diff --name-only | grep -q "shared/personas/insult.md"; then
+    git add shared/personas/insult.md
+    echo "pre-commit: insult.md capabilities auto-synced"
+fi
+
+# --- Step 2: Ruff lint + format gate on staged python files ---
+staged_py=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+if [ -n "$staged_py" ] && [ -n "$RUFF" ]; then
+    if ! echo "$staged_py" | xargs $RUFF check --quiet; then
+        echo ""
+        echo "ERROR: ruff check failed on staged files."
+        echo "  Fix:   $RUFF check --fix \$(git diff --cached --name-only --diff-filter=ACM | grep .py)"
+        echo "  Skip:  git commit --no-verify  (emergencies only)"
+        exit 1
+    fi
+    if ! echo "$staged_py" | xargs $RUFF format --check --quiet; then
+        echo ""
+        echo "ERROR: ruff format check failed on staged files."
+        echo "  Fix:   $RUFF format \$(git diff --cached --name-only --diff-filter=ACM | grep .py)"
+        echo "  Skip:  git commit --no-verify  (emergencies only)"
+        exit 1
+    fi
+fi
+
+# --- Step 3: environment.yml duplicate-package check when staged ---
+# Cheap defense: when environment.yml changes, ensure no package is
+# declared twice in the conda dependencies section. Maps the
+# 2026-05-19 fi-core@main+fi-core@dev failure into the conda world.
+# Skips comments, blanks, the YAML structural keys, and pip subsection
+# entries (those start with -- after the inner `pip:` block).
+if echo "$(git diff --cached --name-only)" | grep -q "^environment.yml$"; then
+    dup=$(awk '
+        /^[[:space:]]*-[[:space:]]+[a-zA-Z]/ {
+            # Strip leading dash + whitespace
+            line = $0
+            sub(/^[[:space:]]*-[[:space:]]+/, "", line)
+            # Drop comments
+            sub(/#.*$/, "", line)
+            # Skip pip: section markers (they look like "pip:" not "pkg>=v")
+            if (line ~ /:$/) next
+            # Extract package name (strip version specifiers + channel/build)
+            name = line
+            sub(/[<>=!~ ].*$/, "", name)
+            sub(/::.*$/, "", name)
+            # Normalize lowercase
+            name = tolower(name)
+            if (name != "") print name
+        }
+    ' environment.yml | sort | uniq -d || true)
+    if [ -n "$dup" ]; then
+        echo ""
+        echo "ERROR: environment.yml declares the same package twice:"
+        echo "$dup" | sed 's/^/  - /'
+        echo "  Conda's resolver will fail in CI. Consolidate to one entry per package."
+        exit 1
+    fi
+fi
+
+# --- Step 4: Version bump enforcement ---
+# Two live files, and they have to AGREE.
+#
+# The old hook listed three files (one of them personas/insult/__init__.py,
+# deleted in the 2026-07-14 purge) and exited 0 on the FIRST one staged —
+# an OR gate wearing an "bump all 3" message. So bumping pyproject.toml
+# alone passed, and shipped a bot whose VERSION_TAG lied about its build.
+# That tag is the only way this repo verifies a deploy actually landed
+# (.claude/rules/testing.md: "si el tag es el viejo, todavía no despliega"),
+# so a stale tag turns every deploy verification into a coin flip.
+VERSION_FILES=("pyproject.toml" "khimeras_shared/version.py")
+staged=$(git diff --cached --name-only)
+missing=()
+for f in "${VERSION_FILES[@]}"; do
+    echo "$staged" | grep -q "^${f}$" || missing+=("$f")
+done
+
+if [ ${#missing[@]} -eq ${#VERSION_FILES[@]} ]; then
+    echo ""
+    echo "ERROR: Version bump required!"
+    echo "Neither version file was modified:"
+    echo "  - pyproject.toml             (version = \"X.Y.Z\")"
+    echo "  - khimeras_shared/version.py (VERSION_TAG = \"ᵛX·Y·Z\")"
+    echo ""
+    echo "Bump BOTH — they have to match. Use --no-verify to skip (emergencies only)."
+    exit 1
+fi
+
+if [ ${#missing[@]} -ne 0 ]; then
+    echo ""
+    echo "ERROR: Half a version bump!"
+    echo "Staged one version file but not the other. Missing:"
+    printf '  - %s\n' "${missing[@]}"
+    echo ""
+    echo "Both move together, always. pyproject.toml is what CI builds;"
+    echo "VERSION_TAG is what every bot prints, and it's how you verify a deploy landed."
+    exit 1
+fi
+
+$PYTHON - <<'PYEOF' || exit 1
+import re, sys, pathlib
+
+SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+pyproject = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
+version_py = pathlib.Path("khimeras_shared/version.py").read_text(encoding="utf-8")
+
+m = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
+t = re.search(r'^VERSION_TAG\s*=\s*"([^"]+)"', version_py, re.M)
+if not m or not t:
+    print("\nERROR: no pude leer la versión de uno de los dos archivos.")
+    print("  pyproject.toml -> " + ("ok" if m else "sin `version = \"X.Y.Z\"`"))
+    print("  khimeras_shared/version.py -> " + ("ok" if t else "sin `VERSION_TAG = \"...\"`"))
+    sys.exit(1)
+
+version, tag = m.group(1), t.group(1)
+esperado = "ᵛ" + version.replace(".", "·").translate(SUP)
+if tag != esperado:
+    print("\nERROR: los dos archivos de versión no coinciden.")
+    print(f"  pyproject.toml             version    = {version}")
+    print(f"  khimeras_shared/version.py VERSION_TAG = {tag}")
+    print(f"  esperado                               = {esperado}")
+    print("\nEl tag es lo que imprime cada bot al final de cada mensaje. Si miente,")
+    print("verificar un deploy deja de significar algo.")
+    sys.exit(1)
+PYEOF
+
+exit 0
