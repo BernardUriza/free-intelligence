@@ -85,11 +85,12 @@ dies alone; the daemon must not fall with it.
    sending access only) was created rather than regenerating one — regeneration
    would have invalidated whatever the old ones feed ([[secrets-management]]).
    Homes: `~/.secrets/resend-aire.txt`, restored by `infra/lib/secrets.sh`.
-3. **Multi-tenant tokens do not exist yet.** `server/aire/server.py` accepts exactly
-   two constants from the environment — `AIRE_AUTH_TOKEN` and `AIRE_CANARY_TOKEN`.
-   Issuing a token *per nickname* means a real `aire_token` table and a lookup on
-   every request, which is also the natural home for [[28-per-token-budget]]. That
-   is the largest slice, and it is where a leaked invite becomes a spend event.
+3. ~~**Multi-tenant tokens do not exist yet.**~~ **Resolved 2026-08-11**, and with
+   it [[28-per-token-budget]]. `aire_token` holds one row per nickname — hash only,
+   never the plaintext — with its own `budget_usd`/`spent_usd`. Bernard's answer to
+   the delivery question was the one that stores least: **no email is ever asked of
+   the visitor.** They leave a name; the key goes to Bernard and he hands it over.
+   No stranger's contact in the database, no second mail path.
 
 ## Slices
 
@@ -98,7 +99,7 @@ dies alone; the daemon must not fall with it.
 | a | Public `/`, console to `/console`, signed-in redirect | **Done 2026-08-11** — build green, `/` static, landing leaks no table name |
 | b | The nickname service on the droplet (MiniLM int8 ONNX, own unit, `MemoryMax`) + the landing game UI calling it | **Done 2026-08-11** — verified E2E through the real browser on the friendly domain |
 | c | Request-access → mail to Bernard with an HMAC-signed link | **Done 2026-08-11** — decisions 1 & 2 resolved below; smoke test landed in the real inbox |
-| d | Approval mints a per-nickname token (`aire_token`, daemon-side) + the door accepts it | Not started — blocked on decision 3 |
+| d | Approval mints a per-nickname token (`aire_token`, daemon-side) + the door accepts it | **Done 2026-08-11** — the ceiling shipped blind and did not bite; fixed and measured biting at `8d9e5f3` |
 
 ## Slice (b), as measured live (2026-08-11)
 
@@ -143,11 +144,62 @@ The transport was smoke-tested before being wired, and the check that mattered w
 his inbox, not Resend's `200` — an API accepting a message is not a message
 delivered.
 
+## Slice (d), as measured live (2026-08-11) — it shipped BLIND
+
+The code for (d) landed at `a359224` and was reported as shipped. It was not: the
+ceiling could not bite, and nothing said so. One stranger's walk found it.
+
+**The walk.** Typed *"I spend my nights fixing other people's databases and my
+mornings drinking cold coffee"* → **drowsy almanac**. Requested access; the mail
+landed at 8:10 PM; clicking the link in the inbox redirected to `/approved`, which
+correctly refuses to print the key. The key arrived in a second mail, hash-only in
+the database, with its revoke link beside it.
+
+**Then the door was actually used, and the ceiling was a decoration.** Two real
+turns at **$0.108** and **$0.116** against a **$0.05** ceiling left
+`spent_usd = 0`. Two defects, each silent by construction:
+
+1. **`turn_cost` read the wrong shape.** It reached for the SDK dataclass's
+   `.usage`; the HTTP surface hands it the flattened dict. `getattr(dict, "usage")`
+   is `None`, so every turn cost **$0.00**. Same family as the #23 budget lie and
+   the #31 exhausted-pool lie: a money function that answers 0 to a shape it does
+   not recognise is indistinguishable from a free turn. It now reads both shapes,
+   is pinned by `tests/test_turn_cost.py`, and a real result that banks nothing
+   PRINTS instead of passing quietly.
+2. **`background: true` never billed at all.** The detached runner (#22a) had no
+   way to report its dollars, so one flag in the request body bought a capped key
+   unlimited spend. `launch_detached` now takes a `CostSink` — the engine reports
+   a number and never learns whose ceiling it feeds.
+
+**Verified biting after `8d9e5f3`**, on the same key, from outside the droplet:
+a streaming turn banked `$0.0068607`; a `background: true` turn banked its own
+dollars (spend jumped to `$0.04352` with no socket attached); the next turn
+crossed the ceiling at `$0.07152` and the one after answered
+**`402 token_budget_spent`**. Clicking the revoke link in the mail then made the
+same key answer **401**, with `revoked_at` set.
+
+**One honest caveat, by design:** a turn is banked when its `result` arrives, so a
+key always overshoots by its last turn — $0.0715 landed against a $0.05 ceiling.
+The cost is unknowable before the turn runs; the ceiling refuses the NEXT one. A
+small ceiling with an expensive first turn (a cold cache costs ~$0.108) can double
+its allowance once.
+
 ## Status / next step
 
-Slices (a), (b) and (c) are live. Slice (d) — the per-nickname token and the door
-that accepts it — is the only one left, and it is where a leaked invitation becomes
-a spend event, so it is also [[28-per-token-budget]]'s natural home.
+All four slices are live and measured. What is left is not a slice, it is a
+question that surfaced from the verification and is Bernard's:
+
+**An invited key has no consumer.** It is accepted on the message, artifacts and
+init endpoints — reachable by hand with `curl`, and by nothing else. The door a
+real client would use, the gateway (`/v1/*`, #30), is skipped in the middleware
+BEFORE the invited-key check, because it is auth-pass-through: the caller's own
+Anthropic credential rides upstream and AIRE spends nothing there. So the stranger
+who walks the whole funnel leaves holding a key that fits no lock they own.
+
+Making the gateway accept an AIRE key means AIRE lending ITS credential to a
+stranger — a different product than the one the gateway is today, and the reason
+the per-key ceiling exists at all. That is an architecture-and-money fork, not an
+implementation detail.
 
 The vocabulary stays the open craft question: it is what gives the game its
 register, and it is Bernard's taste, not an engineering decision.
