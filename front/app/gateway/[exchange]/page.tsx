@@ -11,12 +11,32 @@ type Msg = { role?: string; content?: unknown };
 /** Pull the readable text out of an Anthropic content array (or a bare string,
  *  which the Messages API also accepts for a user turn). */
 function textOf(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
+  return blocksOf(content).join("\n");
+}
+
+/** The text blocks of a message, kept SEPARATE — a turn is not one string. A
+ *  Claude Code request carries pages of scaffolding in its own blocks, and
+ *  joining them first is what buries the human sentence. */
+function blocksOf(content: unknown): string[] {
+  if (typeof content === "string") return [content];
+  if (!Array.isArray(content)) return [];
   return (content as Block[])
     .filter((b) => b?.type === "text" && b.text)
-    .map((b) => b.text)
-    .join("\n");
+    .map((b) => b.text as string);
+}
+
+const SCAFFOLD = /^<(system-reminder|session|recent_conversation|turn_context)\b/;
+
+/** Split a block into the machine's scaffolding and the part a human wrote.
+ *  The scaffolding opens the block and the real sentence trails it, so the cut
+ *  is after the LAST closing tag. A block with nothing after it is all
+ *  scaffolding; a block that never opened with one is all readable. */
+function split(text: string): { scaffold: string; readable: string } {
+  if (!SCAFFOLD.test(text.trimStart())) return { scaffold: "", readable: text };
+  const close = text.lastIndexOf("</");
+  const end = close === -1 ? -1 : text.indexOf(">", close);
+  if (end === -1) return { scaffold: text, readable: "" };
+  return { scaffold: text.slice(0, end + 1), readable: text.slice(end + 1).trim() };
 }
 
 function toolsOf(content: unknown): string[] {
@@ -60,18 +80,32 @@ export default async function ExchangePage({
         {turn.model ?? "—"} · {freshness(turn.ts)}
       </p>
       <div className="panel" style={{ display: "grid", gap: "0.9rem", padding: "1rem" }}>
-        {messages.slice(-6).map((m, i) => {
-          const text = textOf(m.content);
-          if (!text) return null;
-          return (
-            <div key={i} style={{ opacity: m.role === "user" ? 0.85 : 1 }}>
-              <span style={{ color: m.role === "user" ? "#7aa2f7" : "#9ece6a" }}>
-                {m.role === "user" ? "›" : "⏺"}
-              </span>{" "}
-              <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
-            </div>
-          );
-        })}
+        {messages.slice(-6).flatMap((m, i) =>
+          blocksOf(m.content).map((block, j) => {
+            const { scaffold, readable } = split(block);
+            if (!scaffold && !readable) return null;
+            return (
+              <div key={`${i}-${j}`} style={{ opacity: m.role === "user" ? 0.85 : 1 }}>
+                {scaffold && (
+                  <details style={{ marginBottom: readable ? "0.5rem" : 0, opacity: 0.6 }}>
+                    <summary style={{ cursor: "pointer" }}>
+                      contexto del sistema · {scaffold.length.toLocaleString("en-US")} chars
+                    </summary>
+                    <span style={{ whiteSpace: "pre-wrap" }}>{scaffold}</span>
+                  </details>
+                )}
+                {readable && (
+                  <>
+                    <span style={{ color: m.role === "user" ? "#7aa2f7" : "#9ece6a" }}>
+                      {m.role === "user" ? "›" : "⏺"}
+                    </span>{" "}
+                    <span style={{ whiteSpace: "pre-wrap" }}>{readable}</span>
+                  </>
+                )}
+              </div>
+            );
+          }),
+        )}
         {tools.length > 0 && (
           <div style={{ opacity: 0.75 }}>
             {tools.map((t, i) => (
