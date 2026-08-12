@@ -1,8 +1,12 @@
 name: deploy-front
 
-# Builds the image in ACR and rolls the Container App to it. Only on a green
-# "CI front" — and that CI includes the attack suite, so a revision that could
-# write to the database never reaches Azure.
+# Builds the image on the runner, pushes it to GHCR, and rolls the Container App
+# to it. Only on a green "CI front" — and that CI includes the attack suite, so a
+# revision that could write to the database never reaches Azure.
+#
+# The build used to run as `az acr build` against insultacr, which billed twice:
+# the ACR task vCPU AND the runner minutes it spent idling on the wait. GHCR
+# storage is free and the runner was already paid for.
 
 on:
   workflow_run:
@@ -11,9 +15,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
 env:
   RG: insult-rg
-  ACR: insultacr
+  IMAGE: ghcr.io/bernarduriza/aire-server/front
   APP: aire-front
 
 jobs:
@@ -26,23 +35,39 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Compute the short SHA
+        run: echo "SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the image (context = front/)
+        uses: docker/build-push-action@v6
+        with:
+          context: front
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ env.SHA }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Azure login
         uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build the image in ACR (context = front/)
-        run: |
-          set -euo pipefail
-          SHA=$(git rev-parse --short HEAD)
-          az acr build -r "$ACR" -t "$APP:$SHA" -t "$APP:latest" front/
-          echo "SHA=$SHA" >> "$GITHUB_ENV"
-
       - name: Roll the Container App
         run: |
           set -euo pipefail
           az containerapp update -n "$APP" -g "$RG" \
-            --image "$ACR.azurecr.io/$APP:$SHA"
+            --image "$IMAGE:$SHA"
 
       - name: Verify the new revision actually serves
         run: |
