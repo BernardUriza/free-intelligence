@@ -236,20 +236,42 @@ invite ceiling below ~$0.20 is therefore decoration — the first turn alone blo
 through it and the ceiling only refuses the second. Set `AIRE_INVITE_BUDGET_USD`
 well above one cold turn.
 
-## The decision that is still Bernard's
+## The credential decision — resolved 2026-08-11
 
-**Which credential AIRE lends.** `lending.credential()` prefers a metered
-`ANTHROPIC_API_KEY` and falls back to `CLAUDE_CODE_OAUTH_TOKEN`. The droplet has
-only the second, so today AIRE lends **the same OAuth token the engine dispatches
-with** — the Max subscription. Two consequences to weigh:
+*"pon el de oauth en AIRE."* There is exactly one OAuth token per account
+(`~/.secrets/claude-max-oauth.txt` is the SSOT and already listed the AIRE
+droplet among its consumers), so this was never a second seat — it was choosing
+which credential AIRE hands to strangers, and choosing it explicitly.
+
+`lending.credential()` had been reading `CLAUDE_CODE_OAUTH_TOKEN` — **the
+engine's variable** — which made the most sensitive configuration in the system
+a side effect of what happened to be in the daemon's environment. It now reads
+**`AIRE_LEND_OAUTH_TOKEN`** (or `AIRE_LEND_API_KEY` when a metered key exists),
+derived in `compose_env` from the same file the rotator writes, so
+`rotate-claude-oauth.sh` keeps working and a kill test restores both slots. Same
+value today; three things gained: lending can be switched off without touching
+the engine, a metered key can replace it without touching the engine, and no
+unrelated credential can silently become what AIRE lends. It is the reasoning
+that already gave the Azure front its own `AIRE_CANARY_TOKEN`.
+
+**Verified at `c80690a`:** the process sees both slots, `AIRE_LEND_OAUTH_TOKEN`
+and `CLAUDE_CODE_OAUTH_TOKEN` hold the same hash, and an invited key relayed
+through the gateway answered *"the slot works"* — banking **$0.000044** for
+14 in / 6 out tokens on Haiku, which is exactly `14×$1/M + 6×$5/M`. The price
+table matches real Anthropic usage to the cent's eighth decimal.
+
+## What is still open, and it is Bernard's
+
+The slot is chosen; **what fills it** carries two costs worth revisiting:
 
 - **Coupling:** an invited key burning the weekly pool starves the engine. That
   is the failure [[31-credential-failover]]'s rotor exists to survive, now
   reachable by a stranger instead of only by Bernard's own work.
 - **Terms:** serving third parties from a personal subscription is plausibly
   outside Anthropic's consumer terms. A metered API key minted for AIRE is the
-  clean path, costs nothing until used, and the code already prefers it — the
-  only reason it is unused is that the slot was never filled (the same atom #31
+  clean path, costs nothing until used, and `AIRE_LEND_API_KEY` is already wired
+  end to end — drop the value in `~/.secrets/aire-lend-api-key.txt`, re-run
+  `compose_env`, and lending switches with no code change (the same atom #31
   is waiting on). Fénix's key was deliberately NOT reused: a credential is
   deployed only where Bernard said it goes.
 

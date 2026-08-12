@@ -50,12 +50,17 @@ memory. To contradict anything here, verify it first the same way.
    that is what being invited means — so for those callers AIRE lends its OWN
    (`aire/lending.py`) and prices the turn from tokens (`aire/pricing.py` +
    `prices.json`), because Anthropic reports tokens and a ceiling needs dollars.
-   Two consequences to keep in mind before touching this: the lent credential is
-   the same `CLAUDE_CODE_OAUTH_TOKEN` **the engine dispatches with**, so an
-   invited key burning the weekly pool starves the engine too (the coupling #31's
-   rotor exists to survive, and the argument for provisioning a metered
-   `ANTHROPIC_API_KEY`, which `lending.credential()` prefers when present); and an
-   OAuth token is refused by `/v1/messages` unless `anthropic-beta:
+   **The lent credential has its own named slot** — `AIRE_LEND_OAUTH_TOKEN`, or
+   `AIRE_LEND_API_KEY` when a metered key exists (preferred). It deliberately
+   does NOT read the engine's `CLAUDE_CODE_OAUTH_TOKEN`, though provisioning
+   derives both from the same secrets file today: one OAuth exists per account,
+   so the value is the same. The slot is what makes the value *chosen* — lending
+   switches off by clearing one variable while the engine keeps dispatching, and
+   no unrelated credential that lands in the environment can silently become what
+   AIRE hands to strangers. Two facts to keep before touching this: that shared
+   value means an invited key burning the weekly pool **starves the engine too**
+   (the coupling #31's rotor exists to survive, and the argument for a metered
+   key); and an OAuth token is refused by `/v1/messages` unless `anthropic-beta:
    oauth-2025-04-20` rides with it, appended to whatever betas the caller sent.
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
