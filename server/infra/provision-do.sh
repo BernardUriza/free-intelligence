@@ -24,6 +24,7 @@ CANARY_TOKEN_FILE="$HOME/.secrets/aire-canary-token.txt"   # revocable Azure-fro
 OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 OAUTH_BACKUP_FILE="$HOME/.secrets/aire-claude-oauth-backup.txt"     # #31 failover slot 2 (optional)
 API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failover slot 3 (optional)
+LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered key AIRE lends (optional)
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow: signing key + owner
 RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport

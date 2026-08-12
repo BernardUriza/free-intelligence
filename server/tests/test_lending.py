@@ -19,8 +19,8 @@ CALLER = [("anthropic-version", "2023-06-01"),
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("AIRE_LEND_API_KEY", raising=False)
+    monkeypatch.delenv("AIRE_LEND_OAUTH_TOKEN", raising=False)
     lending._inflight.clear()
 
 
@@ -33,7 +33,7 @@ def test_nothing_to_lend_is_none_not_a_naked_request():
 
 
 def test_oauth_is_lent_with_its_beta_appended_not_replacing(monkeypatch):
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aire-own")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aire-own")
     sent = _dict(lending.lend(CALLER))
     assert sent["authorization"] == "Bearer oat-aire-own"
     assert "x-api-key" not in sent, "the caller's own key must not ride along"
@@ -42,14 +42,14 @@ def test_oauth_is_lent_with_its_beta_appended_not_replacing(monkeypatch):
 
 
 def test_oauth_beta_added_when_the_caller_sent_none(monkeypatch):
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aire-own")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aire-own")
     sent = _dict(lending.lend([("anthropic-version", "2023-06-01")]))
     assert sent["anthropic-beta"] == lending.OAUTH_BETA
 
 
 def test_a_metered_key_wins_and_needs_no_beta(monkeypatch):
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aire-own")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-metered")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aire-own")
+    monkeypatch.setenv("AIRE_LEND_API_KEY", "sk-ant-metered")
     sent = _dict(lending.lend(CALLER))
     assert sent["x-api-key"] == "sk-ant-metered"
     assert "authorization" not in sent

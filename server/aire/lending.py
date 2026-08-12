@@ -6,13 +6,23 @@ its own — that is the whole point of being invited — so for those callers AI
 substitutes its own, and the invitation's ceiling becomes the only thing between
 a stranger and Bernard's account. This module is that boundary.
 
+**The lent credential has its own named slot** — `AIRE_LEND_OAUTH_TOKEN`, or
+`AIRE_LEND_API_KEY` when a metered key exists (preferred: it is revocable
+without touching the subscription). It deliberately does NOT read the engine's
+`CLAUDE_CODE_OAUTH_TOKEN`, even though provisioning fills both from the same file
+today — one OAuth token exists per account, so the VALUE is the same. What the
+slot buys is that the value is *chosen*: lending can be switched off by clearing
+one variable while the engine keeps dispatching, a metered key can replace it
+without touching the engine, and no unrelated credential appearing in the
+daemon's environment can silently become the thing AIRE hands to strangers. It is
+the same reasoning that gave the Azure front its own `AIRE_CANARY_TOKEN` instead
+of Bernard's key: the lowest-trust consumer gets its own, revocable alone.
+
 Two headers, never one. An OAuth token is presented as `Authorization: Bearer`
 AND requires `anthropic-beta: oauth-2025-04-20` — `/v1/messages` rejects it
 without the beta. The caller's own `anthropic-beta` is APPENDED to, never
 replaced: the gateway's law is that beta headers forward verbatim, and an
-allowlist there breaks clients as they ship new betas. A metered API key is
-preferred when present (`x-api-key`, no beta) — it is the credential that can be
-revoked without touching Bernard's subscription.
+allowlist there breaks clients as they ship new betas.
 
 The concurrency slot lives here for a reason that is not tidiness: the ceiling is
 banked when a turn ENDS, so N turns launched together all pass the gate before
@@ -30,11 +40,13 @@ _inflight: dict[str, int] = {}
 
 
 def credential() -> tuple[str, str] | None:
-    """The header AIRE lends, or None when it has nothing to lend."""
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return ("x-api-key", os.environ["ANTHROPIC_API_KEY"])
-    if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
-        return ("authorization", f"Bearer {os.environ['CLAUDE_CODE_OAUTH_TOKEN']}")
+    """The header AIRE lends, or None when the slot is empty — which is a real
+    configuration, not a failure: no slot means invited keys are told plainly
+    that there is nothing to lend, while the engine keeps dispatching."""
+    if os.environ.get("AIRE_LEND_API_KEY"):
+        return ("x-api-key", os.environ["AIRE_LEND_API_KEY"])
+    if os.environ.get("AIRE_LEND_OAUTH_TOKEN"):
+        return ("authorization", f"Bearer {os.environ['AIRE_LEND_OAUTH_TOKEN']}")
     return None
 
 

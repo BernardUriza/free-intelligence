@@ -40,6 +40,14 @@ compose_env() {
   append_secret "$LLM_TOKEN_FILE"  "AIRE_AUTH_TOKEN="   "the engine's LLM door"
   append_secret "$CANARY_TOKEN_FILE" "AIRE_CANARY_TOKEN=" "the revocable Azure-front door"
   append_secret "$OAUTH_FILE"      "CLAUDE_CODE_OAUTH_TOKEN=" "the engine's Anthropic auth"
+  # What AIRE LENDS to an invited key (#32e), in a slot of its own. Same token as
+  # the engine's today — one OAuth exists per account — but derived here rather
+  # than read from the engine's variable, so lending can be switched off, or
+  # pointed at a metered key, without touching how the engine dispatches.
+  if [[ -f "$OAUTH_FILE" ]] && grep -q '^CLAUDE_CODE_OAUTH_TOKEN=' "$OAUTH_FILE"; then
+    ENV_CONTENT+="AIRE_LEND_OAUTH_TOKEN=$(grep '^CLAUDE_CODE_OAUTH_TOKEN=' "$OAUTH_FILE" | cut -d= -f2-)"$'\n'
+  fi
+  append_secret "$LEND_API_KEY_FILE" "AIRE_LEND_API_KEY=" "the metered key AIRE lends (#32e)"
   # The failover chain (#31): both slots are OPTIONAL — a missing file only
   # leaves that slot empty and the rotor skips it. The backup OAuth must come
   # from a DIFFERENT seat/account, or it shares the primary's weekly pool.

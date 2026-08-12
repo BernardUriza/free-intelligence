@@ -143,7 +143,7 @@ def test_an_invited_key_is_served_with_aires_own_credential(doors, monkeypatch):
     from aire import lending, tokens
     key = "aire_test_invited_key"
     banked = []
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aires-own")
 
     async def fake_charge(nickname, usd):  # async, so the real await path is exercised
         banked.append((nickname, usd))
@@ -175,7 +175,7 @@ def test_an_invited_key_is_served_with_aires_own_credential(doors, monkeypatch):
 def test_a_spent_invited_key_is_refused_before_upstream(doors, monkeypatch):
     from aire import tokens
     key = "aire_test_spent_key"
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aires-own")
     monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
                         tokens.Holder("broke invitee", 0.05, 0.06))
 
@@ -192,7 +192,7 @@ def test_a_spent_invited_key_is_refused_before_upstream(doors, monkeypatch):
 def test_a_caller_with_their_own_credential_is_still_pass_through(doors, monkeypatch):
     """The lending path must not capture the door: an unrecognised Bearer is a
     stranger's own Anthropic credential and rides upstream untouched."""
-    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "oat-aires-own")
+    monkeypatch.setenv("AIRE_LEND_OAUTH_TOKEN", "oat-aires-own")
 
     async def go():
         async with httpx.AsyncClient(timeout=30) as client:
