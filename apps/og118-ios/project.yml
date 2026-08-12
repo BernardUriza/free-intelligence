@@ -1,9 +1,13 @@
 name: OG118
 options:
-  bundleIdPrefix: ai.og118
+  bundleIdPrefix: com.bernard
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
 
 targets:
   OG118:
@@ -11,9 +15,12 @@ targets:
     platform: iOS
     sources:
       - Sources
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: ai.og118.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118
         PRODUCT_NAME: og118
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -28,6 +35,6 @@ targets:
         OG118Auth0ClientID: $(OG118_AUTH0_CLIENT_ID)
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
-            CFBundleURLName: ai.og118.app
+            CFBundleURLName: com.bernard.og118
             CFBundleURLSchemes:
-              - og118
+              - com.bernard.og118

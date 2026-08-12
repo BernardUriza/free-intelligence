@@ -15,6 +15,7 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | Los fuentes compilan | `swiftc -typecheck` contra el SDK de macOS | 0 errores, 0 warnings |
 | `project.yml` es válido | `xcodegen generate` | genera `OG118.xcodeproj` |
 | La API de producción responde | `curl /health` (tras cold start) | `200` |
+| El cliente Auth0 existe y acepta el callback | `GET /authorize` con el `client_id` y el `redirect_uri` reales | `302` al login, sin *Unknown client* ni *Callback URL mismatch* |
 | **Corre en un iPhone** | **no probado** | **requiere Xcode, que no está instalado** |
 
 La última fila es la que importa: **esto no se ha ejecutado nunca**. Hasta que
@@ -25,9 +26,14 @@ arranque en el teléfono y complete una vuelta de chat, se presume roto.
 ```bash
 brew install xcodegen          # ya instalado en esta máquina
 cd apps/og118-ios
+grep '^AUTH0_CLIENT_ID=' ~/.secrets/og118-ios-auth0.txt \
+  | sed 's/^AUTH0_CLIENT_ID=/OG118_AUTH0_CLIENT_ID = /' > Config.xcconfig
 xcodegen generate              # genera OG118.xcodeproj (no se commitea)
 open OG118.xcodeproj
 ```
+
+`Config.xcconfig` está en `.gitignore`: el repo guarda el **mapa** a
+`~/.secrets/og118-ios-auth0.txt`, no el valor.
 
 Requiere **Xcode** (no basta con las CommandLineTools). Instalación sin App
 Store:
@@ -36,17 +42,22 @@ Store:
 xcodes install 26.6
 ```
 
+## Identidad: el cliente Native YA existía
+
+Bernard registró la app nativa en Auth0 el **2026-07-10**, la misma noche del
+primer scaffold de SwiftUI. Su config vive en `~/.secrets/og118-ios-auth0.txt`:
+bundle id `com.bernard.og118`, callback
+`com.bernard.og118://dev-1r4daup7ofj7q6gn.us.auth0.com/ios/com.bernard.og118/callback`.
+El código está alineado a **ese** cliente — no se creó uno nuevo (Art. 6).
+
+El `client_id` del web (`9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj`) es de tipo SPA y no
+sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
+
 ## Lo que falta para la primera corrida
 
 1. **Xcode instalado.** Bloqueado el 2026-08-12 por la cuenta de Apple en
    recuperación — ver `.claude/backlog/og118-ios-tracer.md`.
-2. **Un cliente Native en Auth0.** El `client_id` del web
-   (`9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj`) es de tipo SPA y no acepta callbacks de
-   esquema propio. Hay que registrar una app **Native** en el tenant
-   `dev-1r4daup7ofj7q6gn.us.auth0.com` con el callback
-   `og118://dev-1r4daup7ofj7q6gn.us.auth0.com/ios/ai.og118.app/callback` y pasar
-   su id por la build setting `OG118_AUTH0_CLIENT_ID`.
-3. **Firma con Apple ID gratis.** La app dura 7 días en el teléfono antes de
+2. **Firma con Apple ID gratis.** La app dura 7 días en el teléfono antes de
    recaducar; reinstalar es darle Run otra vez. El año completo son los $99.
 
 ## Anatomía

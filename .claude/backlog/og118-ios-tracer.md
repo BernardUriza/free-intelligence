@@ -45,12 +45,20 @@ Bloqueado por dos cosas, ninguna de código:
 - Instalar sin App Store: `xcodes install 26.6` (binario ya en
   `/opt/homebrew/bin/xcodes`). La Store en sí sigue rota aparte, ver abajo.
 
-### 2. Falta un cliente Native en Auth0
+### 2. ~~Falta un cliente Native en Auth0~~ — RESUELTO, ya existía
 
-El `client_id` del web es SPA y no acepta callbacks de esquema propio. Registrar
-una app **Native** en `dev-1r4daup7ofj7q6gn.us.auth0.com`, callback
-`og118://dev-1r4daup7ofj7q6gn.us.auth0.com/ios/ai.og118.app/callback`, y pasar el
-id por la build setting `OG118_AUTH0_CLIENT_ID`.
+Bernard lo registró el **2026-07-10 20:36**, diecisiete minutos después del
+scaffold de `ContadorApp`. Config en `~/.secrets/og118-ios-auth0.txt`: bundle id
+`com.bernard.og118`, callback
+`com.bernard.og118://dev-1r4daup7ofj7q6gn.us.auth0.com/ios/com.bernard.og118/callback`.
+Verificado el 2026-08-12 con `GET /authorize`: responde `302` al login, sin
+*Unknown client* ni *Callback URL mismatch*. El código quedó alineado a ese
+cliente; **no se creó uno nuevo** (Art. 6).
+
+Lección de proceso: la primera búsqueda de "el iPhone app que ya empecé" sólo
+buscó código Swift y concluyó que no existía nada de og118. La parte difícil —
+la identidad — sí estaba hecha, en `~/.secrets/`. Buscar ahí es parte de buscar
+trabajo previo, no sólo de buscar credenciales.
 
 ## Deuda aparte: el registro local de la App Store está corrupto
 
