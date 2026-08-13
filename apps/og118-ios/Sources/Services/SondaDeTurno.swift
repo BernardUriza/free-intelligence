@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// Dispara UN turno al arrancar, sólo cuando la app recibe `--sonda` por
@@ -80,3 +81,5 @@ enum SondaDeTurno {
         }
     }
 }
+
+#endif

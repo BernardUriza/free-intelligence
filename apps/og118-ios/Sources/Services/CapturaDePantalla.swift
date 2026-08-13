@@ -1,6 +1,11 @@
-#if os(iOS)
+#if os(iOS) && DEBUG
 import UIKit
 
+/// Sólo en DEBUG: fotografiar la pantalla del usuario y escupirla por stdout es
+/// una capacidad que no tiene por qué existir en un binario que se instala. El
+/// launch argument ya la hacía inalcanzable desde el teléfono, pero "difícil de
+/// invocar" no es lo mismo que "no está".
+///
 /// La app se fotografía a sí misma y escupe el PNG en base64 por stdout, que es
 /// lo que `devicectl device process launch --console` entrega a la Mac.
 ///

@@ -37,6 +37,7 @@ struct ContentView: View {
                 conversation
                     .task {
                         await chat.restoreThread()
+                        #if DEBUG
                         if SondaDeTurno.aperturaPedida() {
                             await SondaDeTurno.medirApertura(chat, conversations)
                             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -53,6 +54,7 @@ struct ContentView: View {
                             await SondaDeTurno.revisarLista(conversations)
                             await SondaDeTurno.correr(chat)
                         }
+                        #endif
                     }
                     .sheet(isPresented: $showingConversations) {
                         ConversationsSheet(chat: chat, conversations: conversations)
