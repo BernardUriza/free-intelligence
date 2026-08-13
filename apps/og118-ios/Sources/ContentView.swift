@@ -10,6 +10,13 @@ struct ContentView: View {
     @State private var signInError: String?
     @State private var showingConversations = false
     @State private var showingContext = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Mismo contrato que fi-glass: 0.3s ease-out, y NADA si el usuario pidió
+    /// movimiento reducido (`prefers-reduced-motion`).
+    private var aparicion: Animation? {
+        reduceMotion ? nil : .easeOut(duration: 0.3)
+    }
 
     init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel) {
         _chat = StateObject(wrappedValue: chat)
@@ -72,10 +79,10 @@ struct ContentView: View {
                 }
                 ForEach(conversations.summaries) { summary in
                     Button {
-                        Task {
-                            await chat.open(summary.id)
-                            showingConversations = false
-                        }
+                        // La hoja se cierra PRIMERO: si se espera a la red, el
+                        // cambio ocurre oculto detrás y el usuario no ve nada.
+                        showingConversations = false
+                        Task { await chat.open(summary.id) }
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(summary.title).font(.body)
@@ -146,61 +153,128 @@ struct ContentView: View {
 
     private var conversation: some View {
         VStack(spacing: 0) {
-            HStack {
-                Button {
-                    showingConversations = true
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .foregroundStyle(Theme.textMuted)
-                        .frame(width: 44, height: 44)
+            encabezado
+            ZStack {
+                if chat.messages.isEmpty && !chat.isStreaming {
+                    estadoVacio.transition(.opacity)
+                } else {
+                    transcript.transition(.opacity)
                 }
-                Spacer()
-                Button {
-                    showingContext = true
-                } label: {
-                    VStack(spacing: 1) {
+            }
+            .id(chat.conversationID)
+            .animation(aparicion, value: chat.conversationID)
+            .animation(aparicion, value: chat.messages.isEmpty)
+            composer
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var encabezado: some View {
+        HStack(spacing: 4) {
+            Button { showingConversations = true } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Theme.textMuted)
+                    .frame(width: 44, height: 44)
+            }
+            Spacer(minLength: 0)
+            Button { showingContext = true } label: {
+                HStack(spacing: 6) {
+                    Circle().fill(Theme.accent).frame(width: 7, height: 7)
+                    VStack(spacing: 0) {
                         Text(catalog.elementName(for: chat.element))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.accent)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.text)
                         if let proyecto = catalog.projectName(for: chat.corpusID) {
                             Text(proyecto)
                                 .font(.caption2)
                                 .foregroundStyle(Theme.textMuted)
                         }
                     }
-                    .frame(minHeight: 44)
-                }
-                Spacer()
-                Button {
-                    chat.startNew()
-                } label: {
-                    Image(systemName: "square.and.pencil")
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.textMuted)
-                        .frame(width: 44, height: 44)
                 }
+                .frame(minHeight: 44)
+                .contentTransition(.opacity)
+                .animation(aparicion, value: chat.element)
+                .animation(aparicion, value: chat.corpusID)
             }
-            .padding(.horizontal, 8)
+            Spacer(minLength: 0)
+            Button { chat.startNew() } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Theme.textMuted)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal, 6)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Theme.surfaceBorder).frame(height: 0.5)
+        }
+    }
+
+    private var estadoVacio: some View {
+        VStack(spacing: 10) {
+            Spacer()
+            Text("og118")
+                .font(.system(size: 34, weight: .bold))
+                .foregroundStyle(Theme.text)
+            Text("Pregunta lo que sea.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.textMuted)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var transcript: some View {
+        ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 14) {
                     ForEach(chat.messages) { message in
-                        bubble(role: message.role, text: message.content, author: message.author)
+                        MessageBubble(
+                            role: message.role,
+                            text: message.content,
+                            author: message.author
+                        )
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                     if chat.isStreaming {
-                        bubble(
-                            role: .assistant,
-                            text: chat.liveText.isEmpty ? "…" : chat.liveText,
-                            author: chat.liveAuthor
-                        )
+                        if chat.liveText.isEmpty {
+                            HStack {
+                                TypingIndicator()
+                                Spacer()
+                            }
+                            .padding(.leading, 14)
+                            .transition(.opacity)
+                        } else {
+                            MessageBubble(
+                                role: .assistant,
+                                text: chat.liveText,
+                                author: chat.liveAuthor
+                            )
+                        }
                     }
                     if let error = chat.errorMessage {
                         Text(error)
                             .font(.footnote)
                             .foregroundStyle(Theme.danger)
+                            .padding(.horizontal, 14)
                     }
+                    Color.clear.frame(height: 1).id("fondo")
                 }
-                .padding(12)
+                .padding(.horizontal, 12)
+                .padding(.top, 14)
+                .animation(aparicion, value: chat.messages.count)
+                .animation(aparicion, value: chat.isStreaming)
             }
-            composer
+            .onChange(of: chat.messages.count) { _, _ in
+                withAnimation { proxy.scrollTo("fondo", anchor: .bottom) }
+            }
+            .onChange(of: chat.liveText) { _, _ in
+                proxy.scrollTo("fondo", anchor: .bottom)
+            }
         }
     }
 
@@ -225,32 +299,47 @@ struct ContentView: View {
         )
     }
 
+    private var puedeEnviar: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chat.isStreaming
+    }
+
     private var composer: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .bottom, spacing: 2) {
             TextField("Escribe…", text: $draft, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.plain)
+                .font(.body)
                 .foregroundStyle(Theme.text)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 14)
-                .background(Theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.radius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.radius)
-                        .stroke(Theme.surfaceBorder, lineWidth: 1)
-                )
-            Button {
-                chat.send(draft)
-                draft = ""
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(Theme.accent)
-                    .frame(width: 44, height: 44)
+                .padding(.leading, 16)
+                .padding(.vertical, 12)
+            if chat.isStreaming {
+                Button { chat.cancel() } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.system(size: 27))
+                        .foregroundStyle(Theme.textMuted)
+                        .frame(width: 44, height: 44)
+                }
+            } else {
+                Button {
+                    chat.send(draft)
+                    draft = ""
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 27))
+                        .foregroundStyle(puedeEnviar ? Theme.accent : Theme.textMuted.opacity(0.4))
+                        .frame(width: 44, height: 44)
+                }
+                .disabled(!puedeEnviar)
             }
-            .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || chat.isStreaming)
         }
-        .padding(12)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24).stroke(Theme.surfaceBorder, lineWidth: 1)
+        )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+        .padding(.top, 6)
     }
 
     private func startSignIn() async {
