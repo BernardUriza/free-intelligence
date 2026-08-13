@@ -6,6 +6,7 @@ import SwiftUI
 struct TranscriptView: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var voz: VoiceModel
+    @ObservedObject var diagnostico: TurnDiagnostics
     let aparicion: Animation?
 
     @State private var alFondo = true
@@ -55,6 +56,15 @@ struct TranscriptView: View {
                             .font(.footnote)
                             .foregroundStyle(Theme.danger)
                             .padding(.horizontal, 14)
+                    }
+                    if let bitacora = diagnostico.resumen {
+                        Text(bitacora)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(Theme.textFaint)
+                            .textSelection(.enabled)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Theme.codeBlockBg, in: RoundedRectangle(cornerRadius: 8))
                     }
                     centinelaDeFondo
                 }
