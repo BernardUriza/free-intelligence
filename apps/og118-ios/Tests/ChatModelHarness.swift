@@ -538,6 +538,7 @@ struct Harness {
         await cancelarNoOfreceReintento()
         elParserLeeUnTurnoDeVerdad()
         elParserAguantaLoQueElServidorPuedeMandar()
+        laSondaNoSeDisparaSola()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -617,6 +618,14 @@ private func elPlanNoSeArrastraEntreTurnos() async {
     expect(model.herramientas.isEmpty, "ni las herramientas del primero")
 }
 
+private func laSondaNoSeDisparaSola() {
+    print("la sonda de turno NO existe sin su bandera")
+    expect(SondaDeTurno.pedida([]) == false, "sin argumentos no hay sonda")
+    expect(SondaDeTurno.pedida(["/App", "-NSTreatUnknownArgumentsAsOpen", "YES"]) == false,
+           "los argumentos normales de un lanzamiento no la disparan")
+    expect(SondaDeTurno.pedida(["/App", "--sonda"]), "con la bandera sí")
+}
+
 // MARK: - El parser contra BYTES REALES del servidor
 
 private func elParserLeeUnTurnoDeVerdad() {
@@ -632,14 +641,27 @@ private func elParserLeeUnTurnoDeVerdad() {
         return
     }
 
-    var parser = SSEParser()
-    var eventos: [StreamEvent] = []
-    for linea in crudo.components(separatedBy: "\n") {
-        if let e = parser.feed(linea) { eventos.append(e) }
+    func correr(_ lineas: [String]) -> [StreamEvent] {
+        var parser = SSEParser()
+        var eventos: [StreamEvent] = []
+        for linea in lineas {
+            if let e = parser.feed(linea) { eventos.append(e) }
+        }
+        if let ultimo = parser.cerrar() { eventos.append(ultimo) }
+        return eventos
     }
-    if let ultimo = parser.cerrar() { eventos.append(ultimo) }
 
+    let todas = crudo.components(separatedBy: "\n")
+    let eventos = correr(todas)
     expect(eventos.count == 4, "salieron los 4 frames del turno (fueron \(eventos.count))")
+
+    // EL BUG REAL: `URLSession.AsyncBytes.lines` se traga las líneas en blanco,
+    // así que el turno llega SIN separadores. Con el parser viejo esto daba 0
+    // frames y la app se quedaba muda con el texto ya recibido.
+    let sinBlancos = todas.filter { !$0.isEmpty }
+    let eventosSinBlancos = correr(sinBlancos)
+    expect(eventosSinBlancos.count == 4,
+           "sin líneas en blanco TAMBIÉN salen los 4 frames (fueron \(eventosSinBlancos.count))")
 
     var abrio = false, texto: String?, resultado: String?, modelo: String?, cerro = false
     for e in eventos {
