@@ -2,6 +2,9 @@
  * Rendering helpers for the claude memory pages — pure presentation over the
  * entries `db.ts` reads. No Postgres in here (the waiter's hands stay in db.ts).
  */
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 const CASITA_PREFIX = "-opt-aire-workspaces-";
 const SCRATCH_RE = /^\d{8}T\d{6}Z-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/;
@@ -55,16 +58,39 @@ export function entryTools(entry: unknown): { name: string; summary: string }[] 
 /** Session title: the first user prompt, trimmed to one line. */
 export function sessionTitle(firstUser: unknown): string {
   const text = entryText(firstUser).trim().split("\n")[0];
-  return text ? (text.length > 80 ? text.slice(0, 77) + "…" : text) : "(sin prompt)";
+  return text ? (text.length > 80 ? text.slice(0, 77) + "…" : text) : "(no prompt)";
 }
 
-/** "hace 40s / hace 12min / 14 jul" from a bigint-ms string. */
+/** "40s ago / 12min ago / Jul 14" from a bigint-ms string. */
 export function freshness(mtimeMs: string): string {
   const ms = Number(mtimeMs);
   if (!ms) return "";
   const diff = Date.now() - ms;
-  if (diff < 60_000) return `hace ${Math.max(1, Math.round(diff / 1000))}s`;
-  if (diff < 3_600_000) return `hace ${Math.round(diff / 60_000)}min`;
-  if (diff < 86_400_000) return `hace ${Math.round(diff / 3_600_000)}h`;
-  return new Date(ms).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+  if (diff < 60_000) return `${Math.max(1, Math.round(diff / 1000))}s ago`;
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}min ago`;
+  if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`;
+  return new Date(ms).toLocaleDateString("en-US", { day: "numeric", month: "short" });
+}
+
+/** The speaker mark and the words — `›` for the caller, `⏺` for the model. The
+ *  one way both transcript views (/claude and /gateway) draw a spoken line. */
+export function Line({ who, text }: { who: "caller" | "model"; text: string }) {
+  return (
+    <>
+      <span className={who}>{who === "caller" ? "›" : "⏺"}</span>{" "}
+      <span className="words">{text}</span>
+    </>
+  );
+}
+
+/** A turn's text rendered as markdown, server-side — real React elements, no
+ *  raw HTML pass-through, because gateway content is other people's bytes.
+ *  `remark-breaks` keeps single newlines as line breaks: transcripts are not
+ *  prose, and collapsing their lines rewrites what was said. */
+export function Md({ text }: { text: string }) {
+  return (
+    <div className="md">
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{text}</ReactMarkdown>
+    </div>
+  );
 }

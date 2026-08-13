@@ -1,9 +1,13 @@
 import Link from "next/link";
 import Shell from "../../../components/Shell.tsx";
 import { gatewayExchange } from "../../../lib/db.ts";
-import { freshness } from "../../../lib/claude.tsx";
+import { freshness, Md } from "../../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
+
+/** How many trailing request messages to show — the tail is where the human
+ *  turn lives; the head is history the caller resent. */
+const SHOWN_MESSAGES = 6;
 
 type Block = { type?: string; text?: string; name?: string; content?: unknown };
 type Msg = { role?: string; content?: unknown };
@@ -47,43 +51,40 @@ function toolsOf(content: unknown): string[] {
     .filter(Boolean);
 }
 
-/** The speaker mark and the words — `›` for the caller, `⏺` for the model. */
-function Line({ role, text }: { role?: string; text: string }) {
+/** One message of the request, boxed: the role rail, the scaffolding folded
+ *  away per block, the sentences shown. */
+function MessageCard({ role, blocks }: { role?: string; blocks: string[] }) {
+  const halves = blocks.map(split).filter((h) => h.scaffold || h.readable);
+  if (halves.length === 0) return null;
+  const caller = role === "user";
   return (
-    <>
-      <span style={{ color: role === "user" ? "#7aa2f7" : "#9ece6a" }}>
-        {role === "user" ? "›" : "⏺"}
-      </span>{" "}
-      <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
-    </>
-  );
-}
-
-/** One block of one message: the scaffolding folded away, the sentence shown. */
-function TurnBlock({ role, block }: { role?: string; block: string }) {
-  const { scaffold, readable } = split(block);
-  if (!scaffold && !readable) return null;
-  return (
-    <div style={{ opacity: role === "user" ? 0.85 : 1 }}>
-      {scaffold && (
-        <details style={{ marginBottom: readable ? "0.5rem" : 0, opacity: 0.6 }}>
-          <summary style={{ cursor: "pointer" }}>
-            contexto del sistema · {scaffold.length.toLocaleString("en-US")} chars
-          </summary>
-          <span style={{ whiteSpace: "pre-wrap" }}>{scaffold}</span>
-        </details>
-      )}
-      {readable && <Line role={role} text={readable} />}
-    </div>
+    <article className={caller ? "turn by-caller" : "turn by-model"}>
+      <header className="who">
+        <span className="mark">{caller ? "›" : "⏺"}</span> {caller ? "caller" : "model"}
+      </header>
+      {halves.map(({ scaffold, readable }, i) => (
+        <div key={i}>
+          {scaffold && (
+            <details>
+              <summary>
+                system context · {scaffold.length.toLocaleString("en-US")} chars
+              </summary>
+              <span className="words">{scaffold}</span>
+            </details>
+          )}
+          {readable && <Md text={readable} />}
+        </div>
+      ))}
+    </article>
   );
 }
 
 function Tools({ names }: { names: string[] }) {
   if (names.length === 0) return null;
   return (
-    <div style={{ opacity: 0.75 }}>
+    <div className="chips">
       {names.map((t, i) => (
-        <code key={i} style={{ marginRight: "0.5rem" }}>⚒ {t}</code>
+        <code key={i}>⚒ {t}</code>
       ))}
     </div>
   );
@@ -108,9 +109,14 @@ export default async function ExchangePage({
     );
   }
 
-  const req = (turn.request ?? {}) as { messages?: Msg[]; system?: unknown };
-  const res = (turn.response ?? {}) as { content?: unknown; stop_reason?: string };
+  const req = (turn.request ?? {}) as { messages?: Msg[] };
+  const res = (turn.response ?? {}) as {
+    content?: unknown;
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const messages = Array.isArray(req.messages) ? req.messages : [];
+  const shown = messages.slice(-SHOWN_MESSAGES);
   const answer = textOf(res.content);
   const tools = toolsOf(res.content);
 
@@ -121,22 +127,39 @@ export default async function ExchangePage({
         <Link href="/gateway">← gateway</Link> · <code>{exchange}</code> ·{" "}
         {turn.model ?? "—"} · {freshness(turn.ts)}
       </p>
-      <div className="panel" style={{ display: "grid", gap: "0.9rem", padding: "1rem" }}>
-        {messages.slice(-6).flatMap((m, i) =>
-          blocksOf(m.content).map((block, j) => (
-            <TurnBlock key={`${i}-${j}`} role={m.role} block={block} />
-          )),
-        )}
-        <Tools names={tools} />
-        {answer && (
-          <div>
-            <Line role="assistant" text={answer} />
-          </div>
-        )}
-        {!answer && tools.length === 0 && (
+
+      <h2 className="sect">
+        request · {shown.length} of {messages.length} messages
+      </h2>
+      {shown.map((m, i) => (
+        <MessageCard key={i} role={m.role} blocks={blocksOf(m.content)} />
+      ))}
+
+      <h2 className="sect">response</h2>
+      {answer || tools.length > 0 ? (
+        <article className="turn by-model">
+          <header className="who">
+            <span className="mark">⏺</span> {turn.model ?? "model"}
+          </header>
+          {answer && <Md text={answer} />}
+          <Tools names={tools} />
+          {(res.stop_reason || res.usage) && (
+            <footer>
+              {res.stop_reason && <span className="pill">{res.stop_reason}</span>}
+              {res.usage?.input_tokens != null && (
+                <span className="pill">in {res.usage.input_tokens.toLocaleString("en-US")}</span>
+              )}
+              {res.usage?.output_tokens != null && (
+                <span className="pill">out {res.usage.output_tokens.toLocaleString("en-US")}</span>
+              )}
+            </footer>
+          )}
+        </article>
+      ) : (
+        <article className="turn">
           <p className="empty">the response half is not in the log (yet).</p>
-        )}
-      </div>
+        </article>
+      )}
     </Shell>
   );
 }

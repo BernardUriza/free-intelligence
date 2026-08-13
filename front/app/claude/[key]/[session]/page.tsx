@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Shell from "../../../../components/Shell.tsx";
 import { claudeTranscript } from "../../../../lib/db.ts";
-import { entryText, entryTools, folderName, freshness } from "../../../../lib/claude.tsx";
+import { entryText, entryTools, folderName, freshness, Line } from "../../../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -24,16 +24,15 @@ export default async function SessionPage({
         <Link href={`/claude/${encodeURIComponent(projectKey)}`}>← sessions</Link> ·{" "}
         <code>{session}</code> · {entries.length} entries · mirror {freshness(last)}
       </p>
-      <div className="panel" style={{ display: "grid", gap: "0.9rem", padding: "1rem" }}>
+      <div className="panel convo">
         {entries.map((row, i) => {
           const e = row.entry as { type?: string };
           const text = entryText(row.entry);
           const tools = entryTools(row.entry);
           if (e?.type === "user" && text) {
             return (
-              <div key={i} style={{ opacity: 0.85 }}>
-                <span style={{ color: "#7aa2f7" }}>›</span>{" "}
-                <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
+              <div key={i} className="turn-caller">
+                <Line who="caller" text={text} />
               </div>
             );
           }
@@ -42,12 +41,11 @@ export default async function SessionPage({
               <div key={i}>
                 {text && (
                   <div>
-                    <span style={{ color: "#9ece6a" }}>⏺</span>{" "}
-                    <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
+                    <Line who="model" text={text} />
                   </div>
                 )}
                 {tools.map((t, j) => (
-                  <div key={j} style={{ fontSize: "0.85em", opacity: 0.7, marginLeft: "1.2rem" }}>
+                  <div key={j} className="chip-line">
                     <code>
                       [{t.name}
                       {t.summary ? ` ${t.summary}` : ""}]
