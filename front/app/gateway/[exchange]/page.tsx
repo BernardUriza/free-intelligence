@@ -47,6 +47,48 @@ function toolsOf(content: unknown): string[] {
     .filter(Boolean);
 }
 
+/** The speaker mark and the words — `›` for the caller, `⏺` for the model. */
+function Line({ role, text }: { role?: string; text: string }) {
+  return (
+    <>
+      <span style={{ color: role === "user" ? "#7aa2f7" : "#9ece6a" }}>
+        {role === "user" ? "›" : "⏺"}
+      </span>{" "}
+      <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
+    </>
+  );
+}
+
+/** One block of one message: the scaffolding folded away, the sentence shown. */
+function TurnBlock({ role, block }: { role?: string; block: string }) {
+  const { scaffold, readable } = split(block);
+  if (!scaffold && !readable) return null;
+  return (
+    <div style={{ opacity: role === "user" ? 0.85 : 1 }}>
+      {scaffold && (
+        <details style={{ marginBottom: readable ? "0.5rem" : 0, opacity: 0.6 }}>
+          <summary style={{ cursor: "pointer" }}>
+            contexto del sistema · {scaffold.length.toLocaleString("en-US")} chars
+          </summary>
+          <span style={{ whiteSpace: "pre-wrap" }}>{scaffold}</span>
+        </details>
+      )}
+      {readable && <Line role={role} text={readable} />}
+    </div>
+  );
+}
+
+function Tools({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div style={{ opacity: 0.75 }}>
+      {names.map((t, i) => (
+        <code key={i} style={{ marginRight: "0.5rem" }}>⚒ {t}</code>
+      ))}
+    </div>
+  );
+}
+
 /** One relayed turn, both halves. The daemon stored the raw API bodies; this is
  *  the waiter reading them back as a conversation instead of a jsonb blob. */
 export default async function ExchangePage({
@@ -81,42 +123,14 @@ export default async function ExchangePage({
       </p>
       <div className="panel" style={{ display: "grid", gap: "0.9rem", padding: "1rem" }}>
         {messages.slice(-6).flatMap((m, i) =>
-          blocksOf(m.content).map((block, j) => {
-            const { scaffold, readable } = split(block);
-            if (!scaffold && !readable) return null;
-            return (
-              <div key={`${i}-${j}`} style={{ opacity: m.role === "user" ? 0.85 : 1 }}>
-                {scaffold && (
-                  <details style={{ marginBottom: readable ? "0.5rem" : 0, opacity: 0.6 }}>
-                    <summary style={{ cursor: "pointer" }}>
-                      contexto del sistema · {scaffold.length.toLocaleString("en-US")} chars
-                    </summary>
-                    <span style={{ whiteSpace: "pre-wrap" }}>{scaffold}</span>
-                  </details>
-                )}
-                {readable && (
-                  <>
-                    <span style={{ color: m.role === "user" ? "#7aa2f7" : "#9ece6a" }}>
-                      {m.role === "user" ? "›" : "⏺"}
-                    </span>{" "}
-                    <span style={{ whiteSpace: "pre-wrap" }}>{readable}</span>
-                  </>
-                )}
-              </div>
-            );
-          }),
+          blocksOf(m.content).map((block, j) => (
+            <TurnBlock key={`${i}-${j}`} role={m.role} block={block} />
+          )),
         )}
-        {tools.length > 0 && (
-          <div style={{ opacity: 0.75 }}>
-            {tools.map((t, i) => (
-              <code key={i} style={{ marginRight: "0.5rem" }}>⚒ {t}</code>
-            ))}
-          </div>
-        )}
+        <Tools names={tools} />
         {answer && (
           <div>
-            <span style={{ color: "#9ece6a" }}>⏺</span>{" "}
-            <span style={{ whiteSpace: "pre-wrap" }}>{answer}</span>
+            <Line role="assistant" text={answer} />
           </div>
         )}
         {!answer && tools.length === 0 && (
