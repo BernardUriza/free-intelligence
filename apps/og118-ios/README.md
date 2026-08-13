@@ -55,8 +55,7 @@ autoría, cancelación, historial— se ejecuta sin red, sin UI y sin Xcode:
 cd apps/og118-ios
 SDK=$(xcrun --show-sdk-path --sdk macosx)
 swiftc -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
-  Sources/ChatModel.swift Sources/Og118Client.swift Sources/StreamEvent.swift \
-  Sources/Config.swift Sources/ConversationRecord.swift Tests/ChatModelHarness.swift
+  Sources/Models/*.swift Sources/Services/*.swift Tests/ChatModelHarness.swift
 /tmp/og118-harness
 ```
 
