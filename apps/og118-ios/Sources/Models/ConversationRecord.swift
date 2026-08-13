@@ -1,10 +1,86 @@
 import Foundation
 
+/// El autor del contrato canónico (`MessageAuthor` de free-intelligence-core):
+/// un OBJETO `{id, name, symbol?, engine?}`, no un string. La app nativa lo
+/// declaraba `String?` y por eso TODA conversación creada en la web reventaba al
+/// decodificar —`«messages.Index 0.author» no es String`— y el hilo se veía
+/// vacío en el teléfono.
+///
+/// Decodifica las dos formas porque el propio iOS ya escribió strings sueltos en
+/// la cuenta; escribe SIEMPRE la canónica, para que la web pueda leer lo que el
+/// teléfono guarda.
+struct PersistedAuthor: Codable, Equatable {
+    let id: String
+    let name: String
+    let symbol: String?
+    let engine: String?
+
+    init(id: String, name: String, symbol: String? = nil, engine: String? = nil) {
+        self.id = id
+        self.name = name
+        self.symbol = symbol
+        self.engine = engine
+    }
+
+    init(from decoder: Decoder) throws {
+        if let suelto = try? decoder.singleValueContainer().decode(String.self) {
+            // Legado del propio iOS: sólo teníamos el nombre.
+            self.init(id: "", name: suelto)
+            return
+        }
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decodeIfPresent(String.self, forKey: .id) ?? "",
+            name: try c.decodeIfPresent(String.self, forKey: .name) ?? "",
+            symbol: try c.decodeIfPresent(String.self, forKey: .symbol),
+            engine: try c.decodeIfPresent(String.self, forKey: .engine)
+        )
+    }
+}
+
 struct PersistedMessage: Codable {
     let role: String
     let content: String
     let timestamp: String?
-    let author: String?
+    let author: PersistedAuthor?
+    /// Todo lo que esta versión NO modela —`images`, `trace`, `thinking`, y lo
+    /// que el contrato agregue mañana— viaja intacto. Re-escribir el record
+    /// desde una struct reducida borraba esos campos en silencio.
+    let ajenos: [String: JSONValor]
+
+    private static let propias: Set<String> = ["role", "content", "timestamp", "author"]
+
+    init(role: String, content: String, timestamp: String?, author: PersistedAuthor?, ajenos: [String: JSONValor] = [:]) {
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
+        self.author = author
+        self.ajenos = ajenos
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: LlaveLibre.self)
+        role = try c.decode(String.self, forKey: LlaveLibre(stringValue: "role"))
+        content = try c.decode(String.self, forKey: LlaveLibre(stringValue: "content"))
+        timestamp = try c.decodeIfPresent(String.self, forKey: LlaveLibre(stringValue: "timestamp"))
+        author = try c.decodeIfPresent(PersistedAuthor.self, forKey: LlaveLibre(stringValue: "author"))
+        var resto: [String: JSONValor] = [:]
+        for llave in c.allKeys where !Self.propias.contains(llave.stringValue) {
+            resto[llave.stringValue] = try c.decode(JSONValor.self, forKey: llave)
+        }
+        ajenos = resto
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: LlaveLibre.self)
+        try c.encode(role, forKey: LlaveLibre(stringValue: "role"))
+        try c.encode(content, forKey: LlaveLibre(stringValue: "content"))
+        try c.encodeIfPresent(timestamp, forKey: LlaveLibre(stringValue: "timestamp"))
+        try c.encodeIfPresent(author, forKey: LlaveLibre(stringValue: "author"))
+        for (llave, valor) in ajenos {
+            try c.encode(valor, forKey: LlaveLibre(stringValue: llave))
+        }
+    }
 }
 
 struct ConversationSummary: Codable, Identifiable {
@@ -95,6 +171,26 @@ extension ConversationRecord {
     /// completo: sin arrastrar `titleCustom`/`pinnedAt`/`archivedAt`, un turno
     /// enviado desde el teléfono borraría el rename, el pin o el archivado que
     /// el usuario hizo en la web.
+    /// Un turno sólo AGREGA mensajes: los primeros N del hilo son, uno a uno,
+    /// los que ya venían en el record. Así que se re-escriben VERBATIM —con sus
+    /// imágenes, su trace y todo lo que esta versión no entiende— y sólo los
+    /// nuevos se construyen desde el modelo del teléfono.
+    private static func preservando(
+        _ messages: [ChatMessage],
+        base: ConversationRecord?
+    ) -> [PersistedMessage] {
+        let previos = base?.messages ?? []
+        return messages.enumerated().map { indice, mensaje in
+            if indice < previos.count { return previos[indice] }
+            return PersistedMessage(
+                role: mensaje.role.rawValue,
+                content: mensaje.content,
+                timestamp: mensaje.timestamp,
+                author: mensaje.author.map { PersistedAuthor(id: $0.id, name: $0.nombre) }
+            )
+        }
+    }
+
     static func from(
         id: String,
         messages: [ChatMessage],
@@ -109,14 +205,7 @@ extension ConversationRecord {
             titleCustom: base?.titleCustom,
             createdAt: createdAt,
             updatedAt: now,
-            messages: messages.map {
-                PersistedMessage(
-                    role: $0.role.rawValue,
-                    content: $0.content,
-                    timestamp: $0.timestamp,
-                    author: $0.author
-                )
-            },
+            messages: preservando(messages, base: base),
             preview: ConversationSchema.preview(messages),
             pinnedAt: base?.pinnedAt,
             archivedAt: base?.archivedAt,
@@ -130,7 +219,9 @@ extension ConversationRecord {
             return ChatMessage(
                 role: role,
                 content: persisted.content,
-                author: persisted.author,
+                author: persisted.author.map {
+                    ChatMessage.Autor(id: $0.id, nombre: $0.name)
+                },
                 timestamp: persisted.timestamp
             )
         }

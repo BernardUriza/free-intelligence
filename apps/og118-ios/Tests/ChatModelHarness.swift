@@ -41,9 +41,9 @@ private func autorSeCongelaPorMensaje() async {
     await settle()
 
     expect(model.messages.count == 2, "un turno deja usuario + asistente")
-    expect(model.messages.last?.author == "Yodo", "el asistente conserva su autor")
+    expect(model.messages.last?.author?.nombre == "Yodo", "el asistente conserva su autor")
     expect(model.messages.first?.author == nil, "el mensaje del usuario no inventa autor")
-    expect(model2.messages.last?.author == "Hidrogeno", "otro turno, otro autor")
+    expect(model2.messages.last?.author?.nombre == "Hidrogeno", "otro turno, otro autor")
 }
 
 @MainActor
@@ -168,7 +168,7 @@ private func persisteAlCerrarElTurno() async {
     expect(r.messages.count == 2, "usuario + asistente")
     expect(r.title == "pregunta", "título del primer mensaje de usuario")
     expect(r.preview == "respuesta", "preview del último mensaje")
-    expect(r.messages.last?.author == "Yodo", "la autoría sobrevive al guardado")
+    expect(r.messages.last?.author?.name == "Yodo", "la autoría sobrevive al guardado")
     expect(r.messages.first?.timestamp != nil, "los mensajes llevan timestamp")
 }
 
@@ -179,7 +179,7 @@ private func restauraElHiloAlArrancar() async {
         id: "abc-123",
         messages: [
             ChatMessage(role: .user, content: "de ayer"),
-            ChatMessage(role: .assistant, content: "te contesté ayer", author: "Yodo")
+            ChatMessage(role: .assistant, content: "te contesté ayer", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
         ],
         createdAt: "2026-08-11T10:00:00Z",
         now: "2026-08-11T10:00:05Z"
@@ -194,7 +194,7 @@ private func restauraElHiloAlArrancar() async {
     await model.restoreThread()
 
     expect(model.messages.count == 2, "el hilo vuelve (llegaron \(model.messages.count))")
-    expect(model.messages.last?.author == "Yodo", "con su autoría intacta")
+    expect(model.messages.last?.author?.nombre == "Yodo", "con su autoría intacta")
     expect(model.messages.first?.role == .user, "y con los roles bien")
 }
 
@@ -539,6 +539,11 @@ struct Harness {
         elParserLeeUnTurnoDeVerdad()
         elParserAguantaLoQueElServidorPuedeMandar()
         laSondaNoSeDisparaSola()
+        await elArranqueEnFrioSeReintenta()
+        elAutorSeLeeEnLasDosFormas()
+        elAutorSeEscribeCanonico()
+        guardarNoAmputaElRecordDeLaWeb()
+        await cambiarDeChatNoArrastraElReintento()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -624,6 +629,176 @@ private func laSondaNoSeDisparaSola() {
     expect(SondaDeTurno.pedida(["/App", "-NSTreatUnknownArgumentsAsOpen", "YES"]) == false,
            "los argumentos normales de un lanzamiento no la disparan")
     expect(SondaDeTurno.pedida(["/App", "--sonda"]), "con la bandera sí")
+}
+
+// MARK: - El autor: objeto canónico, no string
+
+private func elAutorSeLeeEnLasDosFormas() {
+    print("author: la forma canónica de la web Y el string viejo del iOS")
+    let dec = JSONDecoder()
+
+    // Lo que ESCRIBE LA WEB (MessageAuthor de free-intelligence-core). Esto es
+    // lo que reventaba el hilo entero: «messages.Index 0.author» no es String.
+    let web = """
+    {"id":"c1","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"assistant","content":"hola","author":{"id":"53","name":"Yodo","symbol":"I"}}],
+     "preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    if let r = try? dec.decode(ConversationRecord.self, from: web) {
+        expect(r.messages.count == 1, "el record de la web SÍ se decodifica")
+        expect(r.messages.first?.author?.name == "Yodo", "y trae el nombre del autor")
+        expect(r.messages.first?.author?.id == "53", "y su id, que es load-bearing")
+        expect(r.chatMessages.count == 1, "el mensaje NO se descarta")
+    } else {
+        expect(false, "el record de la web SÍ se decodifica")
+    }
+
+    // Lo que el propio iOS ya escribió en la cuenta: un string suelto.
+    let viejo = """
+    {"id":"c2","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"assistant","content":"hola","author":"Yodo"}],
+     "preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    if let r = try? dec.decode(ConversationRecord.self, from: viejo) {
+        expect(r.messages.first?.author?.name == "Yodo", "el string viejo del iOS sigue leyéndose")
+        expect(r.chatMessages.count == 1, "y su mensaje tampoco se pierde")
+    } else {
+        expect(false, "el string viejo del iOS sigue leyéndose")
+    }
+
+    // Sin autor tampoco truena: los mensajes del usuario no lo llevan.
+    let sinAutor = """
+    {"id":"c3","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"user","content":"hola"}],"preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    expect((try? dec.decode(ConversationRecord.self, from: sinAutor))?.chatMessages.count == 1,
+           "un mensaje sin autor se lee igual")
+}
+
+private func elAutorSeEscribeCanonico() {
+    print("author: el teléfono escribe lo que la web puede leer")
+    let record = ConversationRecord.from(
+        id: "c1",
+        messages: [
+            ChatMessage(role: .user, content: "hola"),
+            ChatMessage(role: .assistant, content: "qué tal", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
+        ],
+        createdAt: "2026-08-13T10:00:00Z",
+        now: "2026-08-13T10:00:01Z"
+    )
+    guard let datos = try? JSONEncoder().encode(record),
+          let json = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let mensajes = json["messages"] as? [[String: Any]] else {
+        expect(false, "el record se serializa")
+        return
+    }
+    let autor = mensajes.last?["author"] as? [String: Any]
+    expect(autor != nil, "el autor viaja como OBJETO, no como string")
+    expect(autor?["id"] as? String == "53", "con su id")
+    expect(autor?["name"] as? String == "Yodo", "y su nombre")
+    expect(mensajes.first?["author"] == nil, "el mensaje del usuario no inventa autor")
+}
+
+// MARK: - Lo que el teléfono NO entiende no se borra
+
+private func guardarNoAmputaElRecordDeLaWeb() {
+    print("un turno desde el teléfono conserva imágenes y trace de la web")
+    let dec = JSONDecoder()
+    // Un record REAL de la web: el mensaje trae imágenes y trace, campos que
+    // esta versión no modela. Antes se reescribía sin ellos y se perdían.
+    let json = """
+    {"id":"c1","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[
+       {"role":"user","content":"mira esta foto","images":[{"mediaType":"image/png","data":"QUJD"}]},
+       {"role":"assistant","content":"la veo","author":{"id":"53","name":"Yodo"},
+        "trace":{"steps":["mirar"]},"thinking":"pensando"}
+     ],
+     "preview":"la veo","schemaVersion":1}
+    """.data(using: .utf8)!
+    guard let base = try? dec.decode(ConversationRecord.self, from: json) else {
+        expect(false, "el record de la web se decodifica"); return
+    }
+
+    // El teléfono contesta un turno más sobre ese hilo.
+    var hilo = base.chatMessages
+    hilo.append(ChatMessage(role: .user, content: "otra cosa"))
+    hilo.append(ChatMessage(role: .assistant, content: "va", author: ChatMessage.Autor(id: "53", nombre: "Yodo")))
+    let nuevo = ConversationRecord.from(
+        id: "c1", messages: hilo,
+        createdAt: base.createdAt, now: "2026-08-13T11:00:00Z", base: base
+    )
+
+    guard let datos = try? JSONEncoder().encode(nuevo),
+          let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let msgs = raiz["messages"] as? [[String: Any]] else {
+        expect(false, "el record se serializa"); return
+    }
+    expect(msgs.count == 4, "quedaron los 4 mensajes (fueron \(msgs.count))")
+    let imagenes = msgs.first?["images"] as? [[String: Any]]
+    expect(imagenes?.count == 1, "LA IMAGEN SOBREVIVE al turno del teléfono")
+    expect(imagenes?.first?["data"] as? String == "QUJD", "y con sus bytes intactos")
+    expect(msgs[1]["trace"] != nil, "el trace glass-box sobrevive")
+    expect(msgs[1]["thinking"] as? String == "pensando", "y el thinking también")
+    expect(msgs[3]["content"] as? String == "va", "el mensaje nuevo se escribe normal")
+    expect((msgs[3]["author"] as? [String: Any])?["id"] as? String == "53", "con su autor canónico")
+}
+
+@MainActor
+private func cambiarDeChatNoArrastraElReintento() async {
+    print("el reintento de un chat NO puede dispararse en otro")
+    // A: el turno truena. B: no existe en la cuenta. Antes, el botón de A
+    // reaparecía sobre el error de B y mandaba el texto de A dentro de B.
+    let model = ChatModel(
+        stream: canned([]),
+        restore: { _ in nil }
+    )
+    model.send("mensaje de A")
+    await settle()
+    expect(model.reintentable == "mensaje de A", "A dejó su reintento pendiente")
+
+    await model.open("otra-conversacion")
+    await settle()
+    expect(model.reintentable == nil, "abrir otro chat BORRA el reintento de A")
+    expect(model.plan.vacio, "y el plan del turno anterior")
+    expect(model.herramientas.isEmpty, "y sus herramientas")
+
+    model.startNew()
+    expect(model.reintentable == nil, "un chat nuevo tampoco lo hereda")
+}
+
+// MARK: - El servidor dormido
+
+private func elArranqueEnFrioSeReintenta() async {
+    print("la primera petición despierta al servidor; la segunda es la buena")
+    var intentos = 0
+    let valor = try? await ArranqueEnFrio.conReintento { esReintento -> String in
+        intentos += 1
+        if !esReintento { throw URLError(.timedOut) }
+        return "ok"
+    }
+    expect(intentos == 2, "hubo un reintento (hubo \(intentos))")
+    expect(valor == "ok", "y el segundo intento entrega el dato")
+
+    // Un fallo que no es de red no se reintenta: repetirlo daría el mismo
+    // error y sólo retrasaría el mensaje al humano.
+    var intentosAuth = 0
+    let fallo = try? await ArranqueEnFrio.conReintento { _ -> String in
+        intentosAuth += 1
+        throw Og118Error.unauthorized
+    }
+    expect(intentosAuth == 1, "un 401 NO se reintenta (hubo \(intentosAuth))")
+    expect(fallo == nil, "y el error sube")
+
+    var intentosBuenos = 0
+    let directo = try? await ArranqueEnFrio.conReintento { _ -> String in
+        intentosBuenos += 1
+        return "rápido"
+    }
+    expect(intentosBuenos == 1, "si responde a la primera no se repite")
+    expect(directo == "rápido", "y devuelve lo suyo")
+
+    expect(ArranqueEnFrio.esDeRed(URLError(.cannotConnectToHost)), "no conectar es de red")
+    expect(ArranqueEnFrio.esDeRed(Og118Error.badStatus(500)) == false, "un 500 no es de red")
 }
 
 // MARK: - El parser contra BYTES REALES del servidor

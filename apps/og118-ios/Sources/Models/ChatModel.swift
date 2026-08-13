@@ -4,7 +4,7 @@ import Foundation
 final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
-    @Published private(set) var liveAuthor: String?
+    @Published private(set) var liveAuthor: ChatMessage.Autor?
     @Published private(set) var plan = TurnPlan()
     /// El texto del turno que se puede volver a intentar. Existe porque un turno
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
@@ -77,15 +77,31 @@ final class ChatModel: ObservableObject {
         )
     }
 
-    func restoreThread() async {
+    /// `esperabaRecord` distingue arrancar en una conversación NUEVA (donde no
+    /// haber record es lo normal) de abrir una que el usuario acaba de tocar en
+    /// la lista (donde no haber record es una falla). Sin esa distinción, un
+    /// chat que no carga se ve idéntico a uno vacío — el mismo silencio que ya
+    /// nos costó horas con la lista.
+    func restoreThread(esperabaRecord: Bool = false) async {
         guard let restore, messages.isEmpty, !isRestoring else { return }
         isRestoring = true
         defer { isRestoring = false }
         do {
-            guard let record = try await restore(conversationID) else { return }
+            guard let record = try await restore(conversationID) else {
+                if esperabaRecord {
+                    errorMessage = "Esta conversación no está en tu cuenta."
+                }
+                return
+            }
             createdAt = record.createdAt
             baseRecord = record
             messages = record.chatMessages
+            // Un record con mensajes que se quedan en cero significa que el
+            // cliente no supo leer su forma: hay que gritarlo, no mostrar un
+            // hilo vacío como si la conversación no tuviera nada.
+            if messages.isEmpty, !record.messages.isEmpty {
+                errorMessage = "Llegaron \(record.messages.count) mensajes que esta versión no supo leer."
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -100,9 +116,15 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         errorMessage = nil
+        // Sin esto, un turno fallido en el chat A dejaba su texto en
+        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
+        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
+        reintentable = nil
+        plan = TurnPlan()
+        herramientas = []
         createdAt = now()
         baseRecord = nil
-        await restoreThread()
+        await restoreThread(esperabaRecord: true)
     }
 
     func startNew() {
@@ -112,6 +134,12 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         errorMessage = nil
+        // Sin esto, un turno fallido en el chat A dejaba su texto en
+        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
+        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
+        reintentable = nil
+        plan = TurnPlan()
+        herramientas = []
         createdAt = now()
         baseRecord = nil
     }
@@ -185,8 +213,8 @@ final class ChatModel: ObservableObject {
         switch event {
         case .text(let delta):
             liveText += delta
-        case .author(_, let name):
-            liveAuthor = name
+        case .author(let id, let name):
+            liveAuthor = ChatMessage.Autor(id: id, nombre: name)
         case .result(let text, _):
             if !text.isEmpty { liveText = text }
         case .failure(let message):

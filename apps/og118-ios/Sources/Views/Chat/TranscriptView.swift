@@ -19,7 +19,7 @@ struct TranscriptView: View {
                         MessageBubble(
                             role: message.role,
                             text: message.content,
-                            author: message.author,
+                            author: message.author?.nombre,
                             timestamp: message.timestamp,
                             leyendo: voz.reproductor.hablando == message.id.uuidString,
                             sintetizando: voz.sintetizando == message.id.uuidString,
@@ -45,7 +45,7 @@ struct TranscriptView: View {
                             MessageBubble(
                                 role: .assistant,
                                 text: chat.liveText,
-                                author: chat.liveAuthor
+                                author: chat.liveAuthor?.nombre
                             )
                         }
                     }
