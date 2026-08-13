@@ -12,6 +12,8 @@
  * reusable glassmorphism chat look.
  */
 
+import { glassTokens } from './glass-tokens.generated';
+
 /** The reusable visual slots of the glass-chat preset. */
 export interface GlassChatPreset {
   /** Accent gradient start (emerald). */
@@ -52,23 +54,29 @@ export interface GlassChatPreset {
   radius: string;
 }
 
+/* Los valores ya no se declaran aquí: vienen del contrato
+   (free-intelligence-core/contracts/glass-chat-tokens.json) vía el módulo
+   generado — la misma fuente que alimenta el Theme nativo de og118-ios y el
+   candado de glass-chat.css. Los nombres del preset se conservan (accentFrom
+   es el arranque del gradiente; en el contrato ese valor se llama accentDeep,
+   y body/bgFrom siempre fueron el MISMO slate-950 declarado dos veces). */
 export const glassChatPreset: GlassChatPreset = {
-  accentFrom: '#059669',
-  accentTo: '#0891b2',
-  accentText: '#6ee7b7',
-  body: '#020617',
-  bgFrom: '#020617',
-  bgMid: '#0f172a',
-  bgGlow: 'rgba(8, 145, 178, 0.07)',
-  surface: 'rgba(30, 41, 59, 0.6)',
-  surfaceBorder: 'rgba(71, 85, 105, 0.4)',
-  bubbleUser: 'rgba(5, 150, 105, 0.32)',
-  bubbleUserBorder: 'rgba(52, 211, 153, 0.25)',
-  bubbleAssistant: 'rgba(30, 41, 59, 0.55)',
-  bubbleBorder: 'rgba(71, 85, 105, 0.35)',
-  watermarkOpacity: '0.08',
-  text: '#ffffff',
-  textMuted: '#94a3b8',
-  shadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-  radius: '16px',
+  accentFrom: glassTokens.accentDeep,
+  accentTo: glassTokens.accentTo,
+  accentText: glassTokens.accentText,
+  body: glassTokens.bgDeep,
+  bgFrom: glassTokens.bgDeep,
+  bgMid: glassTokens.bgMid,
+  bgGlow: glassTokens.glow,
+  surface: glassTokens.surface,
+  surfaceBorder: glassTokens.surfaceBorder,
+  bubbleUser: glassTokens.bubbleUser,
+  bubbleUserBorder: glassTokens.bubbleUserBorder,
+  bubbleAssistant: glassTokens.bubbleAssistant,
+  bubbleBorder: glassTokens.bubbleBorder,
+  watermarkOpacity: glassTokens.watermarkOpacity,
+  text: glassTokens.text,
+  textMuted: glassTokens.textMuted,
+  shadow: glassTokens.shadow,
+  radius: glassTokens.radius,
 };
