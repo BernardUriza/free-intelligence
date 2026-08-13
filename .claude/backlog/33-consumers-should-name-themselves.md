@@ -1,6 +1,6 @@
 # Consumers should name themselves — `x-aire-project` on every gateway call
 
-Status: Proposed
+Status: Done (2026-08-12, insult — same day)
 Proposed: 2026-08-12 by Bernard (via the front's conversations view)
 
 ## What it is
@@ -31,5 +31,22 @@ lending contract (#32) and is Bernard's call, not a default.
 
 ## Status / next step
 
-Not started. Next step: one-line header in insult's gateway client config,
-then watch the app column fill on `/gateway`.
+**Done for insult, 2026-08-12.** The caller turned out to be `persona-runner`
+(the Container App whose live env already pointed `ANTHROPIC_BASE_URL` at the
+gate — set out-of-band, recorded nowhere). Shipped as:
+
+- Mechanism proven first with a local smoke turn: `ANTHROPIC_CUSTOM_HEADERS=
+  "x-aire-project: smoke-33" claude -p` through the gate → the request row
+  landed with `project = smoke-33`.
+- `az containerapp update` set `ANTHROPIC_CUSTOM_HEADERS=x-aire-project: insult`
+  on persona-runner; revision 0000161 Healthy at 100% traffic.
+- Both env vars recorded in discord-bot's DR runbook (`docs/runbook_dr.md`,
+  commit `c8edd30` v4.32.55) — `dr_inventory.sh` does not capture env vars and
+  its gotcha 2 already bit once.
+- Receipt on the real surface: a `POST /v1/turn` smoke through the runner
+  produced a gateway request row with `project = insult`, and the front's
+  `/gateway` app column renders it in production.
+
+Open: other consumers (og118, future invited keys) still anonymous — add the
+header where each one points at the gate. The "required for invited keys"
+tightening stays Bernard's call.
