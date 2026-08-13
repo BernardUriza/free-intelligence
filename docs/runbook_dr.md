@@ -55,6 +55,13 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
    Necesita el storage del env `insult-workspace` (→ share `insult-data` de la
    cuenta `insultstorage`, ReadWrite) montado como volumen `workspace` en
    `/data/insult-workspace`, con el `CLAUDE.md` del repo en la raíz del share.
+   Env vars no-secretas que un recreate "de memoria" pierde (gotcha 2 abajo) y
+   que enrutan TODO su tráfico Anthropic:
+   - `ANTHROPIC_BASE_URL=https://gate.bernarduriza.com` — cada turno sale por
+     la puerta gateway de AIRE (espejo en `aire_gateway_log`).
+   - `ANTHROPIC_CUSTOM_HEADERS=x-aire-project: insult` — el runner se nombra
+     ante AIRE; llena la columna app de la vista `/gateway` del front
+     (aire-server backlog #33, 2026-08-12).
 5. **`discord-bot`** — la plomería. Depende del runner (`PERSONA_RUNNER_URL`).
 6. **`persona-gateway`** — las personas hermanas. Depende del runner y del `.env`
    completo (un token faltante → esa persona simplemente no arranca).
