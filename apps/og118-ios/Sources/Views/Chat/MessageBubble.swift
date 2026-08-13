@@ -94,7 +94,7 @@ struct MarkdownText: View {
     }
 
     private var bloques: [Bloque] {
-        raw.components(separatedBy: "```").enumerated().flatMap { indice, parte -> [Bloque] in
+        StreamedMarkdown.normalize(raw).components(separatedBy: "```").enumerated().flatMap { indice, parte -> [Bloque] in
             let limpio = parte.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !limpio.isEmpty else { return [] }
             guard indice.isMultiple(of: 2) else {

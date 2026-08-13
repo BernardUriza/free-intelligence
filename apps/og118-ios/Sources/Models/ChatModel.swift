@@ -5,6 +5,8 @@ final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: String?
+    @Published private(set) var plan = TurnPlan()
+    @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
     @Published private(set) var isRestoring = false
     @Published var errorMessage: String?
@@ -126,6 +128,8 @@ final class ChatModel: ObservableObject {
         messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now()))
         liveText = ""
         liveAuthor = nil
+        plan = TurnPlan()
+        herramientas = []
         errorMessage = nil
         isStreaming = true
 
@@ -169,7 +173,22 @@ final class ChatModel: ObservableObject {
             if !text.isEmpty { liveText = text }
         case .failure(let message):
             errorMessage = message
-        case .open, .done, .toolCall, .unmapped:
+        case .plan(let etiquetas):
+            plan.declarar(etiquetas)
+        case .stepStarted(let i):
+            plan.empezar(i)
+        case .stepDone(let i, let estado, let resumen, let error):
+            plan.cerrar(i, estado: estado, resumen: resumen, error: error)
+        case .stepNoted(let i, let nota):
+            plan.anotar(i, nota: nota)
+        case .toolCall(let nombre, let servidor, let esError):
+            let etiqueta = servidor.map { "\($0)/\(nombre)" } ?? nombre
+            herramientas.append(esError ? "\(etiqueta) ✗" : etiqueta)
+        case .unmapped(let tipo):
+            // Antes esto era `break`: un frame desconocido desaparecía sin
+            // rastro. Ahora al menos queda en la bitácora del turno.
+            herramientas.append("frame sin mapear: \(tipo)")
+        case .open, .done:
             break
         }
     }

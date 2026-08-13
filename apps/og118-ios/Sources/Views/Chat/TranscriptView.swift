@@ -29,6 +29,10 @@ struct TranscriptView: View {
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
+                    if chat.isStreaming, !chat.plan.vacio || !chat.herramientas.isEmpty {
+                        PlanChecklist(plan: chat.plan, herramientas: chat.herramientas)
+                            .transition(.opacity)
+                    }
                     if chat.isStreaming {
                         if chat.liveText.isEmpty {
                             HStack {

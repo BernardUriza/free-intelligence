@@ -528,7 +528,109 @@ struct Harness {
         elJSONOmiteLoQueNoSeEligio()
         await elSaveNoBorraPinNiRename()
         await mutarUnChatEsLoadEditarSave()
+        await elPlanYLosPasosSePintan()
+        await nadaDesaparecEnSilencio()
+        await elPlanNoSeArrastraEntreTurnos()
+        elMarkdownPegadoSeRepara()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
+}
+
+// MARK: - Plan glass-box: los frames que antes caían en `break`
+
+@MainActor
+private func elPlanYLosPasosSePintan() async {
+    print("el plan del agente deja de tirarse a la basura")
+    let model = ChatModel(stream: canned([
+        .open,
+        .plan(["Buscar", "Resumir"]),
+        .stepStarted(0),
+        .stepNoted(index: 0, note: "encontré 3 fuentes"),
+        .stepDone(index: 0, status: .done, summary: "listo", error: nil),
+        .stepDone(index: 1, status: .failed, summary: nil, error: "timeout"),
+        // El servidor manda el índice que quiere; el cliente no lo controla.
+        .stepStarted(99),
+        .text("ya"), .done
+    ]))
+    model.send("x")
+    await settle()
+
+    expect(model.plan.pasos.count == 2, "el plan declara sus pasos")
+    expect(model.plan.pasos[0].estado == .hecho, "step_done cierra el paso")
+    expect(model.plan.pasos[0].nota == "encontré 3 fuentes", "step_noted guarda la nota")
+    expect(model.plan.pasos[0].detalle == "listo", "el resumen queda visible")
+    expect(model.plan.pasos[1].estado == .fallido, "un paso puede fallar")
+    expect(model.plan.pasos[1].detalle == "timeout", "el error le gana al resumen")
+}
+
+@MainActor
+private func nadaDesaparecEnSilencio() async {
+    print("un frame desconocido se muestra en vez de evaporarse")
+    let model = ChatModel(stream: canned([
+        .open,
+        .toolCall(name: "read", server: "fs", isError: false),
+        .toolCall(name: "web", server: nil, isError: true),
+        .unmapped("thinking"),
+        .text("ok"), .done
+    ]))
+    model.send("x")
+    await settle()
+
+    expect(model.herramientas.contains("fs/read"), "la herramienta se nombra servidor/nombre")
+    expect(model.herramientas.contains("web ✗"), "una herramienta con error se marca")
+    expect(model.herramientas.contains { $0.contains("thinking") },
+           "un frame sin mapear queda registrado, no se tira")
+}
+
+@MainActor
+private func elPlanNoSeArrastraEntreTurnos() async {
+    print("cada turno arranca con el plan limpio")
+    // Dos turnos en EL MISMO modelo: es la única forma de probar el reset.
+    var guion: [[StreamEvent]] = [
+        [.open, .plan(["a"]), .toolCall(name: "t", server: nil, isError: false), .text("1"), .done],
+        [.open, .text("2"), .done]
+    ]
+    let model = ChatModel(stream: { _, _, _, _, _ in
+        let eventos = guion.isEmpty ? [] : guion.removeFirst()
+        return AsyncThrowingStream { c in
+            for e in eventos { c.yield(e) }
+            c.finish()
+        }
+    })
+    model.send("uno")
+    await settle()
+    expect(model.plan.pasos.count == 1, "el primer turno dejó su plan")
+
+    model.send("dos")
+    await settle()
+    expect(model.plan.vacio, "el segundo turno no hereda el plan del primero")
+    expect(model.herramientas.isEmpty, "ni las herramientas del primero")
+}
+
+// MARK: - normalizeStreamedMarkdown portado de fi-glass
+
+private func elMarkdownPegadoSeRepara() {
+    print("normalizeStreamedMarkdown: repara sin inventar")
+    let n = StreamedMarkdown.normalize
+    expect(n("fin.## Título") == "fin.\n\n## Título",
+           "un encabezado pegado a puntuación se despega")
+    expect(n("necesarias:### Sub") == "necesarias:\n\n### Sub",
+           "también tras dos puntos")
+
+    // Los falsos positivos que la regla conservadora debe respetar.
+    expect(n("C# is nice") == "C# is nice", "C# queda intacto")
+    expect(n("issue #123") == "issue #123", "una referencia a issue queda intacta")
+    expect(n("use the # key") == "use the # key", "un gato suelto queda intacto")
+    expect(n("# Título") == "# Título", "un encabezado que ya está bien no se toca")
+    expect(n("línea\n## Título") == "línea\n## Título",
+           "un encabezado que ya empieza renglón no se toca")
+
+    // Dentro de un fence NADA se toca: ahí el gato es sintaxis.
+    let code = "```\nfin.## no tocar\n```"
+    expect(n(code) == code, "el interior de un fence queda intacto")
+    // Un fence sin cerrar es el estado NORMAL a media transmisión.
+    let abierto = "texto.## Sí\n```\nfin.## no"
+    expect(n(abierto) == "texto.\n\n## Sí\n```\nfin.## no",
+           "con el fence abierto sólo se repara lo de afuera")
 }
