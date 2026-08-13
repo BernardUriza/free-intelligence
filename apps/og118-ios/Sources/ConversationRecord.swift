@@ -25,14 +25,16 @@ struct ConversationList: Codable {
 }
 
 struct ConversationRecord: Codable {
-    let id: String
-    let title: String
-    let titleCustom: Bool?
-    let createdAt: String
-    let updatedAt: String
-    let messages: [PersistedMessage]
-    let preview: String
-    let schemaVersion: Int
+    var id: String
+    var title: String
+    var titleCustom: Bool?
+    var createdAt: String
+    var updatedAt: String
+    var messages: [PersistedMessage]
+    var preview: String
+    var pinnedAt: String?
+    var archivedAt: String?
+    var schemaVersion: Int
 }
 
 enum ConversationSchema {
@@ -70,16 +72,22 @@ enum ConversationSchema {
 }
 
 extension ConversationRecord {
+    /// `base` es el record tal como vive en el servidor. El PUT es reemplazo
+    /// completo: sin arrastrar `titleCustom`/`pinnedAt`/`archivedAt`, un turno
+    /// enviado desde el teléfono borraría el rename, el pin o el archivado que
+    /// el usuario hizo en la web.
     static func from(
         id: String,
         messages: [ChatMessage],
         createdAt: String,
-        now: String
+        now: String,
+        base: ConversationRecord? = nil
     ) -> ConversationRecord {
-        ConversationRecord(
+        let customTitle = base?.titleCustom == true ? base?.title : nil
+        return ConversationRecord(
             id: id,
-            title: ConversationSchema.title(messages),
-            titleCustom: nil,
+            title: customTitle ?? ConversationSchema.title(messages),
+            titleCustom: base?.titleCustom,
             createdAt: createdAt,
             updatedAt: now,
             messages: messages.map {
@@ -91,6 +99,8 @@ extension ConversationRecord {
                 )
             },
             preview: ConversationSchema.preview(messages),
+            pinnedAt: base?.pinnedAt,
+            archivedAt: base?.archivedAt,
             schemaVersion: ConversationSchema.version
         )
     }

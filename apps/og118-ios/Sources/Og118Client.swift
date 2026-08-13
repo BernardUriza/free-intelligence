@@ -173,6 +173,20 @@ struct Og118Client {
         }
     }
 
+    func deleteConversation(id: String) async throws {
+        var request = URLRequest(
+            url: Config.apiBase.appendingPathComponent("conversations/\(id)")
+        )
+        request.httpMethod = "DELETE"
+        try await authorize(&request)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        if http.statusCode == 401 { throw Og118Error.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+    }
+
     private func authorize(_ request: inout URLRequest) async throws {
         let token = try await accessToken()
         if !token.isEmpty {

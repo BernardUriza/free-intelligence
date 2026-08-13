@@ -246,17 +246,20 @@ private func cambiarDeHiloNoMezclaMensajes() async {
 }
 
 @MainActor
-private func laListaEscondeLosArchivados() async {
-    print("la lista oculta los archivados")
+private func laListaAgrupaComoElSidebarWeb() async {
+    print("la lista agrupa como el sidebar web: fijados, chats, archivados")
     let modelo = ConversationsModel(list: {
         [
-            ConversationSummary(id: "1", title: "viva", createdAt: "a", updatedAt: "b", preview: "x", pinnedAt: nil, archivedAt: nil),
-            ConversationSummary(id: "2", title: "archivada", createdAt: "a", updatedAt: "b", preview: "x", pinnedAt: nil, archivedAt: "2026-08-01T00:00:00Z")
+            ConversationSummary(id: "1", title: "viva", createdAt: "a", updatedAt: "2026-08-02T00:00:00Z", preview: "x", pinnedAt: nil, archivedAt: nil),
+            ConversationSummary(id: "2", title: "archivada", createdAt: "a", updatedAt: "b", preview: "x", pinnedAt: nil, archivedAt: "2026-08-01T00:00:00Z"),
+            ConversationSummary(id: "3", title: "fijada", createdAt: "a", updatedAt: "2026-08-01T00:00:00Z", preview: "x", pinnedAt: "2026-08-03T00:00:00Z", archivedAt: nil)
         ]
     })
     await modelo.refresh()
-    expect(modelo.summaries.count == 1, "sólo la viva (quedaron \(modelo.summaries.count))")
-    expect(modelo.summaries.first?.id == "1", "y es la correcta")
+    expect(modelo.summaries.count == 3, "el refresh conserva TODO (hay \(modelo.summaries.count))")
+    expect(modelo.active.map(\.id) == ["1"], "Chats sólo trae la viva sin fijar")
+    expect(modelo.pinned.map(\.id) == ["3"], "Fijados trae la fijada")
+    expect(modelo.archived.map(\.id) == ["2"], "Archivados trae la archivada")
 }
 
 @MainActor
@@ -431,6 +434,77 @@ private func elJSONOmiteLoQueNoSeEligio() {
     expect(lleno.contains("\"corpus_id\":\"p1\""), "con proyecto sí aparece")
 }
 
+@MainActor
+private func elSaveNoBorraPinNiRename() async {
+    print("guardar un turno NO borra el pin, el archivado ni el rename hechos en la web")
+    var persistidos: [ConversationRecord] = []
+    let base = ConversationRecord(
+        id: "hilo-web",
+        title: "Mi título renombrado",
+        titleCustom: true,
+        createdAt: "2026-08-01T00:00:00Z",
+        updatedAt: "2026-08-01T00:00:00Z",
+        messages: [PersistedMessage(role: "user", content: "hola", timestamp: nil, author: nil)],
+        preview: "hola",
+        pinnedAt: "2026-08-02T00:00:00Z",
+        archivedAt: nil,
+        schemaVersion: 1
+    )
+    let model = ChatModel(
+        conversationID: "hilo-web",
+        stream: canned([.open, .text("respuesta"), .done]),
+        persist: { persistidos.append($0) },
+        restore: { _ in base }
+    )
+    await model.restoreThread()
+    model.send("otro turno")
+    await settle()
+
+    expect(persistidos.count == 1, "hubo exactamente un PUT")
+    expect(persistidos.first?.pinnedAt == "2026-08-02T00:00:00Z", "el pin sobrevive al PUT")
+    expect(persistidos.first?.titleCustom == true, "titleCustom sobrevive")
+    expect(persistidos.first?.title == "Mi título renombrado", "el título renombrado NO se re-deriva")
+}
+
+@MainActor
+private func mutarUnChatEsLoadEditarSave() async {
+    print("fijar/renombrar/archivar cargan el record, editan el campo y re-suben")
+    var guardado: ConversationRecord?
+    let base = ConversationRecord(
+        id: "c1",
+        title: "auto",
+        titleCustom: nil,
+        createdAt: "a",
+        updatedAt: "b",
+        messages: [PersistedMessage(role: "user", content: "hola tema", timestamp: nil, author: nil)],
+        preview: "hola tema",
+        pinnedAt: nil,
+        archivedAt: nil,
+        schemaVersion: 1
+    )
+    let modelo = ConversationsModel(
+        list: { [] },
+        load: { _ in guardado ?? base },
+        save: { guardado = $0 },
+        now: { "2026-08-12T00:00:00Z" }
+    )
+
+    _ = await modelo.setPinned("c1", true)
+    expect(guardado?.pinnedAt == "2026-08-12T00:00:00Z", "el pin viaja con timestamp")
+
+    _ = await modelo.setArchived("c1", true)
+    expect(guardado?.archivedAt == "2026-08-12T00:00:00Z", "archivar viaja con timestamp")
+    expect(guardado?.pinnedAt == "2026-08-12T00:00:00Z", "y NO borra el pin previo")
+
+    _ = await modelo.rename("c1", to: "Nuevo nombre")
+    expect(guardado?.title == "Nuevo nombre", "el rename cambia el título")
+    expect(guardado?.titleCustom == true, "y lo marca custom")
+
+    _ = await modelo.rename("c1", to: "  ")
+    expect(guardado?.title == "hola tema", "rename vacío regresa al título derivado")
+    expect(guardado?.titleCustom == nil, "y quita la marca custom")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -445,13 +519,15 @@ struct Harness {
         await restauraElHiloAlArrancar()
         await elIdDeConversacionEsElSessionID()
         await cambiarDeHiloNoMezclaMensajes()
-        await laListaEscondeLosArchivados()
+        await laListaAgrupaComoElSidebarWeb()
         await laRedCaidaNoTeDesloguea()
         await elKeychainMudoAvisa()
         await cancelarNoPersisteRespuestaAMedias()
         await losGuardadosNoSePisan()
         await elElementoYElProyectoViajanEnElTurno()
         elJSONOmiteLoQueNoSeEligio()
+        await elSaveNoBorraPinNiRename()
+        await mutarUnChatEsLoadEditarSave()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
