@@ -185,7 +185,10 @@ struct Og118Client {
             throw Og118Error.badStatus(http.statusCode)
         }
         do {
-            return try JSONDecoder().decode(ConversationRecord.self, from: data)
+            // El iOS ya dejó `author` como string suelto en la cuenta antes de
+            // conocer el contrato: se normaliza en el borde, para que el tipo
+            // generado no cargue con un caso que el contrato no declara.
+            return try JSONDecoder().decode(ConversationRecord.self, from: LegadoDeAutor.normalizar(data))
         } catch let error as DecodingError {
             // `localizedDescription` de DecodingError dice sólo "no está en el
             // formato correcto", que no sirve para arreglar nada. El error SÍ

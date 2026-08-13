@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://free-intelligence.dev/contracts/conversation-record.schema.json",
+  "title": "ConversationRecord",
+  "description": "El registro persistido de una conversación. ESTE ARCHIVO ES LA FUENTE: TypeScript, Swift y el modelo del servidor se derivan de aquí, ninguno manda sobre los otros. Escrito a mano a propósito — un contrato que vive como tipos de UN lenguaje obliga a los demás consumers a transcribirlo, y cada transcripción diverge: tipar `author` como string en vez del objeto canónico dejó toda conversación de la web vacía en el iPhone, y no modelar `images` hizo que guardar desde el teléfono las borrara.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "title", "createdAt", "updatedAt", "messages", "preview", "schemaVersion"],
+  "properties": {
+    "id": { "type": "string", "description": "Id estable. Es también el session_id del hilo en el backend." },
+    "title": { "type": "string", "description": "Derivado del primer mensaje del usuario, salvo que titleCustom sea true." },
+    "titleCustom": { "type": "boolean", "description": "True cuando el usuario renombró. Un título custom NUNCA se re-deriva al persistir." },
+    "createdAt": { "type": "string", "description": "ISO 8601." },
+    "updatedAt": { "type": "string", "description": "ISO 8601 del último cambio." },
+    "messages": { "type": "array", "items": { "$ref": "#/$defs/PersistedMessage" } },
+    "preview": { "type": "string", "description": "Fragmento del último mensaje no vacío, para el sidebar." },
+    "pinnedAt": { "type": "string", "description": "ISO 8601. Ausente = no fijado. Timestamp y no booleano para que la sección ordene por último-fijado sin un contador aparte." },
+    "archivedAt": { "type": "string", "description": "ISO 8601. Ausente = activo." },
+    "schemaVersion": { "type": "integer", "description": "Versión del registro, para migraciones hacia adelante." }
+  },
+  "$defs": {
+    "PersistedMessage": {
+      "type": "object",
+      "description": "Un mensaje TAL COMO SE GUARDA. No es el ChatMessage vivo: `sanitizeConversationMessage` descarta `metadata`, `id` y `thinking` a propósito, así que este contrato tampoco los declara. Lo que sí sobrevive —autoría, imágenes, trace— sobrevive porque es contenido que el usuario vería desaparecer.",
+      "additionalProperties": false,
+      "required": ["role", "content"],
+      "properties": {
+        "role": { "enum": ["user", "assistant"], "description": "De qué lado del hilo está el mensaje." },
+        "content": { "type": "string", "description": "El texto. Puede ir vacío en un mensaje que sólo lleva imagen." },
+        "timestamp": { "type": "string", "description": "ISO 8601." },
+        "author": { "$ref": "#/$defs/MessageAuthor" },
+        "images": { "type": "array", "items": { "$ref": "#/$defs/MessageImage" } },
+        "trace": { "$ref": "#/$defs/MessageTrace" }
+      }
+    },
+    "MessageAuthor": {
+      "type": "object",
+      "description": "QUIÉN habló — el hablante nombrado, no sólo el lado. Una burbuja de asistente sin autor atribuye la respuesta a la app misma, y eso es una mentira que el framework no debe poder expresar. Sólo `id` y `name` son load-bearing.",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "description": "Identificador estable del hablante (id de elemento, de persona, 'user')." },
+        "name": { "type": "string", "description": "Nombre humano que se pinta ('Yodo', 'og118', 'Tú')." },
+        "symbol": { "type": "string", "description": "Enriquecimiento opcional: token de avatar." },
+        "engine": { "type": "string", "description": "Enriquecimiento opcional: chip de procedencia." }
+      }
+    },
+    "MessageImage": {
+      "type": "object",
+      "description": "Una imagen adjunta a un mensaje del usuario. Base64 por diseño: los shells son local-first, así que los bytes viajan dentro del mensaje en vez de referenciar un blob store que nadie corre.",
+      "additionalProperties": false,
+      "required": ["mediaType", "data"],
+      "properties": {
+        "mediaType": { "type": "string", "description": "MIME de los bytes, p. ej. image/jpeg." },
+        "data": { "type": "string", "description": "Bytes en base64 — SIN el prefijo data: URL." }
+      }
+    },
+    "MessageTrace": {
+      "type": "object",
+      "description": "La foto glass-box del turno agéntico ya terminado. El diferenciador es 'ver la ejecución, no sólo el resultado': sin esto, recargar una conversación pierde el plan y las herramientas que el turno vivo sí mostró. Todo es opcional — un turno conversacional simple dobla sin trace.",
+      "additionalProperties": false,
+      "properties": {
+        "plan": { "$ref": "#/$defs/AgentPlan" },
+        "tools": { "type": "array", "items": { "$ref": "#/$defs/ToolCall" } },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "model": { "type": "string", "description": "El modelo que DE VERDAD produjo la respuesta. Vive aquí y no en metadata, que la persistencia descarta por diseño." }
+      }
+    },
+    "AgentPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": { "type": "array", "items": { "$ref": "#/$defs/PlanStep" } },
+        "outcome": { "enum": ["completed", "failed", "cancelled"], "description": "Veredicto terminal del plan completo." }
+      }
+    },
+    "PlanStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "status"],
+      "properties": {
+        "label": { "type": "string" },
+        "status": { "enum": ["pending", "running", "done", "failed", "cancelled"] },
+        "summary": { "type": "string" },
+        "error": { "type": "string" },
+        "note": { "type": "string", "description": "Anotación libre de note_step." }
+      }
+    },
+    "ToolCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "id": { "type": "string", "description": "Id estable del proveedor; ausente mientras está pendiente." },
+        "name": { "type": "string", "description": "Identificador de la herramienta como la nombró el agente." },
+        "server": { "type": "string", "description": "Servidor/namespace de origen; ausente en las builtin." },
+        "isError": { "type": "boolean", "description": "Ausente = pendiente, false = ok, true = falló." }
+      }
+    }
+  }
+}
