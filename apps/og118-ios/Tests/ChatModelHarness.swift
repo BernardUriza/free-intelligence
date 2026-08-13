@@ -532,6 +532,10 @@ struct Harness {
         await nadaDesaparecEnSilencio()
         await elPlanNoSeArrastraEntreTurnos()
         elMarkdownPegadoSeRepara()
+        await elTurnoVacioSeDeclara()
+        await elTurnoBuenoNoOfreceReintento()
+        await reintentarNoDuplicaLaBurbujaDelUsuario()
+        await cancelarNoOfreceReintento()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -556,12 +560,15 @@ private func elPlanYLosPasosSePintan() async {
     model.send("x")
     await settle()
 
-    expect(model.plan.pasos.count == 2, "el plan declara sus pasos")
-    expect(model.plan.pasos[0].estado == .hecho, "step_done cierra el paso")
-    expect(model.plan.pasos[0].nota == "encontré 3 fuentes", "step_noted guarda la nota")
-    expect(model.plan.pasos[0].detalle == "listo", "el resumen queda visible")
-    expect(model.plan.pasos[1].estado == .fallido, "un paso puede fallar")
-    expect(model.plan.pasos[1].detalle == "timeout", "el error le gana al resumen")
+    // Indexar crudo aquí abortaba el arnés completo y escondía cada prueba
+    // posterior: un assert debe poder fallar sin matar a sus vecinos.
+    let pasos = model.plan.pasos
+    expect(pasos.count == 2, "el plan declara sus pasos (hubo \(pasos.count))")
+    expect(pasos.first?.estado == .hecho, "step_done cierra el paso")
+    expect(pasos.first?.nota == "encontré 3 fuentes", "step_noted guarda la nota")
+    expect(pasos.first?.detalle == "listo", "el resumen queda visible")
+    expect(pasos.last?.estado == .fallido, "un paso puede fallar")
+    expect(pasos.last?.detalle == "timeout", "el error le gana al resumen")
 }
 
 @MainActor
@@ -606,6 +613,78 @@ private func elPlanNoSeArrastraEntreTurnos() async {
     await settle()
     expect(model.plan.vacio, "el segundo turno no hereda el plan del primero")
     expect(model.herramientas.isEmpty, "ni las herramientas del primero")
+}
+
+// MARK: - El turno que muere en silencio
+
+@MainActor
+private func elTurnoVacioSeDeclara() async {
+    print("un turno sin texto deja de verse igual que uno pensando")
+    let model = ChatModel(stream: canned([]))
+    model.send("hola")
+    await settle()
+    expect(model.errorMessage?.contains("sin mandar un solo frame") == true,
+           "cero frames se nombra como tal")
+    expect(model.reintentable == "hola", "el mensaje queda listo para reintentar")
+    expect(model.messages.count == 1, "y NO se inventa una burbuja de asistente")
+
+    let conFrames = ChatModel(stream: canned([.open, .stepStarted(0), .done]))
+    conFrames.send("hola")
+    await settle()
+    expect(conFrames.errorMessage?.contains("3 frames") == true,
+           "con frames pero sin texto, se dice cuántos llegaron")
+}
+
+@MainActor
+private func elTurnoBuenoNoOfreceReintento() async {
+    print("un turno que sí contesta no ensucia la pantalla")
+    let model = ChatModel(stream: canned([.open, .text("hola"), .done]))
+    model.send("x")
+    await settle()
+    expect(model.errorMessage == nil, "sin error")
+    expect(model.reintentable == nil, "sin botón de reintentar")
+}
+
+@MainActor
+private func reintentarNoDuplicaLaBurbujaDelUsuario() async {
+    print("reintentar rehace el turno, no el mensaje")
+    var guion: [[StreamEvent]] = [[], [.open, .text("ahora sí"), .done]]
+    var historiasVistas: [[ChatMessage]] = []
+    let model = ChatModel(stream: { _, _, history, _, _ in
+        historiasVistas.append(history)
+        let eventos = guion.isEmpty ? [] : guion.removeFirst()
+        return AsyncThrowingStream { c in
+            for e in eventos { c.yield(e) }
+            c.finish()
+        }
+    })
+    model.send("hola")
+    await settle()
+    model.reintentar()
+    await settle()
+
+    expect(model.messages.filter { $0.role == .user }.count == 1,
+           "el usuario sigue teniendo UN solo mensaje")
+    expect(model.messages.last?.content == "ahora sí", "y ya tiene su respuesta")
+    expect(model.errorMessage == nil, "el error del intento muerto se limpia")
+    expect(model.reintentable == nil, "y el botón desaparece")
+    expect(historiasVistas.count == 2, "hubo dos llamadas al servidor (hubo \(historiasVistas.count))")
+    expect(historiasVistas.last?.contains { $0.content == "hola" } == false,
+           "el reintento NO manda el mensaje nuevo dentro del historial")
+}
+
+@MainActor
+private func cancelarNoOfreceReintento() async {
+    print("cancelar es una decisión, no una falla")
+    let model = ChatModel(stream: { _, _, _, _, _ in
+        AsyncThrowingStream { c in c.yield(.open) }
+    })
+    model.send("hola")
+    await settle()
+    model.cancel()
+    await settle()
+    expect(model.reintentable == nil, "lo que cancelaste no te pide reintentar")
+    expect(model.errorMessage == nil, "ni te acusa de un error que no hubo")
 }
 
 // MARK: - normalizeStreamedMarkdown portado de fi-glass

@@ -56,10 +56,24 @@ struct TranscriptView: View {
                             .padding(.horizontal, 14)
                     }
                     if let error = chat.errorMessage {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(Theme.danger)
-                            .padding(.horizontal, 14)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.danger)
+                            if chat.reintentable != nil {
+                                Button { chat.reintentar() } label: {
+                                    Label("Reintentar", systemImage: "arrow.clockwise")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(Theme.text)
+                                        .padding(.horizontal, 14)
+                                        .frame(height: 34)
+                                        .background(Theme.surface, in: Capsule())
+                                        .overlay(Capsule().stroke(Theme.surfaceBorder, lineWidth: 1))
+                                }
+                                .frame(minHeight: 44)
+                            }
+                        }
+                        .padding(.horizontal, 14)
                     }
                     if let bitacora = diagnostico.resumen {
                         Text(bitacora)
