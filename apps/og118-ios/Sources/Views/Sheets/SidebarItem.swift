@@ -1,20 +1,20 @@
 import SwiftUI
 
-/// La fila del sidebar, portada de fi-glass (`sidebarItemStyle.ts`) con sus
-/// medidas exactas: gap 0.4rem, padding 0.55/0.6rem, radio 10, borde de 1px
-/// transparente que sólo aparece al seleccionar, y la escala tipográfica
-/// 0.85 / 0.75 / 0.68rem para título, subtítulo y meta.
+/// La fila del sidebar, portada de fi-glass (`sidebarItemStyle.ts`). Las
+/// medidas ya no se transcriben: vienen del contrato de tokens vía
+/// `Generated/Theme.generated.swift` (gap 0.4rem, padding 0.55/0.6rem, radio
+/// 10, y la escala tipográfica 0.85 / 0.75 / 0.68rem, convertidas a puntos).
 ///
 /// En `pointer: coarse` la web muestra SIEMPRE las acciones (opacity 1) en vez
 /// de revelarlas al hover — un teléfono no tiene hover, así que aquí van fijas.
 private enum Medida {
-    static let gap: CGFloat = 6
-    static let padV: CGFloat = 9
-    static let padH: CGFloat = 10
-    static let radio: CGFloat = 10
-    static let titulo: CGFloat = 14
-    static let subtitulo: CGFloat = 12
-    static let meta: CGFloat = 11
+    static let gap = Theme.itemGap
+    static let padV = Theme.itemPadV
+    static let padH = Theme.itemPadH
+    static let radio = Theme.itemRadius
+    static let titulo = Theme.itemTitleSize
+    static let subtitulo = Theme.itemSubtitleSize
+    static let meta = Theme.itemMetaSize
 }
 
 struct SidebarItem<Acciones: View>: View {

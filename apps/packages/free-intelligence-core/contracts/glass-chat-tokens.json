@@ -1,0 +1,266 @@
+{
+  "$id": "https://free-intelligence.dev/contracts/glass-chat-tokens.json",
+  "title": "GlassChatTokens",
+  "description": "Los tokens de diseño del preset glass-chat y de las superficies que og118 pinta encima. ESTE ARCHIVO ES LA FUENTE: el CSS de fi-glass, el mirror tipado glassChatPreset y el Theme nativo de og118-ios derivan de aquí — ninguna superficie manda sobre las otras. Escrito a mano a propósito: antes cada valor vivía como literal en glass-chat.css, otra vez en glass-chat-preset.ts, otra vez en sidebarItemStyle.ts y una cuarta vez transcrito a ojo en Theme.swift, y cada transcripción diverge con el tiempo — el mismo hueco que dejó los hilos de la web vacíos en el iPhone cuando el contrato de mensajes se transcribió a mano. Un color es hex + alpha opcional; una medida declara px o rem (la regla rem→pt vive en el generador de Swift); css son cadenas que sólo la web consume tal cual.",
+  "colors": {
+    "bgDeep": {
+      "hex": "#020617",
+      "description": "slate-950. --glass-chat-body y --glass-chat-bg-from del preset. OJO: og118 web re-tinta --glass-chat-bg-from a #0a0e16 (--og-bg-deep en globals.css); el iPhone hoy pinta el default del preset, no el re-tint — divergencia heredada, documentada, no resuelta aquí."
+    },
+    "bgMid": {
+      "hex": "#0f172a",
+      "description": "slate-900. --glass-chat-bg-mid, el centro del barrido diagonal del fondo."
+    },
+    "accent": {
+      "hex": "#34d399",
+      "description": "emerald-400. --og-accent en globals.css de og118 — el acento del CONSUMER, no del preset (el preset arranca su gradiente en accentDeep)."
+    },
+    "accentDeep": {
+      "hex": "#059669",
+      "description": "emerald-600. --glass-chat-accent-from del preset; tambien el extremo final del gradiente del botón de enviar de og118."
+    },
+    "accentTo": {
+      "hex": "#0891b2",
+      "description": "cyan-600. --glass-chat-accent-to: cierra el gradiente header/CTA del preset. Hoy sólo la web lo usa."
+    },
+    "accentText": {
+      "hex": "#6ee7b7",
+      "description": "emerald-300. --glass-chat-accent-text. Hoy sólo la web lo usa."
+    },
+    "accentMuted": {
+      "hex": "#a3a3a3",
+      "description": "--og-accent-muted en globals.css. OJO: globals.css tiene un fallback var(--og-accent-muted, #94a3b8) que no coincide con la definición de :root — bug preexistente de la web."
+    },
+    "danger": {
+      "hex": "#f87171",
+      "description": "red-400. --og-danger y el fallback de --fi-sidebar-item-danger en sidebarItemStyle.ts."
+    },
+    "text": {
+      "hex": "#ffffff",
+      "description": "--glass-chat-text, el texto primario sobre el vidrio."
+    },
+    "textBody": {
+      "hex": "#e2e8f0",
+      "description": "slate-200. El color de body en og118 y content.user en messages/styles.ts. La web pinta al asistente un paso más claro (slate-100, text-slate-100); el iPhone usa este mismo para ambos lados — matiz heredado."
+    },
+    "textMuted": {
+      "hex": "#94a3b8",
+      "description": "slate-400. --glass-chat-text-muted: placeholders y subtítulos."
+    },
+    "textFaint": {
+      "hex": "#64748b",
+      "description": "slate-500. Timestamps (MessageAuthorHeader), placeholders terciarios."
+    },
+    "surface": {
+      "hex": "#1e293b",
+      "alpha": 0.6,
+      "description": "slate-800/60. --glass-chat-surface: el relleno esmerilado del composer."
+    },
+    "surfaceBorder": {
+      "hex": "#475569",
+      "alpha": 0.4,
+      "description": "slate-600/40. --glass-chat-surface-border."
+    },
+    "bubbleUser": {
+      "hex": "#059669",
+      "alpha": 0.32,
+      "description": "emerald-600/32. --glass-chat-bubble-user: lavado esmeralda translúcido, no sólido — el sólido leía como verde WhatsApp."
+    },
+    "bubbleUserBorder": {
+      "hex": "#34d399",
+      "alpha": 0.25,
+      "description": "emerald-400/25. --glass-chat-bubble-user-border."
+    },
+    "bubbleAssistant": {
+      "hex": "#1e293b",
+      "alpha": 0.55,
+      "description": "slate-800/55. --glass-chat-bubble-assistant."
+    },
+    "bubbleBorder": {
+      "hex": "#475569",
+      "alpha": 0.35,
+      "description": "slate-600/35. --glass-chat-bubble-border."
+    },
+    "glow": {
+      "hex": "#0891b2",
+      "alpha": 0.07,
+      "description": "--glass-chat-bg-glow del preset: el resplandor radial apenas-visible sobre el fondo. OJO: og118 web lo re-tinta a rgba(52, 211, 153, 0.06) — 'og emerald, not preset cyan'; el iPhone hoy pinta el cyan del preset — divergencia heredada, documentada, no resuelta aquí."
+    },
+    "authorUser": {
+      "hex": "#7c3aed",
+      "alpha": 0.8,
+      "description": "violet-600/80. avatar.user en messages/styles.ts: el chip de autor del usuario."
+    },
+    "authorAgentText": {
+      "hex": "#0a0f1e",
+      "description": "--fi-author-agent-fg en MessageAuthorHeader.tsx: texto oscuro sobre el chip ámbar del agente."
+    },
+    "authorName": {
+      "hex": "#cbd5e1",
+      "description": "slate-300. El nombre del hablante en MessageAuthorHeader.tsx (meta.name)."
+    },
+    "typingDot": {
+      "hex": "#fbbf24",
+      "alpha": 0.8,
+      "description": "amber-400/80. typing.dot en messages/styles.ts."
+    },
+    "codeInline": {
+      "hex": "#fcd34d",
+      "alpha": 0.9,
+      "description": "amber-300/90. markdownStyles.code — el ámbar del código inline, distinto a propósito del esmeralda de los links."
+    },
+    "codeBlockBg": {
+      "hex": "#0f172a",
+      "alpha": 0.8,
+      "description": "slate-900/80. markdownStyles.pre."
+    },
+    "codeBlockBorder": {
+      "hex": "#334155",
+      "alpha": 0.3,
+      "description": "slate-700/30. Borde de markdownStyles.pre."
+    },
+    "quoteBg": {
+      "hex": "#ffffff",
+      "alpha": 0.03,
+      "description": "white/3. markdownStyles.blockquote."
+    },
+    "quoteAccent": {
+      "hex": "#f59e0b",
+      "alpha": 0.6,
+      "description": "amber-500/60. El filete izquierdo del blockquote."
+    },
+    "chipBorder": {
+      "hex": "#10b981",
+      "alpha": 0.3,
+      "description": "emerald-500/30. Borde del selector de elemento (Og118ElementSelector)."
+    },
+    "chipFill": {
+      "hex": "#ffffff",
+      "alpha": 0.05,
+      "description": "white/5. Relleno del selector de elemento."
+    },
+    "itemSelectedBg": {
+      "hex": "#34d399",
+      "alpha": 0.08,
+      "description": "El tinte .is-selected de la fila del sidebar (sidebarItemStyle.ts)."
+    },
+    "itemSelectedBorder": {
+      "hex": "#34d399",
+      "alpha": 0.3,
+      "description": "El borde .is-selected de la fila del sidebar."
+    },
+    "itemHover": {
+      "hex": "#ffffff",
+      "alpha": 0.04,
+      "description": "white/4. Fallback de --fi-sidebar-item-hover-bg."
+    },
+    "itemMeta": {
+      "hex": "#475569",
+      "description": "slate-600. Fallback de --fi-sidebar-item-meta-color: la hora de la fila."
+    },
+    "itemAction": {
+      "hex": "#64748b",
+      "description": "slate-500. Fallback de --fi-sidebar-item-action-color: los botones de la fila."
+    },
+    "sidebarDivider": {
+      "hex": "#ffffff",
+      "alpha": 0.06,
+      "description": "white/6. Los bordes del rail (.og-sidebar, .og-sidebar-foot, .og-sidebar-archived)."
+    },
+    "searchFill": {
+      "hex": "#ffffff",
+      "alpha": 0.04,
+      "description": "white/4. Fondo de .og-sidebar-search."
+    },
+    "searchBorder": {
+      "hex": "#ffffff",
+      "alpha": 0.1,
+      "description": "white/10. Borde de .og-sidebar-search."
+    },
+    "badgeSelected": {
+      "hex": "#10b981",
+      "alpha": 0.3,
+      "description": "emerald-500/30. El badge del elemento seleccionado (bg-emerald-500/30)."
+    },
+    "badgeSelectedText": {
+      "hex": "#d1fae5",
+      "description": "emerald-100. Texto del badge seleccionado (text-emerald-100)."
+    },
+    "engineChipFill": {
+      "hex": "#10b981",
+      "alpha": 0.1,
+      "description": "emerald-500/10. Relleno del chip de engine (bg-emerald-500/10)."
+    },
+    "archiveSwipe": {
+      "hex": "#475569",
+      "description": "slate-600. Fondo del swipe de archivar — affordance NATIVA del iPhone, sin gemelo web; el tono viene de la misma escala slate del rail."
+    },
+    "sendText": {
+      "hex": "#052e1a",
+      "description": "Texto oscuro sobre el gradiente esmeralda del botón de enviar (.og-send-btn color)."
+    },
+    "sendDisabledBorder": {
+      "hex": "#94a3b8",
+      "alpha": 0.28,
+      "description": "El outline del enviar deshabilitado (.og-send-btn:disabled): mantiene la FORMA del control en el estado que más se ve."
+    },
+    "stopFill": {
+      "hex": "#dc2626",
+      "alpha": 0.9,
+      "description": "red-600/90. .og-stop-btn: el rojo dice 'esto lo detiene'."
+    },
+    "stopBorder": {
+      "hex": "#f87171",
+      "alpha": 0.6,
+      "description": "red-400/60. Borde de .og-stop-btn."
+    },
+    "stopText": {
+      "hex": "#fee2e2",
+      "description": "red-100. Texto de .og-stop-btn."
+    }
+  },
+  "dimensions": {
+    "radius": {
+      "px": 16,
+      "description": "--glass-chat-radius (rounded-2xl): la esquina del composer y las superficies grandes."
+    },
+    "itemRadius": {
+      "px": 10,
+      "description": "La esquina de la fila del sidebar (sidebarItemStyle.ts)."
+    },
+    "itemGap": {
+      "rem": 0.4,
+      "description": "Fallback de --fi-item-gap (densidad comfortable)."
+    },
+    "itemPadV": {
+      "rem": 0.55,
+      "description": "Padding vertical de la fila (primera mitad de --fi-item-padding comfortable)."
+    },
+    "itemPadH": {
+      "rem": 0.6,
+      "description": "Padding horizontal de la fila (segunda mitad de --fi-item-padding comfortable)."
+    },
+    "itemTitleSize": {
+      "rem": 0.85,
+      "description": "Tipografía del título de la fila."
+    },
+    "itemSubtitleSize": {
+      "rem": 0.75,
+      "description": "Tipografía del subtítulo/preview de la fila."
+    },
+    "itemMetaSize": {
+      "rem": 0.68,
+      "description": "Tipografía de la hora/meta de la fila."
+    }
+  },
+  "css": {
+    "shadow": {
+      "value": "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+      "description": "--glass-chat-shadow (≈ shadow-2xl). Sólo la web: en SwiftUI la elevación se compone distinto."
+    },
+    "watermarkOpacity": {
+      "value": "0.08",
+      "description": "--glass-chat-watermark-opacity. Sólo la web: el watermark es del shell web."
+    }
+  }
+}
