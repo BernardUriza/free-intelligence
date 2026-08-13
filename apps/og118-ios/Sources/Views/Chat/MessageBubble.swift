@@ -326,6 +326,7 @@ struct MessageBubble: View {
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     MarkdownText(raw: text)
+                        .accessibilityIdentifier("respuesta")
                     if let onLeer {
                         botonLeer(onLeer)
                     }

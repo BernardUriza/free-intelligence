@@ -45,3 +45,34 @@ targets:
             CFBundleURLName: com.bernard.og118
             CFBundleURLSchemes:
               - com.bernard.og118
+
+  OG118UITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118.uitests
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        TEST_TARGET_NAME: OG118
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: OG118
+
+schemes:
+  OG118:
+    build:
+      targets:
+        OG118: all
+        OG118UITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - OG118UITests

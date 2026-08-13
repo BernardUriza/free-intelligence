@@ -52,6 +52,7 @@ struct ComposerView: View {
     var body: some View {
         VStack(spacing: 0) {
             TextField("Pregúntale a og118…", text: $draft, axis: .vertical)
+                .accessibilityIdentifier("composer")
                 .focused($tecladoActivo)
                 .submitLabel(.send)
                 .onSubmit(enviar)
@@ -171,6 +172,8 @@ struct ComposerView: View {
                 .contentShape(Rectangle())
         }
         .disabled(!puedeEnviar)
+        .accessibilityIdentifier("enviar")
+        .accessibilityLabel("Enviar mensaje")
     }
 
     private var botonDetener: some View {
