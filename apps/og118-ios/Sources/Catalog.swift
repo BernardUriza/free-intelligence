@@ -8,6 +8,7 @@ struct Element: Codable, Identifiable {
     let displayName: String
     let displayLabel: String
     let engine: String?
+    let description: String?
 
     /// El token que `/chat/stream` resuelve contra el registry. El slug es la
     /// forma canónica que el servidor documenta; símbolo y número también
