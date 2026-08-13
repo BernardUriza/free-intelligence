@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { signOut } from "../lib/actions.ts";
 import { tables, type Table } from "../lib/db.ts";
+import { COOKIE, valid } from "../lib/session.ts";
 
 /**
  * The frame every page hangs on: the table list, read from the live catalog on
@@ -9,6 +12,12 @@ import { tables, type Table } from "../lib/db.ts";
  *
  * It is a Server Component on purpose, so `active` arrives as a prop instead of
  * dragging `usePathname` (and a client bundle) in for one CSS class.
+ *
+ * It is also the SECOND wall of the door. The proxy is the first, but a proxy
+ * bypass is a recurring vulnerability class (CVE-2026-64642 was one), and every
+ * page that reads the database renders this frame — so the cookie is re-checked
+ * here, in the render path, before any query runs. The advisory's own
+ * workaround, kept as permanent depth.
  */
 export default async function Shell({
   active = "",
@@ -17,6 +26,9 @@ export default async function Shell({
   active?: string;
   children: React.ReactNode;
 }) {
+  const expected = process.env.AIRE_CONSOLE_PASSWORD;
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (!expected || !(await valid(token, expected))) redirect("/login");
   let list: Table[] = [];
   let down: string | null = null;
   try {
