@@ -25,7 +25,9 @@
     "build": "tsup",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "gen:events": "node scripts/gen-wire-events.mjs"
+    "gen:events": "node scripts/gen-wire-events.mjs",
+    "gen:swift-events": "node scripts/gen-swift-events.mjs",
+    "check:swift-events": "node scripts/gen-swift-events.mjs --check"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4",
