@@ -539,6 +539,7 @@ struct Harness {
         elParserLeeUnTurnoDeVerdad()
         elParserAguantaLoQueElServidorPuedeMandar()
         laSondaNoSeDisparaSola()
+        await elArranqueEnFrioSeReintenta()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -624,6 +625,41 @@ private func laSondaNoSeDisparaSola() {
     expect(SondaDeTurno.pedida(["/App", "-NSTreatUnknownArgumentsAsOpen", "YES"]) == false,
            "los argumentos normales de un lanzamiento no la disparan")
     expect(SondaDeTurno.pedida(["/App", "--sonda"]), "con la bandera sí")
+}
+
+// MARK: - El servidor dormido
+
+private func elArranqueEnFrioSeReintenta() async {
+    print("la primera petición despierta al servidor; la segunda es la buena")
+    var intentos = 0
+    let valor = try? await ArranqueEnFrio.conReintento { esReintento -> String in
+        intentos += 1
+        if !esReintento { throw URLError(.timedOut) }
+        return "ok"
+    }
+    expect(intentos == 2, "hubo un reintento (hubo \(intentos))")
+    expect(valor == "ok", "y el segundo intento entrega el dato")
+
+    // Un fallo que no es de red no se reintenta: repetirlo daría el mismo
+    // error y sólo retrasaría el mensaje al humano.
+    var intentosAuth = 0
+    let fallo = try? await ArranqueEnFrio.conReintento { _ -> String in
+        intentosAuth += 1
+        throw Og118Error.unauthorized
+    }
+    expect(intentosAuth == 1, "un 401 NO se reintenta (hubo \(intentosAuth))")
+    expect(fallo == nil, "y el error sube")
+
+    var intentosBuenos = 0
+    let directo = try? await ArranqueEnFrio.conReintento { _ -> String in
+        intentosBuenos += 1
+        return "rápido"
+    }
+    expect(intentosBuenos == 1, "si responde a la primera no se repite")
+    expect(directo == "rápido", "y devuelve lo suyo")
+
+    expect(ArranqueEnFrio.esDeRed(URLError(.cannotConnectToHost)), "no conectar es de red")
+    expect(ArranqueEnFrio.esDeRed(Og118Error.badStatus(500)) == false, "un 500 no es de red")
 }
 
 // MARK: - El parser contra BYTES REALES del servidor

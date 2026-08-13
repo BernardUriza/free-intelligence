@@ -122,27 +122,33 @@ struct Og118Client {
     }
 
     private func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        var request = URLRequest(url: Config.apiBase.appendingPathComponent(path))
-        try await authorize(&request)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-        if http.statusCode == 401 { throw Og118Error.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw Og118Error.badStatus(http.statusCode)
+        try await ArranqueEnFrio.conReintento { esReintento in
+            var request = URLRequest(url: Config.apiBase.appendingPathComponent(path))
+            request.timeoutInterval = esReintento ? 60 : ArranqueEnFrio.plazoDespertador
+            try await authorize(&request)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+            if http.statusCode == 401 { throw Og118Error.unauthorized }
+            guard (200..<300).contains(http.statusCode) else {
+                throw Og118Error.badStatus(http.statusCode)
+            }
+            return try JSONDecoder().decode(T.self, from: data)
         }
-        return try JSONDecoder().decode(T.self, from: data)
     }
 
     func listConversations() async throws -> [ConversationSummary] {
-        var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations"))
-        try await authorize(&request)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-        if http.statusCode == 401 { throw Og118Error.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw Og118Error.badStatus(http.statusCode)
+        try await ArranqueEnFrio.conReintento { esReintento in
+            var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations"))
+            request.timeoutInterval = esReintento ? 60 : ArranqueEnFrio.plazoDespertador
+            try await authorize(&request)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+            if http.statusCode == 401 { throw Og118Error.unauthorized }
+            guard (200..<300).contains(http.statusCode) else {
+                throw Og118Error.badStatus(http.statusCode)
+            }
+            return try JSONDecoder().decode(ConversationList.self, from: data).conversations
         }
-        return try JSONDecoder().decode(ConversationList.self, from: data).conversations
     }
 
     func loadConversation(id: String) async throws -> ConversationRecord? {

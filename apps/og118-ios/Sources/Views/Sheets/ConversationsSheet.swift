@@ -29,6 +29,7 @@ struct ConversationsSheet: View {
     @State private var renombrando: ConversationSummary?
     @State private var nuevoNombre = ""
     @State private var borrando: ConversationSummary?
+    @State private var esperaLarga = false
 
     var body: some View {
         NavigationStack {
@@ -37,9 +38,11 @@ struct ConversationsSheet: View {
                 contenido
             }
             .navigationTitle("Conversaciones")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .automatic) {
                     Button {
                         chat.startNew()
                         dismiss()
@@ -49,7 +52,15 @@ struct ConversationsSheet: View {
                     .tint(Theme.accent)
                 }
             }
-            .task { await conversations.refresh() }
+            .task {
+                let aviso = Task {
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    esperaLarga = true
+                }
+                await conversations.refresh()
+                aviso.cancel()
+                esperaLarga = false
+            }
             .alert("Renombrar chat", isPresented: renombrandoActivo) {
                 TextField("Nombre del chat", text: $nuevoNombre)
                 Button("Guardar") {
@@ -124,6 +135,14 @@ struct ConversationsSheet: View {
                 }
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.textMuted)
+                // El servidor duerme cuando nadie lo usa y la primera petición
+                // sólo lo despierta. Callarlo hace que una espera normal se
+                // sienta idéntica a una app rota — que es justo como se veía.
+                if esperaLarga {
+                    Text("El servidor estaba dormido; la primera carga tarda unos segundos.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textFaint)
+                }
             } else if let error = conversations.errorMessage {
                 Text(error)
                     .font(.system(size: 13))
