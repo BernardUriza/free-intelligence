@@ -116,6 +116,12 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         errorMessage = nil
+        // Sin esto, un turno fallido en el chat A dejaba su texto en
+        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
+        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
+        reintentable = nil
+        plan = TurnPlan()
+        herramientas = []
         createdAt = now()
         baseRecord = nil
         await restoreThread(esperabaRecord: true)
@@ -128,6 +134,12 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         errorMessage = nil
+        // Sin esto, un turno fallido en el chat A dejaba su texto en
+        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
+        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
+        reintentable = nil
+        plan = TurnPlan()
+        herramientas = []
         createdAt = now()
         baseRecord = nil
     }
