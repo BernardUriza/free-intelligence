@@ -27,7 +27,11 @@
     "test": "vitest run",
     "gen:events": "node scripts/gen-wire-events.mjs",
     "gen:swift-events": "node scripts/gen-swift-events.mjs",
-    "check:swift-events": "node scripts/gen-swift-events.mjs --check"
+    "check:swift-events": "node scripts/gen-swift-events.mjs --check",
+    "gen:swift-record": "node scripts/gen-swift-record.mjs",
+    "check:swift-record": "node scripts/gen-swift-record.mjs --check",
+    "gen:record-types": "node scripts/gen-record-types.mjs",
+    "check:record-types": "node scripts/gen-record-types.mjs --check"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4",

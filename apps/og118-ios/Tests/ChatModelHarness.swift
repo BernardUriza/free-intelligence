@@ -444,7 +444,7 @@ private func elSaveNoBorraPinNiRename() async {
         titleCustom: true,
         createdAt: "2026-08-01T00:00:00Z",
         updatedAt: "2026-08-01T00:00:00Z",
-        messages: [PersistedMessage(role: "user", content: "hola", timestamp: nil, author: nil)],
+        messages: [PersistedMessage(role: .user, content: "hola")],
         preview: "hola",
         pinnedAt: "2026-08-02T00:00:00Z",
         archivedAt: nil,
@@ -476,7 +476,7 @@ private func mutarUnChatEsLoadEditarSave() async {
         titleCustom: nil,
         createdAt: "a",
         updatedAt: "b",
-        messages: [PersistedMessage(role: "user", content: "hola tema", timestamp: nil, author: nil)],
+        messages: [PersistedMessage(role: .user, content: "hola tema")],
         preview: "hola tema",
         pinnedAt: nil,
         archivedAt: nil,
@@ -659,7 +659,7 @@ private func elAutorSeLeeEnLasDosFormas() {
      "messages":[{"role":"assistant","content":"hola","author":"Yodo"}],
      "preview":"hola","schemaVersion":1}
     """.data(using: .utf8)!
-    if let r = try? dec.decode(ConversationRecord.self, from: viejo) {
+    if let r = try? dec.decode(ConversationRecord.self, from: LegadoDeAutor.normalizar(viejo)) {
         expect(r.messages.first?.author?.name == "Yodo", "el string viejo del iOS sigue leyéndose")
         expect(r.chatMessages.count == 1, "y su mensaje tampoco se pierde")
     } else {
