@@ -438,48 +438,115 @@ export type GatewayTurn = {
   project: string | null; stop_reason: string | null; status: number | null;
   input_tokens: number | null; output_tokens: number | null; asked: string | null;
 };
-export type GatewayHalves = { request: unknown; response: unknown; ts: string; model: string | null };
+export type GatewaySession = {
+  session_id: string; project: string | null; model: string | null;
+  turns: number; ts: string; asked: string | null;
+};
+export type GatewayHalves = {
+  request: unknown; response: unknown; ts: string;
+  model: string | null; session_id: string | null;
+};
+export type GatewaySessionTurn = {
+  exchange: string; ts: string; model: string | null;
+  last_msg: unknown; answer: unknown; stop_reason: string | null;
+  input_tokens: number | null; output_tokens: number | null;
+};
 
+// `asked` is the TAIL of the last text block, not the head: a Claude Code turn
+// opens with pages of system-reminder scaffolding and ends with what the human
+// actually said, so the last 160 chars are the readable part.
+const ASKED_TAIL = `right(
+  CASE WHEN jsonb_typeof(m.content) = 'string' THEN m.content #>> '{}'
+       ELSE (SELECT b.v ->> 'text'
+             FROM jsonb_array_elements(m.content) WITH ORDINALITY AS b(v, n)
+             WHERE b.v ->> 'type' = 'text' ORDER BY b.n DESC LIMIT 1)
+  END, 160)`;
+
+// epoch MILLIS as text: that is what freshness() parses, the same shape
+// claude_session_store.mtime already has. A timestamptz::text renders an
+// empty cell — and the cell often carries the row's link.
+const EPOCH_MS = (col: string) => `(extract(epoch FROM ${col}) * 1000)::bigint::text`;
+
+/** Turns that arrived with no session id — loose exchanges, one row each. */
 export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
-  // `asked` is the TAIL of the last text block, not the head: a Claude Code turn
-  // opens with pages of system-reminder scaffolding and ends with what the human
-  // actually said, so the last 160 chars are the readable part.
   return read<GatewayTurn>(
     `
     SELECT q.exchange,
-           -- epoch MILLIS as text: that is what freshness() parses, the same
-           -- shape claude_session_store.mtime already has. A timestamptz::text
-           -- here renders an empty cell — and the cell carries the row's link.
-           (extract(epoch FROM coalesce(a.ts, q.ts)) * 1000)::bigint::text AS ts,
+           ${EPOCH_MS("coalesce(a.ts, q.ts)")}  AS ts,
            coalesce(a.model, q.model)          AS model,
            q.session_id, q.project,
            a.stop_reason, a.status,
            (a.usage->>'input_tokens')::int     AS input_tokens,
            (a.usage->>'output_tokens')::int    AS output_tokens,
-           right(
-             CASE WHEN jsonb_typeof(m.content) = 'string' THEN m.content #>> '{}'
-                  ELSE (SELECT b.v ->> 'text'
-                        FROM jsonb_array_elements(m.content) WITH ORDINALITY AS b(v, n)
-                        WHERE b.v ->> 'type' = 'text' ORDER BY b.n DESC LIMIT 1)
-             END, 160)                         AS asked
+           ${ASKED_TAIL}                       AS asked
     FROM aire_gateway_log q
     LEFT JOIN aire_gateway_log a ON a.exchange = q.exchange AND a.kind = 'response'
     CROSS JOIN LATERAL (SELECT jsonb_path_query_first(q.body, '$.messages[last].content') AS content) m
-    WHERE q.kind = 'request'
+    WHERE q.kind = 'request' AND q.session_id IS NULL
     ORDER BY q.seq DESC LIMIT $1
     `,
     [limit],
   );
 }
 
+/** The gateway's conversations: one row per session, newest first — the same
+ *  shape /claude gives a casita's sessions, read from the relay's own log. */
+export async function gatewaySessions(limit = 60): Promise<GatewaySession[]> {
+  return read<GatewaySession>(
+    `
+    SELECT s.session_id, q.project, q.model, s.turns,
+           ${EPOCH_MS("q.ts")} AS ts,
+           ${ASKED_TAIL}       AS asked
+    FROM (SELECT session_id, count(*) AS turns, max(seq) AS last_seq
+          FROM aire_gateway_log
+          WHERE kind = 'request' AND session_id IS NOT NULL
+          GROUP BY session_id) s
+    JOIN aire_gateway_log q ON q.seq = s.last_seq
+    CROSS JOIN LATERAL (SELECT jsonb_path_query_first(q.body, '$.messages[last].content') AS content) m
+    ORDER BY s.last_seq DESC LIMIT $1
+    `,
+    [limit],
+  );
+}
+
+/** One session's turns in order. Only the DELTA crosses the wire — the last
+ *  message of each request (the rest is history the caller resent) and the
+ *  response — because request bodies grow with the conversation and pulling
+ *  them whole scales with its square. */
+export async function gatewaySession(sessionId: string): Promise<GatewaySessionTurn[]> {
+  return read<GatewaySessionTurn>(
+    `
+    SELECT q.exchange,
+           ${EPOCH_MS("coalesce(a.ts, q.ts)")} AS ts,
+           coalesce(a.model, q.model)         AS model,
+           jsonb_path_query_first(q.body, '$.messages[last]') AS last_msg,
+           a.body -> 'content'                AS answer,
+           a.stop_reason,
+           (a.usage->>'input_tokens')::int    AS input_tokens,
+           (a.usage->>'output_tokens')::int   AS output_tokens
+    FROM aire_gateway_log q
+    LEFT JOIN aire_gateway_log a ON a.exchange = q.exchange AND a.kind = 'response'
+    WHERE q.kind = 'request' AND q.session_id = $1
+    ORDER BY q.seq
+    `,
+    [sessionId],
+  );
+}
+
 export async function gatewayExchange(exchange: string): Promise<GatewayHalves | null> {
-  const rows = await read<{ kind: string; body: unknown; ts: string; model: string | null }>(
-    `SELECT kind, body, (extract(epoch FROM ts) * 1000)::bigint::text AS ts, model
+  const rows = await read<{ kind: string; body: unknown; ts: string; model: string | null; session_id: string | null }>(
+    `SELECT kind, body, ${EPOCH_MS("ts")} AS ts, model, session_id
      FROM aire_gateway_log WHERE exchange = $1 ORDER BY seq`,
     [exchange],
   );
   if (rows.length === 0) return null;
   const request = rows.find((r) => r.kind === "request")?.body ?? null;
   const answer = rows.find((r) => r.kind === "response");
-  return { request, response: answer?.body ?? null, ts: rows[0].ts, model: answer?.model ?? rows[0].model };
+  return {
+    request,
+    response: answer?.body ?? null,
+    ts: rows[0].ts,
+    model: answer?.model ?? rows[0].model,
+    session_id: rows[0].session_id,
+  };
 }
