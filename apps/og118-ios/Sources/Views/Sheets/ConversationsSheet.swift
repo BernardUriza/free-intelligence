@@ -118,6 +118,9 @@ struct ConversationsSheet: View {
                     }
                 }
                 .padding(8)
+                // El último chat quedaba mordido por el pie: sin este colchón
+                // el scroll termina justo donde empieza la línea de abajo.
+                .padding(.bottom, 12)
             }
             pie
         }
@@ -228,10 +231,20 @@ struct ConversationsSheet: View {
             .padding(.bottom, 2)
     }
 
+    /// El preview del servidor es el último mensaje, que en un chat de un solo
+    /// turno ES el título: la fila salía diciendo lo mismo dos veces.
+    private func subtitulo(_ summary: ConversationSummary) -> String? {
+        guard let preview = summary.preview?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !preview.isEmpty,
+              preview.caseInsensitiveCompare(summary.title) != .orderedSame,
+              !summary.title.hasPrefix(preview.prefix(40)) else { return nil }
+        return preview
+    }
+
     private func fila(_ summary: ConversationSummary, fijado: Bool) -> some View {
         SidebarItem(
             title: summary.title,
-            subtitle: summary.preview,
+            subtitle: subtitulo(summary),
             meta: horaCorta(summary.updatedAt),
             selected: summary.id == chat.conversationID,
             onSelect: { abrir(summary) }
@@ -261,7 +274,7 @@ struct ConversationsSheet: View {
     private func filaArchivada(_ summary: ConversationSummary) -> some View {
         SidebarItem(
             title: summary.title,
-            subtitle: summary.preview,
+            subtitle: subtitulo(summary),
             meta: horaCorta(summary.archivedAt ?? summary.updatedAt),
             selected: summary.id == chat.conversationID,
             onSelect: { abrir(summary) }

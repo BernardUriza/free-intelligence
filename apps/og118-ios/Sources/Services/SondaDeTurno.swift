@@ -11,10 +11,16 @@ import Foundation
 /// por cable. Si algún día el test de UI puede firmarse, esto se borra.
 enum SondaDeTurno {
     static let bandera = "--sonda"
+    /// Pide además una foto de la pantalla, que viaja en base64 por stdout.
+    static let banderaFoto = "--foto"
     static let mensaje = "Responde únicamente con la palabra PONG"
 
     static func pedida(_ argumentos: [String] = CommandLine.arguments) -> Bool {
         argumentos.contains(bandera)
+    }
+
+    static func fotoPedida(_ argumentos: [String] = CommandLine.arguments) -> Bool {
+        argumentos.contains(banderaFoto)
     }
 
     /// Manda el turno y reporta lo que quedó EN EL HILO, no lo que llegó por la
@@ -26,7 +32,9 @@ enum SondaDeTurno {
     /// que el cliente no supo decodificar. El error las separa.
     @MainActor
     static func revisarLista(_ conversations: ConversationsModel) async {
+        let t0 = Date()
         await conversations.refresh()
+        print("[sonda] la lista tardó \(String(format: "%.1f", Date().timeIntervalSince(t0)))s")
         print("[sonda] lista: \(conversations.summaries.count) conversaciones · error: \(conversations.errorMessage ?? "ninguno")")
         print("[sonda] agrupadas → fijados \(conversations.pinned.count) · activos \(conversations.active.count) · archivados \(conversations.archived.count)")
         for resumen in conversations.summaries.prefix(5) {
