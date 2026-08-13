@@ -23,6 +23,7 @@ struct AtomicBadge: View {
 /// header por paridad con COMPOSER-SWITCH-1: afecta el próximo turno, así
 /// que va junto al input.
 struct ComposerView: View {
+    @FocusState private var tecladoActivo: Bool
     @Binding var draft: String
     let isStreaming: Bool
     let elementoActivo: Element?
@@ -30,15 +31,30 @@ struct ComposerView: View {
     let aparicion: Animation?
     let onSend: (String) -> Void
     let onStop: () -> Void
+    let grabando: Bool
+    let transcribiendo: Bool
+    let onDictar: () -> Void
     let onOpenContext: () -> Void
 
     private var puedeEnviar: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming
     }
 
+    /// Al enviar, el teclado se baja: dejarlo arriba tapa media conversación
+    /// justo cuando llega la respuesta que el usuario quiere leer.
+    private func enviar() {
+        guard puedeEnviar else { return }
+        tecladoActivo = false
+        onSend(draft)
+        draft = ""
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             TextField("Pregúntale a og118…", text: $draft, axis: .vertical)
+                .focused($tecladoActivo)
+                .submitLabel(.send)
+                .onSubmit(enviar)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
                 .font(.body)
@@ -49,6 +65,7 @@ struct ComposerView: View {
             HStack(spacing: 8) {
                 chipElemento
                 Spacer(minLength: 8)
+                botonDictar
                 if isStreaming {
                     botonDetener
                 } else {
@@ -105,12 +122,36 @@ struct ComposerView: View {
         .animation(aparicion, value: tieneProyecto)
     }
 
+    /// Dictado: un toque graba, otro toque transcribe y llena el composer.
+    /// Mientras transcribe queda ocupado para no encimar dos peticiones.
+    private var botonDictar: some View {
+        Button(action: onDictar) {
+            Group {
+                if transcribiendo {
+                    ProgressView().scaleEffect(0.7).tint(Theme.textMuted)
+                } else {
+                    Image(systemName: grabando ? "stop.circle.fill" : "mic.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(grabando ? Theme.stopFill : Theme.textMuted)
+                }
+            }
+            .frame(width: 34, height: 34)
+            .background {
+                if grabando {
+                    Circle().stroke(Theme.stopBorder, lineWidth: 1)
+                }
+            }
+        }
+        .frame(width: 44, height: 44)
+        .disabled(transcribiendo)
+        .accessibilityLabel(grabando ? "Detener y transcribir" : "Dictar")
+    }
+
     /// El `og-send-btn` de la web: cuadrado redondeado con el gradiente
     /// esmeralda; deshabilitado queda como contorno para no perder la forma.
     private var botonEnviar: some View {
         Button {
-            onSend(draft)
-            draft = ""
+            enviar()
         } label: {
             Image(systemName: "arrow.up")
                 .font(.system(size: 15, weight: .semibold))

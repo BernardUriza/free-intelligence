@@ -9,6 +9,7 @@ struct ContentView: View {
     @StateObject private var chat: ChatModel
     @StateObject private var conversations: ConversationsModel
     @StateObject private var catalog: CatalogModel
+    @StateObject private var voz: VoiceModel
     @State private var draft = ""
     @State private var showingConversations = false
     @State private var showingContext = false
@@ -20,10 +21,11 @@ struct ContentView: View {
         reduceMotion ? nil : .easeOut(duration: 0.3)
     }
 
-    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel) {
+    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel) {
         _chat = StateObject(wrappedValue: chat)
         _conversations = StateObject(wrappedValue: conversations)
         _catalog = StateObject(wrappedValue: catalog)
+        _voz = StateObject(wrappedValue: voz)
     }
 
     var body: some View {
@@ -54,7 +56,7 @@ struct ContentView: View {
                 if chat.messages.isEmpty && !chat.isStreaming {
                     StartCard().transition(.opacity)
                 } else {
-                    TranscriptView(chat: chat, aparicion: aparicion).transition(.opacity)
+                    TranscriptView(chat: chat, voz: voz, aparicion: aparicion).transition(.opacity)
                 }
             }
             .id(chat.conversationID)
@@ -103,6 +105,11 @@ struct ContentView: View {
             aparicion: aparicion,
             onSend: { chat.send($0) },
             onStop: { chat.cancel() },
+            grabando: voz.grabando,
+            transcribiendo: voz.transcribiendo,
+            onDictar: { voz.alternarDictado { texto in
+                draft = draft.isEmpty ? texto : draft + " " + texto
+            } },
             onOpenContext: { showingContext = true }
         )
     }

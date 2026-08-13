@@ -272,6 +272,9 @@ struct MessageBubble: View {
     let text: String
     let author: String?
     var timestamp: String?
+    var leyendo: Bool = false
+    var sintetizando: Bool = false
+    var onLeer: (() -> Void)?
 
     private var esUsuario: Bool { role == .user }
 
@@ -284,6 +287,26 @@ struct MessageBubble: View {
             bottomTrailingRadius: esUsuario ? 4 : 16,
             topTrailingRadius: 16
         )
+    }
+
+    /// Escuchar la respuesta. Segundo toque detiene; mientras sintetiza el
+    /// servidor, el control queda ocupado en vez de aceptar otra petición.
+    private func botonLeer(_ accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            HStack(spacing: 5) {
+                if sintetizando {
+                    ProgressView().scaleEffect(0.6).tint(Theme.textFaint)
+                } else {
+                    Image(systemName: leyendo ? "stop.fill" : "speaker.wave.2")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                Text(leyendo ? "Detener" : "Escuchar").font(.caption2)
+            }
+            .foregroundStyle(leyendo ? Theme.accent : Theme.textFaint)
+            .frame(minHeight: 28)
+        }
+        .disabled(sintetizando)
+        .padding(.top, 2)
     }
 
     var body: some View {
@@ -303,6 +326,9 @@ struct MessageBubble: View {
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     MarkdownText(raw: text)
+                    if let onLeer {
+                        botonLeer(onLeer)
+                    }
                 }
             }
             .padding(.vertical, 11)
@@ -320,6 +346,11 @@ struct MessageBubble: View {
                     UIPasteboard.general.string = text
                 } label: {
                     Label("Copiar", systemImage: "doc.on.doc")
+                }
+                if let onLeer {
+                    Button(action: onLeer) {
+                        Label(leyendo ? "Detener" : "Escuchar", systemImage: leyendo ? "stop.fill" : "speaker.wave.2")
+                    }
                 }
             }
             if !esUsuario { Spacer(minLength: 24) }

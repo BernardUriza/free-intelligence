@@ -20,7 +20,8 @@ private struct RootView: View {
         return ContentView(
             chat: ChatModel(client: client),
             conversations: ConversationsModel(client: client),
-            catalog: CatalogModel(client: client)
+            catalog: CatalogModel(client: client),
+            voz: VoiceModel(client: client)
         )
     }
 }
