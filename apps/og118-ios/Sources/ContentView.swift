@@ -35,7 +35,12 @@ struct ContentView: View {
             GlassBackground()
             if auth.isSignedIn {
                 conversation
-                    .task { await chat.restoreThread() }
+                    .task {
+                        await chat.restoreThread()
+                        if SondaDeTurno.pedida() {
+                            await SondaDeTurno.correr(chat)
+                        }
+                    }
                     .sheet(isPresented: $showingConversations) {
                         ConversationsSheet(chat: chat, conversations: conversations)
                     }
