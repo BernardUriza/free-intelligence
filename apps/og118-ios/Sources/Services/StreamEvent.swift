@@ -8,6 +8,13 @@ enum StreamEvent {
     case result(text: String, model: String?)
     case done
     case failure(String)
+    /// El plan del agente y sus pasos. Sin estos casos los frames llegaban,
+    /// se decodificaban y se tiraban: en pantalla no quedaba rastro de que el
+    /// agente estuviera trabajando.
+    case plan([String])
+    case stepStarted(Int)
+    case stepDone(index: Int, status: StepStatus, summary: String?, error: String?)
+    case stepNoted(index: Int, note: String)
     case unmapped(String)
 }
 
@@ -33,6 +40,26 @@ private struct ResultFrame: Decodable {
     let model: String?
 }
 
+enum StepStatus: String {
+    case done
+    case failed
+    case cancelled
+}
+
+private struct PlanData: Decodable {
+    let steps: [String]?
+    let stepIndex: Int?
+    let status: String?
+    let summary: String?
+    let error: String?
+    let note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case steps, status, summary, error, note
+        case stepIndex = "step_index"
+    }
+}
+
 private struct RawFrame: Decodable {
     let type: String
     let text: String?
@@ -40,6 +67,7 @@ private struct RawFrame: Decodable {
     let element: ElementFrame?
     let tool: ToolFrame?
     let result: ResultFrame?
+    let data: PlanData?
 }
 
 extension StreamEvent {
@@ -61,6 +89,19 @@ extension StreamEvent {
             return .toolCall(name: tool.name ?? "", server: tool.server, isError: tool.isError ?? false)
         case "result":
             return .result(text: raw.result?.text ?? "", model: raw.result?.model)
+        case "plan":
+            return .plan(raw.data?.steps ?? [])
+        case "step_started":
+            return .stepStarted(raw.data?.stepIndex ?? -1)
+        case "step_done":
+            return .stepDone(
+                index: raw.data?.stepIndex ?? -1,
+                status: StepStatus(rawValue: raw.data?.status ?? "done") ?? .done,
+                summary: raw.data?.summary,
+                error: raw.data?.error
+            )
+        case "step_noted":
+            return .stepNoted(index: raw.data?.stepIndex ?? -1, note: raw.data?.note ?? "")
         case "done":
             return .done
         case "error":

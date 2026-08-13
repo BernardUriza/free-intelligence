@@ -16,11 +16,14 @@ private struct RootView: View {
     @EnvironmentObject private var auth: Auth
 
     var body: some View {
-        let client = Og118Client(accessToken: { try await auth.token() })
+        let diag = TurnDiagnostics()
+        let client = Og118Client(accessToken: { try await auth.token() }, diagnostico: diag)
         return ContentView(
             chat: ChatModel(client: client),
             conversations: ConversationsModel(client: client),
-            catalog: CatalogModel(client: client)
+            catalog: CatalogModel(client: client),
+            voz: VoiceModel(client: client),
+            diagnostico: diag
         )
     }
 }

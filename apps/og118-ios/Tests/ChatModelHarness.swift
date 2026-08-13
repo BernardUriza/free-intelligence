@@ -528,7 +528,254 @@ struct Harness {
         elJSONOmiteLoQueNoSeEligio()
         await elSaveNoBorraPinNiRename()
         await mutarUnChatEsLoadEditarSave()
+        await elPlanYLosPasosSePintan()
+        await nadaDesaparecEnSilencio()
+        await elPlanNoSeArrastraEntreTurnos()
+        elMarkdownPegadoSeRepara()
+        await elTurnoVacioSeDeclara()
+        await elTurnoBuenoNoOfreceReintento()
+        await reintentarNoDuplicaLaBurbujaDelUsuario()
+        await cancelarNoOfreceReintento()
+        elParserLeeUnTurnoDeVerdad()
+        elParserAguantaLoQueElServidorPuedeMandar()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
+}
+
+// MARK: - Plan glass-box: los frames que antes caían en `break`
+
+@MainActor
+private func elPlanYLosPasosSePintan() async {
+    print("el plan del agente deja de tirarse a la basura")
+    let model = ChatModel(stream: canned([
+        .open,
+        .plan(["Buscar", "Resumir"]),
+        .stepStarted(0),
+        .stepNoted(index: 0, note: "encontré 3 fuentes"),
+        .stepDone(index: 0, status: .done, summary: "listo", error: nil),
+        .stepDone(index: 1, status: .failed, summary: nil, error: "timeout"),
+        // El servidor manda el índice que quiere; el cliente no lo controla.
+        .stepStarted(99),
+        .text("ya"), .done
+    ]))
+    model.send("x")
+    await settle()
+
+    // Indexar crudo aquí abortaba el arnés completo y escondía cada prueba
+    // posterior: un assert debe poder fallar sin matar a sus vecinos.
+    let pasos = model.plan.pasos
+    expect(pasos.count == 2, "el plan declara sus pasos (hubo \(pasos.count))")
+    expect(pasos.first?.estado == .hecho, "step_done cierra el paso")
+    expect(pasos.first?.nota == "encontré 3 fuentes", "step_noted guarda la nota")
+    expect(pasos.first?.detalle == "listo", "el resumen queda visible")
+    expect(pasos.last?.estado == .fallido, "un paso puede fallar")
+    expect(pasos.last?.detalle == "timeout", "el error le gana al resumen")
+}
+
+@MainActor
+private func nadaDesaparecEnSilencio() async {
+    print("un frame desconocido se muestra en vez de evaporarse")
+    let model = ChatModel(stream: canned([
+        .open,
+        .toolCall(name: "read", server: "fs", isError: false),
+        .toolCall(name: "web", server: nil, isError: true),
+        .unmapped("thinking"),
+        .text("ok"), .done
+    ]))
+    model.send("x")
+    await settle()
+
+    expect(model.herramientas.contains("fs/read"), "la herramienta se nombra servidor/nombre")
+    expect(model.herramientas.contains("web ✗"), "una herramienta con error se marca")
+    expect(model.herramientas.contains { $0.contains("thinking") },
+           "un frame sin mapear queda registrado, no se tira")
+}
+
+@MainActor
+private func elPlanNoSeArrastraEntreTurnos() async {
+    print("cada turno arranca con el plan limpio")
+    // Dos turnos en EL MISMO modelo: es la única forma de probar el reset.
+    var guion: [[StreamEvent]] = [
+        [.open, .plan(["a"]), .toolCall(name: "t", server: nil, isError: false), .text("1"), .done],
+        [.open, .text("2"), .done]
+    ]
+    let model = ChatModel(stream: { _, _, _, _, _ in
+        let eventos = guion.isEmpty ? [] : guion.removeFirst()
+        return AsyncThrowingStream { c in
+            for e in eventos { c.yield(e) }
+            c.finish()
+        }
+    })
+    model.send("uno")
+    await settle()
+    expect(model.plan.pasos.count == 1, "el primer turno dejó su plan")
+
+    model.send("dos")
+    await settle()
+    expect(model.plan.vacio, "el segundo turno no hereda el plan del primero")
+    expect(model.herramientas.isEmpty, "ni las herramientas del primero")
+}
+
+// MARK: - El parser contra BYTES REALES del servidor
+
+private func elParserLeeUnTurnoDeVerdad() {
+    print("SSEParser contra la captura real de /chat/stream")
+    // Capturado con curl contra el server og118 corriendo local, mismo código
+    // que el de Azure. Si el contrato del servidor cambia, esto se pone rojo
+    // aquí y no en el teléfono de Bernard.
+    let ruta = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .appendingPathComponent("Fixtures/turno-real.sse")
+    guard let crudo = try? String(contentsOf: ruta, encoding: .utf8) else {
+        expect(false, "la captura real existe en Tests/Fixtures/turno-real.sse")
+        return
+    }
+
+    var parser = SSEParser()
+    var eventos: [StreamEvent] = []
+    for linea in crudo.components(separatedBy: "\n") {
+        if let e = parser.feed(linea) { eventos.append(e) }
+    }
+    if let ultimo = parser.cerrar() { eventos.append(ultimo) }
+
+    expect(eventos.count == 4, "salieron los 4 frames del turno (fueron \(eventos.count))")
+
+    var abrio = false, texto: String?, resultado: String?, modelo: String?, cerro = false
+    for e in eventos {
+        switch e {
+        case .open: abrio = true
+        case .text(let t): texto = t
+        case .result(let t, let m): resultado = t; modelo = m
+        case .done: cerro = true
+        default: break
+        }
+    }
+    expect(abrio, "el frame open se reconoce")
+    expect(texto == "PONG", "el delta de texto llega íntegro")
+    expect(resultado == "PONG", "el result trae el texto definitivo")
+    expect(modelo == "claude-sonnet-4-5", "y el modelo que de verdad contestó")
+    expect(cerro, "el done cierra el turno")
+}
+
+private func elParserAguantaLoQueElServidorPuedeMandar() {
+    print("SSEParser: los casos que el servidor sí produce")
+    var p1 = SSEParser()
+    // Un frame partido en dos líneas data: — SSE lo permite y el servidor
+    // podría hacerlo si un payload creciera.
+    _ = p1.feed("data: {\"type\": \"te")
+    _ = p1.feed("data: xt\", \"text\": \"hola\"}")
+    if case .text(let t)? = p1.feed("") {
+        expect(t == "hola", "un frame partido en dos líneas se reensambla")
+    } else {
+        expect(false, "un frame partido en dos líneas se reensambla")
+    }
+
+    var p2 = SSEParser()
+    expect(p2.feed("") == nil, "una línea en blanco suelta no inventa frame")
+    expect(p2.feed(": comentario") == nil, "un comentario SSE se ignora")
+    expect(p2.feed("event: message") == nil, "una línea event: no rompe nada")
+
+    var p3 = SSEParser()
+    _ = p3.feed("data: {\"type\": \"done\"}")
+    expect(p3.cerrar() != nil, "un stream que corta sin línea final NO pierde el último frame")
+}
+
+// MARK: - El turno que muere en silencio
+
+@MainActor
+private func elTurnoVacioSeDeclara() async {
+    print("un turno sin texto deja de verse igual que uno pensando")
+    let model = ChatModel(stream: canned([]))
+    model.send("hola")
+    await settle()
+    expect(model.errorMessage?.contains("sin mandar un solo frame") == true,
+           "cero frames se nombra como tal")
+    expect(model.reintentable == "hola", "el mensaje queda listo para reintentar")
+    expect(model.messages.count == 1, "y NO se inventa una burbuja de asistente")
+
+    let conFrames = ChatModel(stream: canned([.open, .stepStarted(0), .done]))
+    conFrames.send("hola")
+    await settle()
+    expect(conFrames.errorMessage?.contains("3 frames") == true,
+           "con frames pero sin texto, se dice cuántos llegaron")
+}
+
+@MainActor
+private func elTurnoBuenoNoOfreceReintento() async {
+    print("un turno que sí contesta no ensucia la pantalla")
+    let model = ChatModel(stream: canned([.open, .text("hola"), .done]))
+    model.send("x")
+    await settle()
+    expect(model.errorMessage == nil, "sin error")
+    expect(model.reintentable == nil, "sin botón de reintentar")
+}
+
+@MainActor
+private func reintentarNoDuplicaLaBurbujaDelUsuario() async {
+    print("reintentar rehace el turno, no el mensaje")
+    var guion: [[StreamEvent]] = [[], [.open, .text("ahora sí"), .done]]
+    var historiasVistas: [[ChatMessage]] = []
+    let model = ChatModel(stream: { _, _, history, _, _ in
+        historiasVistas.append(history)
+        let eventos = guion.isEmpty ? [] : guion.removeFirst()
+        return AsyncThrowingStream { c in
+            for e in eventos { c.yield(e) }
+            c.finish()
+        }
+    })
+    model.send("hola")
+    await settle()
+    model.reintentar()
+    await settle()
+
+    expect(model.messages.filter { $0.role == .user }.count == 1,
+           "el usuario sigue teniendo UN solo mensaje")
+    expect(model.messages.last?.content == "ahora sí", "y ya tiene su respuesta")
+    expect(model.errorMessage == nil, "el error del intento muerto se limpia")
+    expect(model.reintentable == nil, "y el botón desaparece")
+    expect(historiasVistas.count == 2, "hubo dos llamadas al servidor (hubo \(historiasVistas.count))")
+    expect(historiasVistas.last?.contains { $0.content == "hola" } == false,
+           "el reintento NO manda el mensaje nuevo dentro del historial")
+}
+
+@MainActor
+private func cancelarNoOfreceReintento() async {
+    print("cancelar es una decisión, no una falla")
+    let model = ChatModel(stream: { _, _, _, _, _ in
+        AsyncThrowingStream { c in c.yield(.open) }
+    })
+    model.send("hola")
+    await settle()
+    model.cancel()
+    await settle()
+    expect(model.reintentable == nil, "lo que cancelaste no te pide reintentar")
+    expect(model.errorMessage == nil, "ni te acusa de un error que no hubo")
+}
+
+// MARK: - normalizeStreamedMarkdown portado de fi-glass
+
+private func elMarkdownPegadoSeRepara() {
+    print("normalizeStreamedMarkdown: repara sin inventar")
+    let n = StreamedMarkdown.normalize
+    expect(n("fin.## Título") == "fin.\n\n## Título",
+           "un encabezado pegado a puntuación se despega")
+    expect(n("necesarias:### Sub") == "necesarias:\n\n### Sub",
+           "también tras dos puntos")
+
+    // Los falsos positivos que la regla conservadora debe respetar.
+    expect(n("C# is nice") == "C# is nice", "C# queda intacto")
+    expect(n("issue #123") == "issue #123", "una referencia a issue queda intacta")
+    expect(n("use the # key") == "use the # key", "un gato suelto queda intacto")
+    expect(n("# Título") == "# Título", "un encabezado que ya está bien no se toca")
+    expect(n("línea\n## Título") == "línea\n## Título",
+           "un encabezado que ya empieza renglón no se toca")
+
+    // Dentro de un fence NADA se toca: ahí el gato es sintaxis.
+    let code = "```\nfin.## no tocar\n```"
+    expect(n(code) == code, "el interior de un fence queda intacto")
+    // Un fence sin cerrar es el estado NORMAL a media transmisión.
+    let abierto = "texto.## Sí\n```\nfin.## no"
+    expect(n(abierto) == "texto.\n\n## Sí\n```\nfin.## no",
+           "con el fence abierto sólo se repara lo de afuera")
 }

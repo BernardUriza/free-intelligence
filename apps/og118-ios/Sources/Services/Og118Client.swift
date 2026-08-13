@@ -1,23 +1,5 @@
 import Foundation
 
-struct ChatMessage: Identifiable, Encodable {
-    enum Role: String, Encodable {
-        case user
-        case assistant
-    }
-
-    var id = UUID()
-    let role: Role
-    var content: String
-    var author: String?
-    var timestamp: String?
-
-    enum CodingKeys: String, CodingKey {
-        case role
-        case content
-    }
-}
-
 enum Og118Error: LocalizedError {
     case unauthorized
     case badStatus(Int)
@@ -53,6 +35,12 @@ private struct ChatRequest: Encodable {
 
 struct Og118Client {
     var accessToken: () async throws -> String
+    var diagnostico: TurnDiagnostics?
+
+    private func anotar(_ texto: String) async {
+        guard let diagnostico else { return }
+        await MainActor.run { diagnostico.anotar(texto) }
+    }
 
     func stream(
         message: String,
@@ -70,10 +58,14 @@ struct Og118Client {
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
 
+                    await anotar("pidiendo token…")
                     let token = try await accessToken()
-                    if !token.isEmpty {
-                        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    }
+                    await anotar("token: \(token.isEmpty ? "VACÍO" : "\(token.count) chars")")
+                    // Tolerar el token vacío mandaba la petición SIN credencial
+                    // y el servidor contestaba 401: un bug del cliente disfrazado
+                    // de rechazo del servidor. Mejor morir aquí, con nombre.
+                    guard !token.isEmpty else { throw Og118Error.unauthorized }
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
                     request.httpBody = try JSONEncoder().encode(
                         ChatRequest(
@@ -85,23 +77,33 @@ struct Og118Client {
                         )
                     )
 
+                    await anotar("POST \(Config.apiBase.host ?? "?")/chat/stream")
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+                    await anotar("HTTP \(http.statusCode) · \(http.value(forHTTPHeaderField: "Content-Type") ?? "sin tipo")")
                     if http.statusCode == 401 { throw Og118Error.unauthorized }
                     guard (200..<300).contains(http.statusCode) else {
                         throw Og118Error.badStatus(http.statusCode)
                     }
 
-                    var payload = ""
+                    var parser = SSEParser()
+                    var lineasVistas = 0
+                    var framesEmitidos = 0
                     for try await line in bytes.lines {
-                        if line.isEmpty {
-                            emit(payload, to: continuation)
-                            payload = ""
-                        } else if line.hasPrefix("data:") {
-                            payload += line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+                        lineasVistas += 1
+                        if lineasVistas <= 2 {
+                            await anotar("línea \(lineasVistas): \(line.prefix(60))")
+                        }
+                        if let evento = parser.feed(line) {
+                            framesEmitidos += 1
+                            continuation.yield(evento)
                         }
                     }
-                    emit(payload, to: continuation)
+                    if let ultimo = parser.cerrar() {
+                        framesEmitidos += 1
+                        continuation.yield(ultimo)
+                    }
+                    await anotar("fin: \(lineasVistas) líneas, \(framesEmitidos) frames")
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -189,17 +191,7 @@ struct Og118Client {
 
     private func authorize(_ request: inout URLRequest) async throws {
         let token = try await accessToken()
-        if !token.isEmpty {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-    }
-
-    private func emit(
-        _ payload: String,
-        to continuation: AsyncThrowingStream<StreamEvent, Error>.Continuation
-    ) {
-        guard !payload.isEmpty, let data = payload.data(using: .utf8) else { return }
-        guard let event = StreamEvent.decode(data) else { return }
-        continuation.yield(event)
+        guard !token.isEmpty else { throw Og118Error.unauthorized }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     }
 }

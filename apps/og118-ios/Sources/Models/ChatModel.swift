@@ -5,6 +5,11 @@ final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: String?
+    @Published private(set) var plan = TurnPlan()
+    /// El texto del turno que se puede volver a intentar. Existe porque un turno
+    /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
+    @Published private(set) var reintentable: String?
+    @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
     @Published private(set) var isRestoring = false
     @Published var errorMessage: String?
@@ -43,6 +48,7 @@ final class ChatModel: ObservableObject {
     private var baseRecord: ConversationRecord?
     private var turn: Task<Void, Never>?
     private var saveChain: Task<Void, Never>?
+    private var framesDelTurno = 0
 
     init(
         conversationID: String = ConversationIdentity.current(),
@@ -124,21 +130,36 @@ final class ChatModel: ObservableObject {
 
         let history = messages
         messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now()))
+        lanzarTurno(trimmed, history: history)
+    }
+
+    /// Repite el turno muerto. El mensaje del usuario YA está en el hilo, así
+    /// que reintentar no vuelve a agregarlo: sólo rehace la parte que falló.
+    func reintentar() {
+        guard let texto = reintentable, !isStreaming else { return }
+        lanzarTurno(texto, history: Array(messages.dropLast()))
+    }
+
+    private func lanzarTurno(_ texto: String, history: [ChatMessage]) {
         liveText = ""
         liveAuthor = nil
+        plan = TurnPlan()
+        herramientas = []
         errorMessage = nil
+        reintentable = nil
+        framesDelTurno = 0
         isStreaming = true
 
         turn = Task {
             do {
-                for try await event in stream(trimmed, conversationID, history, corpusID, element) {
+                for try await event in stream(texto, conversationID, history, corpusID, element) {
                     apply(event)
                 }
             } catch is CancellationError {
             } catch {
                 errorMessage = error.localizedDescription
             }
-            fold()
+            fold(texto)
         }
     }
 
@@ -160,6 +181,7 @@ final class ChatModel: ObservableObject {
 
     private func apply(_ event: StreamEvent) {
         guard isStreaming else { return }
+        framesDelTurno += 1
         switch event {
         case .text(let delta):
             liveText += delta
@@ -169,14 +191,41 @@ final class ChatModel: ObservableObject {
             if !text.isEmpty { liveText = text }
         case .failure(let message):
             errorMessage = message
-        case .open, .done, .toolCall, .unmapped:
+        case .plan(let etiquetas):
+            plan.declarar(etiquetas)
+        case .stepStarted(let i):
+            plan.empezar(i)
+        case .stepDone(let i, let estado, let resumen, let error):
+            plan.cerrar(i, estado: estado, resumen: resumen, error: error)
+        case .stepNoted(let i, let nota):
+            plan.anotar(i, nota: nota)
+        case .toolCall(let nombre, let servidor, let esError):
+            let etiqueta = servidor.map { "\($0)/\(nombre)" } ?? nombre
+            herramientas.append(esError ? "\(etiqueta) ✗" : etiqueta)
+        case .unmapped(let tipo):
+            // Antes esto era `break`: un frame desconocido desaparecía sin
+            // rastro. Ahora al menos queda en la bitácora del turno.
+            herramientas.append("frame sin mapear: \(tipo)")
+        case .open, .done:
             break
         }
     }
 
-    private func fold() {
+    private func fold(_ enviado: String) {
         guard isStreaming else { return }
         isStreaming = false
+
+        // Un turno que cierra sin una sola palabra se veía EXACTAMENTE igual
+        // que uno pensando: silencio. Ahora se declara, y con el conteo de
+        // frames, que es lo que separa "el servidor no contestó" de "contestó
+        // puros frames que no traían texto".
+        if liveText.isEmpty, errorMessage == nil {
+            errorMessage = framesDelTurno == 0
+                ? "El servidor cerró el turno sin mandar un solo frame."
+                : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
+        }
+        if errorMessage != nil { reintentable = enviado }
+
         if !liveText.isEmpty {
             messages.append(
                 ChatMessage(

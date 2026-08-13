@@ -1,0 +1,8 @@
+data: {"type": "open", "request_id": "f01322514e7f"}
+
+data: {"type": "text", "text": "PONG"}
+
+data: {"type": "result", "result": {"text": "PONG", "raw": null, "usage": {"input_tokens": 10, "cache_creation_input_tokens": 54967, "cache_read_input_tokens": 0, "output_tokens": 226, "server_tool_use": {"web_search_requests": 0, "web_fetch_requests": 0}, "service_tier": "standard", "cache_creation": {"ephemeral_1h_input_tokens": 54967, "ephemeral_5m_input_tokens": 0}, "inference_geo": "not_available", "iterations": [{"input_tokens": 10, "output_tokens": 226, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 54967, "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 54967}, "type": "message"}], "speed": "standard", "total_cost_usd": 0.21008225000000003}, "session_id": "fff70464-9735-4c28-ba98-439c3c200f4b", "guard_outcomes": {}, "tool_calls": [], "model": "claude-sonnet-4-5"}}
+
+data: {"type": "done"}
+
