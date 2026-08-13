@@ -227,6 +227,14 @@ final class ChatModel: ObservableObject {
             plan.cerrar(i, estado: estado, resumen: resumen, error: error)
         case .stepNoted(let i, let nota):
             plan.anotar(i, nota: nota)
+        case .planRejected(let razon, let etiquetas, let guardia):
+            plan.rechazar(TurnPlan.Rechazo(razon: razon, etiquetas: etiquetas, guardia: guardia))
+        case .planAmended(let accion):
+            plan.enmendar(accion)
+        case .planCancelled:
+            plan.cancelar()
+        case .planClosed(let desenlace):
+            plan.cerrarPlan(desenlace)
         case .toolCall(let nombre, let servidor, let esError):
             let etiqueta = servidor.map { "\($0)/\(nombre)" } ?? nombre
             herramientas.append(esError ? "\(etiqueta) ✗" : etiqueta)

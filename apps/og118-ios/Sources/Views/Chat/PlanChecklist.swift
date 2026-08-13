@@ -9,6 +9,27 @@ struct PlanChecklist: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
+            if let rechazo = plan.rechazo {
+                // El guard bloqueó el plan y el stream SIGUE: si esto no se
+                // pinta, el usuario ve pasos corriendo sin saber que su plan
+                // fue objetado.
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(rechazo.razon, systemImage: "exclamationmark.shield")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.danger)
+                    if !rechazo.etiquetas.isEmpty {
+                        Text(rechazo.etiquetas.joined(separator: " · "))
+                            .font(.caption2)
+                            .foregroundStyle(Theme.textFaint)
+                    }
+                }
+                .padding(.bottom, 2)
+            }
+            if let enmienda = plan.enmienda {
+                Text(enmienda == .replanteado ? "El agente replanteó" : "El agente insertó pasos")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Theme.textMuted)
+            }
             ForEach(Array(plan.pasos.enumerated()), id: \.offset) { _, paso in
                 HStack(alignment: .top, spacing: 8) {
                     icono(paso.estado)
@@ -26,6 +47,12 @@ struct PlanChecklist: View {
                     }
                 }
             }
+            if let desenlace = plan.desenlace {
+                Text(textoDesenlace(desenlace))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(desenlace == .completado ? Theme.accent : Theme.textMuted)
+                    .padding(.top, 2)
+            }
             if !herramientas.isEmpty {
                 Text(herramientas.joined(separator: " · "))
                     .font(.caption2.monospaced())
@@ -39,6 +66,14 @@ struct PlanChecklist: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12).stroke(Theme.bubbleBorder, lineWidth: 1)
         )
+    }
+
+    private func textoDesenlace(_ d: TurnPlan.Desenlace) -> String {
+        switch d {
+        case .completado: "Plan completado"
+        case .fallido: "El plan falló"
+        case .cancelado: "Plan cancelado"
+        }
     }
 
     @ViewBuilder
