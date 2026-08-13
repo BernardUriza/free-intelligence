@@ -18,6 +18,10 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1"
   },
+  "optionalDependencies": {
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
