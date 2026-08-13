@@ -4,9 +4,12 @@ enum Og118Error: LocalizedError {
     case unauthorized
     case badStatus(Int)
     case notHTTP
+    case formato(String)
 
     var errorDescription: String? {
         switch self {
+        case .formato(let detalle):
+            return "El servidor mandó algo que no supe leer: \(detalle)"
         case .unauthorized:
             return "Tu sesión expiró. Inicia sesión otra vez."
         case .badStatus(let code):
@@ -34,6 +37,26 @@ private struct ChatRequest: Encodable {
 }
 
 struct Og118Client {
+    static func detalle(_ error: DecodingError) -> String {
+        switch error {
+        case .keyNotFound(let llave, let ctx):
+            return "falta la llave «\(llave.stringValue)» en \(ruta(ctx))"
+        case .typeMismatch(let tipo, let ctx):
+            return "«\(ruta(ctx))» no es \(tipo)"
+        case .valueNotFound(let tipo, let ctx):
+            return "«\(ruta(ctx))» vino nulo y se esperaba \(tipo)"
+        case .dataCorrupted(let ctx):
+            return "dato corrupto en \(ruta(ctx)): \(ctx.debugDescription)"
+        @unknown default:
+            return "error de formato desconocido"
+        }
+    }
+
+    private static func ruta(_ ctx: DecodingError.Context) -> String {
+        let camino = ctx.codingPath.map(\.stringValue).filter { !$0.isEmpty }
+        return camino.isEmpty ? "la raíz" : camino.joined(separator: ".")
+    }
+
     var accessToken: () async throws -> String
     var diagnostico: TurnDiagnostics?
 
@@ -161,7 +184,14 @@ struct Og118Client {
         guard (200..<300).contains(http.statusCode) else {
             throw Og118Error.badStatus(http.statusCode)
         }
-        return try JSONDecoder().decode(ConversationRecord.self, from: data)
+        do {
+            return try JSONDecoder().decode(ConversationRecord.self, from: data)
+        } catch let error as DecodingError {
+            // `localizedDescription` de DecodingError dice sólo "no está en el
+            // formato correcto", que no sirve para arreglar nada. El error SÍ
+            // trae la llave y la ruta — hay que sacarlas.
+            throw Og118Error.formato(Og118Client.detalle(error))
+        }
     }
 
     func saveConversation(_ record: ConversationRecord) async throws {

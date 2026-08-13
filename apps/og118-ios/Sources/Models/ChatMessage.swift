@@ -13,7 +13,15 @@ struct ChatMessage: Identifiable, Encodable {
     var id = UUID()
     let role: Role
     var content: String
-    var author: String?
+    /// El autor canónico del contrato: `id` es load-bearing (la web lo necesita
+    /// para atribuir la burbuja al elemento correcto), `nombre` es lo que se
+    /// pinta. Guardar sólo el nombre dejaba records que la web no podía leer.
+    struct Autor: Equatable {
+        let id: String
+        let nombre: String
+    }
+
+    var author: Autor?
     var timestamp: String?
 
     enum CodingKeys: String, CodingKey {

@@ -41,9 +41,9 @@ private func autorSeCongelaPorMensaje() async {
     await settle()
 
     expect(model.messages.count == 2, "un turno deja usuario + asistente")
-    expect(model.messages.last?.author == "Yodo", "el asistente conserva su autor")
+    expect(model.messages.last?.author?.nombre == "Yodo", "el asistente conserva su autor")
     expect(model.messages.first?.author == nil, "el mensaje del usuario no inventa autor")
-    expect(model2.messages.last?.author == "Hidrogeno", "otro turno, otro autor")
+    expect(model2.messages.last?.author?.nombre == "Hidrogeno", "otro turno, otro autor")
 }
 
 @MainActor
@@ -168,7 +168,7 @@ private func persisteAlCerrarElTurno() async {
     expect(r.messages.count == 2, "usuario + asistente")
     expect(r.title == "pregunta", "título del primer mensaje de usuario")
     expect(r.preview == "respuesta", "preview del último mensaje")
-    expect(r.messages.last?.author == "Yodo", "la autoría sobrevive al guardado")
+    expect(r.messages.last?.author?.name == "Yodo", "la autoría sobrevive al guardado")
     expect(r.messages.first?.timestamp != nil, "los mensajes llevan timestamp")
 }
 
@@ -179,7 +179,7 @@ private func restauraElHiloAlArrancar() async {
         id: "abc-123",
         messages: [
             ChatMessage(role: .user, content: "de ayer"),
-            ChatMessage(role: .assistant, content: "te contesté ayer", author: "Yodo")
+            ChatMessage(role: .assistant, content: "te contesté ayer", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
         ],
         createdAt: "2026-08-11T10:00:00Z",
         now: "2026-08-11T10:00:05Z"
@@ -194,7 +194,7 @@ private func restauraElHiloAlArrancar() async {
     await model.restoreThread()
 
     expect(model.messages.count == 2, "el hilo vuelve (llegaron \(model.messages.count))")
-    expect(model.messages.last?.author == "Yodo", "con su autoría intacta")
+    expect(model.messages.last?.author?.nombre == "Yodo", "con su autoría intacta")
     expect(model.messages.first?.role == .user, "y con los roles bien")
 }
 
@@ -540,6 +540,8 @@ struct Harness {
         elParserAguantaLoQueElServidorPuedeMandar()
         laSondaNoSeDisparaSola()
         await elArranqueEnFrioSeReintenta()
+        elAutorSeLeeEnLasDosFormas()
+        elAutorSeEscribeCanonico()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -625,6 +627,74 @@ private func laSondaNoSeDisparaSola() {
     expect(SondaDeTurno.pedida(["/App", "-NSTreatUnknownArgumentsAsOpen", "YES"]) == false,
            "los argumentos normales de un lanzamiento no la disparan")
     expect(SondaDeTurno.pedida(["/App", "--sonda"]), "con la bandera sí")
+}
+
+// MARK: - El autor: objeto canónico, no string
+
+private func elAutorSeLeeEnLasDosFormas() {
+    print("author: la forma canónica de la web Y el string viejo del iOS")
+    let dec = JSONDecoder()
+
+    // Lo que ESCRIBE LA WEB (MessageAuthor de free-intelligence-core). Esto es
+    // lo que reventaba el hilo entero: «messages.Index 0.author» no es String.
+    let web = """
+    {"id":"c1","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"assistant","content":"hola","author":{"id":"53","name":"Yodo","symbol":"I"}}],
+     "preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    if let r = try? dec.decode(ConversationRecord.self, from: web) {
+        expect(r.messages.count == 1, "el record de la web SÍ se decodifica")
+        expect(r.messages.first?.author?.name == "Yodo", "y trae el nombre del autor")
+        expect(r.messages.first?.author?.id == "53", "y su id, que es load-bearing")
+        expect(r.chatMessages.count == 1, "el mensaje NO se descarta")
+    } else {
+        expect(false, "el record de la web SÍ se decodifica")
+    }
+
+    // Lo que el propio iOS ya escribió en la cuenta: un string suelto.
+    let viejo = """
+    {"id":"c2","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"assistant","content":"hola","author":"Yodo"}],
+     "preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    if let r = try? dec.decode(ConversationRecord.self, from: viejo) {
+        expect(r.messages.first?.author?.name == "Yodo", "el string viejo del iOS sigue leyéndose")
+        expect(r.chatMessages.count == 1, "y su mensaje tampoco se pierde")
+    } else {
+        expect(false, "el string viejo del iOS sigue leyéndose")
+    }
+
+    // Sin autor tampoco truena: los mensajes del usuario no lo llevan.
+    let sinAutor = """
+    {"id":"c3","title":"t","createdAt":"2026-08-13T10:00:00Z","updatedAt":"2026-08-13T10:00:00Z",
+     "messages":[{"role":"user","content":"hola"}],"preview":"hola","schemaVersion":1}
+    """.data(using: .utf8)!
+    expect((try? dec.decode(ConversationRecord.self, from: sinAutor))?.chatMessages.count == 1,
+           "un mensaje sin autor se lee igual")
+}
+
+private func elAutorSeEscribeCanonico() {
+    print("author: el teléfono escribe lo que la web puede leer")
+    let record = ConversationRecord.from(
+        id: "c1",
+        messages: [
+            ChatMessage(role: .user, content: "hola"),
+            ChatMessage(role: .assistant, content: "qué tal", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
+        ],
+        createdAt: "2026-08-13T10:00:00Z",
+        now: "2026-08-13T10:00:01Z"
+    )
+    guard let datos = try? JSONEncoder().encode(record),
+          let json = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let mensajes = json["messages"] as? [[String: Any]] else {
+        expect(false, "el record se serializa")
+        return
+    }
+    let autor = mensajes.last?["author"] as? [String: Any]
+    expect(autor != nil, "el autor viaja como OBJETO, no como string")
+    expect(autor?["id"] as? String == "53", "con su id")
+    expect(autor?["name"] as? String == "Yodo", "y su nombre")
+    expect(mensajes.first?["author"] == nil, "el mensaje del usuario no inventa autor")
 }
 
 // MARK: - El servidor dormido

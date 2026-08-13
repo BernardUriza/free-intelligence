@@ -1,10 +1,48 @@
 import Foundation
 
+/// El autor del contrato canónico (`MessageAuthor` de free-intelligence-core):
+/// un OBJETO `{id, name, symbol?, engine?}`, no un string. La app nativa lo
+/// declaraba `String?` y por eso TODA conversación creada en la web reventaba al
+/// decodificar —`«messages.Index 0.author» no es String`— y el hilo se veía
+/// vacío en el teléfono.
+///
+/// Decodifica las dos formas porque el propio iOS ya escribió strings sueltos en
+/// la cuenta; escribe SIEMPRE la canónica, para que la web pueda leer lo que el
+/// teléfono guarda.
+struct PersistedAuthor: Codable, Equatable {
+    let id: String
+    let name: String
+    let symbol: String?
+    let engine: String?
+
+    init(id: String, name: String, symbol: String? = nil, engine: String? = nil) {
+        self.id = id
+        self.name = name
+        self.symbol = symbol
+        self.engine = engine
+    }
+
+    init(from decoder: Decoder) throws {
+        if let suelto = try? decoder.singleValueContainer().decode(String.self) {
+            // Legado del propio iOS: sólo teníamos el nombre.
+            self.init(id: "", name: suelto)
+            return
+        }
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try c.decodeIfPresent(String.self, forKey: .id) ?? "",
+            name: try c.decodeIfPresent(String.self, forKey: .name) ?? "",
+            symbol: try c.decodeIfPresent(String.self, forKey: .symbol),
+            engine: try c.decodeIfPresent(String.self, forKey: .engine)
+        )
+    }
+}
+
 struct PersistedMessage: Codable {
     let role: String
     let content: String
     let timestamp: String?
-    let author: String?
+    let author: PersistedAuthor?
 }
 
 struct ConversationSummary: Codable, Identifiable {
@@ -114,7 +152,9 @@ extension ConversationRecord {
                     role: $0.role.rawValue,
                     content: $0.content,
                     timestamp: $0.timestamp,
-                    author: $0.author
+                    author: $0.author.map {
+                        PersistedAuthor(id: $0.id, name: $0.nombre)
+                    }
                 )
             },
             preview: ConversationSchema.preview(messages),
@@ -130,7 +170,9 @@ extension ConversationRecord {
             return ChatMessage(
                 role: role,
                 content: persisted.content,
-                author: persisted.author,
+                author: persisted.author.map {
+                    ChatMessage.Autor(id: $0.id, nombre: $0.name)
+                },
                 timestamp: persisted.timestamp
             )
         }

@@ -37,7 +37,11 @@ struct ContentView: View {
                 conversation
                     .task {
                         await chat.restoreThread()
-                        if SondaDeTurno.fotoPedida() {
+                        if SondaDeTurno.aperturaPedida() {
+                            await SondaDeTurno.medirApertura(chat, conversations)
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            CapturaDePantalla.emitir("chat-abierto")
+                        } else if SondaDeTurno.fotoPedida() {
                             // Abre la hoja de chats y la fotografía: el e2e de
                             // la lista sin depender de que un humano mire.
                             showingConversations = true
