@@ -31,7 +31,7 @@ import { COOKIE, valid } from "./lib/session.ts";
  *   was not handed in the URL.
  */
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const expected = process.env.AIRE_CONSOLE_PASSWORD;
 
   // No password configured = the console is wide open. Fail CLOSED, loudly. The
