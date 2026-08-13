@@ -38,6 +38,7 @@ struct ContentView: View {
                     .task {
                         await chat.restoreThread()
                         if SondaDeTurno.pedida() {
+                            await SondaDeTurno.revisarLista(conversations)
                             await SondaDeTurno.correr(chat)
                         }
                     }

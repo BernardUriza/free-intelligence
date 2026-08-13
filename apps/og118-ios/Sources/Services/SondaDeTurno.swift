@@ -21,6 +21,19 @@ enum SondaDeTurno {
     /// red: que los frames lleguen no prueba que la burbuja exista. Si el
     /// doblado se rompiera, la consola diría "sin respuesta" con los frames en
     /// verde, que es exactamente la falla que hay que poder ver.
+    /// La lista de chats vacía tiene dos causas opuestas y la misma pinta: que
+    /// el servidor no devuelva nada para esta identidad, o que devuelva algo
+    /// que el cliente no supo decodificar. El error las separa.
+    @MainActor
+    static func revisarLista(_ conversations: ConversationsModel) async {
+        await conversations.refresh()
+        print("[sonda] lista: \(conversations.summaries.count) conversaciones · error: \(conversations.errorMessage ?? "ninguno")")
+        print("[sonda] agrupadas → fijados \(conversations.pinned.count) · activos \(conversations.active.count) · archivados \(conversations.archived.count)")
+        for resumen in conversations.summaries.prefix(5) {
+            print("[sonda]   \(resumen.id) · \(resumen.title)")
+        }
+    }
+
     @MainActor
     static func correr(_ chat: ChatModel) async {
         print("[sonda] mandando: \(mensaje)")

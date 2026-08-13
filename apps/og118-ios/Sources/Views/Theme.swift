@@ -48,6 +48,15 @@ enum Theme {
 
     static let chipBorder = Color(hex: 0x10B981).opacity(0.3)
     static let chipFill = Color.white.opacity(0.05)
+    static let itemSelectedBg = Color(hex: 0x34D399).opacity(0.08)
+    static let itemSelectedBorder = Color(hex: 0x34D399).opacity(0.3)
+    static let itemHover = Color.white.opacity(0.04)
+    static let itemMeta = Color(hex: 0x475569)
+    static let itemAction = Color(hex: 0x64748B)
+    static let sidebarDivider = Color.white.opacity(0.06)
+    static let searchFill = Color.white.opacity(0.04)
+    static let searchBorder = Color.white.opacity(0.1)
+
     static let badgeSelected = Color(hex: 0x10B981).opacity(0.3)
     static let badgeSelectedText = Color(hex: 0xD1FAE5)
     static let engineChipFill = Color(hex: 0x10B981).opacity(0.1)

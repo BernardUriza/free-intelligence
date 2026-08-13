@@ -14,8 +14,11 @@ private func horaCorta(_ iso: String) -> String {
     return formatoHoraCorta.string(from: fecha)
 }
 
-/// El sidebar de la web como hoja: buscar, fijar, archivar, renombrar y
-/// borrar, con los mismos gestos y la misma jerarquía que la web.
+/// El sidebar de og118.ai como hoja, con SU anatomía — no la del `List` de
+/// iOS. La versión anterior usaba `List` con `swipeActions`, que impone su
+/// propio fondo, sus separadores y sus insets, y esconde toda acción tras un
+/// gesto invisible. La web muestra las acciones SIEMPRE en pantallas táctiles
+/// (`pointer: coarse`), y pinta cada fila sobre el fondo de cristal de la app.
 struct ConversationsSheet: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var conversations: ConversationsModel
@@ -29,58 +32,23 @@ struct ConversationsSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
+            ZStack {
+                GlassBackground()
+                contenido
+            }
+            .navigationTitle("Conversaciones")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         chat.startNew()
                         dismiss()
                     } label: {
                         Label("Nuevo chat", systemImage: "square.and.pencil")
-                            .foregroundStyle(Theme.accent)
-                            .frame(minHeight: 44)
                     }
-                }
-
-                let fijados = conversations.pinned.filter(coincide)
-                let activos = conversations.active.filter(coincide)
-                let archivados = conversations.archived.filter(coincide)
-
-                if !fijados.isEmpty {
-                    Section("Fijados") {
-                        ForEach(fijados) { chatRow($0, fijado: true) }
-                    }
-                }
-                if !activos.isEmpty {
-                    Section("Chats") {
-                        ForEach(activos) { chatRow($0, fijado: false) }
-                    }
-                }
-                if !archivados.isEmpty {
-                    Section {
-                        // La búsqueda le gana al colapso, igual que la web: un
-                        // match archivado debe VERSE, no quedar tras el toggle.
-                        DisclosureGroup(
-                            isExpanded: Binding(
-                                get: { mostrarArchivados || !busqueda.isEmpty },
-                                set: { mostrarArchivados = $0 }
-                            )
-                        ) {
-                            ForEach(archivados) { archivedRow($0) }
-                        } label: {
-                            Text("Archivados (\(archivados.count))")
-                                .foregroundStyle(Theme.textMuted)
-                        }
-                    }
-                }
-
-                Section {
-                } footer: {
-                    Text("Sincronizado en tu cuenta — disponible en todos tus dispositivos.")
+                    .tint(Theme.accent)
                 }
             }
-            .searchable(text: $busqueda, prompt: "Buscar chats…")
-            .navigationTitle("Conversaciones")
-            .navigationBarTitleDisplayMode(.inline)
             .task { await conversations.refresh() }
             .alert("Renombrar chat", isPresented: renombrandoActivo) {
                 TextField("Nombre del chat", text: $nuevoNombre)
@@ -114,6 +82,199 @@ struct ConversationsSheet: View {
         }
     }
 
+    private var contenido: some View {
+        VStack(spacing: 0) {
+            buscador
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 5) {
+                    if conversations.summaries.isEmpty {
+                        estadoVacio
+                    }
+                    if !fijados.isEmpty {
+                        etiquetaGrupo("Fijados")
+                        ForEach(fijados) { fila($0, fijado: true) }
+                    }
+                    if !activos.isEmpty {
+                        etiquetaGrupo("Chats")
+                        ForEach(activos) { fila($0, fijado: false) }
+                    }
+                    if !archivados.isEmpty { seccionArchivados }
+                    if buscando, fijados.isEmpty, activos.isEmpty, archivados.isEmpty {
+                        Text("Sin resultados para «\(busqueda.trimmingCharacters(in: .whitespaces))».")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Theme.textFaint)
+                            .padding(8)
+                    }
+                }
+                .padding(8)
+            }
+            pie
+        }
+    }
+
+    /// El estado vacío distingue "todavía no carga" de "no hay ninguna": sin
+    /// esto, una lista que falla en silencio se ve igual que una cuenta nueva.
+    @ViewBuilder
+    private var estadoVacio: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if conversations.isLoading {
+                HStack(spacing: 8) {
+                    ProgressView().tint(Theme.accent)
+                    Text("Cargando tus chats…")
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textMuted)
+            } else if let error = conversations.errorMessage {
+                Text(error)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.danger)
+            } else {
+                Text("Todavía no tienes chats guardados.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+    }
+
+    private var buscador: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textFaint)
+            TextField("Buscar chats…", text: $busqueda)
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textBody)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+            if !busqueda.isEmpty {
+                Button { busqueda = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Theme.textFaint)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Limpiar búsqueda")
+            }
+        }
+        .padding(.horizontal, 11)
+        .frame(height: 38)
+        .background(Theme.searchFill, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.searchBorder, lineWidth: 1))
+        .padding(.horizontal, 8)
+        .padding(.top, 6)
+    }
+
+    @ViewBuilder
+    private var seccionArchivados: some View {
+        Divider().overlay(Theme.sidebarDivider).padding(.vertical, 6)
+        Button {
+            mostrarArchivados.toggle()
+        } label: {
+            HStack {
+                etiquetaGrupo("Archivados (\(archivados.count))")
+                Spacer()
+                Image(systemName: archivadosAbiertos ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textFaint)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        if archivadosAbiertos {
+            ForEach(archivados) { filaArchivada($0) }
+        }
+    }
+
+    private var pie: some View {
+        VStack(spacing: 0) {
+            Divider().overlay(Theme.sidebarDivider)
+            Text("Sincronizado en tu cuenta — disponible en todos tus dispositivos.")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.itemMeta)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 10)
+        }
+    }
+
+    private func etiquetaGrupo(_ texto: String) -> some View {
+        Text(texto.uppercased())
+            .font(.system(size: 10, weight: .medium))
+            .tracking(0.8)
+            .foregroundStyle(Theme.textFaint)
+            .padding(.horizontal, 6)
+            .padding(.top, 6)
+            .padding(.bottom, 2)
+    }
+
+    private func fila(_ summary: ConversationSummary, fijado: Bool) -> some View {
+        SidebarItem(
+            title: summary.title,
+            subtitle: summary.preview,
+            meta: horaCorta(summary.updatedAt),
+            selected: summary.id == chat.conversationID,
+            onSelect: { abrir(summary) }
+        ) {
+            ItemAction(
+                systemImage: fijado ? "pin.slash" : "pin",
+                label: fijado ? "Desfijar chat" : "Fijar chat"
+            ) {
+                Task { adopt(await conversations.setPinned(summary.id, !fijado)) }
+            }
+            ItemAction(systemImage: "archivebox", label: "Archivar chat") {
+                Task { adopt(await conversations.setArchived(summary.id, true)) }
+            }
+        }
+        .contextMenu {
+            Button {
+                renombrando = summary
+                nuevoNombre = summary.title
+            } label: {
+                Label("Renombrar chat", systemImage: "pencil")
+            }
+        }
+    }
+
+    /// Archivar es la ruta amable; el borrado destructivo vive SOLO aquí,
+    /// dentro de Archivados, igual que en la web.
+    private func filaArchivada(_ summary: ConversationSummary) -> some View {
+        SidebarItem(
+            title: summary.title,
+            subtitle: summary.preview,
+            meta: horaCorta(summary.archivedAt ?? summary.updatedAt),
+            selected: summary.id == chat.conversationID,
+            onSelect: { abrir(summary) }
+        ) {
+            ItemAction(systemImage: "arrow.uturn.backward", label: "Restaurar chat") {
+                Task { adopt(await conversations.setArchived(summary.id, false)) }
+            }
+            ItemAction(systemImage: "xmark", label: "Borrar chat", destructiva: true) {
+                borrando = summary
+            }
+        }
+    }
+
+    /// La hoja se cierra PRIMERO: si se espera a la red, el cambio ocurre
+    /// oculto detrás y el usuario no ve nada.
+    private func abrir(_ summary: ConversationSummary) {
+        dismiss()
+        Task { await chat.open(summary.id) }
+    }
+
+    private var buscando: Bool {
+        !busqueda.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// La búsqueda le gana al colapso, igual que la web: un match archivado
+    /// debe VERSE, no quedar tras el toggle.
+    private var archivadosAbiertos: Bool { mostrarArchivados || buscando }
+
+    private var fijados: [ConversationSummary] { conversations.pinned.filter(coincide) }
+    private var activos: [ConversationSummary] { conversations.active.filter(coincide) }
+    private var archivados: [ConversationSummary] { conversations.archived.filter(coincide) }
+
     private func coincide(_ summary: ConversationSummary) -> Bool {
         let q = busqueda
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
@@ -138,99 +299,5 @@ struct ConversationsSheet: View {
     /// record; el ChatModel debe partir de esa versión en el próximo save.
     private func adopt(_ record: ConversationRecord?) {
         if let record { chat.adoptBase(record) }
-    }
-
-    private func resumenFila(_ summary: ConversationSummary) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary.title)
-                    .font(.body)
-                    .foregroundStyle(Theme.text)
-                    .lineLimit(1)
-                if let preview = summary.preview, !preview.isEmpty {
-                    Text(preview)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textMuted)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 4)
-            Text(horaCorta(summary.updatedAt))
-                .font(.caption2)
-                .foregroundStyle(Theme.textFaint)
-                .monospacedDigit()
-        }
-        .frame(minHeight: 44)
-    }
-
-    private func chatRow(_ summary: ConversationSummary, fijado: Bool) -> some View {
-        Button {
-            // La hoja se cierra PRIMERO: si se espera a la red, el cambio
-            // ocurre oculto detrás y el usuario no ve nada.
-            dismiss()
-            Task { await chat.open(summary.id) }
-        } label: {
-            resumenFila(summary)
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                Task { adopt(await conversations.setPinned(summary.id, !fijado)) }
-            } label: {
-                Label(fijado ? "Desfijar" : "Fijar", systemImage: fijado ? "pin.slash" : "pin")
-            }
-            .tint(Theme.accentDeep)
-        }
-        .swipeActions(edge: .trailing) {
-            Button {
-                Task { adopt(await conversations.setArchived(summary.id, true)) }
-            } label: {
-                Label("Archivar", systemImage: "archivebox")
-            }
-            .tint(Theme.archiveSwipe)
-        }
-        .contextMenu {
-            Button {
-                renombrando = summary
-                nuevoNombre = summary.title
-            } label: {
-                Label("Renombrar chat", systemImage: "pencil")
-            }
-            Button {
-                Task { adopt(await conversations.setPinned(summary.id, !fijado)) }
-            } label: {
-                Label(fijado ? "Desfijar chat" : "Fijar chat", systemImage: fijado ? "pin.slash" : "pin")
-            }
-            Button {
-                Task { adopt(await conversations.setArchived(summary.id, true)) }
-            } label: {
-                Label("Archivar chat", systemImage: "archivebox")
-            }
-        }
-    }
-
-    /// Archivar es la ruta amable; el borrado destructivo vive SOLO aquí,
-    /// dentro de Archivados, igual que en la web.
-    private func archivedRow(_ summary: ConversationSummary) -> some View {
-        Button {
-            dismiss()
-            Task { await chat.open(summary.id) }
-        } label: {
-            resumenFila(summary)
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-            Button {
-                Task { adopt(await conversations.setArchived(summary.id, false)) }
-            } label: {
-                Label("Restaurar", systemImage: "arrow.uturn.backward")
-            }
-            .tint(Theme.accentDeep)
-        }
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                borrando = summary
-            } label: {
-                Label("Borrar", systemImage: "trash")
-            }
-        }
     }
 }
