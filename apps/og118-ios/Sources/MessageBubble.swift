@@ -242,14 +242,7 @@ struct AuthorHeader: View {
     }
 
     private var hora: String? {
-        guard let timestamp else { return nil }
-        let formato = ISO8601DateFormatter()
-        formato.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fecha = formato.date(from: timestamp) ?? {
-            formato.formatOptions = [.withInternetDateTime]
-            return formato.date(from: timestamp)
-        }()
-        guard let fecha else { return nil }
+        guard let timestamp, let fecha = ConversationSchema.fecha(timestamp) else { return nil }
         return fecha.formatted(date: .omitted, time: .shortened)
     }
 

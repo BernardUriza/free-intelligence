@@ -37,8 +37,27 @@ struct ConversationRecord: Codable {
     var schemaVersion: Int
 }
 
+private let formatoISOFraccional: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+private let formatoISOPlano: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f
+}()
+
 enum ConversationSchema {
     static let version = 1
+
+    /// Los timestamps del contrato llegan ISO-8601 con o sin fracciones de
+    /// segundo según quién los escribió; los formatters viven fuera de la
+    /// función porque construir un `ISO8601DateFormatter` por llamada es caro.
+    static func fecha(_ iso: String) -> Date? {
+        formatoISOFraccional.date(from: iso) ?? formatoISOPlano.date(from: iso)
+    }
     static let defaultTitle = "New chat"
     static let titleMax = 60
     static let previewMax = 120

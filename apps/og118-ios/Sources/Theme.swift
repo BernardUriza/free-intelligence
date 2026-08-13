@@ -50,6 +50,8 @@ enum Theme {
     static let chipFill = Color.white.opacity(0.05)
     static let badgeSelected = Color(hex: 0x10B981).opacity(0.3)
     static let badgeSelectedText = Color(hex: 0xD1FAE5)
+    static let engineChipFill = Color(hex: 0x10B981).opacity(0.1)
+    static let archiveSwipe = Color(hex: 0x475569)
 
     static let sendText = Color(hex: 0x052E1A)
     static let sendDisabledBorder = Color(hex: 0x94A3B8).opacity(0.28)
@@ -63,6 +65,20 @@ enum Theme {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+}
+
+/// La marca «og118.ai»: blanco + esmeralda, el mismo par que el logo web.
+struct Wordmark: View {
+    let size: CGFloat
+
+    var body: some View {
+        Text("og118")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(Theme.text)
+        + Text(".ai")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(Theme.accent)
     }
 }
 
