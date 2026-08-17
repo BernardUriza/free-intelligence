@@ -298,7 +298,31 @@ az containerapp update -n persona-runner -g insult-rg \
 Known limit to watch as volume grows: `ResponseTap` buffers each response fully
 in RAM to assemble it for the mirror, on a 512 MB box with 175 MB free.
 
+## DECIDED 2026-08-17 by Bernard — the OAuth token stays; do NOT mint a metered key
+
+**Settled. Do not re-propose it** (Art. 7). Bernard's call, verbatim: *"esto es un
+experimento y nadie conoce aun mi proyecto ni como solicitarme un token o acceso por
+correo, ademas, ya hablamos que como es uso para mi mismo, no rompe tos, no cambies a
+apikey, esos tokens son carisimos, primero usa los de mi cuota max que ya esta en
+`AIRE_LEND_OAUTH_TOKEN`"*.
+
+The terms argument below is written as if third parties were already being served. They
+are not: **the door has zero users who are not Bernard**, so lending his own Max quota to
+his own experiment is self-use, not resale. The exposure is CONDITIONAL, and the trigger
+is nameable:
+
+| Trigger | What to do then |
+|---|---|
+| The first stranger requests access by email and gets a nickname token | Revisit the terms question — and only then price a metered `ANTHROPIC_API_KEY` |
+| Nobody outside Bernard has a token | Nothing. `AIRE_LEND_OAUTH_TOKEN` is the correct fill, and an API key is a cost with no user behind it |
+
+Also rejected the same day: clearing the slot to close the lending "for free". It would
+break the door for the experiment it exists to run, for a risk that has not activated.
+
 ## What is still open, and it is Bernard's
+
+⚠️ The terms bullet below is SUPERSEDED by the decision above. It is kept because the
+coupling cost is still real, and because the reasoning is what the trigger reactivates.
 
 The slot is chosen; **what fills it** carries two costs worth revisiting:
 

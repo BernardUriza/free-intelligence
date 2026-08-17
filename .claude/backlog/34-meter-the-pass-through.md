@@ -80,9 +80,14 @@ metered slot in code and documents why (revocable without touching the subscript
 slot is wired and unpopulated.
 
 Metering the pass-through is what makes that blocker *avoidable* rather than *solved*: a
-client on their own credential never touches the lent slot at all. Minting the metered key
-remains Bernard's atom, tracked in [#32](32-the-nickname-door.md) and in the canonical
-item's blocker list.
+client on their own credential never touches the lent slot at all.
+
+🔒 **Not a blocker today — DECIDED 2026-08-17 by Bernard: the OAuth token stays and no
+metered key gets minted. Do not re-propose it** (Art. 7, decision recorded in
+[#32](32-the-nickname-door.md)). The paragraph above describes serving third parties; the
+door has **zero users who are not Bernard**, so it is self-use, not resale. The trigger
+that reopens it is the first stranger requesting access by email — not the arrival of a
+paying client, and not a session that reads this file and finds an empty variable.
 
 ## The decision that's the owner's
 
