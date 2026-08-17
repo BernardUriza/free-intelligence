@@ -213,15 +213,139 @@ Y el techo de operación son **2-3 clientes** (§ el pleito). Divide:
 ```
 
 **Ese es el hallazgo:** casi todos ponen precio y luego se preguntan cuántos clientes
-necesitan. Aquí es al revés — el techo de clientes está fijo de antemano, así que
-**fija el precio piso: ~$250 USD/mes para no perder dinero, ~$435 USD/mes para que
-Bernard no trabaje gratis.** A ese precio (~$7,400 MXN) el cliente **no es un cuate con
-su Discord**: es una organización con presupuesto — una clínica, una escuela, una
+necesitan. Aquí es al revés — el techo de clientes está fijo de antemano, así que el
+techo fija el piso: **~$250 USD/mes para no perder dinero, ~$435 USD/mes para que Bernard
+no trabaje gratis.**
+
+⚠️ **Los dos números son el punto de equilibrio ANTES de la comisión del riel de cobro, y
+por eso no son el precio de lista.** El precio de lista es **$650 USD/mes**, y por qué
+está en la subsección de abajo. A ese precio (~$11,000 MXN) el cliente **no es un cuate
+con su Discord**: es una organización con presupuesto — una clínica, una escuela, una
 colectiva, un despacho.
 
-Si Alex sube a 6 h el subtotal en efectivo pasa a $1,216 y el piso a **~$620 USD/mes**
-por cliente a 3 clientes. La escala de sus horas mueve el precio del producto; no es una
-decisión de nómina aislada.
+Si Alex sube a 6 h el subtotal en efectivo pasa a $1,216 y el equilibrio a **~$620
+USD/mes** por cliente a 3 clientes — o sea el precio de lista de $650 deja de tener
+holgura. La escala de sus horas mueve el precio del producto; no es una decisión de
+nómina aislada.
+
+### El precio de lista es $650 USD/mes, porque el equilibrio no paga la comisión
+
+El equilibrio de arriba supone que el cliente paga $X y entran $X. No entran: el riel de
+cobro (Merchant of Record, abajo) se queda con **5% + $0.50** por transacción. Con un
+precio de $600 el neto es $569.50 y la ganancia por hora de Alex cae a **$31.18** —
+debajo de los $35/h que Bernard cobra por su propio tiempo, o sea el producto pagaría
+peor que la chamba que pretende sustituir.
+
+Corrida a $650:
+
+| A $650/mes | |
+|---|---:|
+| Neto por cliente (después de 5% + $0.50) | $617.00 |
+| × 3 clientes | $1,851.00 |
+| − costo mensual (Alex $520 + infra $177 + 4 h/sem de Bernard a $35) | −$1,303.16 |
+| **Ganancia** | **$547.84 /mes** |
+| Por hora de Alex (13 h/mes) | **$42.14** |
+
+Y sigue siendo barato del lado del cliente: los tres juntos pagan **$23,400/año**, todavía
+debajo del piso de una sola agencia.
+
+### El mercado está partido en dos, y este precio cae en el hueco
+
+Investigado el 2026-08-17. Las fuentes se contradicen por **tres órdenes de magnitud**, y
+no es contradicción: son dos mercados distintos con el mismo nombre.
+
+| Marco de comparación | Precio observado | $650/mes se lee como |
+|---|---|---|
+| SaaS de bot de estante (PeakBot, CommunityOne) | **$8.25–$14.99 /mes** | absurdo: 40× una suscripción |
+| Retainer de mantenimiento de bot | **$70–$150 /mes** | caro sin explicación |
+| Agencia, por proyecto | **desde $15,000 y hasta $50,000+** | la opción barata: $7,800/año es la MITAD del piso de una agencia |
+
+**El marco de comparación decide el precio, no el producto.** Vendido como "suscripción de
+bot" $650 es indefendible; vendido como **retainer administrado con diseño de persona
+hecho por psicóloga** es la alternativa económica frente a un proyecto de agencia. La
+consecuencia operativa es de posicionamiento, no de aritmética: el material de venta tiene
+que fijar el marco de agencia antes de decir el número.
+
+Fuentes: [Fiverr — costos de desarrollador de bots de Discord](https://www.fiverr.com/resources/guides/costs/discord-bot-developer) ·
+[TechRadar — pricing 2026](https://techradar.info/how-much-does-it-cost-to-make-a-discord-bot-the-2026-pricing-guide/) ·
+[CommunityOne](https://communityone.io/pricing/) ·
+[PeakBot](https://peakbot.pro/blog/ai-discord-bot-pricing-comparison-2026)
+
+### El riel de cobro desde México a EUA/UE: Merchant of Record
+
+Un **Merchant of Record** es el vendedor legal de la transacción: calcula el IVA según la
+ubicación del cliente, lo cobra, lo declara y lo remite — **sin registro de IVA en la UE ni
+alta en MOSS**. Costo:
+
+| Proveedor | Comisión |
+|---|---|
+| Paddle · Lemon Squeezy · Fungies | **5% + $0.50** |
+| Dodo Payments | **4% + $0.40** |
+
+El desempate contra cobrar directo no es la comisión, es el cumplimiento: un contador
+multi-jurisdicción cuesta **$3,000–$10,000 USD/año**, y el 5% sobre 3 clientes a $650 son
+**~$1,170 USD/año**. Con tres clientes el MoR cuesta entre un tercio y un octavo de la
+alternativa, y no consume horas de nadie.
+
+Fuentes: [Fungies — guía MoR para SaaS](https://fungies.io/merchant-of-record-for-saas-guide-2026/) ·
+[FintechSpecs — Stripe vs Paddle vs Lemon Squeezy vs Polar](https://fintechspecs.com/blog/stripe-vs-paddle-vs-lemon-squeezy-vs-polar-merchant-of-record-b2b-saas/) ·
+[BuildMVPFast](https://www.buildmvpfast.com/blog/lemon-squeezy-vs-polar-paddle-merchant-of-record-2026) ·
+[GlobalSolo](https://www.globalsolo.global/blog/stripe-vs-paddle-vs-lemon-squeezy-2026)
+
+### Precio regional: se vende en país rico, se abarata en LatAm
+
+Tesis de Bernard del 2026-08-17, y la investigación la sostiene. El precio por paridad de
+poder de compra (PPP) mide **20–70% más ventas** en regiones de bajo poder de compra, **18%
+más crecimiento** y **25% más ingreso por cliente**. O sea el precio regional no es
+caridad: es el mecanismo que hace que $650 sea vendible en EUA/UE sin cerrar el mercado
+local.
+
+- **El abuso por VPN se mata exigiendo método de pago o dirección de facturación local.**
+  En B2B es trivial: una organización tiene domicilio fiscal, y el MoR ya pide los datos
+  de facturación para calcular el IVA.
+- **Se enmarca como *precio regional*, nunca como "descuento por ser pobre".** Es la misma
+  disciplina de registro del resto del expediente: el hecho se dice completo, el empaque no
+  insulta al cliente.
+
+Fuentes: [Monetizely — legalidad y ética de la discriminación regional de precio](https://www.getmonetizely.com/articles/is-regional-price-discrimination-legal-and-ethical-in-saas) ·
+[Fungies — PPP pricing](https://fungies.io/purchasing-power-parity-saas-pricing-2026/) ·
+[Dodo Payments](https://dodopayments.com/blogs/purchasing-power-parity-pricing-saas) ·
+[PriceParity](https://priceparity.net/)
+
+### El tier gratis: qué es exactamente, y cuál es su riesgo real
+
+Los free tiers en productos de IA son estructuralmente peligrosos, y hay cifras: márgenes
+brutos de **45–53%** y muchos negativos; GitHub Copilot perdía **$20 USD por usuario al
+mes** con *power users* que costaban $80 contra una suscripción de $10; Cursor gastó
+**$650M** en API de Anthropic generando **$500M** de ingreso.
+
+**Pero en este producto la arquitectura ya acotó el gratis en dinero.** Cada nickname
+invitado nace con tope de **$1.00 USD** (`AIRE_INVITE_BUDGET_USD`,
+`aire-server/server/aire/tokens.py:36`), y el corte está verificado mordiendo con un 402
+real. A **$0.108–$0.116 por turno** medido en el droplet
+(`aire-server/.claude/backlog/32-the-nickname-door.md:159,184`), $1 son **~9 turnos**: eso
+es un demo, no un servicio.
+
+**El riesgo real del gratis no es el dinero, es la cuota semanal compartida.** El item 32
+de `aire-server` lo dice textual: *"an invited key burning the weekly pool starves the
+engine"* — un usuario gratis puede dejar mudos a los propios bots, que es exactamente lo
+que pasó el **7-ago-2026**, cuando el límite semanal los calló.
+
+La frontera, escrita para que no se re-discuta:
+
+| Escala del gratis | Qué necesita |
+|---|---|
+| **Demo (~9 turnos, $1)** | es gratis hoy, con la llave que ya hay; no necesita llave medida |
+| **Servicio (uso sostenido)** | necesita dólares propios |
+
+Ese segundo renglón es **el mismo disparador ya registrado en el bloqueador #1** (el primer
+desconocido pidiendo acceso), no uno nuevo, y no reabre la decisión del 2026-08-17 de no
+acuñar llave medida (Art. 7).
+
+Fuentes: [CRV — economía de la inferencia LLM](https://www.crv.com/content/llm-inference) ·
+[Causo — costos de token y márgenes](https://hub.causo.ai/guides/how-to-price-ai-product-token-costs-margins-2026) ·
+[Jeff Brokaw — márgenes brutos de IA](https://jeffbrokaw.com/blog/ai-gross-margins/) ·
+[Digital Applied — unit economics 2026](https://www.digitalapplied.com/blog/ai-unit-economics-pricing-margins-services-2026-framework)
 
 ### 🔑 La pregunta de ROI que sí decide: ¿su nómina es CAPEX o OPEX?
 
@@ -233,8 +357,9 @@ Mismo dinero, misma persona, dos negocios opuestos:
 | **Catálogo de personas escrito una vez y vendido N veces** (CAPEX de producto) | **fijo**, se amortiza en cada cliente nuevo | crece con cada venta |
 
 La aritmética a favor: Valentis costó ~3 sesiones ≈ 1 semana ≈ **120 USD** de su tiempo.
-Vendido a 3 clientes a $435/mes se paga **más de 10 veces el primer mes**. Un catálogo de
-4-5 personas es un activo de ~$600 USD de costo hundido que se cobra indefinidamente.
+Vendido a 3 clientes a $650/mes ($617 netos) se paga **más de 15 veces el primer mes**. Un
+catálogo de 4-5 personas es un activo de ~$600 USD de costo hundido que se cobra
+indefinidamente.
 
 **Por eso el indicador que hay que vigilar no son sus horas — es cuántas personas del
 catálogo están DESPLEGADAS.** Hoy: 4 en disco, 1 en borrador sin aterrizar, y 3 de las 5
@@ -263,6 +388,12 @@ cada semana en lugar del conteo de horas.
 
 - **El tope de clientes**, que es el número que ninguna fuente da y que define si esto es
   un negocio o una segunda chamba. Se mide, no se estima.
+- **Confirmar el precio de lista en $650 USD/mes** (equilibrio $250/$435 antes de comisión;
+  a $600 la hora de Alex cae a $31.18, debajo de los $35/h de Bernard).
+- **Cuál MoR** se contrata: Paddle / Lemon Squeezy / Fungies a 5% + $0.50, o Dodo Payments
+  a 4% + $0.40.
+- **Qué se hace con LatAm:** gratis, o precio regional reducido con verificación por
+  dirección de facturación local.
 - **Qué SLO se vende** (99.5% mensual ≈ 3.6 h, o más flojo) y en qué horario hay soporte.
 - **Si el cliente trae su propia llave de Anthropic** (sin costo de mercancía, sin problema
   de términos) o si Bernard revende tokens con margen.
@@ -279,6 +410,12 @@ Nada construido. Lo que desbloquea, en orden:
    con control y el fix. Es la demo que vende sin necesitar todavía un cliente.
 3. Medir el tiempo de renacimiento del droplet desde el repo. Ese número es la diferencia
    entre vender ganado y vender una mascota.
+4. Abrir cuenta en el MoR elegido y probar un cobro de $1 USD a una tarjeta propia, para
+   medir la comisión real contra el 5% + $0.50 de lista antes de cotizarle a nadie.
+
+El precio ya no está abierto: **$650 USD/mes**, con equilibrio en $250/$435 antes de
+comisión, y el material de venta encuadrado contra agencia ($15,000–$50,000+ por proyecto),
+nunca contra suscripción de bot ($8.25–$14.99/mes).
 
 Ver [`persona-acompanamiento-issues-alex.md`](persona-acompanamiento-issues-alex.md),
 [`frugivoro-persona.md`](frugivoro-persona.md) y, en `aire-server`, el item 32
