@@ -1,7 +1,15 @@
 # Servidor llave en mano: tu propio Discord con bots hechos por nosotros
 
-Status: Proposed
+Status: **Congelado hasta el inicio de 2027** (candado puesto el 2026-08-17 por Bernard)
 Proposed: 2026-08-15 por Bernard
+
+🔒 **No se ejecuta nada de este item ante un tercero antes de 2027, y no se le vuelve a
+proponer.** Congelado: abrir cuenta en el MoR, cobros de prueba, contactar prospectos,
+publicar la oferta, cotizar. Permitido: documentar, investigar y construir los activos que
+el producto va a necesitar igual (una persona del catálogo, una corrección de código, un
+runbook). La frontera: **si un desconocido se enteraría, está congelado.** El criterio y el
+motivo viven en `compras/.claude/rules/oportunidad-de-ingreso-se-pesa-contra-si-escala-sin-bernard.md`
+§ *Una fecha de arranque puesta por Bernard es un CANDADO*. Sólo él mueve la fecha (Art. 7).
 
 ## Qué es
 
@@ -410,8 +418,12 @@ Nada construido. Lo que desbloquea, en orden:
    con control y el fix. Es la demo que vende sin necesitar todavía un cliente.
 3. Medir el tiempo de renacimiento del droplet desde el repo. Ese número es la diferencia
    entre vender ganado y vender una mascota.
-4. Abrir cuenta en el MoR elegido y probar un cobro de $1 USD a una tarjeta propia, para
-   medir la comisión real contra el 5% + $0.50 de lista antes de cotizarle a nadie.
+4. 🔒 **CONGELADO hasta 2027** — abrir cuenta en el MoR y probar un cobro de $1 USD para
+   medir la comisión real. Es el primer paso que existe frente a un tercero, así que cae
+   entero dentro del candado. No se propone antes de la fecha.
+
+**Lo ejecutable mientras el candado esté puesto son los pasos 2 y 3**, que construyen
+activos que el producto necesita de todos modos. El 1 está descartado y el 4 congelado.
 
 El precio ya no está abierto: **$650 USD/mes**, con equilibrio en $250/$435 antes de
 comisión, y el material de venta encuadrado contra agencia ($15,000–$50,000+ por proyecto),
