@@ -161,6 +161,87 @@ las llaves invitadas**; el pass-through no se tarifica. Medir y capar también a
 su propia credencial es lo que convierte a AIRE de puerta en producto — y habilita el
 modelo sin costo de mercancía (el cliente pone su propia llave de Anthropic).
 
+## La cuenta: qué cuesta Alex, qué produjo, y a cuánto tiene que venderse el servidor
+
+Ésta es la pregunta que originó el item (Bernard, 2026-08-17): *"cómo calcular cuál es el
+valor de lo que está haciendo Alex realmente. Ahorita puede que esté muy inflado, y justo
+por eso tenemos que tener un ROI en mente"*. El detalle de horas y pagos vive en su SSOT,
+`compras/nomina-alex-khimeras.md` — aquí solo va la aritmética del producto.
+
+### Lo que se pagó y lo que se entregó (verificado en git, no en el documento)
+
+| | |
+|---|---|
+| Pagado hasta hoy | **1 pago · 120 USD · $2,042 MXN** (S1, 14-ago-2026) |
+| Sesiones en S1 | 5 · **15 h acordadas · 11.75 h efectivas** (semana de arranque, atípica) |
+| Entregado y **desplegado** | PR **#37** `40a4fea` (alias `fruggy`, v4.32.45) y PR **#39** `2c52a89`/`4ed8825` (Frugívoro vegano por deducción, v4.32.47) — los dos con autor `ferux485` en el historial |
+| Entregado y **NO desplegado** | el ADN de **Valentis** (marco PAP/Hobfoll/Slaikeu, lente neuroafirmativa, escenarios y diálogos). `shared/personas/` tiene alice, frugivoro, insult y unborn_being — **valentis.md no existe en disco** |
+
+### ¿Está inflado? Las dos lecturas son ciertas y dicen lo contrario
+
+| Medida | USD/h | Contra la tarifa de Bernard ($35/h) |
+|---|---:|---|
+| El **contrato**: 120 USD ÷ 3 h base | **$40.00** | **14% MÁS CARO** que lo que él cobra |
+| La **entrega real de S1**: 120 USD ÷ 11.75 h efectivas | **$10.21** | 71% más barato |
+
+Al contrato está caro; a la entrega está regalado. **La respuesta honesta a "¿está
+inflado?" es: hoy no, y el riesgo va en la dirección contraria a la que se teme** — el
+precio es fijo y la entrega va a normalizarse hacia abajo, a las 3 h que el acuerdo
+pactó. En régimen de 3 h reales el costo por hora se cuadruplica sin que nadie cambie
+nada. Eso no es un argumento para pagarle menos: es la razón por la que el ROI no puede
+medirse en horas.
+
+### El piso de precio lo fija el TECHO DE OPERACIÓN, no el mercado
+
+Costo mensual atribuible al producto:
+
+| Renglón | USD/mes |
+|---|---:|
+| Alex, base 3 h | 519.60 |
+| Droplet de AIRE | 4.00 |
+| `insult-rg` en Azure (los bots) | 173.36 |
+| **Subtotal en efectivo** | **696.96** |
+| Tiempo de operación de Bernard (4 h/sem × $35, dentro del 20-30% que la investigación mide) | 606.20 |
+| **Total con su tiempo valuado** | **1,303.16** |
+
+Y el techo de operación son **2-3 clientes** (§ el pleito). Divide:
+
+```
+                       cubre Alex+infra    cubre TAMBIEN su tiempo
+   3 clientes    ──►      $232 /mes            $434 /mes     por cliente
+   2 clientes    ──►      $348 /mes            $652 /mes     por cliente
+```
+
+**Ese es el hallazgo:** casi todos ponen precio y luego se preguntan cuántos clientes
+necesitan. Aquí es al revés — el techo de clientes está fijo de antemano, así que
+**fija el precio piso: ~$250 USD/mes para no perder dinero, ~$435 USD/mes para que
+Bernard no trabaje gratis.** A ese precio (~$7,400 MXN) el cliente **no es un cuate con
+su Discord**: es una organización con presupuesto — una clínica, una escuela, una
+colectiva, un despacho.
+
+Si Alex sube a 6 h el subtotal en efectivo pasa a $1,216 y el piso a **~$620 USD/mes**
+por cliente a 3 clientes. La escala de sus horas mueve el precio del producto; no es una
+decisión de nómina aislada.
+
+### 🔑 La pregunta de ROI que sí decide: ¿su nómina es CAPEX o OPEX?
+
+Mismo dinero, misma persona, dos negocios opuestos:
+
+| | Qué pasa con su costo | Margen |
+|---|---|---|
+| **Persona a la medida por cliente** (OPEX de servicio) | escala **lineal** con los clientes | se aplana; es consultoría con otro nombre |
+| **Catálogo de personas escrito una vez y vendido N veces** (CAPEX de producto) | **fijo**, se amortiza en cada cliente nuevo | crece con cada venta |
+
+La aritmética a favor: Valentis costó ~3 sesiones ≈ 1 semana ≈ **120 USD** de su tiempo.
+Vendido a 3 clientes a $435/mes se paga **más de 10 veces el primer mes**. Un catálogo de
+4-5 personas es un activo de ~$600 USD de costo hundido que se cobra indefinidamente.
+
+**Por eso el indicador que hay que vigilar no son sus horas — es cuántas personas del
+catálogo están DESPLEGADAS.** Hoy: 4 en disco, 1 en borrador sin aterrizar, y 3 de las 5
+sesiones de S1 se fueron a la que no aterrizó. Esa relación —sesiones invertidas contra
+personas desplegadas— es la métrica de ROI de esta nómina, y es la que hay que reportar
+cada semana en lugar del conteo de horas.
+
 ## Bloqueadores que no se arreglan con código
 
 1. **La credencial — 🔒 DECIDIDO el 2026-08-17 por Bernard, NO se re-propone (Art. 7).**
