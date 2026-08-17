@@ -163,10 +163,14 @@ modelo sin costo de mercancía (el cliente pone su propia llave de Anthropic).
 
 ## Bloqueadores que no se arreglan con código
 
-1. **La credencial.** El cerebro corre hoy sobre la suscripción Claude Max que paga su
-   empleador. El backlog de AIRE ya lo dice: *"serving third parties from a personal
-   subscription is plausibly outside Anthropic's consumer terms"*. El slot limpio existe y
-   está vacío: `AIRE_LEND_API_KEY`.
+1. **La credencial — 🔒 DECIDIDO el 2026-08-17 por Bernard, NO se re-propone (Art. 7).**
+   El cerebro corre sobre la suscripción Claude Max que paga su empleador, y **así se
+   queda**: `AIRE_LEND_OAUTH_TOKEN` sigue siendo el relleno correcto y **no se acuña
+   llave medida**. El backlog de AIRE decía *"serving third parties from a personal
+   subscription is plausibly outside Anthropic's consumer terms"* — pero hoy **no hay
+   terceros**: cero usuarios que no sean Bernard, o sea uso propio, no reventa. El
+   disparador que reabre el tema es **el primer desconocido pidiendo acceso por correo**,
+   no la llegada de un cliente que pague. Registrado en `aire-server` items 32 y 34.
 2. **México no califica** para Premium Apps ni Server Subscriptions de Discord — el cobro
    va por riel propio, por fuera, que la Developer Policy sí permite.
 3. **El overlay de usuario vulnerable** (score clínico + líneas de crisis mexicanas en
@@ -187,8 +191,9 @@ modelo sin costo de mercancía (el cliente pone su propia llave de Anthropic).
 
 Nada construido. Lo que desbloquea, en orden:
 
-1. Acuñar la llave medida y poblar `AIRE_LEND_API_KEY` — apaga el bloqueador #1 **aunque
-   nunca se cobre**, porque hoy se sirve a terceros desde la suscripción del empleador.
+1. ~~Acuñar la llave medida y poblar `AIRE_LEND_API_KEY`~~ — **descartado el 2026-08-17
+   por Bernard.** Sin usuarios ajenos no hay reventa que regularizar, y una llave medida
+   es un costo sin nadie detrás. Se retoma solo con el disparador del bloqueador #1.
 2. Escribir el hallazgo de la sal de gusano como pieza pública: el defecto, el experimento
    con control y el fix. Es la demo que vende sin necesitar todavía un cliente.
 3. Medir el tiempo de renacimiento del droplet desde el repo. Ese número es la diferencia
