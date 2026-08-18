@@ -18,10 +18,10 @@
 
 **GPU-accelerated AI system for healthcare** - like Cyberpunk 2077, no GPU = no play.
 
-Sistema de **inteligencia médica con RAG GPU**, diseñado para performance óptima sin degradación:
+A **medical intelligence system with GPU-powered RAG**, built for full-speed performance with no degraded modes:
 - 📊 **RAG embeddings**: GPU-only (20-50ms), no CPU fallback (100-150ms unacceptable)
 - 🧠 **LLM inference**: Local Ollama on GPU (Qwen3:1.7b)
-- 🔒 **HIPAA on-prem**: Datos locales, HDF5 append-only, zero cloud PHI
+- 🔒 **HIPAA on-prem**: local data, HDF5 append-only, zero cloud PHI
 - 🚀 **Production-grade**: built to deploy on Azure Container Apps + Static Web Apps from CI
 
 **Key Difference:**
@@ -29,7 +29,7 @@ Sistema de **inteligencia médica con RAG GPU**, diseñado para performance ópt
 - ❌ Cloud SaaS: PHI in transit, vendor lock-in, latency
 - ✅ **AURITY**: GPU-first architecture, on-prem data, optimal UX
 
-> "El usuario prefiere no ver nada que ver gráficos chafos"
+> "Users would rather see nothing than a crappy chart."
 
 ---
 
@@ -358,7 +358,7 @@ async def list_documents(
 
 ---
 
-## 📚 Stack Tecnológico
+## 📚 Tech Stack
 
 **Backend:**
 - Python 3.14, FastAPI, Uvicorn
@@ -390,9 +390,9 @@ async def list_documents(
 
 ## 🤝 Contributing
 
-Proyecto personal de Bernard Uriza Orozco. Contribuciones externas no aceptadas.
+Personal project by Bernard Uriza Orozco. Outside contributions aren't accepted.
 
-**Filosofía:**
+**Philosophy:**
 > "GPU-first, no compromises. Like modern gaming - works perfectly or doesn't work at all."
 
 ---
@@ -414,4 +414,4 @@ Private project. All rights reserved © 2026 Bernard Uriza Orozco.
 
 **Free Intelligence: GPU-Accelerated AI for Healthcare** 🧠⚡
 
-*"El usuario prefiere no ver nada que ver gráficos chafos"*
+*"Users would rather see nothing than a crappy chart."*
