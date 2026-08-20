@@ -87,8 +87,22 @@ no model answered `"claude-sonnet-5"` (the engine-decided default, previously
 blind), and a garbage name got the 422. The edge guards only the argv's shape;
 the API curates the catalog.
 
+**Gap #4 (images) SHIPPED 2026-08-20** (`6d8bd9a`) — the body takes `images`
+(`[{media_type, data(base64)}]`), validated at the edge (`engine/vision.py`:
+allowlisted MIME types, base64 that decodes, ≤4 images of ≤5MB base64 — the body
+sits in RAM on the 512MB box) and folded image-before-text into the SDK's
+streaming-input mode, ported from fi-runner's `ClaudeCodeBackend` (the canonical
+vision path). An image-only send is a valid turn — the picture IS the message.
+Text-only turns stay a plain string, byte-identical to before. Measured from
+outside the droplet: a 16×16 solid-red PNG + "what color?" on haiku answered
+**"Red"** ($0.007, provenance `claude-haiku-4-5-20251001` — gaps 3 and 4 compose
+in one turn); an image-only send followed by "what color was the image I sent?"
+answered **"Red."** from session memory (the image rode AND the transcript keeps
+it); `image/tiff` got the 422 naming the allowlist.
+
 Remaining gaps (this item stays open until they close or Bernard scopes them out):
-- **Gap #2/#4** — per-turn `system_prompt` / `images` (unbuilt).
+- **Gap #2** — per-turn `system_prompt` (unbuilt; first decide whether the
+  `/init` casita model isn't already the better shape — content, not repetition).
 - **The consumer side**: fi-runner's `AIREBackend` still REJECTS `mcp_servers` —
   next it must translate a consumer's tool needs into registry tool NAMES and pass
   `tools=[…]` to the door. That unblocks discord-bot's real turn on AIRE. Its
