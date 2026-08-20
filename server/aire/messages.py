@@ -1,10 +1,9 @@
 """The message surface — POST a turn and GET a session's background status.
 
 `POST …/messages` runs one turn: an SSE event stream by default, or fire-and-
-forget when the body carries `background: true` (#22a) — the turn then survives a
-dropped socket and its result is read back via the artifacts endpoint (#22b) or
-the mirrored transcript. Events, never HTML ([[write-only-daemon]]).
-"""
+forget when the body carries `background: true` (#22a) — the turn survives a
+dropped socket; its result is read back via the artifacts endpoint (#22b) or the
+mirrored transcript. Events, never HTML ([[write-only-daemon]])."""
 
 from __future__ import annotations
 
@@ -24,6 +23,7 @@ from .deps import get_engine
 from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy, TurnSpec
 from .engine.drain import turn_cost
 from .engine.tools import UnknownTool, clean_tools
+from .engine.vision import BadImage, clean_images
 from .names import InvalidName, clean
 
 router = APIRouter()
@@ -50,14 +50,15 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     mode = safe_mode(body.get("mode"))
     spec = TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
                     model=safe_model(body.get("model")))
-    # An empty message is NOT a turn: sending it to the SDK is a real query that
-    # spends money for nothing. The edge cuts it before it touches the agent.
-    if not message:
+    images = safe_images(body.get("images"))
+    # An empty turn spends real money for nothing, so the edge cuts it. An
+    # image-only send IS a turn (#29 gap 4): the picture is the message.
+    if not message and not images:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
-        return await _launch_background(project, session, message, spec, holder)
-    return EventSourceResponse(_events(project, session, message, spec, holder))
+        return await _launch_background(project, session, message, spec, images, holder)
+    return EventSourceResponse(_events(project, session, message, spec, images, holder))
 
 
 def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
@@ -74,15 +75,22 @@ def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
 
 
 def safe_model(raw: Any) -> str | None:
-    """The `model` field (#29 gap 3) rides verbatim to the CLI as `--model`, so
-    the edge guards only the argv's shape — the API, not the door, curates the
-    catalog. Absent/empty → the engine decides, exactly as before. Like mode and
-    tools, it binds when the session's pooled client is (re)born."""
+    """The `model` field (#29 gap 3) rides verbatim to the CLI as `--model`; the
+    edge guards only the argv's shape — the API curates the catalog. Absent →
+    the engine decides. Binds when the session's pooled client is (re)born."""
     if raw is None or raw == "":
         return None
     if isinstance(raw, str) and MODEL_SHAPE.match(raw):
         return raw
     raise HTTPException(status_code=422, detail="invalid model")
+
+
+def safe_images(raw: Any) -> tuple[dict[str, str], ...]:
+    """Attachments for THIS turn (#29 gap 4), validated in `engine/vision.py`."""
+    try:
+        return clean_images(raw)
+    except BadImage as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 async def _bank(holder: Any, cost: float) -> None:
@@ -95,11 +103,12 @@ async def _bank(holder: Any, cost: float) -> None:
 
 
 async def _launch_background(project: str, session: str, message: str, spec: TurnSpec,
+                             images: tuple[dict[str, str], ...],
                              holder: Any = None) -> JSONResponse:
     engine = await get_engine()
     sink = (lambda cost: _bank(holder, cost)) if holder is not None else None
     try:
-        engine.launch_detached(project, session, message, spec, sink)
+        engine.launch_detached(project, session, message, spec, images, on_cost=sink)
     except RuntimeError as exc:  # a turn already runs on this session
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse({"status": "accepted", "session": session}, status_code=202)
@@ -115,10 +124,11 @@ async def session_status(project: str, session: str) -> JSONResponse:
 
 
 async def _events(project: str, session: str, message: str, spec: TurnSpec,
+                  images: tuple[dict[str, str], ...],
                   holder: Any = None) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
-        async for ev in engine.run_stream(project, session, message, spec):
+        async for ev in engine.run_stream(project, session, message, spec, images):
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":

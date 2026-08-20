@@ -77,8 +77,8 @@ class Engine:
             lock = self.pool.locks.setdefault(key, asyncio.Lock())
         return client, lock
 
-    async def run_stream(self, project: str, session: str, prompt: str,
-                         spec: TurnSpec) -> AsyncIterator[dict[str, Any]]:
+    async def run_stream(self, project: str, session: str, prompt: str, spec: TurnSpec,
+                         images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues."""
         if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
@@ -87,7 +87,7 @@ class Engine:
         async with self.pool.slot():
             # The turn lifecycle (attempts, budget cut, credential failover)
             # lives in turn.py — the #23/#31 detections share the result seam.
-            async for event in run_turn(self, project, session, prompt, spec):
+            async for event in run_turn(self, project, session, prompt, spec, images):
                 yield event
 
     def _budget_cut_event(self) -> dict[str, Any]:
@@ -105,6 +105,7 @@ class Engine:
         return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
     def launch_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
+                        images: tuple[dict[str, str], ...] = (),
                         on_cost: CostSink | None = None) -> None:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
         finishes even if the caller hangs up. Raises if one already runs here.
@@ -114,12 +115,13 @@ class Engine:
         capped key (#32d) bought unlimited turns by adding one flag to the body."""
         self.detached.launch(
             f"{project}/{session}",
-            lambda: self._drain_detached(project, session, prompt, spec, on_cost))
+            lambda: self._drain_detached(project, session, prompt, spec, images, on_cost))
 
     async def _drain_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
+                              images: tuple[dict[str, str], ...] = (),
                               on_cost: CostSink | None = None) -> None:
         try:
-            async for ev in self.run_stream(project, session, prompt, spec):
+            async for ev in self.run_stream(project, session, prompt, spec, images):
                 if on_cost is not None and ev.get("type") == "result":
                     await on_cost(turn_cost(ev))
                 # No client listens in background — surface an error (a budget cut).

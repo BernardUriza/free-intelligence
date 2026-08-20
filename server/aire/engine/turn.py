@@ -13,6 +13,7 @@ from typing import Any
 from .contract import TurnSpec
 from .credentials import limit_hit
 from .drain import drain, turn_cost
+from .vision import send_turn
 
 _ROTATE: dict[str, Any] = {"type": "_rotate"}
 
@@ -25,7 +26,8 @@ def _all_dry_event(rotor: Any) -> dict[str, Any]:
 
 
 async def run_turn(engine: Any, project: str, session: str, prompt: str,
-                   spec: TurnSpec) -> AsyncIterator[dict[str, Any]]:
+                   spec: TurnSpec,
+                   images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
     """Walk the credential chain until an attempt survives or the chain dries.
     Terminates: every rotation cools one more slot, and `active()` skips them."""
     while True:
@@ -34,7 +36,7 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
             yield _all_dry_event(engine.rotor)
             return
         rotated = False
-        async for event in _attempt(engine, project, session, prompt, spec, slot):
+        async for event in _attempt(engine, project, session, prompt, spec, images, slot):
             if event is _ROTATE:
                 rotated = True
             else:
@@ -44,14 +46,15 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
 
 
 async def _attempt(engine: Any, project: str, session: str, prompt: str,
-                   spec: TurnSpec, slot: Any) -> AsyncIterator[dict[str, Any]]:
+                   spec: TurnSpec, images: tuple[dict[str, str], ...],
+                   slot: Any) -> AsyncIterator[dict[str, Any]]:
     key = f"{project}/{session}"
     client, lock = await engine._client_for(project, session, spec, slot)
     born_with = engine.slot_of.get(key, slot.name)
     spent = burned = False
     try:
         async with lock:
-            await client.query(prompt)
+            await send_turn(client, prompt, images)
             async for event in drain(client):
                 if event.get("type") == "result":
                     spent = engine._account(key, turn_cost(event))
