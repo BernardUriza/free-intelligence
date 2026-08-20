@@ -36,6 +36,7 @@ class _State:
     parts: list[str] = field(default_factory=list)
     usage: dict[str, Any] | None = None
     session_id: str | None = None
+    model: str | None = None
     tools: list[ToolCall] = field(default_factory=list)
     by_id: dict[str, int] = field(default_factory=dict)
     start_ts: dict[str, float] = field(default_factory=dict)
@@ -96,6 +97,7 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
         kind = type(message).__name__
         content = getattr(message, "content", None)
         if kind == "AssistantMessage" and isinstance(content, list):
+            st.model = getattr(message, "model", None) or st.model
             for event in _on_assistant(content, st):
                 yield event
         elif kind == "UserMessage" and isinstance(content, list):
@@ -104,4 +106,5 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
             _on_result(message, st)
     yield {"type": "result",
            "result": TurnResult(text="".join(st.parts), usage=st.usage,
-                                session_id=st.session_id, tool_calls=tuple(st.tools))}
+                                session_id=st.session_id, tool_calls=tuple(st.tools),
+                                model=st.model)}

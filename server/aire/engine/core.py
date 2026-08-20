@@ -12,11 +12,11 @@ from typing import Any
 from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
-from .contract import BudgetExceeded, CostSink
+from .contract import BudgetExceeded, CostSink, TurnSpec
 from .credentials import Rotor
 from .detach import Detached
 from .drain import turn_cost
-from .options import DEFAULT_MODE, build_options
+from .options import build_options
 from .pool import Pool
 from .turn import run_turn
 
@@ -54,8 +54,7 @@ class Engine:
     async def has_session(self, project: str, session: str) -> bool:
         return bool(await self.session_store.load(self.session_key(project, session)))
 
-    async def _client_for(self, project: str, session: str, mode: str,
-                          tools: tuple[str, ...] = (),
+    async def _client_for(self, project: str, session: str, spec: TurnSpec,
                           slot: Any = None) -> tuple[Any, asyncio.Lock]:
         key = f"{project}/{session}"
         async with self.pool.guard:
@@ -67,7 +66,7 @@ class Engine:
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
                                         str(self._cwd(project)),
-                                        sdk_session_uuid(session), mode, resuming, tools,
+                                        sdk_session_uuid(session), spec, resuming,
                                         credential_env=slot.env if slot else None)
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
@@ -79,8 +78,7 @@ class Engine:
         return client, lock
 
     async def run_stream(self, project: str, session: str, prompt: str,
-                         mode: str = DEFAULT_MODE,
-                         tools: tuple[str, ...] = ()) -> AsyncIterator[dict[str, Any]]:
+                         spec: TurnSpec) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues."""
         if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
@@ -89,7 +87,7 @@ class Engine:
         async with self.pool.slot():
             # The turn lifecycle (attempts, budget cut, credential failover)
             # lives in turn.py — the #23/#31 detections share the result seam.
-            async for event in run_turn(self, project, session, prompt, mode, tools):
+            async for event in run_turn(self, project, session, prompt, spec):
                 yield event
 
     def _budget_cut_event(self) -> dict[str, Any]:
@@ -106,8 +104,8 @@ class Engine:
         self._seen_cost[key] = cost
         return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
-    def launch_detached(self, project: str, session: str, prompt: str, mode: str,
-                        tools: tuple[str, ...] = (), on_cost: CostSink | None = None) -> None:
+    def launch_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
+                        on_cost: CostSink | None = None) -> None:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
         finishes even if the caller hangs up. Raises if one already runs here.
 
@@ -116,12 +114,12 @@ class Engine:
         capped key (#32d) bought unlimited turns by adding one flag to the body."""
         self.detached.launch(
             f"{project}/{session}",
-            lambda: self._drain_detached(project, session, prompt, mode, tools, on_cost))
+            lambda: self._drain_detached(project, session, prompt, spec, on_cost))
 
-    async def _drain_detached(self, project: str, session: str, prompt: str, mode: str,
-                              tools: tuple[str, ...] = (), on_cost: CostSink | None = None) -> None:
+    async def _drain_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
+                              on_cost: CostSink | None = None) -> None:
         try:
-            async for ev in self.run_stream(project, session, prompt, mode, tools):
+            async for ev in self.run_stream(project, session, prompt, spec):
                 if on_cost is not None and ev.get("type") == "result":
                     await on_cost(turn_cost(ev))
                 # No client listens in background — surface an error (a budget cut).

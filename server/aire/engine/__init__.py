@@ -19,9 +19,9 @@ modes dial + SDK options factory), `pool` (the hot client cache), `drain` (the
 turn-loop event drainer), `core` (the Engine facade).
 """
 
-from .contract import BudgetExceeded, SlotBusy, ToolCall, TurnResult
+from .contract import BudgetExceeded, SlotBusy, ToolCall, TurnResult, TurnSpec
 from .core import Engine
 from .options import DEFAULT_MODE, MODES, SYSTEM_PROMPT
 
 __all__ = ["BudgetExceeded", "DEFAULT_MODE", "Engine", "MODES",
-           "SYSTEM_PROMPT", "SlotBusy", "ToolCall", "TurnResult"]
+           "SYSTEM_PROMPT", "SlotBusy", "ToolCall", "TurnResult", "TurnSpec"]

@@ -22,6 +22,17 @@ class SlotBusy(Exception):
 
 
 @dataclass(frozen=True)
+class TurnSpec:
+    """One turn's requested shape, threaded whole through the turn path (#29).
+    All three bind when the session's pooled client is (re)born — the SDK takes
+    them at construction — so a live session keeps the shape it started with."""
+
+    mode: str
+    tools: tuple[str, ...] = ()
+    model: str | None = None
+
+
+@dataclass(frozen=True)
 class ToolCall:
     name: str
     input: dict[str, Any] | None = None
@@ -36,3 +47,6 @@ class TurnResult:
     usage: dict[str, Any] | None = None
     session_id: str | None = None
     tool_calls: tuple[ToolCall, ...] = ()
+    model: str | None = None
+    """The model that actually answered — read off the assistant messages, never
+    echoed from the request (#29 gap 3: provenance, not an unhonoured promise)."""

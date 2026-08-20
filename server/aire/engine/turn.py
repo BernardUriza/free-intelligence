@@ -10,6 +10,7 @@ error. Red stays red."""
 from collections.abc import AsyncIterator
 from typing import Any
 
+from .contract import TurnSpec
 from .credentials import limit_hit
 from .drain import drain, turn_cost
 
@@ -24,7 +25,7 @@ def _all_dry_event(rotor: Any) -> dict[str, Any]:
 
 
 async def run_turn(engine: Any, project: str, session: str, prompt: str,
-                   mode: str, tools: tuple[str, ...]) -> AsyncIterator[dict[str, Any]]:
+                   spec: TurnSpec) -> AsyncIterator[dict[str, Any]]:
     """Walk the credential chain until an attempt survives or the chain dries.
     Terminates: every rotation cools one more slot, and `active()` skips them."""
     while True:
@@ -33,7 +34,7 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
             yield _all_dry_event(engine.rotor)
             return
         rotated = False
-        async for event in _attempt(engine, project, session, prompt, mode, tools, slot):
+        async for event in _attempt(engine, project, session, prompt, spec, slot):
             if event is _ROTATE:
                 rotated = True
             else:
@@ -42,10 +43,10 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
             return
 
 
-async def _attempt(engine: Any, project: str, session: str, prompt: str, mode: str,
-                   tools: tuple[str, ...], slot: Any) -> AsyncIterator[dict[str, Any]]:
+async def _attempt(engine: Any, project: str, session: str, prompt: str,
+                   spec: TurnSpec, slot: Any) -> AsyncIterator[dict[str, Any]]:
     key = f"{project}/{session}"
-    client, lock = await engine._client_for(project, session, mode, tools, slot)
+    client, lock = await engine._client_for(project, session, spec, slot)
     born_with = engine.slot_of.get(key, slot.name)
     spent = burned = False
     try:

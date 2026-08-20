@@ -6,7 +6,7 @@ import asyncio
 from types import SimpleNamespace
 
 from aire.engine import credentials
-from aire.engine.contract import TurnResult
+from aire.engine.contract import TurnResult, TurnSpec
 from aire.engine.core import Engine
 from aire.engine.credentials import Rotor, limit_hit
 from aire.engine.options import build_options
@@ -71,7 +71,7 @@ def _engine_with(rotor: Rotor, results: list[TurnResult]) -> tuple[Engine, dict]
     engine.rotor = rotor
     seen = {"drains": 0, "retired": 0, "slots_used": []}
 
-    async def fake_client_for(project, session, mode, tools=(), slot=None):
+    async def fake_client_for(project, session, spec, slot=None):
         engine.slot_of[f"{project}/{session}"] = slot.name
         seen["slots_used"].append(slot.name)
         return SimpleNamespace(query=_noop), asyncio.Lock()
@@ -95,7 +95,7 @@ def _engine_with(rotor: Rotor, results: list[TurnResult]) -> tuple[Engine, dict]
 
 
 async def _collect(engine: Engine) -> list[dict]:
-    return [ev async for ev in engine.run_stream("proj", "sess", "hi", "complete")]
+    return [ev async for ev in engine.run_stream("proj", "sess", "hi", TurnSpec(mode="complete"))]
 
 
 def test_limit_hit_rotates_retries_once_and_yields_only_the_real_result():
@@ -129,12 +129,22 @@ def test_all_slots_dry_emits_a_real_error_one_attempt_per_slot():
 
 def test_slot_env_composes_with_the_gateway_scrub(tmp_path):
     rotor = Rotor({"CLAUDE_CODE_OAUTH_TOKEN_BACKUP": "tok-b"})
-    options = build_options(object(), "proj", str(tmp_path), "u" * 8, "complete",
+    options = build_options(object(), "proj", str(tmp_path), "u" * 8,
+                            TurnSpec(mode="complete"),
                             resuming=False, credential_env=rotor.active().env)
     assert options.env["ANTHROPIC_BASE_URL"] == "https://api.anthropic.com"
     assert options.env["ANTHROPIC_AUTH_TOKEN"] == ""
     assert options.env["CLAUDE_CODE_OAUTH_TOKEN"] == "tok-b"
     assert options.env["ANTHROPIC_API_KEY"] == ""
+
+
+def test_spec_model_reaches_the_sdk_and_absence_leaves_the_engine_deciding(tmp_path):
+    asked = build_options(object(), "proj", str(tmp_path), "u" * 8,
+                          TurnSpec(mode="complete", model="claude-haiku-4-5"), resuming=False)
+    silent = build_options(object(), "proj", str(tmp_path), "u" * 8,
+                           TurnSpec(mode="complete"), resuming=False)
+    assert asked.model == "claude-haiku-4-5"
+    assert silent.model is None
 
 
 async def _noop(*args, **kwargs):

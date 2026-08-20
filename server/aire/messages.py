@@ -9,6 +9,7 @@ the mirrored transcript. Events, never HTML ([[write-only-daemon]]).
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterator
 from dataclasses import asdict, is_dataclass
 from typing import Any
@@ -20,12 +21,14 @@ from sse_starlette.sse import EventSourceResponse
 
 from . import tokens
 from .deps import get_engine
-from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy
+from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy, TurnSpec
 from .engine.drain import turn_cost
 from .engine.tools import UnknownTool, clean_tools
 from .names import InvalidName, clean
 
 router = APIRouter()
+
+MODEL_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def safe_names(project: str, session: str) -> tuple[str, str]:
@@ -45,15 +48,16 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     body = await request.json()
     message = str(body.get("message", body.get("prompt", ""))).strip()
     mode = safe_mode(body.get("mode"))
-    tools = safe_tools(body.get("tools"), mode)
+    spec = TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
+                    model=safe_model(body.get("model")))
     # An empty message is NOT a turn: sending it to the SDK is a real query that
     # spends money for nothing. The edge cuts it before it touches the agent.
     if not message:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
-        return await _launch_background(project, session, message, mode, tools, holder)
-    return EventSourceResponse(_events(project, session, message, mode, tools, holder))
+        return await _launch_background(project, session, message, spec, holder)
+    return EventSourceResponse(_events(project, session, message, spec, holder))
 
 
 def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
@@ -69,6 +73,18 @@ def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
     return tuple(names)
 
 
+def safe_model(raw: Any) -> str | None:
+    """The `model` field (#29 gap 3) rides verbatim to the CLI as `--model`, so
+    the edge guards only the argv's shape — the API, not the door, curates the
+    catalog. Absent/empty → the engine decides, exactly as before. Like mode and
+    tools, it binds when the session's pooled client is (re)born."""
+    if raw is None or raw == "":
+        return None
+    if isinstance(raw, str) and MODEL_SHAPE.match(raw):
+        return raw
+    raise HTTPException(status_code=422, detail="invalid model")
+
+
 async def _bank(holder: Any, cost: float) -> None:
     """Charge one turn to the invited key that asked for it (#32d/#28). A real
     result that bills nothing is PRINTED, never swallowed: that is precisely what
@@ -78,12 +94,12 @@ async def _bank(holder: Any, cost: float) -> None:
     await tokens.charge(holder.nickname, cost)
 
 
-async def _launch_background(project: str, session: str, message: str, mode: str,
-                             tools: tuple[str, ...], holder: Any = None) -> JSONResponse:
+async def _launch_background(project: str, session: str, message: str, spec: TurnSpec,
+                             holder: Any = None) -> JSONResponse:
     engine = await get_engine()
     sink = (lambda cost: _bank(holder, cost)) if holder is not None else None
     try:
-        engine.launch_detached(project, session, message, mode, tools, sink)
+        engine.launch_detached(project, session, message, spec, sink)
     except RuntimeError as exc:  # a turn already runs on this session
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse({"status": "accepted", "session": session}, status_code=202)
@@ -98,11 +114,11 @@ async def session_status(project: str, session: str) -> JSONResponse:
                          "running": engine.detached.running(f"{project}/{session}")})
 
 
-async def _events(project: str, session: str, message: str, mode: str,
-                  tools: tuple[str, ...], holder: Any = None) -> AsyncIterator[ServerSentEvent]:
+async def _events(project: str, session: str, message: str, spec: TurnSpec,
+                  holder: Any = None) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
-        async for ev in engine.run_stream(project, session, message, mode, tools):
+        async for ev in engine.run_stream(project, session, message, spec):
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":
@@ -117,7 +133,7 @@ async def _events(project: str, session: str, message: str, mode: str,
         # The box was full and the queue wait timed out (backpressure). The stream
         # is already 200, so say retry in-stream rather than a 503 header.
         yield ServerSentEvent(event="error", data=json.dumps({"error": "slot_busy", "detail": str(exc)}))
-    yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": mode}))
+    yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": spec.mode}))
 
 
 def _plain(ev: dict[str, Any]) -> dict[str, Any]:

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .cage import cage_hooks
+from .contract import TurnSpec
 
 SYSTEM_PROMPT = (
     "You are an agent working inside AIRE, a service that mirrors your session to "
@@ -89,10 +90,10 @@ def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> No
 
 
 def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
-                  mode: str, resuming: bool, tools: tuple[str, ...] = (),
+                  spec: TurnSpec, resuming: bool,
                   credential_env: dict[str, str] | None = None) -> Any:
     from claude_agent_sdk import ClaudeAgentOptions
-    policy = MODES.get(mode, MODES[DEFAULT_MODE])
+    policy = MODES.get(spec.mode, MODES[DEFAULT_MODE])
     casita = _casita_prompt(cwd)
     kwargs: dict[str, Any] = {
         "system_prompt": f"{SYSTEM_PROMPT}\n\n{casita}" if casita else SYSTEM_PROMPT,
@@ -107,7 +108,9 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
         "session_store_flush": "eager",  # no loss window if the process dies
         "hooks": cage_hooks(cwd),  # confine file tools to the casita (#24)
     }
-    _mount_tools(kwargs, cwd, tools)
+    _mount_tools(kwargs, cwd, spec.tools)
+    if spec.model:
+        kwargs["model"] = spec.model  # → the CLI's `--model`, verbatim (#29 gap 3)
     if budget := os.environ.get("AIRE_MAX_BUDGET_USD"):
         kwargs["max_budget_usd"] = float(budget)
     # session_id=<uuid> SETS the id of a session being BORN; resume=<uuid>
