@@ -76,11 +76,24 @@ on the root droplet). What landed:
   real transcript rows (tested directly against a prod project_key). Thirty-line law
   green.
 
+**Gap #3 (model) SHIPPED 2026-08-20** (`a40f389`) — the door takes `model` in the
+body; the turn's shape (mode, tools, model) now travels as one frozen `TurnSpec`
+through edge → engine → options → the CLI's `--model`. All three bind when the
+session's pooled client is (re)born (the SDK takes them at construction). The
+result's `model` is PROVENANCE, not an echo: drained off the `AssistantMessage`s,
+so it names the model that actually answered — verified from outside the droplet:
+asking `"haiku"` answered with `"model": "claude-haiku-4-5-20251001"` ($0.028),
+no model answered `"claude-sonnet-5"` (the engine-decided default, previously
+blind), and a garbage name got the 422. The edge guards only the argv's shape;
+the API curates the catalog.
+
 Remaining gaps (this item stays open until they close or Bernard scopes them out):
-- **Gap #2/#3/#4** — per-turn `system_prompt` / `model` / `images` (unbuilt).
+- **Gap #2/#4** — per-turn `system_prompt` / `images` (unbuilt).
 - **The consumer side**: fi-runner's `AIREBackend` still REJECTS `mcp_servers` —
   next it must translate a consumer's tool needs into registry tool NAMES and pass
-  `tools=[…]` to the door. That unblocks discord-bot's real turn on AIRE.
+  `tools=[…]` to the door. That unblocks discord-bot's real turn on AIRE. Its
+  `model` reject clause can now become a forward clause too (`_warn_unenforceable`
+  → pass `model` in the body, read the result's provenance) — fi-runner repo work.
 - **More registry tenants**: `memory/recall` is AIRE-agnostic (its own transcript).
   Consumer-specific servers (og118's rag_store, discord-bot's persona_memory) are a
   further identity fork — does AIRE host consumer schemas? — deferred to Bernard.
