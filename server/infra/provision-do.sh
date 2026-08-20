@@ -27,6 +27,7 @@ API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failov
 LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered key AIRE lends (optional)
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow: signing key + owner
+BUDGET_FILE="$HOME/.secrets/aire-budget.txt"              # #25 cumulative spend backstop
 RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport
 REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"

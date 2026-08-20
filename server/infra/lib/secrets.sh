@@ -70,6 +70,10 @@ compose_env() {
   # from each passing the gate before any of them pays. Absent, lending.py uses 2.
   append_secret "$ACCESS_FILE" "AIRE_INVITE_CONCURRENCY=" "the per-invite slot limit (#32e)"
   ENV_CONTENT+="AIRE_MAX_BUDGET_USD=${AIRE_MAX_BUDGET_USD:-1.0}"$'\n'
+  # The engine's cumulative backstop (#25): turns are refused BEFORE the API
+  # once the process's total spend crosses it. Absent, the guard never arms —
+  # which is how the daemon ran uncapped for a month. Resets on restart.
+  append_secret "$BUDGET_FILE" "AIRE_MAX_SPEND_USD=" "the cumulative spend backstop (#25)"
   if [[ -n "$ENV_CONTENT" ]]; then
     printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"
   fi
