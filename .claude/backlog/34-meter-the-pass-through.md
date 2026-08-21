@@ -128,8 +128,11 @@ paying client, and not a session that reads this file and finds an empty variabl
    - The mirror attributed every request row to `holder = metertest-34`; the test key was
      revoked after the walk.
 
-Open nicety (front, not this half): the `/gateway` view could surface the new `holder`
-column next to the app column. The remaining owner decisions below stand unchanged.
+The evidence leg rendered too (`56acd50`): `/gateway` surfaces the key column beside the
+app column, in conversations and loose exchanges — verified in the real browser on
+aire.bernarduriza.com, the three metered turns attributed to `metertest-34`, everything
+anonymous showing "—". `npm run attack` green. The remaining owner decisions below stand
+unchanged.
 
 See the canonical item at
 `~/Documents/discord-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`,
