@@ -5,7 +5,13 @@ og118 (fi PR #411, merged + deployed). Measured on the LIVE product: a fresh
 chat in app.og118.ai got its own casita (`og118-03afad73-…`), og118 wrote its
 own living part ("Usuario: Bernard / Tema: astronomía / una sola frase") via
 `mcp__persona__update` in `mode=complete`, and the NEXT turn obeyed it —
-a white-dwarf question answered in exactly one sentence
+a white-dwarf question answered in exactly one sentence. Same-day refinement,
+Bernard's catch: chats were born FAT (a full base copy each — N frozen copies).
+Now a chat file is born THIN — `@base og118` + soul — and the engine
+dereferences the shared base at spawn (`ef21e68`; og118 side fi PR #413).
+Verified live: a fresh jazz chat's whole CLAUDE.md is the stub line, the
+marker, and two sentences of soul, and the reply closed with the dato curioso
+its soul asks for
 Proposed: 2026-08-21 by Bernard (the moment the front first rendered og118's
 casita CLAUDE.md: *"el claude dentro debe ser distinto! debe ser acorde al
 chat y debe de modificarse con las mcp tools de fi runner! magia"*)
