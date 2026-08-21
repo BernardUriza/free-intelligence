@@ -76,7 +76,7 @@ async def test_stream_maps_aire_events_to_fi_events(monkeypatch: Any) -> None:
     """AIRE's text/tool_call/result events become fi-runner's stream vocabulary."""
     b = _backend()
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         yield {"type": "text", "text": "hel"}
         yield {"type": "text", "text": "lo"}
         yield {"type": "tool_call", "tool": {"name": "mcp__db__q", "id": "t1"}}
@@ -109,7 +109,7 @@ async def test_forwards_model_images_and_tools_in_body(monkeypatch: Any) -> None
     b = _backend()
     seen: dict[str, Any] = {}
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         seen.update(body)
         yield {"type": "result", "result": {"text": "ok"}}
 
@@ -138,7 +138,7 @@ async def test_text_turn_body_omits_optional_fields(monkeypatch: Any) -> None:
     b = _backend()
     seen: dict[str, Any] = {}
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         seen.update(body)
         yield {"type": "result", "result": {"text": "ok"}}
 
@@ -159,7 +159,7 @@ async def test_text_turn_body_omits_optional_fields(monkeypatch: Any) -> None:
 async def test_error_event_raises(monkeypatch: Any) -> None:
     b = _backend()
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         yield {"type": "error", "error": "budget_exhausted", "detail": "cut"}
 
     monkeypatch.setattr(b, "_stream_events", fake_stream)
@@ -181,7 +181,7 @@ async def test_run_turn_raises_on_no_result(monkeypatch: Any) -> None:
     """A stream that never yields a result is a real failure, not empty success."""
     b = _backend()
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         yield {"type": "text", "text": "partial"}
 
     monkeypatch.setattr(b, "_stream_events", fake_stream)
@@ -205,7 +205,7 @@ async def test_registry_tools_force_agent_mode(monkeypatch: Any) -> None:
     )
     seen: dict[str, Any] = {}
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         seen.update(body)
         yield {"type": "result", "result": {"text": "ok"}}
 
@@ -230,7 +230,7 @@ async def test_no_registry_tools_keeps_default_mode(monkeypatch: Any) -> None:
     )
     seen: dict[str, Any] = {}
 
-    async def fake_stream(session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
         seen.update(body)
         yield {"type": "result", "result": {"text": "ok"}}
 
@@ -245,6 +245,71 @@ async def test_no_registry_tools_keeps_default_mode(monkeypatch: Any) -> None:
     ):
         pass
     assert seen["mode"] == "complete"
+
+
+@pytest.mark.asyncio
+async def test_per_turn_project_override_routes_the_casita(monkeypatch: Any) -> None:
+    """OG118-LIVING-CLAUDE: a wired ``project_for_turn`` resolver overrides the
+    fixed project per turn (casita-per-chat); a None/empty answer falls back."""
+    current: dict[str, str | None] = {"project": "og118-chat-1"}
+    b = AIREBackend(
+        project="og118",
+        gate_url="https://g",
+        auth_token="t",
+        project_for_turn=lambda: current["project"],
+    )
+    seen: list[str] = []
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        seen.append(project)
+        yield {"type": "result", "result": {"text": "ok"}}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    async for _ in b.run_turn_stream(
+        system_prompt="", user_message="hi", mcp_servers=[], tool_policy=ToolPolicy()
+    ):
+        pass
+    current["project"] = None
+    async for _ in b.run_turn_stream(
+        system_prompt="", user_message="hi", mcp_servers=[], tool_policy=ToolPolicy()
+    ):
+        pass
+    assert seen == ["og118-chat-1", "og118"]
+
+
+class _PostRecorder:
+    """Stands in for the lazy httpx client: records /init POSTs, answers 200."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def post(self, url: str, *, headers: Any = None, json: Any = None) -> Any:
+        self.calls.append((url, json))
+
+        class _Res:
+            status_code = 200
+            text = "ok"
+
+        return _Res()
+
+
+@pytest.mark.asyncio
+async def test_ensure_prompt_inits_once_per_casita() -> None:
+    """Init state is tracked PER project: the same prompt re-inits nothing, a new
+    casita gets its own /init (the first turn of a chat installs the base)."""
+    b = _backend()
+    rec = _PostRecorder()
+    b._client = rec
+    await b._ensure_prompt("og118-chat-1", "base persona")
+    await b._ensure_prompt("og118-chat-1", "base persona")
+    await b._ensure_prompt("og118-chat-2", "base persona")
+    urls = [u for u, _ in rec.calls]
+    assert urls == [
+        "https://gate.example/projects/og118-chat-1/init",
+        "https://gate.example/projects/og118-chat-2/init",
+    ]
+    assert all(body == {"claude_md": "base persona"} for _, body in rec.calls)
 
 
 async def _anoop(*args: Any, **kwargs: Any) -> None:

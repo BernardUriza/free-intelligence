@@ -45,6 +45,15 @@ forward clauses:
   tool config server-side, so a caller's permission_mode/allowlist is warned
   about, never silently honoured.
 
+THIRD CUT (2026-08-21, OG118-LIVING-CLAUDE). The casita may now vary PER TURN:
+``project_for_turn`` is an optional zero-arg resolver consulted at the top of
+every turn (og118 wires it to a request-scoped contextvar carrying
+``og118-{conversation_id}``). A truthy return routes the turn — its ``/init``
+and its message — to that casita; ``None``/empty falls back to the fixed
+``project``. Init state is tracked per casita, so the first turn that lands in
+a new casita installs the base prompt there (AIRE's ``/init`` preserves the
+casita's living part by contract, so repeats are safe).
+
 Requires the ``aire`` extra::
 
     pip install 'fi-runner[aire]'
@@ -56,7 +65,7 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 from ..backend import (
@@ -84,11 +93,18 @@ class AIREBackend:
         default_model: str | None = None,
         default_mode: str = "complete",
         registry_tools: tuple[str, ...] = (),
+        project_for_turn: Callable[[], str | None] | None = None,
         timeout: float = 300.0,
     ) -> None:
         # The AIRE casita this backend addresses. AIRE validates it
         # (``[a-zA-Z0-9_-]{1,128}``, "aire" reserved); we pass it through.
         self.project = project
+        # Optional per-turn casita resolver (casita-per-chat): consulted at the
+        # top of every turn; a truthy return overrides ``project`` for that turn
+        # only. The consumer owns the scoping policy (e.g. a request-scoped
+        # contextvar carrying the chat's id); the backend stays stateless about
+        # WHICH chat is talking.
+        self.project_for_turn = project_for_turn
         self.gate_url = (gate_url or os.environ.get("AIRE_GATE_URL", "")).rstrip("/")
         self.auth_token = (
             auth_token
@@ -108,9 +124,11 @@ class AIREBackend:
         # outside its registry.
         self.registry_tools = tuple(registry_tools)
         self.timeout = timeout
-        # /init state: the casita's fixed prompt last written, so we re-init only
-        # when the system_prompt actually changes (idempotent, but a round trip).
-        self._inited_prompt: str | None = None
+        # /init state PER CASITA: the fixed prompt last written to each project,
+        # so we re-init only when a casita's system_prompt actually changes
+        # (idempotent, but a round trip) — and the first turn that lands in a
+        # new per-chat casita installs the base there.
+        self._inited_prompts: dict[str, str] = {}
         self._client: Any = None  # lazy httpx.AsyncClient
 
     # --- door plumbing -------------------------------------------------------
@@ -146,21 +164,32 @@ class AIREBackend:
         names = list(self.registry_tools) + [s.name for s in mcp_servers]
         return list(dict.fromkeys(n for n in names if n))
 
-    async def _ensure_prompt(self, system_prompt: str) -> None:
+    def _resolve_project(self) -> str:
+        """The casita THIS turn addresses: the per-turn resolver's answer when
+        wired and truthy (casita-per-chat), else the fixed ``project``."""
+        if self.project_for_turn is not None:
+            override = self.project_for_turn()
+            if override:
+                return override
+        return self.project
+
+    async def _ensure_prompt(self, project: str, system_prompt: str) -> None:
         """Write the casita's fixed prompt via ``/init`` when it changes. The
         message endpoint auto-creates the casita, so a turn with no persona needs
-        no init at all — this fires only to install/refresh a non-empty prompt."""
+        no init at all — this fires only to install/refresh a non-empty prompt.
+        AIRE's ``/init`` preserves the casita's LIVING part (below its marker) by
+        contract, so re-running it only refreshes the base."""
         prompt = (system_prompt or "").strip()
-        if not prompt or prompt == self._inited_prompt:
+        if not prompt or prompt == self._inited_prompts.get(project):
             return
         res = await self._http().post(
-            f"{self.gate_url}/projects/{self.project}/init",
+            f"{self.gate_url}/projects/{project}/init",
             headers=self._headers,
             json={"claude_md": prompt},
         )
         if res.status_code >= 400:
             raise BackendError(f"AIRE init {res.status_code}: {res.text}")
-        self._inited_prompt = prompt
+        self._inited_prompts[project] = prompt
 
     # --- SSE parsing (AIRE events -> fi-runner events) -----------------------
 
@@ -187,13 +216,13 @@ class AIREBackend:
         )
 
     async def _stream_events(
-        self, session: str, body: dict[str, Any]
+        self, project: str, session: str, body: dict[str, Any]
     ) -> AsyncIterator[dict[str, Any]]:
         """POST the turn and yield AIRE's SSE events as dicts. Each ``data:`` line
         is a full event object carrying its own ``type`` (AIRE's ``_plain(ev)``)."""
         async with self._http().stream(
             "POST",
-            f"{self.gate_url}/projects/{self.project}/sessions/{session}/messages",
+            f"{self.gate_url}/projects/{project}/sessions/{session}/messages",
             headers=self._headers,
             json=body,
         ) as res:
@@ -241,7 +270,8 @@ class AIREBackend:
         so the Runner's glass-box stream is unchanged."""
         self._require_door()
         self._warn_unenforceable(tool_policy)
-        await self._ensure_prompt(system_prompt)
+        project = self._resolve_project()
+        await self._ensure_prompt(project, system_prompt)
         # AIRE keys memory by (project, session); a one-shot needs a throwaway name.
         session = session_id or uuid.uuid4().hex
         tools = self._turn_tools(mcp_servers)
@@ -258,7 +288,7 @@ class AIREBackend:
             body["model"] = chosen_model
         if images:
             body["images"] = [{"media_type": i.media_type, "data": i.data} for i in images]
-        async for ev in self._stream_events(session, body):
+        async for ev in self._stream_events(project, session, body):
             kind = ev.get("type")
             if kind == "text":
                 text = ev.get("text") or ""

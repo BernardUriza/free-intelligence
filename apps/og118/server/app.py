@@ -36,7 +36,7 @@ from fi_runner.auth import (
 from fi_runner.rag_store import RagStoreClient
 from conversations import ConversationStore, valid_conversation_id
 from projects import ProjectRegistry
-from runner import build_runner
+from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, build_runner
 from external_engine import stream_external_turn
 from fi_runner import Runner
 from elements_registry import Element, get_registry
@@ -536,6 +536,12 @@ async def chat_stream(
     external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
+        # OG118-LIVING-CLAUDE (casita-per-chat): la casita AIRE de ESTE turno,
+        # derivada del conversation_id del cliente. Se setea aquí adentro —
+        # este frame es el contexto donde corre el pump del heartbeat, así que
+        # AIREBackend.project_for_turn la ve; en la ruta claude-code nadie la
+        # lee. Sin conversación → None → la casita fija de _backend_aire.
+        AIRE_CHAT_PROJECT.set(aire_project_for_chat(req.session_id))
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
         # Announce WHO answers BEFORE the first token, so the client attributes

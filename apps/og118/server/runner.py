@@ -11,7 +11,9 @@ maps it onto core's contracts.
 from __future__ import annotations
 
 import os
+import re
 import sys
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,7 @@ from fi_runner import (
     AIREBackend,
     COMPANION_BLOCKED_BUILTINS,
     ClaudeCodeBackend,
+    FlowNarrator,
     MCPServerSpec,
     Runner,
     ToolPolicy,
@@ -33,6 +36,36 @@ from fi_runner import (
 # que se lee en runtime (P0 prompts-as-content), nunca inline en el código.
 PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (Path(__file__).parent / "prompts" / "persona.md"))
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
+# OG118-LIVING-CLAUDE: el párrafo que le cuenta al agente que su casita tiene un
+# CLAUDE.md vivo por chat y cómo evolucionarlo (persona read/update). Solo la
+# ruta AIRE lo anexa — en la ruta claude-code esas tools no existen y prometerlas
+# sería mentirle al modelo.
+LIVING_IDENTITY_PATH = Path(__file__).parent / "prompts" / "living_identity.md"
+
+# La casita del turno (OG118-LIVING-CLAUDE, casita-per-chat). app.py la setea por
+# request con el nombre derivado del conversation_id; AIREBackend la resuelve al
+# tope de cada turno vía project_for_turn. Un ContextVar y no un atributo mutable
+# porque los turnos son concurrentes: cada request lleva su propio contexto.
+AIRE_CHAT_PROJECT: ContextVar[str | None] = ContextVar("og118_aire_chat_project", default=None)
+
+_AIRE_NAME_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
+_AIRE_NAME_MAX = 128
+
+
+def aire_project_for_chat(session_id: str | None) -> str | None:
+    """El nombre de casita AIRE para un chat: ``og118-{conversation_id}``.
+
+    El id viene del cliente (no confiable): se filtra al allowlist de AIRE
+    (``[A-Za-z0-9_-]``, 128 max — server/aire/names.py) en vez de rechazarse,
+    porque aquí el nombre lo construimos nosotros, no lo ejecuta un path. Sin id
+    utilizable → None, y el backend cae a su proyecto fijo (una casita
+    compartida, el comportamiento pre-feature)."""
+    if not session_id:
+        return None
+    cleaned = _AIRE_NAME_UNSAFE.sub("", session_id)
+    if not cleaned:
+        return None
+    return f"og118-{cleaned}"[:_AIRE_NAME_MAX]
 
 
 def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
@@ -131,14 +164,22 @@ def _backend_aire(model: str) -> AIREBackend:
     Postgres), las tools (un registry vetted que 422ea cualquier nombre fuera de
     él) y los permisos. Por eso esta ruta NO recibe el session_store inyectado
     ni las capabilities MCP locales — task_tracker/rag_store corren como
-    procesos locales y no existen en el droplet. mode=complete: el companion no
-    pide tools; la continuidad sigue siendo el history replay del cliente,
-    exactamente como hoy. La puerta se configura con AIRE_GATE_URL y
-    AIRE_AUTH_TOKEN (AIREBackend los lee del entorno)."""
+    procesos locales y no existen en el droplet. La continuidad sigue siendo el
+    history replay del cliente, exactamente como hoy. La puerta se configura con
+    AIRE_GATE_URL y AIRE_AUTH_TOKEN (AIREBackend los lee del entorno).
+
+    OG118-LIVING-CLAUDE: cada chat vive en SU casita (project_for_turn lee
+    AIRE_CHAT_PROJECT, que app.py setea por request como og118-{chat}); el
+    proyecto fijo queda de fallback para turnos sin conversación. Cada turno
+    pide la tool `persona` del registry de AIRE (read/update sobre la parte
+    viva del CLAUDE.md de la casita) — eso fuerza mode=agent en la puerta;
+    default_mode="complete" queda como el modo sin tools."""
     return AIREBackend(
         project=os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode="complete",
+        registry_tools=("persona",),
+        project_for_turn=AIRE_CHAT_PROJECT.get,
     )
 
 
@@ -186,8 +227,12 @@ def build_runner(
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
     motor = os.getenv("OG118_BACKEND", MOTOR_POR_DEFECTO).strip().lower()
+    persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
     if motor == "aire":
         backend: Any = _backend_aire(model)
+        # Solo esta ruta tiene la tool persona (registry de AIRE): el párrafo de
+        # identidad viva viaja con la base al /init de cada casita-por-chat.
+        persona_parts.append(load_prompt(LIVING_IDENTITY_PATH))
         # AIRE monta sus propias tools server-side; los MCP locales no viajan
         # (la puerta 422ea nombres fuera de su registry). Forzar las listas a
         # vacío aquí — no confiar en que cada caller lo recuerde.
@@ -204,6 +249,13 @@ def build_runner(
         # None (the default, and today's deploy) keeps the turn byte-identical:
         # client history replay stays the continuity.
         backend=backend,
+        # La narración del flow es una SEGUNDA llamada al mismo backend con el
+        # system prompt del narrador. En la ruta AIRE eso (a) gasta un segundo
+        # turno real por turno de chat y (b) su /init sobreescribiría la base de
+        # la casita del chat con el prompt del narrador — rompiendo el invariante
+        # de OG118-LIVING-CLAUDE (la base de cada casita ES la persona). El
+        # diagrama mecánico del turno se emite igual; solo se apaga el refinado.
+        flow_narrator=None if motor == "aire" else FlowNarrator(),
         # The Runner must KNOW the model, not just the backend: it is the Runner
         # that stamps the answer's provenance (TurnResult.model → the "powered by"
         # chip). Configured only on the backend, `Runner.model` stayed None and the
@@ -212,7 +264,7 @@ def build_runner(
         # `chosen_model = model or self.default_model` in the backend, so naming it
         # here changes WHO KNOWS the model, never WHICH model runs.
         model=model,
-        persona=f"{base_persona}\n\n{load_prompt(COMPANION_CONSTRAINTS_PATH)}",
+        persona="\n\n".join(persona_parts),
         # task_tracker → plan/step glass-box events. rag_store → the agent can
         # ingest/search a project corpus (the Projects-for-the-papelería canary);
         # backend + path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH, hdf5 +
