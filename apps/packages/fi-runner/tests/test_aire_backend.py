@@ -105,7 +105,8 @@ async def test_stream_maps_aire_events_to_fi_events(monkeypatch: Any) -> None:
 @pytest.mark.asyncio
 async def test_forwards_model_images_and_tools_in_body(monkeypatch: Any) -> None:
     """The three former reject clauses now ride the body: model, images, and
-    per-turn mcp_servers translated to registry names (which force agent mode)."""
+    per-turn mcp_servers translated to registry names — in the configured mode
+    (the door runs registry tools in complete since aire-server 5ae8e33)."""
     b = _backend()
     seen: dict[str, Any] = {}
 
@@ -126,7 +127,7 @@ async def test_forwards_model_images_and_tools_in_body(monkeypatch: Any) -> None
     ):
         pass
 
-    assert seen["mode"] == "agent"  # tools requested → the door requires agent
+    assert seen["mode"] == "complete"  # tools no longer force agent (5ae8e33)
     assert seen["tools"] == ["memory"]
     assert seen["model"] == "haiku"
     assert seen["images"] == [{"media_type": "image/png", "data": "aGk="}]
@@ -198,8 +199,10 @@ async def test_run_turn_raises_on_no_result(monkeypatch: Any) -> None:
 
 
 @pytest.mark.asyncio
-async def test_registry_tools_force_agent_mode(monkeypatch: Any) -> None:
-    """A backend with registry_tools runs turns in agent mode (the door needs it)."""
+async def test_registry_tools_ride_the_configured_mode(monkeypatch: Any) -> None:
+    """Registry tools ride the body in the configured mode — no agent forcing:
+    the door runs them in complete (aire-server 5ae8e33), and agent mode would
+    drag in preset builtins (Read/Write/WebSearch…) nobody asked for."""
     b = AIREBackend(
         project="p", gate_url="https://g", auth_token="t", registry_tools=("memory",)
     )
@@ -219,7 +222,7 @@ async def test_registry_tools_force_agent_mode(monkeypatch: Any) -> None:
         session_id="s",
     ):
         pass
-    assert seen["mode"] == "agent"
+    assert seen["mode"] == "complete"
     assert seen["tools"] == ["memory"]
 
 

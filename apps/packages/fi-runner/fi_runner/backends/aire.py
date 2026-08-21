@@ -36,8 +36,9 @@ forward clauses:
   prefix). The door enforces its own limits (max 4 × 5MB b64, MIME in
   jpeg/png/webp/gif) and an image-only message is a valid turn.
 - ``mcp_servers`` → translated to registry NAMES: only ``spec.name`` crosses
-  the wire (as the door's ``tools`` field, forcing ``mode=agent``); the local
-  ``command``/``args`` cannot and do not. AIRE mounts its own vetted in-process
+  the wire (as the door's ``tools`` field, riding the configured mode — since
+  aire-server 5ae8e33 the door runs registry tools in ``complete`` too); the
+  local ``command``/``args`` cannot and do not. AIRE mounts its own vetted in-process
   server of that name (today: ``"memory"``). A name outside the registry is
   still rejected HARD — by the door's 422, surfaced as ``BackendError``.
   Forward does not mean silent: arbitrary MCP specs remain RCE by design.
@@ -114,8 +115,9 @@ class AIREBackend:
         # Forwarded per turn when the caller names no model of its own; AIRE
         # pins it on the session's pooled client (None = AIRE's server default).
         self.default_model = default_model
-        # "complete" = no tools, the substitute for the raw API. When registry_tools
-        # is set the turn runs in "agent" mode instead (the door requires it).
+        # The door mode EVERY turn rides, tools or not. Since aire-server 5ae8e33
+        # the door accepts registry tools in mode=complete, so requesting tools no
+        # longer forces "agent" (whose preset carries builtins nobody asked for).
         self.default_mode = default_mode
         # Vetted AIRE-registry tool NAMES this backend requests on EVERY turn
         # (e.g. ("memory",)), unioned with the names of any per-turn mcp_servers
@@ -275,10 +277,12 @@ class AIREBackend:
         # AIRE keys memory by (project, session); a one-shot needs a throwaway name.
         session = session_id or uuid.uuid4().hex
         tools = self._turn_tools(mcp_servers)
-        # The door requires mode=agent whenever tools are requested (complete has
-        # no agentic loop); a tool-free backend keeps its configured default_mode.
+        # Tools ride the configured mode as-is. The old guard that 422ed tools in
+        # mode=complete fell (aire-server 5ae8e33, measured live: a complete turn
+        # with tools:["persona"] executed the tool fine) — forcing mode=agent here
+        # would drag in the agent preset's builtins the consumer never asked for.
         body: dict[str, Any] = {
-            "mode": "agent" if tools else self.default_mode,
+            "mode": self.default_mode,
             "message": user_message,
         }
         if tools:

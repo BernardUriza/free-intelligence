@@ -172,8 +172,10 @@ def _backend_aire(model: str) -> AIREBackend:
     AIRE_CHAT_PROJECT, que app.py setea por request como og118-{chat}); el
     proyecto fijo queda de fallback para turnos sin conversación. Cada turno
     pide la tool `persona` del registry de AIRE (read/update sobre la parte
-    viva del CLAUDE.md de la casita) — eso fuerza mode=agent en la puerta;
-    default_mode="complete" queda como el modo sin tools."""
+    viva del CLAUDE.md de la casita) y viaja en mode=complete: desde
+    aire-server 5ae8e33 la puerta corre registry tools en complete, y el modo
+    agent regalaría los builtins del preset (Read/Write/Glob/Grep/WebSearch/
+    WebFetch) que og118 no quiere."""
     return AIREBackend(
         project=os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
