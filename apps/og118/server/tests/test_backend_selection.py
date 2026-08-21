@@ -33,9 +33,11 @@ def test_aire_selecciona_el_puente_con_identidad_og118(monkeypatch) -> None:
     assert runner.backend.project == "og118"
     assert runner.backend.default_model == "claude-sonnet-4-5"
     assert runner.backend.default_mode == "complete"
-    # AIRE es dueño de las tools server-side: nada de MCP local cruza.
+    # AIRE es dueño de las tools server-side: nada de MCP local cruza. La única
+    # tool que el turno PIDE es `persona`, del registry de AIRE — el CLAUDE.md
+    # vivo de la casita del chat (OG118-LIVING-CLAUDE).
     assert runner.capabilities == []
-    assert runner.backend.registry_tools == ()
+    assert runner.backend.registry_tools == ("persona",)
 
 
 def test_aire_respeta_el_proyecto_del_entorno(monkeypatch) -> None:
