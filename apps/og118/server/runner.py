@@ -175,7 +175,13 @@ def _backend_aire(model: str) -> AIREBackend:
     viva del CLAUDE.md de la casita) y viaja en mode=complete: desde
     aire-server 5ae8e33 la puerta corre registry tools en complete, y el modo
     agent regalaría los builtins del preset (Read/Write/Glob/Grep/WebSearch/
-    WebFetch) que og118 no quiere."""
+    WebFetch) que og118 no quiere.
+
+    Nacimiento delgado (aire-server ef21e68): la persona completa vive UNA sola
+    vez en la casita base og118 (AIREBackend la init-ea antes del primer chat);
+    cada casita de chat nace con el stub `@base og118`, que el engine
+    dereferencia en cada spawn — un solo origen vivo de la persona en vez de N
+    copias congeladas."""
     return AIREBackend(
         project=os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
