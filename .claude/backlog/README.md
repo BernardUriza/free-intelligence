@@ -17,7 +17,7 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 
 | # | Item | Status |
 |---|------|--------|
-| 6 | Retention: per-project TTL, archive cold sessions, purge | Proposed |
+| 6 | Retention: per-project TTL, archive cold sessions, purge | **Gateway half Done 2026-08-21** — the broom now sweeps `aire_gateway_log` too (its rows store the FULL resent conversation, the one table that grows with a session's square), own knob `AIRE_GATEWAY_RETENTION_DAYS` defaulting to `AIRE_RETENTION_DAYS`=30, missing-table skip logged. Verified by loop: a 45-day row deleted, a fresh row kept. NOT swept: `claude_session_store` — deleting it breaks deathless resume; per-project TTL/archiving of the agent's memory stays Bernard's decision |
 | 7 | Scheduled backups. Details: [`07-backups.md`](07-backups.md) | **Done — covered by the platform 2026-07-20**: Azure Flexible Server backs up the DB, 7-day point-in-time restore (verified). A `pg_dump`+cron would reinvent it (Art. 6); dropped. Only gap is geo-redundancy (off) — Bernard's spend call, likely over-engineering |
 | 8 | Metrics per casita: weight, sessions, cost. Details: [`08-metrics.md`](08-metrics.md) | **Weight+sessions Done 2026-07-20** (`7e05a4e`) — weight column live on `/claude`, verified in the browser. **Cost blocked**: a data check found `total_cost_usd` is never persisted (0/400 entries), so it needs a write-path change + a schema decision that's Bernard's |
 | 9 | Compaction / summarization of old sessions before archiving them | Idea |
