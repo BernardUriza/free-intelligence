@@ -1,0 +1,43 @@
+# The consumer map — where each of Bernard's LLM callers routes, settled
+
+Status: **Accepted** (the map is Bernard's, 2026-08-21; the fi-fleet migration it
+orders is the open work)
+Proposed: 2026-08-21 by Bernard
+
+## What it is
+
+The full roster of app consumers that call an LLM across Bernard's repos —
+verified by grep on 2026-08-21, then routed by Bernard himself, consumer by
+consumer. This file exists so no future session re-proposes a dead route or
+re-derives the roster (Art. 7, Art. 1). App consumers first; the Bedrock-style
+CLI wiring (pointing Claude Code sessions at the gate) comes LAST — his
+explicit ordering.
+
+| Consumer | Where the call lives | Bernard's routing |
+|---|---|---|
+| **fi fleet: og118, fenix, aurity, activist-os** (+ fi-monitor) | via fi-runner | **→ AIRE directly** — the engine door over HTTP, with AIRE's native tools (the tool registry, the memory tool; external MCP config is #12). They must NOT keep using fi-runner directly; `AIREBackend` (fi PR #408) is the transition bridge, not the destination |
+| **insult** (discord-bot / persona-runner) | gateway door | Already through the gate, named (#33). Done |
+| **VHouse** | `src/VHouse.Infrastructure/Services/AIService.cs` | **No LLM there yet — retire the code.** Noted in `VHouse/.claude/backlog/retirar-el-llm.md`; if it ever lights up, it is born calling AIRE |
+| **tianguis-cmn** | `api/app/backend.py` (fi_runner) | **No LLM there yet — retire the code.** Noted in `tianguis-cmn/.claude/backlog/retirar-el-llm.md`; same born-calling-AIRE clause |
+| **escucha / copiloto de llamadas** | `compras/llamadas/escucha.py` | **Stays DIRECT to Anthropic — do not point it at AIRE.** Bernard's call, verbatim rationale: it is only his own voice on his own calls, and the transcript already lands at its destination. Re-proposing this route is an Art. 7 violation |
+| **cristal.cli** | `server/run.sh` | Uses LLM but **not launched yet** — nothing to route today; revisit at launch |
+| **SerenityOps portfolio-spring** | `apps/portfolio-spring/start.sh` | Uses LLM but **effectively unused** (his webpage sees almost no visits) — nothing to route today |
+
+## Canonical path to reuse (Art. 6)
+
+The engine door already carries what the fleet needs: sessions with deathless
+memory, per-turn `model`/`tools`/`images` (#29), background jobs + artifacts
+(#22), the memory recall tool, the cage. What migration will surface as missing
+becomes endpoints ([[ssh-is-a-missing-endpoint]] formula) — the known gap
+already filed is #12 (MCP/tools configured from outside, at the user layer).
+
+## The decision that's the owner's
+
+- The migration order within the fleet (which app goes first).
+- When cristal.cli launches, its routing (default per this map: AIRE).
+
+## Status / next step
+
+Map settled. Open work: migrate the fi fleet from fi-runner-direct to the AIRE
+engine door, one app at a time. The CLI/Bedrock wiring stays parked until the
+app consumers are done — Bernard's ordering, 2026-08-21.

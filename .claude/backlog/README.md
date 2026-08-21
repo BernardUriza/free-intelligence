@@ -62,3 +62,5 @@ has implemented it — not the cookbook, not Agno, not ArcReel. It is the cleane
 
 **The only one that matters today is #5.** Everything else is plumbing until chapter 2
 remembers chapter 1.
+
+| 35 | **The consumer map** — every LLM caller in Bernard's repos, routed by him consumer-by-consumer (2026-08-21): fi fleet (og118, fenix, aurity, activist-os) → AIRE's engine door directly, NOT fi-runner; insult already through the gate; VHouse + tianguis-cmn retire their LLM code (notes left in each repo); escucha/copiloto stays DIRECT to Anthropic by his order; cristal.cli unlaunched, portfolio-spring unused. CLI/Bedrock wiring parked until app consumers are done. Details: [`35-the-consumer-map.md`](35-the-consumer-map.md) | **Accepted 2026-08-21** — map settled (Art. 7 guards each route); open work: migrate the fi fleet to the engine door, one app at a time |
