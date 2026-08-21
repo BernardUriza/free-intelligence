@@ -17,8 +17,8 @@ explicit ordering.
 |---|---|---|
 | **fi fleet: og118, fenix, aurity, activist-os** (+ fi-monitor) | via fi-runner | **→ AIRE directly** — the engine door over HTTP, with AIRE's native tools (the tool registry, the memory tool; external MCP config is #12). They must NOT keep using fi-runner directly; `AIREBackend` (fi PR #408) is the transition bridge, not the destination |
 | **insult** (discord-bot / persona-runner) | gateway door | Already through the gate, named (#33). Done |
-| **VHouse** | `src/VHouse.Infrastructure/Services/AIService.cs` | **No LLM there yet — retire the code.** Noted in `VHouse/.claude/backlog/retirar-el-llm.md`; if it ever lights up, it is born calling AIRE |
-| **tianguis-cmn** | `api/app/backend.py` (fi_runner) | **No LLM there yet — retire the code.** Noted in `tianguis-cmn/.claude/backlog/retirar-el-llm.md`; same born-calling-AIRE clause |
+| **VHouse** | `src/VHouse.Infrastructure/Services/AIService.cs` | **RETIRED 2026-08-21** (`edd3193c`, −5,243 lines: AIService, IAIService, chatbot, AIController, CQRS handlers, config; grep zero, 274 tests green). If it ever lights up, it is born calling AIRE |
+| **tianguis-cmn** | `api/app/backend.py` (fi_runner) | **RETIRED 2026-08-21** (`0049cfb` + guard fix `d9c98bb`; 11 files, fi deps out of the image, deployed and verified live: `/chat/stream` 404, `/health` 200). Same born-calling-AIRE clause |
 | **escucha / copiloto de llamadas** | `compras/llamadas/escucha.py` | **Stays DIRECT to Anthropic — do not point it at AIRE.** Bernard's call, verbatim rationale: it is only his own voice on his own calls, and the transcript already lands at its destination. Re-proposing this route is an Art. 7 violation |
 | **cristal.cli** | `server/run.sh` | Uses LLM but **not launched yet** — nothing to route today; revisit at launch |
 | **SerenityOps portfolio-spring** | `apps/portfolio-spring/start.sh` | Uses LLM but **effectively unused** (his webpage sees almost no visits) — nothing to route today |
@@ -38,6 +38,15 @@ already filed is #12 (MCP/tools configured from outside, at the user layer).
 
 ## Status / next step
 
-Map settled. Open work: migrate the fi fleet from fi-runner-direct to the AIRE
-engine door, one app at a time. The CLI/Bedrock wiring stays parked until the
-app consumers are done — Bernard's ordering, 2026-08-21.
+Map settled; first orchestrated pass ran 2026-08-21 (three agents in parallel):
+VHouse and tianguis-cmn retired their LLM code same-day (receipts in their rows
+above). **og118's migration is wired and smoke-tested** — fi PR
+[#409](https://github.com/BernardUriza/free-intelligence/pull/409):
+`OG118_BACKEND=aire` selects `AIREBackend` against the engine door (default
+stays byte-identical), one real turn at $0.092 landed in the `og118` casita,
+27 tests green, all checks green. Pending: the MERGE (blocked by the session's
+permission classifier — Bernard's button) and then the PRODUCTION FLIP
+(container env: `OG118_BACKEND=aire`, `AIRE_GATE_URL`, `AIRE_AUTH_TOKEN` from
+`~/.secrets/aire-llm-token.txt`) — flip off the cibercafé's hours. Then fenix,
+aurity, activist-os, one at a time. The CLI/Bedrock wiring stays parked until
+the app consumers are done — Bernard's ordering, 2026-08-21.
