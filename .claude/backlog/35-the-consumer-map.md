@@ -44,9 +44,16 @@ above). **og118's migration is wired and smoke-tested** — fi PR
 [#409](https://github.com/BernardUriza/free-intelligence/pull/409):
 `OG118_BACKEND=aire` selects `AIREBackend` against the engine door (default
 stays byte-identical), one real turn at $0.092 landed in the `og118` casita,
-27 tests green, all checks green. Pending: the MERGE (blocked by the session's
-permission classifier — Bernard's button) and then the PRODUCTION FLIP
-(container env: `OG118_BACKEND=aire`, `AIRE_GATE_URL`, `AIRE_AUTH_TOKEN` from
-`~/.secrets/aire-llm-token.txt`) — flip off the cibercafé's hours. Then fenix,
+27 tests green, all checks green. **MERGED and FLIPPED 2026-08-21** (Bernard's order): PR #409 merged (merge
+commit — squash disallowed there), deploys green (og118 AND fenix redeployed,
+fenix on the byte-identical default). Production flip on `og118-api` (og118-rg):
+secret `aire-auth-token` + env `OG118_BACKEND=aire`,
+`AIRE_GATE_URL=https://gate.bernarduriza.com`, revision `og118-api--0000091`.
+Verified through the REAL surface: app.og118.ai (Auth0 session), a live turn at
+11:04 answered "Presente." with provenance `claude-sonnet-4-5`, and the same
+minute landed in `claude_session_store` project `-opt-aire-workspaces-og118`
+(session `26f6075e…`, entries at 11:04:38–45, read back via `aire_reader`).
+og118's memory is deathless now. Known coupling to watch: og118 rides the
+droplet (SPOF) and the engine's credential rotor (#31). Next: fenix,
 aurity, activist-os, one at a time. The CLI/Bedrock wiring stays parked until
 the app consumers are done — Bernard's ordering, 2026-08-21.
