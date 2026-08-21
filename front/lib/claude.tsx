@@ -17,6 +17,29 @@ export function folderName(projectKey: string): string {
   return name || projectKey;
 }
 
+/** The casita's fixed prompt, folded away — shown on the folder page and on
+ *  every session page, so the reader sees what the agent stands on. Null
+ *  renders nothing: a casita without a CLAUDE.md has nothing to show. */
+export function CasitaPrompt({ text }: { text: string | null }) {
+  if (!text) return null;
+  return (
+    <details className="panel">
+      <summary>
+        CLAUDE.md · the casita&apos;s fixed prompt · {text.length.toLocaleString("en-US")} chars
+      </summary>
+      <Md text={text} />
+    </details>
+  );
+}
+
+/** The casita's DIRECTORY name on the daemon's disk — the artifacts door's
+ *  project id. Unlike folderName, the scratch timestamp+uuid must stay: it is
+ *  part of the real path. Null for keys outside the workspaces tree (a Mac
+ *  cwd mirrored by the SSH door has no artifacts door behind it). */
+export function casitaDir(projectKey: string): string | null {
+  return projectKey.startsWith(CASITA_PREFIX) ? projectKey.slice(CASITA_PREFIX.length) : null;
+}
+
 /** A transcript's weight in bytes → a human size. The daemon stores no cost
  *  (backlog #8: total_cost_usd never lands in the store), so weight is the
  *  honest "how much each casita holds" — the JSON bytes of its transcript. */

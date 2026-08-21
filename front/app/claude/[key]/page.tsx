@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Shell from "../../../components/Shell.tsx";
+import { casitaClaudeMd } from "../../../lib/artifacts.ts";
 import { claudeSessions } from "../../../lib/db.ts";
-import { folderName, freshness, sessionTitle } from "../../../lib/claude.tsx";
+import { CasitaPrompt, casitaDir, folderName, freshness, sessionTitle } from "../../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,10 @@ export const dynamic = "force-dynamic";
 export default async function FolderPage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
   const projectKey = decodeURIComponent(key);
-  const sessions = await claudeSessions(projectKey);
+  const [sessions, claudeMd] = await Promise.all([
+    claudeSessions(projectKey),
+    casitaClaudeMd(casitaDir(projectKey)),
+  ]);
 
   return (
     <Shell active="~claude">
@@ -20,6 +24,7 @@ export default async function FolderPage({ params }: { params: Promise<{ key: st
       <p className="sub">
         <Link href="/claude">← all folders</Link> · <code>{projectKey}</code>
       </p>
+      <CasitaPrompt text={claudeMd} />
       {sessions.length === 0 ? (
         <p className="empty">no sessions in this folder.</p>
       ) : (

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import Shell from "../../../../components/Shell.tsx";
+import { casitaClaudeMd } from "../../../../lib/artifacts.ts";
 import { claudeTranscript } from "../../../../lib/db.ts";
-import { entryText, entryTools, folderName, freshness, Line } from "../../../../lib/claude.tsx";
+import {
+  CasitaPrompt, casitaDir, entryText, entryTools, folderName, freshness, Line,
+} from "../../../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +17,10 @@ export default async function SessionPage({
 }) {
   const { key, session } = await params;
   const projectKey = decodeURIComponent(key);
-  const entries = await claudeTranscript(projectKey, session);
+  const [entries, claudeMd] = await Promise.all([
+    claudeTranscript(projectKey, session),
+    casitaClaudeMd(casitaDir(projectKey)),
+  ]);
   const last = entries.length ? entries[entries.length - 1].mtime : "";
 
   return (
@@ -24,6 +30,7 @@ export default async function SessionPage({
         <Link href={`/claude/${encodeURIComponent(projectKey)}`}>← sessions</Link> ·{" "}
         <code>{session}</code> · {entries.length} entries · mirror {freshness(last)}
       </p>
+      <CasitaPrompt text={claudeMd} />
       <div className="panel convo">
         {entries.map((row, i) => {
           const e = row.entry as { type?: string };
