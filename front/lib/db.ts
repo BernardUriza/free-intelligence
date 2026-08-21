@@ -435,12 +435,13 @@ export async function claudeTranscript(projectKey: string, sessionId: string): P
 
 export type GatewayTurn = {
   exchange: string; ts: string; model: string | null; session_id: string | null;
-  project: string | null; stop_reason: string | null; status: number | null;
-  input_tokens: number | null; output_tokens: number | null; asked: string | null;
+  project: string | null; holder: string | null; stop_reason: string | null;
+  status: number | null; input_tokens: number | null; output_tokens: number | null;
+  asked: string | null;
 };
 export type GatewaySession = {
-  session_id: string; project: string | null; model: string | null;
-  turns: number; ts: string; asked: string | null;
+  session_id: string; project: string | null; holder: string | null;
+  model: string | null; turns: number; ts: string; asked: string | null;
 };
 export type GatewayHalves = {
   request: unknown; response: unknown; ts: string;
@@ -474,7 +475,7 @@ export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
     SELECT q.exchange,
            ${EPOCH_MS("coalesce(a.ts, q.ts)")}  AS ts,
            coalesce(a.model, q.model)          AS model,
-           q.session_id, q.project,
+           q.session_id, q.project, q.holder,
            a.stop_reason, a.status,
            (a.usage->>'input_tokens')::int     AS input_tokens,
            (a.usage->>'output_tokens')::int    AS output_tokens,
@@ -494,7 +495,7 @@ export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
 export async function gatewaySessions(limit = 60): Promise<GatewaySession[]> {
   return read<GatewaySession>(
     `
-    SELECT s.session_id, q.project, q.model, s.turns,
+    SELECT s.session_id, q.project, q.holder, q.model, s.turns,
            ${EPOCH_MS("q.ts")} AS ts,
            ${ASKED_TAIL}       AS asked
     FROM (SELECT session_id, count(*) AS turns, max(seq) AS last_seq

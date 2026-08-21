@@ -30,6 +30,7 @@ export default async function GatewayPage() {
                 <th>last activity</th>
                 <th>asked</th>
                 <th>app</th>
+                <th>key</th>
                 <th>model</th>
                 <th>turns</th>
               </tr>
@@ -42,6 +43,7 @@ export default async function GatewayPage() {
                   </td>
                   <td>{s.asked ? s.asked : <span className="empty">—</span>}</td>
                   <td>{s.project ?? "—"}</td>
+                  <td>{s.holder ?? "—"}</td>
                   <td>{s.model ?? "—"}</td>
                   <td>{s.turns.toLocaleString("en-US")}</td>
                 </tr>
@@ -61,6 +63,7 @@ export default async function GatewayPage() {
               <tr>
                 <th>when</th>
                 <th>asked</th>
+                <th>key</th>
                 <th>model</th>
                 <th>stop</th>
                 <th>in</th>
@@ -74,6 +77,7 @@ export default async function GatewayPage() {
                     <Link href={`/gateway/${t.exchange}`}>{freshness(t.ts)}</Link>
                   </td>
                   <td>{t.asked ? t.asked : <span className="empty">—</span>}</td>
+                  <td>{t.holder ?? "—"}</td>
                   <td>{t.model ?? "—"}</td>
                   <td>{t.stop_reason ?? (t.status ? `HTTP ${t.status}` : "…")}</td>
                   <td>{t.input_tokens?.toLocaleString("en-US") ?? "—"}</td>
