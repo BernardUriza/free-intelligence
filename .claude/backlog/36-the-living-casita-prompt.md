@@ -1,8 +1,11 @@
 # The living casita prompt — the agent rewrites its own CLAUDE.md, per chat
 
-Status: **AIRE half Done 2026-08-21** (`df0acae` + `5ae8e33`) — measured E2E
-through the real gate; og118 product half in flight (fi-runner PR, casita per
-chat + protected base, Bernard's greenlight)
+Status: **Done 2026-08-21, both halves** — AIRE (`df0acae` + `5ae8e33`) and
+og118 (fi PR #411, merged + deployed). Measured on the LIVE product: a fresh
+chat in app.og118.ai got its own casita (`og118-03afad73-…`), og118 wrote its
+own living part ("Usuario: Bernard / Tema: astronomía / una sola frase") via
+`mcp__persona__update` in `mode=complete`, and the NEXT turn obeyed it —
+a white-dwarf question answered in exactly one sentence
 Proposed: 2026-08-21 by Bernard (the moment the front first rendered og118's
 casita CLAUDE.md: *"el claude dentro debe ser distinto! debe ser acorde al
 chat y debe de modificarse con las mcp tools de fi runner! magia"*)
@@ -60,5 +63,8 @@ half SHIPPED, measured live on 2026-08-21 against casita `personatest36`:
    *"The user is Bernard, and he likes receipts."*: the identity an agent
    writes takes effect from the very next spawn.
 
-Remaining: the og118/fi-runner product half (casita-per-chat naming, per-chat
-init, tools on turns) — in flight on branch `bernarduriza/og118-living-claude`.
+The og118 half landed the same day (fi PR #411): casita-per-chat naming
+(`og118-{conversationId}`), per-chat init with the base + a LIVING IDENTITY
+paragraph (prompts-as-content), `tools:["persona"]` riding `mode=complete`
+after the guard fell, and the latent FlowNarrator hazard closed. Verified on
+the live tutor end-to-end.
