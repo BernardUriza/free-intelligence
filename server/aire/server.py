@@ -80,10 +80,13 @@ async def llm_door(request: Request, call_next: Any) -> Any:
 
 def _admit_gateway(request: Request) -> JSONResponse | None:
     """The gateway door stays auth-PASS-THROUGH for anyone carrying their own
-    Anthropic credential — AIRE spends nothing on them and judges nothing. An
-    INVITED key is the exception: it has no credential of its own, so AIRE lends
-    its own up to that key's ceiling (#32). `None` means carry on."""
-    holder = tokens.identify(presented_token(request))
+    Anthropic credential and no AIRE key — AIRE spends nothing on them and
+    judges nothing. An AIRE key (as the Bearer, or in `x-aire-key` when the
+    Bearer slot carries the caller's own OAuth) puts the turn under that key's
+    ceiling: lent credential for an invited key (#32), metered pass-through
+    beside the caller's own (#34). `None` means carry on."""
+    holder = tokens.identify(request.headers.get("x-aire-key", "")
+                             or presented_token(request))
     if holder is None:
         return None
     if holder.exhausted():

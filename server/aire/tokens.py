@@ -23,8 +23,11 @@ import hashlib
 import os
 import secrets
 from dataclasses import dataclass
+from typing import Any
 
 import asyncpg
+
+from . import pricing
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS aire_token ("
@@ -96,6 +99,24 @@ async def mint(nickname: str, budget_usd: float = DEFAULT_BUDGET_USD) -> str:
         await conn.close()
     await load()
     return plaintext
+
+
+def biller(holder: Holder | None) -> Any:
+    """How an identified gateway turn pays against its key's ceiling — a lent
+    credential (#32) and a metered pass-through (#34) bank the same way, at the
+    same list prices. A real turn that prices at $0 is PRINTED, never swallowed:
+    that is a ceiling not biting, and it stayed invisible once."""
+    if holder is None:
+        return None
+
+    async def bank(usage: dict[str, Any] | None, model: str) -> None:
+        cost = pricing.usd(usage, model)
+        if cost <= 0:
+            print(f"KEY {holder.nickname}: a relayed turn banked $0 "
+                  f"(model={model!r}) — the ceiling is not biting", flush=True)
+        await charge(holder.nickname, cost)
+
+    return bank
 
 
 async def charge(nickname: str, usd: float) -> None:

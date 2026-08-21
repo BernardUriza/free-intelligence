@@ -12,11 +12,13 @@ halves are appended to ``aire_gateway_log`` on the side (``gateway_mirror``);
 the mirror never fails the relay.
 
 Auth is pass-through by default: the caller's own credential rides upstream,
-AIRE adds none and stores none. The exception is an INVITED key (#32), which by
-construction has no Anthropic credential — for those callers AIRE lends its own
-(``lending``) and bills the turn against that key's ceiling (``pricing``), since
-Anthropic reports tokens and a ceiling needs dollars. That is the one path where
-this door spends AIRE's money.
+AIRE adds none and stores none. An AIRE key changes that. An INVITED key (#32)
+has no Anthropic credential by construction — AIRE lends its own (``lending``)
+and bills against that key's ceiling, the one path where this door spends
+AIRE's money. A METERED key (#34) rides beside the caller's own credential
+(``x-aire-key``, or the Bearer next to an ``x-api-key``): nothing is lent,
+their credential relays, and the same prices bank against the same ceiling —
+a cap that counts and cuts off a client AIRE spends nothing on.
 
 This router sits BELOW the engine and never imports from ``engine/`` — serving
 it through the SDK would recurse (the spawned CLI calling the daemon back).
@@ -33,19 +35,21 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from . import gateway_mirror, lending, pricing, tokens
+from . import gateway_mirror, lending, tokens
+from .bearer import presented_token
 from .gateway_mirror import ResponseTap
 
 router = APIRouter()
 
 # Hop-by-hop and transport headers are the proxy's own business; everything
 # else — anthropic-version, anthropic-beta (never allowlisted), x-claude-code-*
-# — forwards verbatim. x-aire-project is addressed to AIRE, consumed here.
-# accept-encoding is forced to identity so the relayed bytes are the SSE text
-# itself (the mirror tap must read them), never a gzip frame.
+# — forwards verbatim. x-aire-project and x-aire-key are addressed to AIRE,
+# consumed here. accept-encoding is forced to identity so the relayed bytes are
+# the SSE text itself (the mirror tap must read them), never a gzip frame.
 _SKIP_REQUEST = {"host", "content-length", "connection", "keep-alive", "te",
                  "trailer", "transfer-encoding", "upgrade", "proxy-authenticate",
-                 "proxy-authorization", "accept-encoding", "x-aire-project"}
+                 "proxy-authorization", "accept-encoding", "x-aire-project",
+                 "x-aire-key"}
 _SKIP_RESPONSE = {"content-length", "content-encoding", "transfer-encoding",
                   "connection", "date", "server"}
 
@@ -86,21 +90,16 @@ def _api_error(message: str, status: int) -> JSONResponse:
                         status_code=status)
 
 
-def _biller(holder: Any) -> Any:
-    """How an invited turn pays for the credential AIRE lent it. A real turn
-    that prices at $0 is PRINTED, never swallowed: that is exactly what a
-    ceiling looks like while it is not biting, and it stayed invisible once."""
-    if holder is None:
-        return None
-
-    async def bank(usage: dict[str, Any] | None, model: str) -> None:
-        cost = pricing.usd(usage, model)
-        if cost <= 0:
-            print(f"INVITE {holder.nickname}: a relayed turn banked $0 "
-                  f"(model={model!r}) — the ceiling is not biting", flush=True)
-        await tokens.charge(holder.nickname, cost)
-
-    return bank
+def _outfit(request: Request, headers: list[tuple[str, str]]) -> list[tuple[str, str]] | None:
+    """Dress an identified caller's request for upstream. The AIRE key is shed
+    (it must never reach Anthropic); if a credential of the caller's OWN
+    survives, it rides — metered pass-through (#34), nothing lent. If nothing
+    survives, the key is invited (#32) and AIRE lends, or answers plainly."""
+    if tokens.identify(presented_token(request)) is not None:
+        headers = [(k, v) for k, v in headers if k.lower() != "authorization"]
+    if any(k.lower() in ("x-api-key", "authorization") for k, _ in headers):
+        return headers
+    return lending.lend(headers)
 
 
 async def _proxy(request: Request, mirrored: bool = False) -> Response:
@@ -108,10 +107,11 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
     exchange = uuid.uuid4().hex
     holder = getattr(request.state, "holder", None)  # an invited key (#32), or nobody
     if mirrored:
-        await gateway_mirror.log_request(exchange, request.headers, body)
+        await gateway_mirror.log_request(exchange, request.headers, body,
+                                         holder.nickname if holder else None)
     headers = _forward_headers(request)
     if holder is not None:
-        headers = lending.lend(headers)
+        headers = _outfit(request, headers)
         if headers is None:
             lending.leave(holder.nickname)
             return _api_error("AIRE gateway: no credential to lend an invited key", 503)
@@ -128,7 +128,7 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
         return _api_error(f"AIRE gateway: upstream unreachable ({type(exc).__name__})", 502)
     tap = ResponseTap(exchange, upstream.status_code,
                       upstream.headers.get("content-type", ""),
-                      _biller(holder)) if mirrored else None
+                      tokens.biller(holder)) if mirrored else None
     out = {k: v for k, v in upstream.headers.items() if k.lower() not in _SKIP_RESPONSE}
     return StreamingResponse(_relay(client, upstream, tap, holder),
                              status_code=upstream.status_code, headers=out)

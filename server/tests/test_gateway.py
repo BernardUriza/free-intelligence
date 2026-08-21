@@ -189,6 +189,95 @@ def test_a_spent_invited_key_is_refused_before_upstream(doors, monkeypatch):
     assert "spent its budget" in r.json()["error"]["message"]
 
 
+def test_a_metered_key_beside_an_api_key_is_shed_and_banked(doors, monkeypatch):
+    """#34: the caller brings their OWN x-api-key plus an AIRE key as Bearer —
+    nothing is lent (the slot may be empty), their credential rides, the AIRE
+    key never reaches Anthropic, and the turn banks against the key's ceiling.
+    The mirror's request row names the holder, so consumption is per key."""
+    from aire import lending, tokens
+    key, sid = "aire_test_metered_key", str(uuid.uuid4())
+    banked = []
+    monkeypatch.delenv("AIRE_LEND_OAUTH_TOKEN", raising=False)
+    monkeypatch.delenv("AIRE_LEND_API_KEY", raising=False)
+
+    async def fake_charge(nickname, usd):
+        banked.append((nickname, usd))
+
+    monkeypatch.setattr(tokens, "charge", fake_charge)
+    monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
+                        tokens.Holder("metered client", 5.0, 0.0))
+
+    async def go():
+        headers = {"authorization": f"Bearer {key}", "x-api-key": "sk-clients-own",
+                   "anthropic-version": "2023-06-01", "x-claude-code-session-id": sid}
+        async with httpx.AsyncClient(timeout=30) as client:
+            async with client.stream("POST", f"{doors.aire}/v1/messages",
+                                     json=BODY, headers=headers) as r:
+                assert r.status_code == 200
+                async for _ in r.aiter_raw():
+                    pass
+        return await _mirror_rows(sid)
+
+    rows = asyncio.run(go())
+    seen = fake_upstream.state["headers"]
+    assert seen["x-api-key"] == "sk-clients-own"
+    assert "authorization" not in seen, "the AIRE key must never reach Anthropic"
+    assert banked and banked[0][0] == "metered client"
+    assert banked[0][1] > 0, "a metered turn that banks $0 is a ceiling that cannot bite"
+    assert lending._inflight.get("metered client") is None, "the slot was returned"
+    request_row = next(r for r in rows if r["kind"] == "request")
+    assert request_row["holder"] == "metered client"
+
+
+def test_a_metered_key_in_x_aire_key_keeps_the_callers_oauth(doors, monkeypatch):
+    """#34, Claude Code style: the caller's own Bearer stays untouched; the AIRE
+    key rides in x-aire-key and is consumed by the door, never forwarded."""
+    from aire import tokens
+    key = "aire_test_header_key"
+    banked = []
+
+    async def fake_charge(nickname, usd):
+        banked.append((nickname, usd))
+
+    monkeypatch.setattr(tokens, "charge", fake_charge)
+    monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
+                        tokens.Holder("header client", 5.0, 0.0))
+
+    async def go():
+        headers = {"authorization": "Bearer sk-ant-callers-own", "x-aire-key": key,
+                   "anthropic-version": "2023-06-01"}
+        async with httpx.AsyncClient(timeout=30) as client:
+            async with client.stream("POST", f"{doors.aire}/v1/messages",
+                                     json=BODY, headers=headers) as r:
+                assert r.status_code == 200
+                async for _ in r.aiter_raw():
+                    pass
+
+    asyncio.run(go())
+    seen = fake_upstream.state["headers"]
+    assert seen["authorization"] == "Bearer sk-ant-callers-own"
+    assert "x-aire-key" not in seen, "an AIRE-addressed header must be consumed here"
+    assert banked and banked[0][0] == "header client"
+
+
+def test_a_spent_metered_key_is_refused_even_with_their_own_credential(doors, monkeypatch):
+    """#34: the 402 is the product's cutoff lever — it fires no matter whose
+    credential would have paid upstream."""
+    from aire import tokens
+    key = "aire_test_spent_metered"
+    monkeypatch.setitem(tokens._by_hash, tokens.digest(key),
+                        tokens.Holder("broke client", 0.05, 0.06))
+
+    async def go():
+        headers = {"authorization": f"Bearer {key}", "x-api-key": "sk-clients-own"}
+        async with httpx.AsyncClient(timeout=30) as client:
+            return await client.post(f"{doors.aire}/v1/messages", json=BODY, headers=headers)
+
+    r = asyncio.run(go())
+    assert r.status_code == 402
+    assert "spent its budget" in r.json()["error"]["message"]
+
+
 def test_a_caller_with_their_own_credential_is_still_pass_through(doors, monkeypatch):
     """The lending path must not capture the door: an unrecognised Bearer is a
     stranger's own Anthropic credential and rides upstream untouched."""

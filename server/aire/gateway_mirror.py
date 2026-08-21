@@ -35,12 +35,14 @@ CREATE TABLE IF NOT EXISTS aire_gateway_log (
   body            jsonb,
   stop_reason     text,
   usage           jsonb,
-  status          int
+  status          int,
+  holder          text
 );
 CREATE INDEX IF NOT EXISTS aire_gateway_log_session_idx
   ON aire_gateway_log (session_id);
 CREATE INDEX IF NOT EXISTS aire_gateway_log_exchange_idx
   ON aire_gateway_log (exchange);
+ALTER TABLE aire_gateway_log ADD COLUMN IF NOT EXISTS holder text;
 """
 
 
@@ -65,21 +67,25 @@ async def reset() -> None:
         _pool = None
 
 
-async def log_request(exchange: str, headers: Any, body: bytes) -> None:
-    """Append the request half before the relay starts. Never raises."""
+async def log_request(exchange: str, headers: Any, body: bytes,
+                      holder: str | None = None) -> None:
+    """Append the request half before the relay starts. Never raises. `holder`
+    is the AIRE key's nickname when one was presented (#32/#34) — the evidence
+    that lets a client's consumption be shown per key, not just per header."""
     try:
         parsed = json.loads(body) if body else None
         await (await _get_pool()).execute(
             "INSERT INTO aire_gateway_log (exchange, kind, session_id, agent_id,"
-            " parent_agent_id, project, model, body)"
-            " VALUES ($1, 'request', $2, $3, $4, $5, $6, $7::jsonb)",
+            " parent_agent_id, project, model, body, holder)"
+            " VALUES ($1, 'request', $2, $3, $4, $5, $6, $7::jsonb, $8)",
             exchange,
             headers.get("x-claude-code-session-id"),
             headers.get("x-claude-code-agent-id"),
             headers.get("x-claude-code-parent-agent-id"),
             headers.get("x-aire-project"),
             parsed.get("model") if isinstance(parsed, dict) else None,
-            json.dumps(parsed) if parsed is not None else None)
+            json.dumps(parsed) if parsed is not None else None,
+            holder)
     except Exception as exc:  # noqa: BLE001 — the relay never pays for the mirror
         print(f"GATEWAY-MIRROR request append failed: {type(exc).__name__}: {exc}")
 
