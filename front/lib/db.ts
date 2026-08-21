@@ -383,7 +383,7 @@ export function where(): { host: string; database: string } {
  * ------------------------------------------------------------------ */
 
 export type ClaudeFolder = { project_key: string; sessions: number; entries: number; weight_bytes: number; mtime: string };
-export type ClaudeSession = { session_id: string; entries: number; mtime: string; first_user: unknown };
+export type ClaudeSession = { session_id: string; entries: number; mtime: string; first_user: unknown; ai_title: string | null };
 export type ClaudeEntry = { entry: unknown; mtime: string };
 
 export async function claudeFolders(): Promise<ClaudeFolder[]> {
@@ -406,7 +406,11 @@ export async function claudeSessions(projectKey: string): Promise<ClaudeSession[
            (SELECT e2.entry FROM claude_session_store e2
             WHERE e2.project_key = $1 AND e2.session_id = s.session_id
               AND e2.subpath = '' AND e2.entry->>'type' = 'user'
-            ORDER BY e2.seq LIMIT 1) AS first_user
+            ORDER BY e2.seq LIMIT 1) AS first_user,
+           (SELECT e3.entry->>'aiTitle' FROM claude_session_store e3
+            WHERE e3.project_key = $1 AND e3.session_id = s.session_id
+              AND e3.subpath = '' AND e3.entry->>'type' = 'ai-title'
+            ORDER BY e3.seq DESC LIMIT 1) AS ai_title
     FROM claude_session_store s
     WHERE project_key = $1 AND subpath = ''
     GROUP BY session_id ORDER BY max(mtime) DESC

@@ -5,7 +5,10 @@ import { folderName, freshness, sessionTitle } from "../../../lib/claude.tsx";
 
 export const dynamic = "force-dynamic";
 
-/** One folder's sessions, newest first, titled by their first prompt. */
+/** One folder's sessions, newest first — titled by the ai-title the SDK wrote
+ *  into the transcript when one exists (a consumer replaying history opens
+ *  every prompt with the same preamble, so first-prompt would title them all
+ *  "Conversation so far:"), else by their first prompt. */
 export default async function FolderPage({ params }: { params: Promise<{ key: string }> }) {
   const { key } = await params;
   const projectKey = decodeURIComponent(key);
@@ -33,7 +36,7 @@ export default async function FolderPage({ params }: { params: Promise<{ key: st
               <tr key={s.session_id}>
                 <td>
                   <Link href={`/claude/${encodeURIComponent(projectKey)}/${s.session_id}`}>
-                    ▸ {sessionTitle(s.first_user)}
+                    ▸ {s.ai_title ?? sessionTitle(s.first_user)}
                   </Link>
                 </td>
                 <td>{s.entries}</td>
