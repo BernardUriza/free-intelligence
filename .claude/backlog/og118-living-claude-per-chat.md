@@ -1,6 +1,6 @@
 # OG118-LIVING-CLAUDE — a CLAUDE.md per chat, that the agent itself rewrites
 
-Status: Proposed
+Status: Done 2026-08-21 — shipped same day it was proposed (fi PR #411 + aire-server df0acae/5ae8e33), measured live: a fresh app.og118.ai chat got casita og118-03afad73-…, og118 wrote its own living part (Usuario: Bernard / Tema: astronomia / una sola frase) via mcp__persona__update, and the next turn obeyed it.
 Proposed: 2026-08-21 by Bernard (in the aire-server session, the moment the
 front first rendered og118's casita CLAUDE.md — "ahí es donde se libera el
 hueco de un feature que yo quería… el claude dentro debe ser distinto! debe ser
