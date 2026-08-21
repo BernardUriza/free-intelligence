@@ -77,9 +77,28 @@ El :8099 del texto original quedó **stale**: la puerta real hoy es
 es el front). Auditar el server actual = ya hecho al construir.
 
 **Alcance del corte:** el turno companion/texto (`mode=complete`), justo donde se
-desactivó el espejo `session_store` (#358/#359). Lo que la puerta NO recibe por
-turno (tools/model/system_prompt/images) se rechaza en voz alta y quedó archivado
-como **aire-server backlog #29** ("grow the door"). Siguiente paso cuando Bernard
-dé el go: cerrar el gap #1 (tools per-turn), que es el que desbloquea og118 sobre
-AIRE. Falta también rerutear `backend/policy/llm_router_policy.py` (el
-`Anthropic()` crudo) — turno complete simple, aparte.
+desactivó el espejo `session_store` (#358/#359). Lo que la puerta NO recibía por
+turno (tools/model/images) se rechazaba en voz alta — archivado como
+**aire-server backlog #29** ("grow the door").
+
+**SECOND CUT — forward clauses (2026-08-20).** La puerta creció (aire-server
+commits `a40f389` + `6d8bd9a`: el body acepta `{message, mode, tools, model,
+images, background}`) y los tres reject clauses se convirtieron en forwards:
+
+- `model` → viaja en el body; el result event trae PROVENANCE real (leído de los
+  AssistantMessage). E2E: pedir `"haiku"` respondió `claude-haiku-4-5-20251001`.
+- `images` → `TurnImage` mapea 1:1 a `{media_type, data}`. E2E: un PNG azul
+  respondió "Blue." ($0.0072/turno).
+- `mcp_servers` → traducidos a NOMBRES del registry (sólo `spec.name` cruza el
+  wire, `tools` + `mode=agent`); un nombre fuera del registry sigue rechazado
+  FUERTE por el 422 de la puerta (`unknown tool 'not_in_registry'; available:
+  ['memory']` → `BackendError`). Specs arbitrarios de MCP siguen siendo RCE por
+  diseño y no cruzan.
+
+Ese turno E2E (haiku + imagen + memory) es el **primer consumidor real** de los
+tres gaps — el caso end-to-end del producto llave-en-mano (aire-server #34,
+canónico en `discord-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`).
+El único input que sigue sin forwardearse es `tool_policy` (AIRE es dueño de la
+config de tools server-side; se avisa con warning). Falta también rerutear
+`backend/policy/llm_router_policy.py` (el `Anthropic()` crudo) — turno complete
+simple, aparte.

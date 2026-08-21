@@ -20,25 +20,30 @@ Auth is a long Bearer secret (AIRE's "LLM door"). Configure it on the
 constructor or via the env — ``AIRE_GATE_URL`` and ``AIRE_AUTH_TOKEN`` (a
 canary token works too: same header).
 
-FIRST-CUT SCOPE (2026-07-27). AIRE's message endpoint accepts only
-``{message, mode}`` per turn, so this backend faithfully covers the **companion /
-text turn** — the exact shape where og118 disabled the SDK ``session_store``
-mirror (#358/#359) because AIRE owns the memory. Everything the door does NOT
-accept per turn yet is a KNOWN gap, filed as aire-server backlog (grow the door:
-per-turn model / mcp_servers / tool_policy / images). Until then this backend
-REJECTS LOUDLY rather than silently answering wrong:
+SECOND CUT (2026-08-20). The door grew (aire-server #29, commits a40f389 +
+6d8bd9a): the message endpoint now accepts ``{message, mode, tools, model,
+images, background}`` per turn, so the first cut's reject clauses became
+forward clauses:
 
 - ``system_prompt`` → forwarded via ``/init`` as the casita's fixed prompt,
   re-sent only when it changes. It is per-CASITA, not per-turn — that is the
   door's shape, not a limitation of this backend.
-- ``images`` (vision) → raises: the door takes no per-turn image blocks yet.
-- ``mcp_servers`` (tools) → raises when non-empty: tools run INSIDE AIRE's
-  engine, configured server-side, never handed per turn. A caller expecting a
-  tool to fire must learn it will not, not get a silent text answer.
-- ``model`` / ``tool_policy`` → accepted for interface symmetry but NOT
-  enforceable from the caller (AIRE picks the model and the tool config
-  server-side). The result's ``model`` stays ``None`` — honest "engine-decided",
-  never an echo of a request AIRE may not have honoured.
+- ``model`` → forwarded in the body (a short name like ``"haiku"`` or a full
+  id); AIRE pins it on the session's pooled client. The result's ``model``
+  carries REAL provenance — AIRE reads it off the AssistantMessages, so it is
+  the model that answered, never an echo of the request.
+- ``images`` → forwarded as ``{media_type, data}`` blocks (base64, no ``data:``
+  prefix). The door enforces its own limits (max 4 × 5MB b64, MIME in
+  jpeg/png/webp/gif) and an image-only message is a valid turn.
+- ``mcp_servers`` → translated to registry NAMES: only ``spec.name`` crosses
+  the wire (as the door's ``tools`` field, forcing ``mode=agent``); the local
+  ``command``/``args`` cannot and do not. AIRE mounts its own vetted in-process
+  server of that name (today: ``"memory"``). A name outside the registry is
+  still rejected HARD — by the door's 422, surfaced as ``BackendError``.
+  Forward does not mean silent: arbitrary MCP specs remain RCE by design.
+- ``tool_policy`` → still NOT forwarded (the one remaining gap): AIRE owns the
+  tool config server-side, so a caller's permission_mode/allowlist is warned
+  about, never silently honoured.
 
 Requires the ``aire`` extra::
 
@@ -90,17 +95,17 @@ class AIREBackend:
             or os.environ.get("AIRE_AUTH_TOKEN", "")
             or os.environ.get("AIRE_CANARY_TOKEN", "")
         )
-        # AIRE picks the model server-side; kept for interface symmetry and to
-        # warn when a caller asks for a per-turn model we cannot enforce yet.
+        # Forwarded per turn when the caller names no model of its own; AIRE
+        # pins it on the session's pooled client (None = AIRE's server default).
         self.default_model = default_model
         # "complete" = no tools, the substitute for the raw API. When registry_tools
         # is set the turn runs in "agent" mode instead (the door requires it).
         self.default_mode = default_mode
-        # Vetted AIRE-registry tool NAMES this backend requests each turn (e.g.
-        # ("memory",)), sent as the door's `tools` field (aire-server #29). These
-        # are NOT the caller's local MCPServerSpecs — those cannot cross the wire
-        # and are still rejected. A consumer that wants tools on AIRE names them
-        # here; the door mounts the matching in-process server server-side.
+        # Vetted AIRE-registry tool NAMES this backend requests on EVERY turn
+        # (e.g. ("memory",)), unioned with the names of any per-turn mcp_servers
+        # and sent as the door's `tools` field (aire-server #29). The door
+        # mounts the matching in-process server server-side and 422s any name
+        # outside its registry.
         self.registry_tools = tuple(registry_tools)
         self.timeout = timeout
         # /init state: the casita's fixed prompt last written, so we re-init only
@@ -132,24 +137,14 @@ class AIREBackend:
                 "(or pass gate_url/auth_token to AIREBackend)."
             )
 
-    @staticmethod
-    def _reject_unsupported(
-        mcp_servers: list[MCPServerSpec], images: list[TurnImage] | None
-    ) -> None:
-        """Fail loudly on capabilities the door cannot honour per turn, so a
-        caller never gets a silent text answer where it expected vision or tools."""
-        if images:
-            raise BackendError(
-                "AIREBackend has no vision yet: AIRE's door takes no per-turn image "
-                "blocks. Grow the door first (aire-server backlog)."
-            )
-        if mcp_servers:
-            raise BackendError(
-                f"AIREBackend cannot forward local MCP servers ({len(mcp_servers)} given): "
-                "they run in the caller's process and cannot cross the wire. For tools on "
-                "AIRE, pass registry_tools=(...) with the names of servers AIRE ships "
-                "(e.g. \"memory\"); AIRE mounts them server-side."
-            )
+    def _turn_tools(self, mcp_servers: list[MCPServerSpec]) -> list[str]:
+        """The registry NAMES this turn requests: the backend's standing
+        ``registry_tools`` plus each per-turn spec's name, deduped in order.
+        Only the name crosses the wire — the specs' local ``command``/``args``
+        cannot run on AIRE; the door mounts its OWN server of that name, and
+        422s (→ ``BackendError``) any name its registry does not ship."""
+        names = list(self.registry_tools) + [s.name for s in mcp_servers]
+        return list(dict.fromkeys(n for n in names if n))
 
     async def _ensure_prompt(self, system_prompt: str) -> None:
         """Write the casita's fixed prompt via ``/init`` when it changes. The
@@ -186,17 +181,16 @@ class AIREBackend:
             usage=d.get("usage"),
             session_id=d.get("session_id") or session,
             tool_calls=tools,
-            model=None,  # AIRE picks the model server-side — no provenance yet (door gap)
+            # Real provenance: AIRE reads this off the AssistantMessages, so it
+            # is the model that ANSWERED, not an echo of the request.
+            model=d.get("model") or None,
         )
 
     async def _stream_events(
-        self, session: str, message: str, mode: str
+        self, session: str, body: dict[str, Any]
     ) -> AsyncIterator[dict[str, Any]]:
         """POST the turn and yield AIRE's SSE events as dicts. Each ``data:`` line
         is a full event object carrying its own ``type`` (AIRE's ``_plain(ev)``)."""
-        body: dict[str, Any] = {"mode": mode, "message": message}
-        if self.registry_tools:
-            body["tools"] = list(self.registry_tools)
         async with self._http().stream(
             "POST",
             f"{self.gate_url}/projects/{self.project}/sessions/{session}/messages",
@@ -204,8 +198,8 @@ class AIREBackend:
             json=body,
         ) as res:
             if res.status_code >= 400:
-                body = (await res.aread()).decode("utf-8", "replace")
-                raise BackendError(f"AIRE door {res.status_code}: {body}")
+                detail = (await res.aread()).decode("utf-8", "replace")
+                raise BackendError(f"AIRE door {res.status_code}: {detail}")
             async for line in res.aiter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -217,17 +211,10 @@ class AIREBackend:
                 except json.JSONDecodeError:  # a keep-alive or partial line — skip
                     continue
 
-    def _warn_unenforceable(self, model: str | None, tool_policy: ToolPolicy) -> None:
-        """The caller controls model + tools locally on the CLI backends; AIRE
-        controls both server-side. Warn when a caller asked for either, so a
-        silent divergence never masquerades as an honoured request."""
-        chosen = model or self.default_model
-        if chosen:
-            _logger.warning(
-                "AIREBackend: model %r is not enforceable — AIRE selects the model "
-                "server-side (door gap). The turn runs on AIRE's configured model.",
-                chosen,
-            )
+    def _warn_unenforceable(self, tool_policy: ToolPolicy) -> None:
+        """The one remaining unforwardable input: AIRE configures the tool
+        policy server-side. Warn when a caller set one, so a silent divergence
+        never masquerades as an honoured request."""
         if tool_policy.builtin_allowed or tool_policy.permission_mode is not PermissionMode.DEFAULT:
             _logger.warning(
                 "AIREBackend: tool_policy is not forwarded — AIRE configures tools "
@@ -253,15 +240,25 @@ class AIREBackend:
         in fi-runner's stream vocabulary (``text`` / ``tool_call`` / ``result``),
         so the Runner's glass-box stream is unchanged."""
         self._require_door()
-        self._reject_unsupported(mcp_servers, images)
-        self._warn_unenforceable(model, tool_policy)
+        self._warn_unenforceable(tool_policy)
         await self._ensure_prompt(system_prompt)
         # AIRE keys memory by (project, session); a one-shot needs a throwaway name.
         session = session_id or uuid.uuid4().hex
+        tools = self._turn_tools(mcp_servers)
         # The door requires mode=agent whenever tools are requested (complete has
         # no agentic loop); a tool-free backend keeps its configured default_mode.
-        mode = "agent" if self.registry_tools else self.default_mode
-        async for ev in self._stream_events(session, user_message, mode):
+        body: dict[str, Any] = {
+            "mode": "agent" if tools else self.default_mode,
+            "message": user_message,
+        }
+        if tools:
+            body["tools"] = tools
+        chosen_model = model or self.default_model
+        if chosen_model:
+            body["model"] = chosen_model
+        if images:
+            body["images"] = [{"media_type": i.media_type, "data": i.data} for i in images]
+        async for ev in self._stream_events(session, body):
             kind = ev.get("type")
             if kind == "text":
                 text = ev.get("text") or ""
