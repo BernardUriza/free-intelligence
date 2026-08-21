@@ -1,7 +1,7 @@
-name: Deploy Fénix backend (ACR + Container App)
+name: Deploy Fénix backend (GHCR + Container App)
 
 # Construye la imagen de Fénix (linux/amd64) y la despliega en Azure Container
-# Apps. Reusa el ACR y el ENTORNO de og118 a propósito: un entorno de Container
+# Apps. Reusa el registry (GHCR) y el ENTORNO de og118 a propósito: un entorno de Container
 # Apps nuevo cuesta aparte, y Fénix corre el mismo runtime — no hay nada que
 # aislar salvo los datos, que van en su propio volumen.
 #
@@ -17,6 +17,12 @@ on:
     branches: [main]
     paths:
       - 'apps/fenix/server/**'
+      # La imagen COPYa apps/og118/server (Fénix importa ese runtime tal cual):
+      # sin esta ruta, un fix al runtime compartido —incluido el cerco de
+      # seguridad de la superficie de tools— nunca llegaba al contenedor de
+      # Fénix hasta un deploy casual futuro. El filtro observa lo que la
+      # imagen contiene, no lo que el directorio se llama.
+      - 'apps/og118/server/**'
       - 'apps/packages/fi-core/**'
       - 'apps/packages/fi-runner/**'
       - '.github/workflows/fenix-backend.yml'
@@ -29,14 +35,19 @@ concurrency:
 permissions:
   id-token: write
   contents: read
+  packages: write   # push a ghcr.io
 
 env:
   RG: ${{ vars.OG118_RESOURCE_GROUP }}
   LOCATION: ${{ vars.OG118_LOCATION }}
-  ACR: ${{ vars.OG118_ACR_NAME }}
   ACA_ENV: ${{ vars.OG118_CONTAINERAPP_ENV }}
   APP: fenix-api
   IMAGE: fenix-server
+  # GHCR reemplazó a og118acr el 2026-08-12: el ACR cobraba una unidad de
+  # registry por mes más el excedente de almacenamiento, y GitHub ya hospeda los
+  # paquetes de este repo gratis. El cache de capas se muda igual, con el mismo
+  # tag `:buildcache` y el mismo mode=min.
+  REGISTRY: ghcr.io/bernarduriza/free-intelligence
 
 jobs:
   deploy:
@@ -51,44 +62,68 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Log in a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Buildx
         # El driver por defecto (`docker`) rechaza `--cache-to type=registry`.
         uses: docker/setup-buildx-action@v3
 
-      - name: Build linux/amd64 + push a ACR
+      - name: Build linux/amd64 + push a GHCR
         run: |
-          az acr login -n "$ACR"
           # BuildKit lee apps/fenix/server/Dockerfile.dockerignore ANTES que el
           # .dockerignore de la raíz — que excluye `apps/` entero y haría fallar
           # el primer COPY con un "file does not exist" que engaña, porque el
           # directorio sí existe.
           #
-          # El cache en el registry es lo que evita que este ACR crezca ~400 MB
-          # por deploy: el runner es efímero, así que sin cache externo cada capa
-          # se reconstruye con digest nuevo y se re-sube entera.
+          # El cache en el registry evita re-subir ~400 MB por deploy: el runner es
+          # efímero, así que sin cache externo cada capa se reconstruye con digest
+          # nuevo y se re-sube entera. En GHCR ya no es un ahorro de dinero (el
+          # almacenamiento no se cobra), pero sigue siendo el ahorro de MINUTOS
+          # del runner, que en un repo privado sí se pagan.
           docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache" \
-            --cache-to "type=registry,ref=$ACR.azurecr.io/$IMAGE:buildcache,mode=min" \
+            --cache-from "type=registry,ref=$REGISTRY/$IMAGE:buildcache" \
+            --cache-to "type=registry,ref=$REGISTRY/$IMAGE:buildcache,mode=min" \
             -f apps/fenix/server/Dockerfile \
-            -t "$ACR.azurecr.io/$IMAGE:${{ github.sha }}" \
+            -t "$REGISTRY/$IMAGE:${{ github.sha }}" \
             --push .
 
       - name: Crear o actualizar el Container App
         # La réplica ÚNICA no es un detalle de costo: la cuota de turnos y las
         # sesiones viven en memoria del proceso, así que con más de una réplica
         # dejan de ser globales y el techo de gasto deja de ser un techo.
+        #
+        # El MÍNIMO en cambio sí es costo puro: `--min-replicas 1` mantenía 1 vCPU
+        # y 2 GiB encendidos 24/7 (~24 USD/mes) para atender 37 requests por
+        # semana. Se bajó a 0 en vivo el 2026-08-12 y aquí se deja igual, porque
+        # un recreate con el valor viejo reintroduce el cobro sin que nadie lo
+        # note. El precio es un arranque en frío de ~20s en la primera petición
+        # tras la inactividad.
         env:
-          IMG: ${{ vars.OG118_ACR_NAME }}.azurecr.io/fenix-server:${{ github.sha }}
+          IMG: ghcr.io/bernarduriza/free-intelligence/fenix-server:${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
           API_KEY: ${{ secrets.FENIX_ANTHROPIC_API_KEY }}
           ADMIN_TOKEN: ${{ secrets.FENIX_ADMIN_TOKEN }}
-          ACCESS_TOKEN: ${{ secrets.FENIX_ACCESS_TOKEN }}
+          TUTOR_PASSWORD: ${{ secrets.FENIX_TUTOR_PASSWORD }}
           ALLOWED_ORIGINS: ${{ vars.FENIX_ALLOWED_ORIGINS }}
           ADMIN_EMAILS: ${{ vars.FENIX_ADMIN_EMAILS }}
         run: |
+          # Sin OG118_ACCESS_TOKEN a propósito. Ese bearer es de og118, que es
+          # de una sola cuenta; aquí corría ANTES de la puerta de Fénix y hacía
+          # que /chat/stream contestara 401 a las PCs del cibercafé — con la
+          # página cargando entera, porque /expedientes/rol es ruta propia y sí
+          # pasaba. El niño escribía su pregunta y recibía un error, y en los
+          # logs no fallaba nada. Aquí autoriza FENIX_ADMIN_TOKEN y lo público
+          # lo acota la cuota de turnos; `arranque.py` se niega a arrancar si la
+          # variable reaparece.
           COMUNES=(
             "ANTHROPIC_API_KEY=secretref:anthropic-api-key"
             "FENIX_ADMIN_TOKEN=secretref:fenix-admin-token"
-            "OG118_ACCESS_TOKEN=secretref:access-token"
+            "FENIX_TUTOR_PASSWORD=secretref:fenix-tutor-password"
             "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
             "FENIX_ADMIN_EMAILS=$ADMIN_EMAILS"
             # Detrás del ingress de ACA el IP del cliente llega en
@@ -101,17 +136,18 @@ jobs:
           )
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN"
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars "${COMUNES[@]}" \
-              --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN"
+              --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN" "OG118_ACCESS_TOKEN"
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
-              --registry-server "$ACR.azurecr.io" --registry-identity system \
+              --registry-server ghcr.io \
+              --registry-username BernardUriza --registry-password "$GHCR_TOKEN" \
               --target-port 8118 --ingress external \
-              --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "access-token=$ACCESS_TOKEN" \
+              --min-replicas 0 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD" \
               --env-vars "${COMUNES[@]}"
           fi
 

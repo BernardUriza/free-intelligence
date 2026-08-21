@@ -1,9 +1,14 @@
 # Sincronización claude.ai → fenix
 
-Mientras el equipo de la papelería siga trabajando en el Project de claude.ai
+Mientras el equipo de la papelería siga cotizando en el Project de claude.ai
 ("Servicios Papeleros Fénix"), esa es la fuente de verdad y fenix es el espejo.
-Cuando fenix se lance con su propia API key, la dirección se invierte y esta
-carpeta se borra.
+
+**El disparador para invertir la dirección y borrar esta carpeta NO es la llave
+de API** — desde el 30-jul fenix ya tiene la suya y el **tutor** está en línea
+atendiendo a los niños. Es que el **mostrador** deje de cotizar en claude.ai, y
+eso no ha pasado: hoy cuesta ~30× más por turno y da peor resultado que
+claude.ai (`../EXPERIMENTO.md` §benchmark). Hasta entonces, este espejo sigue
+siendo necesario y de un solo sentido.
 
 **Regla:** el espejo se actualiza SÓLO por este camino. Nadie sube documentos al
 corpus de fenix a mano — un doc subido fuera del script queda invisible para

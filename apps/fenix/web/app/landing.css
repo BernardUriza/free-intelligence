@@ -16,8 +16,15 @@
   --papel-hondo: #f5efe3;
   --tinta: #1a1712;
   --tinta-suave: #5e564a;
+  /* Elegidos por la dueña, por número, de la carta de color — ver
+     apps/fenix/branding/COLORES.md. */
   --fuego: #e05000;
+  --fuego-vivo: #f76707;
   --fuego-hondo: #c23a00;
+  /* El verde de la papelería. Marca lo que tranquiliza a la mamá —lo que el
+     asistente SÍ hace, la promesa de que no hace trampa—, nunca un botón: si
+     compite con el naranja, la acción principal deja de leerse como la acción. */
+  --pasto: #37b24d;
   --linea: #e6dcc9;
 
   position: fixed;
@@ -162,9 +169,13 @@
 
 /* --- El cibercafé: franja de acento para separarla del resto ------------- */
 
+/* El verde entra AQUÍ y no en los botones. Ésta es la franja donde se explica
+   que el asistente no le hace la tarea al niño: es la parte que tranquiliza, no
+   la que vende, y el verde de la papelería es el color de la palomita. En un
+   botón competiría con el naranja y la acción principal dejaría de leerse. */
 .lp-franja {
   background: var(--papel-hondo);
-  border-top: 1px solid var(--linea);
+  border-top: 3px solid var(--pasto);
   border-bottom: 1px solid var(--linea);
 }
 
@@ -191,6 +202,10 @@
   border-radius: 50%;
   background: var(--fuego);
 }
+
+/* Dentro de la franja, las viñetas enumeran lo que el asistente SÍ hace por el
+   niño: van del verde que confirma, no del naranja que llama. */
+.lp-franja .lp-lista li::before { background: var(--pasto); }
 
 /* --- Visitar ------------------------------------------------------------- */
 

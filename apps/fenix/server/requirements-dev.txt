@@ -1,0 +1,11 @@
+# Sólo para los tests. La imagen de producción NO instala esto.
+-r requirements.txt
+
+# PyMuPDF LEE el PDF que reportlab escribe, y es lo que permite afirmar cosas
+# sobre el resultado en vez de sobre el código: que el precio salga impreso en la
+# primera hoja, que las respuestas caigan DESPUÉS de los ejercicios y en su
+# propia página, que el markdown del modelo no llegue como basura al papel.
+# Sin esto los tests sólo podrían comprobar que la función no revienta — que es
+# justo lo que no importa cuando el entregable es una hoja que alguien imprime.
+pymupdf>=1.24
+pytest>=8.0

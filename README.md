@@ -2,10 +2,15 @@
 
 **AURITY** = **A**dvanced **U**niversal **R**eliable **I**ntelligence for **T**elemedicine **Y**ield
 
-**Version**: 1.0.0 (Production)
-**Live**: https://app.aurity.io
+**Version**: 1.0.0
 **Owner**: Bernard Uriza Orozco
 **Architecture**: GPU-First, No Compromises
+
+> **Hosted instance status:** `app.aurity.io` is **not serving right now** — the host does
+> not complete a TLS handshake for that name. The deployment pipeline below is real and is
+> what the repo is wired for; treat every `app.aurity.io` URL in this document as the
+> deploy target, not as a live endpoint you can call today. Run it locally instead
+> (see Quick Start).
 
 ---
 
@@ -13,18 +18,18 @@
 
 **GPU-accelerated AI system for healthcare** - like Cyberpunk 2077, no GPU = no play.
 
-Sistema de **inteligencia médica con RAG GPU**, diseñado para performance óptima sin degradación:
+A **medical intelligence system with GPU-powered RAG**, built for full-speed performance with no degraded modes:
 - 📊 **RAG embeddings**: GPU-only (20-50ms), no CPU fallback (100-150ms unacceptable)
 - 🧠 **LLM inference**: Local Ollama on GPU (Qwen3:1.7b)
-- 🔒 **HIPAA on-prem**: Datos locales, HDF5 append-only, zero cloud PHI
-- 🚀 **Production-grade**: Live at app.aurity.io, 99%+ uptime
+- 🔒 **HIPAA on-prem**: local data, HDF5 append-only, zero cloud PHI
+- 🚀 **Production-grade**: built to deploy on Azure Container Apps + Static Web Apps from CI
 
 **Key Difference:**
 - ❌ Generic systems: CPU fallbacks, degraded performance
 - ❌ Cloud SaaS: PHI in transit, vendor lock-in, latency
 - ✅ **AURITY**: GPU-first architecture, on-prem data, optimal UX
 
-> "El usuario prefiere no ver nada que ver gráficos chafos"
+> "Users would rather see nothing than a crappy chart."
 
 ---
 
@@ -158,7 +163,7 @@ pnpm dev
 git push origin main  # Triggers CI/CD pipeline → Azure Container Apps + Static Web Apps
 ```
 
-**Live URL**: https://app.aurity.io
+**Deploy target**: https://app.aurity.io *(currently not serving — see the status note at the top)*
 
 ---
 
@@ -337,12 +342,12 @@ async def list_documents(
 
 ## 🎯 Roadmap
 
-### Current (v1.0 - Production)
+### Current (v1.0)
 - ✅ RAG GPU embeddings (FI Monitor)
 - ✅ HIPAA-compliant storage (HDF5)
 - ✅ User isolation (Auth0 + owner_user_id)
-- ✅ Production deployment (app.aurity.io)
 - ✅ GPU-only architecture (no CPU fallback)
+- ⛔ Hosted instance at app.aurity.io is down (TLS does not resolve for that name)
 
 ### Next (v1.1)
 - [ ] Multi-tenant clinics (clinic_id isolation)
@@ -353,7 +358,7 @@ async def list_documents(
 
 ---
 
-## 📚 Stack Tecnológico
+## 📚 Tech Stack
 
 **Backend:**
 - Python 3.14, FastAPI, Uvicorn
@@ -385,9 +390,9 @@ async def list_documents(
 
 ## 🤝 Contributing
 
-Proyecto personal de Bernard Uriza Orozco. Contribuciones externas no aceptadas.
+Personal project by Bernard Uriza Orozco. Outside contributions aren't accepted.
 
-**Filosofía:**
+**Philosophy:**
 > "GPU-first, no compromises. Like modern gaming - works perfectly or doesn't work at all."
 
 ---
@@ -400,7 +405,7 @@ Private project. All rights reserved © 2026 Bernard Uriza Orozco.
 
 ## 🔗 Links
 
-- **Production**: https://app.aurity.io
+- **Deploy target (currently down)**: https://app.aurity.io
 - **Documentation**: `docs/README.md`
 - **Architecture**: `.claude/CLAUDE.md`
 - **GPU Integration Tests**: `test_rag_integration.py`
@@ -409,4 +414,4 @@ Private project. All rights reserved © 2026 Bernard Uriza Orozco.
 
 **Free Intelligence: GPU-Accelerated AI for Healthcare** 🧠⚡
 
-*"El usuario prefiere no ver nada que ver gráficos chafos"*
+*"Users would rather see nothing than a crappy chart."*

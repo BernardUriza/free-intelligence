@@ -64,7 +64,11 @@ from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
 from cuota import CuotaAgotada, clave_de, cuota_publica  # noqa: E402
 from arranque import exigir_config  # noqa: E402
-from rbac import correo_conocido, es_admin, modo_abierto  # noqa: E402
+from bitacora import Bitacora  # noqa: E402
+from regularizacion import Cuadernillo, Ejemplo, Ejercicio, Paso  # noqa: E402
+from regularizacion import generar as generar_pdf  # noqa: E402
+from regularizacion import nombre_archivo as nombre_pdf  # noqa: E402
+from rbac import acceso_valido, correo_conocido, es_admin, hay_contrasena, modo_abierto  # noqa: E402
 
 # Antes de montar nada. Dos configuraciones se ven idénticas a un servidor sano
 # y no lo son: la que deja los expedientes abiertos y la que atiende a terceros
@@ -128,6 +132,105 @@ async def rol(
         "email": x_fenix_email,
         "correoConocido": correo_conocido(x_fenix_email) if admin else True,
         "modoAbierto": modo_abierto(),
+    }
+
+
+class PasoRequest(BaseModel):
+    que: str
+    porque: str = ""
+
+
+class EjemploRequest(BaseModel):
+    enunciado: str
+    pasos: list[PasoRequest] = []
+    resultado: str = ""
+
+
+class EjercicioRequest(BaseModel):
+    enunciado: str
+    respuesta: str = ""
+    pista: str = ""
+    renglones: int = 3
+
+
+class CuadernilloRequest(BaseModel):
+    tema: str
+    grado: str = ""
+    alumno: str = ""
+    fecha: str = ""
+    se_atora_en: str = ""
+    explicacion: list[str] = []
+    ejemplos: list[EjemploRequest] = []
+    ejercicios: list[EjercicioRequest] = []
+    fuentes: list[str] = []
+    color: bool = True
+    tokens: int = 0
+
+
+@router.post("/regularizacion")
+async def regularizacion_pdf(req: CuadernilloRequest) -> Response:
+    """El cuadernillo en PDF, con su precio ya calculado e impreso.
+
+    SIN `solo_admin` a propósito: esto lo pide el niño desde el cibercafé, que es
+    justamente quien lo va a pagar. Lo protege la misma puerta que `/chat/stream`
+    —contraseña y cuota—, no el token del mostrador.
+
+    El precio no se recibe del cliente: lo calcula el servidor con `tarifa.py`.
+    Si viajara en el request, cualquiera podría pedir su cuadernillo a $10.
+    """
+    if not req.tema.strip():
+        raise HTTPException(status_code=422, detail="un cuadernillo sin tema no es un cuadernillo")
+
+    c = Cuadernillo(
+        tema=req.tema,
+        grado=req.grado,
+        alumno=req.alumno,
+        fecha=req.fecha,
+        se_atora_en=req.se_atora_en,
+        explicacion=list(req.explicacion),
+        ejemplos=[
+            Ejemplo(
+                enunciado=e.enunciado,
+                pasos=[Paso(p.que, p.porque) for p in e.pasos],
+                resultado=e.resultado,
+            )
+            for e in req.ejemplos
+        ],
+        ejercicios=[
+            Ejercicio(e.enunciado, e.respuesta, e.pista, e.renglones) for e in req.ejercicios
+        ],
+        fuentes=list(req.fuentes),
+        color=req.color,
+        tokens=req.tokens,
+    )
+    datos = generar_pdf(c)
+    d = c.precio()
+    return Response(
+        content=datos,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_pdf(c)}"',
+            # Para que el mostrador pueda mostrar el precio sin abrir el PDF.
+            "X-Fenix-Precio": str(d.total),
+            "Access-Control-Expose-Headers": "Content-Disposition, X-Fenix-Precio",
+        },
+    )
+
+
+@router.get("/bitacora")
+async def bitacora(
+    limite: int = 200,
+    _: None = Depends(solo_admin),
+) -> dict:
+    """Qué se ha preguntado en el cibercafé. Sólo desde el mostrador.
+
+    El resumen va primero a propósito: lo que se mira al abrir esto no es la
+    lista de preguntas, es si hay una IP desconocida acumulando turnos.
+    """
+    return {
+        "resumen": _BITACORA.resumen(),
+        "turnos": _BITACORA.leer(limite),
+        "archivo": str(_BITACORA.path),
     }
 
 
@@ -365,7 +468,13 @@ async def extraer(
 #
 # Una dependencia pasada al constructor no depende de ningún detalle interno:
 # es la API pública para "esto aplica a toda mi app".
-_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
+#
+# El audio entra aquí porque quitar el bearer de og118 —que es lo que devuelve
+# la palabra al cibercafé— lo dejaría sin ningún candado, y transcribir y
+# sintetizar cuestan dinero por segundo. Ningún cliente de Fénix los llama: el
+# niño escribe y lee. Si mañana el mostrador quiere dictado, ya pasa con su
+# token; lo que no puede es quedar abierto a internet mientras nadie lo usa.
+_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects", "/tts/synthesize", "/stt/transcribe")
 
 # `/chat/stream` es la única ruta que cuesta dinero, y en la superficie pública
 # no la protege nada más: autenticar no sirve ahí porque el bearer vive en el
@@ -373,12 +482,33 @@ _RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects")
 _CUOTA = cuota_publica()
 
 
-def _puerta(
+_BITACORA = Bitacora()
+
+
+async def _pregunta_de(request: Request) -> str | None:
+    """El texto del turno, para la bitácora.
+
+    Leer el cuerpo aquí es seguro: Starlette lo cachea en la primera lectura,
+    así que el endpoint lo vuelve a recibir entero. Si viene mal formado no es
+    asunto de la puerta — la validación de FastAPI ya lo rechazará después.
+    """
+    try:
+        cuerpo = await request.json()
+    except Exception:  # noqa: BLE001
+        return None
+    if isinstance(cuerpo, dict):
+        valor = cuerpo.get("message") or cuerpo.get("text")
+        return valor if isinstance(valor, str) else None
+    return None
+
+
+async def _puerta(
     request: Request,
     x_fenix_admin: str | None = Header(default=None),
+    x_fenix_acceso: str | None = Header(default=None),
     x_forwarded_for: str | None = Header(default=None),
 ) -> None:
-    """Qué puede tocar quien llama, y cuánto puede gastar."""
+    """Qué puede tocar quien llama, cuánto puede gastar, y que quede escrito."""
     ruta = request.url.path
     admin = es_admin(x_fenix_admin)
 
@@ -391,23 +521,42 @@ def _puerta(
     # El mostrador no se limita: cotizar una lista de treinta artículos son
     # muchos turnos seguidos, y frenar una venta a media captura cuesta más que
     # lo que esto previene.
-    if ruta == "/chat/stream" and not admin:
-        clave = clave_de(request.client.host if request.client else None, x_forwarded_for)
-        try:
-            _CUOTA.consumir(clave)
-        except CuotaAgotada as agotada:
-            # 429 con el tiempo real de espera, no un 500 ni un silencio: el
-            # niño tiene que entender que le toca esperar, no creer que se
-            # descompuso.
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "code": "CUOTA_AGOTADA",
-                    "message": "Ya usaste muchas preguntas seguidas. Espera un momento y sigue.",
-                    "retry_after": agotada.segundos,
-                },
-                headers={"Retry-After": str(agotada.segundos)},
-            ) from agotada
+    if ruta != "/chat/stream" or admin:
+        return
+
+    clave = clave_de(request.client.host if request.client else None, x_forwarded_for)
+
+    # La contraseña va ANTES de la cuota: a un escáner de internet no se le
+    # regala un turno de modelo por descubrir la URL, y sus intentos fallidos
+    # tampoco deben gastar el presupuesto del niño que sí la tiene.
+    if hay_contrasena() and not acceso_valido(x_fenix_acceso):
+        _BITACORA.anotar(ip=clave, rol="desconocido", cortado=True, extra={"motivo": "sin_contrasena"})
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "ACCESO_REQUERIDO",
+                "message": "Escribe la contraseña de la papelería para usar el asistente.",
+            },
+        )
+
+    try:
+        _CUOTA.consumir(clave)
+    except CuotaAgotada as agotada:
+        # 429 con el tiempo real de espera, no un 500 ni un silencio: el
+        # niño tiene que entender que le toca esperar, no creer que se
+        # descompuso.
+        _BITACORA.anotar(ip=clave, rol="publico", cortado=True, extra={"motivo": "cuota"})
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "CUOTA_AGOTADA",
+                "message": "Ya usaste muchas preguntas seguidas. Espera un momento y sigue.",
+                "retry_after": agotada.segundos,
+            },
+            headers={"Retry-After": str(agotada.segundos)},
+        ) from agotada
+
+    _BITACORA.anotar(ip=clave, rol="publico", texto=await _pregunta_de(request))
 
 
 # Instancia PROPIA de og118, con la puerta puesta desde el constructor. La

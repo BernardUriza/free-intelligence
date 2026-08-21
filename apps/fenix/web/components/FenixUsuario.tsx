@@ -17,6 +17,8 @@ import { KeyRound, LogOut, ShieldCheck, User } from 'lucide-react';
 import {
   getCorreo,
   getTokenMostrador,
+  getAcceso,
+  setAcceso,
   setCorreo,
   setTokenMostrador,
 } from '@/lib/fenixSesion';
@@ -44,6 +46,7 @@ export function FenixUsuario({
   const [abierto, setAbierto] = useState(false);
   const [correo, setCorreoLocal] = useState('');
   const [token, setTokenLocal] = useState('');
+  const [acceso, setAccesoLocal] = useState('');
   // Lo que hay guardado, en estado y no leído de localStorage al pintar: el
   // servidor no tiene localStorage, así que leerlo durante el render hace que
   // pinte una píldora vacía y el cliente otra con iniciales — React tira todo
@@ -59,6 +62,7 @@ export function FenixUsuario({
   useEffect(() => {
     setCorreoLocal(getCorreo() ?? '');
     setTokenLocal(getTokenMostrador() ?? '');
+    setAccesoLocal(getAcceso() ?? '');
   }, [abierto]);
 
   useEffect(() => {
@@ -78,6 +82,7 @@ export function FenixUsuario({
   function guardar() {
     setCorreo(correo || null);
     setTokenMostrador(token || null);
+    setAcceso(acceso || null);
     releer();
     setAbierto(false);
     onCambio();
@@ -105,6 +110,20 @@ export function FenixUsuario({
     <div className="fx-user-caja" ref={caja}>
       {abierto && (
         <div className="fx-user-menu" role="dialog" aria-label="Sesión">
+          {/* Primero, porque en el cibercafé es lo único que se llena: sin esto
+              el asistente no contesta, y quien abre este panel ahí viene por
+              esto y no por el correo. */}
+          <label className="fx-user-campo">
+            <span>Contraseña de la papelería</span>
+            <input
+              type="password"
+              value={acceso}
+              onChange={(e) => setAccesoLocal(e.target.value)}
+              placeholder="escríbela una vez en esta PC"
+            />
+            <small>Deja usar el asistente de tareas. Se queda guardada en esta computadora.</small>
+          </label>
+
           <label className="fx-user-campo">
             <span>Tu correo</span>
             <input

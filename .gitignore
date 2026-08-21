@@ -199,3 +199,10 @@ apps/og118/server/fi_rag_store.h5.lock
 apps/og118/server/conversations/
 .bench-tmp/
 *.tsbuildinfo
+
+# Artefactos de pruebas que acabaron commiteados en la raíz (borrados 2026-08-13).
+# La DB la regenera SQLite sola: `DATABASE_URL` cae en sqlite:///./test.db.
+/test.db
+/after-reload.png
+/rag-*.png
+/test-*.png

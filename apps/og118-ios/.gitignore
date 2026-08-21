@@ -1,0 +1,5 @@
+OG118.xcodeproj/
+Sources/Info.plist
+DerivedData/
+*.xcuserstate
+Config.xcconfig

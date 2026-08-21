@@ -176,7 +176,17 @@ export function useFenixAgent(sessionId: string | null, admin: boolean): AgentHo
         signal: controller.signal,
       });
       if (res.status === 401) {
-        apply({ type: 'error', message: `${AUTH401}: token de acceso inválido o ausente` });
+        // Dos 401 distintos: falta la contraseña de la papelería —que se
+        // escribe en el candado de abajo y se queda en esta PC— o falla el
+        // bearer del backend, que no es asunto de quien está preguntando.
+        const cuerpo = await res.json().catch(() => null);
+        const falta = cuerpo?.detail?.code === 'ACCESO_REQUERIDO';
+        apply({
+          type: 'error',
+          message: falta
+            ? 'Para usar el asistente, escribe la contraseña de la papelería en el candado de abajo a la izquierda. Se queda guardada en esta computadora.'
+            : `${AUTH401}: token de acceso inválido o ausente`,
+        });
         return;
       }
       if (res.status === 429) {

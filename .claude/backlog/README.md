@@ -23,3 +23,4 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 | [CONV-CONCURRENCY-1 — pin/título pierden en last-write-wins entre dispositivos](og118-conv-concurrency.md) | Proposed | 2026-07-13 |
 | [OG118-EXTERNAL-CORPUS-GAP-1 — elementos externos ignoran el Project activo en silencio](og118-external-elements-corpus-gap.md) | Done (2026-07-14, RAG server-side) | 2026-07-14 |
 | [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai): grid de cards + workspace detalle, primitivas en fi-glass](figlass-projects-page.md) | Proposed | 2026-07-14 |
+| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI sobre el contrato de producción)](og118-ios-tracer.md) | In progress — bloqueado por cuenta Apple hasta 2026-08-12 17:10 | 2026-08-12 |
