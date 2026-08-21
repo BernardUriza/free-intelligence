@@ -61,16 +61,15 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     return EventSourceResponse(_events(project, session, message, spec, images, holder))
 
 
-def safe_tools(raw: Any, mode: str) -> tuple[str, ...]:
-    """Validate the `tools` field against the vetted registry (#29). A tool turn
-    needs the agentic loop, so tools with mode=complete is a 422, not a silent
-    prompt-and-hang."""
+def safe_tools(raw: Any, _mode: str) -> tuple[str, ...]:
+    """Validate the `tools` field against the vetted registry (#29). The mode
+    dial governs the BUILTIN surface only: registry tools are in-process and
+    vetted, so a complete-mode turn may carry them (#36 — og118 edits its
+    living persona without ever gaining Write or WebSearch)."""
     try:
         names = clean_tools(raw)
     except UnknownTool as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if names and mode == "complete":
-        raise HTTPException(status_code=422, detail="tools require mode=agent")
     return tuple(names)
 
 
