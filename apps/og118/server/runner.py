@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fi_runner import (
+    AIREBackend,
     COMPANION_BLOCKED_BUILTINS,
     ClaudeCodeBackend,
     MCPServerSpec,
@@ -114,6 +115,33 @@ def _verificar_superficie_acotada(options: Any) -> None:
         )
 
 
+# OG118_BACKEND selecciona el motor del turno (aire-server backlog #35: la flota
+# fi entra por la puerta del engine de AIRE, con AIREBackend como puente
+# sancionado — PR #408). "claude-code" (default, y el deploy de hoy) es la ruta
+# de siempre: BackendAcotado spawnea el CLI con el OAuth ambiente, byte-idéntica
+# sin la variable. "aire" habla HTTP con AIRE — el servidor siempre-arriba de
+# Bernard que envuelve el Agent SDK y guarda el transcript crudo en SU Postgres.
+MOTOR_POR_DEFECTO = "claude-code"
+
+
+def _backend_aire(model: str) -> AIREBackend:
+    """El puente a AIRE, con la identidad de og118 como proyecto (su casita).
+
+    AIRE es dueño del lado servidor: la memoria (su session_store en su
+    Postgres), las tools (un registry vetted que 422ea cualquier nombre fuera de
+    él) y los permisos. Por eso esta ruta NO recibe el session_store inyectado
+    ni las capabilities MCP locales — task_tracker/rag_store corren como
+    procesos locales y no existen en el droplet. mode=complete: el companion no
+    pide tools; la continuidad sigue siendo el history replay del cliente,
+    exactamente como hoy. La puerta se configura con AIRE_GATE_URL y
+    AIRE_AUTH_TOKEN (AIREBackend los lee del entorno)."""
+    return AIREBackend(
+        project=os.getenv("OG118_AIRE_PROJECT", "og118"),
+        default_model=model,
+        default_mode="complete",
+    )
+
+
 class BackendAcotado(ClaudeCodeBackend):
     """ClaudeCodeBackend cuya superficie de builtins está ACOTADA por lista.
 
@@ -157,6 +185,16 @@ def build_runner(
     promise background/async work it cannot do."""
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
+    motor = os.getenv("OG118_BACKEND", MOTOR_POR_DEFECTO).strip().lower()
+    if motor == "aire":
+        backend: Any = _backend_aire(model)
+        # AIRE monta sus propias tools server-side; los MCP locales no viajan
+        # (la puerta 422ea nombres fuera de su registry). Forzar las listas a
+        # vacío aquí — no confiar en que cada caller lo recuerde.
+        capabilities = []
+        extra_mcp_servers = []
+    else:
+        backend = BackendAcotado(default_model=model, session_store=session_store)
     return Runner(
         # session_store (og118-session-store wiring): the SDK's native durable
         # memory, INJECTED by app.py's lifespan when OG118_SESSION_STORE_DSN is
@@ -165,7 +203,7 @@ def build_runner(
         # survives a recycled container and the per-turn re-send disappears.
         # None (the default, and today's deploy) keeps the turn byte-identical:
         # client history replay stays the continuity.
-        backend=BackendAcotado(default_model=model, session_store=session_store),
+        backend=backend,
         # The Runner must KNOW the model, not just the backend: it is the Runner
         # that stamps the answer's provenance (TurnResult.model → the "powered by"
         # chip). Configured only on the backend, `Runner.model` stayed None and the
