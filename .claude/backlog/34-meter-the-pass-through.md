@@ -1,6 +1,6 @@
 # Meter the pass-through — the caller with their own credential is invisible to the till
 
-Status: **Proposed** 2026-08-15 by Bernard
+Status: **Done** 2026-08-21 (`f0195a6`) — measured live through the real gate
 Proposed: 2026-08-15
 
 ## What it is
@@ -102,14 +102,34 @@ paying client, and not a session that reads this file and finds an empty variabl
 
 ## Status / next step
 
-Not built. Nothing here is urgent on its own — it becomes the critical path the moment a
-client exists who is not Bernard.
+**Done 2026-08-21** (`f0195a6`). Both open questions closed:
 
-1. Decide the identity of a pass-through caller (token without a lent credential, vs.
-   `x-aire-project` header).
-2. Run the existing `bank()` against it and confirm the `402` bites a caller carrying their
-   own credential — measured from outside the droplet, the way [#32](32-the-nickname-door.md)
-   slice (d) was, since that slice shipped blind and was caught only by walking it.
+1. **Identity is a real `aire_token`**, not the `x-aire-project` header (a header with no
+   secret cannot bill or cut anyone off; the header stays observability-only, #33). The
+   key rides in the new AIRE-addressed **`x-aire-key`** header (Claude Code style:
+   `ANTHROPIC_CUSTOM_HEADERS`, leaving the Bearer slot for the caller's own OAuth), or as
+   the Bearer next to an `x-api-key`. One function decides (`gateway._outfit`): shed the
+   AIRE key, and if a credential of the caller's own survives it rides — metered
+   pass-through, nothing lent; if nothing survives, the key is invited and AIRE lends
+   (#32) as before. The 402, the concurrency slot, and the `bank()` closure are the same
+   code the invited path already had; the biller moved to `tokens.biller()`. The mirror
+   gained a `holder` column, so consumption is attributable per key, per turn.
+
+2. **Measured from OUTSIDE the droplet, 2026-08-21**, the way slice (d) demanded:
+   - A seeded key `metertest-34` (budget $0.001) + Bernard's own OAuth as the caller's
+     credential + `x-aire-key`: **200**, a real reply, `spent_usd` banked $0.000046.
+   - The can't-be-fooled receipt that nothing was lent: an **invalid** `x-api-key` beside
+     the key answered Anthropic's own **401 "API key is invalid"** — the caller's dead
+     credential rode upstream; a lending path would have answered 200.
+   - A 243-output-token turn crossed the ceiling; the next turn answered
+     **402 "AIRE: metertest-34 has spent its budget"** — the cutoff lever, live.
+   - Anonymous pass-through (no AIRE key): still 200, unmetered, invisible — Bernard's
+     own consumers stay uncapped until he hands them keys.
+   - The mirror attributed every request row to `holder = metertest-34`; the test key was
+     revoked after the walk.
+
+Open nicety (front, not this half): the `/gateway` view could surface the new `holder`
+column next to the app column. The remaining owner decisions below stand unchanged.
 
 See the canonical item at
 `~/Documents/discord-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`,
