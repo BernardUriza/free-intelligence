@@ -1,6 +1,8 @@
 # The living casita prompt — the agent rewrites its own CLAUDE.md, per chat
 
-Status: Proposed
+Status: **AIRE half Done 2026-08-21** (`df0acae` + `5ae8e33`) — measured E2E
+through the real gate; og118 product half in flight (fi-runner PR, casita per
+chat + protected base, Bernard's greenlight)
 Proposed: 2026-08-21 by Bernard (the moment the front first rendered og118's
 casita CLAUDE.md: *"el claude dentro debe ser distinto! debe ser acorde al
 chat y debe de modificarse con las mcp tools de fi runner! magia"*)
@@ -44,4 +46,19 @@ a self-edited identity may ever promote back into the shared base persona.
 
 ## Status / next step
 
-Proposed — captured the day the hueco surfaced; not greenlit as build work yet.
+Greenlit by Bernard the same day (casita per chat, protected base) and the AIRE
+half SHIPPED, measured live on 2026-08-21 against casita `personatest36`:
+
+1. **The tool works in `mode=complete`** — the old 422 guard fell (`5ae8e33`):
+   a real haiku turn with `tools:["persona"]` executed `mcp__persona__update`
+   in 462ms, no hang, $0.033. The mode dial governs builtins only.
+2. **The base is protected** — after the agent's update, the file read back as
+   base + marker + *"I have learned the user is Bernard and he likes
+   receipts."*; a re-init with a new base refreshed the base and the living
+   part SURVIVED (rebase in `init_project.py`).
+3. **The magic is real** — a brand-new session (`living-2`, no tools) answered
+   *"The user is Bernard, and he likes receipts."*: the identity an agent
+   writes takes effect from the very next spawn.
+
+Remaining: the og118/fi-runner product half (casita-per-chat naming, per-chat
+init, tools on turns) — in flight on branch `bernarduriza/og118-living-claude`.
