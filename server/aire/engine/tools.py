@@ -13,11 +13,15 @@ from __future__ import annotations
 from typing import Any
 
 from .memory_tool import build_memory_server
+from .persona_tool import build_persona_server
 
-# name -> factory(project_key) -> an in-process SDK MCP server. In-process ONLY:
-# no `command`/`args` ever crosses the wire, so the door cannot be told to exec.
+# name -> factory(project_key, cwd) -> an in-process SDK MCP server. In-process
+# ONLY: no `command`/`args` ever crosses the wire, so the door cannot be told to
+# exec. Each factory closes over its session's scope: the project_key for
+# database-backed tools, the casita cwd for disk-backed ones.
 REGISTRY: dict[str, Any] = {
     "memory": build_memory_server,
+    "persona": build_persona_server,
 }
 
 
@@ -42,12 +46,13 @@ def clean_tools(names: Any) -> list[str]:
     return out
 
 
-def resolve(names: list[str], project_key: str) -> tuple[dict[str, Any], list[str]]:
+def resolve(names: list[str], project_key: str, cwd: str) -> tuple[dict[str, Any], list[str]]:
     """Build the SDK `mcp_servers` mapping and the `allowed_tools` ids for the given
-    vetted names. Each server is built session-scoped (closed over project_key)."""
+    vetted names. Each server is built session-scoped (closed over this session's
+    project_key and casita cwd)."""
     servers: dict[str, Any] = {}
     allowed: list[str] = []
     for name in names:
-        servers[name] = REGISTRY[name](project_key)
+        servers[name] = REGISTRY[name](project_key, cwd)
         allowed.append(f"mcp__{name}")  # allow the whole server
     return servers, allowed

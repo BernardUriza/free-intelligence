@@ -54,8 +54,10 @@ async def _search(project_key: str, query: str, limit: int) -> list[str]:
     return [f"[seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 
-def build_memory_server(project_key: str) -> Any:
-    """The session-scoped `memory` server: `recall` over THIS project's transcript."""
+def build_memory_server(project_key: str, _cwd: str = "") -> Any:
+    """The session-scoped `memory` server: `recall` over THIS project's transcript.
+    (`_cwd` is the registry's shared factory contract; this tool is database-backed
+    and does not touch the casita's disk.)"""
 
     @tool(
         "recall",

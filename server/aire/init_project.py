@@ -5,7 +5,9 @@ the changing values (Bernard's optimization, 2026-07-21).
 `CLAUDE.md`. The engine reads that file directly into the session's system_prompt
 (`options._casita_prompt`), so the consumer's persona lives as CONTENT in the
 casita — not repeated inside every message, and editable without a redeploy
-([[prompts-as-content-not-code]]). Idempotent: re-init overwrites the prompt.
+([[prompts-as-content-not-code]]). Idempotent: re-init refreshes the BASE only —
+a living persona below the `persona` tool's marker (#36) survives, because init
+owns the base and the tool owns the living, never each other's half.
 
 Write path, not a waiter read — it creates a workspace file the daemon owns, like
 the MKDIR verb, so [[write-only-daemon]] (which governs the database) is untouched.
@@ -17,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from .engine.core import WORKSPACES
+from .engine.persona_tool import rebase
 from .names import InvalidName, clean
 
 router = APIRouter()
@@ -33,5 +36,10 @@ async def init_project(project: str, request: Request) -> JSONResponse:
     root = (WORKSPACES / project).resolve()
     root.mkdir(parents=True, exist_ok=True)
     if claude_md:
-        (root / "CLAUDE.md").write_text(claude_md + "\n", encoding="utf-8")
+        md = root / "CLAUDE.md"
+        try:
+            existing = md.read_text(encoding="utf-8")
+        except OSError:
+            existing = ""
+        md.write_text(rebase(existing, claude_md), encoding="utf-8")
     return JSONResponse({"project": project, "prompt_bytes": len(claude_md)})

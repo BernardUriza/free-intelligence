@@ -84,7 +84,7 @@ def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> No
     from claude_agent_sdk import project_key_for_directory
 
     from .tools import resolve
-    servers, allowed = resolve(list(tools), project_key_for_directory(cwd))
+    servers, allowed = resolve(list(tools), project_key_for_directory(cwd), cwd)
     kwargs["mcp_servers"] = servers
     kwargs["allowed_tools"] = list(kwargs["allowed_tools"]) + allowed
 
