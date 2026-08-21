@@ -4,6 +4,7 @@ One markdown file per item. Status flips the day it changes (no fake-green).
 
 | Item | Status | Proposed |
 |---|---|---|
+| [OG118-LIVING-CLAUDE — a CLAUDE.md per chat, that the agent itself rewrites](og118-living-claude-per-chat.md) | Proposed | 2026-08-21 |
 | [FI-RUNNER-MULTIMODAL-1 — image/document input as a first-class fi-runner turn primitive](fi-runner-multimodal-turn.md) | Proposed | 2026-07-05 |
 | [OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)](og118-real-background-execution.md) | Proposed | 2026-07-05 |
 | [og118 Projects — papelería business space](og118-projects-papeleria-business.md) | Proposed | 2026-06-19 |
