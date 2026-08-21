@@ -30,12 +30,32 @@ def _casita_prompt(cwd: str) -> str:
     """The casita's fixed prompt, if the `init` endpoint wrote one. Read DIRECTLY
     (not via setting_sources="project", which walks UP the tree and would drag in
     /opt/aire/CLAUDE.md — the server's own). This is the consumer's fixed persona
-    living as CONTENT in the casita, so each turn only sends the changing values."""
-    md = Path(cwd) / "CLAUDE.md"
+    living as CONTENT in the casita, so each turn only sends the changing values.
+
+    A file may open with ``@base <project>`` (#36: a per-chat casita is born
+    THIN): that line dereferences to the named casita's CLAUDE.md — the shared
+    base lives ONCE, every chat inherits its freshest version at spawn, and the
+    chat's own file stays pure soul. One level only; a base cannot @base."""
     try:
-        return md.read_text(encoding="utf-8").strip()
+        text = (Path(cwd) / "CLAUDE.md").read_text(encoding="utf-8").strip()
     except OSError:
         return ""
+    return _debase(text)
+
+
+def _debase(text: str) -> str:
+    from ..names import InvalidName, clean
+    from .core import WORKSPACES
+
+    head, _, rest = text.partition("\n")
+    if not head.startswith("@base "):
+        return text
+    try:
+        base = (WORKSPACES / clean("project", head[6:].strip()) / "CLAUDE.md").read_text(
+            encoding="utf-8").strip()
+    except (InvalidName, OSError):
+        return text
+    return f"{base}\n\n{rest.strip()}" if rest.strip() else base
 
 MODES: dict[str, dict[str, Any]] = {
     "complete": {
