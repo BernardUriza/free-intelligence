@@ -1,6 +1,14 @@
 # Grow the door — per-turn model / tools / images for the fi-runner AIREBackend
 
-Status: **In progress** — the tools MECHANISM + gap #1 (per-turn tools) shipped 2026-07-29
+Status: **DONE 2026-08-20, both sides** — door: gaps 1/3/4 shipped & measured, gap 2
+scoped out. Consumer: fi-runner's `AIREBackend` converted its reject clauses to
+forward clauses the same day — [PR #408](https://github.com/BernardUriza/free-intelligence/pull/408)
+(MERGED `2cf35274`, verified via `gh`): `model` in the body + real provenance read
+back, `TurnImage` → `{media_type, data}`, `mcp_servers` translated to registry
+NAMES (only the name crosses the wire), unknown names still die on the door's 422.
+Its E2E receipt — haiku + a blue PNG answered "Blue." at $0.0072 through the real
+gate — makes it the FIRST real consumer of the turn-key path (#34). `tool_policy`
+stays the one non-forwardable input, warned loudly.
 Proposed: 2026-07-27
 
 ## What it is
@@ -100,9 +108,16 @@ in one turn); an image-only send followed by "what color was the image I sent?"
 answered **"Red."** from session memory (the image rode AND the transcript keeps
 it); `image/tiff` got the 422 naming the allowlist.
 
-Remaining gaps (this item stays open until they close or Bernard scopes them out):
-- **Gap #2** — per-turn `system_prompt` (unbuilt; first decide whether the
-  `/init` casita model isn't already the better shape — content, not repetition).
+**Gap #2 (per-turn `system_prompt`) SCOPED OUT 2026-08-20** — Bernard's call, on
+Claude's recommendation. The `/init` casita model is better BY DESIGN, not merely
+sufficient: the persona is CONTENT living in the casita's `CLAUDE.md`, hot-editable
+without a redeploy — exactly the playbook's P0 [[prompts-as-content-not-code]]. A
+per-turn `system_prompt` would invite every consumer to inline its persona in
+source, the anti-pattern that rule exists to kill. Reopens only with a concrete
+caller that genuinely needs per-turn variation — not by a session reading this
+file and finding a gap number unclosed.
+
+Remaining (lives in fi-runner's repo, not here):
 - **The consumer side**: fi-runner's `AIREBackend` still REJECTS `mcp_servers` —
   next it must translate a consumer's tool needs into registry tool NAMES and pass
   `tools=[…]` to the door. That unblocks discord-bot's real turn on AIRE. Its

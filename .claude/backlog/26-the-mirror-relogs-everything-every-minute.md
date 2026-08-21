@@ -1,6 +1,10 @@
 # The mirror re-reads everything every minute, and its log lies about idle silence
 
-Status: Proposed
+Status: **Fixed 2026-08-20** (`c9d707b`) — Bernard picked option (b), the mtime
+cache: `/var/lib/aire/mirror-cache.json`, a RECONSTRUCTIBLE stamp file (losing it
+re-reads once, uuid-dedup absorbs it), files stamped only after Postgres holds
+their entries, deleted transcripts pruned. `offered` now counts only what was
+re-shipped, so the idle minute is silent as the docstring promised.
 Proposed: 2026-07-20 by Claude (found auditing the parallel-books E2E)
 
 ## What it is

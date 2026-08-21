@@ -1,6 +1,9 @@
 # No cumulative spend ceiling is actually set
 
-Status: Proposed
+Status: **Armed 2026-08-20** — Bernard set **$20**; `~/.secrets/aire-budget.txt`
++ `append_secret` in provisioning (`ec58e0d`), live `/etc/aire/env` verified
+carrying the line. The counter still resets on restart (backstop, not ledger);
+the Postgres-ledger question below stays open and is Bernard's.
 Proposed: 2026-07-20 by Claude (found while auditing the budget defect, #23)
 
 ## What it is
