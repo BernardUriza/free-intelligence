@@ -52,8 +52,17 @@ every turn (og118 wires it to a request-scoped contextvar carrying
 ``og118-{conversation_id}``). A truthy return routes the turn — its ``/init``
 and its message — to that casita; ``None``/empty falls back to the fixed
 ``project``. Init state is tracked per casita, so the first turn that lands in
-a new casita installs the base prompt there (AIRE's ``/init`` preserves the
+a new casita installs its prompt there (AIRE's ``/init`` preserves the
 casita's living part by contract, so repeats are safe).
+
+THIN BIRTH (2026-08-21, aire-server ef21e68): a per-turn casita is NOT born
+with a copy of the persona. The full ``system_prompt`` is installed ONCE in the
+shared base casita (the fixed ``project``), and each chat casita is inited with
+the one-line stub ``@base {project}`` — AIRE dereferences it at every spawn, so
+the persona has a single live source instead of N frozen copies. A chat casita
+born fat before this cut is rebased to the stub on the next process restart
+(the per-process init cache is empty then), and AIRE's rebase preserves its
+living part — the soul survives, the frozen base copy dies.
 
 Requires the ``aire`` extra::
 
@@ -126,10 +135,10 @@ class AIREBackend:
         # outside its registry.
         self.registry_tools = tuple(registry_tools)
         self.timeout = timeout
-        # /init state PER CASITA: the fixed prompt last written to each project,
-        # so we re-init only when a casita's system_prompt actually changes
-        # (idempotent, but a round trip) — and the first turn that lands in a
-        # new per-chat casita installs the base there.
+        # /init state PER CASITA, per process: the prompt last written to each
+        # project, so we re-init only on change. The base casita holds the full
+        # persona; each chat casita holds only the `@base` stub (thin birth) —
+        # a fresh process re-inits both, which rebases fat-born chats to the stub.
         self._inited_prompts: dict[str, str] = {}
         self._client: Any = None  # lazy httpx.AsyncClient
 
@@ -176,13 +185,26 @@ class AIREBackend:
         return self.project
 
     async def _ensure_prompt(self, project: str, system_prompt: str) -> None:
-        """Write the casita's fixed prompt via ``/init`` when it changes. The
-        message endpoint auto-creates the casita, so a turn with no persona needs
-        no init at all — this fires only to install/refresh a non-empty prompt.
-        AIRE's ``/init`` preserves the casita's LIVING part (below its marker) by
-        contract, so re-running it only refreshes the base."""
+        """Install the turn's prompt surface, thin-birth style (see module doc).
+
+        The FULL persona lives only in the shared base casita (``self.project``);
+        a per-turn chat casita gets the one-line ``@base`` stub AIRE dereferences
+        at spawn (aire-server ef21e68). Base first, so a chat's very first spawn
+        already finds a persona to dereference. The message endpoint auto-creates
+        casitas, so a turn with no persona needs no init at all."""
         prompt = (system_prompt or "").strip()
-        if not prompt or prompt == self._inited_prompts.get(project):
+        if not prompt:
+            return
+        await self._init_casita(self.project, prompt)
+        if project != self.project:
+            await self._init_casita(project, f"@base {self.project}")
+
+    async def _init_casita(self, project: str, prompt: str) -> None:
+        """POST ``/init`` unless this process already wrote that exact prompt to
+        that casita. AIRE's ``/init`` preserves the casita's LIVING part (below
+        its marker) by contract, so re-running it only rebases the base — which
+        is how a fat-born chat casita converges to the stub after a restart."""
+        if prompt == self._inited_prompts.get(project):
             return
         res = await self._http().post(
             f"{self.gate_url}/projects/{project}/init",

@@ -298,21 +298,53 @@ class _PostRecorder:
 
 
 @pytest.mark.asyncio
-async def test_ensure_prompt_inits_once_per_casita() -> None:
-    """Init state is tracked PER project: the same prompt re-inits nothing, a new
-    casita gets its own /init (the first turn of a chat installs the base)."""
+async def test_thin_birth_base_holds_the_persona_chats_get_the_stub() -> None:
+    """THIN BIRTH (aire-server ef21e68): the full persona is installed ONCE in
+    the shared base casita — FIRST, so a chat's first spawn finds it — and each
+    chat casita is born with only the ``@base`` stub. Repeats re-init nothing;
+    a second chat adds only its own stub."""
     b = _backend()
     rec = _PostRecorder()
     b._client = rec
     await b._ensure_prompt("og118-chat-1", "base persona")
     await b._ensure_prompt("og118-chat-1", "base persona")
     await b._ensure_prompt("og118-chat-2", "base persona")
-    urls = [u for u, _ in rec.calls]
-    assert urls == [
-        "https://gate.example/projects/og118-chat-1/init",
-        "https://gate.example/projects/og118-chat-2/init",
+    assert rec.calls == [
+        ("https://gate.example/projects/test_casita/init", {"claude_md": "base persona"}),
+        ("https://gate.example/projects/og118-chat-1/init", {"claude_md": "@base test_casita"}),
+        ("https://gate.example/projects/og118-chat-2/init", {"claude_md": "@base test_casita"}),
     ]
-    assert all(body == {"claude_md": "base persona"} for _, body in rec.calls)
+
+
+@pytest.mark.asyncio
+async def test_turn_on_the_base_casita_itself_gets_the_full_prompt() -> None:
+    """A turn resolving to the fixed project (no chat override) installs the
+    persona there and never writes a self-referential stub."""
+    b = _backend()
+    rec = _PostRecorder()
+    b._client = rec
+    await b._ensure_prompt("test_casita", "base persona")
+    assert rec.calls == [
+        ("https://gate.example/projects/test_casita/init", {"claude_md": "base persona"}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_process_restart_rebases_a_fat_born_chat_to_the_stub() -> None:
+    """The init cache is per PROCESS: a fresh backend (= restarted process)
+    re-inits a pre-thin-birth chat casita with the stub — AIRE's rebase swaps
+    its frozen persona copy for ``@base`` while preserving its living part."""
+    fat = _backend()
+    rec = _PostRecorder()
+    fat._client = rec
+    fat._inited_prompts["og118-chat-old"] = "a frozen 4KB persona copy"
+    restarted = _backend()
+    restarted._client = rec
+    await restarted._ensure_prompt("og118-chat-old", "base persona")
+    assert rec.calls == [
+        ("https://gate.example/projects/test_casita/init", {"claude_md": "base persona"}),
+        ("https://gate.example/projects/og118-chat-old/init", {"claude_md": "@base test_casita"}),
+    ]
 
 
 async def _anoop(*args: Any, **kwargs: Any) -> None:

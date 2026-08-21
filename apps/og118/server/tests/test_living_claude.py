@@ -121,8 +121,11 @@ async def test_turn_lands_in_the_chats_casita_with_the_persona_tool(aire_runner,
 
 @pytest.mark.asyncio
 async def test_first_turn_of_a_chat_inits_its_casita_once(aire_runner, monkeypatch) -> None:
-    """Init-once por casita: dos turnos del mismo chat → un solo /init con la
-    persona compuesta (base + constraints + identidad viva); otro chat → el suyo."""
+    """Nacimiento delgado (aire-server ef21e68): la persona compuesta (base +
+    constraints + identidad viva) se instala UNA vez en la casita base og118 —
+    ANTES del primer chat, porque es la única fuente de la persona — y cada
+    casita de chat nace con solo el stub `@base og118` que AIRE dereferencia en
+    cada spawn. Dos turnos del mismo chat → un solo init; otro chat → su stub."""
     backend = aire_runner.backend
     posts: list[tuple[str, dict[str, Any]]] = []
 
@@ -161,9 +164,12 @@ async def test_first_turn_of_a_chat_inits_its_casita_once(aire_runner, monkeypat
     await turn("chat-2")
 
     assert [u for u, _ in posts] == [
+        "https://gate.test/projects/og118/init",
         "https://gate.test/projects/og118-chat-1/init",
         "https://gate.test/projects/og118-chat-2/init",
     ]
-    for _, body in posts:
-        assert body["claude_md"] == aire_runner.persona.strip()
-        assert "mcp__persona__update" in body["claude_md"]
+    base_body = posts[0][1]
+    assert base_body["claude_md"] == aire_runner.persona.strip()
+    assert "mcp__persona__update" in base_body["claude_md"]
+    for _, body in posts[1:]:
+        assert body == {"claude_md": "@base og118"}
