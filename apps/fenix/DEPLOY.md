@@ -56,7 +56,62 @@ FENIX_CUOTA_POR_MINUTO=15    # defaults; suben o bajan sin redeploy
 FENIX_CUOTA_POR_HORA=60
 FENIX_BITACORA_PATH=…        # opcional; por defecto, junto a los expedientes
 HDF5_USE_FILE_LOCKING=FALSE  # HDF5 pelea con SMB; seguro porque hay una sola réplica
+FENIX_BACKEND=aire           # opcional; enciende la ruta AIRE (ver sección siguiente)
 ```
+
+### El motor del turno: `FENIX_BACKEND=aire` (aire-server backlog #35)
+
+Sin la variable, nada cambia: el turno corre como hoy (el CLI de Claude Code en
+el contenedor, pagando con `ANTHROPIC_API_KEY`). Con `FENIX_BACKEND=aire` el
+turno viaja por HTTP a la puerta del engine de AIRE — el servidor
+siempre-arriba de Bernard que envuelve el Agent SDK y guarda el transcript
+crudo en SU Postgres — exactamente la migración que og118 estrenó el 21-ago
+(fi PRs #409/#411/#413).
+
+Qué cambia con el flip:
+
+- **La memoria se vuelve inmortal.** Cada chat vive en su casita AIRE
+  (`fenix-{conversationId}`, nacimiento delgado con el stub `@base fenix`); el
+  transcript completo aterriza en el Postgres de AIRE y se lee en
+  https://aire.bernarduriza.com.
+- **Dos personas, dos casitas base.** El mostrador instala su persona en
+  `fenix`; el tutor del cibercafé, en `fenix-tutor`. El stub `@base` de cada
+  chat apunta a la voz que lo atendió.
+- **La credencial que paga es la de AIRE** (el rotor del engine), no la
+  `ANTHROPIC_API_KEY` del contenedor — que sigue siendo obligatoria para
+  arrancar (`arranque.py`) pero queda sin uso en esta ruta.
+- **Lo que se pierde (documentado, no accidental):** los MCP locales no cruzan
+  la puerta. El tutor pierde WebSearch/WebFetch («busca en internet» deja de
+  poder), y el mostrador pierde `guardar_cotizacion`/rag_store —
+  `/expedientes/extraer` responde `guardado=false` en esta ruta. El mostrador
+  hoy no está lanzado; el costo real del flip es la búsqueda del tutor, a
+  cambio de la memoria inmortal. Se revierte quitando la variable.
+
+Variables de la ruta (las lee `AIREBackend` del entorno):
+
+```
+FENIX_BACKEND=aire
+AIRE_GATE_URL=https://gate.bernarduriza.com
+AIRE_AUTH_TOKEN=…            # ~/.secrets/aire-llm-token.txt; va como secretref
+FENIX_AIRE_PROJECT=fenix     # opcional; default fenix
+```
+
+El flip en producción (sin redeploy, igual que el de og118 en `og118-api`):
+
+```bash
+az containerapp secret set -n fenix-api -g og118-rg \
+  --secrets "aire-auth-token=$(grep '^AIRE_AUTH_TOKEN=' ~/.secrets/aire-llm-token.txt | cut -d= -f2)"
+az containerapp update -n fenix-api -g og118-rg \
+  --set-env-vars "FENIX_BACKEND=aire" \
+                 "AIRE_GATE_URL=https://gate.bernarduriza.com" \
+                 "AIRE_AUTH_TOKEN=secretref:aire-auth-token"
+```
+
+Verificación (Art. 2): un turno real en
+https://www.serviciosfenix.com.mx/app/ que conteste, y el mismo minuto la
+sesión visible en https://aire.bernarduriza.com bajo el proyecto de la casita
+del chat (`fenix-…`). Para revertir:
+`az containerapp update -n fenix-api -g og118-rg --remove-env-vars FENIX_BACKEND`.
 
 ### Las tres credenciales protegen cosas distintas
 
