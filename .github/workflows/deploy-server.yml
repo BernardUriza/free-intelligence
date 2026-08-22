@@ -37,7 +37,7 @@ jobs:
     env:
       # The same DSN tests/conftest.py falls back to, so the suite runs in CI
       # exactly as it runs on Bernard's Mac — no CI-only code path to drift.
-      AIRE_DSN: postgresql://bernardurizaorozco:postgres@127.0.0.1:5432/aire
+      AIRE_DATABASE_URL: postgresql://bernardurizaorozco:postgres@127.0.0.1:5432/aire
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

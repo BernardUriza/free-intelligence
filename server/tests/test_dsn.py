@@ -15,7 +15,15 @@ import pytest
 
 from aire.deps import MissingDSN, dsn
 
-AIRE = Path(__file__).resolve().parent.parent / "aire"
+REPO = Path(__file__).resolve().parent.parent.parent
+AIRE = REPO / "server" / "aire"
+# The daemon is not the only place that names the variable. The CI workflow set
+# `AIRE_DSN` for pytest, and the first version of this test scanned `aire/` only
+# — so the cutover shipped, the deploy went red, and the check that existed to
+# prevent exactly that watched the one tree where the name was already gone.
+WIRED = (*AIRE.rglob("*.py"), *(REPO / ".github" / "workflows").glob("*.yml"),
+         *(REPO / "server" / "infra").rglob("*.sh"),
+         *(REPO / "server" / "deploy").rglob("*"))
 DSN_LITERAL = re.compile(r"postgres(?:ql)?://[^\"'\s]")
 
 
@@ -36,11 +44,18 @@ def test_an_empty_variable_counts_as_absent(monkeypatch):
         dsn()
 
 
-def test_the_old_name_is_gone_from_the_daemon():
-    """A cutover that leaves the old name alive is not a cutover."""
-    offenders = [f"{p.name}:{i}" for p in AIRE.rglob("*.py")
-                 for i, line in enumerate(p.read_text().splitlines(), 1)
-                 if "AIRE_DSN" in line and not line.lstrip().startswith("#")]
+def test_the_old_name_is_gone_from_everything_that_runs():
+    """A cutover that leaves the old name alive anywhere EXECUTABLE is not a
+    cutover — and "executable" includes the workflow that feeds pytest, not just
+    the daemon. Comments keep it on purpose: they record why it died."""
+    offenders = []
+    for f in WIRED:
+        if not f.is_file():
+            continue
+        for i, line in enumerate(f.read_text(errors="ignore").splitlines(), 1):
+            stripped = line.lstrip()
+            if "AIRE_DSN" in line and not stripped.startswith(("#", "//")):
+                offenders.append(f"{f.relative_to(REPO)}:{i}")
     assert offenders == [], offenders
 
 
