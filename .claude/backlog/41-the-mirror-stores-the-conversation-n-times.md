@@ -1,23 +1,23 @@
-# The gateway mirror stores the whole conversation on every turn
+# The gateway mirror stores what the log already holds
 
-Status: **Proposed** — measured, not urgent, and growing every day
-Proposed: 2026-08-22 by Claude (measured on the live Azure Postgres during the
-structural review, [#40](40-every-guard-fails-quietly.md))
+Status: **Done 2026-08-22** — measured, then measured AGAIN because the first
+reading was wrong, then fixed and re-measured against every real row
+Proposed: 2026-08-22 by Claude (during the structural review,
+[#40](40-every-guard-fails-quietly.md))
 
 ## What it is
 
-`aire_gateway_log` appends both halves of every proxied exchange — the request
-body and the assembled response — as `jsonb`. That is right: the gateway sees
-raw API turns and the log is the truth ([[log-is-the-truth]]).
+`aire_gateway_log` appends both halves of every proxied exchange as `jsonb`.
+That is right: the gateway sees raw API turns and the log is the truth
+([[log-is-the-truth]]).
 
-But the **request** body of a conversational client is not one turn. The
-Messages API is stateless, so Claude Code re-sends the ENTIRE conversation on
-every call. Turn 20 carries turns 1–19 again, verbatim, and the mirror stores
-all of it — beside the nineteen rows that already hold the same bytes. The
-accumulation is quadratic in a session's length, and it is invisible because
-each individual `INSERT` looks reasonable.
+But the Messages API is stateless, so a conversational client re-sends
+**everything** on every call — turns 1..N−1, the whole `system` array, and every
+tool's full JSON schema — and the mirror stored all of it, beside the rows that
+already held the same bytes. Each individual `INSERT` looks reasonable, which is
+exactly why it was invisible.
 
-## The measurement (live, 2026-08-22)
+## The first measurement (live, 2026-08-22) — and what it got WRONG
 
 Fifteen days of real traffic on `development-pg-n66dz`:
 
@@ -28,69 +28,95 @@ Fifteen days of real traffic on `development-pg-n66dz`:
 | `claude_session_store` (the actual memory) | 1,249 | 4 MB |
 | `aire_log` (the pen) | 2,826 | 1.3 MB |
 
-- **3.4 MB/day**, → **~102 MB** at steady state inside the 30-day retention
-  window the broom enforces.
-- The request half is **8× the response half**, and the whole table is **12× the
-  session store it sits beside** — for the same conversations.
-- The five largest single rows are requests of **1.7 MB, 1.5 MB, 822 kB, 803 kB
-  and 685 kB**, all `claude-opus-4-7`. Those are context windows, replayed.
+The request half is **8× the response half** and **12× the session store beside
+it**, growing **4.2 MB/day** → **~127 MB** at the 30-day retention window.
 
-The costs are real but not yet loud: storage on the shared Azure server, a
-`gatewaySessions()` view on the front that groups the whole table with no index
-on `kind` (also filed in #40), and a broom that has to delete more every night.
+Those numbers held. Three claims written beside them did not, and they are
+recorded here because a corrected number is worth more than a tidy page:
 
-## Why it matters more than the megabytes
+1. **"~7/8 of the bytes"** — the estimate for what a delta would save. The real
+   figure is **52%**. Written before anything was replayed.
+2. **"The five largest rows are context windows, replayed"** — false. The largest
+   request carries **ONE turn of 1,597 KB**: a single huge message, not history.
+   That is not redundancy at all, and cutting it would be loss.
+3. **The diagnosis itself.** "Quadratic in a session's length" assumed long
+   conversations. The replay found **237 distinct sessions across 585 rows** —
+   most conversations are one or two turns, so history is the *minor* half.
 
-[[do-budget]] states the law this lands on:
+The dominant redundancy was somewhere else entirely, and only a full replay
+showed it: across the whole history there are **33 distinct `system` arrays and
+9 distinct tool sets**, stored **585 times**. Composition of the 60 largest
+requests: `messages` 76.9%, `system` 16.8%, `tools` 9.1%.
+
+## What shipped
+
+`gateway_condense.py` splits a request into what is NEW and what the log already
+holds; `gateway_store.py` (the schema and pool, cut out of `gateway_mirror` when
+it started carrying three concepts) keeps the repeated values once:
+
+- **`messages`** — only the last is kept, and the row announces the count it did
+  not repeat (`$elided`). The rest are the earlier rows of the same
+  `session_id`, which is what an append-only log is for. The front already
+  agreed: every gateway view pulls `$.messages[last]`, and its own comment calls
+  the rest *"history the caller resent"*.
+- **`system` / `tools`** — content-addressed into a new `aire_gateway_blob`
+  (`fingerprint` PK), written once with `ON CONFLICT DO NOTHING`, referenced by
+  fingerprint from the row. A fingerprint is a JOIN, not a search.
+- **Never truncate.** A huge single message stays whole; those bytes exist
+  nowhere else.
+- **A failed blob write inlines the value instead** (`inline()`). A fat row is
+  right; a reference to a row that was never written is a dangling pointer the
+  front cannot repair.
+
+Keying `system`/`tools` per SESSION was measured too, and gives only **1.50×** —
+because with 237 short sessions that is 237 copies of the same handful of
+values. Global content-addressing gives **2.07×**. The measurement chose the
+design.
+
+## The re-measurement (all 585 real rows replayed through the shipped code)
+
+```
+stored today             63.73 MB
+rows as a delta          29.34 MB
++ aire_gateway_blob       1.44 MB   (42 distinct values)
+= new total              30.78 MB   (48.3% — 2.07x smaller)
+RECONSTRUCTION FAILURES:  0         (system, tools and the last message all
+                                     came back byte-for-byte)
+growth: 4.23 MB/day -> 2.04 MB/day
+at the 30-day window: 127 MB -> 61 MB
+```
+
+Lossless is the claim that mattered, so it was tested as a claim: every row was
+reconstructed from the delta plus the blob table and compared against the
+original.
+
+## Why it mattered more than the megabytes
+
+[[do-budget]] states the law this landed on:
 
 > *"Never watch only the cloud where the spend is frozen. The blind spot always
 > opens over the thing that grows."*
 
-DigitalOcean is frozen at $4/mo and watched nightly by costwatch. The Azure
-Postgres is the thing that grows, and until #40 nothing watched its SIZE at all
-— only that the broom's timer was alive. A broom that runs perfectly while the
-input rate rises is a green light over a rising line.
+DigitalOcean is frozen at $4/mo and watched nightly. The Azure Postgres is the
+thing that grows, and nothing watched its SIZE — only that the broom's timer was
+alive. A broom that runs perfectly while the input rate rises is a green light
+over a rising line.
 
-## Canonical path to reuse (Art. 6)
+## Left open
 
-Ordered cheapest-first; the first two are honest without changing the contract:
-
-- **Measure before deciding.** A per-day size series on `aire_gateway_log` in
-  costwatch (it already SSHes in nightly) turns this from a snapshot into a
-  trend, and would have surfaced it without a review.
-- **Mirror the request DELTA, not the replay.** The truth of turn N is the new
-  message plus the parameters; turns 1..N−1 are already rows 1..N−1 of the same
-  `session_id`. Storing the last message, the model, the params and a count/hash
-  of the prior context keeps every fact and drops ~7/8 of the bytes. This does
-  NOT violate [[log-is-the-truth]] — the log stays append-only and complete; it
-  simply stops storing the same bytes N times. The front's gateway views already
-  key on `session_id`, so a reader can reconstruct the full context by reading
-  the session's rows in order, which is what an append-only log is for.
-- **Compress the body column.** `jsonb` is already TOAST-compressed; storing the
-  raw text `EXTERNAL`/`lz4` or moving to `bytea` + zstd would cut it further
-  without any semantic change. Cheapest to implement, keeps every byte, does not
-  fix the quadratic shape.
-- **Shorten `AIRE_GATEWAY_RETENTION_DAYS`.** The knob already exists and is
-  independent of `AIRE_RETENTION_DAYS` (#6). Blunt, loses evidence, but it is
-  one env var and the retention window for raw API turns need not equal the
-  pen's.
-
-## The decision that's the owner's
-
-1. **Whether the gateway mirror is EVIDENCE or MEMORY.** If it is evidence for
-   metering (#34's per-key attribution), the delta is plainly enough. If it is
-   meant to be a second, independent memory of every turn, the replay has a
-   reason and the answer is compression plus a shorter window instead.
-2. **Whether a size trend belongs in costwatch** as a threshold that goes red,
-   the way DO spend does, or only as a printed number.
-
-## Status / next step
-
-Not built, nothing broken, and the broom is holding at 30 days. The next step is
-the measurement leg — a nightly size line in costwatch — because it is a few
-lines, it costs nothing, and it is the difference between knowing the rate and
-finding out from a bill.
+- **The front's single-exchange view** (`gatewayExchange`) returns the raw body,
+  so it now renders `$elided` with fingerprints where the system prompt used to
+  be. Honest and self-describing, but a `LEFT JOIN aire_gateway_blob` would give
+  the reader back the whole picture. The list views are unaffected — they only
+  ever read `$.messages[last]`.
+- **The broom does not sweep `aire_gateway_blob`.** It should not, yet: 42 rows
+  at 1.44 MB, and a blob deleted while a row still references it is exactly the
+  dangling pointer the inline fallback exists to prevent. If it ever grows, the
+  sweep must delete only fingerprints no surviving row references.
+- **A nightly size line in costwatch**, so the RATE is known instead of the
+  snapshot. Cheap, and it is what would have surfaced this without a review.
 
 See also [#40](40-every-guard-fails-quietly.md) (the silent-degradation family
-this belongs to), [#6](../backlog/README.md) (the broom's gateway window),
-[[do-budget]] (watch the thing that grows) and [[log-is-the-truth]].
+this belongs to), [[do-budget]] (watch the thing that grows),
+[[log-is-the-truth]] (append-only, and correcting means appending — including
+correcting this page's own numbers) and [[verify-before-assuming]] Rule 0.
