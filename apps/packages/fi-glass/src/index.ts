@@ -31,6 +31,11 @@ export * from './agent';
 // via `fi-glass/persona-selector`; SpeakButton ships under `fi-glass/voice`.
 export * from './persona-selector';
 
+// Californio (98): the resource WORKSPACE — an index of cards and a detail with
+// a rail. og118 renders Projects with it; fi-glass never learns that noun. Also
+// importable via `fi-glass/resource`.
+export * from './resource';
+
 // The framework's ONE menu (extracted from aurity's toolbar — the SSOT of this
 // anatomy). Both the shell toolbar ("⋮") and the composer ("+") render it.
 export { ActionMenu, type MenuAction, type ActionMenuProps } from './menu/ActionMenu';

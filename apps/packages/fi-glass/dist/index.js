@@ -7335,6 +7335,494 @@ function PersonaSelector({
     content && createPortal2(content, document.body)
   ] });
 }
+
+// src/resource/resourceStyle.ts
+import { useEffect as useEffect28 } from "react";
+var FI_INDEX_HEADER_CLASS = "fi-resource-index-header";
+var FI_INDEX_TITLE_CLASS = "fi-resource-index-title";
+var FI_INDEX_ACTIONS_CLASS = "fi-resource-index-actions";
+var FI_SEARCH_CLASS = "fi-resource-search";
+var FI_CARD_GRID_CLASS = "fi-resource-card-grid";
+var FI_CARD_CLASS = "fi-resource-card";
+var FI_CARD_TITLE_CLASS = "fi-resource-card-title";
+var FI_CARD_DESC_CLASS = "fi-resource-card-desc";
+var FI_CARD_META_CLASS = "fi-resource-card-meta";
+var FI_DETAIL_CLASS = "fi-workspace-detail";
+var FI_DETAIL_MAIN_CLASS = "fi-workspace-main";
+var FI_DETAIL_RAIL_CLASS = "fi-workspace-rail";
+var FI_RAIL_STACK_CLASS = "fi-rail-stack";
+var FI_RAIL_PANEL_CLASS = "fi-rail-panel";
+var FI_RAIL_PANEL_HEAD_CLASS = "fi-rail-panel-head";
+var FI_RAIL_PANEL_TITLE_CLASS = "fi-rail-panel-title";
+var FI_METER_CLASS = "fi-capacity-meter";
+var FI_METER_TRACK_CLASS = "fi-capacity-meter-track";
+var FI_METER_FILL_CLASS = "fi-capacity-meter-fill";
+var FI_METER_LABEL_CLASS = "fi-capacity-meter-label";
+var FI_DOC_GRID_CLASS = "fi-doc-grid";
+var FI_DOC_CARD_CLASS = "fi-doc-card";
+var FI_DOC_CARD_TITLE_CLASS = "fi-doc-card-title";
+var FI_DOC_CARD_META_CLASS = "fi-doc-card-meta";
+var FI_DOC_CARD_BADGE_CLASS = "fi-doc-card-badge";
+var FI_BREADCRUMB_CLASS = "fi-workspace-breadcrumb";
+var RESOURCE_STYLE_ID = "fi-resource-style";
+var CSS6 = `
+.${FI_INDEX_HEADER_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.${FI_INDEX_TITLE_CLASS} {
+  font-size: var(--fi-resource-title-size, 1.5rem);
+  font-weight: 500;
+  color: var(--glass-chat-text, ${glassTokens.text});
+  margin: 0;
+}
+.${FI_INDEX_ACTIONS_CLASS} {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.${FI_SEARCH_CLASS} {
+  width: 100%;
+  box-sizing: border-box;
+  height: var(--fi-resource-search-height, 40px);
+  border-radius: 10px;
+  padding: 0 0.75rem;
+  color: var(--glass-chat-text, ${glassTokens.text});
+  background: var(--fi-resource-search-fill, ${glassTokens.searchFill});
+  border: 1px solid var(--fi-resource-search-border, ${glassTokens.searchBorder});
+  outline: none;
+}
+.${FI_SEARCH_CLASS}:focus-visible {
+  box-shadow: 0 0 0 2px var(--glass-chat-accent-from, ${glassTokens.accentDeep});
+}
+.${FI_CARD_GRID_CLASS} {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  grid-auto-rows: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media not all and ${FI_MOBILE_QUERY} {
+  .${FI_CARD_GRID_CLASS} {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+.${FI_CARD_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--fi-resource-card-border, ${glassTokens.surfaceBorder});
+  background: var(--fi-resource-card-bg, ${glassTokens.surface});
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.${FI_CARD_CLASS}:hover {
+  background: var(--fi-resource-card-hover-bg, ${glassTokens.itemHover});
+}
+.${FI_CARD_CLASS}:active {
+  transform: scale(0.98);
+}
+.${FI_CARD_CLASS}:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--glass-chat-accent-from, ${glassTokens.accentDeep});
+}
+.${FI_CARD_TITLE_CLASS} {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--glass-chat-text, ${glassTokens.text});
+}
+.${FI_CARD_DESC_CLASS} {
+  font-size: 0.875rem;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.${FI_CARD_META_CLASS} {
+  margin-top: auto;
+  font-size: 0.8125rem;
+  color: var(--fi-resource-card-meta-color, ${glassTokens.itemMeta});
+}
+.${FI_DETAIL_CLASS} {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+.${FI_DETAIL_MAIN_CLASS} {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.${FI_DETAIL_RAIL_CLASS} {
+  flex: 0 0 var(--fi-resource-rail-width, 352px);
+  width: var(--fi-resource-rail-width, 352px);
+  max-width: 100%;
+}
+@media ${FI_MOBILE_QUERY} {
+  /* The rail stacks UNDER the main column \u2014 it never becomes a 352px sliver
+     beside a crushed conversation. */
+  .${FI_DETAIL_CLASS} {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .${FI_DETAIL_RAIL_CLASS} {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+.${FI_RAIL_STACK_CLASS} {
+  display: flex;
+  flex-direction: column;
+  border: 0.5px solid var(--fi-resource-rail-border, ${glassTokens.surfaceBorder});
+  border-radius: 16px;
+  overflow: hidden;
+}
+.${FI_RAIL_PANEL_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.${FI_RAIL_PANEL_CLASS} + .${FI_RAIL_PANEL_CLASS} {
+  border-top: 1px solid var(--fi-resource-rail-divider, ${glassTokens.sidebarDivider});
+}
+.${FI_RAIL_PANEL_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.${FI_RAIL_PANEL_TITLE_CLASS} {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--glass-chat-text, ${glassTokens.text});
+}
+.${FI_METER_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.${FI_METER_TRACK_CLASS} {
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--fi-resource-meter-track, ${glassTokens.chipFill});
+}
+.${FI_METER_FILL_CLASS} {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--fi-resource-meter-fill, ${glassTokens.accent});
+  transition: width 0.2s ease;
+}
+.${FI_METER_LABEL_CLASS} {
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+.${FI_DOC_GRID_CLASS} {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.${FI_DOC_CARD_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: var(--fi-resource-doc-card-height, 120px);
+  padding: 0.6rem;
+  box-sizing: border-box;
+  border-radius: 10px;
+  text-align: left;
+  border: 1px solid var(--fi-resource-card-border, ${glassTokens.surfaceBorder});
+  background: var(--fi-resource-card-bg, ${glassTokens.surface});
+  color: inherit;
+  cursor: pointer;
+}
+.${FI_DOC_CARD_CLASS}:hover {
+  background: var(--fi-resource-card-hover-bg, ${glassTokens.itemHover});
+}
+.${FI_DOC_CARD_TITLE_CLASS} {
+  font-size: 0.8125rem;
+  color: var(--glass-chat-text, ${glassTokens.text});
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.${FI_DOC_CARD_META_CLASS} {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: var(--fi-resource-card-meta-color, ${glassTokens.itemMeta});
+}
+.${FI_DOC_CARD_BADGE_CLASS} {
+  align-self: flex-start;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--fi-resource-badge-border, ${glassTokens.chipBorder});
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+.${FI_BREADCRUMB_CLASS} {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+`;
+function ensureResourceStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(RESOURCE_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = RESOURCE_STYLE_ID;
+  el.textContent = CSS6;
+  document.head.appendChild(el);
+}
+function useResourceStyle() {
+  useEffect28(() => {
+    ensureResourceStyle();
+  }, []);
+}
+
+// src/resource/ResourceIndexHeader.tsx
+import { jsx as jsx45, jsxs as jsxs35 } from "react/jsx-runtime";
+function ResourceIndexHeader({
+  title,
+  sortSlot,
+  actionSlot,
+  className
+}) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsxs35("header", { className: className ? `${FI_INDEX_HEADER_CLASS} ${className}` : FI_INDEX_HEADER_CLASS, children: [
+    typeof title === "string" ? /* @__PURE__ */ jsx45("h1", { className: FI_INDEX_TITLE_CLASS, children: title }) : title,
+    (sortSlot || actionSlot) && /* @__PURE__ */ jsxs35("div", { className: FI_INDEX_ACTIONS_CLASS, children: [
+      sortSlot,
+      actionSlot
+    ] })
+  ] });
+}
+
+// src/resource/ResourceSearchInput.tsx
+import { jsx as jsx46 } from "react/jsx-runtime";
+function ResourceSearchInput({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  className
+}) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsx46(
+    "input",
+    {
+      type: "search",
+      className: className ? `${FI_SEARCH_CLASS} ${className}` : FI_SEARCH_CLASS,
+      value,
+      placeholder,
+      "aria-label": ariaLabel,
+      onChange: (e) => onChange(e.target.value)
+    }
+  );
+}
+function filterByQuery(items, query, fields) {
+  const needle = fold(query);
+  if (!needle) return items;
+  return items.filter(
+    (item) => fields(item).some((field) => fold(field ?? "").includes(needle))
+  );
+}
+function fold(value) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+// src/resource/ResourceCardGrid.tsx
+import { Fragment as Fragment13, jsx as jsx47, jsxs as jsxs36 } from "react/jsx-runtime";
+function ResourceCard({
+  title,
+  description,
+  meta,
+  href,
+  onClick,
+  className
+}) {
+  useResourceStyle();
+  const body = /* @__PURE__ */ jsxs36(Fragment13, { children: [
+    /* @__PURE__ */ jsx47("span", { className: FI_CARD_TITLE_CLASS, children: title }),
+    description ? /* @__PURE__ */ jsx47("span", { className: FI_CARD_DESC_CLASS, children: description }) : null,
+    meta != null ? /* @__PURE__ */ jsx47("span", { className: FI_CARD_META_CLASS, children: meta }) : null
+  ] });
+  const classes = withTouchTarget(className ? `${FI_CARD_CLASS} ${className}` : FI_CARD_CLASS);
+  if (href) {
+    return /* @__PURE__ */ jsx47("a", { className: classes, href, onClick, children: body });
+  }
+  return /* @__PURE__ */ jsx47("button", { type: "button", className: classes, onClick, children: body });
+}
+function ResourceCardGrid({
+  children,
+  emptyState,
+  ariaLabel,
+  className
+}) {
+  useResourceStyle();
+  const items = children.filter(Boolean);
+  if (items.length === 0 && emptyState != null) return /* @__PURE__ */ jsx47(Fragment13, { children: emptyState });
+  return /* @__PURE__ */ jsx47(
+    "ul",
+    {
+      className: className ? `${FI_CARD_GRID_CLASS} ${className}` : FI_CARD_GRID_CLASS,
+      "aria-label": ariaLabel,
+      children: items.map((child, i) => /* @__PURE__ */ jsx47("li", { children: child }, i))
+    }
+  );
+}
+
+// src/resource/WorkspaceDetailLayout.tsx
+import { jsx as jsx48, jsxs as jsxs37 } from "react/jsx-runtime";
+function WorkspaceDetailLayout({
+  children,
+  rail,
+  railWidth,
+  railLabel,
+  className
+}) {
+  useResourceStyle();
+  const style = railWidth != null ? {
+    ["--fi-resource-rail-width"]: typeof railWidth === "number" ? `${railWidth}px` : railWidth
+  } : void 0;
+  return /* @__PURE__ */ jsxs37(
+    "div",
+    {
+      className: className ? `${FI_DETAIL_CLASS} ${className}` : FI_DETAIL_CLASS,
+      style,
+      children: [
+        /* @__PURE__ */ jsx48("div", { className: FI_DETAIL_MAIN_CLASS, children }),
+        rail != null && /* @__PURE__ */ jsx48("aside", { className: FI_DETAIL_RAIL_CLASS, "aria-label": railLabel, children: rail })
+      ]
+    }
+  );
+}
+
+// src/resource/RailPanel.tsx
+import { jsx as jsx49, jsxs as jsxs38 } from "react/jsx-runtime";
+function RailPanel({ title, children, actionSlot, className }) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsxs38("section", { className: className ? `${FI_RAIL_PANEL_CLASS} ${className}` : FI_RAIL_PANEL_CLASS, children: [
+    /* @__PURE__ */ jsxs38("div", { className: FI_RAIL_PANEL_HEAD_CLASS, children: [
+      typeof title === "string" ? /* @__PURE__ */ jsx49("span", { className: FI_RAIL_PANEL_TITLE_CLASS, children: title }) : title,
+      actionSlot
+    ] }),
+    children
+  ] });
+}
+function RailPanelStack({ children, className }) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsx49("div", { className: className ? `${FI_RAIL_STACK_CLASS} ${className}` : FI_RAIL_STACK_CLASS, children });
+}
+
+// src/resource/CapacityMeter.tsx
+import { jsx as jsx50, jsxs as jsxs39 } from "react/jsx-runtime";
+function CapacityMeter({ used, max, label, className }) {
+  useResourceStyle();
+  const bounded = max != null;
+  const percent = bounded ? clamp(max === 0 ? 100 : used / max * 100) : null;
+  return /* @__PURE__ */ jsxs39("div", { className: className ? `${FI_METER_CLASS} ${className}` : FI_METER_CLASS, children: [
+    percent != null && /* @__PURE__ */ jsx50(
+      "div",
+      {
+        className: FI_METER_TRACK_CLASS,
+        role: "progressbar",
+        "aria-valuenow": Math.round(percent),
+        "aria-valuemin": 0,
+        "aria-valuemax": 100,
+        children: /* @__PURE__ */ jsx50("div", { className: FI_METER_FILL_CLASS, style: { width: `${percent}%` } })
+      }
+    ),
+    /* @__PURE__ */ jsx50("span", { className: FI_METER_LABEL_CLASS, children: label(percent) })
+  ] });
+}
+function clamp(value) {
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return value > 100 ? 100 : value;
+}
+
+// src/resource/DocCard.tsx
+import { Fragment as Fragment14, jsx as jsx51, jsxs as jsxs40 } from "react/jsx-runtime";
+function DocCard({ title, meta, badge, onClick, className }) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsxs40(
+    "button",
+    {
+      type: "button",
+      className: withTouchTarget(
+        className ? `${FI_DOC_CARD_CLASS} ${className}` : FI_DOC_CARD_CLASS
+      ),
+      onClick,
+      title,
+      children: [
+        badge ? /* @__PURE__ */ jsx51("span", { className: FI_DOC_CARD_BADGE_CLASS, children: badge }) : null,
+        /* @__PURE__ */ jsx51("span", { className: FI_DOC_CARD_TITLE_CLASS, children: title }),
+        meta != null ? /* @__PURE__ */ jsx51("span", { className: FI_DOC_CARD_META_CLASS, children: meta }) : null
+      ]
+    }
+  );
+}
+function DocCardGrid({ children, emptyState, ariaLabel, className }) {
+  useResourceStyle();
+  const items = children.filter(Boolean);
+  if (items.length === 0 && emptyState != null) return /* @__PURE__ */ jsx51(Fragment14, { children: emptyState });
+  return /* @__PURE__ */ jsx51(
+    "ul",
+    {
+      className: className ? `${FI_DOC_GRID_CLASS} ${className}` : FI_DOC_GRID_CLASS,
+      "aria-label": ariaLabel,
+      children: items.map((child, i) => /* @__PURE__ */ jsx51("li", { children: child }, i))
+    }
+  );
+}
+
+// src/resource/WorkspaceBreadcrumb.tsx
+import { Fragment as Fragment15 } from "react";
+import { jsx as jsx52, jsxs as jsxs41 } from "react/jsx-runtime";
+function WorkspaceBreadcrumb({
+  crumbs,
+  separator = "/",
+  ariaLabel,
+  className
+}) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsx52(
+    "nav",
+    {
+      className: className ? `${FI_BREADCRUMB_CLASS} ${className}` : FI_BREADCRUMB_CLASS,
+      "aria-label": ariaLabel,
+      children: crumbs.map((crumb, i) => {
+        const last = i === crumbs.length - 1;
+        return /* @__PURE__ */ jsxs41(Fragment15, { children: [
+          i > 0 && /* @__PURE__ */ jsx52("span", { "aria-hidden": "true", children: separator }),
+          crumb.href ? /* @__PURE__ */ jsx52("a", { href: crumb.href, onClick: crumb.onClick, "aria-current": last ? "page" : void 0, children: crumb.label }) : crumb.onClick ? /* @__PURE__ */ jsx52("button", { type: "button", onClick: crumb.onClick, "aria-current": last ? "page" : void 0, children: crumb.label }) : /* @__PURE__ */ jsx52("span", { "aria-current": last ? "page" : void 0, children: crumb.label })
+        ] }, i);
+      })
+    }
+  );
+}
 export {
   AUDIO_QUEUE_DEFAULTS,
   ActionMenu,
@@ -7354,6 +7842,7 @@ export {
   COLOR_THEMES,
   COMPOSER_IMAGE_ACCEPT,
   COMPOSER_IMAGE_MEDIA_TYPES,
+  CapacityMeter,
   ChatFilePreview,
   CollapsibleText,
   Composer,
@@ -7366,13 +7855,41 @@ export {
   DEFAULT_TURN_TIMEOUT_MS,
   DEFAULT_VAD_CONFIG,
   DestructiveActionSlot,
+  DocCard,
+  DocCardGrid,
   EditableResourceItem,
+  FI_BREADCRUMB_CLASS,
+  FI_CARD_CLASS,
+  FI_CARD_DESC_CLASS,
+  FI_CARD_GRID_CLASS,
+  FI_CARD_META_CLASS,
+  FI_CARD_TITLE_CLASS,
+  FI_DETAIL_CLASS,
+  FI_DETAIL_MAIN_CLASS,
+  FI_DETAIL_RAIL_CLASS,
+  FI_DOC_CARD_BADGE_CLASS,
+  FI_DOC_CARD_CLASS,
+  FI_DOC_CARD_META_CLASS,
+  FI_DOC_CARD_TITLE_CLASS,
+  FI_DOC_GRID_CLASS,
+  FI_INDEX_ACTIONS_CLASS,
+  FI_INDEX_HEADER_CLASS,
+  FI_INDEX_TITLE_CLASS,
   FI_ITEM_ACTION_CLASS,
   FI_ITEM_META_CLASS,
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
+  FI_METER_CLASS,
+  FI_METER_FILL_CLASS,
+  FI_METER_LABEL_CLASS,
+  FI_METER_TRACK_CLASS,
   FI_MSG_ACTIONS_CLASS,
+  FI_RAIL_PANEL_CLASS,
+  FI_RAIL_PANEL_HEAD_CLASS,
+  FI_RAIL_PANEL_TITLE_CLASS,
+  FI_RAIL_STACK_CLASS,
   FI_RESOURCE_RENAME_INPUT_CLASS,
+  FI_SEARCH_CLASS,
   FI_SECTION_CARD_CLASS,
   FI_SECTION_FOOTER_CLASS,
   FI_SECTION_HEAD_CLASS,
@@ -7392,8 +7909,14 @@ export {
   PlanChecklist,
   PulseRings,
   RESONANCE_INITIAL_STATE,
+  RailPanel,
+  RailPanelStack,
   RecordingButton,
   RecordingTimer,
+  ResourceCard,
+  ResourceCardGrid,
+  ResourceIndexHeader,
+  ResourceSearchInput,
   RichAudioPlayer,
   STATUS_TEXT_EN,
   STATUS_TEXT_ES,
@@ -7403,6 +7926,8 @@ export {
   StatusText,
   StepsPanel,
   VoiceMicButton,
+  WorkspaceBreadcrumb,
+  WorkspaceDetailLayout,
   artifactLabel,
   classifyTool,
   clearMediaQueryCache,
@@ -7419,9 +7944,11 @@ export {
   ensureComposerFrameStyle,
   ensureDensityStyle,
   ensureMessageActionsStyle,
+  ensureResourceStyle,
   ensureSidebarItemStyle,
   ensureSidebarSectionStyle,
   ensureTouchTargetStyle,
+  filterByQuery,
   formatArtifactDuration,
   formatArtifactSize,
   formatPlaybackTime,
@@ -7463,6 +7990,7 @@ export {
   useMessageActionsStyle,
   useRecorder,
   useResonanceCallLoop,
+  useResourceStyle,
   useSidebarItemStyle,
   useSidebarSectionStyle,
   useTouchTargetStyle,

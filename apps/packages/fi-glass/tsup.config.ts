@@ -18,6 +18,7 @@ export default defineConfig({
     'src/agent/index.ts',
     'src/conversation/index.ts',
     'src/identity/index.ts',
+    'src/resource/index.ts',
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },

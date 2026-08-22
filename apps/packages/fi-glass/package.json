@@ -6,7 +6,7 @@
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
-  "description": "fi-glass — the glassmorphism material (skin) for Free Intelligence chat frontends. Glass-box agentic UI rendered as frosted surfaces. Depends only on @free-intelligence/core.",
+  "description": "fi-glass \u2014 the glassmorphism material (skin) for Free Intelligence chat frontends. Glass-box agentic UI rendered as frosted surfaces. Depends only on @free-intelligence/core.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -51,6 +51,10 @@
     "./identity": {
       "types": "./dist/identity/index.d.ts",
       "import": "./dist/identity/index.js"
+    },
+    "./resource": {
+      "types": "./dist/resource/index.d.ts",
+      "import": "./dist/resource/index.js"
     }
   },
   "files": [
