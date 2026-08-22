@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: In progress
+Status: In progress — Apple gate LEVANTADO 2026-08-22; falta la primera vuelta de chat real
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -23,53 +23,34 @@ el costo real y es una decisión tomada por el dueño, no un descuido.
 
 ## Estado / siguiente paso
 
-Verificado hoy: `swiftc -typecheck` limpio (0 errores), `xcodegen generate` crea
-el proyecto, y la API de producción responde `200` en `/health`.
-**Nunca se ha ejecutado en un teléfono** — hasta entonces se presume roto.
+**El bloqueo de Apple ya no existe** (verificado 2026-08-22): Xcode vive en
+`/Applications/Xcode-26.6.0.app` y la app **compila para iOS**
+(`** BUILD SUCCEEDED **`), **arranca en el simulador** iPhone 16 Pro / iOS 26.5 y
+**pinta el login con la identidad de og118**. El README de `apps/og118-ios/` es la
+tabla de estado viva — este archivo sólo la referencia, no la duplica.
 
-Bloqueado por dos cosas, ninguna de código:
+Una arista de la máquina, no del proyecto: `xcode-select` sigue apuntando a
+`/Library/Developer/CommandLineTools`, así que un `xcodebuild` pelado falla. Todo
+comando de iOS va prefijado con
+`export DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer`.
 
-### 1. Xcode no instalado — cuenta de Apple en recuperación
+**Lo único que falta es la vuelta completa del tracer bullet**, y sigue
+presumiéndose rota hasta que ocurra (Loop Law): login de Auth0 contra el tenant →
+`POST /chat/stream` → SSE → respuesta pintada en la pantalla. El átomo humano es
+la contraseña de Auth0 en el simulador; todo lo demás —build, install, launch,
+screenshot— se maneja desde aquí.
 
-- La cuenta `bernarduriza@icloud.com` está **bloqueada por Apple** desde antes
-  del 2026-08-12. Mensaje literal de `xcodes`: *"This Apple Account has been
-  locked for security reasons."*
-- Hay una **solicitud de recuperación abierta desde el 2026-08-09 17:10:15 CDT**;
-  Apple la libera el **2026-08-12 17:10:15 CDT**. Correo de Apple confirmándolo:
-  foto en el Discord `#general` de Bernard, 12:27 del 2026-08-12.
-- **Nadie debe tocar el link "cancelar la recuperación"** de ese correo ni abrir
-  una solicitud nueva: reinicia el plazo de tres días.
-- Apple avisa por SMS o llamada al `+52 33 2477 6734`. **Los SMS de Apple no
-  entran en esa línea** (comprobado dos veces); **la llamada sí funciona** — en
-  `iforgot.apple.com`, "Did not get a verification code?" → "Get a phone call".
-- Instalar sin App Store: `xcodes install 26.6` (binario ya en
-  `/opt/homebrew/bin/xcodes`). La Store en sí sigue rota aparte, ver abajo.
+El teléfono físico (cable + Modo desarrollador + los $99) sigue siendo un paso
+posterior y aparte: el simulador **no necesita cuenta de desarrollador ni firma**.
 
-### 2. ~~Falta un cliente Native en Auth0~~ — RESUELTO, ya existía
+### Lo que ya no aplica (histórico)
 
-Bernard lo registró el **2026-07-10 20:36**, diecisiete minutos después del
-scaffold de `ContadorApp`. Config en `~/.secrets/og118-ios-auth0.txt`: bundle id
-`com.bernard.og118`, callback
-`com.bernard.og118://dev-1r4daup7ofj7q6gn.us.auth0.com/ios/com.bernard.og118/callback`.
-Verificado el 2026-08-12 con `GET /authorize`: responde `302` al login, sin
-*Unknown client* ni *Callback URL mismatch*. El código quedó alineado a ese
-cliente; **no se creó uno nuevo** (Art. 6).
-
-Lección de proceso: la primera búsqueda de "el iPhone app que ya empecé" sólo
-buscó código Swift y concluyó que no existía nada de og118. La parte difícil —
-la identidad — sí estaba hecha, en `~/.secrets/`. Buscar ahí es parte de buscar
-trabajo previo, no sólo de buscar credenciales.
-
-## Deuda aparte: el registro local de la App Store está corrupto
-
-Independiente del bloqueo de la cuenta. El App Store no puede descifrar su propio
-registro de cuenta (`_NSInlineData: Data decryption failed. status = -4308`,
-`ACAccount: Failed to decrypt account property. key = accountFlags`, ~105 veces
-por interacción), y por eso sus diálogos de verificación **no hacen nada al dar
-clic, sin mostrar error alguno**. Limpiar cachés y cookies **no lo arregla**
-(probado 2026-08-12; respaldo en `~/.appstore-backup-20260812-115402`). La
-reparación pendiente es Sign Out → Sign In desde el menú **Store**, cuando la
-cuenta esté desbloqueada.
+El bloqueo de la cuenta `bernarduriza@icloud.com` y la solicitud de recuperación
+del 2026-08-09 se resolvieron en plazo. El cliente Native de Auth0 ya existía
+desde el 2026-07-10 (config en `~/.secrets/og118-ios-auth0.txt`, `302` verificado).
+La corrupción del registro local de la App Store
+(`Data decryption failed. status = -4308`) es **deuda independiente** y no bloquea
+nada: Xcode se instaló con `xcodes`, sin la Store.
 
 ## La decisión que es del dueño
 

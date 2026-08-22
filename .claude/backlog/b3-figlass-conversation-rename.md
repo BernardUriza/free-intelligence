@@ -1,6 +1,6 @@
 # B3-FIGLASS-CONVERSATION-RENAME-1 — editable chat names in fi-glass
 
-Status: In progress
+Status: **Done** — shipped, con tests y consumido por og118 (verificado 2026-08-22)
 Proposed: 2026-06-24 by Bernard
 
 ## What it is
@@ -51,3 +51,30 @@ store formalization, finite agent roster). This item is the P0 of that list.
 
 Related: [[framework-first-canary]], [[b3-figlass-shell-primitives]],
 [[og118-identity-scoping-leak]].
+
+## Cierre verificado (2026-08-22)
+
+Construido en fi-glass como mandaba la regla, con og118 de canario — no
+consumer-local.
+
+- Primitiva: `apps/packages/fi-glass/src/agent/AgentSidebarItem.tsx:132`
+  `useInlineRename(value, onRename, {maxLength, emptyPolicy})` y `:292`
+  `EditableResourceItem`. Exportadas en `src/agent/index.ts:89`.
+- **Las dos decisiones del dueño quedaron tomadas y codificadas:** Enter
+  confirma, Escape cancela, **blur confirma** (`:181`), con un `cancelledRef`
+  (`:139`) para que el blur que sigue a Escape no re-confirme el borrador que se
+  acaba de tirar. `emptyPolicy` es `'revert' | 'keep'`, default `revert`: título
+  vacío llama `onRename('')` y la librería vuelve a derivar el automático
+  (`:105`).
+- Persistencia: `useConversationLibrary.ts:65` → `renameConversationRecord` de
+  `@free-intelligence/core`, con `titleCustom` (`:162`) para que un título puesto
+  a mano sobreviva a los mensajes siguientes. El scoping por identidad lo hereda
+  de la IndexedDB por `sub` (`useIndexedDBConversationLibrary.ts:26`).
+- a11y: `renameLabel` y `renameInputLabel` son props **requeridas** (`:284`); el
+  trigger hace `stopPropagation` para que renombrar nunca robe la selección.
+- Tests: `AgentSidebarItem.test.tsx:140` (6 casos) y
+  `useConversationLibrary.test.ts:56` (4 casos).
+- Consumido: `apps/og118/web/components/Og118Sidebar.tsx:114` y
+  `Og118AgentChat.tsx:238`.
+
+Los cuatro criterios de aceptación se cumplen.

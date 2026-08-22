@@ -1,6 +1,6 @@
 # PROJ-SYNC-1 — backend-owned project hydration (localStorage → cache, not source of truth)
 
-Status: Proposed
+Status: **Done** — el servidor es la fuente de verdad; falta sólo el flag de staleness (verificado 2026-08-22)
 Proposed: 2026-06-21 by Bernard (via coagent adversarial review of the identity-scoping leak fix)
 
 ## What it is
@@ -44,3 +44,30 @@ Unblocked now that Gate 3 + `PROJ-ACCOUNT` ownership are live. Promote to *In
 progress* when Bernard greenlights the Projects-sync arc.
 
 Related: [[og118-projects-papeleria-business]], [[gate3-auth0-google]].
+
+## Cierre verificado (2026-08-22)
+
+`apps/og118/web/lib/useOg118Projects.ts` se reescribió server-owned y su propio
+docstring cita esta tarjeta (`:3`).
+
+- Hidratación: efecto en `:135` que hace `GET /projects` con `authHeaders()`
+  (`:157`), **esperando a `tokenReady`** (`:152`) para no correr la carrera del
+  401. El servidor responde filtrado por dueño: `server/app.py:820` →
+  `registry.list_for(principal.sub)`.
+- localStorage quedó como **caché**: pinta al instante (`:142`) y luego la lista
+  del servidor la **reemplaza** entera (`:166`); si el activo ya no existe del
+  lado del servidor, se suelta la selección (`:170`).
+- Offline no destruye nada: `catch { }` en `:183` conserva la caché.
+- Sin fuga entre cuentas: las llaves van particionadas con
+  `scopedStoreName(base, userId)` (`:72`), más un barrido único de las llaves
+  peladas de antes del scoping (`:126`).
+- `deleteProject` ya es server-side (`:214`), tratando el 404 como éxito — se
+  acabó el corpus huérfano que dejaba el borrado local.
+- Tests: `web/lib/__tests__/useOg118Projects.test.ts`, 13 casos, incluido
+  *"server list REPLACES a stale local cache"* y *"an account never sees another
+  account's server projects"*.
+
+**Lo que falta, y es lo único:** el *flag de staleness*. Existe `ready` (`:37`)
+pero no una señal de "esto que ves es caché, todavía no reconcilia", así que un
+render offline es indistinguible de uno ya reconciliado. Queda anotado aquí en
+vez de fingir el 100%.
