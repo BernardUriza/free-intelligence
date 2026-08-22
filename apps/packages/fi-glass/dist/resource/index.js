@@ -369,12 +369,36 @@ var CSS = `
   border: 1px solid var(--fi-resource-badge-border, ${glassTokens.chipBorder});
   color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
 }
+@media ${FI_TOUCH_QUERY} {
+  /* Measured at a phone viewport and caught below the minimum: the search box
+     shipped at the 40px it was copied from, and 40 is not 44. A control the
+     thumb has to hit is a touch target no matter how elegant the spec was. */
+  .${FI_SEARCH_CLASS} {
+    height: auto;
+    min-height: var(--fi-touch-target, 44px);
+  }
+}
 .${FI_BREADCRUMB_CLASS} {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
   font-size: 0.8125rem;
   color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+.${FI_BREADCRUMB_CLASS} a,
+.${FI_BREADCRUMB_CLASS} button {
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+.${FI_BREADCRUMB_CLASS} a:hover,
+.${FI_BREADCRUMB_CLASS} button:hover {
+  color: var(--glass-chat-text, ${glassTokens.text});
 }
 `;
 function ensureResourceStyle() {
@@ -445,6 +469,26 @@ function fold(value) {
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
 function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
@@ -595,7 +639,7 @@ function DocCardGrid({ children, emptyState, ariaLabel, className }) {
 }
 
 // src/resource/WorkspaceBreadcrumb.tsx
-import { Fragment as Fragment3 } from "react";
+import { Fragment as Fragment3, useEffect as useEffect3 } from "react";
 import { jsx as jsx8, jsxs as jsxs7 } from "react/jsx-runtime";
 function WorkspaceBreadcrumb({
   crumbs,
@@ -604,6 +648,7 @@ function WorkspaceBreadcrumb({
   className
 }) {
   useResourceStyle();
+  useEffect3(() => ensureTouchTargetStyle(), []);
   return /* @__PURE__ */ jsx8(
     "nav",
     {
@@ -613,7 +658,25 @@ function WorkspaceBreadcrumb({
         const last = i === crumbs.length - 1;
         return /* @__PURE__ */ jsxs7(Fragment3, { children: [
           i > 0 && /* @__PURE__ */ jsx8("span", { "aria-hidden": "true", children: separator }),
-          crumb.href ? /* @__PURE__ */ jsx8("a", { href: crumb.href, onClick: crumb.onClick, "aria-current": last ? "page" : void 0, children: crumb.label }) : crumb.onClick ? /* @__PURE__ */ jsx8("button", { type: "button", onClick: crumb.onClick, "aria-current": last ? "page" : void 0, children: crumb.label }) : /* @__PURE__ */ jsx8("span", { "aria-current": last ? "page" : void 0, children: crumb.label })
+          crumb.href ? /* @__PURE__ */ jsx8(
+            "a",
+            {
+              className: withTouchTarget(),
+              href: crumb.href,
+              onClick: crumb.onClick,
+              "aria-current": last ? "page" : void 0,
+              children: crumb.label
+            }
+          ) : crumb.onClick ? /* @__PURE__ */ jsx8(
+            "button",
+            {
+              type: "button",
+              className: withTouchTarget(),
+              onClick: crumb.onClick,
+              "aria-current": last ? "page" : void 0,
+              children: crumb.label
+            }
+          ) : /* @__PURE__ */ jsx8("span", { "aria-current": last ? "page" : void 0, children: crumb.label })
         ] }, i);
       })
     }

@@ -18,7 +18,7 @@
  */
 
 import { useEffect } from 'react';
-import { FI_MOBILE_QUERY } from '../theme/breakpoints';
+import { FI_MOBILE_QUERY, FI_TOUCH_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';
 
 export const FI_INDEX_HEADER_CLASS = 'fi-resource-index-header';
@@ -268,12 +268,36 @@ const CSS = `
   border: 1px solid var(--fi-resource-badge-border, ${glassTokens.chipBorder});
   color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
 }
+@media ${FI_TOUCH_QUERY} {
+  /* Measured at a phone viewport and caught below the minimum: the search box
+     shipped at the 40px it was copied from, and 40 is not 44. A control the
+     thumb has to hit is a touch target no matter how elegant the spec was. */
+  .${FI_SEARCH_CLASS} {
+    height: auto;
+    min-height: var(--fi-touch-target, 44px);
+  }
+}
 .${FI_BREADCRUMB_CLASS} {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
   font-size: 0.8125rem;
   color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+.${FI_BREADCRUMB_CLASS} a,
+.${FI_BREADCRUMB_CLASS} button {
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+.${FI_BREADCRUMB_CLASS} a:hover,
+.${FI_BREADCRUMB_CLASS} button:hover {
+  color: var(--glass-chat-text, ${glassTokens.text});
 }
 `;
 

@@ -37,6 +37,16 @@ export interface ConversationRecord {
    * active. Archiving is the reversible alternative to delete: the record keeps
    * its messages and moves to the archived section. */
   archivedAt?: string;
+  /**
+   * The resource (og118: a Project) this conversation was BORN in — the same
+   * `projectId` the server stores, so the name matches the wire rather than
+   * inventing a client-side alias nobody could grep for.
+   *
+   * Stamped once, at first persist, and preserved from then on. It is not "the
+   * currently selected project": moving the selection later must not silently
+   * re-file yesterday's conversations under today's project.
+   */
+  projectId?: string;
   /** Schema version of this record, for forward migrations. */
   schemaVersion: number;
 }
@@ -50,4 +60,7 @@ export interface ConversationSummary {
   preview: string;
   pinnedAt?: string;
   archivedAt?: string;
+  /** Rides the SUMMARY too: a per-resource list filters the light rows, and
+   * pulling full records just to read one field would cost every transcript. */
+  projectId?: string;
 }

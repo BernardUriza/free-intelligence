@@ -194,6 +194,7 @@ import {
 function useConversationLibrary(library, options = {}) {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
+  const { projectId } = options;
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -256,6 +257,7 @@ function useConversationLibrary(library, options = {}) {
       const prevForTitle = activeRecord?.id === id ? activeRecord : void 0;
       const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
+      const bornIn = prevForTitle ? prevForTitle.projectId : projectId;
       const record = {
         id,
         title: resolveConversationTitle(clean, prevForTitle),
@@ -268,6 +270,7 @@ function useConversationLibrary(library, options = {}) {
         // silently unpin or unarchive the thread.
         ...prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {},
         ...prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {},
+        ...bornIn ? { projectId: bornIn } : {},
         schemaVersion: CONVERSATION_SCHEMA_VERSION
       };
       await library.put(record);
@@ -276,7 +279,7 @@ function useConversationLibrary(library, options = {}) {
       setActiveRecord(record);
       await refresh();
     },
-    [activeId, activeRecord, idFactory, nowFn, library, refresh]
+    [activeId, activeRecord, idFactory, nowFn, library, refresh, projectId]
   );
   const deleteConversation = useCallback(
     async (id) => {

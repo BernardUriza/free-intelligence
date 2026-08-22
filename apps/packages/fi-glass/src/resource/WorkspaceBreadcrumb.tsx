@@ -11,7 +11,9 @@
  * you already are, instead of announcing every crumb as an equal link.
  */
 
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, useEffect, type ReactNode } from 'react';
+import { ensureTouchTargetStyle } from '../shell/touchTarget';
+import { withTouchTarget } from '../shell/touchTarget';
 import { FI_BREADCRUMB_CLASS, useResourceStyle } from './resourceStyle';
 
 export interface BreadcrumbCrumb {
@@ -36,6 +38,8 @@ export function WorkspaceBreadcrumb({
   className,
 }: WorkspaceBreadcrumbProps) {
   useResourceStyle();
+  // The crumbs compose the framework minimum, so its sheet must be present.
+  useEffect(() => ensureTouchTargetStyle(), []);
   return (
     <nav
       className={className ? `${FI_BREADCRUMB_CLASS} ${className}` : FI_BREADCRUMB_CLASS}
@@ -47,11 +51,21 @@ export function WorkspaceBreadcrumb({
           <Fragment key={i}>
             {i > 0 && <span aria-hidden="true">{separator}</span>}
             {crumb.href ? (
-              <a href={crumb.href} onClick={crumb.onClick} aria-current={last ? 'page' : undefined}>
+              <a
+                className={withTouchTarget()}
+                href={crumb.href}
+                onClick={crumb.onClick}
+                aria-current={last ? 'page' : undefined}
+              >
                 {crumb.label}
               </a>
             ) : crumb.onClick ? (
-              <button type="button" onClick={crumb.onClick} aria-current={last ? 'page' : undefined}>
+              <button
+                type="button"
+                className={withTouchTarget()}
+                onClick={crumb.onClick}
+                aria-current={last ? 'page' : undefined}
+              >
                 {crumb.label}
               </button>
             ) : (

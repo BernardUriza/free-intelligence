@@ -63,3 +63,34 @@ describe('WorkspaceBreadcrumb', () => {
     expect(screen.getByRole('navigation', { name: 'Migas' })).toBeTruthy();
   });
 });
+
+describe('the touch minimum a real-device measurement caught', () => {
+  /**
+   * Measured in Chrome at a 390px viewport, the crumbs came out **20px tall** and
+   * the search box 40 — both under the 44 the repo requires, and both invisible
+   * to jsdom, which does no layout. The fix composes the framework minimum; this
+   * pins that it is still composed, since the next person to touch the markup
+   * cannot re-run that measurement from a unit test.
+   */
+  it('composes the framework touch minimum onto an actionable crumb', () => {
+    const { container } = render(
+      <WorkspaceBreadcrumb
+        ariaLabel="Migas"
+        crumbs={[{ label: 'Índice', onClick: () => {} }, { label: 'Aquí' }]}
+      />,
+    );
+
+    expect(container.querySelector('button.fi-touch-target')).not.toBeNull();
+  });
+
+  it('raises the search box to the minimum on touch surfaces', async () => {
+    const { ensureResourceStyle } = await import('./resourceStyle');
+    const { FI_TOUCH_QUERY } = await import('../theme/breakpoints');
+    ensureResourceStyle();
+
+    const css = document.getElementById('fi-resource-style')?.textContent ?? '';
+    const touchBlock = css.slice(css.indexOf(`@media ${FI_TOUCH_QUERY}`));
+
+    expect(touchBlock).toContain('--fi-touch-target, 44px');
+  });
+});
