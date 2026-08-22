@@ -14,12 +14,23 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Any
 
 _pool: Any = None
-# Fingerprints this process has already written (#41). A cache, never memory: a
-# restart just re-attempts an INSERT that does nothing.
-_stored: set[str] = set()
+# Fingerprint -> when this process last asserted it (#41). A cache, never memory.
+#
+# It EXPIRES, and the expiry is the whole point. Skipping the INSERT is worth
+# doing — measured on the live pen, a no-op INSERT on an already-open pooled
+# connection costs 24 ms, and it sits on the relay's critical path — but the
+# cache makes a claim it cannot verify: "the database still holds this". The
+# broom can delete a fingerprint that has no surviving row referencing it, and a
+# process that used that value 40 days ago, went quiet, and used it again would
+# then write a reference to a row that no longer exists. Re-asserting on a cadence
+# far shorter than the broom's closes that window: anything used inside the TTL
+# has rows well inside the retention period, so the broom will not touch it.
+BLOB_TTL_S = float(os.environ.get("AIRE_BLOB_TTL_S", "21600"))  # 6h vs a daily sweep
+_stored: dict[str, float] = {}
 
 DDL = """
 CREATE TABLE IF NOT EXISTS aire_gateway_log (
@@ -83,7 +94,8 @@ async def store_blobs(blobs: dict[str, Any]) -> bool:
     """Keep each repeated value once. False means the caller must inline them
     instead: a reference to a row that was never written is a dangling pointer,
     and the front that reads this log cannot repair one."""
-    fresh = {f: v for f, v in blobs.items() if f not in _stored}
+    now = time.monotonic()
+    fresh = {f: v for f, v in blobs.items() if now - _stored.get(f, -BLOB_TTL_S) >= BLOB_TTL_S}
     if not fresh:
         return True
     try:
@@ -92,7 +104,7 @@ async def store_blobs(blobs: dict[str, Any]) -> bool:
             await conn.execute(
                 "INSERT INTO aire_gateway_blob (fingerprint, body) VALUES ($1, $2::jsonb)"
                 " ON CONFLICT (fingerprint) DO NOTHING", digest, json.dumps(value))
-            _stored.add(digest)
+            _stored[digest] = now
         return True
     except Exception as exc:  # noqa: BLE001 — degrade to a fat row, never a dangling ref
         print(f"GATEWAY-MIRROR blob append failed: {type(exc).__name__}: {exc}")
