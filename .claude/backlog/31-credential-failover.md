@@ -1,4 +1,45 @@
 # Credential failover — the engine survives a burned weekly pool
+## Armed 2026-08-22 — the machine finally has fuel
+
+The rotor shipped 2026-08-07 and held **one slot** for fifteen days: a failover
+with nowhere to fail over to, reported honestly by `/health` as
+`credential_failover: false` once #40 gave the guards a voice. Bernard struck
+his own seal to fix it — [#34](34-meter-the-pass-through.md) had settled on
+2026-08-17 that no metered key would be minted while the door had no users but
+him, and only he can strike a kill-list entry (Art. 7).
+
+What was built, in this order on purpose — the cap before the credential:
+
+- A workspace of its own, `aire` (`wrkspc_01EbZKjsjeBp4sBwGLtqRvsR`), so AIRE's
+  spend is countable apart from Fénix's, which lives in `Default`. A credential
+  is scoped to the surface it was handed to.
+- A **$200/month spend limit on that workspace**, set before the key existed.
+- The key `aire-failover-slot3`, **expiring NEVER, deliberately**: `arming.py`
+  checks the variable is SET, not that the key is VALID, so an expired one would
+  report `credential_failover: true` while dead — the exact lying-green #40
+  exists to kill. Revoking it in the console is visible; expiring is not.
+
+Three ceilings, outermost first, and only the first two survive a restart:
+**$5.29 in prepaid credits with auto-reload OFF** (the API stops at zero),
+**$200/month on the workspace** (survives a credit top-up), and
+`AIRE_MAX_SPEND_USD=20`, which resets on every restart (#25's known limit).
+
+**Receipts.** The key was tested against `api.anthropic.com` before it was armed
+— *"slot three alive"*, 13 in / 6 out — because a failover slot that cannot
+dispatch is decoration. Then on the live droplet: `credential_slots: 2`,
+`credential_failover: true`, and the only guard left disarmed is
+`whitelist_enforce`, which is deliberate. The wiring itself had been proven
+earlier with a dummy value: burning `oauth-primary` rotates to
+`api-key-fallback`, and the two slots inject disjoint env sets, which is what
+lets the API key dispatch headless.
+
+**And the watchdog was corrected in the same breath.** costwatch DECLARED
+`credential_failover` as accepted-off; leaving that there would have been worse
+than never declaring it, because the guard is on now and a future loss of the
+key must go red — a stale declaration would have answered "accepted, carry on"
+to exactly the regression the watch exists to catch. Slot 2
+(`CLAUDE_CODE_OAUTH_TOKEN_BACKUP`) stays empty, and stays a placebo until it
+comes from a DIFFERENT seat: two tokens from one account share one weekly pool.
 
 Status: **Mechanism shipped 2026-08-07** — rotor + detection + rotate-and-retry
 + real `credentials_exhausted` error live; the backup slots are EMPTY until

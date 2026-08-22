@@ -17,7 +17,7 @@ kept honest, a status flipped the day it changes.
 | [8](08-metrics.md) | Metrics per casita: weight, sessions, cost. | Weight+sessions Done 2026-07-20 (7e05a4e) |
 | [25](25-no-cumulative-ceiling.md) | No cumulative spend ceiling is set | Armed 2026-08-20 |
 | [28](28-per-token-budget.md) | Per-token budget | Done for INVITED keys 2026-08-11 (#32d); the 2 CONSTANT keys stay uncapped |
-| [31](31-credential-failover.md) | Credential failover | Mechanism shipped 2026-08-07; the chain still holds ONE slot |
+| [31](31-credential-failover.md) | Credential failover | **Armed 2026-08-22** — slot 3 filled with a metered key, 2 slots live |
 | [35](35-the-consumer-map.md) | The consumer map | Accepted 2026-08-21 |
 | [37](37-the-mode-dial-is-coarse.md) | The mode dial is coarse | Proposed 2026-08-22 |
 | [39](39-two-slots-for-a-fleet.md) | Two slots for a fleet | Proposed 2026-08-22, MEASURED the same day |

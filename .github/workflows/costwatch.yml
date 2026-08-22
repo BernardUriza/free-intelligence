@@ -143,15 +143,18 @@ jobs:
 
           # Which guards are silently OFF (aire/arming.py). Every one of them
           # degrades politely and /health answered "ok" for all of them at once.
-          # Two are DECLARED off, so the alarm does not cry wolf — anything else
+          # ONE is DECLARED off, so the alarm does not cry wolf — anything else
           # going dark is the thing this watch exists for:
           #   whitelist_enforce  — deliberate; aire_device is empty, and flipping
           #                        it on with an empty roster denies every device
           #                        (.claude/rules/device-verb-protocol.md).
-          #   credential_failover — NOT deliberate. The #31 rotor holds one slot,
-          #                        so a burned weekly pool has nowhere to go.
-          #                        Arming it costs money — backlog #40, Bernard's.
-          DECLARED='["credential_failover","whitelist_enforce"]'
+          #
+          # credential_failover LEFT this list on 2026-08-22, the day Bernard armed
+          # slot 3 with a metered key. Leaving it declared would have been worse
+          # than never declaring it: the guard is ON now, so a future loss of that
+          # key must go RED — and a stale declaration would have answered "accepted,
+          # carry on" to exactly the regression this watch exists to catch.
+          DECLARED='["whitelist_enforce"]'
           # The arming half of /health is gated: the endpoint is the one thing the
           # middleware lets through unauthenticated, and a list of which defences
           # are down is reconnaissance. The token is already in /etc/aire/env.
