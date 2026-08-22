@@ -81,17 +81,23 @@ fail, it stalls with the bill running.
 
 ## The decisions that are the owner's
 
-1. **The rotor holds ONE slot.** `/etc/aire/env` carries only
-   `CLAUDE_CODE_OAUTH_TOKEN`, so #31's failover machine is built and carries no
-   fuel: a burned weekly pool has nowhere to rotate to. Worse, the lent
-   credential (`AIRE_LEND_OAUTH_TOKEN`) is derived from the same file, so **an
-   invited key burning the pool starves the engine too** — `CLAUDE.md` names
-   this coupling and it is live right now. Arming it means minting a metered
-   `ANTHROPIC_API_KEY`, which is spend, and [#34](34-meter-the-pass-through.md)
-   records that Bernard **settled** the lending slot on 2026-08-17: no metered
-   key while the door has no users but him. So this is declared-disarmed, not
-   forgotten — the trigger that reopens it is the same one #34 names, the first
-   stranger who asks for access.
+1. ~~**The rotor holds ONE slot.**~~ **STALE — corrected against the box
+   2026-08-22.** `/health` reports `credential_slots: 2` and
+   `credential_failover: true`, and `/etc/aire/env` carries
+   `ANTHROPIC_API_KEY_FALLBACK` with a real 108-char `sk-ant-` value beside
+   `CLAUDE_CODE_OAUTH_TOKEN`. So a metered key WAS minted, the rotor walks two
+   slots of DIFFERENT kinds — not the same-account placebo `CLAUDE.md` warns
+   about — and #31's failover machine has fuel. This paragraph claimed the
+   opposite for as long as it took someone to read `/health` with a token.
+
+   **What that unlocks, and it is still Bernard's call because it routes spend:**
+   `lending.py:47` prefers `AIRE_LEND_API_KEY` "when a metered key exists
+   (preferred: it is revocable without touching the subscription)". One exists
+   now. The box still lends `AIRE_LEND_OAUTH_TOKEN` — the engine's own OAuth —
+   so the coupling `CLAUDE.md` names is LIVE: an invited key that burns the
+   weekly pool starves the engine too. The cure is one variable in the same file
+   the metered key already sits in.
+
 2. **Whether the daemon should refuse to start with a guard it expects armed.**
    Reporting is strictly better than silence, but it is still a report. A
    `AIRE_REQUIRE_ARMED` list that fails the process closed is the stronger

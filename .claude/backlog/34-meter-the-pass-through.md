@@ -138,3 +138,16 @@ See the canonical item at
 `~/Documents/discord-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`,
 and [#32](32-the-nickname-door.md) (the nickname door and its slice (e), where the lending
 seam was built).
+
+## Correction against the box (2026-08-22)
+
+This item recorded that no metered key would be minted while the door had no
+users but Bernard. **A metered key exists on the droplet today** —
+`ANTHROPIC_API_KEY_FALLBACK`, a real `sk-ant-` value — armed as the rotor's
+third slot (#31), which is a different use than the lending this item settled.
+The decision recorded here was about what the DOOR lends, and it still stands:
+the box lends `AIRE_LEND_OAUTH_TOKEN`, not the metered key.
+
+Recorded because the two documents disagreed with reality in opposite
+directions and neither said so — [[40-every-guard-fails-quietly]] is the item
+about safeties that report nothing, and a document is a safety.
