@@ -36,14 +36,33 @@ forward clauses:
   prefix). The door enforces its own limits (max 4 × 5MB b64, MIME in
   jpeg/png/webp/gif) and an image-only message is a valid turn.
 - ``mcp_servers`` → translated to registry NAMES: only ``spec.name`` crosses
-  the wire (as the door's ``tools`` field, forcing ``mode=agent``); the local
-  ``command``/``args`` cannot and do not. AIRE mounts its own vetted in-process
+  the wire (as the door's ``tools`` field, riding the configured mode — since
+  aire-server 5ae8e33 the door runs registry tools in ``complete`` too); the
+  local ``command``/``args`` cannot and do not. AIRE mounts its own vetted in-process
   server of that name (today: ``"memory"``). A name outside the registry is
   still rejected HARD — by the door's 422, surfaced as ``BackendError``.
   Forward does not mean silent: arbitrary MCP specs remain RCE by design.
 - ``tool_policy`` → still NOT forwarded (the one remaining gap): AIRE owns the
   tool config server-side, so a caller's permission_mode/allowlist is warned
   about, never silently honoured.
+
+THIRD CUT (2026-08-21, OG118-LIVING-CLAUDE). The casita may now vary PER TURN:
+``project_for_turn`` is an optional zero-arg resolver consulted at the top of
+every turn (og118 wires it to a request-scoped contextvar carrying
+``og118-{conversation_id}``). A truthy return routes the turn — its ``/init``
+and its message — to that casita; ``None``/empty falls back to the fixed
+``project``. Init state is tracked per casita, so the first turn that lands in
+a new casita installs its prompt there (AIRE's ``/init`` preserves the
+casita's living part by contract, so repeats are safe).
+
+THIN BIRTH (2026-08-21, aire-server ef21e68): a per-turn casita is NOT born
+with a copy of the persona. The full ``system_prompt`` is installed ONCE in the
+shared base casita (the fixed ``project``), and each chat casita is inited with
+the one-line stub ``@base {project}`` — AIRE dereferences it at every spawn, so
+the persona has a single live source instead of N frozen copies. A chat casita
+born fat before this cut is rebased to the stub on the next process restart
+(the per-process init cache is empty then), and AIRE's rebase preserves its
+living part — the soul survives, the frozen base copy dies.
 
 Requires the ``aire`` extra::
 
@@ -56,7 +75,7 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 from ..backend import (
@@ -84,11 +103,18 @@ class AIREBackend:
         default_model: str | None = None,
         default_mode: str = "complete",
         registry_tools: tuple[str, ...] = (),
+        project_for_turn: Callable[[], str | None] | None = None,
         timeout: float = 300.0,
     ) -> None:
         # The AIRE casita this backend addresses. AIRE validates it
         # (``[a-zA-Z0-9_-]{1,128}``, "aire" reserved); we pass it through.
         self.project = project
+        # Optional per-turn casita resolver (casita-per-chat): consulted at the
+        # top of every turn; a truthy return overrides ``project`` for that turn
+        # only. The consumer owns the scoping policy (e.g. a request-scoped
+        # contextvar carrying the chat's id); the backend stays stateless about
+        # WHICH chat is talking.
+        self.project_for_turn = project_for_turn
         self.gate_url = (gate_url or os.environ.get("AIRE_GATE_URL", "")).rstrip("/")
         self.auth_token = (
             auth_token
@@ -98,8 +124,9 @@ class AIREBackend:
         # Forwarded per turn when the caller names no model of its own; AIRE
         # pins it on the session's pooled client (None = AIRE's server default).
         self.default_model = default_model
-        # "complete" = no tools, the substitute for the raw API. When registry_tools
-        # is set the turn runs in "agent" mode instead (the door requires it).
+        # The door mode EVERY turn rides, tools or not. Since aire-server 5ae8e33
+        # the door accepts registry tools in mode=complete, so requesting tools no
+        # longer forces "agent" (whose preset carries builtins nobody asked for).
         self.default_mode = default_mode
         # Vetted AIRE-registry tool NAMES this backend requests on EVERY turn
         # (e.g. ("memory",)), unioned with the names of any per-turn mcp_servers
@@ -108,9 +135,11 @@ class AIREBackend:
         # outside its registry.
         self.registry_tools = tuple(registry_tools)
         self.timeout = timeout
-        # /init state: the casita's fixed prompt last written, so we re-init only
-        # when the system_prompt actually changes (idempotent, but a round trip).
-        self._inited_prompt: str | None = None
+        # /init state PER CASITA, per process: the prompt last written to each
+        # project, so we re-init only on change. The base casita holds the full
+        # persona; each chat casita holds only the `@base` stub (thin birth) —
+        # a fresh process re-inits both, which rebases fat-born chats to the stub.
+        self._inited_prompts: dict[str, str] = {}
         self._client: Any = None  # lazy httpx.AsyncClient
 
     # --- door plumbing -------------------------------------------------------
@@ -146,21 +175,45 @@ class AIREBackend:
         names = list(self.registry_tools) + [s.name for s in mcp_servers]
         return list(dict.fromkeys(n for n in names if n))
 
-    async def _ensure_prompt(self, system_prompt: str) -> None:
-        """Write the casita's fixed prompt via ``/init`` when it changes. The
-        message endpoint auto-creates the casita, so a turn with no persona needs
-        no init at all — this fires only to install/refresh a non-empty prompt."""
+    def _resolve_project(self) -> str:
+        """The casita THIS turn addresses: the per-turn resolver's answer when
+        wired and truthy (casita-per-chat), else the fixed ``project``."""
+        if self.project_for_turn is not None:
+            override = self.project_for_turn()
+            if override:
+                return override
+        return self.project
+
+    async def _ensure_prompt(self, project: str, system_prompt: str) -> None:
+        """Install the turn's prompt surface, thin-birth style (see module doc).
+
+        The FULL persona lives only in the shared base casita (``self.project``);
+        a per-turn chat casita gets the one-line ``@base`` stub AIRE dereferences
+        at spawn (aire-server ef21e68). Base first, so a chat's very first spawn
+        already finds a persona to dereference. The message endpoint auto-creates
+        casitas, so a turn with no persona needs no init at all."""
         prompt = (system_prompt or "").strip()
-        if not prompt or prompt == self._inited_prompt:
+        if not prompt:
+            return
+        await self._init_casita(self.project, prompt)
+        if project != self.project:
+            await self._init_casita(project, f"@base {self.project}")
+
+    async def _init_casita(self, project: str, prompt: str) -> None:
+        """POST ``/init`` unless this process already wrote that exact prompt to
+        that casita. AIRE's ``/init`` preserves the casita's LIVING part (below
+        its marker) by contract, so re-running it only rebases the base — which
+        is how a fat-born chat casita converges to the stub after a restart."""
+        if prompt == self._inited_prompts.get(project):
             return
         res = await self._http().post(
-            f"{self.gate_url}/projects/{self.project}/init",
+            f"{self.gate_url}/projects/{project}/init",
             headers=self._headers,
             json={"claude_md": prompt},
         )
         if res.status_code >= 400:
             raise BackendError(f"AIRE init {res.status_code}: {res.text}")
-        self._inited_prompt = prompt
+        self._inited_prompts[project] = prompt
 
     # --- SSE parsing (AIRE events -> fi-runner events) -----------------------
 
@@ -187,13 +240,13 @@ class AIREBackend:
         )
 
     async def _stream_events(
-        self, session: str, body: dict[str, Any]
+        self, project: str, session: str, body: dict[str, Any]
     ) -> AsyncIterator[dict[str, Any]]:
         """POST the turn and yield AIRE's SSE events as dicts. Each ``data:`` line
         is a full event object carrying its own ``type`` (AIRE's ``_plain(ev)``)."""
         async with self._http().stream(
             "POST",
-            f"{self.gate_url}/projects/{self.project}/sessions/{session}/messages",
+            f"{self.gate_url}/projects/{project}/sessions/{session}/messages",
             headers=self._headers,
             json=body,
         ) as res:
@@ -241,14 +294,17 @@ class AIREBackend:
         so the Runner's glass-box stream is unchanged."""
         self._require_door()
         self._warn_unenforceable(tool_policy)
-        await self._ensure_prompt(system_prompt)
+        project = self._resolve_project()
+        await self._ensure_prompt(project, system_prompt)
         # AIRE keys memory by (project, session); a one-shot needs a throwaway name.
         session = session_id or uuid.uuid4().hex
         tools = self._turn_tools(mcp_servers)
-        # The door requires mode=agent whenever tools are requested (complete has
-        # no agentic loop); a tool-free backend keeps its configured default_mode.
+        # Tools ride the configured mode as-is. The old guard that 422ed tools in
+        # mode=complete fell (aire-server 5ae8e33, measured live: a complete turn
+        # with tools:["persona"] executed the tool fine) — forcing mode=agent here
+        # would drag in the agent preset's builtins the consumer never asked for.
         body: dict[str, Any] = {
-            "mode": "agent" if tools else self.default_mode,
+            "mode": self.default_mode,
             "message": user_message,
         }
         if tools:
@@ -258,7 +314,7 @@ class AIREBackend:
             body["model"] = chosen_model
         if images:
             body["images"] = [{"media_type": i.media_type, "data": i.data} for i in images]
-        async for ev in self._stream_events(session, body):
+        async for ev in self._stream_events(project, session, body):
             kind = ev.get("type")
             if kind == "text":
                 text = ev.get("text") or ""
