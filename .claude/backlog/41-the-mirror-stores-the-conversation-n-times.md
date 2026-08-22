@@ -102,17 +102,31 @@ thing that grows, and nothing watched its SIZE — only that the broom's timer w
 alive. A broom that runs perfectly while the input rate rises is a green light
 over a rising line.
 
+## The trap this introduced, and how it was closed the same day
+
+Content-addressing creates a reference, and a reference can dangle. Two ways,
+both closed:
+
+- **The broom.** `sweep.py` now reclaims `aire_gateway_blob`, but only
+  fingerprints that **no surviving row references** — the `NOT EXISTS` is the
+  load-bearing half, and it is mutation-tested: with the guard removed, the test
+  that says a referenced blob survives goes red. It runs AFTER the log sweep, so
+  a row deleted above is a reference released here. Its own `NOT SELECT` law was
+  re-stated rather than quietly broken: this read renders nothing and gates a
+  delete, which is the kind [[write-only-daemon]] sanctions.
+- **The daemon's cache, which was the sharper one.** `gateway_store._stored`
+  claimed "the database still holds this" and could not verify it. A process that
+  wrote a fingerprint, went quiet past the retention window, and used it again
+  would reference a blob the broom had legitimately reclaimed. Dropping the cache
+  outright was measured first and rejected on evidence: a no-op INSERT on an
+  already-open pooled connection costs **24 ms**, and it sits on the relay's
+  critical path — two blobs would be ~50 ms on every request's time to first
+  byte. So the cache **expires** (`AIRE_BLOB_TTL_S`, 6h against a daily sweep):
+  anything used inside the TTL has rows far inside the retention window, so the
+  broom cannot touch it, and anything older is re-asserted for one 24 ms INSERT.
+
 ## Left open
 
-- **The front's single-exchange view** (`gatewayExchange`) returns the raw body,
-  so it now renders `$elided` with fingerprints where the system prompt used to
-  be. Honest and self-describing, but a `LEFT JOIN aire_gateway_blob` would give
-  the reader back the whole picture. The list views are unaffected — they only
-  ever read `$.messages[last]`.
-- **The broom does not sweep `aire_gateway_blob`.** It should not, yet: 42 rows
-  at 1.44 MB, and a blob deleted while a row still references it is exactly the
-  dangling pointer the inline fallback exists to prevent. If it ever grows, the
-  sweep must delete only fingerprints no surviving row references.
 - **A nightly size line in costwatch**, so the RATE is known instead of the
   snapshot. Cheap, and it is what would have surfaced this without a review.
 
