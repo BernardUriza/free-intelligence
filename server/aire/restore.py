@@ -51,6 +51,24 @@ async def restore_one(store, project_key: str, session_id: str) -> bool:
     return True
 
 
+async def _restore_personas() -> int:
+    """The casitas' CLAUDE.md (#36's soul — casita.py). Its own try: a persona
+    that cannot come back must not stop the door's transcripts from doing so."""
+    import asyncpg
+
+    from . import casita
+
+    try:
+        conn = await asyncpg.connect(DSN, timeout=10)
+        try:
+            return await casita.restore(conn)
+        finally:
+            await conn.close()
+    except Exception as exc:  # noqa: BLE001 — loud; the door's restore carries on
+        print(f"CASITA-RESTORE failed: {type(exc).__name__}: {exc}")
+        return 0
+
+
 async def restore() -> int:
     if not DSN:
         print("SESSION-RESTORE skipped (no AIRE_DSN)")
@@ -63,6 +81,9 @@ async def restore() -> int:
                 written += 1
     finally:
         await store.close()
+    if personas := await _restore_personas():
+        append_file(f"{_now()} - CASITA-RESTORE rematerialized {personas} casita persona(s)")
+        print(f"CASITA-RESTORE rematerialized {personas} personas")
     if written:
         append_file(f"{_now()} - SESSION-RESTORE rematerialized {written} "
                     "door sessions from the deathless memory")

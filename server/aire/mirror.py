@@ -89,6 +89,25 @@ async def _offer_changed(store, cache: dict[str, list]) -> tuple[int, int]:
     return offered, sessions
 
 
+async def _offer_personas() -> int:
+    """The casitas' CLAUDE.md, on the same tick (#36's soul, which nothing kept
+    — see casita.py). Its own try: a persona that fails to store must not stop
+    the door's transcripts from being mirrored, and vice versa."""
+    import asyncpg
+
+    from . import casita
+
+    try:
+        conn = await asyncpg.connect(DSN, timeout=10)
+        try:
+            return await casita.offer(conn)
+        finally:
+            await conn.close()
+    except Exception as exc:  # noqa: BLE001 — loud, and the door's mirror carries on
+        print(f"CASITA-MIRROR failed: {type(exc).__name__}: {exc}")
+        return 0
+
+
 async def mirror() -> int:
     if not DSN:
         print("SESSION-MIRROR skipped (no AIRE_DSN)")
@@ -101,6 +120,9 @@ async def mirror() -> int:
     finally:
         await store.close()
         save_cache(cache)
+    if personas := await _offer_personas():
+        append_file(f"{_now()} - CASITA-MIRROR stored {personas} persona version(s)")
+        print(f"CASITA-MIRROR stored {personas} persona version(s)")
     if offered:
         append_file(f"{_now()} - SESSION-MIRROR offered {offered} entries "
                     f"from {sessions} door sessions")
