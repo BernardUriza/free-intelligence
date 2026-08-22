@@ -143,23 +143,23 @@
   <div class="hero">
     <div class="label">Tu pago de esta semana · ✅ depositado</div>
     <div class="amount">120.00 USD</div>
-    <div class="sub"><b>$2,042 MXN</b> a tu Mercado Pago · <b>viernes 14 de agosto de 2026, 18:10</b> · TC del día 17.02</div>
+    <div class="sub"><b>$2,030.40 MXN</b> a tu Mercado Pago · <b>sábado 22 de agosto de 2026, 7:21 AM</b> · TC del día 16.92</div>
   </div>
 
   <div class="grid">
     <div class="card">
-      <div class="k">Horas esta semana</div>
-      <div class="v">11.75 h <span style="font-size:15px;opacity:.65">+ viernes</span></div>
-      <div class="n">4 sesiones cerradas · gracias por reportarlas</div>
+      <div class="k">Horas desde el 31-ago</div>
+      <div class="v">4 h <span style="font-size:15px;opacity:.65">= 160 USD</span></div>
+      <div class="n">como lo pediste: 3 h la semana del 24–30, y subes el lun 31</div>
     </div>
     <div class="card">
       <div class="k">Acumulado del piloto</div>
-      <div class="v">120 USD</div>
-      <div class="n">1 semana corrida</div>
+      <div class="v">240 USD</div>
+      <div class="n">2 semanas corridas</div>
     </div>
     <div class="card">
       <div class="k">Piloto</div>
-      <div class="v">1 / 13</div>
+      <div class="v">2 / 13</div>
       <div class="n">11-ago → 11-nov 2026</div>
     </div>
     <div class="card">
@@ -175,10 +175,18 @@
       <thead><tr><th>Semana</th><th>Periodo</th><th>Horas</th><th>Monto</th><th>Se paga</th><th>Estado</th></tr></thead>
       <tbody>
         <tr>
+          <td>S2</td>
+          <td>lun 17 — dom 23 ago 2026</td>
+          <td>3 h</td>
+          <td>120 USD = $2,030.40 MXN</td>
+          <td>sáb 22-ago 7:21</td>
+          <td><span class="pill ok">Pagado</span></td>
+        </tr>
+        <tr>
           <td>S1</td>
           <td>lun 10 — dom 16 ago 2026</td>
           <td>11.75 h + vie</td>
-          <td>120 USD</td>
+          <td>120 USD = $2,042 MXN</td>
           <td>vie 14-ago</td>
           <td><span class="pill ok">Pagado</span></td>
         </tr>
@@ -191,6 +199,24 @@
     <table>
       <thead><tr><th>Sesión</th><th>Fecha</th><th>Horas</th><th>Qué salió</th></tr></thead>
       <tbody>
+        <tr>
+          <td colspan="4" style="background:var(--accent-soft);font-weight:600">Semana 2 · lun 17 — dom 23 ago</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>vie 21-ago · 15:00–18:11</td>
+          <td>3 h</td>
+          <td>Tres PRs en verde en un día: <a href="https://github.com/BernardUriza/discord-bot/pull/45">#45</a> (el ADN de Valentis, 314 líneas + 7 tests), <a href="https://github.com/BernardUriza/discord-bot/pull/46">#46</a> (el guidance del turno grave, issue #42, con Slaikeu y la guía de CONASAMA detrás) y <a href="https://github.com/BernardUriza/discord-bot/pull/47">#47</a> (docs de training). Más el hallazgo del hook pre-commit que truena en Windows.</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>mié 19-ago</td>
+          <td><span style="opacity:.65">modo lectura</span></td>
+          <td>El cansancio ganó después de arrancar y decidiste no tocar nada que se pushee — criterio, no falta. De la pura lectura salió el hallazgo: las 479 líneas de Valentis estaban en staging sin commit; pushear tal cual subía la rama vacía.</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="background:var(--accent-soft);font-weight:600">Semana 1 · lun 10 — dom 16 ago</td>
+        </tr>
         <tr>
           <td>1</td>
           <td>lun 10-ago · 15:00–17:30</td>
@@ -218,15 +244,15 @@
         <tr>
           <td>5</td>
           <td>vie 14-ago</td>
-          <td><span style="opacity:.65">en curso</span></td>
-          <td>Revisión de la lista de issues (#36 cerrado, #41 comentado) y seguir con Valentis.</td>
+          <td>3 h</td>
+          <td>Revisión de la lista de issues (#36 cerrado, #41 comentado) y avance de Valentis.</td>
         </tr>
       </tbody>
     </table>
     <p style="opacity:.7;font-size:14px;margin:14px 2px 0">
-      Horas reportadas por ti el viernes 14. Sirven para cuidar que no te pases de
-      2-3 al día, no para calcular el pago — <b>los 120 USD de la semana son fijos</b>.
-      <br><b>El miércoles fueron ~4 h seguidas</b>, arriba del tope. Lo anotamos aquí
+      Horas reportadas por ti al cierre de cada semana. Sirven para cuidar que no te
+      pases de 2-3 al día, no para calcular el pago — <b>el monto de la semana es fijo</b>.
+      <br><b>El miércoles 12 fueron ~4 h seguidas</b>, arriba del tope. Lo anotamos aquí
       porque el tope está para cuidarte, no para controlarte.
     </p>
   </div>
@@ -236,8 +262,8 @@
     <ul class="terms">
       <li><b>Rol</b><span>Diseño Conversacional y Control de Calidad — platicar con las personas del bot, cachar cuando rompen personaje o suenan frías, falsas o torpes, y mejorar los prompts con tu criterio de psicóloga.</span></li>
       <li><b>Cómo entregas</b><span>PRs al repo dirigiendo Claude Code. Tú pones el criterio; Claude escribe el código.</span></li>
-      <li><b>Carga</b><span>~10 horas a la semana, máximo 2-3 al día. Tú acomodas tus horarios.</span></li>
-      <li><b>Pago</b><span>120 USD por semana, fijo, cada viernes, en pesos al tipo de cambio del día.</span></li>
+      <li><b>Carga</b><span>3 h a la semana de base (una sesión) — y desde el lunes 31 de agosto, 4 h, como lo pediste. Máximo 2-3 al día, tú acomodas tus horarios. El tope disponible sigue siendo 6 h, reversible en las dos direcciones.</span></li>
+      <li><b>Pago</b><span>Fijo semanal, cada viernes, en pesos al tipo de cambio del día: 120 USD con 3 h · 160 USD con 4 h desde el 31 de agosto. La tarifa es la misma en todos los escalones: 40 USD/h.</span></li>
       <li><b>Qué se paga</b><span>Tu tiempo y tu criterio — no entregables ni metas. Si una semana el cuerpo no da, se ajusta y el pago no se toca.</span></li>
       <li><b>Piloto</b><span>3 meses (ago–nov 2026), con la idea de ir subiendo conforme avance el proyecto.</span></li>
       <li><b>IMSS</b><span>Bern está viendo con el contador abrir RFC de patrón para darte de alta y que tengas seguro médico de verdad.</span></li>
