@@ -713,6 +713,24 @@ class Runner:
         )
         return replace(result, text=mutated)
 
+    async def forget_session(self, session_id: str) -> bool:
+        """Erase a session's native memory — the cascade a consumer's own delete owes.
+
+        A consumer that deletes a conversation deletes what the USER sees. The
+        native transcript underneath it — tool_use and tool_result blocks included,
+        the part history replay cannot carry — survives that delete and is
+        unreachable forever after, because the id that addressed it is gone. That
+        is a whole conversation outliving its own deletion.
+
+        Duck-typed on the backend exactly like ``has_session`` in
+        :meth:`_fold_history`, so a backend without native memory (Codex, fakes)
+        answers ``False`` and the consumer's delete stays byte-identical.
+        """
+        forget = getattr(self.backend, "forget_session", None)
+        if not callable(forget):
+            return False
+        return bool(await forget(session_id))
+
     async def preflight(self, *, timeout: float = 10.0) -> dict[str, Any]:
         """Probe every MCP server this runner will use, BEFORE the first turn.
 
