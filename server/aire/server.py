@@ -25,11 +25,12 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from . import access, arming, artifacts, door, gateway, init_project, messages, tokens
+from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
@@ -56,25 +57,32 @@ app.add_middleware(BaseHTTPMiddleware, dispatch=door.llm_door)
 
 
 @app.get("/health")
-async def health() -> JSONResponse:
+async def health(request: Request) -> JSONResponse:
     """The REAL state of the memory, including a downed database, without
     blowing up. A health endpoint that answers 500 with a traceback is useless
     for monitoring.
 
-    It also reports which GUARDS are armed (`arming.py`). Reachable memory was
-    the only thing this ever proved, so a daemon whose spend backstop never
-    armed, whose rotor had one slot and whose verbs all answered DENIED still
-    read `{"status": "ok"}` — green for a box where every safety was off."""
+    To a caller carrying a door token it ALSO reports which guards are armed
+    (`arming.py`). Reachable memory was the only thing this ever proved, so a
+    daemon whose spend backstop never armed, whose rotor had one slot and whose
+    verbs all answered DENIED still read `{"status": "ok"}` — green for a box
+    where every safety was off.
+
+    That half is gated because this endpoint is the one thing the middleware
+    lets through unauthenticated, and a list of which defences are currently
+    down is reconnaissance, not health. Anonymous callers get exactly what they
+    always got; costwatch carries the token."""
+    detail = arming.report() if accepted(presented_token(request)) else {}
     try:
         engine = await get_engine()
         await engine.session_store.list_sessions("__health__")
         return JSONResponse({"status": "ok", "memory": "postgres",
-                             "modes": list(MODES), **arming.report()})
+                             "modes": list(MODES), **detail})
     except Exception as exc:  # noqa: BLE001 — health catches EVERYTHING, that's its job
         drop_engine()
         return JSONResponse(
             {"status": "degraded", "memory": "unreachable",
-             "detail": type(exc).__name__, **arming.report()},
+             "detail": type(exc).__name__, **detail},
             status_code=503,
         )
 

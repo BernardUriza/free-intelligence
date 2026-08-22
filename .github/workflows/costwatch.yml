@@ -143,7 +143,11 @@ jobs:
           #                        so a burned weekly pool has nowhere to go.
           #                        Arming it costs money — backlog #40, Bernard's.
           DECLARED='["credential_failover","whitelist_enforce"]'
-          DISARMED="$(curl -sS -m 10 http://127.0.0.1:8088/health | jq -c '.disarmed // "unreadable"')"
+          # The arming half of /health is gated: the endpoint is the one thing the
+          # middleware lets through unauthenticated, and a list of which defences
+          # are down is reconnaissance. The token is already in /etc/aire/env.
+          DISARMED="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" \
+                        http://127.0.0.1:8088/health | jq -c '.disarmed // "unreadable"')"
           echo "disarmed guards: ${DISARMED}  (declared: ${DECLARED})"
           UNDECLARED="$(jq -nc --argjson d "$DISARMED" --argjson k "$DECLARED" '$d - $k' 2>/dev/null || echo '"unreadable"')"
           if [[ "$UNDECLARED" != "[]" ]]; then
