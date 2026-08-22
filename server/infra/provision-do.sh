@@ -21,6 +21,7 @@ PEN_SECRET="$HOME/.secrets/aire-postgres.txt"
 VERB_TOKEN_FILE="$HOME/.secrets/aire-verb-token.txt"
 LLM_TOKEN_FILE="$HOME/.secrets/aire-llm-token.txt"
 CANARY_TOKEN_FILE="$HOME/.secrets/aire-canary-token.txt"   # revocable Azure-front key
+RUNNER_TOKEN_FILE="$HOME/.secrets/aire-runner-token.txt"   # revocable persona-runner key
 OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 OAUTH_BACKUP_FILE="$HOME/.secrets/aire-claude-oauth-backup.txt"     # #31 failover slot 2 (optional)
 API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failover slot 3 (optional)

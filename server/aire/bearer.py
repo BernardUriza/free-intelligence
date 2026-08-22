@@ -19,8 +19,14 @@ import os
 
 from fastapi import Request
 
+# One slot per CONSUMER, not one shared secret: a credential is scoped to the
+# surface it was handed to, so a leak is revoked by emptying ONE variable and no
+# sibling consumer is disturbed. AIRE_AUTH_TOKEN is Bernard's own, CANARY the
+# Azure front's, RUNNER discord-bot's persona-runner (stage 2).
 ACCEPTED_TOKENS = tuple(
-    t for t in (os.environ.get("AIRE_AUTH_TOKEN", ""), os.environ.get("AIRE_CANARY_TOKEN", "")) if t
+    t for t in (os.environ.get("AIRE_AUTH_TOKEN", ""),
+                os.environ.get("AIRE_CANARY_TOKEN", ""),
+                os.environ.get("AIRE_RUNNER_TOKEN", "")) if t
 )
 
 

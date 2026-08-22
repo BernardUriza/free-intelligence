@@ -39,6 +39,7 @@ compose_env() {
   append_secret "$VERB_TOKEN_FILE" "AIRE_VERB_TOKEN="   "the verbs (MKDIR/ALLOW/REVOKE)"
   append_secret "$LLM_TOKEN_FILE"  "AIRE_AUTH_TOKEN="   "the engine's LLM door"
   append_secret "$CANARY_TOKEN_FILE" "AIRE_CANARY_TOKEN=" "the revocable Azure-front door"
+  append_secret "$RUNNER_TOKEN_FILE" "AIRE_RUNNER_TOKEN=" "the revocable persona-runner door"
   append_secret "$OAUTH_FILE"      "CLAUDE_CODE_OAUTH_TOKEN=" "the engine's Anthropic auth"
   # What AIRE LENDS to an invited key (#32e), in a slot of its own. Same token as
   # the engine's today — one OAuth exists per account — but derived here rather
