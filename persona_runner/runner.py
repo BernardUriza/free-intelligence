@@ -83,6 +83,19 @@ async def _lifespan(app: FastAPI):
         with contextlib.suppress(asyncio.CancelledError):
             await _reaper_task
     await session_pool.close_all()
+    if config.TURN_BACKEND == "aire":
+        # Every AIREBackend holds a pooled httpx.AsyncClient. `aclose()` existed
+        # and nothing called it, so on the AIRE path shutdown left every door
+        # client's connections and TLS sessions open — turn backends and judge
+        # backends alike.
+        from persona_runner.engine import aire_route
+
+        await aire_route.close_backends()
+    # The shared asyncpg pool (mcp_tools.shared) is built lazily by whoever
+    # needs Postgres on the hot path; closing is idempotent when none exists.
+    from persona_runner.mcp_tools import shared as pg_shared
+
+    await pg_shared.close_pool()
     log.info("agent_runner_stopped")
 
 

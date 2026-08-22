@@ -25,6 +25,13 @@ decided by Bernard 2026-08-22:
   AIRE route that routing degrades to "the model the session started with".
   ``model_diverged`` logs every occurrence; the flag must NOT go permanent
   until AIRE can rebind (named as an AIRE-side gap in the backlog).
+- **Concurrency is guarded structurally, never by a knob's current value**
+  (code review, 2026-08-22). A turn holds its casita's lock across
+  decide→turn→mark, so two messages arriving together in one channel cannot both
+  believe they open the session and fold the history twice (``CasitaState``). A
+  judge's casita is NAMED after the digest of its system prompt, so two judges
+  can never share an overwritable ``/init`` surface no matter what
+  ``JUDGE_MAX_CONCURRENCY`` is set to (``judge_casita_for``).
 - **Terminal errors stay errors**: ``budget_exhausted`` / ``credentials_exhausted``
   (aire #23/#31 family) map to 500 (retries cannot fix them; the gateway's
   neutral in-character error path takes over); ``slot_busy`` backpressure maps
@@ -34,10 +41,14 @@ decided by Bernard 2026-08-22:
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import os
 import re
 import time
+from collections import OrderedDict
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 
 import structlog
 from fastapi import HTTPException
@@ -88,7 +99,11 @@ AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
 # One continuous session per casita. The casita name already scopes
 # persona+channel, so the session inside it is just "the live thread".
 SESSION_NAME = "live"
+# AIRE's structured error CODES, classified once. Terminal cuts (aire #23/#31)
+# cannot be fixed by retrying; backpressure can.
 _TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded")
+_BACKPRESSURE_ERRORS = ("slot_busy",)
+_STATUS_PREFIX = {500: "aire turn terminal", 503: "aire backpressure", 502: "aire turn failed"}
 
 _NAME_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
 _NAME_MAX = 128
@@ -98,12 +113,69 @@ _NAME_MAX = 128
 _chat_casita: ContextVar[str | None] = ContextVar("aire_chat_casita", default=None)
 _backends: dict[str, AIREBackend] = {}
 _judge_backends: dict[str, AIREBackend] = {}
-# Casitas whose session this process already spoke to. Governs the one-time
-# history fold: AIRE's memory survives OUR restarts, so a fold repeated after a
-# restart can duplicate context the session already holds — accepted edge until
-# AIRE grows a session-exists probe (named in the stage-2 backlog).
-_seen_sessions: set[str] = set()
 _default_policy = ToolPolicy()
+
+
+@dataclass
+class CasitaState:
+    """One casita's turn gate plus the bit that governs the one-time history fold.
+
+    ``seen`` records that this process already spoke to the casita's session, so
+    caller-replayed history is folded only into the turn that OPENS it. AIRE's
+    memory survives OUR restarts, so a fold repeated after a restart can still
+    duplicate context the session already holds — accepted edge until AIRE grows
+    a session-exists probe (named in the stage-2 backlog).
+
+    ``lock`` is why both live in one object: the freshness read, the turn and
+    the mark must all happen under it. Without it two near-simultaneous messages
+    in one Discord channel BOTH read ``seen == False`` and BOTH fold the whole
+    replayed history into their message. AIRE serializes execution with a
+    per-session lock, so nothing crashes — the session simply ends up holding
+    the conversation twice, and those tokens are paid twice. This is the same
+    invariant api/turn.py states as "only under the lock does 'not open' mean
+    THIS turn opens the session"; holding it also serializes same-channel turns
+    runner-side, which matches the local path and is what AIRE would do anyway.
+    """
+
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    seen: bool = False
+
+
+# One entry per (persona, channel) EVER served, each carrying an asyncio.Lock —
+# so this dict is heavier than the plain string set it replaces and cannot be
+# left to grow forever: a gateway that meets 50k distinct channels would hold
+# 50k locks it can never drop. The cap evicts the least-recently-used IDLE entry
+# (never one whose lock is held). The only thing an eviction costs is the `seen`
+# bit, i.e. that casita's next turn folds history once more — exactly the
+# bounded duplication a runner restart already causes today.
+_CASITA_STATE_MAX = int(os.environ.get("AIRE_CASITA_STATE_MAX", "4096"))
+_casita_state: OrderedDict[str, CasitaState] = OrderedDict()
+
+
+def casita_state(session_key: str) -> CasitaState:
+    """This casita's gate + freshness bit, created on first use.
+
+    Creation is a single synchronous step (no await between the miss and the
+    insert), exactly like ``session_pool.slot_lock``'s ``setdefault`` — so two
+    coroutines can never walk away holding two different locks for one casita,
+    which would reopen the very race the lock closes.
+    """
+    state = _casita_state.get(session_key)
+    if state is None:
+        state = CasitaState()
+        _casita_state[session_key] = state
+        _evict_cold_casitas()
+    _casita_state.move_to_end(session_key)
+    return state
+
+
+def _evict_cold_casitas() -> None:
+    """Drop least-recently-used IDLE casitas until the cap holds again."""
+    while len(_casita_state) > _CASITA_STATE_MAX:
+        victim = next((k for k, s in _casita_state.items() if not s.lock.locked()), None)
+        if victim is None:
+            return  # every casita is mid-turn: correctness outranks the cap
+        del _casita_state[victim]
 
 
 def verify_aire_route() -> None:
@@ -129,10 +201,12 @@ def verify_aire_route() -> None:
             "silently strips the load-bearing web tools (2026-06-14 class)."
         )
     verify_audited_surface(config.AIRE_TURN_MODE)
-    # Assert the REAL path, exactly like the boot's build_options check does for
-    # the local route: the backend a turn would actually use must carry the
-    # required registry tools and ride an allowlisted mode.
-    backend = backend_for(base_persona_id(None))
+    # Assert the REAL wiring, exactly like the boot's build_options check does
+    # for the local route: the backend a turn would actually get must carry the
+    # required registry tools and ride an allowlisted mode. It is BUILT, not
+    # cached — verifying must not mutate module state, or the boot check quietly
+    # becomes a warm-up whose side effect nothing declares.
+    backend = _build_backend(base_persona_id(None))
     missing = [t for t in AIRE_REQUIRED_TOOLS if t not in backend.registry_tools]
     if missing:
         raise RuntimeError(
@@ -193,20 +267,46 @@ def chat_casita_for(base_id: str, channel_id: str) -> str:
     return f"{base_id}-{cleaned}"[:_NAME_MAX]
 
 
+def _build_backend(base_id: str) -> AIREBackend:
+    """Construct (and never cache) this persona's door client. The single place
+    the turn backend's shape is decided, so the boot check can assert the real
+    wiring without warming the cache."""
+    return AIREBackend(
+        project=base_id,
+        default_mode=config.AIRE_TURN_MODE,
+        registry_tools=AIRE_REQUIRED_TOOLS,
+        project_for_turn=_chat_casita.get,
+        timeout=config.TURN_TIMEOUT_S,
+    )
+
+
 def backend_for(base_id: str) -> AIREBackend:
     """This persona's door client, created on first use. One backend per persona
     because the thin-birth BASE casita is the backend's fixed ``project``."""
     backend = _backends.get(base_id)
     if backend is None:
-        backend = AIREBackend(
-            project=base_id,
-            default_mode=config.AIRE_TURN_MODE,
-            registry_tools=AIRE_REQUIRED_TOOLS,
-            project_for_turn=_chat_casita.get,
-            timeout=config.TURN_TIMEOUT_S,
-        )
+        backend = _build_backend(base_id)
         _backends[base_id] = backend
     return backend
+
+
+async def close_backends() -> None:
+    """Close every door client this process opened — turn AND judge (shutdown).
+
+    ``AIREBackend`` holds a pooled ``httpx.AsyncClient``; ``aclose()`` existed
+    and nothing called it, so every backend's connections and TLS sessions
+    leaked past shutdown. Best-effort per backend: one refusing to close must
+    not leave the rest open.
+    """
+    backends = list(_backends.values()) + list(_judge_backends.values())
+    _backends.clear()
+    _judge_backends.clear()
+    for backend in backends:
+        try:
+            await backend.aclose()
+        except Exception:
+            log.exception("aire_route_backend_close_failed", project=getattr(backend, "project", "?"))
+    log.info("aire_route_backends_closed", closed=len(backends))
 
 
 async def fetch_user_facts(user_id: str) -> str:
@@ -216,30 +316,29 @@ async def fetch_user_facts(user_id: str) -> str:
     Same query as the ``persona_memory`` MCP tool ``get_user_facts`` — that tool
     cannot run on AIRE, so the runner pre-fetches what it used to serve. Any
     fault returns "" — a memory-less turn beats a dead one (DB failures never
-    kill the turn, repo law)."""
+    kill the turn, repo law).
+
+    Runs on a POOLED connection (``mcp_tools.shared.acquire``). The MCP tool it
+    replaces was called only when the model chose to reach for memory; this
+    pre-fetch fires on EVERY turn, so the one-shot connect + TLS handshake +
+    close it used to inherit became an unconditional cost on the hot path."""
     from persona_runner.mcp_tools import shared
 
-    conn = await shared._connect()
-    if conn is None:
-        return ""
     try:
-        rows = await conn.fetch(
-            "SELECT category, fact FROM principal_facts "
-            "WHERE principal_id = $1 AND deleted_at IS NULL "
-            "ORDER BY updated_at DESC",
-            user_id,
-        )
-        lines = [f"- [{r['category'] or 'uncategorized'}] {r['fact']}" for r in rows]
-        block = "\n".join(lines)
-        return block[: config.AIRE_FACTS_MAX_CHARS]
+        async with shared.acquire() as conn:
+            if conn is None:
+                return ""
+            rows = await conn.fetch(
+                "SELECT category, fact FROM principal_facts "
+                "WHERE principal_id = $1 AND deleted_at IS NULL "
+                "ORDER BY updated_at DESC",
+                user_id,
+            )
     except Exception:
         log.exception("aire_route_facts_fetch_failed", user_id=user_id)
         return ""
-    finally:
-        try:
-            await conn.close()
-        except Exception:
-            log.exception("aire_route_facts_conn_close_failed")
+    lines = [f"- [{r['category'] or 'uncategorized'}] {r['fact']}" for r in rows]
+    return "\n".join(lines)[: config.AIRE_FACTS_MAX_CHARS]
 
 
 def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
@@ -259,6 +358,31 @@ def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnIm
     return images, dropped
 
 
+def _error_status(exc: BackendError) -> int:
+    """Classify a door failure by AIRE's structured error CODE, not by its prose.
+
+    ``AIREDoorError`` carries the code (and the door's HTTP status) as data, so
+    the decision is made on the datum AIRE actually emits. Substring matching
+    survives ONLY as the fallback for an unstructured failure: that way the day
+    AIRE rewords a message the worst case is 502-and-retry, never a terminal cut
+    misread as something a retry can fix (nor the reverse — a retry storm
+    against an exhausted pool).
+    """
+    code = getattr(exc, "code", None)
+    if code is not None:
+        if code in _TERMINAL_ERRORS:
+            return 500
+        return 503 if code in _BACKPRESSURE_ERRORS else 502
+    if getattr(exc, "http_status", None) == 503:
+        return 503
+    detail = str(exc)
+    if any(known in detail for known in _TERMINAL_ERRORS):
+        return 500
+    if any(known in detail for known in _BACKPRESSURE_ERRORS) or "AIRE door 503" in detail:
+        return 503
+    return 502
+
+
 def to_http_error(exc: BackendError) -> HTTPException:
     """Map a door failure onto the runner's HTTP error contract (the gateway's
     agent_client branches on status: 502/503 retry as mid-restart, 500 never).
@@ -268,23 +392,31 @@ def to_http_error(exc: BackendError) -> HTTPException:
     must take over instead of a retry storm. Backpressure (slot_busy / a door
     503) is 503 so the existing transient retry applies. Everything else is 502.
     """
-    detail = str(exc)
-    if any(code in detail for code in _TERMINAL_ERRORS):
-        return HTTPException(500, f"aire turn terminal: {detail[:200]}")
-    if "slot_busy" in detail or "AIRE door 503" in detail:
-        return HTTPException(503, f"aire backpressure: {detail[:200]}")
-    return HTTPException(502, f"aire turn failed: {detail[:200]}")
+    status = _error_status(exc)
+    return HTTPException(status, f"{_STATUS_PREFIX[status]}: {str(exc)[:200]}")
 
 
 async def turn_via_aire(req: TurnRequest) -> TurnResponse:
-    """One persona turn through AIRE's engine door (the TURN_BACKEND=aire path)."""
+    """One persona turn through AIRE's engine door (the TURN_BACKEND=aire path).
+
+    The whole decide → turn → mark window runs under the casita's lock, so
+    "first turn" can only be true for the turn that actually opens the session
+    (see ``CasitaState``). Two messages landing together in one channel are
+    serialized here, exactly as api/turn.py serializes them on the local path.
+    """
+    base_id = base_persona_id(req.persona_id)
+    casita = chat_casita_for(base_id, req.channel_id)
+    state = casita_state(f"{casita}/{SESSION_NAME}")
+    async with state.lock:
+        return await _run_turn(req, base_id, casita, state)
+
+
+async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaState) -> TurnResponse:
+    """The turn itself. ALWAYS called under ``state.lock`` — see ``turn_via_aire``."""
     from persona_runner.engine.session_pool import _route_model
 
     start = time.monotonic()
-    base_id = base_persona_id(req.persona_id)
-    casita = chat_casita_for(base_id, req.channel_id)
-    session_key = f"{casita}/{SESSION_NAME}"
-    is_first_turn = session_key not in _seen_sessions
+    is_first_turn = not state.seen
 
     model, route_meta = await _route_model(req.channel_id, req.user_id, req.user_text)
     memory_block = await fetch_user_facts(req.user_id)
@@ -330,7 +462,9 @@ async def turn_via_aire(req: TurnRequest) -> TurnResponse:
     finally:
         _chat_casita.reset(token)
 
-    _seen_sessions.add(session_key)
+    # Only a turn that SUCCEEDED marks the session spoken-to: a failed one never
+    # reached AIRE's memory, so the next attempt must still fold the history.
+    state.seen = True
     usage = result.usage or {}
     if model_diverged(model, result.model):
         log.warning(
@@ -389,6 +523,37 @@ def model_diverged(requested: str | None, answered: str | None) -> bool:
     return not (answered.startswith(requested) or requested.startswith(answered))
 
 
+def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
+    """The judge's utility casita: ``{persona}-judge-{sha256(prompt)}``.
+
+    The prompt's digest is part of the NAME on purpose, and it is what makes the
+    judge safe at ANY concurrency. AIRE's door carries no per-turn system prompt
+    — the only way to install one is ``/init`` on the casita — so a casita shared
+    by two judges is a shared, overwritable prompt surface: judge B's ``/init``
+    lands while judge A is mid-turn, and A then answers under B's instructions
+    and returns something that looks perfectly fine. That was hidden only by
+    ``JUDGE_MAX_CONCURRENCY`` defaulting to 1, i.e. a knob whose safety silently
+    depended on which backend was serving — on the local path each judge is an
+    isolated subprocess carrying its own prompt, so raising it there is safe.
+
+    Keying by the digest makes the crossing STRUCTURALLY impossible: same casita
+    ⟺ byte-identical prompt (so a concurrent ``/init`` writes the same bytes),
+    and any different prompt is a different casita. No lock, so judges still run
+    in parallel — which is the whole point of the knob.
+
+    Bounded, unlike a per-call name: judge system prompts are ``.md`` files
+    (``khimeras_shared/prompts_md/``) templated with at most a persona name, and
+    all per-user material rides the USER message. So the casita count is
+    "distinct judge prompts times personas" — a handful, stable for the life of the
+    droplet — instead of one directory per background fact extraction. AIRE has
+    a broom for its tables but NOT for casitas, and a casita is a directory on a
+    458 MB box, so unbounded creation would be its own defect (an AIRE-side gap
+    named in the stage-2 backlog).
+    """
+    digest = hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()[:32]
+    return f"{base_persona_id(persona_id)}-judge-{digest}"[:_NAME_MAX]
+
+
 def judge_backend_for(casita: str) -> AIREBackend:
     """A utility-casita client: mode=complete (no builtins, no agentic loop —
     the raw-API substitute), no registry tools, no per-turn casita override."""
@@ -401,15 +566,17 @@ def judge_backend_for(casita: str) -> AIREBackend:
 
 async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     """One judge call through AIRE: a mode=complete turn in the utility casita
-    ``{persona_id}-judge``, throwaway session per call (one-shot, like today's
-    fresh subprocess — the model per call is honoured because a fresh session
-    means a fresh pooled client on AIRE's side).
+    ``{persona_id}-judge-{prompt digest}``, throwaway session per call (one-shot,
+    like today's fresh subprocess — the model per call is honoured because a
+    fresh session means a fresh pooled client on AIRE's side).
 
-    The caller's system prompt becomes the casita's prompt via ``/init`` per
-    call when it changes; the judge semaphore in api/judge.py serializes calls,
-    so two differing prompts never race one casita at the default concurrency."""
+    The caller's system prompt becomes the casita's prompt via ``/init``, and the
+    casita is NAMED after that prompt so two differing prompts can never share
+    one surface — see ``judge_casita_for``. The judge semaphore in api/judge.py
+    is a throughput gate (it keeps a consolidator burst off AIRE's 2 RAM slots),
+    NOT what keeps prompts apart."""
     model = req.model or config.JUDGE_DEFAULT_MODEL
-    casita = f"{base_persona_id(req.persona_id)}-judge"
+    casita = judge_casita_for(req.persona_id, req.system_prompt)
     images, dropped = images_from_attachments(req.attachments)
     if dropped:
         log.warning("aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images))

@@ -10,7 +10,7 @@ AIREBackend + thin birth lands on the channel, this file DIES and
 ``aire_route.py`` imports ``fi_runner.backends.aire`` instead — that deletion is
 part of the stage-2 backlog item, with its grep criterion.
 
-Four marked adaptations from upstream (everything else is verbatim):
+Five marked adaptations from upstream (everything else is verbatim):
 
 1. Imports come from the installed ``fi_runner.backend`` (0.11.0) where the
    symbols exist; ``TurnImage`` and a model-carrying ``AireTurnResult`` are
@@ -21,6 +21,11 @@ Four marked adaptations from upstream (everything else is verbatim):
    key — messages.py yields them from except-clauses) into error events, so a
    cut turn surfaces its code instead of dying as a bare "no result event".
 4. The module docstring (this text) replaces upstream's.
+5. Door failures raise ``AIREDoorError`` — a ``BackendError`` that keeps AIRE's
+   structured error CODE (and the door's HTTP status) as DATA. Upstream formats
+   the code into the message string and drops it, which forces every consumer to
+   classify terminal-vs-backpressure by substring; a wording change on AIRE's
+   side then silently reroutes a terminal cut into a retry storm.
 
 The door speaks AIRE's OWN protocol over HTTPS — not the Anthropic API::
 
@@ -53,6 +58,26 @@ from fi_runner.backend import (
 )
 
 log = structlog.get_logger()
+
+
+# ADAPTATION 5: the error code survives as an ATTRIBUTE, not as prose. AIRE's
+# door speaks `{"error": "<code>", "detail": "..."}`; the code is the only part
+# that carries a decision (terminal vs backpressure vs unknown), and a string is
+# the one place it cannot be read reliably. Subclassing BackendError keeps every
+# existing `except BackendError` working — nothing upstream needs to know.
+class AIREDoorError(BackendError):
+    """A door failure that kept AIRE's own error code as data.
+
+    ``code`` is AIRE's structured error name (``budget_exhausted``,
+    ``slot_busy``, …) when the failure came from an SSE error event; ``None``
+    when the door failed before speaking its protocol. ``http_status`` is the
+    door's response status when the failure was an HTTP one.
+    """
+
+    def __init__(self, message: str, *, code: str | None = None, http_status: int | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
 
 
 # ADAPTATION 1: fi-runner 0.11.0 predates these two shapes; they are copied from
@@ -186,7 +211,7 @@ class AIREBackend:
             json={"claude_md": prompt},
         )
         if res.status_code >= 400:
-            raise BackendError(f"AIRE init {res.status_code}: {res.text}")
+            raise AIREDoorError(f"AIRE init {res.status_code}: {res.text}", http_status=res.status_code)
         self._inited_prompts[project] = prompt
 
     # --- SSE parsing (AIRE events -> fi-runner events) -----------------------
@@ -224,7 +249,7 @@ class AIREBackend:
         ) as res:
             if res.status_code >= 400:
                 detail = (await res.aread()).decode("utf-8", "replace")
-                raise BackendError(f"AIRE door {res.status_code}: {detail}")
+                raise AIREDoorError(f"AIRE door {res.status_code}: {detail}", http_status=res.status_code)
             async for line in res.aiter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -303,7 +328,8 @@ class AIREBackend:
             elif kind == "result":
                 yield {"type": "result", "result": self._to_result(ev.get("result") or {}, session)}
             elif kind == "error":
-                raise BackendError(f"AIRE turn error [{ev.get('error')}]: {ev.get('detail', '')}")
+                code = ev.get("error")
+                raise AIREDoorError(f"AIRE turn error [{code}]: {ev.get('detail', '')}", code=code or None)
             # "done" is the stream terminator — nothing to forward.
 
     async def run_turn(

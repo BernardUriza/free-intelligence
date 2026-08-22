@@ -60,7 +60,10 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
         # utility casita. It keeps THIS gate — the pile-up only MOVED (from this
         # box's Node subprocesses to AIRE's 2 RAM slots), so serializing here is
         # what stops a consolidator burst from starving every interactive turn on
-        # the droplet. Everything below is the LOCAL SDK path, which dies when
+        # the droplet. The gate is THROUGHPUT only: two judges must not cross
+        # prompts at ANY value of JUDGE_MAX_CONCURRENCY, and what guarantees that
+        # is the prompt-digest casita name (aire_route.judge_casita_for), never
+        # this semaphore. Everything below is the LOCAL SDK path, which dies when
         # the flag flips permanent (backlog aire-engine-stage2.md).
         from persona_runner.engine import aire_route
 
