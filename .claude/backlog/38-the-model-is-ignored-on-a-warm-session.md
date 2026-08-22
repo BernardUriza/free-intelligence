@@ -1,6 +1,6 @@
 # The `model` a turn asks for is silently ignored on a warm session
 
-Status: **Proposed** — measured, not theorised
+Status: **Fixed 2026-08-22** (`21f5ee7`) — measured broken, measured fixed
 Proposed: 2026-08-22 by Claude (found while wiring discord-bot's stage 2 against
 the live gate; the consumer routes a model PER TURN by severity, so it hit the
 lie on its second turn)
@@ -83,16 +83,39 @@ the pool is a **cache of a spec**, so a spec change is a cache miss.
 3. **Whether the pool's idle window (55 min) should shrink**, which would reduce
    the blast radius of any frozen spec but costs cache hits.
 
-## Status / next step
+## Status / DONE
 
-Not built. Nothing in production is riding it today (discord-bot's flag is OFF,
-which is partly why: this is one of the two blockers keeping it off). The
-consumer-side warning exists; the door-side contract does not.
+Bernard picked **rebirth** the same day, and it shipped in `21f5ee7`:
 
-Unblocked by Bernard picking (1). The verification, when it ships, is the same
-two-turn probe that found it: one warm session, two different models requested,
-and the result's `model` must either match the request or the door must have
-refused it.
+- `Engine.spec_of` remembers the shape each pooled client was born with;
+  `_rebind` (called by `turn.py::_attempt` BEFORE it takes a client) drops a
+  client whose shape no longer matches, and `_client_for` rebuilds it with
+  `resume=` — the transcript untouched, only the options new.
+- It never closes a client under someone else's turn: an in-flight turn holds
+  the key's lock, so the rebind waits on it. A turn that starts inside that
+  window keeps the old shape and the next turn corrects it — the divergence is
+  bounded to ONE turn instead of an hour.
+- `_drop` is now the single way a client leaves the pool, so the retire (#23)
+  and the rebind cannot forget half its state.
+
+**The receipt** — the same probe that found the lie, run against
+`gate.bernarduriza.com` after the deploy, three turns on ONE session:
+
+```
+requested: claude-haiku-4-5-20251001  → answered: claude-haiku-4-5-20251001
+requested: claude-sonnet-4-6          → answered: claude-sonnet-4-6
+requested: claude-haiku-4-5-20251001  → answered: claude-haiku-4-5-20251001
+```
+
+Six tests in `server/tests/test_rebind.py`, including the one that matters most:
+the first version of that file **passed with the fix removed from `turn.py`**,
+because it exercised `_rebind` directly and proved the mechanism instead of the
+wiring. The added test asserts the real turn path rebinds before it takes a
+client, and it goes red when the call is deleted.
+
+Two extractions the thirty-line law forced, both real concepts and not shards:
+the detached turn's draining moved into `detach.py` beside the rest of
+fire-and-forget, and the two spend ceilings became `Ledger` in `ledger.py`.
 
 See also [#23](23-the-budget-cap-lies-twice.md) and
 [#31](31-credential-failover.md) (the same lying-green family),
