@@ -22,7 +22,8 @@ category instead of by change, and they change on their own clock.
 """
 
 from .registry import REGISTRY, UnknownGuard, clean_guards, resolve
-from .run import guard_level, observe, run_guards
+from .report import guard_level, observe
+from .run import run_guards
 
 __all__ = ["REGISTRY", "UnknownGuard", "clean_guards", "guard_level", "observe",
            "resolve", "run_guards"]

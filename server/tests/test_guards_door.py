@@ -14,6 +14,7 @@ from fastapi import HTTPException
 
 from aire.engine.contract import GuardOutcome
 from aire.engine.guards import observe
+from aire.engine.guards import resolve
 from aire.intake import build_guards, safe_guard_names
 from aire.messages import _guards_event
 
@@ -73,6 +74,19 @@ def test_an_override_is_reported_as_unenforced_never_applied():
     assert found["wanted_retry"] is True
     assert found["reinforcement"] == "stay in character"
     assert "CLEAN" not in json.dumps(found)
+
+
+def test_the_reinforcement_survives_even_though_nothing_is_retried():
+    """The live door caught this: `observe` used to run guards with `final=True`,
+    which tells a guard retries are exhausted. The guard then produced a sanitize
+    this side discards AND returned an empty reinforcement — swallowing the one
+    actionable string a caller could use on its own next turn. AIRE does not
+    retry; the caller might, and it has to be told what to say."""
+    guard = resolve(["antidrift"])[0]
+    found = observe([guard], "Como modelo de lenguaje de IA, no puedo opinar.", "hola")
+    assert found["findings"]["antidrift"]["level"] == "break"
+    assert found["wanted_retry"] is True
+    assert found["reinforcement"], "the reinforcement must reach the caller"
 
 
 def test_a_clean_turn_reports_clean_and_asks_for_nothing():
