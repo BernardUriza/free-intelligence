@@ -33,25 +33,50 @@ tokens on its own, and its `session_pool.py` measured that reuse drops a warm tu
 to ~500–2k tokens. That gap is the whole prize, and a 2-slot pool hands it back
 whenever a third conversation speaks.
 
-## What is measured and what is NOT (read this before acting on it)
+## The measurement — taken 2026-08-22, and it changes the verdict
 
-Measured, from source and the live front:
-- `POOL_MAX=2`, `POOL_IDLE_S=3300` (55 min), `SLOT_WAIT_S=45`, LRU eviction.
-- 129 MB per live client on a 458 MB droplet.
-- A miss re-pays `cache_creation`; the front's `/gateway` lists **60
-  conversations** in `aire_gateway_log`.
-- discord-bot's stage-2 route names one casita per (persona, channel).
+The deciding number is **distinct casitas active inside one hour**, against
+`POOL_MAX=2`. Both doors were bucketed by hour through the front's read-only SQL
+console (`aire_reader`, no write path involved).
 
-**NOT measured, and it is the number that decides everything:** how many distinct
-casitas are actually active *within the same 55-minute window*. Sixty
-conversations over weeks is not sixty concurrent ones, and if the real
-concurrency is 1–2, this item is theoretical and should be **Dropped**. Do not
-size a droplet off the 60 — size it off a measurement nobody has taken yet.
+**The ENGINE door today** (`claude_session_store` — the door that HAS the pool),
+peak hours across its whole life:
 
-The honest first step is therefore not a fix, it is a **query**: bucket
-`aire_gateway_log` (and `claude_session_store`) by hour and count distinct
-sessions per bucket, for a normal week. That is a read, so it belongs in the
-front, not here.
+| hour | distinct casitas | entries |
+|---|---|---|
+| 07-21 04 | **4** | 128 |
+| 08-21 18 | 3 | 84 |
+| 08-20 20 | 2 | 73 |
+| everything else | 2 or 1 | |
+
+So the engine already **exceeds its two slots at peak**, but barely, and rarely —
+today's fleet (og118, Fénix, the books) is a 1–2 casita workload with occasional
+spikes to 3–4. On its own, that is a shrug.
+
+**The GATEWAY door** (`aire_gateway_log` — discord-bot's traffic TODAY, which is
+exactly the traffic that would move onto the engine's pool if stage 2's flag is
+flipped), last 7 days:
+
+| hour | distinct conversations | turns |
+|---|---|---|
+| 08-20 21 | **9** | 36 |
+| 08-20 16 | 8 | 32 |
+| 08-20 20 | 7 | 26 |
+| 08-20 14 | 7 | 36 |
+| 08-17 19 | 7 | 24 |
+| 08-22 00 | 6 | 28 |
+
+**The verdict this produces:** the item is NOT theoretical, and it is also not
+urgent today. Nothing needs to change while discord-bot's flag is OFF. But the
+flag is the event that makes it real — flipping it takes the peak hour from ~4
+casitas to **~13** (9 + today's 4) against two slots, six times the pool. Every
+turn beyond the two warmest would re-pay a cold system prompt, and discord-bot's
+persona alone is ~14k tokens.
+
+This is now a **precondition on stage 2**, not a background worry: the flag
+should not go permanent until this ceiling is answered, alongside the two
+blockers already named ([#38](38-the-model-is-ignored-on-a-warm-session.md) and
+the memory-tool gap in discord-bot's own item).
 
 ## The second failure mode, if concurrency IS real
 
@@ -105,8 +130,9 @@ production surprise, which is the only reason it was found: it was read out of
 the pool's own docstring while reviewing the consumer that would have hit it
 first.
 
-Unblocked by the concurrency measurement (a front query, ~an hour) and then, if
-it matters, by Bernard's spend call.
+The measurement it asked for is **done** (above, 2026-08-22): the engine peaks at
+4 casitas/hour today, and the traffic that stage 2 would add peaks at 9. The
+remaining step is Bernard's call, and only when the flag is up for flipping.
 
 See also [[do-budget]] (the $20 ceiling and its prohibition on unilateral spend),
 [#36](36-the-living-casita-prompt.md) (casita-per-chat, which grew the key
