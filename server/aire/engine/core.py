@@ -14,31 +14,25 @@ from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 from ..keys import sdk_session_uuid
 from .contract import BudgetExceeded, CostSink, TurnSpec
 from .credentials import Rotor
-from .detach import Detached
-from .drain import turn_cost
+from .detach import Detached, drain_detached
+from .ledger import Ledger
 from .options import build_options
 from .pool import Pool
 from .turn import run_turn
 
 WORKSPACES = Path(os.environ.get(
     "AIRE_WORKSPACES", Path(__file__).resolve().parent.parent.parent / "workspaces"))
-# max_budget_usd caps the CLIENT's cumulative spend, not one turn (measured; a
-# poisoned client is retired, backlog #23). AIRE_MAX_SPEND_USD is this engine's
-# own process-lifetime backstop — turns refused BEFORE the API. Resets on restart.
-MAX_SPEND_USD = float(os.environ["AIRE_MAX_SPEND_USD"]) if os.environ.get("AIRE_MAX_SPEND_USD") else None
-# The same ceiling given to the SDK, kept to RECOGNISE a cut turn (#23).
-TURN_CAP_USD = float(os.environ["AIRE_MAX_BUDGET_USD"]) if os.environ.get("AIRE_MAX_BUDGET_USD") else None
 
 
 class Engine:
     def __init__(self, session_store: Any) -> None:
         self.session_store = session_store
         self.pool = Pool()
-        self._spend_usd = 0.0  # cumulative, process lifetime — the global backstop
-        self._seen_cost: dict[str, float] = {}  # per-client last acc cost, for the delta
+        self.ledger = Ledger()  # the two spend ceilings and their bookkeeping
         self.detached = Detached()  # fire-and-forget background turns (#22a)
         self.rotor = Rotor()  # the credential chain (#31)
         self.slot_of: dict[str, str] = {}  # key → the slot each pooled client was born with
+        self.spec_of: dict[str, TurnSpec] = {}  # key → the shape its client was born with (#38)
 
     def _cwd(self, project: str) -> Path:
         ws = WORKSPACES / project
@@ -71,6 +65,7 @@ class Engine:
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
                 self.pool.clients[key] = client
+                self.spec_of[key] = spec  # the shape it was born with (#38)
                 if slot is not None:
                     self.slot_of[key] = slot.name
             self.pool.used[key] = now
@@ -81,28 +76,13 @@ class Engine:
                          images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues."""
-        if MAX_SPEND_USD is not None and self._spend_usd >= MAX_SPEND_USD:
-            raise BudgetExceeded(
-                f"cumulative spend ${self._spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}")
+        if self.ledger.exhausted():
+            raise BudgetExceeded(self.ledger.refusal())
         async with self.pool.slot():
             # The turn lifecycle (attempts, budget cut, credential failover)
             # lives in turn.py — the #23/#31 detections share the result seam.
             async for event in run_turn(self, project, session, prompt, spec, images):
                 yield event
-
-    def _budget_cut_event(self) -> dict[str, Any]:
-        return {"type": "error", "error": "budget_exhausted",
-                "detail": f"the turn reached the ${TURN_CAP_USD:.2f} ceiling and was "
-                          "CUT — its work may be incomplete. The spent client is "
-                          "retired; send the turn again to continue."}
-
-    def _account(self, key: str, cost: float) -> bool:
-        """Bank this turn's spend and report whether the client hit the ceiling.
-        `total_cost_usd` is the CLIENT's cumulative spend (measured 2026-07-20),
-        so the backstop adds the DELTA — else N turns N-count the same dollars."""
-        self._spend_usd += max(0.0, cost - self._seen_cost.get(key, 0.0))
-        self._seen_cost[key] = cost
-        return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
     def launch_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
                         images: tuple[dict[str, str], ...] = (),
@@ -110,36 +90,54 @@ class Engine:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
         finishes even if the caller hangs up. Raises if one already runs here.
 
-        `on_cost` is what a per-caller ceiling hangs on: the socket is gone, so a
-        turn nobody watches must still bill whoever launched it. Without it a
-        capped key (#32d) bought unlimited turns by adding one flag to the body."""
-        self.detached.launch(
-            f"{project}/{session}",
-            lambda: self._drain_detached(project, session, prompt, spec, images, on_cost))
-
-    async def _drain_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
-                              images: tuple[dict[str, str], ...] = (),
-                              on_cost: CostSink | None = None) -> None:
-        try:
-            async for ev in self.run_stream(project, session, prompt, spec, images):
-                if on_cost is not None and ev.get("type") == "result":
-                    await on_cost(turn_cost(ev))
-                # No client listens in background — surface an error (a budget cut).
-                if ev.get("type") == "error":
-                    print(f"DETACHED {project}/{session} {ev.get('error')}: {ev.get('detail', '')}")
-        except Exception as exc:  # noqa: BLE001 — no client to tell; log for the operator
-            print(f"DETACHED {project}/{session} failed: {type(exc).__name__}: {exc}")
+        The draining (and the `on_cost` billing a detached turn still owes) lives
+        in detach.py, with the rest of the fire-and-forget concept."""
+        key = f"{project}/{session}"
+        self.detached.launch(key, lambda: drain_detached(
+            self.run_stream(project, session, prompt, spec, images), key, on_cost))
 
     async def _retire(self, project: str, session: str) -> None:
         """A client that reached max_budget_usd is POISONED: the SDK refuses every
         later turn on it with an empty result and no error. Dropping it is the
         cure — the pool is a cache, so the next turn rebuilds from the store with
         `resume=` and the memory is untouched ([[log-is-the-truth]])."""
-        key = f"{project}/{session}"
-        self._seen_cost.pop(key, None)  # its spend is banked; the reborn client starts at 0
+        self.ledger.forget(f"{project}/{session}")
+        await self._drop(f"{project}/{session}")
+
+    async def _drop(self, key: str) -> None:
+        """Let go of a pooled client. The ONE way a client leaves the pool, so a
+        retire (#23) and a rebind (#38) can never forget half its state."""
         self.slot_of.pop(key, None)
+        self.spec_of.pop(key, None)
         async with self.pool.guard:
             await self.pool.close_one(key)
+
+    async def _rebind(self, project: str, session: str, spec: TurnSpec) -> None:
+        """Drop the pooled client when THIS turn asks for a different shape (#38).
+
+        The SDK takes mode/tools/model at CONSTRUCTION, so a pooled client keeps
+        the shape it was born with for its whole idle life (~55 min). Before this,
+        a turn that named another model was answered by the old one — silently,
+        with no error: the #23/#31 lying-green family at the options seam.
+        Rebuilding costs one cache-creation and loses NOTHING (the transcript is
+        in Postgres; the next `_client_for` resumes it).
+
+        Never closes a client under someone else's turn: an in-flight turn holds
+        the key's lock, so we WAIT for it and drop afterwards. A turn that starts
+        in that window keeps the old shape and is corrected by the next one — the
+        divergence is bounded to one turn instead of an hour.
+        """
+        key = f"{project}/{session}"
+        async with self.pool.guard:
+            born = self.spec_of.get(key)
+            if key not in self.pool.clients or born is None or born == spec:
+                return
+            lock = self.pool.locks.get(key)
+        print(f"REBIND {key} {born} -> {spec}")
+        if lock is not None:
+            async with lock:
+                pass
+        await self._drop(key)
 
     async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
         """What the agent remembers — lives in Postgres, not the HTTP connection."""

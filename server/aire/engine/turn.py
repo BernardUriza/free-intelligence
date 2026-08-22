@@ -49,6 +49,9 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec, images: tuple[dict[str, str], ...],
                    slot: Any) -> AsyncIterator[dict[str, Any]]:
     key = f"{project}/{session}"
+    # A pooled client binds mode/tools/model at birth; a turn that asks for a
+    # different shape must not be answered by the old one in silence (#38).
+    await engine._rebind(project, session, spec)
     client, lock = await engine._client_for(project, session, spec, slot)
     born_with = engine.slot_of.get(key, slot.name)
     spent = burned = False
@@ -57,14 +60,14 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
             await send_turn(client, prompt, images)
             async for event in drain(client):
                 if event.get("type") == "result":
-                    spent = engine._account(key, turn_cost(event))
+                    spent = engine.ledger.account(key, turn_cost(event))
                     result = event["result"]
                     if limit_hit(result.text, result.usage):
                         burned = True
                         continue
                 yield event
             if spent:
-                yield engine._budget_cut_event()
+                yield engine.ledger.cut_event()
     finally:
         if spent or burned:
             await engine._retire(project, session)
