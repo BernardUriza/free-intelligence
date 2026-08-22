@@ -33,6 +33,7 @@ ceiling by opening N sockets at once.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 OAUTH_BETA = "oauth-2025-04-20"
 MAX_INFLIGHT = int(os.environ.get("AIRE_INVITE_CONCURRENCY", "2"))
@@ -81,6 +82,39 @@ def enter(nickname: str) -> bool:
         return False
     _inflight[nickname] = running + 1
     return True
+
+
+def claim(state: Any, nickname: str) -> bool:
+    """Take a slot AND record on the request who owes it back. The door claims
+    the slot before the router has picked a handler, so the frame that takes it
+    is not the frame that returns it — and a slot claimed by one layer and
+    released by another is a leak waiting for the first request that never
+    reaches the second. Recording the debt on the request is what makes the
+    hand-off explicit instead of assumed."""
+    if not enter(nickname):
+        return False
+    state.slot = nickname
+    return True
+
+
+def hand_off(state: Any) -> None:
+    """The handler takes the debt: from here it returns the slot itself (the
+    relay outlives the door's frame, so it must)."""
+    state.slot = None
+
+
+def release(state: Any) -> None:
+    """Return a slot the request still owes — a no-op once a handler took it.
+
+    This is what catches the request that never reached a handler at all: an
+    undefined `/v1/` path 404s AFTER the door has already claimed the slot, so
+    two typos used to lock an invited key out of the real door until the daemon
+    restarted. Proven, not theorised: two POSTs to /v1/complete left
+    `_inflight` at MAX and the next /v1/messages answered 429."""
+    nickname = getattr(state, "slot", None)
+    if nickname is not None:
+        state.slot = None
+        leave(nickname)
 
 
 def leave(nickname: str) -> None:

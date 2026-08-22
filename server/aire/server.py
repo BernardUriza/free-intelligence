@@ -15,27 +15,21 @@ This module is only the wiring: the app, the auth middleware, `/health`, and the
 routers. The endpoints live in `messages.py` and `artifacts.py` (one surface per
 module — the thirty-line file law); the engine singleton lives in `deps.py`.
 
-AUTHENTICATION — the LLM door. Every turn burns real Anthropic tokens, so
-everything except ``/health`` is gated by a long Bearer secret. Two tokens are
-accepted: ``AIRE_AUTH_TOKEN`` (Bernard's own) and an optional
-``AIRE_CANARY_TOKEN`` — a second, independently revocable key handed to a
-lower-trust consumer (the Azure front). A leak of the canary is revoked by
-dropping that one env var and restarting; Bernard's own key never rotates for
-it. Both fail CLOSED (503) when neither is set: a forgotten env var must never
-mean an open LLM. Comparison is constant-time.
+Who is admitted, under whose ceiling, holding which slot, lives in `door.py` —
+it left this module the day admission stopped being one Bearer comparison and
+became per-key budgets, credential lending and a concurrency slot's lifetime.
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import access, artifacts, gateway, init_project, lending, messages, tokens
-from .bearer import ACCEPTED_TOKENS, accepted, presented_token
+from . import access, arming, artifacts, door, gateway, init_project, messages, tokens
 from .deps import drop_engine, get_engine
 from .engine import MODES
 
@@ -58,79 +52,29 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def llm_door(request: Request, call_next: Any) -> Any:
-    if request.url.path == "/health":
-        return await call_next(request)
-    if request.url.path.startswith("/v1/"):
-        return _admit_gateway(request) or await call_next(request)
-    # The approve/revoke links (#32) are clicked from a mail client, which cannot
-    # carry a Bearer token. Their HMAC signature IS their authentication, and the
-    # verb is signed INTO it so one cannot be replayed as the other — access.py.
-    if request.url.path in ("/access/approve", "/access/revoke"):
-        return await call_next(request)
-    if not ACCEPTED_TOKENS:
-        return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
-    presented = presented_token(request)
-    if accepted(presented):
-        return await call_next(request)
-    refusal = _admit_invited(request, presented)
-    return refusal if refusal else await call_next(request)
-
-
-def _admit_gateway(request: Request) -> JSONResponse | None:
-    """The gateway door stays auth-PASS-THROUGH for anyone carrying their own
-    Anthropic credential and no AIRE key — AIRE spends nothing on them and
-    judges nothing. An AIRE key (as the Bearer, or in `x-aire-key` when the
-    Bearer slot carries the caller's own OAuth) puts the turn under that key's
-    ceiling: lent credential for an invited key (#32), metered pass-through
-    beside the caller's own (#34). `None` means carry on."""
-    holder = tokens.identify(request.headers.get("x-aire-key", "")
-                             or presented_token(request))
-    if holder is None:
-        return None
-    if holder.exhausted():
-        return JSONResponse(
-            {"type": "error", "error": {"type": "invalid_request_error",
-             "message": f"AIRE: {holder.nickname} has spent its budget"}}, status_code=402)
-    if not lending.enter(holder.nickname):
-        return JSONResponse(
-            {"type": "error", "error": {"type": "rate_limit_error",
-             "message": f"AIRE: {holder.nickname} already has {lending.MAX_INFLIGHT} turns in flight"}},
-            status_code=429)
-    request.state.holder = holder
-    return None
-
-
-def _admit_invited(request: Request, presented: str) -> JSONResponse | None:
-    """An invited stranger's own key (#32d). It carries a ceiling of its own, so a
-    leaked invitation cannot burn the global budget (#28) — and an empty one is a
-    402, not a 401: the key is real, its money is gone. `None` means admitted."""
-    holder = tokens.identify(presented)
-    if holder is None:
-        return JSONResponse({"detail": "unauthorized"}, status_code=401)
-    if holder.exhausted():
-        return JSONResponse(
-            {"detail": f"{holder.nickname} has spent its budget", "error": "token_budget_spent"},
-            status_code=402,
-        )
-    request.state.holder = holder
-    return None
+app.add_middleware(BaseHTTPMiddleware, dispatch=door.llm_door)
 
 
 @app.get("/health")
 async def health() -> JSONResponse:
     """The REAL state of the memory, including a downed database, without
     blowing up. A health endpoint that answers 500 with a traceback is useless
-    for monitoring."""
+    for monitoring.
+
+    It also reports which GUARDS are armed (`arming.py`). Reachable memory was
+    the only thing this ever proved, so a daemon whose spend backstop never
+    armed, whose rotor had one slot and whose verbs all answered DENIED still
+    read `{"status": "ok"}` — green for a box where every safety was off."""
     try:
         engine = await get_engine()
         await engine.session_store.list_sessions("__health__")
-        return JSONResponse({"status": "ok", "memory": "postgres", "modes": list(MODES)})
+        return JSONResponse({"status": "ok", "memory": "postgres",
+                             "modes": list(MODES), **arming.report()})
     except Exception as exc:  # noqa: BLE001 — health catches EVERYTHING, that's its job
         drop_engine()
         return JSONResponse(
-            {"status": "degraded", "memory": "unreachable", "detail": type(exc).__name__},
+            {"status": "degraded", "memory": "unreachable",
+             "detail": type(exc).__name__, **arming.report()},
             status_code=503,
         )
 

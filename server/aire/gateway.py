@@ -113,7 +113,7 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
     if holder is not None:
         headers = _outfit(request, headers)
         if headers is None:
-            lending.leave(holder.nickname)
+            lending.release(request.state)
             return _api_error("AIRE gateway: no credential to lend an invited key", 503)
     client = httpx.AsyncClient(base_url=_upstream(), timeout=_TIMEOUT)
     url = request.url.path + (f"?{request.url.query}" if request.url.query else "")
@@ -123,13 +123,13 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
             stream=True)
     except httpx.HTTPError as exc:
         await client.aclose()
-        if holder is not None:
-            lending.leave(holder.nickname)
+        lending.release(request.state)
         return _api_error(f"AIRE gateway: upstream unreachable ({type(exc).__name__})", 502)
     tap = ResponseTap(exchange, upstream.status_code,
                       upstream.headers.get("content-type", ""),
                       tokens.biller(holder)) if mirrored else None
     out = {k: v for k, v in upstream.headers.items() if k.lower() not in _SKIP_RESPONSE}
+    lending.hand_off(request.state)  # the relay outlives this frame and frees it
     return StreamingResponse(_relay(client, upstream, tap, holder),
                              status_code=upstream.status_code, headers=out)
 

@@ -7,6 +7,8 @@ header) and the price of a turn (Anthropic reports tokens, never dollars, so a
 mispriced turn is a ceiling that does not bite).
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from aire import lending, pricing
@@ -62,6 +64,32 @@ def test_slots_bound_the_grace_window():
     lending.leave("nick")
     assert lending.enter("nick") is True
     assert lending.enter("someone else") is True, "slots are per key, not global"
+
+
+def test_a_request_that_reaches_no_handler_gives_its_slot_back():
+    """The door claims the slot; the relay returns it. A request that never
+    reaches the relay — a 404 on an undefined /v1/ path — used to keep it
+    forever, so MAX_INFLIGHT typos locked an invited key out until a restart."""
+    state = SimpleNamespace()
+    assert lending.claim(state, "nick") is True
+    lending.release(state)
+    assert lending._inflight.get("nick") is None
+    lending.release(state)             # idempotent
+    lending.release(SimpleNamespace())  # and safe on a request that never claimed one
+    assert lending._inflight.get("nick") is None
+
+
+def test_a_handler_that_takes_over_owns_the_slot_alone():
+    """After hand_off the door must NOT return the slot early — the relay is
+    still streaming and holds it. A double-release would let a key exceed
+    MAX_INFLIGHT by one for every turn it runs."""
+    state = SimpleNamespace()
+    lending.claim(state, "nick")
+    lending.hand_off(state)
+    lending.release(state)
+    assert lending._inflight["nick"] == 1, "the relay still owes it"
+    lending.leave("nick")
+    assert lending._inflight.get("nick") is None
 
 
 def test_price_of_a_plain_turn():
