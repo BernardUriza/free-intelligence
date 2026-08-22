@@ -31,11 +31,6 @@ units 24/7:
   pass-through that any Claude client can point at via `ANTHROPIC_BASE_URL`,
   mirrored into Postgres on the way through.
 - **`aire-sweep.timer`** — the broom (30-day retention).
-- **`aire-device`** (`demo_device.py`) — the simulated GPS device that pushed
-  `KEEPALIVE` heartbeats. **Retired 2026-07-14**: it proved the chassis (24k
-  heartbeats, the kill test, the first casitas) and its job is done. The unit is
-  installed but `disabled`; `systemctl start aire-device` brings it back for a
-  demo. Real events (web `VISIT` beacons, `MKDIR` verbs) feed the log now.
 
 The whole point of this phase is the experience of watching a living daemon:
 

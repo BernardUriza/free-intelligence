@@ -74,8 +74,8 @@ ensure_firewall() {
 }
 
 install_units() {
-  echo "    [remote] systemd units (listener + engine + broom; device installed, not enabled)…"
-  cp "$REMOTE_DIR/server/deploy/aire-listener.service" "$REMOTE_DIR/server/deploy/aire-device.service" \
+  echo "    [remote] systemd units (listener + engine + broom)…"
+  cp "$REMOTE_DIR/server/deploy/aire-listener.service" \
      "$REMOTE_DIR/server/deploy/aire-server.service" "$REMOTE_DIR/server/deploy/aire-nickname.service" \
      "$REMOTE_DIR/server/deploy/aire-sweep.service" "$REMOTE_DIR/server/deploy/aire-sweep.timer" \
      "$REMOTE_DIR/server/deploy/aire-mirror.service" "$REMOTE_DIR/server/deploy/aire-mirror.timer" \

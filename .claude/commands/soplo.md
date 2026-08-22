@@ -5,10 +5,9 @@ engine are still `active`, whether the memory answers, and the tail of the
 append-only log. The air blows when the machine is up and the pen still writes.
 
 > **The demo device is RETIRED** (2026-07-14, Bernard: *"ya no lo necesitamos"*). The
-> `aire-device` unit is installed but `disabled` — no more KEEPALIVE heartbeats. The
+> The KEEPALIVE heartbeats are gone with their simulator (deleted 2026-08-22). The
 > log now grows only from real events (VISIT beacons, MKDIR verbs, whatever knocks on
 > the open port). **Absence of keep-alives is NOT a failure.** To bring the simulator
-> back for a demo: `systemctl start aire-device` (it is not enabled at boot).
 
 ARGUMENTS: optional `grep` filter for the log tail (default: no filter — show the last
 lines as they are). E.g. `/soplo VISIT` shows the web beacons; `/soplo MKDIR` the
@@ -81,5 +80,5 @@ Offer this one-liner (prefix it with `! ` to run it here, or paste it in any ter
 The droplet, the account and the whole deploy live in the project memory
 `aire-do-deploy-context`. IP `143.198.9.173`, account `bernardurizadev`, systemd units
 `aire-listener` (TCP :9099, the pen) + `aire-server` (HTTP :8088, the engine) +
-`aire-sweep.timer` (the broom); `aire-device` retired. Append-only log at
+`aire-sweep.timer` (the broom). Append-only log at
 `/opt/aire/aire.log`; casitas at `/opt/aire/workspaces/`.

@@ -59,7 +59,7 @@ push to `main` that touches the code redeploys on its own. **Never deploy by han
 
 ```bash
 ssh -i ~/.ssh/aire_vm root@<IP>
-systemctl is-active aire-listener aire-device   # both → active
+systemctl is-active aire-listener              # → active
 tail -f /opt/aire/aire.log | grep KEEPALIVE     # the heartbeats, live
 ```
 

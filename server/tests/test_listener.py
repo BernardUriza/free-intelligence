@@ -1,12 +1,15 @@
 """The socket's real contract, over a real socket (the pen's happy path).
 
-Until now the ONLY thing that ever exercised port 9099 end to end was
-`demo_device.py`, a systemd unit that is `disabled` and `inactive` — the whole
-coverage of the daemon that holds the pen sat at the top of the pyramid, manual,
-and not even running. That shape has a name (the inverted pyramid / ice-cream
-cone) and the cure is the one this repo already uses for HTTP in
-`test_gateway.py`: bind the REAL handler on an ephemeral port, speak the REAL
-protocol from outside, assert on what actually landed.
+Until 2026-08-22 the ONLY thing that ever exercised port 9099 end to end was a
+simulated device run as a systemd unit — `disabled`, `inactive`, and (since the
+monorepo move) pointing at a path that no longer existed, so the demo it
+promised could not even start. The whole coverage of the daemon that holds the
+pen sat at the top of the pyramid, manual, and unable to run at all.
+
+That shape has a name (the inverted pyramid / ice-cream cone) and the cure is
+the one this repo already uses for HTTP in `test_gateway.py`: bind the REAL
+handler on an ephemeral port, speak the REAL protocol from outside, assert on
+what actually landed. The simulator was deleted once these replaced it.
 
 The load-bearing claim here is not that a line arrives — it is that **the raw
 verb token never touches the log**. `verbs.py` promises exactly that, the log is
@@ -62,10 +65,10 @@ def _log(tmp_path) -> str:
 @pytest.mark.asyncio
 async def test_a_report_lands_in_the_log_bracketed_by_the_connection(tmp_path, monkeypatch):
     _wire(tmp_path, monkeypatch)
-    replies, _ = await _talk(["app-demo-device-01 KEEPALIVE seq=1"])
+    replies, _ = await _talk(["patrol-07 KEEPALIVE seq=1"])
     text = _log(tmp_path)
     assert replies == [], "a plain report is appended, never ACKed"
-    assert "app-demo-device-01 KEEPALIVE seq=1" in text
+    assert "patrol-07 KEEPALIVE seq=1" in text
     assert "CONNECT" in text and "DISCONNECT" in text
 
 

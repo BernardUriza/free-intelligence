@@ -11,14 +11,14 @@ is only the deploy contract.
 
 ## What the workflow does on every push
 
-Triggers: `push` to `main` on `aire/**`, `demo_device.py`, `deploy/**`, the
+Triggers: `push` to `main` on `aire/**`, `deploy/**`, the
 workflow file itself — plus `workflow_dispatch`. Inside the box:
 
 ```bash
 cd /opt/aire && git fetch --all && git reset --hard origin/main \
   && install -m 644 deploy/*.service /etc/systemd/system/ && systemctl daemon-reload \
-  && systemctl restart aire-listener aire-device \
-  && sleep 3 && for u in aire-listener aire-device; do systemctl --quiet is-active "$u" || exit 1; done
+  && systemctl restart aire-listener \
+  && sleep 3 && for u in aire-listener; do systemctl --quiet is-active "$u" || exit 1; done
 ```
 
 The units are reinstalled on every deploy so `/etc/systemd/system` never drifts
@@ -61,5 +61,5 @@ The key is loaded with `webfactory/ssh-agent@v0.9.0`; the host is accepted with
 ssh -i ~/.ssh/aire_vm root@<IP>
 tail -f /opt/aire/aire.log | grep KEEPALIVE      # the device's heartbeats, live
 journalctl -u aire-listener -f                    # the listener's stdout
-systemctl status aire-listener aire-device        # service state
+systemctl status aire-listener                   # service state
 ```
