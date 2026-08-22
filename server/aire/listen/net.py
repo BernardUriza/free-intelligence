@@ -5,7 +5,7 @@ rejections (one RATE-LIMITED line, then silence)."""
 import asyncio
 
 from .applog import _now, append
-from .config import MAX_LINE_BYTES
+from .config import HANDSHAKE_TIMEOUT_S, IDLE_TIMEOUT_S, MAX_LINE_BYTES
 from .guards import BUCKET, CONNS, admit
 from .verbs import dispatch
 
@@ -25,10 +25,23 @@ async def hangup(writer: asyncio.StreamWriter) -> None:
         pass
 
 
-async def read_line(reader: asyncio.StreamReader, addr: str) -> str | None:
-    """None → close the connection; '' → skip; text → process."""
+async def read_line(reader: asyncio.StreamReader, addr: str,
+                    spoke: bool = True) -> str | None:
+    """None → close the connection; '' → skip; text → process.
+
+    `spoke` says whether this connection has already delivered a line. Before it
+    has, the slow-loris window is HANDSHAKE_TIMEOUT_S; after, a device is allowed
+    to idle for IDLE_TIMEOUT_S between reports."""
     try:
-        raw = await reader.readline()
+        raw = await asyncio.wait_for(
+            reader.readline(),
+            timeout=IDLE_TIMEOUT_S if spoke else HANDSHAKE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        # The slow-loris: bytes with no newline, or nothing at all, held forever.
+        # SEEN in the log like every other refusal — a jammed door that says
+        # nothing is the failure this repo keeps finding (backlog #40).
+        append(f"{_now()} {addr} IDLE-TIMEOUT dropped ({'idle' if spoke else 'handshake'})")
+        return None
     except ValueError:
         append(f"{_now()} {addr} OVERLONG-LINE dropped")
         return None
@@ -44,10 +57,12 @@ async def read_line(reader: asyncio.StreamReader, addr: str) -> str | None:
 
 async def session(reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
                   ip: str, addr: str, exempt: bool) -> None:
+    spoke = False
     while True:
-        msg = await read_line(reader, addr)
+        msg = await read_line(reader, addr, spoke)
         if msg is None:
             return
+        spoke = True
         if not exempt and not BUCKET.allow(ip):
             append(f"{_now()} {addr} RATE-LIMITED")
             return

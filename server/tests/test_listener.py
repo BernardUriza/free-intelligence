@@ -115,6 +115,64 @@ async def test_an_empty_line_is_skipped_not_appended(tmp_path, monkeypatch):
     assert sum("MESSAGE" in line for line in lines) == 1
 
 
+@pytest.mark.asyncio
+async def test_a_socket_that_never_finishes_a_line_is_dropped(tmp_path, monkeypatch):
+    """The slow-loris, demonstrated before it was fixed: four sockets that send
+    bytes with no newline held every connection slot FOREVER and a real device
+    was refused, on a port deliberately open to the whole internet. The caps
+    bound how MANY sockets may be open; nothing bounded how LONG one may sit."""
+    _wire(tmp_path, monkeypatch)
+    monkeypatch.setattr(net, "HANDSHAKE_TIMEOUT_S", 0.3)
+    server = await asyncio.start_server(net.handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(b"bytes but never a newline")
+        await writer.drain()
+        # Bounded, and NOT with `async with server`: without the timeout in
+        # net.py this read never returns, and a test that HANGS cannot go red —
+        # it just burns the CI job. It must fail, and fail fast.
+        try:
+            eof = await asyncio.wait_for(reader.read(), timeout=2.0)
+        except asyncio.TimeoutError:
+            pytest.fail("the socket was never hung up — the slow-loris still holds its slot")
+        assert eof == b""
+        writer.close()
+    finally:
+        # NOT `await server.wait_closed()`: it waits for the handler task, and a
+        # handler stuck in a timeout-less readline never returns — the mutation
+        # that proves this test would hang the suite instead of failing it.
+        server.close()
+    assert "IDLE-TIMEOUT dropped (handshake)" in _log(tmp_path), \
+        "a jammed door that says nothing is the failure this repo keeps finding"
+
+
+@pytest.mark.asyncio
+async def test_a_device_that_HAS_spoken_keeps_the_generous_window(tmp_path, monkeypatch):
+    """The half that would be worse to get wrong. One window for both cases
+    either kills real devices between reports or leaves the loris a door — so a
+    connection that has already delivered a line idles on IDLE_TIMEOUT_S, not on
+    the handshake's."""
+    _wire(tmp_path, monkeypatch)
+    monkeypatch.setattr(net, "HANDSHAKE_TIMEOUT_S", 0.3)
+    monkeypatch.setattr(net, "IDLE_TIMEOUT_S", 5.0)
+    server = await asyncio.start_server(net.handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    async with server:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(b"patrol-07 KEEPALIVE seq=1\n")
+        await writer.drain()
+        await asyncio.sleep(0.9)          # three handshake windows of silence
+        writer.write(b"patrol-07 KEEPALIVE seq=2\n")
+        await writer.drain()
+        await asyncio.sleep(0.2)
+        writer.close()
+        await writer.wait_closed()
+    text = _log(tmp_path)
+    assert "seq=1" in text and "seq=2" in text, "a real device was killed mid-conversation"
+    assert "IDLE-TIMEOUT" not in text
+
+
 def test_the_whitelist_gate_fails_CLOSED_on_an_unloaded_roster(tmp_path, monkeypatch):
     """Not driven through the socket on purpose: loopback is exempt by design, so
     a localhost client can never exercise this. A security control that
