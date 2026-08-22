@@ -96,6 +96,7 @@ export function Og118ProjectsPage() {
           }}
           onRename={(name) => projects.updateProject(project.id, { name })}
           onDescribe={(description) => projects.updateProject(project.id, { description })}
+          onInstruct={(instructions) => projects.updateProject(project.id, { instructions })}
         />
       ) : (
         <Og118ProjectsIndex

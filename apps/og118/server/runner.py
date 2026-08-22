@@ -26,6 +26,8 @@ from fi_runner import (
     Runner,
     ToolPolicy,
     active_corpus_binding,
+    compose_bindings,
+    owner_instructions_binding,
     load_prompt,
 )
 
@@ -345,7 +347,12 @@ def build_runner(
         # from the active project's corpus. No active project → no addendum, the
         # persona is byte-identical to before. The framework primitive is agnostic
         # to WHAT the id is; og118's local-first project id is the corpus_id.
-        context_prompt=active_corpus_binding(),
+        # Two concerns, two bindings, ONE context_prompt (the Runner holds one).
+        # The owner's workspace instructions go LAST so they sit closest to the
+        # user message: the corpus binding says WHERE to look, the owner says HOW
+        # to answer, and the owner's voice is the one that should still be in
+        # earshot when the model starts writing.
+        context_prompt=compose_bindings(active_corpus_binding(), owner_instructions_binding()),
         # DD-002C → og118-continuity canary: conversation continuity by CLIENT-SENT
         # history replay. og118 is local-first — the transcript lives in the
         # browser's IndexedDB and the client replays it on each /chat/stream turn

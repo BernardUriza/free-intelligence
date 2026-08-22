@@ -74,7 +74,13 @@ from .pipeline import (
 from .plan_guard import PlanGuard, PlanGuardOutcome, plan_guard
 from .preflight import PreflightResult, probe_all, probe_mcp
 from .router import ModelRouter
-from .context_binding import ContextPrompt, active_corpus_binding
+from .context_binding import (
+    MAX_OWNER_INSTRUCTIONS_CHARS,
+    ContextPrompt,
+    active_corpus_binding,
+    compose_bindings,
+    owner_instructions_binding,
+)
 from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
@@ -102,7 +108,10 @@ __all__ = [
     "RetryPolicy",
     "FlowNarrator",
     "ContextPrompt",
+    "MAX_OWNER_INSTRUCTIONS_CHARS",
     "active_corpus_binding",
+    "compose_bindings",
+    "owner_instructions_binding",
     "load_prompt",
     "ModelRouter",
     "capabilities",
