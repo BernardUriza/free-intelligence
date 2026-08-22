@@ -1,7 +1,6 @@
-import Link from "next/link";
 import Shell from "../../../components/Shell.tsx";
 import { gatewayExchange } from "../../../lib/db.ts";
-import { freshness } from "../../../lib/claude.tsx";
+import { Crumbs, When } from "../../../lib/claude.tsx";
 import { blocksOf, MessageCard, ResponseCard, type Msg } from "../../../lib/gateway.tsx";
 
 export const dynamic = "force-dynamic";
@@ -40,25 +39,34 @@ export default async function ExchangePage({
 
   return (
     <Shell active="~gateway">
+      <Crumbs
+        trail={[
+          { label: "gateway", href: "/gateway" },
+          ...(turn.session_id
+            ? [{ label: "conversation", href: `/gateway/s/${turn.session_id}` }]
+            : []),
+          { label: exchange },
+        ]}
+      />
       <h1>one turn through the door</h1>
       <p className="sub">
-        <Link href="/gateway">← gateway</Link>
-        {turn.session_id && (
-          <>
-            {" "}· <Link href={`/gateway/s/${turn.session_id}`}>conversation</Link>
-          </>
-        )}{" "}
-        · <code>{exchange}</code> · {turn.model ?? "—"} · {freshness(turn.ts)}
+        <code>{exchange}</code> · {turn.model ?? "—"} · <When mtime={turn.ts} />
       </p>
 
       <h2 className="sect">
-        request · {shown.length} of {messages.length} messages
+        <span>
+          request · {shown.length} of {messages.length} messages
+        </span>
       </h2>
-      {shown.map((m, i) => (
-        <MessageCard key={i} role={m.role} blocks={blocksOf(m.content)} />
-      ))}
+      <div className="thread">
+        {shown.map((m, i) => (
+          <MessageCard key={i} role={m.role} blocks={blocksOf(m.content)} />
+        ))}
+      </div>
 
-      <h2 className="sect">response</h2>
+      <h2 className="sect">
+        <span>response</span>
+      </h2>
       <ResponseCard
         model={turn.model}
         content={res.content}

@@ -53,7 +53,8 @@ export default async function TablePage({
         <span className="ro">read only</span>
       </h1>
       <p className="sub">
-        {cols.length} columns · {total.toLocaleString("en-US")} rows matching
+        A raw table, as the daemon wrote it — {cols.length} columns ·{" "}
+        {total.toLocaleString("en-US")} rows.
       </p>
 
       <div className="bar">
@@ -74,6 +75,7 @@ export default async function TablePage({
         {rows.length === 0 ? (
           <div className="empty">No rows{q ? ` match “${q}”` : ""}.</div>
         ) : (
+          <div className="scroll">
           <table>
             <thead>
               <tr>
@@ -103,6 +105,7 @@ export default async function TablePage({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </Shell>

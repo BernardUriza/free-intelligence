@@ -3,7 +3,7 @@
  * door relayed, drawn as role cards. Pure presentation; Postgres stays in db.ts.
  */
 import Link from "next/link";
-import { Md } from "./claude.tsx";
+import { Md, ToolChips, Turn } from "./claude.tsx";
 
 type Block = { type?: string; text?: string; name?: string };
 export type Msg = { role?: string; content?: unknown };
@@ -34,6 +34,22 @@ export function toolsOf(content: unknown): string[] {
 }
 
 const SCAFFOLD = /^<(system-reminder|session|recent_conversation|turn_context)\b/;
+const SCAFFOLD_CLOSE = /<\/(?:system-reminder|session|recent_conversation|turn_context)>/g;
+
+/** A one-line preview with the machine's scaffolding taken off the front. A
+ *  Claude Code turn opens with pages of `<turn_context>`/`<system-reminder>`
+ *  and the human sentence trails it, so a list that shows the raw head is a
+ *  list of identical rows. Only the KNOWN wrappers are cut — an unrecognised
+ *  angle bracket is somebody's actual text and stays. */
+export function readable(text: string | null | undefined): string {
+  if (!text) return "";
+  let out = text;
+  let last: RegExpExecArray | null = null;
+  for (const m of text.matchAll(SCAFFOLD_CLOSE)) last = m as RegExpExecArray;
+  if (last) out = text.slice(last.index + last[0].length);
+  out = out.replace(/\s+/g, " ").trim();
+  return out || text.replace(/\s+/g, " ").trim();
+}
 
 /** Split a block into the machine's scaffolding and the part a human wrote.
  *  The scaffolding opens the block and the real sentence trails it, so the cut
@@ -54,35 +70,21 @@ export function MessageCard({ role, blocks }: { role?: string; blocks: string[] 
   if (halves.length === 0) return null;
   const caller = role === "user";
   return (
-    <article className={caller ? "turn by-caller" : "turn by-model"}>
-      <header className="who">
-        <span className="mark">{caller ? "›" : "⏺"}</span> {caller ? "caller" : "model"}
-      </header>
-      {halves.map(({ scaffold, readable }, i) => (
+    <Turn who={caller ? "caller" : "model"}>
+      {halves.map((half, i) => (
         <div key={i}>
-          {scaffold && (
+          {half.scaffold && (
             <details>
               <summary>
-                system context · {scaffold.length.toLocaleString("en-US")} chars
+                system context · {half.scaffold.length.toLocaleString("en-US")} chars
               </summary>
-              <span className="words">{scaffold}</span>
+              <span className="words">{half.scaffold}</span>
             </details>
           )}
-          {readable && <Md text={readable} />}
+          {half.readable && <Md text={half.readable} />}
         </div>
       ))}
-    </article>
-  );
-}
-
-function Tools({ names }: { names: string[] }) {
-  if (names.length === 0) return null;
-  return (
-    <div className="chips">
-      {names.map((t, i) => (
-        <code key={i}>⚒ {t}</code>
-      ))}
-    </div>
+    </Turn>
   );
 }
 
@@ -114,12 +116,9 @@ export function ResponseCard({
     );
   }
   return (
-    <article className="turn by-model">
-      <header className="who">
-        <span className="mark">⏺</span> {model ?? "model"}
-      </header>
+    <Turn who="model" label={model ?? "model"}>
       {answer && <Md text={answer} />}
-      <Tools names={tools} />
+      <ToolChips tools={tools.map((name) => ({ name }))} />
       {(stopReason || inputTokens != null || outputTokens != null || href) && (
         <footer>
           {stopReason && <span className="pill">{stopReason}</span>}
@@ -136,6 +135,6 @@ export function ResponseCard({
           )}
         </footer>
       )}
-    </article>
+    </Turn>
   );
 }

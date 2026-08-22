@@ -1,7 +1,6 @@
-import Link from "next/link";
 import Shell from "../../../../components/Shell.tsx";
 import { gatewaySession } from "../../../../lib/db.ts";
-import { freshness } from "../../../../lib/claude.tsx";
+import { Crumbs, When } from "../../../../lib/claude.tsx";
 import { blocksOf, MessageCard, ResponseCard, type Msg } from "../../../../lib/gateway.tsx";
 
 export const dynamic = "force-dynamic";
@@ -31,27 +30,30 @@ export default async function GatewaySessionPage({
 
   return (
     <Shell active="~gateway">
+      <Crumbs trail={[{ label: "gateway", href: "/gateway" }, { label: session }]} />
       <h1>one conversation through the door</h1>
       <p className="sub">
-        <Link href="/gateway">← gateway</Link> · <code>{session}</code> ·{" "}
-        {last.model ?? "—"} · {turns.length} turns · {freshness(last.ts)}
+        <code>{session}</code> · {last.model ?? "—"} · {turns.length} turns · last{" "}
+        <When mtime={last.ts} />
       </p>
-      {turns.map((t) => {
-        const msg = (t.last_msg ?? {}) as Msg;
-        return (
-          <div key={t.exchange}>
-            <MessageCard role={msg.role} blocks={blocksOf(msg.content)} />
-            <ResponseCard
-              model={t.model}
-              content={t.answer}
-              stopReason={t.stop_reason}
-              inputTokens={t.input_tokens}
-              outputTokens={t.output_tokens}
-              href={`/gateway/${t.exchange}`}
-            />
-          </div>
-        );
-      })}
+      <div className="thread">
+        {turns.map((t) => {
+          const msg = (t.last_msg ?? {}) as Msg;
+          return (
+            <div key={t.exchange} className="thread">
+              <MessageCard role={msg.role} blocks={blocksOf(msg.content)} />
+              <ResponseCard
+                model={t.model}
+                content={t.answer}
+                stopReason={t.stop_reason}
+                inputTokens={t.input_tokens}
+                outputTokens={t.output_tokens}
+                href={`/gateway/${t.exchange}`}
+              />
+            </div>
+          );
+        })}
+      </div>
     </Shell>
   );
 }

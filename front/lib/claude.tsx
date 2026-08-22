@@ -2,6 +2,7 @@
  * Rendering helpers for the claude memory pages — pure presentation over the
  * entries `db.ts` reads. No Postgres in here (the waiter's hands stay in db.ts).
  */
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -93,6 +94,79 @@ export function freshness(mtimeMs: string): string {
   if (diff < 3_600_000) return `${Math.round(diff / 60_000)}min ago`;
   if (diff < 86_400_000) return `${Math.round(diff / 3_600_000)}h ago`;
   return new Date(ms).toLocaleDateString("en-US", { day: "numeric", month: "short" });
+}
+
+/** How warm a timestamp is — the dot's colour. An hour is the line between
+ *  "this is happening" and "this happened"; a day, between recent and history. */
+export function heat(mtimeMs: string): "live" | "warm" | "cold" {
+  const diff = Date.now() - Number(mtimeMs || 0);
+  if (diff < 3_600_000) return "live";
+  if (diff < 86_400_000) return "warm";
+  return "cold";
+}
+
+/** A timestamp with its pulse. The dot is the whole point: a column of dates
+ *  reads as history, and one green dot in it reads as a system that is awake. */
+export function When({ mtime }: { mtime: string | null | undefined }) {
+  if (!mtime) return <span className="when cold">—</span>;
+  return <span className={`when ${heat(mtime)}`}>{freshness(mtime)}</span>;
+}
+
+/** The trail back up. Every nested view carries one, so "where am I" is answered
+ *  in the same place on every page instead of by an ad-hoc "← back" link. */
+export function Crumbs({ trail }: { trail: { label: string; href?: string }[] }) {
+  return (
+    <nav className="crumbs">
+      {trail.map((c, i) => (
+        <span key={i} style={{ display: "contents" }}>
+          {i > 0 && <span className="sep">/</span>}
+          {c.href ? <Link href={c.href}>{c.label}</Link> : <span className="here">{c.label}</span>}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+/** THE conversation card — one shape for both doors. `/gateway` draws the raw
+ *  API halves with it and `/claude` draws the SDK transcript with it, so a
+ *  transcript reads the same wherever it was mirrored from. Adding a third
+ *  renderer here is how the two views drifted apart in the first place. */
+export function Turn({
+  who,
+  label,
+  at,
+  children,
+}: {
+  who: "caller" | "model";
+  label?: string;
+  at?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <article className={`turn by-${who}`}>
+      <header className="who">
+        <span className="mark">{who === "caller" ? "›" : "⏺"}</span>
+        {label ?? who}
+        {at && <span className="at">{at}</span>}
+      </header>
+      {children}
+    </article>
+  );
+}
+
+/** The tool calls of a turn, as chips — the same shape the gateway uses. */
+export function ToolChips({ tools }: { tools: { name: string; summary?: string }[] }) {
+  if (tools.length === 0) return null;
+  return (
+    <div className="chips">
+      {tools.map((t, i) => (
+        <code key={i} title={t.summary}>
+          ⚒ {t.name}
+          {t.summary ? ` · ${t.summary}` : ""}
+        </code>
+      ))}
+    </div>
+  );
 }
 
 /** The speaker mark and the words — `›` for the caller, `⏺` for the model. The

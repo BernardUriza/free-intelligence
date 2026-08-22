@@ -35,7 +35,7 @@ export default async function SqlPage({
   return (
     <Shell active="~sql">
       <h1>
-        SQL console<span className="ro">read only</span>
+        sql console<span className="ro">read only</span>
       </h1>
       <p className="sub">
         Type anything. A write does not need to be caught by a sanitizer here — the statement
@@ -64,6 +64,7 @@ export default async function SqlPage({
 
       {!error && rows.length > 0 && (
         <div className="panel">
+          <div className="scroll">
           <table>
             <thead>
               <tr>
@@ -82,6 +83,7 @@ export default async function SqlPage({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </Shell>

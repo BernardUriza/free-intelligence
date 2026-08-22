@@ -571,3 +571,58 @@ export async function gatewayExchange(exchange: string): Promise<GatewayHalves |
     session_id: rows[0].session_id,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * The overview: the numbers the console opens on. Both doors, one     *
+ * screen, so the first thing a reader sees is what AIRE remembers —   *
+ * not how large its tables are.                                       *
+ * ------------------------------------------------------------------ */
+
+export type GatewayCounts = { requests: number; sessions: number };
+
+/** How much has crossed the gateway. Only `kind` and `session_id` are touched —
+ *  never the jsonb bodies, which are what make that table 51 MB. */
+export async function gatewayCounts(): Promise<GatewayCounts> {
+  const [row] = await read<{ requests: string; sessions: string }>(
+    `SELECT count(*) FILTER (WHERE kind = 'request')::text AS requests,
+            count(DISTINCT session_id)::text               AS sessions
+     FROM aire_gateway_log`,
+    [],
+  );
+  return { requests: Number(row?.requests ?? 0), sessions: Number(row?.sessions ?? 0) };
+}
+
+export type RecentSession = ClaudeSession & { project_key: string };
+
+/** The newest mirrored sessions across every casita — the overview's feed.
+ *  Bounded by `limit`, so the per-row title lookup stays cheap. */
+export async function claudeRecent(limit = 8): Promise<RecentSession[]> {
+  return read<RecentSession>(
+    `
+    SELECT s.project_key, s.session_id, count(*)::int AS entries, max(s.mtime)::text AS mtime,
+           (SELECT e2.entry FROM claude_session_store e2
+            WHERE e2.project_key = s.project_key AND e2.session_id = s.session_id
+              AND e2.subpath = '' AND e2.entry->>'type' = 'user'
+            ORDER BY e2.seq LIMIT 1) AS first_user,
+           (SELECT e3.entry->>'aiTitle' FROM claude_session_store e3
+            WHERE e3.project_key = s.project_key AND e3.session_id = s.session_id
+              AND e3.subpath = '' AND e3.entry->>'type' = 'ai-title'
+            ORDER BY e3.seq DESC LIMIT 1) AS ai_title
+    FROM claude_session_store s
+    WHERE s.subpath = ''
+    GROUP BY s.project_key, s.session_id
+    ORDER BY max(s.mtime) DESC LIMIT $1
+    `,
+    [limit],
+  );
+}
+
+/** The last line the daemon appended, as epoch millis — the console's pulse. */
+export async function lastBreath(): Promise<string | null> {
+  const [row] = await read<{ ms: string | null }>(
+    `SELECT (extract(epoch FROM at) * 1000)::bigint::text AS ms
+     FROM aire_log ORDER BY seq DESC LIMIT 1`,
+    [],
+  );
+  return row?.ms ?? null;
+}

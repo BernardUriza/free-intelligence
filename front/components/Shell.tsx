@@ -10,6 +10,11 @@ import { COOKIE, valid } from "../lib/session.ts";
  * each render. A table the daemon creates tomorrow appears in this sidebar with
  * no code change — the schema is discovered, never hardcoded.
  *
+ * The ORDER is an argument, not a layout: what AIRE is for comes first (the
+ * conversations it kept), and the storage those conversations happen to live in
+ * comes last, under `raw`. A console that opens on `pg_class` describes the
+ * database; this one describes the memory.
+ *
  * It is a Server Component on purpose, so `active` arrives as a prop instead of
  * dragging `usePathname` (and a client bundle) in for one CSS class.
  *
@@ -19,6 +24,15 @@ import { COOKIE, valid } from "../lib/session.ts";
  * here, in the render path, before any query runs. The advisory's own
  * workaround, kept as permanent depth.
  */
+
+const VIEWS = [
+  { href: "/console", key: "~console", ico: "◈", label: "overview" },
+  { href: "/claude", key: "~claude", ico: "▤", label: "conversations" },
+  { href: "/gateway", key: "~gateway", ico: "⇄", label: "gateway" },
+  { href: "/monster", key: "~monster", ico: "◍", label: "the monster" },
+  { href: "/sql", key: "~sql", ico: "⌘", label: "sql console" },
+];
+
 export default async function Shell({
   active = "",
   children,
@@ -39,37 +53,33 @@ export default async function Shell({
 
   return (
     <div className="shell">
-      <nav>
+      <nav className="rail">
         <Link href="/console" className="brand">
-          <b>AIRE front 🌬️</b>
-          <span>the waiter — read-only</span>
+          <b>AIRE 🌬️</b>
+          <span>the waiter · read only</span>
         </Link>
 
-        <h2>tables</h2>
-        {list.length === 0 ? (
-          <a>{down ? "— unreachable —" : "— none yet —"}</a>
-        ) : (
-          list.map((t) => (
-            <Link key={t.name} href={`/t/${t.name}`} className={t.name === active ? "on" : ""}>
-              {t.name}
-              <span className="n">{t.rows.toLocaleString("en-US")}</span>
-            </Link>
-          ))
-        )}
+        <h2>the memory</h2>
+        {VIEWS.map((v) => (
+          <Link key={v.key} href={v.href} className={v.key === active ? "on" : ""}>
+            <span className="ico">{v.ico}</span>
+            <span className="lbl">{v.label}</span>
+          </Link>
+        ))}
 
-        <h2>views</h2>
-        <Link href="/claude" className={active === "~claude" ? "on" : ""}>
-          claude
-        </Link>
-        <Link href="/gateway" className={active === "~gateway" ? "on" : ""}>
-          gateway
-        </Link>
-        <Link href="/monster" className={active === "~monster" ? "on" : ""}>
-          the monster
-        </Link>
-        <Link href="/sql" className={active === "~sql" ? "on" : ""}>
-          sql console
-        </Link>
+        <h2>raw tables</h2>
+        <div className="raw">
+          {list.length === 0 ? (
+            <a>{down ? "— unreachable —" : "— none yet —"}</a>
+          ) : (
+            list.map((t) => (
+              <Link key={t.name} href={`/t/${t.name}`} className={t.name === active ? "on" : ""}>
+                <span className="lbl">{t.name}</span>
+                <span className="n">{t.rows.toLocaleString("en-US")}</span>
+              </Link>
+            ))
+          )}
+        </div>
 
         <form action={signOut} className="out">
           <button>sign out</button>

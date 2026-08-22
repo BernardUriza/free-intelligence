@@ -13,7 +13,7 @@ export default async function MonsterPage() {
   if (g.nodes.length === 0) {
     return (
       <Shell active="~monster">
-        <h1>The monster 🌬️</h1>
+        <h1>the monster 🌬️</h1>
         <p className="sub">
           <code>aire_log</code> is empty — no monster yet.
         </p>
@@ -26,7 +26,7 @@ export default async function MonsterPage() {
 
   return (
     <Shell active="~monster">
-      <h1>The monster 🌬️</h1>
+      <h1>the monster 🌬️</h1>
       <p className="sub">
         Directly-follows graph of <code>aire_log</code> — {g.total.toLocaleString("en-US")}{" "}
         events, {g.span}. A node is an event type; an edge means “this followed that”,
@@ -99,10 +99,20 @@ export default async function MonsterPage() {
                 <circle cx={n.x.toFixed(1)} cy={n.y.toFixed(1)} r={n.r.toFixed(1)}>
                   <title>{`${n.name}: ${n.count} events`}</title>
                 </circle>
-                <text className="node-label" x={n.x.toFixed(1)} y={(n.y + n.r + 16).toFixed(1)}>
+                <text
+                  className="node-label"
+                  textAnchor={n.anchor}
+                  x={n.lx.toFixed(1)}
+                  y={n.ly.toFixed(1)}
+                >
                   {n.name}
                 </text>
-                <text className="node-count" x={n.x.toFixed(1)} y={(n.y + n.r + 30).toFixed(1)}>
+                <text
+                  className="node-count"
+                  textAnchor={n.anchor}
+                  x={n.lx.toFixed(1)}
+                  y={(n.ly + 13).toFixed(1)}
+                >
                   {n.count}
                 </text>
               </g>
@@ -111,9 +121,9 @@ export default async function MonsterPage() {
         </figure>
       </div>
 
-      <details>
+      <details className="panel">
         <summary>Every transition, as a table</summary>
-        <div className="panel" style={{ marginTop: 8 }}>
+        <div className="scroll">
           <table>
             <thead>
               <tr>
