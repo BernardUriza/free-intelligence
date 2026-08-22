@@ -34,7 +34,12 @@ def main() -> int:
     # anywhere but server/ — a check that cannot go red proves nothing, and this
     # one hid two real violations on 2026-08-11 before it was caught.
     root = Path(__file__).resolve().parent.parent
-    files = [p for p in sorted(root.glob("*.py")) + sorted((root / "aire").rglob("*.py"))
+    # `infra/` and `scripts/` are checked too. They were not until 2026-08-22,
+    # so the provisioning scripts and this gate itself were exempt from the law
+    # they enforce — the same defect as a check that cannot go red, one level up.
+    files = [p for area in ("aire", "infra", "scripts")
+             for p in sorted((root / area).rglob("*.py"))]
+    files = [p for p in sorted(root.glob("*.py")) + files
              if str(p.relative_to(root)) not in EXEMPT]
     if not files:
         print(f"the law found nothing to check under {root} — that is a broken gate, not a pass")

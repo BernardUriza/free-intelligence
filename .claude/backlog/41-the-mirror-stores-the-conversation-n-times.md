@@ -125,10 +125,37 @@ both closed:
   anything used inside the TTL has rows far inside the retention window, so the
   broom cannot touch it, and anything older is re-asserted for one 24 ms INSERT.
 
-## Left open
+## The watch that should have found this (done 2026-08-22)
 
-- **A nightly size line in costwatch**, so the RATE is known instead of the
-  snapshot. Cheap, and it is what would have surfaced this without a review.
+`infra/growth.py` runs from costwatch's nightly SSH block, beside `wall.py`:
+the size of the whole database and of each table, plus **MB/day measured over
+each table's own live window**, red past a ceiling (`AIRE_DB_CEILING_MB`, 250).
+Proven able to go red before its green was trusted — the ceiling forced to 1 MB
+exits 1 against the live pen.
+
+First reading, on the real database:
+
+```
+database: 66.9 MB (ceiling 250 MB)
+  aire_gateway_log        51.31 MB     3.38 MB/day over 15.2d
+  claude_session_store     5.95 MB     0.18 MB/day over 33.1d
+  aire_log                 1.32 MB     0.04 MB/day over 30.3d
+  aire_casita              0.27 MB   (new today)
+  aire_gateway_blob        0.03 MB   42 distinct values
+```
+
+Two things that reading makes visible and nothing did before. The gateway's
+3.38 MB/day is still the HISTORICAL average — the delta code is hours old, so
+the number this watch exists to show is the one that falls over the next weeks.
+And `claude_session_store` grows at 0.18 MB/day **with no broom at all**: it is
+the one table retention deliberately never touches, because deleting it breaks
+deathless sessions, so its growth is unbounded by design and this is the only
+thing measuring it.
+
+`scripts/check_law.py` was extended in the same commit: it globbed only the root
+and `aire/`, so every provisioning script under `infra/` — and the gate itself —
+was exempt from the law it enforces. Proven with a deliberate 35-line function in
+`infra/`, which now fails the check.
 
 See also [#40](40-every-guard-fails-quietly.md) (the silent-degradation family
 this belongs to), [[do-budget]] (watch the thing that grows),

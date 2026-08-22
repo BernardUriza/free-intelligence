@@ -132,6 +132,15 @@ jobs:
             FAIL=1
           fi
 
+          # How fast the memory is GROWING. do-budget's own words: "never watch
+          # only the cloud where the spend is frozen — the blind spot always opens
+          # over the thing that grows." DO is frozen at $4 and checked above; the
+          # Azure Postgres is the half that grows, and until now only its BROOM
+          # was watched, never its size against the input rate.
+          if ! /opt/aire/.venv/bin/python3 /opt/aire/server/infra/growth.py; then
+            FAIL=1
+          fi
+
           # Which guards are silently OFF (aire/arming.py). Every one of them
           # degrades politely and /health answered "ok" for all of them at once.
           # Two are DECLARED off, so the alarm does not cry wolf — anything else
