@@ -42,6 +42,14 @@ def test_no_usable_id_falls_back_to_none() -> None:
     assert aire_project_for_chat("!!!") is None
 
 
+def test_project_name_prefix_follows_the_deploys_base(monkeypatch) -> None:
+    """La costura del consumer (aire-server #35): el prefijo del chat es la
+    casita base del deploy — fenix nombra `fenix-{chat}` seteando
+    OG118_AIRE_PROJECT, sin tocar este runtime."""
+    monkeypatch.setenv("OG118_AIRE_PROJECT", "fenix")
+    assert aire_project_for_chat("abc") == "fenix-abc"
+
+
 # --- wiring: la ruta AIRE pide la tool persona y resuelve casita por turno ---
 
 

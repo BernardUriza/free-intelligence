@@ -53,7 +53,12 @@ _AIRE_NAME_MAX = 128
 
 
 def aire_project_for_chat(session_id: str | None) -> str | None:
-    """El nombre de casita AIRE para un chat: ``og118-{conversation_id}``.
+    """El nombre de casita AIRE para un chat: ``{base}-{conversation_id}``.
+
+    El prefijo es la casita base del deploy (``OG118_AIRE_PROJECT``, default
+    ``og118``): así un segundo consumer de este runtime (apps/fenix) nombra sus
+    chats con SU identidad — ``fenix-{chat}`` — sin tocar este archivo. Sin la
+    variable el nombre es byte-idéntico al de siempre.
 
     El id viene del cliente (no confiable): se filtra al allowlist de AIRE
     (``[A-Za-z0-9_-]``, 128 max — server/aire/names.py) en vez de rechazarse,
@@ -65,7 +70,8 @@ def aire_project_for_chat(session_id: str | None) -> str | None:
     cleaned = _AIRE_NAME_UNSAFE.sub("", session_id)
     if not cleaned:
         return None
-    return f"og118-{cleaned}"[:_AIRE_NAME_MAX]
+    base = os.getenv("OG118_AIRE_PROJECT", "og118")
+    return f"{base}-{cleaned}"[:_AIRE_NAME_MAX]
 
 
 def _extra_mcp_desde_entorno() -> list[MCPServerSpec]:
@@ -157,7 +163,7 @@ def _verificar_superficie_acotada(options: Any) -> None:
 MOTOR_POR_DEFECTO = "claude-code"
 
 
-def _backend_aire(model: str) -> AIREBackend:
+def _backend_aire(model: str, project: str | None = None) -> AIREBackend:
     """El puente a AIRE, con la identidad de og118 como proyecto (su casita).
 
     AIRE es dueño del lado servidor: la memoria (su session_store en su
@@ -181,9 +187,15 @@ def _backend_aire(model: str) -> AIREBackend:
     vez en la casita base og118 (AIREBackend la init-ea antes del primer chat);
     cada casita de chat nace con el stub `@base og118`, que el engine
     dereferencia en cada spawn — un solo origen vivo de la persona en vez de N
-    copias congeladas."""
+    copias congeladas.
+
+    `project` (opcional) fija OTRA casita base para ESTE runner, ganándole al
+    entorno: un consumer con dos personas en el mismo proceso (fenix: mostrador
+    y tutor) necesita dos bases — si compartieran una, cada runner init-earía la
+    misma casita con SU persona compuesta y el último en arrancar ganaría,
+    dejando a los chats del otro producto dereferenciando la voz equivocada."""
     return AIREBackend(
-        project=os.getenv("OG118_AIRE_PROJECT", "og118"),
+        project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode="complete",
         registry_tools=("persona",),
@@ -213,6 +225,7 @@ def build_runner(
     session_store: Any | None = None,
     capabilities: list[str] | None = None,
     extra_mcp_servers: list[MCPServerSpec] | None = None,
+    aire_project: str | None = None,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -231,13 +244,18 @@ def build_runner(
     paths pass through — so every element inherits them from ONE source without
     copying the rule per persona or leaking it into the cross-repo fi-personas
     core. Chief among them: the runtime is stateless, so the persona must never
-    promise background/async work it cannot do."""
+    promise background/async work it cannot do.
+
+    `aire_project` (only meaningful on the aire route) pins THIS runner's base
+    casita, overriding the deploy-wide `OG118_AIRE_PROJECT` — the seam a
+    consumer with a second persona in the same process (fenix's tutor) uses so
+    each voice owns its own base instead of fighting over one."""
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
     motor = os.getenv("OG118_BACKEND", MOTOR_POR_DEFECTO).strip().lower()
     persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
     if motor == "aire":
-        backend: Any = _backend_aire(model)
+        backend: Any = _backend_aire(model, aire_project)
         # Solo esta ruta tiene la tool persona (registry de AIRE): el párrafo de
         # identidad viva viaja con la base al /init de cada casita-por-chat.
         persona_parts.append(load_prompt(LIVING_IDENTITY_PATH))

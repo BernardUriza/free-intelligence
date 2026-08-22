@@ -45,3 +45,13 @@ def test_aire_respeta_el_proyecto_del_entorno(monkeypatch) -> None:
     monkeypatch.setenv("OG118_AIRE_PROJECT", "og118-staging")
     runner = build_runner()
     assert runner.backend.project == "og118-staging"
+
+
+def test_aire_project_del_caller_gana_sobre_el_entorno(monkeypatch) -> None:
+    """La costura para un consumer con DOS personas en el mismo proceso (fenix:
+    mostrador y tutor): cada runner puede fijar su propia casita base, para que
+    las dos voces no se peleen un solo /init."""
+    monkeypatch.setenv("OG118_BACKEND", "aire")
+    monkeypatch.setenv("OG118_AIRE_PROJECT", "fenix")
+    runner = build_runner(aire_project="fenix-tutor")
+    assert runner.backend.project == "fenix-tutor"
