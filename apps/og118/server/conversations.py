@@ -33,6 +33,11 @@ SUMMARY_FIELDS = (
     "preview",
     "pinnedAt",
     "archivedAt",
+    # The project this conversation belongs to. In the SUMMARY because the
+    # project detail page's "Recents" filters the light list — pulling every full
+    # record just to read one field would make that page cost the whole account's
+    # transcripts.
+    "projectId",
 )
 
 

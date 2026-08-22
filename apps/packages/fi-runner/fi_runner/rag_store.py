@@ -99,5 +99,18 @@ class RagStoreClient:
         """Usage for ``corpus_id``: ``{n_docs, n_chunks, bytes}`` — the metering base."""
         return await self._rag.stats(corpus_id)
 
+    def quota(self) -> dict:
+        """The per-corpus ceilings (``FI_RAG_MAX_DOCS`` / ``FI_RAG_MAX_BYTES``),
+        ``None`` where unset — the DENOMINATOR that :meth:`stats` is a numerator of.
+
+        Exposed because a consumer rendering "N% of capacity used" needs both
+        halves, and the alternative is reaching into ``_rag`` — a private attribute
+        whose shape is fi-core's business, not the consumer's.
+
+        ``None`` means UNLIMITED, and a consumer must render that as "no cap", never
+        as a percentage of an invented ceiling: a made-up denominator turns an
+        honest "unbounded" into a reassuring fake number."""
+        return {"max_docs": self._rag.max_docs, "max_bytes": self._rag.max_bytes}
+
 
 __all__ = ["QuotaExceeded", "RagStoreClient", "read_text_file"]
