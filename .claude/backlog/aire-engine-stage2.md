@@ -6,6 +6,7 @@ El código de la ruta AIRE está en `main`, con tests, detrás de
 turno de producción ha salido por la puerta engine. Verificación en vivo y
 decisión de encender: de Bernard.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
+· Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
 
 ## Qué es
 
@@ -32,12 +33,42 @@ runner delgado; éste no.
 
 | Archivo | Qué es |
 |---|---|
-| `persona_runner/engine/aire_backend.py` | El cliente canónico de la puerta, **VENDOREADO** desde `fi_runner/backends/aire.py` (free-intelligence `b99a26ba`, PR #413). Vendoreado y no importado porque **ningún fi-runner publicado lo trae**: el canal de conda tope 0.17.1 no empaqueta `backends/aire.py` y este repo pinnea `fi-runner=0.11.0` |
-| `persona_runner/engine/aire_route.py` | La ruta: casitas, pre-fetch de facts, guard de capacidades, mapeo de errores, judge |
+| `persona_runner/engine/aire_backend.py` | El cliente canónico de la puerta, **VENDOREADO** desde `fi_runner/backends/aire.py` (free-intelligence `b99a26ba`, PR #413). Vendoreado y no importado porque **ningún fi-runner publicado lo trae**: el canal de conda tope 0.17.1 no empaqueta `backends/aire.py` y este repo pinnea `fi-runner=0.11.0`. Cinco adaptaciones marcadas: la quinta (`AIREDoorError`) conserva el CÓDIGO de error de AIRE como dato |
+| `persona_runner/engine/aire_route.py` | La ruta: casitas, pre-fetch de facts, guard de capacidades, mapeo de errores, judge, el candado por casita |
 | `persona_runner/api/turn.py` · `api/judge.py` | La bifurcación por `TURN_BACKEND` |
-| `persona_runner/runner.py` | El boot verifica la ruta que DE VERDAD va a servir turnos |
+| `persona_runner/runner.py` | El boot verifica la ruta que DE VERDAD va a servir turnos; el shutdown cierra los backends y el pool |
+| `persona_runner/mcp_tools/shared.py` | El pool asyncpg compartido (`acquire`/`close_pool`) que usa el pre-fetch de facts. `_connect` (one-shot) sigue vivo para las tools MCP |
 | `core/config.py` · `core/schemas.py` · `engine/framing.py` | El flag, `JudgeRequest.persona_id`, el bloque `<user_memory>` |
-| `tests/agent/test_aire_{route,backend}.py` · `test_turn_backend_flag.py` | 44 tests; el default `local` está pinneado por test |
+| `tests/agent/test_aire_{route,backend}.py` · `test_turn_backend_flag.py` · `test_pg_pool.py` | 76 tests; el default `local` está pinneado por test |
+
+## Los seis defectos del code review (2026-08-22) — arreglados
+
+Encontrados auditando `05d311d`/`ac3abca`/`a709dd3`. Cada arreglo trae su test
+del MODO DE FALLA (el interleaving que era posible antes), no del happy path;
+cada uno se verificó revirtiendo el arreglo y viendo el test en rojo.
+
+| # | Defecto | Arreglo | Test que lo prueba |
+|---|---|---|---|
+| 1 🔴 | `is_first_turn` se leía sin candado y se marcaba DESPUÉS del turno: dos mensajes casi simultáneos en un canal se creían ambos "el primero" y **plegaban la historia dos veces**. AIRE serializa con su candado por sesión, así que no truena — la sesión simplemente termina con la conversación duplicada y esos tokens pagados dos veces | Un `asyncio.Lock` por casita (`CasitaState`) sostenido sobre decidir→turno→marcar, igual que `api/turn.py` ("only under the lock does 'not open' mean THIS turn opens the session"). Crear el candado es un paso síncrono (estilo `session_pool.slot_lock`), así que la creación tampoco corre carrera. Un turno FALLIDO sigue sin marcar la sesión | `test_two_simultaneous_turns_fold_the_history_exactly_once`, `test_turns_in_different_channels_are_not_serialized_against_each_other` (resistencia), `test_a_failed_turn_leaves_the_session_unmarked` |
+| 2 🔴 | El judge mandaba TODAS las llamadas de una persona a una sola casita `{persona}-judge`, y el `system_prompt` arbitrario del caller se instala con `/init` ANTES del turno. Con `JUDGE_MAX_CONCURRENCY=1` el semáforo lo tapaba; **subir esa variable —seguro en la ruta local, donde cada judge es un subproceso aislado con su propio prompt— hace que el `/init` de B pise el CLAUDE.md mientras A está a media respuesta**, y A contesta bajo el prompt de B con una respuesta que se ve perfecta. Una perilla cuya seguridad depende en silencio del backend ES el bug | La casita se llama `{persona}-judge-{sha256(prompt)[:32]}`. Misma casita ⟺ prompt byte-idéntico (un `/init` concurrente escribe los mismos bytes); prompt distinto = casita distinta. **Estructural, sin candado**, así que los judges siguen corriendo en paralelo. **Acotado**: los prompts de judge son `.md` de `khimeras_shared/prompts_md/` templateados a lo sumo con el nombre de la persona (todo lo del usuario viaja en el mensaje USER), así que el conteo de casitas es "prompts distintos × personas" — un puñado, estable — y no un directorio por extracción de facts en background. Eso importa: AIRE tiene escoba para sus tablas, **no para las casitas**, y una casita es un directorio en una caja de 458 MB | `test_two_concurrent_judges_never_execute_under_each_others_prompt` (con `JUDGE_MAX_CONCURRENCY=4`, la configuración para la que existe el arreglo), `test_many_judges_on_one_identical_prompt_still_share_one_casita` (resistencia: no ensucia el droplet), `test_the_judge_casita_is_named_after_its_prompt` |
+| 3 🟠 | `AIREBackend.aclose()` existía y **nadie lo llamaba**: `_lifespan` sólo cerraba `session_pool`, así que cada cliente `httpx` (de turno y de judge) se fugaba en cada shutdown | `aire_route.close_backends()` drena las dos cachés, best-effort por backend, y `_lifespan` lo llama en la rama AIRE (más `shared.close_pool()`, siempre) | `test_close_backends_closes_turn_and_judge_clients`, `test_one_stubborn_backend_does_not_strand_the_others` (resistencia), `test_the_runner_lifespan_closes_the_aire_backends` |
+| 4 🟠 | `fetch_user_facts` abría y cerraba una conexión Postgres **en cada turno**. Antes de esta ruta ese costo se pagaba sólo cuando el modelo ELEGÍA llamar la tool de memoria; el pre-fetch in-band lo volvió incondicional (connect + handshake TLS a Azure por turno) | Un pool asyncpg compartido en `mcp_tools/shared.py` (`acquire()` / `close_pool()`), que es donde vive la política de conexión (Art. 6) para que cualquier futuro caller de hot path lo reuse. `_connect()` one-shot **se queda** para las tools MCP: el modelo las llama rara vez y cambiarlas sería tocar la ruta local. La ley se conserva: cualquier falla de DB devuelve `""` y jamás mata el turno | `tests/agent/test_pg_pool.py` (un solo pool con N acquires, la conexión se RELEASEA no se cierra, dos primeros callers concurrentes no construyen dos pools), `test_the_hot_path_never_opens_its_own_connection` |
+| 5 🟠 | `to_http_error` decidía terminal-vs-backpressure con `in` contra el TEXTO del error, mientras `aire_backend` ya normalizaba el código estructurado de AIRE y lo tiraba al formatearlo dentro de un string | `AIREDoorError` (adaptación 5 del vendoreo) conserva `code` y `http_status` como atributos; `_error_status` decide sobre el código. El substring queda **sólo como fallback para fallas sin estructura**, y su modo de falla es el seguro: si AIRE re-redacta un mensaje, el peor caso es 502-y-reintenta, no un corte terminal leído como algo que un reintento arregla | `test_a_structured_terminal_code_is_500_even_when_the_prose_changes`, `test_a_structured_backpressure_code_is_503_...`, `test_an_unknown_structured_code_is_502_not_a_guess`, `test_an_unstructured_reworded_failure_degrades_to_502`, y en el backend `test_an_sse_error_carries_aires_code_as_an_attribute` + `test_a_torn_stream_stays_an_uncoded_failure` |
+| 6 🟡 | `verify_aire_route()` construía Y CACHEABA un backend como efecto secundario de verificar; `_seen_sessions` crecía sin techo | La construcción se extrajo a `_build_backend` y el boot verifica ese, sin tocar la caché. `_seen_sessions` desapareció dentro de `CasitaState`, un `OrderedDict` LRU con tope (`AIRE_CASITA_STATE_MAX`, 4096) — obligatorio ahora que cada entrada carga un `asyncio.Lock` y no una cadenita. La expulsión **nunca toca una casita con el candado tomado**; lo único que cuesta es el bit `seen`, o sea que esa casita pliega historia una vez más — exactamente la duplicación acotada que ya causa un reinicio | `test_verifying_the_route_does_not_warm_the_backend_cache`, `test_the_casita_state_map_is_bounded`, `test_a_casita_mid_turn_is_never_evicted` (resistencia) |
+
+**Lo que NO se tocó, a propósito:** la ruta local del SDK (sus tests siguen
+verdes, 1374 en la suite completa), el flag (`TURN_BACKEND` sigue en `local` y
+nada de esto lo prende), y el techo de capacidad de AIRE (`POOL_MAX=2`, 129 MB
+por cliente, espera de 45 s, ~60 casitas ⇒ la mayoría de los turnos son fríos y
+re-pagan el `cache_creation` del system prompt). Ese último es decisión de
+Bernard y quedó explícitamente FUERA: ningún arreglo de aquí agrega capas de
+caché para rodearlo, y ninguno lo empeora.
+
+**Un costo pre-existente que sigue ahí, en las DOS rutas** (no es regresión de
+la etapa 2, no se arregló para no cambiar la conducta de la ruta local):
+`session_pool._route_model` también abre y cierra su propia conexión Postgres
+por turno (`mcp_tools._connect`). Ahora que el pool existe en `shared.py`, es un
+one-liner el día que se quiera — pero toca la ruta local, así que va a decisión.
 
 ## Los hallazgos que BLOQUEAN encender el flag
 
@@ -127,6 +158,30 @@ hasta re-auditar. Se loguea `aire_route_accepted_tool_delta` en cada boot.
   actual Azure → Anthropic. Los turnos de voz/TTS son los sensibles. Medir antes
   de encender.
 
+### 5. Huecos de AIRE que destapó el code review (2026-08-22)
+
+Estos NO se arreglaron aquí — `aire-server` es de otra sesión. Cada uno es un
+item candidato allá; lo de este repo ya está resuelto alrededor de ellos.
+
+- **No hay `system_prompt` por turno en el body de la puerta.** El único modo de
+  instalar un prompt es `/init` sobre la casita, así que la casita ES la
+  superficie de prompt — y una compartida es una superficie que otro puede
+  sobreescribir a media respuesta. De ahí sale el defecto 2 y su remedio
+  (nombrar la casita por el digest del prompt). Un campo `system_prompt` en
+  `POST .../messages` para `mode=complete` mataría la clase entera: el judge
+  dejaría de necesitar casita propia.
+- **No hay borrado ni escoba de casitas.** AIRE barre sus TABLAS
+  (`aire/sweep.py` + `aire-sweep.timer`, retención 30 días) pero una casita es
+  un directorio en un droplet de 458 MB y nada la recoge. Por eso este repo
+  rechazó la casita-por-llamada para el judge. Faltan un `DELETE
+  /projects/{p}` (o TTL de casitas ociosas) y una manera de LISTAR lo que hay,
+  para poder auditar cuántas casitas dejó el consumidor.
+- **No hay rebind del `TurnSpec` en caliente** (ya nombrado en el hueco 1) — el
+  mismo endpoint que arregle el modelo arregla también mode y tools.
+- **No hay sonda de "¿existe esta sesión?"** (hueco 4) — hoy el fold de historia
+  se gobierna con estado en RAM, ahora acotado por LRU, así que una expulsión
+  cuesta exactamente lo mismo que un reinicio: un pliegue de más.
+
 ## El cableado (env fuera de banda, como la etapa 1)
 
 El código lee la puerta del entorno; **jamás de un archivo del repo**:
@@ -136,6 +191,10 @@ El código lee la puerta del entorno; **jamás de un archivo del repo**:
 - `AIRE_AUTH_TOKEN` — Bearer de la puerta engine (o `AIRE_CANARY_TOKEN`)
 - `AIRE_TURN_MODE=agent` (default; cualquier otro modo TRUENA el boot)
 - `AIRE_FACTS_MAX_CHARS=6000` (default)
+- `AIRE_CASITA_STATE_MAX=4096` (default) — techo del mapa de candados/freshness
+  por casita. No hay que tocarlo; existe para que el mapa no sea un leak
+- `PG_POOL_MIN_SIZE=1` / `PG_POOL_MAX_SIZE=4` (defaults) — el pool asyncpg
+  compartido que usa el pre-fetch de facts
 
 Documentado en `docs/runbook_dr.md` § orden de reconstrucción, paso 4, con la
 misma forma que dejó la etapa 1.
