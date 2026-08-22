@@ -99,6 +99,25 @@ Ese turno E2E (haiku + imagen + memory) es el **primer consumidor real** de los
 tres gaps — el caso end-to-end del producto llave-en-mano (aire-server #34,
 canónico en `discord-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`).
 El único input que sigue sin forwardearse es `tool_policy` (AIRE es dueño de la
-config de tools server-side; se avisa con warning). Falta también rerutear
-`backend/policy/llm_router_policy.py` (el `Anthropic()` crudo) — turno complete
-simple, aparte.
+config de tools server-side; se avisa con warning). 
+
+**Corrección (2026-08-22): el "gap" de `llm_router_policy.py` NO EXISTE.** Lo
+escribió una sesión anterior sin abrir el archivo. Los hechos:
+
+1. Ese `Anthropic()` está **dentro del docstring** del módulo
+   (`backend/policy/llm_router_policy.py:10`), como el EJEMPLO de lo que el
+   archivo prohíbe — el módulo es el *scanner* que veta `anthropic` (`:98`) y
+   `messages.create` (`:114`). Reruteárlo sería reescribir el ejemplo del pecado.
+2. La única llamada cruda real a Anthropic en todo el repo está en otro lado:
+   `backend/infrastructure/model_catalog/api/public/llm_models_admin.py:338`
+   (`_test_anthropic_model`, POST a `api.anthropic.com/v1/messages`) — y es una
+   sonda de superadmin para probar la config de un modelo, no un turno.
+3. **`backend/` no se despliega ni se importa.** og118 y fenix se sirven de
+   `og118-backend.yml` / `fenix-backend.yml`, ambos con path filter a
+   `apps/**`; los dos Dockerfiles copian sólo `apps/`; `grep "from backend\."`
+   sobre `apps/` no da un solo hit. Lo único que lo toca es `pr-gate.yml:39`
+   con un `py_compile`. Su último cambio fue el 2026-05-22.
+
+O sea que no hay nada que rerutear a AIRE ahí. Si algo queda es una tarjeta
+aparte de higiene (*"borrar o poner en cuarentena el `backend/` legacy"*), no
+trabajo de AIRE.

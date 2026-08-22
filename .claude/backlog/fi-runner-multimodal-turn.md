@@ -1,6 +1,6 @@
 # FI-RUNNER-MULTIMODAL-1 — image/document input as a first-class fi-runner turn primitive
 
-Status: Proposed
+Status: **Done** — shipped as `images: list[TurnImage]` (verificado 2026-08-22)
 Proposed: 2026-07-05 by Bernard (discovered images work in discord-bot only via a consumer-local bypass of fi-runner; the shared turn contract silently discards them)
 
 ## What it is
@@ -71,3 +71,32 @@ work so the bypass-deletion lands after the framework carries it.
 Not built. Feasibility is proven (the canary runs in prod). Unblock = Bernard's GO.
 See [[framework-first-canary]] (the rule this instantiates) and the discord-bot
 persona-runner as the reference implementation.
+
+## Cierre verificado (2026-08-22)
+
+Se construyó, pero con **otro nombre** que el que este documento propuso: no
+`attachments: list[dict]` sino **`images: list[TurnImage]`** — un tipo del
+contrato, no un dict crudo. Por eso el índice lo tuvo dos meses en "Proposed":
+nadie volvió a leerlo con el nombre que sí existe.
+
+- Contrato: `apps/packages/fi-runner/fi_runner/backend.py:273` (`TurnImage`,
+  `media_type` + base64 `data`) y `:291` `from_any()`, que **falla** ante una
+  forma desconocida en vez de tirarla en silencio — que era el pecado original.
+- Runner: `runner.py:298` `_prepare_turn(images=...)`, `:305` un turno de
+  **sólo imagen** es válido, `:313` telemetría `images_attached` (cuenta y
+  media types, jamás los bytes), `:428` / `:554` en `run` y `run_stream`. Los
+  turnos de texto viajan byte-idénticos.
+- Los tres backends, y **ninguno descarta en silencio**:
+  `claude_code.py:231` arma bloques Anthropic y pasa a streaming-input (la forma
+  exacta del canario de discord-bot); `aire.py:315` pone `images` en el body de
+  la puerta; `codex.py` **no implementa** `run_turn` y hereda el
+  `_subprocess_cli.py:52` que lanza `BackendError` diciendo que use un backend
+  con visión.
+- og118 lo manda entero: `server/app.py:418` (`ChatImage`, con tope de cuenta y
+  bytes en `:181`), `web/lib/useOg118Agent.ts:182`, composer en fi-glass
+  (`src/composer/useComposerImages.ts`).
+
+**Lo único que queda** es cosmético del puerto: el Protocol `AgentBackend`
+(`backend.py:333`) todavía declara `run_turn` **sin** `images`, así que el tipo
+no anuncia la capacidad que sus tres implementaciones ya tienen. Hueco de
+structural typing, no de función.

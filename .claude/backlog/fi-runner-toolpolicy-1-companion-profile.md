@@ -1,6 +1,6 @@
 # FI-RUNNER-TOOLPOLICY-1 — safe non-coding "companion" tool profile (allowlist by default)
 
-Status: Proposed
+Status: **Done** — `ToolPolicy.companion()` vive en fi-runner y og118 lo usa (verificado 2026-08-22)
 Proposed: 2026-06-21 by Bernard (via coagent adversarial review of the og118 filesystem-exposure fix)
 
 ## What it is
@@ -58,3 +58,29 @@ holds the line until this lands. Lesson: **BYPASS + ClaudeCodeBackend + thinking
 companion is insecure by default.**
 
 Related: PR #277 (the hotfix this supersedes), [[og118-identity-scoping-leak]].
+
+## Cierre verificado (2026-08-22)
+
+- El perfil es real: `apps/packages/fi-runner/fi_runner/backend.py:156`
+  `COMPANION_BLOCKED_BUILTINS` (Bash, Write, Edit, NotebookEdit, Read, Grep,
+  Glob, LS, Task + las 6 `Task*` del harness — éstas por una segunda razón:
+  le hacen sombra al MCP `task_tracker` y rompen el stream glass-box del plan),
+  y `:175` `ToolPolicy.companion(*, builtin_allowed=None, permission_mode=BYPASS)`.
+- og118 lo consume en `server/runner.py:365` y **borró** su denylist local de #277.
+- Tests: `fi-runner/tests/test_backend.py:41`.
+
+**El criterio que quedó en el consumer, no en el framework.** Se pedía
+*allowlist* (lo desconocido se niega por default); fi-runner sigue siendo
+*denylist* bajo BYPASS. La allowlist real la puso og118 en
+`server/runner.py:236` (`BackendAcotado`), que fija
+`options.tools = ("WebSearch","WebFetch")` y lo **asegura** en `:135`
+(`_verificar_superficie_acotada` truena si `tools` viene `None` o si se coló un
+builtin bloqueado). Su propio docstring nombra el hueco: *"fi_runner nunca setea
+`ClaudeAgentOptions.tools`, así que cualquier consumidor suyo hereda el preset
+completo por default."*
+
+**Residual (merece su propia tarjeta):** subir la disponibilidad de `tools=` a
+`ToolPolicy` (un `builtin_available`) dentro de `ClaudeCodeBackend.build_options`,
+para poder **borrar** `BackendAcotado` y que los demás companions hereden la
+postura fail-safe en vez de la denylist. Hoy el único consumidor de
+`companion()` fuera de tests es og118 (y fenix, que monta su runtime).

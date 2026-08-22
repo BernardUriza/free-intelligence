@@ -117,3 +117,30 @@ hard cap.
 
 Related: [[fi-glass-framework]], [[framework-first-canary]],
 [[p0-prompts-as-content-debt]], the discord-bot `vultur-bot`.
+
+## Cierre verificado (2026-08-22)
+
+El ADR no quedó esperando ratificación: se construyó, y con el diseño de dos
+capas intacto.
+
+- Catálogo estructural: `apps/og118/server/elements/elements.registry.json` —
+  `{version, cap, elements[]}` con **exactamente 118 slots**.
+- Resolver: `apps/og118/server/elements_registry.py`; las personas core viven en
+  `apps/packages/fi-personas/personas/` (PERSONA-SSOT-1, marcador
+  `<!-- CONTEXTO_OPERATIVO -->`).
+- **El cap es duro y truena al cargar**, no en runtime: `:19` `CAP = 118`,
+  `:154` cap distinto → `ElementsRegistryError`, `:156` más de 118 → error
+  (*"the cap is HARD"*), `:163` número atómico fuera de `1..118` → error.
+- Los dos puntos fijos de Bernard se respetaron: **`vultur-bot → O` (8)** y el
+  tope de 118. La decisión de nombres cayó en número atómico como llave
+  primaria, con `aliases: ["o1","oxygen","vultur"]` en el slot 8 — su "o1"
+  sobrevive como alias.
+- Superficies vivas: `GET /elements` (`server/app.py:491`, filtra a activos),
+  caché de runner por elemento (`:234`), token `element` en `ChatRequest`
+  (`:409`), rama de engine externo (`:447`), y el deploy los cablea
+  (`og118-backend.yml`, *"Wire the external persona engine"*). Web:
+  `Og118ElementSelector.tsx`.
+
+**Poblado hoy: 3 activos de 118** — O/oxígeno (`vultur-bot`), Al/aluminio
+(`alice`), I/yodo (engine externo sin personaId); Og/oganesón queda reservado.
+Lo que falta no es código: es **curación** de los 114 slots vacíos.

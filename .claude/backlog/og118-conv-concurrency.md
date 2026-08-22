@@ -51,3 +51,22 @@ No construido. Se activa cuando Bernard reporte el primer pin/rename perdido
 entre su Mac y su teléfono, o antes de abrir og118 a más cuentas. Referencias:
 `useConversationLibrary.persist` (acarreo de flags), `conversations.py::put`,
 PR #362/#364.
+
+## Re-verificado 2026-08-22 — la carrera sigue intacta de punta a punta
+
+- Sin guardia 409: `apps/og118/server/app.py:963` `put_conversation` valida
+  forma del id (`:974`), que el id del body y el de la ruta coincidan (`:976`) y
+  el tamaño (`:979`) — y luego escribe incondicionalmente en `:986`. No hay
+  read-before-write, no se compara `updatedAt`, y no existe un solo `409` en el
+  archivo.
+- Sin `PATCH`: no hay un solo endpoint parcial en el server.
+- Sin `etag` / `If-Match` en `apps/og118/web` ni en `apps/packages/fi-ts`.
+- El store es last-write-wins ciego: `server/conversations.py:86` toma un lock,
+  escribe a un tmp y hace `os.replace`. **El lock hace la escritura atómica, no
+  ordenada** — evita un archivo partido, no una bandera perdida.
+- Y del lado del cliente el acarreo empeora la carrera:
+  `fi-glass/src/conversation/useConversationLibrary.ts:169` arrastra
+  `pinnedAt`/`archivedAt` desde `prevForTitle`, que es `activeRecord` (`:157`) —
+  *justo la copia en memoria y vieja* que esta tarjeta describe.
+  `transformConversation` (`:205`) hace `get → transform → put` sin versión, así
+  que también puede pisar.
