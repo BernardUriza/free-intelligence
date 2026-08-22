@@ -41,7 +41,16 @@ the GitHub deploy key and the pen secret (`/etc/aire/env`, `chmod 600`) → clon
 `git@github.com:BernardUriza/aire-server.git` into `/opt/aire` → install the
 systemd units → `enable --now` → **verify each unit individually with
 `systemctl is-active`** (the multi-unit form exits 0 if *at least one* is
-active — that's why the check is per-unit; a dead unit fails the script).
+active — that's why the check is per-unit; a dead unit fails the script) →
+open the Azure Postgres firewall to this droplet's IP (`lib/pgfirewall.sh`; a
+kill test once passed green while every DB connection timed out, because only
+the DEAD droplet's IP was allowed) → **assert the reader wall** (`lib/pgwall.sh`
+→ `infra/wall.py`): grant what the pen's own role may, and fail the provision
+when `aire_reader` is gone, because the front's blindness is silent.
+
+`infra/growth.py` is the other script here that does not run at provision time:
+costwatch calls it nightly for the size and the MB/day of every table, red past
+a ceiling — the half of the budget that actually grows.
 
 ## Phase 2 — GitHub secrets (for the CI/CD)
 
@@ -60,7 +69,7 @@ push to `main` that touches the code redeploys on its own. **Never deploy by han
 ```bash
 ssh -i ~/.ssh/aire_vm root@<IP>
 systemctl is-active aire-listener              # → active
-tail -f /opt/aire/aire.log | grep KEEPALIVE     # the heartbeats, live
+tail -f /opt/aire/aire.log                      # the lines, live
 ```
 
 ## Budget — $20/month HARD
@@ -70,6 +79,6 @@ The whole DO budget is **$20 USD/month**; the budgeted inventory is exactly one
 `.github/workflows/costwatch.yml` (daily cron; fails red → GitHub email if
 month-to-date usage crosses $10/$20, if the inventory drifts, or if backups get
 enabled) plus a $10 billing alert in the DO panel. Full law:
-[`.claude/rules/do-budget.md`](../.claude/rules/do-budget.md). No paid resource
+[`.claude/rules/do-budget.md`](../../.claude/rules/do-budget.md). No paid resource
 gets created without Bernard's explicit go.
 `doctl compute droplet delete aire-droplet` removes ONLY this droplet.

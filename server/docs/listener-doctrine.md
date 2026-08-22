@@ -45,10 +45,10 @@ pure EC-GPS mode, file only. The same line, mirrored verbatim, never parsed.
   `errors="replace"` lets it through — but Postgres `text` can never hold it.
   One binary probe on the open port wedged the pen in an infinite retry loop
   for ~6 days, flip-flopping PEN-UP/PEN-DOWN every 2s. Cure, in two layers:
-  neutralize NUL at the mouth (`net/lines.py`), and on `DataError` (SQLSTATE
+  neutralize NUL at the mouth (`listen/net.py`), and on `DataError` (SQLSTATE
   22xxx — Postgres answered and REJECTED; an identical retry can NEVER
   succeed) fall back to line-by-line mirroring with pop-as-committed
-  (`pen/poison.py`). A line unstorable even sanitized becomes a `PEN-POISON`
+  (`listen/pen.py`). A line unstorable even sanitized becomes a `PEN-POISON`
   marker; the file keeps the raw original.
 
 ## The floods (rate limit + connection caps)

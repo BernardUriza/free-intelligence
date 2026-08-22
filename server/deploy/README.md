@@ -1,7 +1,7 @@
 # Deploy — AIRE on the daemon box (Ubuntu 24.04 LTS)
 
 CI/CD via GitHub Actions. **Never deploy by hand.** Every `push` to `main` that
-touches the code runs `.github/workflows/deploy.yml`, which SSHes into the box,
+touches the code runs `.github/workflows/deploy-server.yml`, which SSHes into the box,
 resets to `origin/main`, reinstalls the units, restarts them and **verifies each
 one individually came back `active`** (otherwise the CI fails — no fake-green).
 
@@ -11,7 +11,10 @@ is only the deploy contract.
 
 ## What the workflow does on every push
 
-Triggers: `push` to `main` on `aire/**`, `deploy/**`, the
+Gated by a `test` job — the thirty-line law plus the full pytest suite against
+a real Postgres; red there and the droplet never sees the push.
+
+Triggers: `push` to `main` on `server/**`, the
 workflow file itself — plus `workflow_dispatch`. Inside the box:
 
 ```bash

@@ -9,7 +9,10 @@ correlated by ``exchange``; correcting means appending, never an UPDATE
 this module is only WHAT gets appended. The mirror is best-effort by design: every failure here
 is printed and swallowed — the relay is the critical path and must never pay
 for its memory. This module NEVER touches ``claude_session_store`` or
-``aire_log``; the gateway sees raw API turns, a different granularity.
+``aire_log``; the gateway sees raw API turns, a different granularity — though
+since #41 the REQUEST half lands as a delta, not raw: a stateless API means the
+caller re-sends the whole conversation every time, and the repetition lives once
+in ``aire_gateway_blob`` instead of once per row.
 """
 
 from __future__ import annotations

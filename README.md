@@ -30,7 +30,14 @@ units 24/7:
   **gateway door** (`/v1/messages` and friends): an Anthropic-wire-format
   pass-through that any Claude client can point at via `ANTHROPIC_BASE_URL`,
   mirrored into Postgres on the way through.
-- **`aire-sweep.timer`** — the broom (30-day retention).
+- **`aire-nickname`** (`aire/nickname.py`) — the landing's generator on :8090,
+  a MiniLM int8 ONNX model on CPU, `MemoryMax`-capped so it can never starve the
+  engine (#32).
+- **`aire-sweep.timer`** — the broom (30-day retention on `aire_log` and
+  `aire_gateway_log`, plus the deduped values nothing references any more).
+- **`aire-mirror.timer`** — every minute, offers the SSH door's transcripts and
+  each casita's `CLAUDE.md` to Postgres, so neither dies with the box (#17, #36).
+- **`aire-tmpclean.timer`** — hourly, removes the SDK's resume temp dirs (#27).
 
 The whole point of this phase is the experience of watching a living daemon:
 

@@ -71,8 +71,28 @@ that boundary physical.
 ## The sanctioned exceptions (bounded, not waiter reads)
 
 A "read" here means a **waiter read** — a `SELECT` that serves a human-facing
-view. Those all live in the front. But the write path has two reads that are part
-of its own contract, not views, and are explicitly allowed:
+view. Those all live in the front.
+
+**The test, and it is the test rather than a list, because a list rots.** This
+section enumerated its exceptions until 2026-08-22, said "two" while listing
+three, and by then seven existed — every one of them legitimate, and every one
+added by a module whose own docstring claimed the exception the rule had never
+been told about. An exhaustive list is a promise someone has to keep on every
+commit; a criterion keeps itself.
+
+> A read is allowed here when its result feeds **the machine** — the agent's own
+> memory, a gate that decides whether a write happens, or a check that arms an
+> alarm — and forbidden when its result feeds **a human's eyes**. If a person
+> would see the rows, it is a waiter read and it belongs in the front.
+
+The instances below are the ones Bernard authorized by name, kept for the
+decisions they record, not as a closed set. What is NOT in it and still passes
+the test: the invited-key roster (`tokens.py` — it gates spending), the casita
+persona restore (`casita.py` — the agent recovering its own identity, the same
+family as 1), the blob sweep's `NOT EXISTS` (`sweep.py` — it decides what a
+DELETE may remove), and the catalog reads in `infra/wall.py` and
+`infra/growth.py`, which are provisioning and a watchdog rather than the daemon
+at all.
 
 1. **`session_store.load()` for `resume`** — the agent reading **its own memory**
    to continue a session. Serves no view; it is the SDK's write-path contract.

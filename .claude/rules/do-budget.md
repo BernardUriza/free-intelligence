@@ -33,8 +33,20 @@ The $20 cap governs DigitalOcean, where spend is frozen at $4. The component tha
 actually **grows** is the pen's `aire_log` table in **Azure Postgres**, fed by a
 port open to the internet (accepted risk, see `server/deploy/aire-listener.service`). It
 is capped by the **broom** (`server/aire/sweep.py` + `aire-sweep.timer`, 30-day
-retention) and by **logrotate** on the file. `costwatch` verifies both nightly
-over SSH — a dead broom, a crashing sweep, or a disk past 80% goes red.
+retention) and by **logrotate** on the file.
+
+`costwatch` checks that nightly over SSH: a dead broom, a crashing sweep, or a
+disk past 80% goes red. Since 2026-08-22 it also measures the thing itself —
+`server/infra/growth.py` reports the database's size and every table's MB/day
+over its own live window, red past `AIRE_DB_CEILING_MB`. Watching only the broom
+was watching the wrong end: one that runs perfectly while the input rate climbs
+is a green light over a rising line.
+
+The **logrotate** half is NOT in that nightly check, despite what this paragraph
+claimed until 2026-08-22. Its config is validated on every DEPLOY
+(`deploy-server.yml` runs `logrotate --debug`), so a broken config cannot ship —
+but a rotation that stops firing for some other reason surfaces only as the disk
+percentage climbing, which is a late and indirect signal.
 
 **Never watch only the cloud where the spend is frozen.** The blind spot always
 opens over the thing that grows.

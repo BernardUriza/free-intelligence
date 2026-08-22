@@ -14,9 +14,13 @@ dependency, plus the two things that make AIRE what it is:
 What is NOT done: importing fi-runner. AIRE owns this code — before, AIRE
 *imported* the engine and depended on a repo another agent was editing.
 
-The concepts (thirty-line law): `contract` (the typed results), `options` (the
-modes dial + SDK options factory), `pool` (the hot client cache), `drain` (the
-turn-loop event drainer), `core` (the Engine facade).
+The spine (thirty-line law): `core` is the Engine facade, `contract` the typed
+results, `options` the modes dial + SDK options factory, `pool` the hot client
+cache, `drain` the turn-loop event drainer, `turn` one turn's lifecycle.
+
+Around it, one concept per file rather than an enumeration that goes stale the
+next time one is added: the credential rotor, the spend ledger, the cage,
+fire-and-forget turns, vision, the tool registry and its tenants, the guards.
 """
 
 from .contract import BudgetExceeded, SlotBusy, ToolCall, TurnResult, TurnSpec

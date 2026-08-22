@@ -39,7 +39,11 @@ memory. To contradict anything here, verify it first the same way.
    "the server is the interface / streaming SSR" thesis is DEAD in this repo: the
    daemon's only mouths are `/health` (JSON), the message endpoint (SSE events),
    and — since 2026-08-07 (backlog #30) — the gateway door (`/v1/*`), which only
-   relays Anthropic's own JSON/SSE byte-for-byte and never renders anything.
+   relays Anthropic's own JSON/SSE byte-for-byte and never renders anything. Its
+   mirror stores the request as a DELTA since #41 — the last message plus a
+   fingerprint into `aire_gateway_blob` — because a stateless API means the caller
+   re-sends the whole conversation on every turn, and storing it again beside the
+   rows that already held it made the request half 8x the response half.
    **Every human-facing view — live or stored — lives in [`front/`](front/)**
    (this monorepo's other half, live on Container Apps), which may render the
    daemon's SSE stream however it wants. Do not re-propose SSR-from-the-daemon
@@ -98,8 +102,9 @@ memory. To contradict anything here, verify it first the same way.
   Postgres.
 - **The HTTP server pattern**: `claude_agent_sdk/hosting/` in
   [claude-cookbooks](https://github.com/anthropics/claude-cookbooks) is the reference
-  (FastAPI + SSE + Bearer auth). AIRE's [`aire/server.py`](server/aire/server.py) opens the
-  axis the cookbook lacks: `POST /projects/{project}/sessions/{session}/messages`
+  (FastAPI + SSE + Bearer auth). AIRE opens the axis the cookbook
+  lacks — `POST /projects/{project}/sessions/{session}/messages`, which lives in
+  [`aire/messages.py`](server/aire/messages.py); `server.py` is only the wiring —
   (the cookbook hardcodes one project, `cwd="/app"`). Names map to SDK UUIDs via
   `uuid5` ([`aire/keys.py`](server/aire/keys.py)) — no mapping table.
 
