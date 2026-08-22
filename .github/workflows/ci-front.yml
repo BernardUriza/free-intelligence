@@ -93,6 +93,7 @@ jobs:
       # two-role shape. Grants and then PROVES the wall — so the mechanism the
       # front's whole existence rests on is exercised here, not assumed.
       - name: Raise the reader wall with the production script
+        working-directory: .   # the wall is the server's; this workflow defaults to front/
         run: |
           pip install --quiet asyncpg
           AIRE_DATABASE_URL="$PEN_DSN" python3 server/infra/wall.py
