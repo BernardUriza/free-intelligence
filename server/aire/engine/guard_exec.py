@@ -1,6 +1,7 @@
 """Running a guard list over one turn, and aggregating what they found.
 
-Separate from `guards.py` (what a guard IS, and which ones exist) because this
+Separate from `guard_registry.py` (which guards exist) and `contract.py` (what a
+guard IS) because this
 is the WHAT-HAPPENS: run each guard once, apply overrides in order, collect the
 outcomes, and surface a CRITICAL signal as telemetry. It is pure-functional —
 guards + text + sink in, aggregate out — so it is testable without a client, a
@@ -101,3 +102,11 @@ def run_guards(
             if asked:
                 reinforcements.append(asked)
     return text, outcomes, wants_retry, "\n\n".join(reinforcements)
+
+
+def guard_level(metadata: dict[str, Any]) -> str:
+    """A single representative level for one guard's findings, for telemetry.
+    Lives beside `run_guards` because it reads what `run_guards` produced."""
+    if metadata.get("guard_failed"):
+        return "error"
+    return metadata.get("level") or metadata.get("severity") or "ok"

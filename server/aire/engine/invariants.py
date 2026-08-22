@@ -10,7 +10,10 @@ Each returns True when the invariant HOLDS, False when it is violated.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from .pipeline import MutationStage
 
 MustPreserve = Callable[[str, str], bool]
 
@@ -37,7 +40,7 @@ def shrink_pct(before: str, after: str) -> float:
     return max(0.0, (len(before) - len(after)) / len(before))
 
 
-def broken(stage: Any, before: str, after: str) -> list[str]:
+def broken(stage: "MutationStage", before: str, after: str) -> list[str]:
     """The names of the invariants this mutation broke. Empty means it is clean."""
     failed: list[str] = []
     if stage.max_shrink_pct is not None and shrink_pct(before, after) > stage.max_shrink_pct:

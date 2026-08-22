@@ -44,7 +44,7 @@ class AntiDriftGuard:
     context_reinforcement: str = ""
     name: str = "antidrift"
 
-    def _on_break(self, matched: list[Any], text: str, *, final: bool) -> Any:
+    def _on_break(self, matched: list[Any], text: str, *, final: bool) -> GuardOutcome:
         if final:
             return GuardOutcome(
                 metadata={"severity": "break", "matched": matched, "sanitized": True},
@@ -56,7 +56,7 @@ class AntiDriftGuard:
             reinforcement=self.reinforcement,
         )
 
-    def _on_clarification(self, matched: list[Any], *, final: bool) -> Any:
+    def _on_clarification(self, matched: list[Any], *, final: bool) -> GuardOutcome:
         meta = {"severity": "clarification_dump", "matched": matched}
         if final:
             return GuardOutcome(metadata=meta)

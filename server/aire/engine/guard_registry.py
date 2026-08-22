@@ -16,9 +16,13 @@ of every fi-runner dependency. Each factory imports its fi-core backing LAZILY
 nobody names costs nothing, and naming one without fi-core installed fails loudly
 at build time instead of silently at inspect time.
 
-The typed contract itself — `Guard`, `GuardOutcome` — lives in `contract.py`
-with the engine's other typed results; running a list of them lives in
-`guard_exec.py`.
+Named `guard_registry`, not `guards`: `listen/guards.py` already owns that name
+for the socket's flood and whitelist gates. Two unrelated concepts may not share
+a filename in one repo — a traceback has to identify which one it means.
+
+The typed contract itself — `Guard`, `GuardOutcome` — lives in `contract.py` with
+the engine's other typed results; running a list of them, and reading a level off
+what they found, lives in `guard_exec.py`.
 """
 
 from __future__ import annotations
@@ -27,11 +31,9 @@ from typing import Any
 
 from .contract import Guard
 from .guard_drift import build_antidrift
-from .guard_triage import build_triage
 
 REGISTRY: dict[str, Any] = {
     "antidrift": build_antidrift,
-    "triage": build_triage,
 }
 
 
@@ -60,10 +62,3 @@ def resolve(names: list[str]) -> list[Guard]:
     """Build the vetted guards for the given names. Each factory pulls its fi-core
     backing only when called, so an unnamed guard never imports anything."""
     return [REGISTRY[name]() for name in names]
-
-
-def guard_level(metadata: dict[str, Any]) -> str:
-    """A single representative level for a guard outcome, for telemetry."""
-    if metadata.get("guard_failed"):
-        return "error"
-    return metadata.get("level") or metadata.get("severity") or "ok"

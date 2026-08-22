@@ -54,7 +54,7 @@ class TurnResult:
 
 @dataclass(frozen=True)
 class GuardOutcome:
-    """What one guard found in a turn (`guards.py`).
+    """What one guard found in a turn (`guard_registry.py`).
 
     `metadata` carries observational findings (severity, matched patterns).
     `text_override` replaces the response text. `retry` advises the caller to
