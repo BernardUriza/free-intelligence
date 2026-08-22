@@ -169,6 +169,19 @@ memory. To contradict anything here, verify it first the same way.
   appear in `/etc/aire/env`; two OAuth tokens from the SAME account share one
   pool — a same-account backup is a placebo.
 
+- **Guards are observational, and their detectors are VENDORED** (2026-08-22,
+  backlog #42). A turn may name a vetted guard (`{"guards":["antidrift"]}`) and
+  gets a `guards` SSE event after `result`. AIRE streams `text` as it arrives, so
+  a guard's `text_override`/`retry` cannot act on bytes the caller already read:
+  they are REPORTED under `unenforced`, never applied — a net whose findings
+  vanish is worse than no net. Guards are built at the DOOR before a dollar is
+  spent, are NOT part of `TurnSpec` (which binds the pooled client — a guard does
+  not touch the SDK), and `background` + `guards` is a 422 (a detached turn has
+  no stream to carry findings). The persona detectors are copied, not imported
+  (`engine/drift_detect.py`), for decision #1's reason: fi-core is not on PyPI and
+  the droplet must not depend on a repo another agent edits. Their patterns live
+  in `prompts/drift-patterns.json` as content, hot-reloaded by mtime.
+
 ## Discarded routes (don't re-propose them)
 
 - **Ephemeral VM with SSH** (the original `air-lite`): the Agent SDK reinvented with

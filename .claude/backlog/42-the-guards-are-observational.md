@@ -1,6 +1,6 @@
 # The guards ride observational — the buffered fork is archived, not lost
 
-Status: **Done (observational half), the buffered half Proposed**
+Status: **Done — observational, vendored, live. The buffered half stays Proposed**
 Proposed: 2026-08-22 by Bernard (`/ultra-lord`, "cablear ahora")
 
 ## What it is
@@ -36,8 +36,8 @@ Two consequences, both deliberate:
 - **Guards are built at the DOOR, not mid-turn** (`intake.safe_guards`), before a
   dollar is spent. A guard imports its backing lazily, so a missing one would
   otherwise surface as findings that never arrive. Absent backing is a 503 with
-  a reason, and the droplet has no fi-core today — so `antidrift` answers 503
-  there until fi-core is published or its detectors are vendored.
+  a reason — which is exactly what `antidrift` answered on the droplet for one
+  afternoon, until the detectors were vendored (below).
 
 **Guards are NOT part of `TurnSpec`.** The spec binds the pooled client at birth,
 and a guard has zero effect on the SDK client — putting them there would retire
@@ -54,10 +54,45 @@ more than a live one, this is the design to revive, and it should be an explicit
 mode (`guards_mode: "buffered"`), never an implicit consequence of asking for a
 guard.
 
+## Vendored, not published (2026-08-22, Bernard's call)
+
+`antidrift` imported `fi_core.persona` lazily, so it answered **503 on the very
+box it was built for**: fi-core is not on PyPI and the droplet installs from
+`requirements.txt`. Two ways out, and the fork was real.
+
+**Publishing fi-core to PyPI** would have given one source of truth for the packs
+that fi-runner, discord-bot and cristal.cli also read — but it puts a name and a
+noncommercial licence on a public index, hangs the droplet off a release
+pipeline, and forces the Spanish fix upstream, where Insult runs in production.
+
+**Vendoring** is the precedent Bernard already set for the engine, and for the
+same reason in his own words: the droplet must not depend on a repo another agent
+edits. It touches one repo and reverts by deleting files. That is what shipped:
+`engine/drift_detect.py` (82 lines, `re` only).
+
+Two things were pruned on the way in, because vendoring is pruning, not
+photocopying:
+
+- fi-core ships **three** detector classes whose `detect` bodies are
+  byte-identical and differ only in a severity label. Copying that triplication
+  into a clean repo would import a defect along with the feature — it is one
+  `Detector` carrying its severity. The `check()`/`DetectionResult` surface had
+  no consumer here and did not survive the trip.
+- The 64 regexes are **content a human iterates**, not code:
+  `prompts/drift-patterns.json`, read at call time behind an mtime cache. A tone
+  fix is an edit, not a redeploy ([[prompts-as-content-not-code]]). A pattern
+  that fails to compile is dropped and named on stderr — an unusable rule must
+  not disarm the rules beside it.
+
+**The Spanish gap is closed in AIRE's copy.** Six ES AI-disclosure patterns
+fi-core lacks now ship here, and `test_drift.py` pins both the Spanish and
+English leaks — plus three lines of Bernard's own pocho register, so the fix
+cannot start eating legitimate speech.
+
 ## The decision that's the owner's
 
-- Whether `fi-core` gets published to PyPI (so `antidrift` works on the droplet),
-  or its persona detectors get vendored into AIRE the way the engine was.
+- Whether fi-core's own packs ever get the Spanish patterns upstream (that repo's
+  call — Insult reads them in production).
 - Whether the buffered mode is ever worth the split contract.
 
 ## Status / next step

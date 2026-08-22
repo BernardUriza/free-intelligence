@@ -14,12 +14,12 @@ priority order:
 Ported from fi-runner's `antidrift_guard`. The difference: fi-runner let the
 CALLER pass its own pattern packs, because a runner in another repo composed
 them. AIRE's wire may not — a caller-supplied regex on an internet-open daemon
-is a ReDoS handed to a stranger — so the factory takes no arguments and uses
-fi-core's vetted bilingual packs.
+is a ReDoS handed to a stranger — so the factory takes no arguments and reads
+the vetted packs from `prompts/drift-patterns.json`.
 
-The fi-core import is LAZY, inside the factory: fi-core is not on PyPI, so the
-droplet carries no hard dependency. A turn that never names this guard never
-touches it; one that does, without fi-core installed, fails loudly at build.
+The detectors are VENDORED (`drift_detect.py`), not imported: fi-core is not on
+PyPI, so an import would have made this guard answer 503 on the very box it was
+built for. It did, for one afternoon.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .contract import GuardOutcome
+from .drift_detect import Detector, compiled, packs, sanitize
 
 
 @dataclass
@@ -83,31 +84,18 @@ class AntiDriftGuard:
 
 
 def build_antidrift() -> AntiDriftGuard:
-    """The registry factory — fi-core's vetted bilingual packs, no wire input."""
-    from fi_core.persona import (
-        AntiPatternMonitor,
-        BreakDetector,
-        ClarificationDumpDetector,
-        sanitize,
-    )
-    from fi_core.persona.packs import (
-        CLARIFICATION_DUMP_ES,
-        CONTEXT_REINFORCEMENT,
-        DEFAULT_BILINGUAL,
-        GENERIC_REINFORCEMENT,
-        MARKDOWN_DRIFT,
-    )
-
-    breaks = list(DEFAULT_BILINGUAL)
+    """The registry factory — vetted packs from content, no wire input, no
+    network, no optional dependency. Reads the patterns at call time, so a tone
+    fix is an edit to a JSON file rather than a redeploy of the daemon."""
+    p = packs()
+    breaks = compiled("break")
     return AntiDriftGuard(
-        break_detector=BreakDetector(patterns=breaks, reinforcement=GENERIC_REINFORCEMENT),
-        anti_monitor=AntiPatternMonitor(patterns=list(MARKDOWN_DRIFT)),
-        clarification_detector=ClarificationDumpDetector(
-            patterns=list(CLARIFICATION_DUMP_ES),
-            context_reinforcement=CONTEXT_REINFORCEMENT,
-        ),
+        break_detector=Detector(patterns=breaks, severity="break"),
+        anti_monitor=Detector(patterns=compiled("soft"), severity="soft_drift"),
+        clarification_detector=Detector(patterns=compiled("clarification"),
+                                        severity="clarification_dump"),
         sanitize_fn=sanitize,
         break_patterns=breaks,
-        reinforcement=GENERIC_REINFORCEMENT,
-        context_reinforcement=CONTEXT_REINFORCEMENT,
+        reinforcement=p.get("reinforcement", ""),
+        context_reinforcement=p.get("context_reinforcement", ""),
     )
