@@ -3,7 +3,7 @@
 **The waiter** — a phpMyAdmin for the database [AIRE](../aire-server) writes.
 Read-only, server-rendered, live on Azure Container Apps:
 
-**https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io**
+**https://aire.bernarduriza.com**
 
 > EC-GPS had a Perl daemon that only wrote and a PHP console that only read, and
 > it printed money for two decades. `aire-server` is the daemon. This is the
@@ -19,7 +19,7 @@ The password is **not in this repo and never will be** — it lives in
 
 ```bash
 grep '^AIRE_CONSOLE_PASSWORD=' ~/.secrets/aire-console-password.txt | cut -d= -f2- | tr -d '\n' | pbcopy
-open https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io
+open https://aire.bernarduriza.com
 ```
 
 Paste, Enter. The session lasts a week; **sign out** is at the bottom of the

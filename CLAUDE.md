@@ -74,7 +74,7 @@ memory. To contradict anything here, verify it first the same way.
 5. **The `server/` half is WRITE-ONLY toward the database.** Every read —
    rendering, analytics, dashboards, session browsing — lives in
    [`front/`](front/) (the PHP of EC-GPS, Next.js SSR,
-   [live](https://aire-front.greendune-53f1f4af.eastus2.azurecontainerapps.io);
+   [live](https://aire.bernarduriza.com);
    backlog #15, merged here by #20). Its `/claude` view is the one Bernard
    asked for: a link per folder → its sessions → the transcript rendered as
    Claude Code reads. The sanctioned exceptions here are the SDK's
