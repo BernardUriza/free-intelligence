@@ -39,6 +39,7 @@ source "$SCRIPT_DIR/lib/keys.sh"
 source "$SCRIPT_DIR/lib/droplet.sh"
 source "$SCRIPT_DIR/lib/secrets.sh"
 source "$SCRIPT_DIR/lib/pgfirewall.sh"
+source "$SCRIPT_DIR/lib/pgwall.sh"
 
 echo "==> AIRE provision (DigitalOcean)"
 echo "    NAME=$NAME  REGION=$REGION  SIZE=$SIZE  IMAGE=$IMAGE"
@@ -63,6 +64,8 @@ compose_env
 $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' \
   < "$SCRIPT_DIR/remote-bootstrap.sh"
 echo "    bootstrap OK — services reported 'active'."
+
+ensure_reader_wall
 
 echo ""
 echo "============================================================"
