@@ -21,7 +21,7 @@ Run THIS command over SSH against the droplet (bounded: NEVER `tail -f` from the
 tool, it hangs forever — use `tail -n`):
 
 ```bash
-ssh -i ~/.ssh/aire_vm -o ConnectTimeout=10 root@143.198.9.173 \
+ssh -i ~/.ssh/aire_vm -o ConnectTimeout=10 root@159.203.84.13 \
   'echo "== services =="; systemctl is-active aire-listener aire-server; \
    echo "== memory =="; curl -s --max-time 8 localhost:8088/health; echo; \
    echo "== pen =="; grep -a "PEN-" /opt/aire/aire.log | tail -n 1; \
@@ -60,7 +60,7 @@ In 2-3 lines, with real receipts (Art. 2 — never fake-green):
 Offer this one-liner (prefix it with `! ` to run it here, or paste it in any terminal):
 
 ```
-! ssh -i ~/.ssh/aire_vm root@143.198.9.173 'tail -f /opt/aire/aire.log'
+! ssh -i ~/.ssh/aire_vm root@159.203.84.13 'tail -f /opt/aire/aire.log'
 ```
 
 ## Rules
@@ -72,13 +72,20 @@ Offer this one-liner (prefix it with `! ` to run it here, or paste it in any ter
 3. **A quiet log is not a dead log.** With the demo device retired, silence is the
    normal state — do not report it as a failure.
 4. **SSH down = report it** — never simulate a pulse. The droplet may be off.
+   **But check the IP before you check the obituary.** On 2026-08-22 SSH timed out
+   from this file's hardcoded address while the door answered `200` and DO reported
+   the droplet `active`: the IP had changed and the skill was stale. A hardcoded
+   address is a fake-RED generator. Resolve it live before declaring anything dead:
+   `doctl compute droplet get aire-droplet --format Status,PublicIPv4`, and hit
+   `https://gate.bernarduriza.com/health` — the public door outranks SSH in the rigor
+   hierarchy, and it does not care what IP this file remembers.
 5. **No emojis** unless the report calls for one (a closing 🌬️ is allowed — it is the
    soul of the project).
 
 ## Context
 
 The droplet, the account and the whole deploy live in the project memory
-`aire-do-deploy-context`. IP `143.198.9.173`, account `bernardurizadev`, systemd units
+`aire-do-deploy-context`. IP `159.203.84.13`, account `bernardurizadev`, systemd units
 `aire-listener` (TCP :9099, the pen) + `aire-server` (HTTP :8088, the engine) +
 `aire-sweep.timer` (the broom). Append-only log at
 `/opt/aire/aire.log`; casitas at `/opt/aire/workspaces/`.
