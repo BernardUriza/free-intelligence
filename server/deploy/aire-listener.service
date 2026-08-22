@@ -21,6 +21,18 @@ Environment=AIRE_PORT=9099
 Environment=AIRE_HOST=0.0.0.0
 Environment=AIRE_WORKSPACES=/opt/aire/workspaces
 EnvironmentFile=-/etc/aire/env
+# The pen is the one thing on this box that must not die. It holds bytes that
+# exist nowhere else — its queue of lines not yet mirrored — while the engine is
+# a CACHE by design (the transcript is in Postgres; a killed client rebuilds with
+# `resume=`). Until 2026-08-22 nothing said so: the engine was uncapped, the pen
+# had no priority, and 11 MB of the pen was sitting in SWAP on a 458 MB box
+# running 234 MB used. Who dies when the box runs out was decided by luck.
+#
+# MemoryLow is a cgroup-v2 PROTECTION, not a limit: the kernel reclaims from
+# everything else before touching this much. Measured peak is 15 MB, so 32 MB is
+# headroom, not a guess. OOMScoreAdjust puts it last in the kernel's queue.
+MemoryLow=32M
+OOMScoreAdjust=-900
 ExecStart=/usr/bin/python3 -m aire.listener
 Restart=always
 RestartSec=2

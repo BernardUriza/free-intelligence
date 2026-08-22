@@ -13,6 +13,35 @@ Environment=AIRE_WORKSPACES=/opt/aire/workspaces
 EnvironmentFile=-/etc/aire/env
 # Bound to loopback: Caddy (443, auto-TLS) is the ONLY public face of the LLM
 # door — the Bearer token never travels on a plaintext port. See deploy/Caddyfile.
+# The engine is the memory hog by design — POOL_MAX=2 live `claude` subprocesses,
+# measured at 44 + 40 MB — and it is also the half that may safely die: the pool
+# is a cache, so a killed client rebuilds from Postgres with `resume=`. So it
+# gets a ceiling, and a positive OOM score, and the pen gets neither.
+#
+# MemoryHigh throttles (reclaim pressure, no kill) before MemoryMax kills, so a
+# turn that grows slowly is slowed rather than shot.
+#
+# The numbers took three measured rounds, and two of them corrected a guess:
+#
+#  1. 200/260, chosen from a 68 MB IDLE reading. A real agent-mode turn walked
+#     the cgroup to 199.4 MB — an agent turn is ~200 MB, not 68.
+#  2. Raised to 240/300, and the peak became exactly 240. The heap is ELASTIC:
+#     it grows to whatever ceiling it is given, so raising the limit cannot find
+#     a "natural size". The number is a policy about the box's share, not a
+#     measurement of need.
+#  3. Tightened to 160/220 on the theory that a smaller engine would keep the pen
+#     resident. It did NOT — the pen's swap went from 3.5 MB to 5.6 MB and the
+#     box's used memory went UP. The pen's residency is not the engine's doing,
+#     so squeezing the engine only buys throttle pressure. Hypothesis tested,
+#     hypothesis dead.
+#
+# So: High where a real turn naturally landed before the number was moved, and
+# Max with genuine headroom above it, so a spike is throttled rather than shot.
+# What actually protects the pen is on ITS unit — MemoryLow + OOMScoreAdjust —
+# at the moment that matters, which is an OOM, not a swap-out.
+MemoryHigh=200M
+MemoryMax=280M
+OOMScoreAdjust=200
 ExecStart=/opt/aire/.venv/bin/uvicorn aire.server:app --host 127.0.0.1 --port 8088
 Restart=always
 RestartSec=2
