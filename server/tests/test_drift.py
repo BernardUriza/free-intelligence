@@ -11,8 +11,8 @@ import json
 
 import pytest
 
-from aire.engine.drift_detect import PATTERNS_FILE, Detector, compiled, packs, sanitize
-from aire.engine.guard_registry import resolve
+from aire.engine.guards.detect import PATTERNS_FILE, Detector, compiled, packs, sanitize
+from aire.engine.guards import resolve
 
 LEAKS_ES = [
     "Como modelo de lenguaje de IA, no puedo opinar sobre eso.",
@@ -66,7 +66,7 @@ def test_every_shipped_pattern_compiles():
 
 
 def test_an_uncompilable_pattern_is_dropped_not_fatal(monkeypatch, capsys):
-    monkeypatch.setattr("aire.engine.drift_detect.packs",
+    monkeypatch.setattr("aire.engine.guards.detect.packs",
                         lambda: {"break": [r"valid", r"([unclosed"]})
     assert [p.pattern for p in compiled("break")] == ["valid"]
     assert "DRIFT-PATTERN-BAD" in capsys.readouterr().out
@@ -75,8 +75,8 @@ def test_an_uncompilable_pattern_is_dropped_not_fatal(monkeypatch, capsys):
 def test_editing_the_file_is_picked_up_without_a_restart(tmp_path, monkeypatch):
     f = tmp_path / "p.json"
     f.write_text(json.dumps({"break": ["first"]}), encoding="utf-8")
-    monkeypatch.setattr("aire.engine.drift_detect.PATTERNS_FILE", f)
-    monkeypatch.setattr("aire.engine.drift_detect._CACHE", {"mtime": None, "data": None})
+    monkeypatch.setattr("aire.engine.guards.detect.PATTERNS_FILE", f)
+    monkeypatch.setattr("aire.engine.guards.detect._CACHE", {"mtime": None, "data": None})
     assert packs()["break"] == ["first"]
     f.write_text(json.dumps({"break": ["second"]}), encoding="utf-8")
     import os

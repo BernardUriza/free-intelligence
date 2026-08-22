@@ -1,6 +1,6 @@
 """Running a guard list over one turn, and aggregating what they found.
 
-Separate from `guard_registry.py` (which guards exist) and `contract.py` (what a
+Separate from `registry.py` (which guards exist) and `contract.py` (what a
 guard IS) because this
 is the WHAT-HAPPENS: run each guard once, apply overrides in order, collect the
 outcomes, and surface a CRITICAL signal as telemetry. It is pure-functional —
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .contract import Guard, GuardOutcome
+from ..contract import Guard, GuardOutcome
 
 EmitSink = Callable[[str, dict[str, Any]], None]
 
@@ -45,7 +45,8 @@ def _inspect_one(
         return GuardOutcome(metadata={"guard_failed": True, "error": str(exc)})
 
 
-def _emit_critical(name: str, outcome: GuardOutcome, request_id: str | None, emit: EmitSink) -> None:
+def _emit_critical(name: str, outcome: GuardOutcome,
+                   request_id: str | None, emit: EmitSink) -> None:
     """A guaranteed safety signal must SURFACE as telemetry so a consumer can
     escalate — including for an observational guard that never edits the text."""
     emit(

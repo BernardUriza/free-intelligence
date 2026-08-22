@@ -13,7 +13,7 @@ import pytest
 from fastapi import HTTPException
 
 from aire.engine.contract import GuardOutcome
-from aire.engine.guard_exec import observe
+from aire.engine.guards import observe
 from aire.intake import build_guards, safe_guard_names
 from aire.messages import _guards_event
 

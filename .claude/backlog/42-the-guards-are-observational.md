@@ -8,7 +8,7 @@ Proposed: 2026-08-22 by Bernard (`/ultra-lord`, "cablear ahora")
 fi-runner owned two things AIRE did not: a deterministic safety net that runs on
 every turn regardless of what the model decided, and a post-turn mutation chain
 where each stage declares the damage it may not do. Both came up here (`cab14b0`,
-`479c1cc`) as `guard_registry` + `guard_exec` + `guard_drift` + `pipeline` +
+`479c1cc`) as the `engine/guards/` package + `pipeline` +
 `invariants` — copied and stripped, never imported, because fi-core is not on
 PyPI and the droplet may not depend on a repo another agent edits.
 
@@ -25,7 +25,7 @@ and a `retry` would re-bill a turn nobody asked twice for.
 Both are therefore **reported, never applied** — under `unenforced` and
 `wanted_retry` in the event. That asymmetry is the whole point: a safety net
 whose findings vanish is worse than no net, because the drift stops being
-visible. `guard_exec.observe` is where that contract lives, and
+visible. `guards/run.py::observe` is where that contract lives, and
 `tests/test_guards_door.py` pins that nothing is silently swallowed.
 
 Two consequences, both deliberate:
@@ -68,7 +68,7 @@ pipeline, and forces the Spanish fix upstream, where Insult runs in production.
 **Vendoring** is the precedent Bernard already set for the engine, and for the
 same reason in his own words: the droplet must not depend on a repo another agent
 edits. It touches one repo and reverts by deleting files. That is what shipped:
-`engine/drift_detect.py` (82 lines, `re` only).
+`engine/guards/detect.py` (82 lines, `re` only).
 
 Two things were pruned on the way in, because vendoring is pruning, not
 photocopying:
@@ -103,3 +103,19 @@ pack catches a Spanish AI-disclosure leak** — *"Como modelo de lenguaje de IA,
 puedo opinar"* scores zero hits across all twelve packs, including
 `GENERIC_AI_DISCLOSURE_ES`. The English equivalent is caught. Until that is fixed
 upstream, `antidrift` is an English-only net.
+
+## The guards became a folder (2026-08-22)
+
+`engine/` had grown to twenty flat modules, and `git log` showed the guard files
+moving in the same commits every time — `run` in four, `drift` in three,
+`registry` and `invariants` in two. That is a change cluster, not a category, so
+they became `engine/guards/`: `registry`, `run`, `drift`, `detect`.
+
+Adding a guard used to mean finding two files among twenty; now the folder IS the
+area. Three arrows leave it, all to `..contract`, because a guard's outcome is
+one of the engine's typed values and not this package's private shape — one
+destination is the shape of a boundary that holds.
+
+`pipeline`/`invariants` stayed flat on purpose. A guard is a safety net; a stage
+is a cosmetic rewrite that ships. Folding them in would have grouped by category
+instead of by change, and the two of them already change on their own clock.

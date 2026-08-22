@@ -28,8 +28,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .contract import GuardOutcome
-from .drift_detect import Detector, compiled, packs, sanitize
+from ..contract import GuardOutcome
+from .detect import Detector, compiled, packs, sanitize
 
 
 @dataclass
@@ -57,11 +57,13 @@ class AntiDriftGuard:
             reinforcement=self.reinforcement,
         )
 
-    def _on_clarification(self, matched: list[Any], *, final: bool) -> GuardOutcome:
+    def _on_clarification(self, matched: list[Any], *,
+                          final: bool) -> GuardOutcome:
         meta = {"severity": "clarification_dump", "matched": matched}
         if final:
             return GuardOutcome(metadata=meta)
-        return GuardOutcome(metadata=meta, retry=True, reinforcement=self.context_reinforcement)
+        return GuardOutcome(metadata=meta, retry=True,
+                            reinforcement=self.context_reinforcement)
 
     def inspect(
         self, *, response_text: str, context: tuple[str, ...] = (), final: bool = False

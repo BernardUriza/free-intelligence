@@ -178,7 +178,7 @@ memory. To contradict anything here, verify it first the same way.
   spent, are NOT part of `TurnSpec` (which binds the pooled client — a guard does
   not touch the SDK), and `background` + `guards` is a 422 (a detached turn has
   no stream to carry findings). The persona detectors are copied, not imported
-  (`engine/drift_detect.py`), for decision #1's reason: fi-core is not on PyPI and
+  (`engine/guards/detect.py`), for decision #1's reason: fi-core is not on PyPI and
   the droplet must not depend on a repo another agent edits. Their patterns live
   in `prompts/drift-patterns.json` as content, hot-reloaded by mtime.
 

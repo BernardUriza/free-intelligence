@@ -25,7 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-PATTERNS_FILE = Path(__file__).resolve().parent.parent / "prompts" / "drift-patterns.json"
+PATTERNS_FILE = (Path(__file__).resolve().parent.parent.parent
+                 / "prompts" / "drift-patterns.json")
 
 _CACHE: dict[str, Any] = {"mtime": None, "data": None}
 

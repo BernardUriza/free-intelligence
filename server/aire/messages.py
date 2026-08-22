@@ -22,7 +22,7 @@ from .deps import get_engine
 from .engine import BudgetExceeded, SlotBusy, TurnSpec
 from .engine.contract import Guard
 from .engine.drain import turn_cost
-from .engine.guard_exec import observe
+from .engine.guards import observe
 from .intake import (build_guards, safe_guard_names, safe_images, safe_mode,
                      safe_model, safe_names, safe_tools)
 
@@ -115,7 +115,7 @@ async def _events(project: str, session: str, message: str, spec: TurnSpec,
 
 def _guards_event(guards: list[Guard], result_ev: dict[str, Any], message: str) -> ServerSentEvent:
     """What the guards saw, after the text the caller already read. Observational
-    by construction — see `guard_exec.observe`. A guard that raises is reported,
+    by construction — see `guards.run.observe`. A guard that raises is reported,
     never fatal: the turn already succeeded and its answer is already delivered."""
     text = getattr(result_ev.get("result"), "text", "") or ""
     return ServerSentEvent(event="guards",

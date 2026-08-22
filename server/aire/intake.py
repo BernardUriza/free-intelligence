@@ -16,7 +16,7 @@ from fastapi import HTTPException
 
 from .engine import DEFAULT_MODE, MODES
 from .engine.contract import Guard
-from .engine.guard_registry import UnknownGuard, clean_guards, resolve
+from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
 from .engine.vision import BadImage, clean_images
 from .names import InvalidName, clean

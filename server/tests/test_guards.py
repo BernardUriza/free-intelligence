@@ -9,8 +9,8 @@ siblings' findings still land."""
 import pytest
 
 from aire.engine.contract import Guard, GuardOutcome
-from aire.engine.guard_exec import guard_level, run_guards
-from aire.engine.guard_registry import REGISTRY, UnknownGuard, clean_guards
+from aire.engine.guards import (REGISTRY, UnknownGuard, clean_guards, guard_level,
+                                run_guards)
 
 
 class Sanitizing:

@@ -29,8 +29,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .contract import Guard
-from .guard_drift import build_antidrift
+from ..contract import Guard
+from .drift import build_antidrift
 
 REGISTRY: dict[str, Any] = {
     "antidrift": build_antidrift,
