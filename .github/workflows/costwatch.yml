@@ -119,5 +119,36 @@ jobs:
 
           echo "last SWEEP lines:"
           grep SWEEP /opt/aire/aire.log | tail -3 || echo "  (none yet — timer has not fired)"
+
+          # The reader wall. It is the two-halves architecture itself, and until
+          # 2026-08-22 it lived only as psql someone typed once — so a restore, a
+          # rebuilt server or one dropped role would take the front's eyes out
+          # with nothing to notice. Read-only assertion of a GRANT, no view.
+          set -a; . /etc/aire/env; set +a
+          if /opt/aire/.venv/bin/python3 /opt/aire/server/infra/wall.py --check; then
+            :
+          else
+            echo "::error::the reader wall is down — the front is going blind"
+            FAIL=1
+          fi
+
+          # Which guards are silently OFF (aire/arming.py). Every one of them
+          # degrades politely and /health answered "ok" for all of them at once.
+          # Two are DECLARED off, so the alarm does not cry wolf — anything else
+          # going dark is the thing this watch exists for:
+          #   whitelist_enforce  — deliberate; aire_device is empty, and flipping
+          #                        it on with an empty roster denies every device
+          #                        (.claude/rules/device-verb-protocol.md).
+          #   credential_failover — NOT deliberate. The #31 rotor holds one slot,
+          #                        so a burned weekly pool has nowhere to go.
+          #                        Arming it costs money — backlog #40, Bernard's.
+          DECLARED='["credential_failover","whitelist_enforce"]'
+          DISARMED="$(curl -sS -m 10 http://127.0.0.1:8088/health | jq -c '.disarmed // "unreadable"')"
+          echo "disarmed guards: ${DISARMED}  (declared: ${DECLARED})"
+          UNDECLARED="$(jq -nc --argjson d "$DISARMED" --argjson k "$DECLARED" '$d - $k' 2>/dev/null || echo '"unreadable"')"
+          if [[ "$UNDECLARED" != "[]" ]]; then
+            echo "::error::undeclared guards are disarmed: ${UNDECLARED} — a safety went off with nobody deciding it"
+            FAIL=1
+          fi
           exit "$FAIL"
           REMOTE

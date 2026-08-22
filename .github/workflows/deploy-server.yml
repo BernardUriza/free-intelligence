@@ -13,15 +13,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 71 tests lived in server/tests and CI ran NONE of them — the only gate
+  # between a push and the droplet was the thirty-line law, which measures shape,
+  # not behaviour. Several of those tests exist precisely because a fix once
+  # passed with its mechanism REMOVED (#38); a suite nobody runs cannot catch
+  # that. It gates the deploy now: red here means the droplet never sees it.
+  test:
+    name: The suite that was never run
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bernardurizaorozco
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aire
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # The same DSN tests/conftest.py falls back to, so the suite runs in CI
+      # exactly as it runs on Bernard's Mac — no CI-only code path to drift.
+      AIRE_DSN: postgresql://bernardurizaorozco:postgres@127.0.0.1:5432/aire
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        working-directory: server
+        run: pip install --quiet -r requirements.txt pytest pytest-asyncio
+      - name: Thirty-line law check
+        working-directory: server
+        run: python3 scripts/check_law.py
+      - name: pytest
+        working-directory: server
+        run: python3 -m pytest tests/ -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Thirty-line law check
-        working-directory: server
-        run: python3 scripts/check_law.py
 
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
