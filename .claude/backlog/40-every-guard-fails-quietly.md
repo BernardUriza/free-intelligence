@@ -132,10 +132,15 @@ Each is real, none is bleeding; filed here rather than half-fixed:
   table throws and the entire console reports the database unreachable — and
   `claudeFolders()`/`gatewaySessions()` aggregate whole tables with no window,
   the bomb pattern the front's own `graph()` was already bounded against.
-- **`aire-server` has no `MemoryMax` and `aire-listener` no `OOMScoreAdjust`**,
-  though `aire-nickname` is capped precisely so it "must never starve the
-  engine". The box currently runs 458 MB of RAM against 471 MB of swap in use;
-  the pen, the one thing that must survive, has no priority expressed anywhere.
+- ~~**`aire-server` has no `MemoryMax` and `aire-listener` no `OOMScoreAdjust`**~~
+  **FIXED 2026-08-22.** The pen now carries `MemoryLow=32M` + `OOMScoreAdjust=-900`
+  (applying it pulled 11 MB of the pen out of swap); the engine carries
+  `MemoryHigh=200M` / `MemoryMax=280M` / `OOMScoreAdjust=200`, because it is the
+  half that may safely die. The numbers cost three measured rounds and killed two
+  of my guesses: 68 MB was an IDLE reading (a real agent turn is ~200 MB), the
+  heap is ELASTIC so raising the ceiling only raises the peak, and tightening the
+  engine did NOT keep the pen resident — the pen's swap got WORSE. All three
+  rounds are written into the unit so nobody re-derives them.
 
 ## Status / next step
 
