@@ -26,6 +26,20 @@ against memory. To contradict it, verify it the same way.
    walls stand in one place.
 5. **No client JavaScript.** Every page is a Server Component; the forms are plain
    HTML; the monster's SVG is server-rendered markup, not a charting library.
+6. **One design vocabulary, and ONE conversation card.** `app/globals.css` holds
+   the tokens and the only shapes a page may reach for (`.tile`, `.panel` +
+   `.scroll`, `.sect`, `.crumbs`, `.when`, `.thread` + `.turn`). A transcript is
+   drawn by `Turn`/`Md`/`ToolChips` in `lib/claude.tsx` — **both** doors use it,
+   `/claude` and `/gateway`. Adding a second renderer is exactly how the two
+   drifted: for a month `/gateway` had role rails, markdown and tool chips while
+   `/claude` — the view the whole product exists for — was flat `pre-wrap` text,
+   because the good renderer was one import away and nobody imported it. A new
+   view styles itself from the vocabulary or extends the vocabulary; it never
+   grows a private one.
+7. **The console opens on the MEMORY, not on the storage.** `/console` counts
+   conversations, turns relayed and events, and lists what happened lately; the
+   sidebar leads with the views and files the raw tables under `raw tables`. It
+   used to open on `7 tables, 5,280 rows` — true, and the wrong first sentence.
 
 ## The security posture — read this before touching `lib/db.ts`
 
