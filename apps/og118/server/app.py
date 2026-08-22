@@ -987,6 +987,28 @@ async def put_conversation(
     return {"id": conversation_id}
 
 
+async def _forget_native_session(conversation_id: str) -> None:
+    """Cascade a visible delete into the native transcript underneath it.
+
+    The conversation id IS the session id og118 hands the runner, so the store
+    key is derivable — no mapping table (`ClaudeCodeBackend.sdk_session_uuid`).
+
+    BEST EFFORT, and loudly so, mirroring the lifespan's posture: the memory
+    layer never blocks a user-visible action. A dead Postgres must not turn
+    "delete my chat" into a 500 — the record is already gone and the user is
+    owed that answer. What it must never do is fail in silence, because the
+    residue is a full transcript nobody can reach any more.
+    """
+    try:
+        await _runner.forget_session(conversation_id)
+    except Exception:
+        logger.exception(
+            "conversation %s was deleted but its native session survived — "
+            "orphan transcript in the session store",
+            conversation_id,
+        )
+
+
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: str,
@@ -994,8 +1016,10 @@ async def delete_conversation(
     store: ConversationStore = Depends(get_conversation_store),
 ) -> dict:
     """Remove one conversation (no-op if absent — mirrors the client library
-    contract, and leaks nothing about other accounts' ids)."""
+    contract, and leaks nothing about other accounts' ids), and the native
+    session under it."""
     store.delete(principal.sub, conversation_id)
+    await _forget_native_session(conversation_id)
     return {"deleted": conversation_id}
 
 
@@ -1004,8 +1028,18 @@ async def clear_conversations(
     principal: Principal = Depends(get_principal),
     store: ConversationStore = Depends(get_conversation_store),
 ) -> dict:
-    """Remove every conversation the caller owns (the library `clear()`)."""
-    return {"cleared": store.clear_for(principal.sub)}
+    """Remove every conversation the caller owns (the library `clear()`), and
+    every native session under them.
+
+    The ids are read BEFORE the clear — afterwards there is nothing left to
+    derive them from, and this is the surface where the leak multiplies by the
+    whole account instead of by one chat.
+    """
+    ids = [c["id"] for c in store.list_for(principal.sub) if c.get("id")]
+    cleared = store.clear_for(principal.sub)
+    for conversation_id in ids:
+        await _forget_native_session(conversation_id)
+    return {"cleared": cleared}
 
 
 def create_app(dependencies: list | None = None) -> FastAPI:
