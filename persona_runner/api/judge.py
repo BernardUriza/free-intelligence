@@ -55,6 +55,17 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     """Run one utility SDK call with an arbitrary system prompt (text or
     text+image in, text out)."""
     check_auth(authorization)
+    if config.TURN_BACKEND == "aire":
+        # AIRE stage 2: the judge becomes a mode=complete turn in the persona's
+        # utility casita. It keeps THIS gate — the pile-up only MOVED (from this
+        # box's Node subprocesses to AIRE's 2 RAM slots), so serializing here is
+        # what stops a consolidator burst from starving every interactive turn on
+        # the droplet. Everything below is the LOCAL SDK path, which dies when
+        # the flag flips permanent (backlog aire-engine-stage2.md).
+        from persona_runner.engine import aire_route
+
+        async with get_judge_semaphore():
+            return await aire_route.judge_via_aire(req)
     from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
 
     chosen_model = req.model or config.JUDGE_DEFAULT_MODEL

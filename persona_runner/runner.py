@@ -58,11 +58,22 @@ async def _lifespan(app: FastAPI):
         session_idle_timeout_s=config.SESSION_IDLE_TIMEOUT_S,
     )
     # Capability self-check: a runner that boots "healthy" but cannot web-search is
-    # a fake-green. Build options once and let verify_required_tools crash startup
-    # LOUDLY if WebSearch is missing — the container fails to come up instead of
-    # silently deflecting every factual question (2026-06-14).
-    await build_options("__boot_capability_check__")
-    log.info("agent_runner_capabilities_ok", required=list(REQUIRED_BUILTIN_TOOLS))
+    # a fake-green. Assert the surface of the backend that will ACTUALLY serve
+    # turns and crash startup LOUDLY when it is wrong — the container fails to
+    # come up instead of silently deflecting every factual question (2026-06-14).
+    if config.TURN_BACKEND == "aire":
+        from persona_runner.engine import aire_route
+
+        aire_route.verify_aire_route()
+        log.info(
+            "agent_runner_capabilities_ok",
+            backend="aire",
+            required=list(aire_route.AIRE_REQUIRED_TOOLS),
+            mode=config.AIRE_TURN_MODE,
+        )
+    else:
+        await build_options("__boot_capability_check__")
+        log.info("agent_runner_capabilities_ok", backend="local", required=list(REQUIRED_BUILTIN_TOOLS))
 
     _reaper_task = asyncio.create_task(session_pool.reap_idle_sessions(), name="session_reaper")
     yield

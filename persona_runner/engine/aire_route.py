@@ -1,0 +1,437 @@
+"""The AIRE turn route — ``TURN_BACKEND=aire`` sends persona turns through
+AIRE's engine door instead of hosting the Claude Agent SDK in this container.
+
+Stage 2 of the AIRE migration (backlog ``aire-engine-stage2.md``). The mapping,
+decided by Bernard 2026-08-22:
+
+- **Casita = persona+channel**: base casita ``{persona_id}`` holds the persona
+  DNA (installed once via ``/init``); each chat casita
+  ``{persona_id}-{channel_id}`` is born THIN with the ``@base`` stub the engine
+  dereferences at every spawn (aire-server ef21e68 / og118 PR #413).
+- **Facts + behavioral_guidance travel IN-BAND**: the runner reads the author's
+  facts from Khimeras Postgres and composes them into the turn message, exactly
+  as it composes turn_context — no Khimeras credential ever reaches the droplet.
+  AIRE's registry tools ``persona`` + ``memory`` ride every turn, so the agent
+  keeps a living identity and transcript recall.
+- **Model routing rides the door per turn** (aire-server #29) — but AIRE HONOURS
+  IT ONLY ON A COLD SESSION. Measured live 2026-08-22 against
+  ``gate.bernarduriza.com``: two turns on one session, the first asking
+  ``claude-haiku-4-5-20251001`` and the second ``claude-sonnet-4-6``, both
+  answered ``claude-haiku-4-5-20251001``. No error, no warning — the field is
+  simply ignored. Root cause in aire-server ``engine/core.py::_client_for``:
+  options (mode, tools AND model) are built only on a POOL MISS, so a warm
+  client keeps the shape it was born with for ~55 min
+  (``AIRE_POOL_IDLE_S=3300``). This runner routes a model per turn, so on the
+  AIRE route that routing degrades to "the model the session started with".
+  ``model_diverged`` logs every occurrence; the flag must NOT go permanent
+  until AIRE can rebind (named as an AIRE-side gap in the backlog).
+- **Terminal errors stay errors**: ``budget_exhausted`` / ``credentials_exhausted``
+  (aire #23/#31 family) map to 500 (retries cannot fix them; the gateway's
+  neutral in-character error path takes over); ``slot_busy`` backpressure maps
+  to 503 (the gateway's transient retry applies). A cut turn never looks like
+  success.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import time
+from contextvars import ContextVar
+
+import structlog
+from fastapi import HTTPException
+
+from persona_runner.core import config
+from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
+from persona_runner.engine.aire_backend import AIREBackend, BackendError, ToolPolicy, TurnImage
+from persona_runner.engine.framing import fold_history, frame_turn_text
+from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
+from persona_runner.engine.persona_files import load_persona, resolve_persona_path
+
+log = structlog.get_logger()
+
+# The registry tools every persona turn requests from AIRE (vetted server-side):
+# `persona` = the living half of the casita's CLAUDE.md, `memory` = recall over
+# the session's own transcript in AIRE's session store.
+AIRE_REQUIRED_TOOLS = ("persona", "memory")
+# WebSearch/WebFetch exist ONLY in AIRE's `agent` mode (server-side MODES dial,
+# verified in aire-server engine/options.py 2026-08-22, which also excludes Bash
+# there and cages file tools to the casita). Any other mode silently strips the
+# load-bearing web tools — the same silent degradation verify_required_tools
+# exists to kill — so the allowlist is exactly one mode.
+AIRE_ALLOWED_MODES = ("agent",)
+# The BUILTIN surface AIRE's server-side mode dial actually grants, AUDITED
+# against aire-server `server/aire/engine/options.py::MODES` at ef21e684
+# (2026-08-22). This repo cannot ENFORCE it — the dial lives on the droplet, and
+# the door ships no per-turn builtin denylist (named as an AIRE-side gap in the
+# stage-2 backlog). So the table is a RECORDED AUDIT and the boot check asserts
+# OUR config against it: a mode regression here crashes the boot, a change on
+# AIRE's side stays invisible until re-audited. Say so, never imply enforcement.
+AUDITED_MODE_ALLOWS = {
+    "agent": ("Read", "Write", "Glob", "Grep", "WebSearch", "WebFetch"),
+    "complete": (),
+}
+AUDITED_MODE_DENIES = {
+    "agent": ("Bash",),
+    "complete": ("Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"),
+}
+# The honest delta from `options.FORBIDDEN_BUILTIN_TOOLS`: AIRE's `agent` mode
+# grants Write (and reaches Edit under acceptEdits), which the local route
+# forbids. It is ACCEPTED, not hidden, on two verified grounds: aire-server's
+# `engine/cage.py` PreToolUse hook denies any file tool resolving outside the
+# session's casita, and the droplet holds NO Khimeras credential — POSTGRES_URL
+# and the fleet OAuth never leave this container, so the 2026-08-10 threat (a
+# shell where the secrets are) does not transfer. Logged loudly at every boot so
+# the new capability can never become silent.
+AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
+# One continuous session per casita. The casita name already scopes
+# persona+channel, so the session inside it is just "the live thread".
+SESSION_NAME = "live"
+_TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded")
+
+_NAME_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
+_NAME_MAX = 128
+
+# The casita THIS turn addresses — a ContextVar (not a mutable attribute)
+# because turns are concurrent; AIREBackend resolves it at the top of each turn.
+_chat_casita: ContextVar[str | None] = ContextVar("aire_chat_casita", default=None)
+_backends: dict[str, AIREBackend] = {}
+_judge_backends: dict[str, AIREBackend] = {}
+# Casitas whose session this process already spoke to. Governs the one-time
+# history fold: AIRE's memory survives OUR restarts, so a fold repeated after a
+# restart can duplicate context the session already holds — accepted edge until
+# AIRE grows a session-exists probe (named in the stage-2 backlog).
+_seen_sessions: set[str] = set()
+_default_policy = ToolPolicy()
+
+
+def verify_aire_route() -> None:
+    """Crash the boot LOUDLY when the AIRE route's capability surface is wrong.
+
+    The AIRE twin of ``options.verify_required_tools``: WebSearch is load-bearing
+    and its absence fails silently, so a runner that would ship turns in a mode
+    without it must never come up. Env is checked too — a missing gate URL/token
+    falling back to a dead default is the fake-green AGENTS.md prohibits.
+    """
+    gate = os.environ.get("AIRE_GATE_URL", "")
+    token = os.environ.get("AIRE_AUTH_TOKEN", "") or os.environ.get("AIRE_CANARY_TOKEN", "")
+    if not gate or not token:
+        raise RuntimeError(
+            "TURN_BACKEND=aire requires AIRE_GATE_URL and AIRE_AUTH_TOKEN in the "
+            "environment (set out-of-band, see docs/runbook_dr.md) — refusing to "
+            "boot a runner whose every turn would 502."
+        )
+    if config.AIRE_TURN_MODE not in AIRE_ALLOWED_MODES:
+        raise RuntimeError(
+            f"AIRE_TURN_MODE={config.AIRE_TURN_MODE!r} is not in {AIRE_ALLOWED_MODES}: "
+            "WebSearch/WebFetch only exist in AIRE's `agent` mode, so any other mode "
+            "silently strips the load-bearing web tools (2026-06-14 class)."
+        )
+    verify_audited_surface(config.AIRE_TURN_MODE)
+    # Assert the REAL path, exactly like the boot's build_options check does for
+    # the local route: the backend a turn would actually use must carry the
+    # required registry tools and ride an allowlisted mode.
+    backend = backend_for(base_persona_id(None))
+    missing = [t for t in AIRE_REQUIRED_TOOLS if t not in backend.registry_tools]
+    if missing:
+        raise RuntimeError(
+            f"The AIRE route is missing required registry tools {missing} "
+            f"(configured: {list(backend.registry_tools)}) — the persona would lose "
+            "its living identity or transcript recall silently."
+        )
+    if backend.default_mode not in AIRE_ALLOWED_MODES:
+        raise RuntimeError(f"AIRE backend rides mode {backend.default_mode!r}, not in {AIRE_ALLOWED_MODES}")
+
+
+def verify_audited_surface(mode: str) -> None:
+    """Assert the mode's RECORDED surface in both directions, exactly like
+    ``options.verify_required_tools`` does for the local route.
+
+    Missing a required built-in ships a runner that boots ``healthy`` and
+    deflects every factual question (2026-06-14); carrying a shell hands whoever
+    types in Discord one (2026-08-10). Here the surface is server-side, so what
+    is asserted is OUR config against the audit table — which is precisely what
+    catches the regression this repo can commit (a mode swap), and precisely what
+    cannot catch a change made on the droplet.
+    """
+    allows = AUDITED_MODE_ALLOWS.get(mode, ())
+    denies = AUDITED_MODE_DENIES.get(mode, ())
+    missing = [t for t in REQUIRED_BUILTIN_TOOLS if t not in allows]
+    if missing:
+        raise RuntimeError(
+            f"AIRE mode {mode!r} does not grant required built-ins {missing} "
+            f"(audited surface: {list(allows)}) — web search is load-bearing and "
+            "must not degrade silently."
+        )
+    if "Bash" not in denies:
+        raise RuntimeError(
+            f"AIRE mode {mode!r} does not deny Bash (audited denies: {list(denies)}) — "
+            "a persona turn must never reach a shell."
+        )
+    reachable = [t for t in AIRE_ACCEPTED_TOOL_DELTA if t in allows or mode == "agent"]
+    log.warning(
+        "aire_route_accepted_tool_delta",
+        mode=mode,
+        reachable_but_forbidden_locally=reachable,
+        compensating_control="aire-server engine/cage.py confines file tools to the casita",
+        note="the droplet holds no Khimeras credential; POSTGRES_URL and the fleet OAuth stay here",
+    )
+
+
+def base_persona_id(persona_id: str | None) -> str:
+    """The canonical persona id a turn resolves to — the DNA file's stem, so an
+    unknown/invalid id names the DEFAULT persona's casita, matching exactly which
+    DNA ``load_persona`` will return for it (never a casita/DNA mismatch)."""
+    return resolve_persona_path(persona_id).stem
+
+
+def chat_casita_for(base_id: str, channel_id: str) -> str:
+    """The per-chat casita name: ``{persona}-{channel}``, filtered to AIRE's
+    name allowlist (``[A-Za-z0-9_-]``, 128 max — aire-server names.py)."""
+    cleaned = _NAME_UNSAFE.sub("", channel_id) or "unknown"
+    return f"{base_id}-{cleaned}"[:_NAME_MAX]
+
+
+def backend_for(base_id: str) -> AIREBackend:
+    """This persona's door client, created on first use. One backend per persona
+    because the thin-birth BASE casita is the backend's fixed ``project``."""
+    backend = _backends.get(base_id)
+    if backend is None:
+        backend = AIREBackend(
+            project=base_id,
+            default_mode=config.AIRE_TURN_MODE,
+            registry_tools=AIRE_REQUIRED_TOOLS,
+            project_for_turn=_chat_casita.get,
+            timeout=config.TURN_TIMEOUT_S,
+        )
+        _backends[base_id] = backend
+    return backend
+
+
+async def fetch_user_facts(user_id: str) -> str:
+    """The author's accumulated facts, read from Khimeras Postgres to travel
+    IN-BAND in the turn message (the AIRE droplet never gets the credential).
+
+    Same query as the ``persona_memory`` MCP tool ``get_user_facts`` — that tool
+    cannot run on AIRE, so the runner pre-fetches what it used to serve. Any
+    fault returns "" — a memory-less turn beats a dead one (DB failures never
+    kill the turn, repo law)."""
+    from persona_runner.mcp_tools import shared
+
+    conn = await shared._connect()
+    if conn is None:
+        return ""
+    try:
+        rows = await conn.fetch(
+            "SELECT category, fact FROM principal_facts "
+            "WHERE principal_id = $1 AND deleted_at IS NULL "
+            "ORDER BY updated_at DESC",
+            user_id,
+        )
+        lines = [f"- [{r['category'] or 'uncategorized'}] {r['fact']}" for r in rows]
+        block = "\n".join(lines)
+        return block[: config.AIRE_FACTS_MAX_CHARS]
+    except Exception:
+        log.exception("aire_route_facts_fetch_failed", user_id=user_id)
+        return ""
+    finally:
+        try:
+            await conn.close()
+        except Exception:
+            log.exception("aire_route_facts_conn_close_failed")
+
+
+def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
+    """Convert Anthropic-shape image blocks to AIRE's ``{media_type, data}``.
+
+    Returns (images, dropped): AIRE's door has no document/PDF block (named as a
+    gap in the stage-2 backlog), so non-image attachments are DROPPED and
+    counted — the caller logs the count instead of losing them silently."""
+    images: list[TurnImage] = []
+    dropped = 0
+    for block in attachments or []:
+        source = (block or {}).get("source") or {}
+        if block.get("type") == "image" and source.get("type") == "base64" and source.get("data"):
+            images.append(TurnImage(media_type=source.get("media_type", ""), data=source["data"]))
+        else:
+            dropped += 1
+    return images, dropped
+
+
+def to_http_error(exc: BackendError) -> HTTPException:
+    """Map a door failure onto the runner's HTTP error contract (the gateway's
+    agent_client branches on status: 502/503 retry as mid-restart, 500 never).
+
+    Terminal cuts (budget/credentials — aire #23/#31 family) are 500: no retry
+    fixes an exhausted pool, and the gateway's neutral in-character error path
+    must take over instead of a retry storm. Backpressure (slot_busy / a door
+    503) is 503 so the existing transient retry applies. Everything else is 502.
+    """
+    detail = str(exc)
+    if any(code in detail for code in _TERMINAL_ERRORS):
+        return HTTPException(500, f"aire turn terminal: {detail[:200]}")
+    if "slot_busy" in detail or "AIRE door 503" in detail:
+        return HTTPException(503, f"aire backpressure: {detail[:200]}")
+    return HTTPException(502, f"aire turn failed: {detail[:200]}")
+
+
+async def turn_via_aire(req: TurnRequest) -> TurnResponse:
+    """One persona turn through AIRE's engine door (the TURN_BACKEND=aire path)."""
+    from persona_runner.engine.session_pool import _route_model
+
+    start = time.monotonic()
+    base_id = base_persona_id(req.persona_id)
+    casita = chat_casita_for(base_id, req.channel_id)
+    session_key = f"{casita}/{SESSION_NAME}"
+    is_first_turn = session_key not in _seen_sessions
+
+    model, route_meta = await _route_model(req.channel_id, req.user_id, req.user_text)
+    memory_block = await fetch_user_facts(req.user_id)
+    framed = frame_turn_text(
+        channel_id=req.channel_id,
+        user_id=req.user_id,
+        user_text=req.user_text,
+        behavioral_guidance=req.behavioral_guidance,
+        history_block=fold_history(req.history) if is_first_turn else "",
+        memory_block=memory_block,
+    )
+    images, dropped = images_from_attachments(req.attachments)
+    if dropped:
+        log.warning(
+            "aire_route_attachments_dropped",
+            channel_id=req.channel_id,
+            dropped=dropped,
+            forwarded=len(images),
+        )
+
+    backend = backend_for(base_id)
+    token = _chat_casita.set(casita)
+    try:
+        result = await backend.run_turn(
+            system_prompt=load_persona(req.persona_id),
+            user_message=framed,
+            mcp_servers=[],
+            tool_policy=_default_policy,
+            model=model,
+            session_id=SESSION_NAME,
+            images=images or None,
+        )
+    except BackendError as exc:
+        log.error(
+            "aire_route_turn_failed",
+            channel_id=req.channel_id,
+            user_id=req.user_id,
+            casita=casita,
+            error=str(exc)[:300],
+            elapsed_ms=int((time.monotonic() - start) * 1000),
+        )
+        raise to_http_error(exc) from exc
+    finally:
+        _chat_casita.reset(token)
+
+    _seen_sessions.add(session_key)
+    usage = result.usage or {}
+    if model_diverged(model, result.model):
+        log.warning(
+            "aire_route_model_not_honoured",
+            casita=casita,
+            requested_model=model,
+            answered_model=result.model,
+            reason="AIRE binds the model at pooled-client birth; a warm session keeps the "
+            "model it started with until the client is evicted (~55min idle, LRU, or a budget retire)",
+        )
+    log.info(
+        "agent_runner_turn_complete",
+        backend="aire",
+        channel_id=req.channel_id,
+        user_id=req.user_id,
+        casita=casita,
+        text_len=len(result.text),
+        tool_calls=len(result.tool_calls),
+        tool_names=[tc.name for tc in result.tool_calls],
+        input_tokens=int(usage.get("input_tokens", 0) or 0),
+        output_tokens=int(usage.get("output_tokens", 0) or 0),
+        model=result.model or model,
+        requested_model=model,
+        elapsed_ms=int((time.monotonic() - start) * 1000),
+        is_first_turn=is_first_turn,
+        has_attachments=bool(req.attachments),
+        **route_meta,
+    )
+    return TurnResponse(
+        text=result.text,
+        session_uuid=result.session_id,
+        input_tokens=int(usage.get("input_tokens", 0) or 0),
+        output_tokens=int(usage.get("output_tokens", 0) or 0),
+        model=result.model or model,
+        stop_reason="end_turn",
+        tool_calls=[{"name": tc.name, "input_keys": list((tc.input or {}).keys())} for tc in result.tool_calls],
+    )
+
+
+def model_diverged(requested: str | None, answered: str | None) -> bool:
+    """Did AIRE answer with a model this turn did not ask for?
+
+    It legitimately can. AIRE binds the whole ``TurnSpec`` (mode, tools, model)
+    when the session's POOLED CLIENT is born and never rebinds it for a live
+    session (verified in aire-server ``engine/core.py::_client_for``: options are
+    built only on a pool miss). This runner routes a model PER TURN
+    (``routing/``), so on a warm session every later route is a request AIRE
+    ignores — and a client stays warm for ~55 min (``AIRE_POOL_IDLE_S=3300``).
+
+    Silence there would be the 2026-06-14 class again: a capability quietly not
+    happening. Names are compared by prefix because the request carries an alias
+    (``claude-sonnet-4-6``) and the answer carries the dated build.
+    """
+    if not requested or not answered:
+        return False
+    return not (answered.startswith(requested) or requested.startswith(answered))
+
+
+def judge_backend_for(casita: str) -> AIREBackend:
+    """A utility-casita client: mode=complete (no builtins, no agentic loop —
+    the raw-API substitute), no registry tools, no per-turn casita override."""
+    backend = _judge_backends.get(casita)
+    if backend is None:
+        backend = AIREBackend(project=casita, default_mode="complete", timeout=config.TURN_TIMEOUT_S)
+        _judge_backends[casita] = backend
+    return backend
+
+
+async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
+    """One judge call through AIRE: a mode=complete turn in the utility casita
+    ``{persona_id}-judge``, throwaway session per call (one-shot, like today's
+    fresh subprocess — the model per call is honoured because a fresh session
+    means a fresh pooled client on AIRE's side).
+
+    The caller's system prompt becomes the casita's prompt via ``/init`` per
+    call when it changes; the judge semaphore in api/judge.py serializes calls,
+    so two differing prompts never race one casita at the default concurrency."""
+    model = req.model or config.JUDGE_DEFAULT_MODEL
+    casita = f"{base_persona_id(req.persona_id)}-judge"
+    images, dropped = images_from_attachments(req.attachments)
+    if dropped:
+        log.warning("aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images))
+    backend = judge_backend_for(casita)
+    try:
+        result = await backend.run_turn(
+            system_prompt=req.system_prompt,
+            user_message=req.user_text,
+            mcp_servers=[],
+            tool_policy=_default_policy,
+            model=model,
+            session_id=None,
+            images=images or None,
+        )
+    except BackendError as exc:
+        log.error("aire_route_judge_failed", casita=casita, error=str(exc)[:300])
+        raise HTTPException(500, f"judge call failed: {str(exc)[:200]}") from exc
+    usage = result.usage or {}
+    return JudgeResponse(
+        text=result.text,
+        model=result.model or model,
+        stop_reason="end_turn",
+        input_tokens=int(usage.get("input_tokens", 0) or 0),
+        output_tokens=int(usage.get("output_tokens", 0) or 0),
+    )

@@ -18,6 +18,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, Header, HTTPException
 
+from persona_runner.core import config
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine import auth_failure, session_pool
@@ -74,6 +75,13 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     """Run one Agent SDK turn, reusing the per-slot long-lived client so the SDK
     auto-continues the session and the prompt cache hits."""
     check_auth(authorization)
+    if config.TURN_BACKEND == "aire":
+        # AIRE stage 2: the turn rides AIRE's engine door instead of the local
+        # SDK host. Everything below this line is the LOCAL path, which dies
+        # when the flag flips permanent (backlog aire-engine-stage2.md).
+        from persona_runner.engine import aire_route
+
+        return await aire_route.turn_via_aire(req)
     start = time.monotonic()
 
     key = session_pool.pool_key(req.channel_id, req.persona_id)

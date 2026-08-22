@@ -26,6 +26,19 @@ RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("IN
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 
+# AIRE engine stage 2 (backlog aire-engine-stage2.md): "aire" sends persona
+# turns + judge calls through AIRE's engine door (aire_route.py) instead of the
+# local Claude Agent SDK host. "local" (default, and today's deploy) keeps the
+# turn byte-identical. The flag is SCAFFOLDING, not a parking permit — when it
+# flips permanent, the local SDK host path (session_pool + engine/options build
+# path) dies with it (migrations-end-with-deletion).
+TURN_BACKEND = os.environ.get("TURN_BACKEND", "local").strip().lower()
+# The AIRE door mode persona turns ride. Only "agent" carries WebSearch/WebFetch
+# (server-side dial); verify_aire_route crashes the boot on anything else.
+AIRE_TURN_MODE = os.environ.get("AIRE_TURN_MODE", "agent").strip().lower()
+# Cap on the in-band <user_memory> facts block the AIRE route composes per turn.
+AIRE_FACTS_MAX_CHARS = int(os.environ.get("AIRE_FACTS_MAX_CHARS", "6000"))
+
 # Close a per-channel ClaudeSDKClient after this many seconds of no turn
 # activity. Default 15 min — comfortably past the 5-min cache TTL so the
 # next turn after this re-opens with a fresh cache window anyway.

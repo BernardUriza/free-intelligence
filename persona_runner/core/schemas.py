@@ -80,6 +80,10 @@ class JudgeRequest(BaseModel):
     # judge was text-only before, which is why image content never survived past
     # its live turn.
     attachments: list[dict] | None = None
+    # AIRE stage 2: which persona's utility casita (`{persona_id}-judge`) hosts
+    # this call when TURN_BACKEND=aire. None ⇒ the default persona's casita —
+    # existing callers unchanged. Ignored entirely on the local backend.
+    persona_id: str | None = Field(default=None, max_length=32)
 
 
 class JudgeResponse(BaseModel):
