@@ -43,6 +43,13 @@ if not (OG118 / "app.py").exists():
 if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
+# El motor del turno se decide ANTES de importar el runtime: og118 construye su
+# runner al importar `app`, así que FENIX_BACKEND tiene que estar ya traducido a
+# OG118_BACKEND / OG118_AIRE_PROJECT cuando ese import corra (aire-server #35).
+from arranque import configurar_motor, exigir_config  # noqa: E402
+
+configurar_motor()
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request  # noqa: E402
 from fastapi.dependencies.utils import get_parameterless_sub_dependant  # noqa: E402
 from fastapi.responses import Response  # noqa: E402
@@ -63,7 +70,6 @@ from runner import build_runner  # noqa: E402
 from expedientes import ESTADOS, ExpedienteStore, id_valido  # noqa: E402
 from presupuesto import Presupuesto, Renglon, a_vista, generar, nombre_archivo  # noqa: E402
 from cuota import CuotaAgotada, clave_de, cuota_publica  # noqa: E402
-from arranque import exigir_config  # noqa: E402
 from bitacora import Bitacora  # noqa: E402
 from regularizacion import Cuadernillo, Ejemplo, Ejercicio, Paso  # noqa: E402
 from regularizacion import generar as generar_pdf  # noqa: E402
@@ -600,6 +606,39 @@ def _tutor():
 
     Perezoso porque la mayoría de los arranques son del mostrador. `load_prompt`
     relee por mtime, así que editar `tutor.md` aplica sin reiniciar.
+
+    En la ruta AIRE (FENIX_BACKEND=aire) el tutor tiene SU casita base —
+    `fenix-tutor` — separada de la del mostrador (`fenix`): son dos personas en
+    el mismo proceso, y si compartieran base cada runner la init-earía con su
+    propia voz y el último ganaría. Los chats de ambos productos se nombran
+    `fenix-{conversationId}`; el stub `@base` de cada chat es el que apunta a la
+    voz correcta. En la ruta claude-code los parámetros `aire_*` no se leen.
+
+    Y en esa ruta el tutor pide `mode=agent`, que es lo que le devuelve
+    «busca en internet». No es tuning: media persona del tutor (`tutor.md`
+    §CUANDO BUSCAS EN INTERNET) es traer un dato real y citarlo, y en
+    `mode=complete` la puerta de AIRE prohíbe WebSearch/WebFetch — el tutor
+    quedaría ofreciendo una búsqueda que no puede hacer, que es peor que no
+    ofrecerla. El dial de la puerta no tiene una muesca «agent pero sólo
+    búsqueda» (aire-server backlog #37), así que con la búsqueda entran también
+    Read/Write/Glob/Grep. Qué alcanzan, dicho completo porque a este tutor le
+    escriben niños:
+
+    - **Bash no existe** en ningún modo de la puerta: está en la lista de
+      prohibidos de los dos.
+    - Los tools de archivo quedan **confinados a la casita de ESE chat** por la
+      jaula de AIRE (backlog #24, un hook PreToolUse que corre aunque
+      `acceptEdits` auto-apruebe): un `Read` de `/etc/aire/env` o un `Write` a
+      `/tmp` se deniegan, y un symlink que apunte afuera también, porque la
+      jaula resuelve la ruta antes de comparar.
+    - La casita es un directorio de scratch por chat en el droplet de AIRE, no
+      la papelería: ni los expedientes, ni la lista maestra, ni la llave de API
+      de Fénix viven ahí — están en el contenedor de `fenix-api`, del otro lado
+      de la puerta HTTP.
+
+    O sea: el niño puede lograr que el tutor escriba y relea sus propios
+    apuntes dentro de su casita, y nada más. Ése es el precio de que «busca en
+    internet» vuelva a funcionar, y se toma a sabiendas.
     """
     global _runner_tutor
     if _runner_tutor is None:
@@ -609,6 +648,8 @@ def _tutor():
                     persona_text=load_prompt(TUTOR_PATH),
                     capabilities=["task_tracker"],
                     extra_mcp_servers=[],
+                    aire_project=f"{os.getenv('OG118_AIRE_PROJECT') or 'fenix'}-tutor",
+                    aire_mode="agent",
                 )
     return _runner_tutor
 

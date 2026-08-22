@@ -56,7 +56,111 @@ FENIX_CUOTA_POR_MINUTO=15    # defaults; suben o bajan sin redeploy
 FENIX_CUOTA_POR_HORA=60
 FENIX_BITACORA_PATH=…        # opcional; por defecto, junto a los expedientes
 HDF5_USE_FILE_LOCKING=FALSE  # HDF5 pelea con SMB; seguro porque hay una sola réplica
+FENIX_BACKEND=aire           # opcional; enciende la ruta AIRE (ver sección siguiente)
 ```
+
+### El motor del turno: `FENIX_BACKEND=aire` (aire-server backlog #35)
+
+Sin la variable, nada cambia: el turno corre como hoy (el CLI de Claude Code en
+el contenedor, pagando con `ANTHROPIC_API_KEY`). Con `FENIX_BACKEND=aire` el
+turno viaja por HTTP a la puerta del engine de AIRE — el servidor
+siempre-arriba de Bernard que envuelve el Agent SDK y guarda el transcript
+crudo en SU Postgres — exactamente la migración que og118 estrenó el 21-ago
+(fi PRs #409/#411/#413).
+
+Qué cambia con el flip:
+
+- **La memoria se vuelve inmortal.** Cada chat vive en su casita AIRE
+  (`fenix-{conversationId}`, nacimiento delgado con el stub `@base fenix`); el
+  transcript completo aterriza en el Postgres de AIRE y se lee en
+  https://aire.bernarduriza.com.
+- **Dos personas, dos casitas base.** El mostrador instala su persona en
+  `fenix`; el tutor del cibercafé, en `fenix-tutor`. El stub `@base` de cada
+  chat apunta a la voz que lo atendió.
+- **La credencial que paga es la de AIRE** (el rotor del engine), no la
+  `ANTHROPIC_API_KEY` del contenedor — que sigue siendo obligatoria para
+  arrancar (`arranque.py`) pero queda sin uso en esta ruta.
+- **El tutor SÍ busca en internet** — pide `mode=agent`, ver la sección
+  siguiente. Esto corrige lo que este documento decía el 22-ago: que la
+  búsqueda se perdía. No se pierde; se paga con otras tools.
+- **Lo que se pierde (documentado, no accidental):** los MCP locales no cruzan
+  la puerta, así que el mostrador pierde `guardar_cotizacion`/rag_store —
+  `/expedientes/extraer` responde `guardado=false` en esta ruta. El mostrador
+  hoy no está lanzado, así que nadie lo siente. Se revierte quitando la
+  variable.
+
+### Qué herramientas tiene el tutor en la ruta AIRE (y por qué son ésas)
+
+La puerta de AIRE no ofrece tools a la carta: su dial tiene **dos muescas**
+(`server/aire/engine/options.py`, `MODES`) y cada una es un paquete cerrado.
+
+| Muesca | Concede | Prohíbe | Permisos |
+|---|---|---|---|
+| `complete` | nada (sólo las tools del registry que el turno pida) | Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch | `default` |
+| `agent` | Read, Write, Glob, Grep, **WebSearch, WebFetch** | **Bash** | `acceptEdits` |
+
+**El tutor viaja en `agent`; el mostrador se queda en `complete`.** Y no es
+tuning: media persona del tutor (`prompts/tutor.md` §CUANDO BUSCAS EN INTERNET)
+es traer un dato real y citarlo. En `complete` la puerta le prohíbe
+WebSearch/WebFetch, y el tutor quedaría ofreciéndole a un niño una búsqueda que
+no puede hacer — peor que no ofrecerla.
+
+**El costo, dicho completo porque a este tutor le escriben niños:** el dial es
+grueso, así que recuperar la búsqueda concede TAMBIÉN Read/Write/Glob/Grep. No
+existe una muesca «agent pero sólo búsqueda» — el hueco está nombrado en el
+backlog de aire-server (repo privado) como **#37**,
+`.claude/backlog/37-the-mode-dial-is-coarse.md`, commit `6eabbf7`. Lo que esas
+tools alcanzan:
+
+- **Bash no existe en ninguna muesca**: está prohibido en las dos.
+- Los tools de archivo quedan **confinados a la casita de ESE chat** por la
+  jaula de AIRE (backlog #24: un hook `PreToolUse` que corre aunque
+  `acceptEdits` auto-apruebe, y que resuelve la ruta antes de comparar, así que
+  un symlink hacia afuera también se deniega). Verificado en vivo del lado de
+  AIRE: `/etc/aire/env` denegado, `/tmp` denegado, la casita permitida.
+- La casita es un **directorio de scratch por chat en el droplet de AIRE**, no
+  la papelería. Los expedientes de las familias, la lista maestra y la
+  `ANTHROPIC_API_KEY` de Fénix viven en el contenedor de `fenix-api`, del otro
+  lado de la puerta HTTP — el agente no los alcanza desde ahí ni con Read.
+
+Traducido: un niño puede lograr que el tutor escriba y relea sus propios
+apuntes dentro de su casita, y nada más. Ése es el precio de que «busca en
+internet» funcione, y está tomado a sabiendas.
+
+Variables de la ruta (las lee `AIREBackend` del entorno):
+
+```
+FENIX_BACKEND=aire
+AIRE_GATE_URL=https://gate.bernarduriza.com
+AIRE_AUTH_TOKEN=…            # ~/.secrets/aire-llm-token.txt; va como secretref
+FENIX_AIRE_PROJECT=fenix     # opcional; default fenix
+```
+
+El flip en producción (sin redeploy, igual que el de og118 en `og118-api`):
+
+```bash
+az containerapp secret set -n fenix-api -g og118-rg \
+  --secrets "aire-auth-token=$(grep '^AIRE_AUTH_TOKEN=' ~/.secrets/aire-llm-token.txt | cut -d= -f2)"
+az containerapp update -n fenix-api -g og118-rg \
+  --set-env-vars "FENIX_BACKEND=aire" \
+                 "AIRE_GATE_URL=https://gate.bernarduriza.com" \
+                 "AIRE_AUTH_TOKEN=secretref:aire-auth-token"
+```
+
+Verificación (Art. 2) — **tres cosas, y la tercera es la que este flip casi
+rompe**:
+
+1. Un turno real en https://www.serviciosfenix.com.mx/app/ que conteste.
+2. La sesión visible el mismo minuto en https://aire.bernarduriza.com bajo la
+   casita del chat (`fenix-…`).
+3. **Una pregunta que OBLIGUE a buscar** — un dato de esta semana que el modelo
+   no pueda saber de memoria (un resultado deportivo reciente, el precio de
+   algo hoy) — y que el tutor conteste **citando de dónde salió**. Un `200` no
+   prueba esto: en `mode=complete` el tutor contesta igual de bonito, sólo que
+   sin haber buscado. Lo que no puede mentir es la cita.
+
+Para revertir:
+`az containerapp update -n fenix-api -g og118-rg --remove-env-vars FENIX_BACKEND`.
 
 ### Las tres credenciales protegen cosas distintas
 

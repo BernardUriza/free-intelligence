@@ -30,6 +30,14 @@ def app_fenix(tmp_path, monkeypatch):
     # Los tests no atienden a nadie: se declara uso personal para que la
     # invariante de ToS no bloquee el import.
     monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
+    # Ídem con la contraseña del tutor: sin declarar el modo abierto (lo que
+    # dev.sh sí declara), la invariante de e3c295ae reventaba el import de
+    # fenix_app y con él la suite entera — 24 errors que no probaban nada.
+    monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")
+    # El motor del turno no se hereda del entorno de quien corre los tests: la
+    # app del fixture siempre nace en la ruta byte-idéntica de siempre.
+    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("FENIX_EXPEDIENTES_PATH", str(tmp_path / "expedientes.json"))
     monkeypatch.setenv("OG118_PROJECT_REGISTRY_PATH", str(tmp_path / "projects.json"))
     monkeypatch.setenv("OG118_CONVERSATIONS_PATH", str(tmp_path / "conversations"))
