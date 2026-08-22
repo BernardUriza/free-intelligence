@@ -373,7 +373,8 @@ function summarizeConversation(record) {
     updatedAt: record.updatedAt,
     preview: record.preview,
     ...record.pinnedAt ? { pinnedAt: record.pinnedAt } : {},
-    ...record.archivedAt ? { archivedAt: record.archivedAt } : {}
+    ...record.archivedAt ? { archivedAt: record.archivedAt } : {},
+    ...record.projectId ? { projectId: record.projectId } : {}
   };
 }
 function normalizeForSearch(text) {

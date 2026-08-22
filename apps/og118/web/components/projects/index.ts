@@ -6,3 +6,6 @@ export {
   Og118ProjectUploadPanel,
   type Og118ProjectUploadPanelProps,
 } from './Og118ProjectUploadPanel';
+export { Og118ProjectsPage } from './Og118ProjectsPage';
+export { Og118ProjectsIndex } from './Og118ProjectsIndex';
+export { Og118ProjectWorkspace } from './Og118ProjectWorkspace';

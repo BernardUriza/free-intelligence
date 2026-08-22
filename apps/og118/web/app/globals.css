@@ -589,3 +589,203 @@ body {
   font-size: 0.72rem;
   letter-spacing: 0.03em;
 }
+
+/* ── Projects como PÁGINA (FIGLASS-PROJECTS-PAGE-1) ─────────────────────────
+   Sólo layout y copy: la anatomía (grid, cards, rail, medidor) la pinta
+   fi-glass/resource. Aquí no se re-tiñe ningún token del preset — se consumen
+   los `--og-*` y `--glass-chat-*` que ya existen, para que el candado
+   check:og118-css siga teniendo una sola verdad que vigilar. */
+.og-projects-shell {
+  max-width: 896px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  padding-top: calc(2rem + env(safe-area-inset-top));
+}
+@media (max-width: 768px) {
+  .og-projects-shell {
+    padding: 1rem 0.75rem 3rem;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+  }
+}
+.og-projects-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.og-projects-cta {
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--glass-chat-bg-deep, #0a0e16);
+  background: var(--og-accent, #34d399);
+}
+.og-projects-cta:hover {
+  filter: brightness(1.08);
+}
+.og-projects-edit {
+  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.og-projects-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+.og-projects-sort select {
+  background: var(--glass-chat-bg-mid, #0f172a);
+  color: var(--glass-chat-text, #e2e8f0);
+  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+}
+.og-projects-note {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  margin: 0;
+}
+.og-projects-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.og-projects-heading h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--glass-chat-text, #e2e8f0);
+}
+.og-projects-heading p {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+.og-projects-heading--editing {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+.og-projects-heading--editing label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+.og-projects-heading--editing input,
+.og-projects-heading--editing textarea {
+  /* 16px: por debajo de eso iOS hace auto-zoom al enfocar y descuadra la página. */
+  font-size: 16px;
+  color: var(--glass-chat-text, #e2e8f0);
+  background: var(--glass-chat-bg-mid, #0f172a);
+  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+}
+.og-projects-heading-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.og-projects-recents {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.og-projects-recents-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.og-projects-recents-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--glass-chat-text, #e2e8f0);
+}
+.og-projects-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.og-projects-recent-list li + li {
+  border-top: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
+}
+.og-projects-recent-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.5rem 0.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.og-projects-recent-list button:hover {
+  background: var(--glass-chat-item-hover, rgba(255, 255, 255, 0.04));
+}
+.og-projects-recent-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--glass-chat-text, #e2e8f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.og-projects-recent-time {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+}
+.og-projects-nav {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  font-size: 0.8125rem;
+  color: var(--glass-chat-text-muted, #94a3b8);
+  text-decoration: none;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+}
+.og-projects-nav:hover {
+  background: var(--glass-chat-item-hover, rgba(255, 255, 255, 0.04));
+  color: var(--glass-chat-text, #e2e8f0);
+}
+
+/* Medido en Chrome a viewport de teléfono: el CTA quedaba en 37px, "Editar" en
+   34 y el select en 30 — todos por debajo del mínimo de 44 que exige
+   mobile-viewport-ux. La regla es explícita: un target no se encoge para ganar
+   espacio, se recoloca. Aquí crecen en superficies táctiles y el desktop con
+   puntero fino se queda igual, misma condición que usa `fi-touch-target`. */
+@media (pointer: coarse), (max-width: 768px) {
+  .og-projects-cta,
+  .og-projects-edit,
+  .og-projects-sort select {
+    min-height: 44px;
+  }
+  .og-projects-heading {
+    flex-wrap: wrap;
+  }
+}

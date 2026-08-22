@@ -41,6 +41,15 @@ export interface UseConversationLibraryOptions {
   idFactory?: () => string;
   /** ISO timestamp provider for createdAt/updatedAt. Default: wall clock. Injectable for tests. */
   now?: () => string;
+  /**
+   * The resource a NEW conversation is born into (og118 passes its active
+   * project). Stamped on first persist and preserved after that.
+   *
+   * Deliberately birth-only: an existing conversation keeps the resource it was
+   * started in, so changing the selection does not re-file the whole history
+   * under whatever happens to be active right now.
+   */
+  projectId?: string;
 }
 
 export interface ConversationLibraryState {
@@ -81,6 +90,7 @@ export function useConversationLibrary(
 ): ConversationLibraryState {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => new Date().toISOString());
+  const { projectId } = options;
 
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -157,6 +167,12 @@ export function useConversationLibrary(
       const prevForTitle = activeRecord?.id === id ? activeRecord : undefined;
       const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
+      // Birth-only, and the discriminator is the RECORD's existence, not whether
+      // it happens to carry a value. `prev?.projectId ?? projectId` reads the
+      // same and is wrong: a conversation started with nothing selected would
+      // adopt whatever project got selected later, silently re-filing a thread
+      // the user never moved.
+      const bornIn = prevForTitle ? prevForTitle.projectId : projectId;
       const record: ConversationRecord = {
         id,
         title: resolveConversationTitle(clean, prevForTitle),
@@ -169,6 +185,7 @@ export function useConversationLibrary(
         // silently unpin or unarchive the thread.
         ...(prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {}),
         ...(prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {}),
+        ...(bornIn ? { projectId: bornIn } : {}),
         schemaVersion: CONVERSATION_SCHEMA_VERSION,
       };
       await library.put(record);
@@ -177,7 +194,7 @@ export function useConversationLibrary(
       setActiveRecord(record);
       await refresh();
     },
-    [activeId, activeRecord, idFactory, nowFn, library, refresh],
+    [activeId, activeRecord, idFactory, nowFn, library, refresh, projectId],
   );
 
   const deleteConversation = useCallback(

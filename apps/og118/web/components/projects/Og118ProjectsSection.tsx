@@ -95,19 +95,29 @@ export function Og118ProjectsSection({
         )
       }
       footerSlot={
-        activeProjectId && onUpload ? (
-          <Og118ProjectUploadPanel
-            activeProjectId={activeProjectId}
-            disabled={disabled}
-            uploadFile={uploadFile}
-            uploadStatus={uploadStatus}
-            uploadProgress={uploadProgress}
-            uploadError={uploadError}
-            uploadChunks={uploadChunks}
-            onUpload={onUpload}
-            onCancelUpload={onCancelUpload}
-          />
-        ) : undefined
+        <>
+          {/* The sidebar and the page COEXIST (the card's own proposal): this
+              stays the quick switcher, and the page is where a project is
+              managed. A plain anchor, not a router push — a full load is correct
+              when leaving the chat shell, and it keeps working if JS is still
+              hydrating. */}
+          <a className="og-projects-nav" href="/projects/">
+            Ver todos los proyectos →
+          </a>
+          {activeProjectId && onUpload ? (
+            <Og118ProjectUploadPanel
+              activeProjectId={activeProjectId}
+              disabled={disabled}
+              uploadFile={uploadFile}
+              uploadStatus={uploadStatus}
+              uploadProgress={uploadProgress}
+              uploadError={uploadError}
+              uploadChunks={uploadChunks}
+              onUpload={onUpload}
+              onCancelUpload={onCancelUpload}
+            />
+          ) : null}
+        </>
       }
     >
       <nav className="og-projects-list">

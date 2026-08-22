@@ -211,6 +211,7 @@ export function summarizeConversation(
     preview: record.preview,
     ...(record.pinnedAt ? { pinnedAt: record.pinnedAt } : {}),
     ...(record.archivedAt ? { archivedAt: record.archivedAt } : {}),
+    ...(record.projectId ? { projectId: record.projectId } : {}),
   };
 }
 

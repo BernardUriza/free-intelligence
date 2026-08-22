@@ -145,6 +145,15 @@ interface UseConversationLibraryOptions {
     idFactory?: () => string;
     /** ISO timestamp provider for createdAt/updatedAt. Default: wall clock. Injectable for tests. */
     now?: () => string;
+    /**
+     * The resource a NEW conversation is born into (og118 passes its active
+     * project). Stamped on first persist and preserved after that.
+     *
+     * Deliberately birth-only: an existing conversation keeps the resource it was
+     * started in, so changing the selection does not re-file the whole history
+     * under whatever happens to be active right now.
+     */
+    projectId?: string;
 }
 interface ConversationLibraryState {
     /** False until the first hydration from storage finishes. */
