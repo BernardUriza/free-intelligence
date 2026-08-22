@@ -39,6 +39,27 @@ AIRE_TURN_MODE = os.environ.get("AIRE_TURN_MODE", "agent").strip().lower()
 # Cap on the in-band <user_memory> facts block the AIRE route composes per turn.
 AIRE_FACTS_MAX_CHARS = int(os.environ.get("AIRE_FACTS_MAX_CHARS", "6000"))
 
+# The THIRD axis of the AIRE mapping (Bernard, 2026-08-22): the casita is the
+# channel's SOUL and lives forever; the SESSION inside it is a TOPIC that rolls
+# over after this many seconds of channel silence. Same vocabulary as the local
+# path's SESSION_IDLE_TIMEOUT_S below — idle is idle on both backends.
+#
+# WHAT A ROLLOVER COSTS: the next turn is a COLD AIRE session, so the persona
+# system prompt (~14k tokens of DNA alone) is cache-CREATED again — a
+# single-sentence cold turn measured $0.107 against the live gate (stage-2
+# backlog). Too short a window is a money leak paid once per silence; too long
+# defeats the axis, because the transcript AIRE resumes keeps growing and last
+# month's conversation rides into today's answer.
+#
+# WHY 3600 s: it makes the rollover nearly FREE instead of merely tolerable.
+# AIRE evicts an idle pooled client after AIRE_POOL_IDLE_S (3300 s ≈ 55 min), so
+# a channel silent for an hour has ALREADY lost its warm client — that turn
+# re-pays the system prompt whether or not the topic rolls. Rolling just past
+# that boundary buys a fresh transcript at the price of a cold start that was
+# already going to be charged. Shortening this below ~55 min is where real money
+# starts being spent, and that — not tidiness — is the trade to weigh.
+AIRE_TOPIC_IDLE_TIMEOUT_S = float(os.environ.get("AIRE_TOPIC_IDLE_TIMEOUT_S", "3600"))
+
 # Close a per-channel ClaudeSDKClient after this many seconds of no turn
 # activity. Default 15 min — comfortably past the 5-min cache TTL so the
 # next turn after this re-opens with a fresh cache window anyway.

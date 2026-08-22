@@ -8,6 +8,13 @@ decided by Bernard 2026-08-22:
   DNA (installed once via ``/init``); each chat casita
   ``{persona_id}-{channel_id}`` is born THIN with the ``@base`` stub the engine
   dereferences at every spawn (aire-server ef21e68 / og118 PR #413).
+- **Session = TOPIC** (Bernard, 2026-08-22 — *"por sesión de discord bot y por
+  channel y por topic temporal"*). The casita is the channel's SOUL and persists;
+  the session inside it rolls over after ``AIRE_TOPIC_IDLE_TIMEOUT_S`` of channel
+  silence, so a channel that lives for years stops meaning one transcript that
+  grows forever. The id is durable (a row per casita in Postgres), because an
+  in-RAM one would fork the topic on every redeploy. Full reasoning, the atomic
+  claim and the fallback: ``engine/aire_topic.py``.
 - **Facts + behavioral_guidance travel IN-BAND**: the runner reads the author's
   facts from Khimeras Postgres and composes them into the turn message, exactly
   as it composes turn_context — no Khimeras credential ever reaches the droplet.
@@ -55,6 +62,7 @@ from fastapi import HTTPException
 
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
+from persona_runner.engine import aire_topic
 from persona_runner.engine.aire_backend import AIREBackend, BackendError, ToolPolicy, TurnImage
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
@@ -96,9 +104,6 @@ AUDITED_MODE_DENIES = {
 # shell where the secrets are) does not transfer. Logged loudly at every boot so
 # the new capability can never become silent.
 AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
-# One continuous session per casita. The casita name already scopes
-# persona+channel, so the session inside it is just "the live thread".
-SESSION_NAME = "live"
 # AIRE's structured error CODES, classified once. Terminal cuts (aire #23/#31)
 # cannot be fixed by retrying; backpressure can.
 _TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded")
@@ -118,54 +123,62 @@ _default_policy = ToolPolicy()
 
 @dataclass
 class CasitaState:
-    """One casita's turn gate plus the bit that governs the one-time history fold.
+    """One casita's turn gate plus its mirror of the durable topic row.
 
-    ``seen`` records that this process already spoke to the casita's session, so
-    caller-replayed history is folded only into the turn that OPENS it. AIRE's
-    memory survives OUR restarts, so a fold repeated after a restart can still
-    duplicate context the session already holds — accepted edge until AIRE grows
-    a session-exists probe (named in the stage-2 backlog).
+    ``lock`` is why both live in one object: choosing the TOPIC, running the
+    turn and marking it answered must all happen under it. Without it two
+    near-simultaneous messages in one Discord channel could both believe they
+    open the session and BOTH fold the whole replayed history into their
+    message. AIRE serializes execution with a per-session lock, so nothing
+    crashes — the session simply ends up holding the conversation twice, and
+    those tokens are paid twice. This is the same invariant api/turn.py states
+    as "only under the lock does 'not open' mean THIS turn opens the session";
+    holding it also serializes same-channel turns runner-side, which matches the
+    local path and is what AIRE would do anyway.
 
-    ``lock`` is why both live in one object: the freshness read, the turn and
-    the mark must all happen under it. Without it two near-simultaneous messages
-    in one Discord channel BOTH read ``seen == False`` and BOTH fold the whole
-    replayed history into their message. AIRE serializes execution with a
-    per-session lock, so nothing crashes — the session simply ends up holding
-    the conversation twice, and those tokens are paid twice. This is the same
-    invariant api/turn.py states as "only under the lock does 'not open' mean
-    THIS turn opens the session"; holding it also serializes same-channel turns
-    runner-side, which matches the local path and is what AIRE would do anyway.
+    The topic decision belongs INSIDE this lock for the same reason: two
+    messages arriving together must land in ONE topic, never fork it.
+
+    ``topic`` is a MIRROR, never the source. The topic id and the
+    already-answered bit are durable (``aire_topic``); this copy only serves the
+    Postgres-is-down fallback and vetoes a second history fold when a
+    ``mark_answered`` write is lost. The old in-RAM ``seen`` bit it replaces was
+    the reason a restart re-folded history — that is now decided by the row.
     """
 
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
-    seen: bool = False
+    topic: aire_topic.TopicMemory = field(default_factory=aire_topic.TopicMemory)
 
 
 # One entry per (persona, channel) EVER served, each carrying an asyncio.Lock —
 # so this dict is heavier than the plain string set it replaces and cannot be
 # left to grow forever: a gateway that meets 50k distinct channels would hold
 # 50k locks it can never drop. The cap evicts the least-recently-used IDLE entry
-# (never one whose lock is held). The only thing an eviction costs is the `seen`
-# bit, i.e. that casita's next turn folds history once more — exactly the
-# bounded duplication a runner restart already causes today.
+# (never one whose lock is held). An eviction costs nothing but the topic MIRROR
+# — the topic id and its answered bit live in Postgres, so the evicted casita's
+# next turn re-reads exactly what it had.
 _CASITA_STATE_MAX = int(os.environ.get("AIRE_CASITA_STATE_MAX", "4096"))
 _casita_state: OrderedDict[str, CasitaState] = OrderedDict()
 
 
-def casita_state(session_key: str) -> CasitaState:
-    """This casita's gate + freshness bit, created on first use.
+def casita_state(casita: str) -> CasitaState:
+    """This casita's gate + topic mirror, created on first use.
+
+    Keyed by the CASITA, not by casita+session: the session is now the topic and
+    the topic is chosen under this very lock, so a key that carried it would have
+    to be known before the thing it decides.
 
     Creation is a single synchronous step (no await between the miss and the
     insert), exactly like ``session_pool.slot_lock``'s ``setdefault`` — so two
     coroutines can never walk away holding two different locks for one casita,
     which would reopen the very race the lock closes.
     """
-    state = _casita_state.get(session_key)
+    state = _casita_state.get(casita)
     if state is None:
         state = CasitaState()
-        _casita_state[session_key] = state
+        _casita_state[casita] = state
         _evict_cold_casitas()
-    _casita_state.move_to_end(session_key)
+    _casita_state.move_to_end(casita)
     return state
 
 
@@ -396,17 +409,61 @@ def to_http_error(exc: BackendError) -> HTTPException:
     return HTTPException(status, f"{_STATUS_PREFIX[status]}: {str(exc)[:200]}")
 
 
+def log_topic_decision(casita: str, claim: aire_topic.TopicClaim) -> None:
+    """Announce a topic boundary as its OWN event.
+
+    A rollover is a context reset: the channel's next answer is written by an
+    agent whose transcript is empty. That is exactly the kind of thing this repo
+    has been bitten by when it happened silently (a capability quietly not
+    happening, 2026-06-14), so it gets a line of its own rather than a field
+    buried in the turn line — grep-able, countable, and carrying the idle gap
+    that caused it plus the cold-start it costs.
+
+    The first topic a casita ever gets is an OPENING, not a rollover: nothing was
+    reset, so it must not be counted as a reset.
+    """
+    if claim.rolled_over:
+        log.info(
+            "aire_route_topic_rolled_over",
+            casita=casita,
+            topic=claim.topic_id,
+            previous_topic=claim.previous_topic_id,
+            idle_s=int(claim.idle_s),
+            window_s=int(config.AIRE_TOPIC_IDLE_TIMEOUT_S),
+            durable=claim.durable,
+            cost="cold AIRE session: the persona system prompt is cache-created again",
+        )
+    elif claim.opened:
+        log.info(
+            "aire_route_topic_opened",
+            casita=casita,
+            topic=claim.topic_id,
+            durable=claim.durable,
+        )
+    if not claim.durable:
+        # The decision was made in RAM because Postgres was unreachable. Say so
+        # on every turn it happens: while this is true a restart forks the topic,
+        # which is precisely the failure the durable row exists to prevent.
+        log.warning(
+            "aire_route_topic_not_durable",
+            casita=casita,
+            topic=claim.topic_id,
+            detail="topic decided from this process's memory; a restart now would fork the topic",
+        )
+
+
 async def turn_via_aire(req: TurnRequest) -> TurnResponse:
     """One persona turn through AIRE's engine door (the TURN_BACKEND=aire path).
 
-    The whole decide → turn → mark window runs under the casita's lock, so
-    "first turn" can only be true for the turn that actually opens the session
-    (see ``CasitaState``). Two messages landing together in one channel are
-    serialized here, exactly as api/turn.py serializes them on the local path.
+    The whole decide-topic → turn → mark window runs under the casita's lock, so
+    "first turn of this topic" can only be true for the turn that actually opens
+    it (see ``CasitaState``), and two messages landing together in one channel
+    land in ONE topic. They are serialized here, exactly as api/turn.py
+    serializes them on the local path.
     """
     base_id = base_persona_id(req.persona_id)
     casita = chat_casita_for(base_id, req.channel_id)
-    state = casita_state(f"{casita}/{SESSION_NAME}")
+    state = casita_state(casita)
     async with state.lock:
         return await _run_turn(req, base_id, casita, state)
 
@@ -416,7 +473,14 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     from persona_runner.engine.session_pool import _route_model
 
     start = time.monotonic()
-    is_first_turn = not state.seen
+    # The topic decision is the first thing under the lock: it names the AIRE
+    # session this turn addresses AND decides whether the caller's replayed
+    # history has to be folded in. `needs_fold` is "AIRE's session for this topic
+    # is empty", which is what `is_first_turn` has to mean now that a casita
+    # outlives many sessions.
+    claim = await aire_topic.claim(casita, state.topic)
+    log_topic_decision(casita, claim)
+    is_first_turn = claim.needs_fold
 
     model, route_meta = await _route_model(req.channel_id, req.user_id, req.user_text)
     memory_block = await fetch_user_facts(req.user_id)
@@ -446,7 +510,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             mcp_servers=[],
             tool_policy=_default_policy,
             model=model,
-            session_id=SESSION_NAME,
+            session_id=claim.topic_id,
             images=images or None,
         )
     except BackendError as exc:
@@ -455,6 +519,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             channel_id=req.channel_id,
             user_id=req.user_id,
             casita=casita,
+            topic=claim.topic_id,
             error=str(exc)[:300],
             elapsed_ms=int((time.monotonic() - start) * 1000),
         )
@@ -462,9 +527,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     finally:
         _chat_casita.reset(token)
 
-    # Only a turn that SUCCEEDED marks the session spoken-to: a failed one never
+    # Only a turn that SUCCEEDED marks the topic answered: a failed one never
     # reached AIRE's memory, so the next attempt must still fold the history.
-    state.seen = True
+    await aire_topic.mark_answered(casita, claim.topic_id, state.topic)
     usage = result.usage or {}
     if model_diverged(model, result.model):
         log.warning(
@@ -481,6 +546,12 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         channel_id=req.channel_id,
         user_id=req.user_id,
         casita=casita,
+        # The topic is part of every turn line on purpose: a casita outlives many
+        # sessions now, so "which casita" no longer identifies which transcript
+        # answered. Without this, a rollover would be invisible in the turn log.
+        topic=claim.topic_id,
+        topic_rolled_over=claim.rolled_over,
+        topic_state="durable" if claim.durable else "ram",
         text_len=len(result.text),
         tool_calls=len(result.tool_calls),
         tool_names=[tc.name for tc in result.tool_calls],
