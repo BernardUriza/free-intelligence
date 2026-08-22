@@ -1,6 +1,6 @@
 # Borrar una conversación debe borrar su sesión nativa del session store
 
-Status: Proposed
+Status: **Done** (2026-08-22) — cascada en las DOS superficies de borrado
 Proposed: 2026-07-13 by Claude (hallazgo del E2E de PR #358/#359)
 
 ## What it is
@@ -59,3 +59,38 @@ Las dos mitades del cableado ya existen y están sin usar:
 de `og118-backend.yml` es no-op sin él), así que hoy en producción el huérfano
 puede no existir todavía. Eso baja la urgencia, **no** cierra la tarjeta: el día
 que se prenda el DSN, el hueco se estrena con toda la historia acumulada.
+
+## Cerrado 2026-08-22
+
+La primitiva subió al framework, no se quedó en el consumidor — que era
+justamente la duda abierta de esta tarjeta ("*decidir si pertenece al
+framework*"). Borrar una sesión por su id es capacidad de fi-runner; og118 es el
+canario.
+
+- `ClaudeCodeBackend.forget_session(session_id)` — pública como `has_session`.
+  **Dos mitades:** expulsa el cliente del pool **y luego** borra las filas del
+  store. La expulsión no es cosmética: un cliente vivo vuelve a escribir las
+  filas en su siguiente turno, así que borrar sólo el store deja la memoria viva
+  detrás de un nombre que el que llamó cree muerto. Corre incluso sin store.
+- `Runner.forget_session()` lo duck-typea como `_fold_history` duck-typea
+  `has_session`: un backend sin memoria nativa contesta `False` y el borrado del
+  consumidor queda byte-idéntico.
+
+**La decisión del dueño se tomó como best-effort con log fuerte**, coherente con
+la degradación del lifespan: un Postgres muerto no puede convertir "borra mi
+chat" en un 500 — el record ya se fue y al que llamó se le debe esa respuesta.
+Lo que sí tiene prohibido es fallar en silencio, porque el residuo es un
+transcript entero que ya nadie alcanza.
+
+Las **dos** superficies quedaron cubiertas: `DELETE /conversations/{id}` y el
+borrado en bloque `DELETE /conversations`, que lee los ids **antes** del clear
+porque después no queda de dónde derivarlos.
+
+Tests: 6 en `fi-runner/tests/test_forget_session.py` + 3 en
+`og118/server/tests/test_conversation_delete_cascade.py`. Los dos juegos se
+probaron **en rojo** por mutación (quitar la expulsión del pool; quitar la
+cascada del borrado en bloque) antes de darlos por buenos.
+
+**Lo que queda y NO se hizo aquí:** la retención/TTL para sesiones cuyo chat ya
+no existe — o sea, los huérfanos que este bug ya dejó atrás. Esta tarjeta cierra
+la fuga; no limpia el charco.

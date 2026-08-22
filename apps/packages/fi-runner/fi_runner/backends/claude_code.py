@@ -353,6 +353,36 @@ class ClaudeCodeBackend:
         entries = await self.session_store.load(self.session_key(session_id))
         return bool(entries)
 
+    async def forget_session(self, session_id: str) -> bool:
+        """Erase a session's native transcript, and evict its pooled client first.
+
+        The store is only half the session. A live client in the pool still holds
+        that session open, and its next turn would write the rows straight back —
+        so deleting the transcript without evicting leaves the memory alive behind
+        a name the caller believes is gone. Both halves happen here, eviction
+        first, and the eviction runs even with no store wired (the pool is a hot
+        cache of a session the caller just declared dead).
+
+        Returns whether the STORE was touched: ``False`` with no store wired means
+        there was never a durable transcript to erase, not that the call failed.
+
+        PUBLIC on purpose, exactly like ``has_session``: a consumer cascading its
+        own delete duck-types this instead of reaching into the SDK and
+        re-deriving the key.
+        """
+        async with self._pool_lock:
+            client = self._pool.pop(session_id, None)
+            self._session_locks.pop(session_id, None)
+        if client is not None:
+            try:
+                await client.__aexit__(None, None, None)
+            except Exception:  # noqa: BLE001 - best-effort teardown
+                pass
+        if self.session_store is None:
+            return False
+        await self.session_store.delete(self.session_key(session_id))
+        return True
+
     async def _client_for(self, session_id: str, options_for: Any) -> Any:
         """The pooled client for a session — rebuilt from the STORE on a miss.
 
