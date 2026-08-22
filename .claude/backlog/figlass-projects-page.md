@@ -1,6 +1,6 @@
 # FIGLASS-PROJECTS-PAGE-1 — Projects como PÁGINA (paridad claude.ai), primitivas en fi-glass
 
-Status: **Done** (fase 1) — los tres PRs entregados el 2026-08-22 y medidos en Chrome; queda fase 2 (composer en la página, instructions cableadas, pin/archive)
+Status: **Done** (fase 1 + instructions cableadas) — 2026-08-22; queda el composer en la página y pin/archive
 Proposed: 2026-07-14 by Bernard ("quiero que sea una página, muy parecido a como
 sucede en claude.ai, que se ven recuadros con contenido y todo ese spa")
 
@@ -338,3 +338,53 @@ core **93**, fi-glass **550**, og118-web **78**; `check:og118-css` al día;
 estático. Mutaciones en rojo: el sello del proyecto convertido en "siempre el
 activo", el `??` que yo mismo había escrito mal, `summarize` sin `projectId`, el
 mínimo táctil quitado del buscador y de las migas.
+
+## Fase 2a — `instructions` cableadas al prompt (2026-08-22)
+
+El campo llevaba dos PRs guardado y editable **sin que nadie lo leyera**. Ya no.
+
+**No se inventó una capa.** El Runner tiene UNA costura por turno
+(`context_prompt`) y los runners están cacheados por elemento, así que meter las
+instrucciones en la persona habría sido la capa equivocada: se re-armaría el
+runner por proyecto y se invalidaría la caché.
+
+- `owner_instructions_binding()` en fi-runner, con su texto en
+  `prompts/owner_instructions_binding.md` (P0: los prompts son contenido).
+- `compose_bindings()`, porque el Runner sostiene **un** `context_prompt` y ya
+  había otro (`active_corpus_binding`). Junta los addenda y **contiene el fallo
+  de uno**: el Runner trata un `context_prompt` que truena como "sin addendum
+  ninguno", así que sin esto una excepción en un binding borraría en silencio el
+  binding del corpus y el agente dejaría de buscar en el proyecto.
+- Orden: corpus primero, dueño al final — lo del dueño queda más cerca del
+  mensaje del usuario.
+
+**El texto va ENMARCADO, no concatenado.** El modelo no tiene otra forma de
+distinguir las palabras del dueño de las del framework, y un párrafo que abra
+con "ignora lo anterior" se leería como si lo hubiera dicho el sistema. La
+plantilla dice de quién es, lo cerca entre marcadores y declara que está
+subordinado a las reglas de seguridad y a la tool policy.
+
+**De dónde salen es lo que importa: del REGISTRY, jamás del request.** Un cliente
+que pudiera mandar su propio texto se estaría entregando a sí mismo un system
+prompt. `ChatRequest` no tiene ese campo y pydantic tira los extras; la única vía
+es `PATCH /projects/{id}`, que exige propiedad. Hay test para las dos mitades.
+
+**Tope de 4000 caracteres**, en dos capas: fi-runner **trunca** (el dueño
+conserva el principio de lo que escribió, nunca se le quita todo en silencio) y
+og118 **rechaza antes** con `INSTRUCTIONS_TOO_LONG`, porque un documento pegado
+empuja la persona y los guards al borde de la ventana, que es donde los modelos
+empiezan a soltarlos.
+
+**Y recién ahora se shippeó el editor.** Estuvo fuera a propósito mientras el
+campo sólo se guardaba; un editor para un ajuste que el agente ignora es una
+promesa que el producto no cumple.
+
+### Verificación
+
+fi-runner **325**, og118 **211**, fenix **68**, og118-web **78**. Medido en
+Chrome a 390/374/320 en los dos estados del panel: cero overflow, cero scroll
+horizontal, cero controles bajo 44px — y de paso cazó el `input` del nombre en
+42px, que la medición del PR 3 no vio porque nunca abrió el estado de edición.
+
+Mutaciones en rojo: el combinador sin contención · el truncado quitado · el
+context leyendo del request en vez del registry · el tope del PATCH quitado.

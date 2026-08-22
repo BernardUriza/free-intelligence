@@ -7,11 +7,11 @@
  * new one. Rail: the knowledge panel — capacity meter over the document grid,
  * both from the single `/projects/{id}/documents` response.
  *
- * NO Instructions panel in this phase, on purpose. The field is stored and
- * editable through the API, but NOTHING consumes it yet — the turn does not read
- * it. An editor for a field the agent ignores is a promise the product cannot
- * keep, so it stays out until the prompt layering is wired (the owner's open
- * decision on this card).
+ * The Instructions panel is here now that the turn actually READS the field: it
+ * rides the system prompt of every turn in this project (fi-runner's
+ * `owner_instructions_binding`). It was deliberately absent while the field was
+ * only stored — an editor for a setting the agent ignores is a promise the
+ * product cannot keep.
  */
 
 import { useEffect, useState } from 'react';
@@ -29,6 +29,9 @@ import { useOg118ProjectDocuments } from '@/lib/useOg118ProjectDocuments';
 import { useOg118ProjectConversations } from '@/lib/useOg118ProjectConversations';
 import { relativeTime } from '@/lib/og118RelativeTime';
 
+/** Mirrors fi-runner's MAX_OWNER_INSTRUCTIONS_CHARS: past it the server 422s. */
+const MAX_INSTRUCTIONS = 4000;
+
 export interface Og118ProjectWorkspaceProps {
   project: Og118Project;
   tokenReady: boolean;
@@ -37,6 +40,7 @@ export interface Og118ProjectWorkspaceProps {
   onStartConversation: () => void;
   onRename: (name: string) => Promise<void>;
   onDescribe: (description: string) => Promise<void>;
+  onInstruct: (instructions: string) => Promise<void>;
   now?: number;
 }
 
@@ -48,6 +52,7 @@ export function Og118ProjectWorkspace({
   onStartConversation,
   onRename,
   onDescribe,
+  onInstruct,
   now,
 }: Og118ProjectWorkspaceProps) {
   const docs = useOg118ProjectDocuments(project.id, tokenReady);
@@ -66,6 +71,7 @@ export function Og118ProjectWorkspace({
         railLabel="Conocimiento del proyecto"
         rail={
           <RailPanelStack>
+            <InstructionsPanel project={project} onInstruct={onInstruct} />
             <RailPanel title="Contexto">
               {!docs.ready ? (
                 <p className="og-projects-note">Leyendo el corpus…</p>
@@ -227,4 +233,88 @@ function ProjectHeading({
 
 function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : many;
+}
+
+
+function InstructionsPanel({
+  project,
+  onInstruct,
+}: {
+  project: Og118Project;
+  onInstruct: (instructions: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(project.instructions);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(project.instructions);
+  }, [project.instructions, editing]);
+
+  if (!editing) {
+    return (
+      <RailPanel
+        title="Instrucciones"
+        actionSlot={
+          <button type="button" className="og-projects-edit" onClick={() => setEditing(true)}>
+            {project.instructions ? 'Editar' : 'Añadir'}
+          </button>
+        }
+      >
+        <p className="og-projects-note og-projects-instructions-preview">
+          {project.instructions ||
+            'Sin instrucciones. Lo que escribas aquí viaja en cada turno de este proyecto.'}
+        </p>
+      </RailPanel>
+    );
+  }
+
+  return (
+    <RailPanel title="Instrucciones">
+      <form
+        className="og-projects-instructions-form"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setError(null);
+          try {
+            await onInstruct(draft);
+            setEditing(false);
+          } catch {
+            // The server enforces the same ceiling and answers 422. Saying so
+            // beats a silent no-op that looks like the save worked.
+            setError('No se pudo guardar. Revisa que no pase de 4000 caracteres.');
+          }
+        }}
+      >
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={6}
+          maxLength={MAX_INSTRUCTIONS}
+          aria-label="Instrucciones del proyecto"
+          placeholder="Ej.: Contesta en español, corto, y cita siempre el documento del que sacaste el precio."
+        />
+        <p className="og-projects-note">
+          {draft.length}/{MAX_INSTRUCTIONS} · viajan en el prompt de cada turno de este proyecto
+        </p>
+        {error ? <p className="og-projects-note og-projects-error">{error}</p> : null}
+        <div className="og-projects-heading-actions">
+          <button type="submit" className="og-projects-cta">
+            Guardar
+          </button>
+          <button
+            type="button"
+            className="og-projects-edit"
+            onClick={() => {
+              setDraft(project.instructions);
+              setError(null);
+              setEditing(false);
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </RailPanel>
+  );
 }

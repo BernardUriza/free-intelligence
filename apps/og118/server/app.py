@@ -33,6 +33,7 @@ from fi_runner.auth import (
     legacy_principal,
     make_auth_dependency,
 )
+from fi_runner import MAX_OWNER_INSTRUCTIONS_CHARS
 from fi_runner.rag_store import RagStoreClient
 from conversations import ConversationStore, valid_conversation_id
 from projects import ProjectRegistry
@@ -631,7 +632,7 @@ async def chat_stream(
             yield _sse({"type": "done"})
             return
         try:
-            context = {"corpus_id": req.corpus_id} if req.corpus_id else None
+            context = _turn_context(req.corpus_id, registry)
             images = [i.model_dump() for i in req.images] if req.images else None
             async for event in _with_heartbeat(
                 runner.run_stream(
@@ -863,6 +864,23 @@ async def update_project(
     registry: ProjectRegistry = Depends(get_project_registry),
 ) -> dict:
     """Edit name / description / instructions. Omitted field = untouched."""
+    # `instructions` becomes part of the SYSTEM PROMPT of every turn in this
+    # project, so its length is not cosmetic: a pasted document pushes the
+    # persona and the guards toward the edge of the context window, where models
+    # start dropping them. fi-runner truncates as its last line of defense; the
+    # product refuses first, and says why, instead of silently keeping half of
+    # what the owner wrote.
+    if req.instructions is not None and len(req.instructions) > MAX_OWNER_INSTRUCTIONS_CHARS:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "INSTRUCTIONS_TOO_LONG",
+                "message": (
+                    f"las instrucciones no pueden pasar de {MAX_OWNER_INSTRUCTIONS_CHARS} "
+                    "caracteres; viajan en el prompt de cada turno"
+                ),
+            },
+        )
     project = registry.update(
         project_id,
         principal.sub,
@@ -1098,6 +1116,34 @@ async def put_conversation(
         )
     store.put(principal.sub, payload)
     return {"id": conversation_id}
+
+
+def _turn_context(corpus_id: str | None, registry: ProjectRegistry) -> dict | None:
+    """The per-turn context bound into the system prompt.
+
+    `corpus_id` says WHERE the agent looks; the project's `instructions` say HOW
+    the owner wants it to answer inside that workspace.
+
+    The instructions are read from the REGISTRY, never from the request. A client
+    that could send its own instruction text would be handing itself a system
+    prompt — the whole point is that this is the owner's standing configuration,
+    and the only way to change it is `PATCH /projects/{id}`, which enforces
+    ownership. Ownership of `corpus_id` itself was already validated before the
+    stream opened, so by here the project is the caller's.
+
+    A project that vanished between the check and this read (deleted from another
+    device mid-turn) yields no instructions rather than an error: the turn is
+    already in flight and a missing addendum is a smaller failure than a dropped
+    answer.
+    """
+    if not corpus_id:
+        return None
+    context: dict = {"corpus_id": corpus_id}
+    project = registry.get(corpus_id)
+    instructions = (project or {}).get("instructions", "")
+    if instructions:
+        context["instructions"] = instructions
+    return context
 
 
 async def _forget_native_session(conversation_id: str) -> None:

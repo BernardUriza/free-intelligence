@@ -782,10 +782,39 @@ body {
 @media (pointer: coarse), (max-width: 768px) {
   .og-projects-cta,
   .og-projects-edit,
-  .og-projects-sort select {
+  .og-projects-sort select,
+  .og-projects-heading--editing input,
+  .og-projects-heading--editing textarea,
+  .og-projects-instructions-form textarea {
     min-height: 44px;
   }
   .og-projects-heading {
     flex-wrap: wrap;
   }
+}
+
+.og-projects-instructions-preview {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.og-projects-instructions-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.og-projects-instructions-form textarea {
+  /* 16px: por debajo, iOS hace auto-zoom al enfocar. */
+  font-size: 16px;
+  color: var(--glass-chat-text, #e2e8f0);
+  background: var(--glass-chat-bg-mid, #0f172a);
+  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+}
+.og-projects-error {
+  color: var(--og-danger-text, #fca5a5);
 }
