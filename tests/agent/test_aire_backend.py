@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from persona_runner.engine.aire_backend import AIREBackend, BackendError, ToolPolicy
+from persona_runner.engine.aire_backend import AIREBackend, AIREDoorError, BackendError, ToolPolicy
 
 
 class _Response:
@@ -202,3 +202,61 @@ def test_turn_tools_dedupes_while_keeping_order():
         name = "memory"
 
     assert backend._turn_tools([_Spec()]) == ["persona", "memory"]
+
+
+# --- ADAPTATION 5: AIRE's error CODE survives as data, not as prose ----------
+
+
+@pytest.mark.asyncio
+async def test_an_sse_error_carries_aires_code_as_an_attribute():
+    """The consumer must be able to classify terminal-vs-backpressure on the
+    datum AIRE emits. Formatting the code into the message and dropping it is
+    what forced substring matching, which a rewording silently defeats."""
+    http = _FakeHTTP(lines=_sse({"error": "budget_exhausted", "detail": "cut"}))
+    backend = _backend(http)
+
+    with pytest.raises(AIREDoorError) as caught:
+        await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
+
+    assert caught.value.code == "budget_exhausted"
+    assert isinstance(caught.value, BackendError), "every existing `except BackendError` must still catch it"
+
+
+@pytest.mark.asyncio
+async def test_a_typeless_backpressure_payload_also_keeps_its_code():
+    """ADAPTATION 3's type-less payloads (`slot_busy` rides the SSE data with no
+    `type` key) reach the consumer classified, not as a bare torn stream."""
+    http = _FakeHTTP(lines=_sse({"error": "slot_busy", "detail": "all 2 slots busy"}))
+    backend = _backend(http)
+
+    with pytest.raises(AIREDoorError) as caught:
+        await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
+
+    assert caught.value.code == "slot_busy"
+
+
+@pytest.mark.asyncio
+async def test_an_http_door_failure_keeps_its_status():
+    """A door that failed before speaking its protocol has no code — it carries
+    the HTTP status instead, so backpressure is still distinguishable."""
+    http = _FakeHTTP(lines=[])
+    http.stream = lambda *_a, **_k: _Response(status_code=503, text="busy")
+    backend = _backend(http)
+
+    with pytest.raises(AIREDoorError) as caught:
+        await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
+
+    assert caught.value.code is None and caught.value.http_status == 503
+
+
+@pytest.mark.asyncio
+async def test_a_torn_stream_stays_an_uncoded_failure():
+    """RESISTANCE: no result event is a real failure with NO code to invent —
+    the consumer must fall back, not read a fabricated classification."""
+    http = _FakeHTTP(lines=_sse({"type": "text", "text": "hola"}))
+    backend = _backend(http)
+
+    with pytest.raises(BackendError) as caught:
+        await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
+
+    assert getattr(caught.value, "code", None) is None
