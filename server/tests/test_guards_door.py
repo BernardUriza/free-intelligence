@@ -14,7 +14,7 @@ from fastapi import HTTPException
 
 from aire.engine.contract import GuardOutcome
 from aire.engine.guard_exec import observe
-from aire.intake import safe_guards
+from aire.intake import build_guards, safe_guard_names
 from aire.messages import _guards_event
 
 
@@ -34,13 +34,13 @@ class Quiet:
 
 
 def test_no_guards_field_costs_nothing():
-    assert safe_guards(None) == [] and safe_guards([]) == []
+    assert safe_guard_names(None) == [] and safe_guard_names([]) == []
 
 
 def test_the_wire_cannot_define_a_guard_at_the_door():
     for hostile in ([{"command": "rm -rf /"}], ["nope"], "antidrift", [7]):
         with pytest.raises(HTTPException) as exc:
-            safe_guards(hostile)
+            safe_guard_names(hostile)
         assert exc.value.status_code == 422
 
 
@@ -55,14 +55,14 @@ def test_absent_backing_is_a_503_with_a_reason_never_an_empty_list(monkeypatch):
 
     monkeypatch.setattr("aire.intake.resolve", missing)
     with pytest.raises(HTTPException) as exc:
-        safe_guards(["antidrift"])
+        build_guards(["antidrift"])
     assert exc.value.status_code == 503
     assert "ModuleNotFoundError" in exc.value.detail
 
 
 def test_a_present_backing_passes_the_built_guards_through(monkeypatch):
     monkeypatch.setattr("aire.intake.resolve", lambda names: [Quiet() for _ in names])
-    built = safe_guards(["antidrift"])
+    built = build_guards(["antidrift"])
     assert len(built) == 1 and built[0].name == "quiet"
 
 
@@ -91,3 +91,18 @@ def test_the_event_is_json_serializable_so_it_can_reach_the_wire():
 def test_a_result_without_text_does_not_crash_the_stream():
     ev = _guards_event([Quiet()], {"result": None}, "hola")
     assert json.loads(ev.data)["findings"]["quiet"]["level"] == "ok"
+
+
+def test_a_bad_shape_is_refused_before_the_backing_is_ever_consulted(monkeypatch):
+    """The ordering the live door exposed: validating names must not touch
+    `resolve`. If it did, a caller on a box without the backing would be told the
+    backing is missing when their REQUEST is what is wrong — and the same call
+    would answer differently on another box."""
+    def never(_names):
+        raise AssertionError("resolve must not run while validating names")
+
+    monkeypatch.setattr("aire.intake.resolve", never)
+    assert safe_guard_names(["antidrift"]) == ["antidrift"]
+    with pytest.raises(HTTPException) as exc:
+        safe_guard_names(["pwn"])
+    assert exc.value.status_code == 422

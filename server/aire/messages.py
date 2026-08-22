@@ -23,8 +23,8 @@ from .engine import BudgetExceeded, SlotBusy, TurnSpec
 from .engine.contract import Guard
 from .engine.drain import turn_cost
 from .engine.guard_exec import observe
-from .intake import (safe_guards, safe_images, safe_mode, safe_model,
-                     safe_names, safe_tools)
+from .intake import (build_guards, safe_guard_names, safe_images, safe_mode,
+                     safe_model, safe_names, safe_tools)
 
 router = APIRouter()
 
@@ -38,19 +38,22 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     spec = TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
                     model=safe_model(body.get("model")))
     images = safe_images(body.get("images"))
-    guards = safe_guards(body.get("guards"))
+    guard_names = safe_guard_names(body.get("guards"))
     # An empty turn spends real money for nothing, so the edge cuts it. An
     # image-only send IS a turn (#29 gap 4): the picture is the message.
     if not message and not images:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
-        if guards:
+        if guard_names:
             # A guard's whole output is a stream event. A detached turn has no
             # stream, so honouring `guards` here would build them and discard
-            # their findings — a request accepted and silently ignored.
+            # their findings — a request accepted and silently ignored. Checked
+            # BEFORE building: the shape of the request is the caller's problem
+            # and answers the same on every box; a missing backing is neither.
             raise HTTPException(status_code=422, detail="guards need a stream; drop `background`")
         return await _launch_background(project, session, message, spec, images, holder)
+    guards = build_guards(guard_names)
     return EventSourceResponse(_events(project, session, message, spec, images, holder, guards))
 
 

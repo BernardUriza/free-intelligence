@@ -66,15 +66,24 @@ def safe_images(raw: Any) -> tuple[dict[str, str], ...]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def safe_guards(raw: Any) -> list[Guard]:
-    """Validate AND BUILD the `guards` field here, at the edge, before a dollar is
-    spent. Building early is deliberate: a guard imports its backing lazily, so a
-    missing one would otherwise surface mid-turn as findings that never arrive —
-    a request accepted and quietly unserved. The caller learns now, for free."""
+def safe_guard_names(raw: Any) -> list[str]:
+    """The `guards` field as validated NAMES — the cheap, deterministic half.
+
+    Separate from building on purpose: a request whose SHAPE is wrong (a spec
+    instead of a name, guards on a detached turn) must be refused before anything
+    environmental is consulted. Otherwise a caller on a box without the backing
+    gets told the backing is missing when the real problem is their request, and
+    the same call would answer differently on another box."""
     try:
-        names = clean_guards(raw)
+        return clean_guards(raw)
     except UnknownGuard as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def build_guards(names: list[str]) -> list[Guard]:
+    """The vetted guards, built HERE at the edge before a dollar is spent. A guard
+    imports its backing lazily, so a missing one would otherwise surface mid-turn
+    as findings that never arrive — a request accepted and quietly unserved."""
     try:
         return resolve(names)
     except Exception as exc:  # noqa: BLE001 — the backing is absent; not the caller's fault
