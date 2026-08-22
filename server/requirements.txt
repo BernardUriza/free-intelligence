@@ -4,4 +4,3 @@ uvicorn[standard]
 sse-starlette
 claude-agent-sdk
 asyncpg
-mistune

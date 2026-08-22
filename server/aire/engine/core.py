@@ -139,10 +139,6 @@ class Engine:
                 pass
         await self._drop(key)
 
-    async def load_transcript(self, project: str, session: str) -> list[dict[str, Any]]:
-        """What the agent remembers — lives in Postgres, not the HTTP connection."""
-        return await self.session_store.load(self.session_key(project, session)) or []
-
     async def aclose(self) -> None:
         async with self.pool.guard:
             await self.pool.close_all()

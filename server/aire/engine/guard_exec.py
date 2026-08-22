@@ -112,9 +112,6 @@ def guard_level(metadata: dict[str, Any]) -> str:
     return metadata.get("level") or metadata.get("severity") or "ok"
 
 
-UNENFORCED = ("text_override", "retry")
-
-
 def observe(guards: list[Guard], text: str, user_message: str,
             request_id: str | None = None) -> dict[str, Any]:
     """The OBSERVATIONAL contract: run the guards, report what they found, and
