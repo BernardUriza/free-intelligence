@@ -1,6 +1,6 @@
 # FIGLASS-PROJECTS-PAGE-1 — Projects como PÁGINA (paridad claude.ai), primitivas en fi-glass
 
-Status: **In progress** — los 4 huecos del contrato del server CERRADOS (2026-08-22); faltan las primitivas de fi-glass y las rutas de og118
+Status: **In progress** — contrato del server (PR 1) y primitivas de fi-glass (PR 2) CERRADOS el 2026-08-22; falta el PR 3, las rutas de og118
 Proposed: 2026-07-14 by Bernard ("quiero que sea una página, muy parecido a como
 sucede en claude.ai, que se ven recuadros con contenido y todo ese spa")
 
@@ -194,3 +194,80 @@ records legacy. Suites: og118 **202**, fi-runner **306**, fenix **68**.
 (2) PR fi-glass — las primitivas con tests; (3) PR og118 — rutas y wiring. Y
 las dos decisiones del dueño siguen abiertas: si el índice reemplaza la sección
 del sidebar o conviven, y si `instructions` se cablea en fase 1.
+
+## PR 2 de 3 — las primitivas de fi-glass (2026-08-22)
+
+Viven en `apps/packages/fi-glass/src/resource/`, exportadas por la raíz y por el
+subpath `fi-glass/resource`. Se construyeron en el orden que esta tarjeta pidió:
+primero el framework, después el consumidor.
+
+| Primitiva | Qué es |
+|---|---|
+| `ResourceIndexHeader` | título + slot de orden + slot de CTA (§A.1) |
+| `ResourceSearchInput` + `filterByQuery` | la búsqueda full-width y su regla de match (§A.2) |
+| `ResourceCardGrid` + `ResourceCard` | el grid semántico y la card (§A.3–A.4) |
+| `WorkspaceDetailLayout` | el split main + rail de 352px, que APILA en móvil (§B.3) |
+| `RailPanelStack` + `RailPanel` | el rail de secciones con divisores (§B.5) |
+| `CapacityMeter` | la barra de capacidad (§B.5 Context) |
+| `DocCard` + `DocCardGrid` | la mini-card de documento y su grid (§B.5) |
+| `WorkspaceBreadcrumb` | §B.1 — se verificó primero que `AgentWorkspaceShell` no diera el slot (Art. 6); no lo da |
+
+### Las decisiones que se tomaron construyendo
+
+- **`CapacityMeter` se niega a dibujar una barra cuando `max == null`.** No
+  existe un porcentaje de "ilimitado". Le pasa `null` al render del label para
+  que el consumidor escriba palabras reales en vez de una fracción contra un
+  techo inventado — es la misma honestidad que el contrato del server, y
+  inventarla aquí la lavaría de vuelta a un número. `max === 0` **no** es
+  ilimitado: no cabe nada, así que es 100%.
+- **`ResourceCard` es un `<a>` de verdad cuando recibe `href`**, y un `<button>`
+  si no. No es cosmético: un link real se abre en pestaña nueva, se clickea con
+  el botón de en medio y muestra su destino — todo lo que un div-con-onClick
+  tira a la basura.
+- **Los grids son `<ul>`/`<li>` con nombre accesible**, para que un lector de
+  pantalla pueda contar y recorrer.
+- **Los divisores del rail salen de una regla de adyacencia en CSS**, no de un
+  prop: al primer panel nunca se le pregunta si es el primero.
+- **El rail APILA bajo la columna principal** bajo el breakpoint canónico
+  (`FI_MOBILE_QUERY`, no un literal retecleado): un rail de 352px al lado de una
+  conversación en un teléfono de 390px no deja ninguna de las dos usable.
+- **`filterByQuery` pliega acentos**: escribir "papeleria" tiene que encontrar
+  "Papelería". Un `includes` ingenuo le contesta "sin resultados" a una búsqueda
+  obviamente correcta.
+
+### El guard que hace cumplir la regla dura de esta tarjeta
+
+`noProductNouns.test.ts` lee el código del módulo y falla si aparece
+`project`/`proyecto`/`conversation`/`chat`/`corpus` en la API. La regla estaba
+escrita sólo en prosa, y una regla que sólo vive en prosa se va: el primer
+`newProjectLabel` metido con prisa pasaría review porque nada lo revisa.
+
+**La primera versión del guard no servía y la mutación lo probó:** usaba `\b`, y
+`newProjectLabel` no tiene frontera de palabra antes de `Project`, así que el
+prop exacto que el guard existe para rechazar pasaba en verde. Ahora matchea
+substring. Los tokens `--glass-chat-*` se excluyen antes de revisar: son el
+namespace de diseño del propio framework, y un guard que los marcara se
+desactivaría por ruido en una semana.
+
+### Verificación
+
+**57 tests** en `src/resource/` (545 en fi-glass completo), typecheck limpio,
+`pnpm build` regenerado con el `dist/` **commiteado** (per
+[[committed-dist-artifacts]] — este paquete publica su build), `'use client'`
+sobrevive al bundle, y `og118-web` sigue compilando contra el fi-glass nuevo.
+
+Mutaciones en rojo: el prop con el sustantivo del consumidor · un string por
+defecto en español dentro del código · el medidor inventando un techo sin cuota ·
+la card dejando de ser un anchor real.
+
+**Lo que NO se puede afirmar todavía:** la medición a 374px que exige
+[[mobile-viewport-ux]]. jsdom no hace layout y aún no hay página que renderice
+esto. Lo que sí quedó fijado es que la regla de apilado existe y cuelga del
+breakpoint canónico; **la medición en Chrome es del PR 3**, cuando haya una
+superficie real que medir.
+
+### Sigue
+
+PR 3: `app/projects/page.tsx` y `app/projects/[id]/page.tsx` en og118,
+consumiendo estas primitivas y las rutas del server — y ahí sí, la medición del
+render a 374px.
