@@ -538,10 +538,26 @@ export async function gatewaySession(sessionId: string): Promise<GatewaySessionT
   );
 }
 
+/** The `system` and `tools` a request carried live once each in
+ *  `aire_gateway_blob`, referenced from the row by fingerprint (server #41 — the
+ *  same handful of values were being stored on every single turn). The list
+ *  views never needed them; this one shows a whole exchange, so it puts them
+ *  back. A fingerprint with no blob renders as-is rather than as null: the log
+ *  is the truth, and inventing an empty prompt would be a prettier lie. */
+const REINFLATE = `
+  q.body || coalesce((
+    SELECT jsonb_object_agg(e.key, b.body)
+    FROM jsonb_each(q.body -> '$elided') e
+    JOIN aire_gateway_blob b ON b.fingerprint = e.value ->> '$ref'
+    WHERE jsonb_typeof(e.value) = 'object' AND e.value ? '$ref'
+  ), '{}'::jsonb)`;
+
 export async function gatewayExchange(exchange: string): Promise<GatewayHalves | null> {
   const rows = await read<{ kind: string; body: unknown; ts: string; model: string | null; session_id: string | null }>(
-    `SELECT kind, body, ${EPOCH_MS("ts")} AS ts, model, session_id
-     FROM aire_gateway_log WHERE exchange = $1 ORDER BY seq`,
+    `SELECT kind,
+            CASE WHEN jsonb_typeof(q.body) = 'object' THEN ${REINFLATE} ELSE q.body END AS body,
+            ${EPOCH_MS("ts")} AS ts, model, session_id
+     FROM aire_gateway_log q WHERE exchange = $1 ORDER BY seq`,
     [exchange],
   );
   if (rows.length === 0) return null;
