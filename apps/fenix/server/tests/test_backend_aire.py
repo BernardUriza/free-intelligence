@@ -12,7 +12,10 @@ OG118_AIRE_PROJECT) ANTES de importar `app`, y entonces:
 - cada chat nace DELGADO en `fenix-{conversationId}` con el stub `@base fenix`
   que AIRE dereferencia en cada spawn;
 - el tutor del cibercafé —segunda persona en el mismo proceso— tiene SU casita
-  base `fenix-tutor`, para que las dos voces no se peleen un solo /init.
+  base `fenix-tutor`, para que las dos voces no se peleen un solo /init;
+- y el tutor viaja en `mode=agent`, la ÚNICA muesca del dial de la puerta que
+  concede WebSearch/WebFetch — sin ella «busca en internet» deja de poder, que
+  es media persona del tutor. El mostrador se queda en `complete`.
 
 Unit/mock only — nada toca la puerta real.
 """
@@ -26,7 +29,7 @@ import pytest
 from fi_runner import AIREBackend
 
 from arranque import configurar_motor
-from runner import BackendAcotado, aire_project_for_chat, build_runner
+from runner import BUILTINS_DISPONIBLES, BackendAcotado, aire_project_for_chat, build_runner
 
 # --- configurar_motor: el contrato FENIX_* traducido al runtime ---------------
 
@@ -92,6 +95,28 @@ def test_sin_motor_la_ruta_es_byte_identica(monkeypatch) -> None:
     assert isinstance(runner.backend, BackendAcotado)
     assert runner.capabilities == ["task_tracker"]
     assert aire_project_for_chat("abc") == "og118-abc"
+
+
+def test_sin_motor_el_tutor_busca_por_los_builtins_de_siempre(monkeypatch) -> None:
+    """La ruta claude-code no se enteró de que existe un dial de modos.
+
+    Aquí la búsqueda del tutor no viene de la puerta sino de `BackendAcotado`,
+    que fija `tools` a `BUILTINS_DISPONIBLES` — y ahí siguen WebSearch/WebFetch,
+    intactos. Pedir `aire_mode` no puede cambiar esta ruta: si algún día la
+    tocara, este test es el que se pone rojo."""
+    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
+        monkeypatch.delenv(var, raising=False)
+    configurar_motor()
+    runner = build_runner(
+        persona_text="Eres el tutor del cibercafé.",
+        capabilities=["task_tracker"],
+        extra_mcp_servers=[],
+        aire_project="fenix-tutor",
+        aire_mode="agent",
+    )
+    assert isinstance(runner.backend, BackendAcotado)
+    assert not hasattr(runner.backend, "default_mode")
+    assert set(BUILTINS_DISPONIBLES) == {"WebSearch", "WebFetch"}
 
 
 # --- el tutor: segunda persona, segunda casita base ---------------------------
@@ -170,3 +195,99 @@ async def test_nacimiento_delgado_del_chat_del_mostrador(motor_aire) -> None:
         ("https://gate.test/projects/fenix/init", {"claude_md": runner.persona.strip()}),
         ("https://gate.test/projects/fenix-chat-2/init", {"claude_md": "@base fenix"}),
     ]
+
+
+# --- el dial de modos: quién puede buscar en internet -------------------------
+#
+# El dial de la puerta de AIRE (aire-server server/aire/engine/options.py, MODES)
+# tiene dos muescas y son paquetes cerrados:
+#
+#   complete → allowed_tools []  · prohibidos Bash/Read/Write/Edit/Glob/Grep/
+#                                  WebSearch/WebFetch
+#   agent    → allowed_tools Read, Write, Glob, Grep, WebSearch, WebFetch
+#              · prohibido Bash · permission_mode acceptEdits
+#
+# Estas constantes son la copia LOCAL del contrato: si aire-server mueve el
+# dial, lo que se rompe es esta lista y el diff cuenta la historia. Que el
+# recuperar la búsqueda arrastre los tools de archivo es el hueco nombrado en
+# aire-server backlog #37 — la jaula (#24) los confina a la casita del chat.
+TOOLS_MODO_AGENT = ("Read", "Write", "Glob", "Grep", "WebSearch", "WebFetch")
+
+
+@pytest.fixture
+def tutor_real(monkeypatch):
+    """El tutor tal como lo construye `fenix_app`, no uno armado a mano.
+
+    Lo que se prueba es el CABLEADO de producción: que `aire_mode="agent"` esté
+    en la llamada real, no que `build_runner` sepa aceptarlo. Importar
+    `fenix_app` corre `exigir_config()`, así que las invariantes de arranque se
+    declaran igual que en el conftest de la app.
+
+    El import va con el motor de SIEMPRE a propósito: `app` construye su
+    `_runner` de módulo AL IMPORTARSE, una sola vez por proceso, así que
+    dejarlo nacer en la ruta aire le quitaría el rag_store al mostrador para
+    toda la suite (un test de otro archivo se puso rojo por eso). El motor se
+    enciende DESPUÉS: `_tutor()` es perezoso y `build_runner` lee
+    OG118_BACKEND en la llamada, no en el import."""
+    monkeypatch.setenv("FENIX_ADMIN_TOKEN", "token-de-prueba")
+    monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
+    monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")
+    monkeypatch.delenv("OG118_ACCESS_TOKEN", raising=False)
+    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
+        monkeypatch.delenv(var, raising=False)
+
+    import fenix_app
+
+    monkeypatch.setenv("FENIX_BACKEND", "aire")
+    configurar_motor()
+    monkeypatch.setattr(fenix_app, "_runner_tutor", None)
+    return fenix_app._tutor()
+
+
+def test_el_tutor_vuelve_a_poder_buscar_en_internet(tutor_real) -> None:
+    """«Busca en internet» sólo puede en mode=agent — y ésa es media persona
+    del tutor (`tutor.md` §CUANDO BUSCAS EN INTERNET). En complete la puerta
+    prohíbe WebSearch/WebFetch y el tutor ofrecería algo que no puede hacer."""
+    assert isinstance(tutor_real.backend, AIREBackend)
+    assert tutor_real.backend.default_mode == "agent"
+    assert {"WebSearch", "WebFetch"} <= set(TOOLS_MODO_AGENT)
+    # La casita base del tutor no cambia por subir el modo.
+    assert tutor_real.backend.project == "fenix-tutor"
+    # Y sigue pidiendo su tool del registry: el modo se suma a `tools`, no lo
+    # sustituye (aire-server _mount_tools une los dos en allowed_tools).
+    assert tutor_real.backend.registry_tools == ("persona",)
+
+
+def test_el_modo_agent_tambien_concede_los_tools_de_archivo(tutor_real) -> None:
+    """El costo, escrito para que nadie lo descubra en producción: el dial es
+    grueso, así que con la búsqueda entran Read/Write/Glob/Grep. La jaula de
+    AIRE (#24) los confina a la casita de ESE chat y Bash no está en ninguna
+    muesca — pero se conceden, y eso se dice, no se entierra."""
+    assert tutor_real.backend.default_mode == "agent"
+    assert set(TOOLS_MODO_AGENT) - {"WebSearch", "WebFetch"} == {
+        "Read",
+        "Write",
+        "Glob",
+        "Grep",
+    }
+    assert "Bash" not in TOOLS_MODO_AGENT
+
+
+def test_el_mostrador_no_sube_de_modo(motor_aire) -> None:
+    """Sólo el tutor paga el paquete. El mostrador cotiza de la lista maestra y
+    tiene internet prohibido por persona: subirlo a `agent` le regalaría tools
+    que nadie pidió, y hoy ni siquiera está lanzado."""
+    runner = build_runner()
+    assert isinstance(runner.backend, AIREBackend)
+    assert runner.backend.project == "fenix"
+    assert runner.backend.default_mode == "complete"
+
+
+def test_el_modo_por_defecto_de_la_ruta_aire_sigue_siendo_complete(motor_aire) -> None:
+    """La costura es opt-in: un caller que no nombra el modo queda como estaba,
+    así que og118 —que corre este mismo `build_runner`— no se movió."""
+    runner = build_runner(
+        persona_text="Cualquier voz.",
+        aire_project="fenix-lo-que-sea",
+    )
+    assert runner.backend.default_mode == "complete"

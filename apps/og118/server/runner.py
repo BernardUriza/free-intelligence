@@ -162,8 +162,33 @@ def _verificar_superficie_acotada(options: Any) -> None:
 # Bernard que envuelve el Agent SDK y guarda el transcript crudo en SU Postgres.
 MOTOR_POR_DEFECTO = "claude-code"
 
+# El MODO de la puerta que monta cada turno de la ruta aire. El dial de AIRE
+# tiene exactamente dos muescas (aire-server `server/aire/engine/options.py`,
+# `MODES`) y son paquetes cerrados, no una lista de tools a la carta:
+#
+#   complete → allowed_tools []            · Bash/Read/Write/Edit/Glob/Grep/
+#                                            WebSearch/WebFetch prohibidos
+#              permission_mode "default"
+#   agent    → allowed_tools Read, Write, Glob, Grep, WebSearch, WebFetch
+#              · Bash prohibido · permission_mode "acceptEdits"
+#
+# En las dos, las tools del registry que el turno pide (`tools=[…]`) se suman a
+# `allowed_tools`; desde aire-server 5ae8e33 eso también corre en complete.
+#
+# `complete` es el default y lo que og118 quiere: la persona y nada más. `agent`
+# se pide SÓLO cuando la búsqueda en internet es load-bearing para el producto
+# —el tutor del cibercafé de fenix—, y entonces se acepta el paquete COMPLETO:
+# el dial no sabe conceder WebSearch a solas (hueco nombrado en aire-server
+# backlog #37). Lo que amortigua ese paquete es la jaula de AIRE (backlog #24,
+# un hook PreToolUse): los tools de archivo quedan confinados a la casita del
+# chat, así que Read/Write no alcanzan `/etc/aire/env` ni `/tmp`, y Bash no
+# existe en ningún modo.
+MODO_AIRE_POR_DEFECTO = "complete"
 
-def _backend_aire(model: str, project: str | None = None) -> AIREBackend:
+
+def _backend_aire(
+    model: str, project: str | None = None, mode: str = MODO_AIRE_POR_DEFECTO
+) -> AIREBackend:
     """El puente a AIRE, con la identidad de og118 como proyecto (su casita).
 
     AIRE es dueño del lado servidor: la memoria (su session_store en su
@@ -178,10 +203,15 @@ def _backend_aire(model: str, project: str | None = None) -> AIREBackend:
     AIRE_CHAT_PROJECT, que app.py setea por request como og118-{chat}); el
     proyecto fijo queda de fallback para turnos sin conversación. Cada turno
     pide la tool `persona` del registry de AIRE (read/update sobre la parte
-    viva del CLAUDE.md de la casita) y viaja en mode=complete: desde
-    aire-server 5ae8e33 la puerta corre registry tools en complete, y el modo
-    agent regalaría los builtins del preset (Read/Write/Glob/Grep/WebSearch/
-    WebFetch) que og118 no quiere.
+    viva del CLAUDE.md de la casita), y viaja en el modo que el caller fije —
+    `complete` por default: desde aire-server 5ae8e33 la puerta corre registry
+    tools en complete, así que og118 tiene su persona viva sin cargar los
+    builtins del preset agent, que no quiere.
+
+    `mode` (opcional) sube el turno a `agent` para un consumer cuyo producto
+    depende de buscar en internet (el tutor del cibercafé de fenix). Ver
+    `MODO_AIRE_POR_DEFECTO` arriba para qué concede exactamente cada muesca y
+    por qué no hay una tercera.
 
     Nacimiento delgado (aire-server ef21e68): la persona completa vive UNA sola
     vez en la casita base og118 (AIREBackend la init-ea antes del primer chat);
@@ -197,7 +227,7 @@ def _backend_aire(model: str, project: str | None = None) -> AIREBackend:
     return AIREBackend(
         project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
-        default_mode="complete",
+        default_mode=mode,
         registry_tools=("persona",),
         project_for_turn=AIRE_CHAT_PROJECT.get,
     )
@@ -226,6 +256,7 @@ def build_runner(
     capabilities: list[str] | None = None,
     extra_mcp_servers: list[MCPServerSpec] | None = None,
     aire_project: str | None = None,
+    aire_mode: str = MODO_AIRE_POR_DEFECTO,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -249,13 +280,19 @@ def build_runner(
     `aire_project` (only meaningful on the aire route) pins THIS runner's base
     casita, overriding the deploy-wide `OG118_AIRE_PROJECT` — the seam a
     consumer with a second persona in the same process (fenix's tutor) uses so
-    each voice owns its own base instead of fighting over one."""
+    each voice owns its own base instead of fighting over one.
+
+    `aire_mode` (also aire-only) picks the door mode every turn of THIS runner
+    rides. `complete` (the default) keeps the turn tool-free but for the AIRE
+    registry tools it asks for; `agent` is the only way the door grants
+    WebSearch/WebFetch, and it grants Read/Write/Glob/Grep with it — caged to
+    the chat's casita, Bash excluded. See `MODO_AIRE_POR_DEFECTO`."""
     base_persona = persona_text if persona_text is not None else load_prompt(persona_path)
     model = os.getenv("OG118_MODEL", "claude-sonnet-4-5")
     motor = os.getenv("OG118_BACKEND", MOTOR_POR_DEFECTO).strip().lower()
     persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
     if motor == "aire":
-        backend: Any = _backend_aire(model, aire_project)
+        backend: Any = _backend_aire(model, aire_project, aire_mode)
         # Solo esta ruta tiene la tool persona (registry de AIRE): el párrafo de
         # identidad viva viaja con la base al /init de cada casita-por-chat.
         persona_parts.append(load_prompt(LIVING_IDENTITY_PATH))
