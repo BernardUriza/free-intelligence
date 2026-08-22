@@ -44,16 +44,26 @@ def test_the_wire_cannot_define_a_guard_at_the_door():
         assert exc.value.status_code == 422
 
 
-def test_a_registered_guard_either_builds_or_says_503_never_silently_empty():
-    # fi-core is not on PyPI, so the droplet's CI has no backing for `antidrift`.
-    # Either outcome is correct; an empty list would NOT be — that is a request
-    # accepted and quietly unserved.
-    try:
-        built = safe_guards(["antidrift"])
-    except HTTPException as exc:
-        assert exc.value.status_code == 503
-    else:
-        assert len(built) == 1 and built[0].name == "antidrift"
+def test_absent_backing_is_a_503_with_a_reason_never_an_empty_list(monkeypatch):
+    """fi-core is not on PyPI, so the droplet has no backing for `antidrift`. That
+    must be a loud 503 — an empty list would be a request accepted and quietly
+    unserved. Forced here rather than left to the environment: this branch does
+    NOT run on a laptop that happens to have fi-core installed, and an untaken
+    branch is an untested one."""
+    def missing(_names):
+        raise ModuleNotFoundError("No module named 'fi_core'")
+
+    monkeypatch.setattr("aire.intake.resolve", missing)
+    with pytest.raises(HTTPException) as exc:
+        safe_guards(["antidrift"])
+    assert exc.value.status_code == 503
+    assert "ModuleNotFoundError" in exc.value.detail
+
+
+def test_a_present_backing_passes_the_built_guards_through(monkeypatch):
+    monkeypatch.setattr("aire.intake.resolve", lambda names: [Quiet() for _ in names])
+    built = safe_guards(["antidrift"])
+    assert len(built) == 1 and built[0].name == "quiet"
 
 
 def test_an_override_is_reported_as_unenforced_never_applied():
