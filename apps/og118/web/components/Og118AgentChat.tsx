@@ -97,8 +97,14 @@ export function Og118AgentChat() {
   const { library: conversationLibrary, cloud: conversationsCloud } =
     useOg118ConversationLibrary(userId, tokenReady);
   const audioQueueStore = useAudioQueueStore(userId);
-  const lib = useConversationLibrary(conversationLibrary);
+  // Projects is resolved BEFORE the library so a conversation born while a
+  // project is active is STAMPED with it (`projectId`) — that stamp is the only
+  // thing that makes the project's "Recents" list possible. Before it, the
+  // corpus binding was per-request and vanished the moment the turn ended.
   const projects = useOg118Projects(userId, tokenReady);
+  const lib = useConversationLibrary(conversationLibrary, {
+    projectId: projects.activeProjectId ?? undefined,
+  });
   const elements = useOg118Elements(userId);
   const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);

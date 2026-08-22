@@ -30,6 +30,12 @@ export interface Og118Project {
   id: string;
   name: string;
   createdAt: string;
+  /** The card's subtitle. Always a string — the server normalizes absent to "". */
+  description: string;
+  /** Per-project system prompt. STORED but not yet consumed by a turn. */
+  instructions: string;
+  /** The index page's sort key. Backfilled to `createdAt` for legacy records. */
+  updatedAt: string;
 }
 
 export interface UseOg118Projects {
@@ -42,6 +48,15 @@ export interface UseOg118Projects {
   selectProject: (id: string | null) => void;
   /** Deletes server-side (DELETE /projects/{id}) AND the local cache. */
   deleteProject: (id: string) => Promise<void>;
+  /** PATCHes name/description/instructions. An omitted key is left untouched. */
+  updateProject: (id: string, patch: Og118ProjectPatch) => Promise<void>;
+}
+
+/** A partial edit: omit a key to leave it alone, send `""` to clear it. */
+export interface Og118ProjectPatch {
+  name?: string;
+  description?: string;
+  instructions?: string;
 }
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
@@ -62,6 +77,27 @@ interface ServerProject {
   id: string;
   name: string;
   createdAt?: string;
+  description?: string;
+  instructions?: string;
+  updatedAt?: string;
+}
+
+/**
+ * One place turns the wire shape into ours, so the cache written by an OLD build
+ * (three fields) and the list just fetched (six) cannot disagree about whether
+ * `description` is a string or undefined — the grid would render "undefined"
+ * for exactly as long as the stale cache survived.
+ */
+function toProject(p: ServerProject): Og118Project {
+  const createdAt = p.createdAt ?? new Date().toISOString();
+  return {
+    id: p.id,
+    name: p.name,
+    createdAt,
+    description: p.description ?? '',
+    instructions: p.instructions ?? '',
+    updatedAt: p.updatedAt ?? createdAt,
+  };
 }
 
 export function useOg118Projects(
@@ -158,11 +194,7 @@ export function useOg118Projects(
         if (!res.ok || cancelled) return;
         const body = (await res.json()) as { projects?: ServerProject[] };
         if (cancelled) return;
-        const server: Og118Project[] = (body.projects ?? []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          createdAt: p.createdAt ?? new Date().toISOString(),
-        }));
+        const server: Og118Project[] = (body.projects ?? []).map(toProject);
         projectsRef.current = server;
         setProjects(server);
         persist(server, projectsKey);
@@ -198,17 +230,35 @@ export function useOg118Projects(
         body: JSON.stringify({ name: displayName }),
       });
       if (!res.ok) throw new Error(`create project failed: ${res.status}`);
-      const { project_id } = await res.json();
-      const project: Og118Project = {
-        id: project_id,
-        name: displayName,
-        createdAt: new Date().toISOString(),
-      };
+      const body = (await res.json()) as { project_id: string; project?: ServerProject };
+      // The server returns the full record now; fall back to a locally-shaped one
+      // so a consumer talking to an older server still gets every field.
+      const project: Og118Project = body.project
+        ? toProject(body.project)
+        : toProject({ id: body.project_id, name: displayName });
       writeProjects((prev) => [project, ...prev]);
       writeActive(project.id);
       return project.id;
     },
     [writeProjects, writeActive],
+  );
+
+  const updateProject = useCallback(
+    async (id: string, patch: Og118ProjectPatch): Promise<void> => {
+      const res = await fetch(`${API}/projects/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(`update project failed: ${res.status}`);
+      const { project } = (await res.json()) as { project: ServerProject };
+      // Take the SERVER's record, not the patch we sent: it also moved
+      // `updatedAt`, which is the grid's sort key. Merging our own patch would
+      // leave the card claiming the project is older than it is.
+      const next = toProject(project);
+      writeProjects((prev) => prev.map((p) => (p.id === id ? next : p)));
+    },
+    [writeProjects],
   );
 
   const selectProject = useCallback((id: string | null) => writeActive(id), [writeActive]);
@@ -233,5 +283,13 @@ export function useOg118Projects(
     [writeProjects, writeActive],
   );
 
-  return { projects, activeProjectId, ready, createProject, selectProject, deleteProject };
+  return {
+    projects,
+    activeProjectId,
+    ready,
+    createProject,
+    updateProject,
+    selectProject,
+    deleteProject,
+  };
 }

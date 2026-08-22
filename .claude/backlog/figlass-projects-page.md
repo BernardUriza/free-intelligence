@@ -1,6 +1,6 @@
 # FIGLASS-PROJECTS-PAGE-1 — Projects como PÁGINA (paridad claude.ai), primitivas en fi-glass
 
-Status: **In progress** — contrato del server (PR 1) y primitivas de fi-glass (PR 2) CERRADOS el 2026-08-22; falta el PR 3, las rutas de og118
+Status: **Done** (fase 1) — los tres PRs entregados el 2026-08-22 y medidos en Chrome; queda fase 2 (composer en la página, instructions cableadas, pin/archive)
 Proposed: 2026-07-14 by Bernard ("quiero que sea una página, muy parecido a como
 sucede en claude.ai, que se ven recuadros con contenido y todo ese spa")
 
@@ -271,3 +271,70 @@ superficie real que medir.
 PR 3: `app/projects/page.tsx` y `app/projects/[id]/page.tsx` en og118,
 consumiendo estas primitivas y las rutas del server — y ahí sí, la medición del
 render a 374px.
+
+## PR 3 de 3 — la página en og118, y la medición (2026-08-22)
+
+`/projects/` existe, consume las primitivas del PR 2 y las rutas del PR 1.
+
+### La ruta NO pudo ser `/project/{uuid}`, y por una razón dura
+
+og118 es **static export** (`output: 'export'`). Un segmento de filesystem
+`projects/[id]` exige `generateStaticParams` en build time, imposible para ids
+que se acuñan por cuenta en runtime. Emitir el segmento sin params seguiría
+funcionando al hacer click DENTRO del SPA y daría **404 real en el SWA** a quien
+recargue o abra un link compartido, porque no hay `staticwebapp.config.json` con
+fallback.
+
+Solución: **una ruta estática con `?p=<id>`**, navegada con `history.pushState` y
+un listener de `popstate`. Deep-linkable, el botón Atrás camina índice ⇄ detalle,
+y cero cambios de infra. La forma de path que pedía esta tarjeta requeriría
+cambiar el modelo de deploy de la app que Bernard usa a diario — no vale el
+canje por unos caracteres en la URL.
+
+### El hueco 4 recién ahora es real de punta a punta
+
+El PR 1 le enseñó al server a guardar `projectId`, pero nadie se lo mandaba: el
+binding del corpus seguía siendo por request. Ahora el record lo lleva
+(`ConversationRecord.projectId` en el core, estampado por
+`useConversationLibrary`), así que "Recents" tiene qué listar.
+
+**El sello es sólo al NACER, y un test encontró que mi primera versión no lo
+era.** Escribí `prevForTitle?.projectId ?? projectId`, que se lee igual y está
+mal: una conversación empezada sin proyecto **adoptaba** el que se seleccionara
+después, re-archivando en silencio un hilo que nadie movió. El discriminante
+correcto es la existencia del record, no si trae valor.
+
+### Lo que la MEDICIÓN encontró (y jsdom no podía ver)
+
+Prometido en el PR 2, hecho aquí. Harness efímero + iframes de 390/374/320 en el
+Chrome de debug (que vive en **9333**, no 9222 — el diagnóstico lo halló sin
+matar nada).
+
+La primera pasada salió **roja**: las migas del breadcrumb medían **20px**, el
+buscador 40, el CTA 37, "Editar" 34 y el select 30 — todos bajo el mínimo de 44
+que exige [[mobile-viewport-ux]], y ninguno detectable desde un test unitario.
+Arreglado en las dos capas: fi-glass compone `withTouchTarget` en las migas y
+sube el buscador bajo `FI_TOUCH_QUERY`; og118 hace lo propio con sus controles.
+
+Segunda pasada, los tres anchos: **cero overflow, cero scroll horizontal, cero
+controles bajo 44px**, grid a una columna y rail apilado.
+
+### Lo que NO se hizo, y por qué
+
+- **Sin panel de Instructions.** El campo se guarda y se puede editar por API,
+  pero **el turno todavía no lo lee**. Un editor para un campo que el agente
+  ignora es una promesa que el producto no cumple. Sale cuando se cablee el
+  layering de prompt — sigue siendo decisión abierta del dueño.
+- **Sin composer en la página.** El detalle ofrece "Nueva conversación", que
+  selecciona el proyecto y lleva al chat: el mismo RESULTADO (una conversación
+  nueva ligada al proyecto), sin el composer en sitio. Fase 2.
+- Índice y sidebar **conviven**, como esta tarjeta proponía; el sidebar ganó un
+  enlace "Ver todos los proyectos →".
+
+### Verificación
+
+core **93**, fi-glass **550**, og118-web **78**; `check:og118-css` al día;
+`dist/` de core y fi-glass reconstruido y commiteado; `/projects` se prerenderiza
+estático. Mutaciones en rojo: el sello del proyecto convertido en "siempre el
+activo", el `??` que yo mismo había escrito mal, `summarize` sin `projectId`, el
+mínimo táctil quitado del buscador y de las migas.
