@@ -161,3 +161,5 @@ See also [#40](40-every-guard-fails-quietly.md) (the silent-degradation family
 this belongs to), [[do-budget]] (watch the thing that grows),
 [[log-is-the-truth]] (append-only, and correcting means appending — including
 correcting this page's own numbers) and [[verify-before-assuming]] Rule 0.
+
+Shipped in `225cb72` (the server half) and `8b301ae` (the front's exchange view).

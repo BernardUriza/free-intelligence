@@ -50,3 +50,11 @@ The weight column needs no decision and can ship on its own.
 
 Weight column: buildable now (front, read-only). Cost: blocked on the persistence
 decision above, then a write-path change + the front read.
+
+## Receipts (moved here 2026-08-22 from the index, which was the only place they lived)
+
+Weight + sessions shipped `7e05a4e`, verified in the browser on `/claude`. Cost
+stayed blocked by a measurement, not an opinion: a data check found
+`total_cost_usd` is persisted in **0 of 400** entries, so the column has nothing
+to read — it needs a write-path change plus the schema decision above, which is
+Bernard's.

@@ -94,3 +94,9 @@ og118's memory is deathless now. Known coupling to watch: og118 rides the
 droplet (SPOF) and the engine's credential rotor (#31). Next: fenix,
 aurity, activist-os, one at a time. The CLI/Bedrock wiring stays parked until
 the app consumers are done — Bernard's ordering, 2026-08-21.
+
+## Receipts (moved here 2026-08-22 from the index)
+
+og118's migration landed as fi PRs **#410–#413** (2026-08-21). discord-bot's
+stage 1 — the whole fleet through the gateway door via `ANTHROPIC_BASE_URL` —
+went in flight 2026-08-22, with its engine-door migration filed as stage 2.

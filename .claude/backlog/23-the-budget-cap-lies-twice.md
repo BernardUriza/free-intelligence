@@ -69,3 +69,10 @@ launch is its natural home) or the ceiling rises for agent mode.
 
 Related: #22 (the endpoints SSH was covering) — a long agent job needs both a
 non-blocking launch and a ceiling that does not silently eat it.
+
+## Receipts (moved here 2026-08-22 from the index)
+
+What the lie actually cost when it was found: **$2.01 billed and zero files
+written** — a turn that reported success, charged for the work, and produced
+none of it. Fixed in `751e445`, verified by forcing a cut at a `$0.05` cap and
+confirming the NEXT turn runs normally.

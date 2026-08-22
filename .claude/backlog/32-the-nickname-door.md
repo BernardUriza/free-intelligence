@@ -339,3 +339,12 @@ The slot is chosen; **what fills it** carries two costs worth revisiting:
 
 The vocabulary stays the open craft question: it is what gives the game its
 register, and it is Bernard's taste, not an engineering decision.
+
+## Receipts (moved here 2026-08-22 from the index)
+
+Slice (d) shipped BLIND and was caught by walking it: two real turns at
+**$0.108 / $0.116** left `spent_usd = 0`, because `turn_cost` read the SDK
+dataclass while the HTTP surface hands it a dict — and a `background: true` turn
+never billed at all. Fixed at `8d9e5f3`. Slice (e) verified on the real client:
+`ANTHROPIC_BASE_URL=…gate… claude -p` answered, banked **$0.094**, then `402`.
+The generator itself runs at **$0** — no Claude call, no API spend.
