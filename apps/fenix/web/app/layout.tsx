@@ -4,6 +4,11 @@ import 'fi-glass/glass-chat.css';
 import './globals.css';
 
 export const metadata: Metadata = {
+  // Sin esto, Next resuelve las imágenes de Open Graph contra
+  // http://localhost:3000 y el enlace compartido llega SIN portada — WhatsApp
+  // y Facebook no pueden bajar la imagen. El build lo advierte, y la advertencia
+  // es fácil de pasar por alto porque el sitio se ve perfecto igual.
+  metadataBase: new URL('https://www.serviciosfenix.com.mx'),
   title: 'Fénix',
   description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
   icons: {
