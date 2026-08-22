@@ -3,8 +3,9 @@
 Status: **Flag shipped, OFF en prod; la ruta vieja SIGUE VIVA** (2026-08-22).
 El código de la ruta AIRE está en `main`, con tests, detrás de
 `TURN_BACKEND=aire`, cuyo default es `local`. **Nada está migrado** — ni un
-turno de producción ha salido por la puerta engine. Verificación en vivo y
-decisión de encender: de Bernard.
+turno de producción ha salido por la puerta engine, y el tercer eje (topics)
+tampoco ha corrido nunca contra la puerta real: está probado en tests, no en
+vivo. Verificación en vivo y decisión de encender: de Bernard.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
 · Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
 
@@ -20,7 +21,8 @@ runner delgado; éste no.
 
 | Fork | Decisión |
 |---|---|
-| Alcance de la casita | **persona+canal**: `{persona_id}-{channel_id}` |
+| Alcance de la casita | **persona+canal**: `{persona_id}-{channel_id}` — el ALMA del canal, persiste |
+| Alcance de la SESIÓN | **un TOPIC temporal** que rueda tras `AIRE_TOPIC_IDLE_TIMEOUT_S` (default 3600 s) de silencio del canal. Ver *"El tercer eje"* abajo |
 | Dónde vive el ADN | casita BASE por persona (`insult`), instalada vía `/init`; cada casita de chat nace THIN con el stub `@base insult` que AIRE dereferencia en cada spawn (aire-server `ef21e68`) |
 | Playwright | **SE CAE** en la ruta AIRE (droplet de 512MB, presupuesto duro de $20 — [[do-budget]] de aire-server) |
 | WebSearch/WebFetch | sobreviven vía `mode=agent` (dial server-side de AIRE) |
@@ -35,11 +37,103 @@ runner delgado; éste no.
 |---|---|
 | `persona_runner/engine/aire_backend.py` | El cliente canónico de la puerta, **VENDOREADO** desde `fi_runner/backends/aire.py` (free-intelligence `b99a26ba`, PR #413). Vendoreado y no importado porque **ningún fi-runner publicado lo trae**: el canal de conda tope 0.17.1 no empaqueta `backends/aire.py` y este repo pinnea `fi-runner=0.11.0`. Cinco adaptaciones marcadas: la quinta (`AIREDoorError`) conserva el CÓDIGO de error de AIRE como dato |
 | `persona_runner/engine/aire_route.py` | La ruta: casitas, pre-fetch de facts, guard de capacidades, mapeo de errores, judge, el candado por casita |
+| `persona_runner/engine/aire_topic.py` | **El tercer eje**: el claim atómico del topic contra `aire_topics`, su fallback en RAM y el bit durable que gobierna el pliegue de historia |
 | `persona_runner/api/turn.py` · `api/judge.py` | La bifurcación por `TURN_BACKEND` |
 | `persona_runner/runner.py` | El boot verifica la ruta que DE VERDAD va a servir turnos; el shutdown cierra los backends y el pool |
 | `persona_runner/mcp_tools/shared.py` | El pool asyncpg compartido (`acquire`/`close_pool`) que usa el pre-fetch de facts. `_connect` (one-shot) sigue vivo para las tools MCP |
-| `core/config.py` · `core/schemas.py` · `engine/framing.py` | El flag, `JudgeRequest.persona_id`, el bloque `<user_memory>` |
-| `tests/agent/test_aire_{route,backend}.py` · `test_turn_backend_flag.py` · `test_pg_pool.py` | 76 tests; el default `local` está pinneado por test |
+| `core/config.py` · `core/schemas.py` · `engine/framing.py` | El flag, `AIRE_TOPIC_IDLE_TIMEOUT_S`, `JudgeRequest.persona_id`, el bloque `<user_memory>` |
+| `tests/agent/test_aire_{route,backend,topics}.py` · `test_turn_backend_flag.py` · `test_pg_pool.py` | 95 tests; el default `local` está pinneado por test |
+
+## El tercer eje: la sesión es un TOPIC (decisión de Bernard, 2026-08-22)
+
+Sus palabras: casitas *"por sesión de discord bot y por channel y por topic
+temporal"*. La etapa 2 había mandado dos ejes y **clavado el tercero a una
+constante** (`SESSION_NAME = "live"`, una sesión que nunca termina). Esa
+constante era el defecto: un canal de Discord vive AÑOS, así que un canal era un
+solo transcript que crece sin techo — cada `resume` lo carga entero, cada turno
+lo paga, y una conversación de hace tres meses se mete en la respuesta de hoy.
+
+| Eje | Qué es | Qué lo mueve |
+|---|---|---|
+| casita `{persona}-{canal}` | el **ALMA** del canal: el stub `@base` más lo que la tool `persona` haya escrito en la mitad viva | nada: persiste entre topics |
+| sesión = **topic** `t<epoch>` | el hilo de conversación: el transcript que AIRE resume | rueda tras `AIRE_TOPIC_IDLE_TIMEOUT_S` de silencio |
+| persona | quién contesta | el `persona_id` del turno |
+
+**El topic NO va en el nombre de la casita, a propósito.** AIRE llavea la memoria
+por (project, session), así que un topic nuevo ya estrena transcript DENTRO de la
+misma casita — el alma sobrevive. Meterlo en el nombre bifurcaría la identidad
+viva por topic y recrearía el problema de "N copias congeladas de la persona" que
+el nacimiento THIN (aire-server `ef21e68`) existe para matar.
+
+### Por qué 3600 s, y qué cuesta rodar
+
+Un rollover deja la siguiente sesión **FRÍA**: el system prompt de la persona
+(~14k tokens sólo de ADN) se vuelve a *cache-crear* — un turno frío de una frase
+midió **$0.107** contra la puerta en vivo. Ventana muy corta = fuga de dinero una
+vez por cada silencio; muy larga = vuelve el transcript infinito.
+
+El default de **3600 s** está elegido para que el rollover sea casi **GRATIS**, no
+apenas tolerable: **AIRE desaloja su cliente ocioso a los `AIRE_POOL_IDLE_S`
+(3300 s ≈ 55 min)**, así que un canal callado una hora YA perdió su cliente
+caliente y ese turno iba a re-pagar el system prompt rodara o no el topic. Rodar
+justo pasando ese borde compra transcript limpio al precio de un arranque en frío
+que ya estaba cobrado. **Bajar la perilla de ~55 min es donde empieza a costar
+dinero de verdad** — ése es el trade a pesar, no "más corto es más limpio".
+
+Los topics **no** aumentan la concurrencia (son secuenciales por canal, y el
+candado por casita los serializa), así que no tocan el techo de 2 clientes /
+458 MB de AIRE (aire-server #39). Sí aumentan los arranques en frío, que es
+exactamente el costo de arriba.
+
+### Por qué el id es DURABLE (y no un derivado de RAM)
+
+Este repo redespliega varias veces al día. Un id derivado de estado en RAM
+bifurcaría el topic **en silencio** a media conversación: mismo canal, transcript
+vacío nuevo, y la historia replicada por el caller plegada otra vez. Así que el
+ancla se **persiste**: una fila por casita en el Postgres de Khimeras, tabla
+**`aire_topics`** cuyo DDL vive en el módulo que la posee (`engine/aire_topic.py`)
+y se aplica una vez por proceso.
+
+Una sola sentencia atómica (`_CLAIM_SQL`) lee la fila, decide rodar-o-continuar y
+registra la actividad bajo el lock de la propia fila, y el id lo acuña el reloj
+del SERVIDOR — así la decisión es correcta entre réplicas, no sólo entre
+corrutinas. `answered_at` (durable) es lo que gobierna el pliegue de historia:
+**tras un reinicio a media conversación la fila dice "este topic ya tuvo
+respuesta" y el runner NO vuelve a plegar** lo que la sesión de AIRE ya tiene —
+lo cual cierra, mientras Postgres esté vivo, el hueco #4 de abajo (la
+duplicación acotada por falta de sonda `¿existe esta sesión?`).
+
+Postgres caído ⇒ el claim se hace en RAM (`TopicMemory`, mismo algoritmo) porque
+un fallo de DB **jamás** mata un turno; se grita `aire_route_topic_not_durable` en
+cada turno afectado. Lo único que el fallback no sobrevive es un reinicio con la
+DB abajo: ahí sí arranca topic nuevo y pliega una vez. Acotado y logueado, nunca
+silencioso.
+
+### La decisión del topic va DENTRO del candado por casita
+
+Mismo `asyncio.Lock` que ya serializaba decidir→turno→marcar (defecto 1 abajo).
+Dos mensajes simultáneos en un canal tienen que caer en **UN** topic y plegar la
+historia **una** vez; el candado es lo que hace atómica esa ventana. `CasitaState`
+pasa a llavearse por la CASITA sola (antes `casita/live`): la sesión ahora se
+DECIDE bajo ese candado, así que no puede formar parte de la llave que lo elige.
+
+### Observabilidad
+
+`agent_runner_turn_complete` lleva `topic`, `topic_rolled_over` y `topic_state`
+(`durable`/`ram`) — una casita ya no identifica qué transcript contestó. Un
+rollover emite además su **propio** evento `aire_route_topic_rolled_over` (con el
+hueco de inactividad, la ventana y el costo declarado), y el primer topic de una
+casita emite `aire_route_topic_opened` — que **no** es un rollover: nada se
+reseteó, y contarlo como reset ensuciaría la métrica que importa.
+
+**Tests del modo de falla** (`tests/agent/test_aire_topics.py`, 19): canal ocioso
+pasado la ventana rueda · canal dentro de la ventana NO rueda (resistencia) · dos
+mensajes concurrentes caen en un topic y pliegan una vez · un reinicio simulado a
+media ventana conserva el id y **no** re-pliega · un turno fallido deja el topic
+sin responder · un `mark_answered` perdido no compra un segundo pliegue · PG
+caído responde igual y se reporta como no-durable · la ruta local del SDK jamás
+toca el eje. Cada uno verificado en ROJO mutando el arreglo (id derivado de RAM,
+claim fuera del candado, sesión constante `"live"`, marcar antes del turno).
 
 ## Los seis defectos del code review (2026-08-22) — arreglados
 
@@ -146,11 +240,14 @@ hasta re-auditar. Se loguea `aire_route_accepted_tool_delta` en cada boot.
 
 ### 4. Huecos menores de AIRE (cada uno = un endpoint que falta)
 
-- **No hay sonda de "¿existe esta sesión?"** por HTTP (`Engine.has_session`
-  existe adentro; no está expuesta). Por eso el fold de historia se gobierna con
-  un `set` en RAM: tras un reinicio del runner, la memoria de AIRE sobrevive pero
-  nuestro set no, y el primer turno vuelve a plegar historia que la sesión ya
-  tiene. Duplicación acotada, aceptada; el endpoint la mata.
+- ~~**No hay sonda de "¿existe esta sesión?"**~~ — el hueco de AIRE sigue ahí
+  (`Engine.has_session` existe adentro y no está expuesta), pero **este repo ya
+  no depende de él**: desde el tercer eje el bit "esta sesión ya tuvo respuesta"
+  es DURABLE (`aire_topics.answered_at`), así que un reinicio del runner ya no
+  re-pliega historia que la sesión de AIRE ya tiene. Sólo vuelve a doler si
+  Postgres está caído en el momento del reinicio, y eso se grita
+  (`aire_route_topic_not_durable`). El endpoint seguiría siendo mejor —
+  preguntarle a AIRE le gana a inferirlo — pero deja de ser un bloqueo.
 - **La puerta no acepta bloques de documento/PDF** (`engine/vision.py` sólo
   valida imágenes). Los attachments no-imagen se **cuentan** y se loguean
   (`aire_route_attachments_dropped`), nunca se pierden en silencio.
@@ -170,6 +267,12 @@ item candidato allá; lo de este repo ya está resuelto alrededor de ellos.
   (nombrar la casita por el digest del prompt). Un campo `system_prompt` en
   `POST .../messages` para `mode=complete` mataría la clase entera: el judge
   dejaría de necesitar casita propia.
+- **No hay borrado ni escoba de SESIONES tampoco.** El tercer eje crea una
+  sesión nueva por topic dentro de la misma casita, así que el transcript de un
+  canal deja de crecer sin techo — pero los transcripts VIEJOS se quedan en las
+  tablas de AIRE hasta que su escoba (`aire/sweep.py`, retención 30 días) los
+  barre. Eso está bien para las tablas; lo que no existe es una manera de LISTAR
+  o BORRAR las sesiones de una casita para auditarlas.
 - **No hay borrado ni escoba de casitas.** AIRE barre sus TABLAS
   (`aire/sweep.py` + `aire-sweep.timer`, retención 30 días) pero una casita es
   un directorio en un droplet de 458 MB y nada la recoge. Por eso este repo
@@ -191,8 +294,11 @@ El código lee la puerta del entorno; **jamás de un archivo del repo**:
 - `AIRE_AUTH_TOKEN` — Bearer de la puerta engine (o `AIRE_CANARY_TOKEN`)
 - `AIRE_TURN_MODE=agent` (default; cualquier otro modo TRUENA el boot)
 - `AIRE_FACTS_MAX_CHARS=6000` (default)
-- `AIRE_CASITA_STATE_MAX=4096` (default) — techo del mapa de candados/freshness
-  por casita. No hay que tocarlo; existe para que el mapa no sea un leak
+- `AIRE_TOPIC_IDLE_TIMEOUT_S=3600` (default) — el silencio del canal tras el
+  cual la SESIÓN rueda a un topic nuevo. La perilla del tercer eje; su costo y
+  por qué 3600, arriba. Requiere la tabla `aire_topics` (la crea el runner solo)
+- `AIRE_CASITA_STATE_MAX=4096` (default) — techo del mapa de candados/espejo de
+  topic por casita. No hay que tocarlo; existe para que el mapa no sea un leak
 - `PG_POOL_MIN_SIZE=1` / `PG_POOL_MAX_SIZE=4` (defaults) — el pool asyncpg
   compartido que usa el pre-fetch de facts
 

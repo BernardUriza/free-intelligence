@@ -78,6 +78,16 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
    - `AIRE_TURN_MODE=agent` — el default. Cualquier otro modo **truena el boot a
      propósito**: sólo `agent` lleva WebSearch/WebFetch del lado de AIRE.
    - `AIRE_FACTS_MAX_CHARS=6000` — el default; tope del bloque `<user_memory>`.
+   - `AIRE_TOPIC_IDLE_TIMEOUT_S=3600` — el default; el TERCER eje del mapeo. La
+     casita (`{persona}-{canal}`) es el ALMA del canal y no caduca; la SESIÓN de
+     adentro es un **topic** que rueda tras este silencio. Bajarlo de ~55 min
+     empieza a costar dinero de verdad (AIRE desaloja su cliente ocioso a los
+     3300 s, así que a la hora ese turno ya iba a re-pagar el system prompt de
+     todos modos); subirlo mucho devuelve el transcript infinito que el eje
+     existe para matar. **Estado durable**: el runner crea y mantiene la tabla
+     `aire_topics` (una fila por casita) en el mismo Postgres de Khimeras — sin
+     ella el topic se decide en RAM y **un redeploy lo bifurca**, que es
+     exactamente lo que grita `aire_route_topic_not_durable`.
 
    ```bash
    # encender
