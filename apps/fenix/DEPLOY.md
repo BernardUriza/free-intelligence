@@ -80,12 +80,52 @@ Qué cambia con el flip:
 - **La credencial que paga es la de AIRE** (el rotor del engine), no la
   `ANTHROPIC_API_KEY` del contenedor — que sigue siendo obligatoria para
   arrancar (`arranque.py`) pero queda sin uso en esta ruta.
+- **El tutor SÍ busca en internet** — pide `mode=agent`, ver la sección
+  siguiente. Esto corrige lo que este documento decía el 22-ago: que la
+  búsqueda se perdía. No se pierde; se paga con otras tools.
 - **Lo que se pierde (documentado, no accidental):** los MCP locales no cruzan
-  la puerta. El tutor pierde WebSearch/WebFetch («busca en internet» deja de
-  poder), y el mostrador pierde `guardar_cotizacion`/rag_store —
+  la puerta, así que el mostrador pierde `guardar_cotizacion`/rag_store —
   `/expedientes/extraer` responde `guardado=false` en esta ruta. El mostrador
-  hoy no está lanzado; el costo real del flip es la búsqueda del tutor, a
-  cambio de la memoria inmortal. Se revierte quitando la variable.
+  hoy no está lanzado, así que nadie lo siente. Se revierte quitando la
+  variable.
+
+### Qué herramientas tiene el tutor en la ruta AIRE (y por qué son ésas)
+
+La puerta de AIRE no ofrece tools a la carta: su dial tiene **dos muescas**
+(`server/aire/engine/options.py`, `MODES`) y cada una es un paquete cerrado.
+
+| Muesca | Concede | Prohíbe | Permisos |
+|---|---|---|---|
+| `complete` | nada (sólo las tools del registry que el turno pida) | Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch | `default` |
+| `agent` | Read, Write, Glob, Grep, **WebSearch, WebFetch** | **Bash** | `acceptEdits` |
+
+**El tutor viaja en `agent`; el mostrador se queda en `complete`.** Y no es
+tuning: media persona del tutor (`prompts/tutor.md` §CUANDO BUSCAS EN INTERNET)
+es traer un dato real y citarlo. En `complete` la puerta le prohíbe
+WebSearch/WebFetch, y el tutor quedaría ofreciéndole a un niño una búsqueda que
+no puede hacer — peor que no ofrecerla.
+
+**El costo, dicho completo porque a este tutor le escriben niños:** el dial es
+grueso, así que recuperar la búsqueda concede TAMBIÉN Read/Write/Glob/Grep. No
+existe una muesca «agent pero sólo búsqueda» — el hueco está nombrado en el
+backlog de aire-server (repo privado) como **#37**,
+`.claude/backlog/37-the-mode-dial-is-coarse.md`, commit `6eabbf7`. Lo que esas
+tools alcanzan:
+
+- **Bash no existe en ninguna muesca**: está prohibido en las dos.
+- Los tools de archivo quedan **confinados a la casita de ESE chat** por la
+  jaula de AIRE (backlog #24: un hook `PreToolUse` que corre aunque
+  `acceptEdits` auto-apruebe, y que resuelve la ruta antes de comparar, así que
+  un symlink hacia afuera también se deniega). Verificado en vivo del lado de
+  AIRE: `/etc/aire/env` denegado, `/tmp` denegado, la casita permitida.
+- La casita es un **directorio de scratch por chat en el droplet de AIRE**, no
+  la papelería. Los expedientes de las familias, la lista maestra y la
+  `ANTHROPIC_API_KEY` de Fénix viven en el contenedor de `fenix-api`, del otro
+  lado de la puerta HTTP — el agente no los alcanza desde ahí ni con Read.
+
+Traducido: un niño puede lograr que el tutor escriba y relea sus propios
+apuntes dentro de su casita, y nada más. Ése es el precio de que «busca en
+internet» funcione, y está tomado a sabiendas.
 
 Variables de la ruta (las lee `AIREBackend` del entorno):
 
@@ -107,10 +147,19 @@ az containerapp update -n fenix-api -g og118-rg \
                  "AIRE_AUTH_TOKEN=secretref:aire-auth-token"
 ```
 
-Verificación (Art. 2): un turno real en
-https://www.serviciosfenix.com.mx/app/ que conteste, y el mismo minuto la
-sesión visible en https://aire.bernarduriza.com bajo el proyecto de la casita
-del chat (`fenix-…`). Para revertir:
+Verificación (Art. 2) — **tres cosas, y la tercera es la que este flip casi
+rompe**:
+
+1. Un turno real en https://www.serviciosfenix.com.mx/app/ que conteste.
+2. La sesión visible el mismo minuto en https://aire.bernarduriza.com bajo la
+   casita del chat (`fenix-…`).
+3. **Una pregunta que OBLIGUE a buscar** — un dato de esta semana que el modelo
+   no pueda saber de memoria (un resultado deportivo reciente, el precio de
+   algo hoy) — y que el tutor conteste **citando de dónde salió**. Un `200` no
+   prueba esto: en `mode=complete` el tutor contesta igual de bonito, sólo que
+   sin haber buscado. Lo que no puede mentir es la cita.
+
+Para revertir:
 `az containerapp update -n fenix-api -g og118-rg --remove-env-vars FENIX_BACKEND`.
 
 ### Las tres credenciales protegen cosas distintas
