@@ -802,6 +802,20 @@ class ProjectCreateRequest(BaseModel):
     # project's corpus). Any extra field (e.g. a client-sent project_id) is dropped
     # by pydantic, which is exactly the invariant.
     name: str | None = None
+    description: str | None = None
+    instructions: str | None = None
+
+
+class ProjectUpdateRequest(BaseModel):
+    """A partial patch: an OMITTED field is left alone, an empty string CLEARS it.
+
+    That distinction is the whole reason this is a PATCH and the defaults are
+    ``None``. A PUT would force the client to resend every field it is not
+    editing, and the first client that forgot one would silently wipe it."""
+
+    name: str | None = None
+    description: str | None = None
+    instructions: str | None = None
 
 
 @router.post("/projects")
@@ -813,8 +827,10 @@ async def create_project(
     """Mint a project + its corpus_id SERVER-SIDE, OWNED by the caller's account
     (PROJ-ACCOUNT-1). The client never decides the corpus_id; the owner (account_id
     = principal.sub) is stamped server-side so only the owner can reach it."""
-    project = registry.create(principal.sub, req.name)
-    return {"project_id": project["id"], "name": project["name"]}
+    project = registry.create(
+        principal.sub, req.name, description=req.description, instructions=req.instructions
+    )
+    return {"project_id": project["id"], "name": project["name"], "project": project}
 
 
 @router.get("/projects")
@@ -824,6 +840,82 @@ async def list_projects(
 ) -> dict:
     """The caller's projects (server-authoritative, filtered by owner account)."""
     return {"projects": registry.list_for(principal.sub)}
+
+
+@router.get("/projects/{project_id}")
+async def get_project(
+    project_id: str,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
+) -> dict:
+    """One project the caller owns — what the detail page loads on navigation.
+    404 if missing OR not owned (no existence probing)."""
+    if not registry.owns(project_id, principal.sub):
+        raise HTTPException(status_code=404, detail="project not found")
+    return {"project": registry.get(project_id)}
+
+
+@router.patch("/projects/{project_id}")
+async def update_project(
+    project_id: str,
+    req: ProjectUpdateRequest,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
+) -> dict:
+    """Edit name / description / instructions. Omitted field = untouched."""
+    project = registry.update(
+        project_id,
+        principal.sub,
+        name=req.name,
+        description=req.description,
+        instructions=req.instructions,
+    )
+    if project is None:
+        raise HTTPException(status_code=404, detail="project not found")
+    return {"project": project}
+
+
+@router.get("/projects/{project_id}/documents")
+async def list_project_documents(
+    project_id: str,
+    principal: Principal = Depends(get_principal),
+    registry: ProjectRegistry = Depends(get_project_registry),
+    rag: RagStoreClient = Depends(get_rag_store),
+) -> dict:
+    """The project's corpus: its documents AND how full it is.
+
+    One response for one UI panel. The knowledge rail draws the capacity meter
+    directly above the document grid, so splitting this into two routes would buy
+    nothing but a second round-trip and a window where the two disagree.
+
+    ``capacity.maxBytes``/``maxDocs`` are ``null`` when no quota is configured
+    (``FI_RAG_MAX_BYTES``/``FI_RAG_MAX_DOCS`` unset). Null means UNLIMITED and the
+    client must say so — rendering a percentage against an invented ceiling would
+    turn an honest "unbounded" into a reassuring number nobody can act on.
+    """
+    if not principal.is_legacy_bearer and not registry.owns(project_id, principal.sub):
+        raise HTTPException(status_code=404, detail="project not found")
+    documents = await rag.list_documents(project_id)
+    usage = await rag.stats(project_id)
+    quota = rag.quota()
+    return {
+        "documents": [
+            {
+                "docId": d["doc_id"],
+                "chunks": d["chunk_count"],
+                "status": d["status"],
+                "attributes": d.get("attributes") or {},
+            }
+            for d in documents
+        ],
+        "capacity": {
+            "docs": usage["n_docs"],
+            "chunks": usage["n_chunks"],
+            "bytes": usage["bytes"],
+            "maxDocs": quota["max_docs"],
+            "maxBytes": quota["max_bytes"],
+        },
+    }
 
 
 @router.delete("/projects/{project_id}")
@@ -906,6 +998,10 @@ async def upload_project_document(
                 "message": "document is too short to index; add more text and re-upload",
             },
         )
+    # Adding knowledge IS activity on the project: without this the index page
+    # would sort a project someone just fed to the bottom, under ones untouched
+    # for weeks.
+    registry.touch(project_id, principal.sub)
     return {"corpus_id": project_id, "doc_id": doc_id, "chunks": chunks}
 
 
@@ -934,16 +1030,33 @@ class ConversationRecordRequest(BaseModel):
     # upsert drops it from the stored record.
     pinnedAt: str | None = None
     archivedAt: str | None = None
+    # The project this conversation lives in (= the corpus_id bound on its turns).
+    # Until now the corpus binding was EPHEMERAL — sent per request, stored
+    # nowhere — so a conversation started inside a project became indistinguishable
+    # from any other the moment it was saved, and the project could not list its
+    # own chats. Optional, and dumped with exclude_none like the flags above: a
+    # conversation outside any project simply omits it.
+    projectId: str | None = None
     schemaVersion: int
 
 
 @router.get("/conversations")
 async def list_conversations(
+    projectId: str | None = None,
     principal: Principal = Depends(get_principal),
     store: ConversationStore = Depends(get_conversation_store),
 ) -> dict:
-    """The caller's conversations as light summaries, newest first (sidebar)."""
-    return {"conversations": store.list_for(principal.sub)}
+    """The caller's conversations as light summaries, newest first (sidebar).
+
+    ``?projectId=`` narrows it to one project — the "Recents" list of the project
+    detail page. Filtered here rather than in the client because the client would
+    otherwise download every conversation in the account to show the handful that
+    belong to the project it is looking at.
+    """
+    conversations = store.list_for(principal.sub)
+    if projectId is not None:
+        conversations = [c for c in conversations if c.get("projectId") == projectId]
+    return {"conversations": conversations}
 
 
 @router.get("/conversations/{conversation_id}")

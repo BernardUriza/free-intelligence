@@ -1,6 +1,6 @@
 # FIGLASS-PROJECTS-PAGE-1 — Projects como PÁGINA (paridad claude.ai), primitivas en fi-glass
 
-Status: Proposed
+Status: **In progress** — los 4 huecos del contrato del server CERRADOS (2026-08-22); faltan las primitivas de fi-glass y las rutas de og118
 Proposed: 2026-07-14 by Bernard ("quiero que sea una página, muy parecido a como
 sucede en claude.ai, que se ven recuadros con contenido y todo ese spa")
 
@@ -134,3 +134,63 @@ https://support.claude.com/en/articles/9519177-how-can-i-create-and-manage-proje
 
 Ver [[framework-first-canary]], [[mobile-viewport-ux]] (la página respeta los
 presupuestos móviles), [[og118-milestones-roadmap]].
+
+## PR 1 de 3 — el contrato del server, cerrado (2026-08-22)
+
+Los cuatro huecos que esta tarjeta destapó ya no bloquean nada. El *next step*
+decía "(1) PR server — los 4 gaps"; esto es ese PR.
+
+| Hueco | Cómo quedó |
+|---|---|
+| 1. `GET /projects/{id}/documents` no existía | existe, y devuelve **documentos + capacidad en la misma respuesta** — el rail dibuja el medidor justo encima del grid, así que partirlo en dos rutas sólo compraba un round-trip extra y una ventana donde los dos se contradicen |
+| 2. project pelón | `description`, `instructions` y `updatedAt` en el record, más `PATCH /projects/{id}` para poder setearlos y `GET /projects/{id}` para el detalle |
+| 3. conversaciones sin `project_id` | `projectId` en el contrato **y en `SUMMARY_FIELDS`**, más `GET /conversations?projectId=` para el "Recents" |
+| 4. sin cifra de capacidad | `capacity: {docs, chunks, bytes, maxDocs, maxBytes}` |
+
+**La primitiva de la capacidad subió a fi-runner**, no se resolvió en og118:
+`RagStoreClient.quota()` devuelve los techos (`FI_RAG_MAX_DOCS`/`MAX_BYTES`)
+porque `stats()` ya daba el numerador y la alternativa era que el consumidor
+metiera la mano en `_rag`, un atributo privado cuya forma es asunto de fi-core.
+
+**`null` en `maxBytes`/`maxDocs` significa SIN TOPE**, y el cliente tiene que
+decirlo con palabras: pintar un porcentaje contra un techo inventado convierte
+un "ilimitado" honesto en un número tranquilizador que nadie puede accionar.
+
+### Decisiones que se tomaron al construir
+
+- **`PATCH`, no `PUT`.** Un campo omitido se deja en paz; un string vacío lo
+  borra. Con `PUT` el primer cliente que olvidara reenviar un campo lo borraría
+  en silencio.
+- **Backfill en LECTURA, no migración.** Un proyecto de antes de este contrato
+  se hidrata al leerse (`updatedAt` cae a `createdAt` — la única respuesta
+  honesta: nada lo ha tocado desde que nació). Reescribir el JSON entero al
+  arrancar tiene un blast radius muchísimo mayor que un merge de diccionario.
+- **Subir un documento hace `touch` del proyecto.** Alimentar un proyecto ES
+  actividad; sin eso el índice ordenaría uno recién alimentado por debajo de
+  otros sin tocar en semanas.
+
+### Lo que NO hace, y hay que decirlo
+
+**`instructions` se guarda pero todavía no lo lee nadie.** Es el campo del
+contrato, no el system prompt per-project funcionando: el turno no lo consume.
+Cablearlo toca el layering de persona/prompt del server y sigue siendo la
+segunda decisión abierta de esta tarjeta (¿fase 1 o fase 2?). Guardar un campo
+que nada consume es deuda si se olvida, así que queda escrito aquí.
+
+Tampoco se tocó el hueco 5 (pin/star, archive, editor modal de instructions) —
+la propia tarjeta lo puso en fase 2+.
+
+### Verificación
+
+19 tests nuevos en `og118/server/tests/test_projects_contract.py` (incluidos
+tres de aislamiento entre cuentas: otra cuenta recibe 404, nunca 403) y 3 en
+`fi-runner/tests/test_rag_quota.py`. **Cuatro mutaciones probadas en rojo**:
+quitar el `touch` de `updatedAt` en el PATCH, quitar el chequeo de propiedad de
+`/documents`, sacar `projectId` de `SUMMARY_FIELDS`, y quitar el backfill de los
+records legacy. Suites: og118 **202**, fi-runner **306**, fenix **68**.
+
+### Sigue
+
+(2) PR fi-glass — las primitivas con tests; (3) PR og118 — rutas y wiring. Y
+las dos decisiones del dueño siguen abiertas: si el índice reemplaza la sección
+del sidebar o conviven, y si `instructions` se cablea en fase 1.
