@@ -101,13 +101,15 @@ fail, it stalls with the bill running.
 
 Each is real, none is bleeding; filed here rather than half-fixed:
 
-- **Two env vars name one database.** `AIRE_DSN` (engine, gateway mirror,
-  restore) and `AIRE_DATABASE_URL` (pen, roster, tokens, access, memory tool,
-  sweep) both point at the same Postgres, coupled only by a `cut -d= -f2-` in
-  `secrets.sh`. Two of the readers fall back to a **hardcoded localhost DSN
-  carrying Bernard's Mac username** — on the droplet that is a connection to
-  nothing, and `gateway_mirror` swallows it by design, so the gateway would
-  relay perfectly while mirroring nothing.
+- ~~**Two env vars name one database.**~~ **FIXED 2026-08-22** — the hard
+  cutover, Bernard's call over an alias. `AIRE_DSN` is gone from the daemon and
+  from `secrets.sh`; `AIRE_DATABASE_URL` is the only name, and an absent one now
+  RAISES (`deps.MissingDSN`) instead of defaulting to a laptop. The two
+  hardcoded `postgresql://bernardurizaorozco@127.0.0.1` fallbacks are deleted,
+  and `arming.py`'s `pen` and `store` guards collapsed into one `database` — they
+  had been watching the same value under two names, so `/health` implied two
+  independent memories. Pinned by `tests/test_dsn.py`, whose two structural
+  checks were proven to go red by seeding a regression before they were trusted.
 - **Five ways to reach Postgres.** The store's pool, the gateway mirror's pool,
   the pen's long-lived reconnecting connection (correct), and connect-per-call
   in `tokens`, `access`, `sweep`, `roster` and `memory_tool`. Measured from the

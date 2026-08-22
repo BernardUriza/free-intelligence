@@ -16,7 +16,7 @@ import pytest
 
 from aire import sweep
 
-DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
+DSN = os.environ.get("AIRE_DATABASE_URL", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
 LIVE = "live-fingerprint-0001"
 ORPHAN = "orphan-fingerprint-0002"
 YOUNG = "young-orphan-0003"

@@ -123,4 +123,4 @@ async def restore(conn) -> int:
 
 
 def dsn() -> str:
-    return os.environ.get("AIRE_DSN", "")
+    return os.environ.get("AIRE_DATABASE_URL", "")

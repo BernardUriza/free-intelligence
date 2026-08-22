@@ -35,13 +35,14 @@ compose_env() {
   # there were nothing to keep. It belongs HERE, once, where every unit that
   # sources this file inherits it.
   ENV_CONTENT+="AIRE_WORKSPACES=${REMOTE_DIR}/workspaces"$'\n'
-  append_secret "$PEN_SECRET"      "AIRE_DATABASE_URL=" "the pen (Postgres mirror)"
-  append_secret "$PEN_SECRET"      "AIRE_DSN="          "the engine store"
-  # The engine reads AIRE_DSN (same Postgres as the pen) — derive it when the
-  # file does not carry an explicit AIRE_DSN line.
-  if [[ -f "$PEN_SECRET" ]] && ! grep -q '^AIRE_DSN=' "$PEN_SECRET"; then
-    ENV_CONTENT+="AIRE_DSN=$(grep '^AIRE_DATABASE_URL=' "$PEN_SECRET" | cut -d= -f2-)"$'\n'
-  fi
+  # ONE name for one database. Until 2026-08-22 this wrote AIRE_DSN too, copied
+  # from the very same line, and thirteen call sites split between the two — two
+  # of them defaulting to a developer's laptop DSN when their name was missing.
+  # On the droplet that resolves to nothing, and the gateway mirror swallows a
+  # dead connection by design, so the daemon would have relayed perfectly while
+  # its memory quietly stopped existing. A second name for one value buys nothing
+  # and hides that.
+  append_secret "$PEN_SECRET"      "AIRE_DATABASE_URL=" "the database (pen, store, mirror)"
   append_secret "$VERB_TOKEN_FILE" "AIRE_VERB_TOKEN="   "the verbs (MKDIR/ALLOW/REVOKE)"
   append_secret "$LLM_TOKEN_FILE"  "AIRE_AUTH_TOKEN="   "the engine's LLM door"
   append_secret "$CANARY_TOKEN_FILE" "AIRE_CANARY_TOKEN=" "the revocable Azure-front door"

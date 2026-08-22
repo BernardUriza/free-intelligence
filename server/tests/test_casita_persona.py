@@ -14,7 +14,7 @@ import pytest
 
 from aire import casita
 
-DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
+DSN = os.environ.get("AIRE_DATABASE_URL", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
 NAME = "persona-test-casita"
 
 

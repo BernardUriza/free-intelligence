@@ -17,6 +17,8 @@ import os
 import time
 from typing import Any
 
+from .deps import dsn
+
 _pool: Any = None
 # Fingerprint -> when this process last asserted it (#41). A cache, never memory.
 #
@@ -67,14 +69,11 @@ CREATE TABLE IF NOT EXISTS aire_gateway_blob (
 """
 
 
-def dsn() -> str:
-    return os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
-
-
 async def pool() -> Any:
     global _pool
     if _pool is None:
         import asyncpg
+
         _pool = await asyncpg.create_pool(dsn(), min_size=0, max_size=2)
         await _pool.execute(DDL)
     return _pool

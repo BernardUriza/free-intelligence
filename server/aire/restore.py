@@ -24,7 +24,7 @@ from pathlib import Path
 from .listen.applog import _now, append_file
 from .store import create_postgres_session_store
 
-DSN = os.environ.get("AIRE_DSN", "")
+DSN = os.environ.get("AIRE_DATABASE_URL", "")
 PROJECTS = Path(os.environ.get("AIRE_CLI_PROJECTS",
                                Path.home() / ".claude" / "projects"))
 
@@ -71,7 +71,7 @@ async def _restore_personas() -> int:
 
 async def restore() -> int:
     if not DSN:
-        print("SESSION-RESTORE skipped (no AIRE_DSN)")
+        print("SESSION-RESTORE skipped (no AIRE_DATABASE_URL)")
         return 0
     store = await create_postgres_session_store(DSN)
     written = 0

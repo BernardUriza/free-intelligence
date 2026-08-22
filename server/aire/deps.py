@@ -10,7 +10,20 @@ import os
 from .engine import Engine
 from .store import create_postgres_session_store
 
-DSN = os.environ.get("AIRE_DSN", "postgresql://bernardurizaorozco@127.0.0.1:5432/aire")
+
+class MissingDSN(RuntimeError):
+    """`AIRE_DATABASE_URL` is not set. Raised instead of defaulting, because the
+    default this replaced was a developer's laptop — on the droplet that resolves
+    to nothing, and the mirror swallows a dead connection by design, so the daemon
+    would relay perfectly while its memory quietly stopped existing."""
+
+
+def dsn() -> str:
+    url = os.environ.get("AIRE_DATABASE_URL", "")
+    if not url:
+        raise MissingDSN("AIRE_DATABASE_URL is not set")
+    return url
+
 
 _engine: Engine | None = None
 
@@ -18,7 +31,7 @@ _engine: Engine | None = None
 async def get_engine() -> Engine:
     global _engine
     if _engine is None:
-        _engine = Engine(await create_postgres_session_store(DSN))
+        _engine = Engine(await create_postgres_session_store(dsn()))
     return _engine
 
 

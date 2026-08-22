@@ -24,8 +24,10 @@ import os
 
 # guard name → (what proves it armed, why its absence is not merely cosmetic)
 _GUARDS: tuple[tuple[str, str], ...] = (
-    ("pen", "AIRE_DATABASE_URL"),
-    ("store", "AIRE_DSN"),
+    # One database, one guard. `pen` and `store` watched AIRE_DATABASE_URL and
+    # AIRE_DSN until 2026-08-22, when the two names turned out to be one value
+    # copied by the provisioner — so /health implied two independent memories.
+    ("database", "AIRE_DATABASE_URL"),
     ("spend_backstop", "AIRE_MAX_SPEND_USD"),
     ("turn_cap", "AIRE_MAX_BUDGET_USD"),
     ("verbs", "AIRE_VERB_TOKEN"),

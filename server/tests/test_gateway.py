@@ -299,7 +299,7 @@ def test_a_caller_with_their_own_credential_is_still_pass_through(doors, monkeyp
 
 async def _mirror_rows(sid: str, want: int = 2, timeout: float = 8.0):
     import asyncpg
-    conn = await asyncpg.connect(os.environ["AIRE_DSN"])
+    conn = await asyncpg.connect(os.environ["AIRE_DATABASE_URL"])
     try:
         deadline = time.monotonic() + timeout
         while True:
