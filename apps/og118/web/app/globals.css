@@ -585,7 +585,7 @@ body {
   backdrop-filter: blur(var(--glass-blur, 12px));
 }
 .og-agent-hint {
-  color: var(--og-accent-muted, #94a3b8);
+  color: var(--og-accent-muted, #a3a3a3);
   font-size: 0.72rem;
   letter-spacing: 0.03em;
 }

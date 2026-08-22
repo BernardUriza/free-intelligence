@@ -1,7 +1,7 @@
 {
   "$id": "https://free-intelligence.dev/contracts/glass-chat-tokens.json",
   "title": "GlassChatTokens",
-  "description": "Los tokens de diseño del preset glass-chat y de las superficies que og118 pinta encima. ESTE ARCHIVO ES LA FUENTE: el CSS de fi-glass, el mirror tipado glassChatPreset y el Theme nativo de og118-ios derivan de aquí — ninguna superficie manda sobre las otras. Escrito a mano a propósito: antes cada valor vivía como literal en glass-chat.css, otra vez en glass-chat-preset.ts, otra vez en sidebarItemStyle.ts y una cuarta vez transcrito a ojo en Theme.swift, y cada transcripción diverge con el tiempo — el mismo hueco que dejó los hilos de la web vacíos en el iPhone cuando el contrato de mensajes se transcribió a mano. Un color es hex + alpha opcional; una medida declara px o rem (la regla rem→pt vive en el generador de Swift); css son cadenas que sólo la web consume tal cual.",
+  "description": "Los tokens de diseño. La capa `colors`/`dimensions`/`css` es el PRESET DE fi-glass — la verdad del framework. `consumers` trae lo que cada shell RE-TIÑE encima: og118 es el canario de fi-glass, no el dueño del tema, así que sus overrides viven en su propia capa y no contaminan el preset del que mañana derivará otro shell. Aplanar las dos capas es lo que hizo que el iPhone pintara el resplandor cyan del preset mientras app.og118.ai pinta el esmeralda de og118: el teléfono espejeaba el framework en vez de al consumer que dice ser.",
   "colors": {
     "bgDeep": {
       "hex": "#020617",
@@ -261,6 +261,24 @@
     "watermarkOpacity": {
       "value": "0.08",
       "description": "--glass-chat-watermark-opacity. Sólo la web: el watermark es del shell web."
+    }
+  },
+  "consumers": {
+    "og118": {
+      "description": "Lo que og118 re-tiñe sobre el preset, declarado en apps/og118/web/app/globals.css. Cualquier superficie que se presente COMO og118 —la web y la app nativa— compone preset + esta capa. check:glass-css verifica que esto siga siendo lo que el CSS dice.",
+      "colors": {
+        "bgDeep": {
+          "hex": "#0A0E16",
+          "cssVar": "--og-bg-deep",
+          "description": "og118 arranca su fondo más arriba que slate-950: --glass-chat-bg-from apunta a --og-bg-deep."
+        },
+        "glow": {
+          "hex": "#34D399",
+          "alpha": 0.06,
+          "cssVar": "--glass-chat-bg-glow",
+          "description": "El resplandor radial de og118 es esmeralda, no el cyan del preset. globals.css lo dice literal: \"og emerald, not preset cyan\"."
+        }
+      }
     }
   }
 }

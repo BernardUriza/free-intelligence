@@ -64,15 +64,34 @@ targets:
     dependencies:
       - target: OG118
 
+  OG118UnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - UnitTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118.unittests
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        # El producto se llama og118 en minúsculas; el TEST_HOST por defecto
+        # asume el nombre del target y no lo encuentra.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/og118.app/og118"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: OG118
+
 schemes:
   OG118:
     build:
       targets:
         OG118: all
+        OG118UnitTests: [test]
         OG118UITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
+        - OG118UnitTests
         - OG118UITests

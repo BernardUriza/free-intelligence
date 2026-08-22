@@ -22,10 +22,26 @@ const OUT = resolve(here, '../../../og118-ios/Sources/Views/Generated/Theme.gene
 
 const contrato = await cargarContrato();
 
-const colores = Object.entries(contrato.colors).map(([nombre, def]) => {
-  const doc = def.description ? `    /// ${def.description}\n` : '';
-  return `${doc}    static let ${nombre} = ${colorSwift(def)}`;
+// La app nativa se presenta COMO og118, así que compone preset + la capa del
+// consumer — igual que globals.css re-tiñe encima del preset en la web. og118 es
+// el CANARIO de fi-glass, no el dueño del tema: sus overrides viven en su capa y
+// el preset queda intacto para el shell que venga después.
+const CONSUMER = 'og118';
+const overrides = contrato.consumers?.[CONSUMER]?.colors ?? {};
+const colores = Object.entries(contrato.colors).map(([nombre, base]) => {
+  const override = overrides[nombre];
+  const def = override ?? base;
+  const nota = override
+    ? `    /// ${base.description}\n    /// OVERRIDE de ${CONSUMER}: ${override.description}\n`
+    : base.description ? `    /// ${base.description}\n` : '';
+  return `${nota}    static let ${nombre} = ${colorSwift(def)}`;
 });
+
+const noAplicados = Object.keys(overrides).filter((n) => !(n in contrato.colors));
+if (noAplicados.length) {
+  console.error(`consumers.${CONSUMER} re-tiñe tokens que el preset no declara: ${noAplicados.join(', ')}`);
+  process.exit(1);
+}
 
 const medidas = Object.entries(contrato.dimensions).map(([nombre, def]) => {
   const origen = def.px !== undefined ? `${def.px}px` : `${def.rem}rem -> ${medidaPt(def)}pt`;

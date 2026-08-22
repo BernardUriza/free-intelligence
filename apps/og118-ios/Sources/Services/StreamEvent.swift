@@ -19,6 +19,14 @@ enum StreamEvent {
     case stepStarted(Int)
     case stepDone(index: Int, status: StepStatus, summary: String?, error: String?)
     case stepNoted(index: Int, note: String)
+    /// El ciclo de vida del plan. El diferenciador es "ver la ejecución, no sólo
+    /// el resultado": un plan rechazado por el guard, reestructurado a media
+    /// marcha o abandonado son cosas que el usuario TIENE que ver, y hasta ahora
+    /// llegaban al teléfono como "frame sin mapear".
+    case planRejected(razon: String, etiquetas: [String], guardia: String?)
+    case planAmended(TurnPlan.Enmienda)
+    case planCancelled
+    case planClosed(TurnPlan.Desenlace)
     /// Un frame que el contrato declara pero esta pantalla todavía no usa, o uno
     /// que este build no conoce. Se muestra en la bitácora en vez de perderse.
     case unmapped(String)
@@ -76,8 +84,20 @@ extension StreamEvent {
         case .ping:
             // Señal de vida de un turno lento; no cambia nada en pantalla.
             return nil
-        case .planAmended, .planCancelled, .planCompleted, .planFailed, .planRejected:
-            return .unmapped("plan lifecycle")
+        case .planRejected(let datos):
+            return .planRejected(
+                razon: datos.reason,
+                etiquetas: (datos.matched ?? []).map(\.label),
+                guardia: datos.`guard`
+            )
+        case .planAmended(let datos):
+            return .planAmended(TurnPlan.Enmienda(rawValue: datos.action.rawValue) ?? .insertado)
+        case .planCancelled:
+            return .planCancelled
+        case .planCompleted:
+            return .planClosed(.completado)
+        case .planFailed:
+            return .planClosed(.fallido)
         case .desconocido(let tipo):
             return .unmapped(tipo)
         }

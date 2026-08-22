@@ -36,7 +36,8 @@
     "check:swift-theme": "node scripts/gen-swift-theme.mjs --check",
     "gen:theme-tokens": "node scripts/gen-theme-tokens.mjs",
     "check:theme-tokens": "node scripts/gen-theme-tokens.mjs --check",
-    "check:glass-css": "node scripts/check-glass-css.mjs"
+    "check:glass-css": "node scripts/check-glass-css.mjs",
+    "check:og118-css": "node scripts/check-og118-css.mjs"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.4",

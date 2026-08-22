@@ -16,7 +16,8 @@ import SwiftUI
 
 extension Theme {
     /// slate-950. --glass-chat-body y --glass-chat-bg-from del preset. OJO: og118 web re-tinta --glass-chat-bg-from a #0a0e16 (--og-bg-deep en globals.css); el iPhone hoy pinta el default del preset, no el re-tint — divergencia heredada, documentada, no resuelta aquí.
-    static let bgDeep = Color(hex: 0x020617)
+    /// OVERRIDE de og118: og118 arranca su fondo más arriba que slate-950: --glass-chat-bg-from apunta a --og-bg-deep.
+    static let bgDeep = Color(hex: 0x0A0E16)
     /// slate-900. --glass-chat-bg-mid, el centro del barrido diagonal del fondo.
     static let bgMid = Color(hex: 0x0F172A)
     /// emerald-400. --og-accent en globals.css de og118 — el acento del CONSUMER, no del preset (el preset arranca su gradiente en accentDeep).
@@ -52,7 +53,8 @@ extension Theme {
     /// slate-600/35. --glass-chat-bubble-border.
     static let bubbleBorder = Color(hex: 0x475569).opacity(0.35)
     /// --glass-chat-bg-glow del preset: el resplandor radial apenas-visible sobre el fondo. OJO: og118 web lo re-tinta a rgba(52, 211, 153, 0.06) — 'og emerald, not preset cyan'; el iPhone hoy pinta el cyan del preset — divergencia heredada, documentada, no resuelta aquí.
-    static let glow = Color(hex: 0x0891B2).opacity(0.07)
+    /// OVERRIDE de og118: El resplandor radial de og118 es esmeralda, no el cyan del preset. globals.css lo dice literal: "og emerald, not preset cyan".
+    static let glow = Color(hex: 0x34D399).opacity(0.06)
     /// violet-600/80. avatar.user en messages/styles.ts: el chip de autor del usuario.
     static let authorUser = Color(hex: 0x7C3AED).opacity(0.8)
     /// --fi-author-agent-fg en MessageAuthorHeader.tsx: texto oscuro sobre el chip ámbar del agente.

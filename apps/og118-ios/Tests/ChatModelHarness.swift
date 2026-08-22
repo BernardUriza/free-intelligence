@@ -544,6 +544,11 @@ struct Harness {
         elAutorSeEscribeCanonico()
         guardarNoAmputaElRecordDeLaWeb()
         await cambiarDeChatNoArrastraElReintento()
+        await elGuardBloqueaYSeVE()
+        await cancelarElPlanNoEsCompletarlo()
+        await elDesenlaceDelPlanLlega()
+        await laEnmiendaViveEntreElAnuncioYElPlanNuevo()
+        losFramesDelPlanYaNoSonBasura()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -764,6 +769,103 @@ private func cambiarDeChatNoArrastraElReintento() async {
 
     model.startNew()
     expect(model.reintentable == nil, "un chat nuevo tampoco lo hereda")
+}
+
+// MARK: - El ciclo de vida del plan (los 5 frames que llegaban como "sin mapear")
+
+@MainActor
+private func elGuardBloqueaYSeVE() async {
+    print("un plan rechazado por el guard se pinta, no se traga")
+    let model = ChatModel(stream: canned([
+        .open,
+        .plan(["Borrar la base", "Avisar"]),
+        .planRejected(razon: "Un paso destruye datos", etiquetas: ["Borrar la base"], guardia: "no-destructivo"),
+        .text("mejor no"), .done
+    ]))
+    model.send("x")
+    await settle()
+    expect(model.plan.rechazo?.razon == "Un paso destruye datos", "el motivo del rechazo llega")
+    expect(model.plan.rechazo?.etiquetas == ["Borrar la base"], "y qué paso lo disparó")
+    expect(model.plan.rechazo?.guardia == "no-destructivo", "y qué guardia fue")
+    expect(model.plan.pasos.count == 2, "el plan NO se borra: el stream sigue y hay que verlo")
+}
+
+@MainActor
+private func cancelarElPlanNoEsCompletarlo() async {
+    print("plan_cancelled deja los pasos abiertos en CANCELADO, nunca en hecho")
+    let model = ChatModel(stream: canned([
+        .open,
+        .plan(["Uno", "Dos", "Tres"]),
+        .stepDone(index: 0, status: .done, summary: "listo", error: nil),
+        .stepStarted(1),
+        .planCancelled,
+        .text("abandonado"), .done
+    ]))
+    model.send("x")
+    await settle()
+    let pasos = model.plan.pasos
+    expect(pasos.first?.estado == .hecho, "un paso YA terminado conserva su estado")
+    expect(pasos.count == 3 && pasos[1].estado == .cancelado, "el que corría queda CANCELADO, no hecho")
+    expect(pasos.last?.estado == .cancelado, "y el que ni empezó, también")
+    expect(model.plan.desenlace == .cancelado, "el plan queda marcado como cancelado")
+}
+
+@MainActor
+private func elDesenlaceDelPlanLlega() async {
+    print("plan_completed / plan_failed estampan el veredicto")
+    let ok = ChatModel(stream: canned([
+        .open, .plan(["a"]), .stepDone(index: 0, status: .done, summary: nil, error: nil),
+        .planClosed(.completado), .text("ya"), .done
+    ]))
+    ok.send("x")
+    await settle()
+    expect(ok.plan.desenlace == .completado, "completado")
+    expect(ok.plan.pasos.first?.estado == .hecho, "sin tocar el estado de los pasos")
+
+    let mal = ChatModel(stream: canned([
+        .open, .plan(["a"]), .stepDone(index: 0, status: .failed, summary: nil, error: "tronó"),
+        .planClosed(.fallido), .text("ya"), .done
+    ]))
+    mal.send("x")
+    await settle()
+    expect(mal.plan.desenlace == .fallido, "fallido")
+}
+
+@MainActor
+private func laEnmiendaViveEntreElAnuncioYElPlanNuevo() async {
+    print("plan_amended es una insignia temporal, no un estado permanente")
+    let model = ChatModel(stream: canned([
+        .open, .plan(["viejo"]), .planAmended(.replanteado), .text("a"), .done
+    ]))
+    model.send("x")
+    await settle()
+    expect(model.plan.enmienda == .replanteado, "la insignia aparece con el anuncio")
+
+    // El replan ANUNCIA y luego declara los pasos nuevos: ahí la insignia muere.
+    let conPlanNuevo = ChatModel(stream: canned([
+        .open, .plan(["viejo"]), .planAmended(.replanteado), .plan(["nuevo"]), .text("a"), .done
+    ]))
+    conPlanNuevo.send("x")
+    await settle()
+    expect(conPlanNuevo.plan.enmienda == nil, "el plan nuevo la limpia")
+    expect(conPlanNuevo.plan.pasos.first?.etiqueta == "nuevo", "y trae los pasos nuevos")
+}
+
+private func losFramesDelPlanYaNoSonBasura() {
+    print("los 5 frames del ciclo de vida SE MAPEAN, ya no caen en unmapped")
+    let casos: [(String, Data)] = [
+        ("plan_rejected", #"{"type":"plan_rejected","data":{"reason":"no"}}"#.data(using: .utf8)!),
+        ("plan_amended", #"{"type":"plan_amended","data":{"action":"replan"}}"#.data(using: .utf8)!),
+        ("plan_cancelled", #"{"type":"plan_cancelled","data":{}}"#.data(using: .utf8)!),
+        ("plan_completed", #"{"type":"plan_completed","data":{}}"#.data(using: .utf8)!),
+        ("plan_failed", #"{"type":"plan_failed","data":{}}"#.data(using: .utf8)!),
+    ]
+    for (nombre, datos) in casos {
+        let evento = StreamEvent.decode(datos)
+        var esBasura = false
+        if case .unmapped = evento { esBasura = true }
+        expect(evento != nil && !esBasura, "\(nombre) se mapea de verdad")
+    }
 }
 
 // MARK: - El servidor dormido

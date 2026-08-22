@@ -54,8 +54,11 @@ autoría, cancelación, historial— se ejecuta sin red, sin UI y sin Xcode:
 ```bash
 cd apps/og118-ios
 SDK=$(xcrun --show-sdk-path --sdk macosx)
-swiftc -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
-  Sources/Models/*.swift Sources/Services/*.swift Tests/ChatModelHarness.swift
+# -DDEBUG porque la sonda de desarrollo vive tras esa bandera: no viaja en el
+# binario que se instala, pero el arnés sí la cubre.
+swiftc -DDEBUG -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
+  Sources/Models/*.swift Sources/Services/*.swift Sources/Services/Generated/*.swift \
+  Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift
 /tmp/og118-harness
 ```
 
