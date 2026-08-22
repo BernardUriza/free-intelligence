@@ -92,10 +92,13 @@ not; the numbers came from running them, not from reading them.
 
 ## Verified facts (don't re-discover them)
 
-- **The database has ONE table today**: `aire_log` (`seq`, `at`, `line`), written
-  by the droplet's listener. `claude_session_store` does not exist yet — the
-  engine has never run against this database. The UI is built to discover it, not
-  to wait for it.
+- **The database had ONE table on genesis day**: `aire_log` (`seq`, `at`,
+  `line`), written by the droplet's listener, and the UI was built to DISCOVER
+  tables rather than wait for them. That design paid off — as of 2026-08-22 there
+  are **eight**: `aire_log`, `claude_session_store` (the agent's memory),
+  `aire_gateway_log` + `aire_gateway_blob` (the relay's, deduped), `aire_casita`
+  (each casita's persona), `aire_token`, `aire_device`, `aire_access_request`.
+  Read the catalog, never a schema hardcoded here.
 - **`pg` is more dangerous than `asyncpg` was.** With no parameters, node-postgres
   speaks the simple query protocol, which runs `SET …; DELETE …` as one
   transaction. Always pass `values` (even `[]`): that forces the extended protocol
