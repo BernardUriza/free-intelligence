@@ -52,9 +52,25 @@ CREATE INDEX IF NOT EXISTS aire_casita_key_idx ON aire_casita (project_key, seq 
 """
 
 
+class NoWorkspaces(Exception):
+    """The casitas are not where this process is looking.
+
+    It exists because the silent version of this bit within an hour of shipping:
+    `aire-mirror.service` did not carry `AIRE_WORKSPACES`, so `WORKSPACES`
+    resolved to a directory that does not exist, `glob` found nothing, and the
+    mirror reported ZERO as if there were simply no personas yet. That is the
+    disease #40 is about — a guard that degrades politely and says nothing —
+    reproduced by the very commit that was fixing it. An absent directory is not
+    an empty one, and restore must never write a soul into a path nobody reads.
+    """
+
+
 def on_disk() -> list[tuple[str, str, Path]]:
     """Every casita that HAS a persona: (project_key, name, path). A workspace
-    without a CLAUDE.md has no identity to keep."""
+    without a CLAUDE.md has no identity to keep — but a missing WORKSPACES root
+    is a misconfiguration, and it raises rather than reading as 'none'."""
+    if not WORKSPACES.is_dir():
+        raise NoWorkspaces(f"{WORKSPACES} does not exist — is AIRE_WORKSPACES set?")
     found = []
     for path in sorted(WORKSPACES.glob("*/CLAUDE.md")):
         directory = path.parent
@@ -87,6 +103,9 @@ async def restore(conn) -> int:
     """Re-materialize the newest version of every persona whose file is absent.
     DISK WINS: a file that exists is left alone, because it may already be newer
     than anything Postgres has seen."""
+    if not WORKSPACES.is_dir():
+        raise NoWorkspaces(f"{WORKSPACES} does not exist — restoring there would "
+                           "write every soul into a path nobody reads")
     await conn.execute(DDL)
     rows = await conn.fetch(
         "SELECT DISTINCT ON (project_key) casita, claude_md FROM aire_casita"

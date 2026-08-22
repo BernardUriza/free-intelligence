@@ -29,6 +29,12 @@ append_secret() {  # <file> <KEY=> <human-name>
 compose_env() {
   echo "    [local] composing /etc/aire/env from ~/.secrets/…"
   ENV_CONTENT=""
+  # Where the casitas live. Two units set it as their own Environment= line, and
+  # that is exactly how it bit: the mirror unit did NOT, so the casita persona
+  # backup resolved to a directory that does not exist and reported ZERO as if
+  # there were nothing to keep. It belongs HERE, once, where every unit that
+  # sources this file inherits it.
+  ENV_CONTENT+="AIRE_WORKSPACES=${REMOTE_DIR}/workspaces"$'\n'
   append_secret "$PEN_SECRET"      "AIRE_DATABASE_URL=" "the pen (Postgres mirror)"
   append_secret "$PEN_SECRET"      "AIRE_DSN="          "the engine store"
   # The engine reads AIRE_DSN (same Postgres as the pen) — derive it when the

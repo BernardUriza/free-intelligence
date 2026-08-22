@@ -86,6 +86,24 @@ async def test_a_workspace_without_a_persona_is_not_invented(tmp_path, monkeypat
 
 
 @pytest.mark.asyncio
+async def test_a_missing_workspaces_root_is_LOUD_not_an_empty_result(tmp_path, monkeypatch):
+    """This is not hypothetical: it bit within an hour of shipping. The mirror
+    unit did not carry AIRE_WORKSPACES, the root resolved to a directory that
+    does not exist, and the run reported ZERO as if there were no personas —
+    the exact silent degradation #40 exists to kill, reproduced by the commit
+    that was fixing it. An absent directory is not an empty one."""
+    c = await _conn(tmp_path, monkeypatch)
+    monkeypatch.setattr(casita, "WORKSPACES", tmp_path / "nowhere")
+    try:
+        with pytest.raises(casita.NoWorkspaces):
+            casita.on_disk()
+        with pytest.raises(casita.NoWorkspaces):
+            await casita.restore(c)
+    finally:
+        await c.close()
+
+
+@pytest.mark.asyncio
 async def test_restore_recovers_the_NEWEST_version(tmp_path, monkeypatch):
     c = await _conn(tmp_path, monkeypatch)
     try:
