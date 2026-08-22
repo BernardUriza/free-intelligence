@@ -510,7 +510,7 @@ def test_the_casita_state_map_is_bounded(monkeypatch):
     monkeypatch.setattr(aire_route, "_CASITA_STATE_MAX", 8)
 
     for n in range(50):
-        aire_route.casita_state(f"insult-{n}/live")
+        aire_route.casita_state(f"insult-{n}")
 
     assert len(aire_route._casita_state) == 8
 
@@ -519,16 +519,16 @@ def test_a_casita_mid_turn_is_never_evicted(monkeypatch):
     """RESISTANCE: dropping a HELD lock would hand the next turn a different lock
     and reopen the race the cap is not allowed to cost."""
     monkeypatch.setattr(aire_route, "_CASITA_STATE_MAX", 2)
-    busy = aire_route.casita_state("insult-busy/live")
+    busy = aire_route.casita_state("insult-busy")
 
     async def _hold_and_flood():
         async with busy.lock:
             for n in range(20):
-                aire_route.casita_state(f"insult-{n}/live")
+                aire_route.casita_state(f"insult-{n}")
 
     asyncio.run(_hold_and_flood())
 
-    assert aire_route._casita_state.get("insult-busy/live") is busy
+    assert aire_route._casita_state.get("insult-busy") is busy
 
 
 # --- the judge's prompt surface (JUDGE_MAX_CONCURRENCY must mean ONE thing) --
