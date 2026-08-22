@@ -8,7 +8,6 @@ mirrored transcript. Events, never HTML ([[write-only-daemon]])."""
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import AsyncIterator
 from dataclasses import asdict, is_dataclass
 from typing import Any
@@ -20,26 +19,14 @@ from sse_starlette.sse import EventSourceResponse
 
 from . import tokens
 from .deps import get_engine
-from .engine import DEFAULT_MODE, MODES, BudgetExceeded, SlotBusy, TurnSpec
+from .engine import BudgetExceeded, SlotBusy, TurnSpec
+from .engine.contract import Guard
 from .engine.drain import turn_cost
-from .engine.tools import UnknownTool, clean_tools
-from .engine.vision import BadImage, clean_images
-from .names import InvalidName, clean
+from .engine.guard_exec import observe
+from .intake import (safe_guards, safe_images, safe_mode, safe_model,
+                     safe_names, safe_tools)
 
 router = APIRouter()
-
-MODEL_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-
-
-def safe_names(project: str, session: str) -> tuple[str, str]:
-    try:
-        return clean("project", project), clean("session", session)
-    except InvalidName as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-
-def safe_mode(mode: str | None) -> str:
-    return mode if mode in MODES else DEFAULT_MODE
 
 
 @router.post("/projects/{project}/sessions/{session}/messages")
@@ -51,45 +38,20 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     spec = TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
                     model=safe_model(body.get("model")))
     images = safe_images(body.get("images"))
+    guards = safe_guards(body.get("guards"))
     # An empty turn spends real money for nothing, so the edge cuts it. An
     # image-only send IS a turn (#29 gap 4): the picture is the message.
     if not message and not images:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
+        if guards:
+            # A guard's whole output is a stream event. A detached turn has no
+            # stream, so honouring `guards` here would build them and discard
+            # their findings — a request accepted and silently ignored.
+            raise HTTPException(status_code=422, detail="guards need a stream; drop `background`")
         return await _launch_background(project, session, message, spec, images, holder)
-    return EventSourceResponse(_events(project, session, message, spec, images, holder))
-
-
-def safe_tools(raw: Any, _mode: str) -> tuple[str, ...]:
-    """Validate the `tools` field against the vetted registry (#29). The mode
-    dial governs the BUILTIN surface only: registry tools are in-process and
-    vetted, so a complete-mode turn may carry them (#36 — og118 edits its
-    living persona without ever gaining Write or WebSearch)."""
-    try:
-        names = clean_tools(raw)
-    except UnknownTool as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return tuple(names)
-
-
-def safe_model(raw: Any) -> str | None:
-    """The `model` field (#29 gap 3) rides verbatim to the CLI as `--model`; the
-    edge guards only the argv's shape — the API curates the catalog. Absent →
-    the engine decides. Binds when the session's pooled client is (re)born."""
-    if raw is None or raw == "":
-        return None
-    if isinstance(raw, str) and MODEL_SHAPE.match(raw):
-        return raw
-    raise HTTPException(status_code=422, detail="invalid model")
-
-
-def safe_images(raw: Any) -> tuple[dict[str, str], ...]:
-    """Attachments for THIS turn (#29 gap 4), validated in `engine/vision.py`."""
-    try:
-        return clean_images(raw)
-    except BadImage as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return EventSourceResponse(_events(project, session, message, spec, images, holder, guards))
 
 
 async def _bank(holder: Any, cost: float) -> None:
@@ -124,7 +86,8 @@ async def session_status(project: str, session: str) -> JSONResponse:
 
 async def _events(project: str, session: str, message: str, spec: TurnSpec,
                   images: tuple[dict[str, str], ...],
-                  holder: Any = None) -> AsyncIterator[ServerSentEvent]:
+                  holder: Any = None,
+                  guards: list[Guard] | None = None) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
         async for ev in engine.run_stream(project, session, message, spec, images):
@@ -133,6 +96,8 @@ async def _events(project: str, session: str, message: str, spec: TurnSpec,
             if holder is not None and ev.get("type") == "result":
                 await _bank(holder, turn_cost(ev))
             yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
+            if guards and ev.get("type") == "result":
+                yield _guards_event(guards, ev, message)
     except BudgetExceeded as exc:
         # The spend ceiling was hit BEFORE the turn touched the API. Tell the
         # caller in-stream (the connection is already an event stream, so a 402
@@ -143,6 +108,15 @@ async def _events(project: str, session: str, message: str, spec: TurnSpec,
         # is already 200, so say retry in-stream rather than a 503 header.
         yield ServerSentEvent(event="error", data=json.dumps({"error": "slot_busy", "detail": str(exc)}))
     yield ServerSentEvent(event="done", data=json.dumps({"session": session, "mode": spec.mode}))
+
+
+def _guards_event(guards: list[Guard], result_ev: dict[str, Any], message: str) -> ServerSentEvent:
+    """What the guards saw, after the text the caller already read. Observational
+    by construction — see `guard_exec.observe`. A guard that raises is reported,
+    never fatal: the turn already succeeded and its answer is already delivered."""
+    text = getattr(result_ev.get("result"), "text", "") or ""
+    return ServerSentEvent(event="guards",
+                           data=json.dumps(_plain(observe(guards, text, message)), ensure_ascii=False))
 
 
 def _plain(ev: dict[str, Any]) -> dict[str, Any]:

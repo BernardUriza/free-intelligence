@@ -110,3 +110,37 @@ def guard_level(metadata: dict[str, Any]) -> str:
     if metadata.get("guard_failed"):
         return "error"
     return metadata.get("level") or metadata.get("severity") or "ok"
+
+
+UNENFORCED = ("text_override", "retry")
+
+
+def observe(guards: list[Guard], text: str, user_message: str,
+            request_id: str | None = None) -> dict[str, Any]:
+    """The OBSERVATIONAL contract: run the guards, report what they found, and
+    change nothing about the turn.
+
+    AIRE streams `text` events as they arrive, so by the time a guard sees the
+    finished text the caller has already read it — a `text_override` cannot
+    un-send it and a `retry` would re-bill a turn the caller did not ask twice
+    for. Neither is honoured. Both are REPORTED under `unenforced`, because a
+    safety net whose findings vanish is worse than no net: the drift stops being
+    visible. Whether the door should buffer a guarded turn so the transformational
+    half can act is Bernard's open fork, not this function's to assume."""
+    events: list[str] = []
+    _, outcomes, wants_retry, reinforcement = run_guards(
+        guards, text, user_message, final=True,
+        request_id=request_id, emit=lambda e, f: events.append(e),
+    )
+    unenforced = [n for n, o in outcomes.items() if not o.clean]
+    return {
+        "type": "guards",
+        "findings": {n: {"level": guard_level(o.metadata),
+                         "matched": o.metadata.get("matched", []),
+                         "failed": bool(o.metadata.get("guard_failed"))}
+                     for n, o in outcomes.items()},
+        "signals": events,
+        "unenforced": unenforced,
+        "wanted_retry": wants_retry,
+        "reinforcement": reinforcement,
+    }
