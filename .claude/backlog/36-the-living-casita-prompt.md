@@ -74,3 +74,37 @@ The og118 half landed the same day (fi PR #411): casita-per-chat naming
 paragraph (prompts-as-content), `tools:["persona"]` riding `mode=complete`
 after the guard fell, and the latent FlowNarrator hazard closed. Verified on
 the live tutor end-to-end.
+
+## The half that was still mortal (closed 2026-08-22)
+
+The living identity this item created lived ONLY on
+`/opt/aire/workspaces/<casita>/CLAUDE.md` — the droplet's disk. The transcript
+had been immortal since day one (verified by killing the daemon between two
+turns and watching the second answer from the first one's memory, from another
+machine and another credential), but `restore.py` resurrected the SSH door's
+JSONL and nothing resurrected this. A fresh box would have brought every casita
+back **remembering everything that was said and having forgotten who it is** —
+the litmus test in `CLAUDE.md` failing on the one file that holds the soul.
+
+`aire/casita.py` closes it with the same two verbs as the door (Art. 6, no third
+mechanism): `offer` rides the existing `aire-mirror` tick, `restore` rides
+`remote-bootstrap`'s. Append-only, because a persona is REWRITTEN and
+[[log-is-the-truth]] forbids mutating what is stored — so the history of how each
+casita rewrote itself comes free. DISK WINS on restore, identically to the door.
+
+**Receipt (live):** 12 personas stored on the first tick, including `insult`'s at
+**84,121 chars**, which had no backup at all. Second tick stored 0. Then the real
+kill test: `personatest36`'s file deleted from the droplet, `python -m
+aire.restore` run, and it came back with the **same sha256** — then a live edit
+survived a second restore untouched.
+
+**And it shipped broken for an hour, in exactly the way [#40](40-every-guard-fails-quietly.md)
+describes.** `aire-mirror.service` does not carry `AIRE_WORKSPACES` — only the
+listener and server units set it, each as their own line — so the backup resolved
+to a directory that does not exist and reported **zero** as if there were no
+personas yet. Restore was worse than a no-op: it would have written every soul
+into a path nobody reads. Fixed twice over: an absent root now raises
+`NoWorkspaces` instead of returning a comfortable zero, and the path lives once
+in `/etc/aire/env`, composed by provisioning from `REMOTE_DIR`, instead of being
+repeated per-unit and forgotten in the third.
+
