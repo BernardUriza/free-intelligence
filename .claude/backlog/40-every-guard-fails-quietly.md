@@ -121,19 +121,38 @@ Each is real, none is bleeding; filed here rather than half-fixed:
   in `tokens`, `access`, `sweep`, `roster` and `memory_tool`. Measured from the
   droplet: **185 ms to open a connection, 12 ms to run the query** — fifteen
   times the cost of the work, paid on every billed turn by `tokens.charge`.
-- **The kill test verifies fewer units than a routine push.** `remote-bootstrap`
-  checks four; `deploy-server.yml` checks six. The two it omits are
-  `aire-mirror.timer` and `aire-tmpclean.timer` — the mirror being exactly the
-  unit whose job is to prove the SSH door's memory leaves the mortal disk.
-- **ALLOW/REVOKE have no exception handling around their Postgres write**, so a
-  transient outage drops the connection with nothing in the append-only log —
-  and `pen.write()` discards on `QueueFull` with no `PEN-OVERFLOW` line, so the
-  file and the mirror can diverge silently.
-- **The listener has no read/idle timeout**, so a client that opens a connection
-  and never sends a newline holds one of 256 slots forever, on a port
-  deliberately open to the internet.
-- **costwatch never checks logrotate**, though [[do-budget]] and the listener
-  unit both state that it does.
+- ~~**The kill test verifies fewer units than a routine push.**~~ **FIXED
+  2026-08-22.** `remote-bootstrap` now checks the same six `deploy-server.yml`
+  does. A kill test weaker than a deploy is not a kill test — the two it skipped
+  were `aire-tmpclean.timer` and `aire-mirror.timer`, the second being exactly
+  the unit whose job is to prove the SSH door's memory leaves the mortal disk.
+- ~~**ALLOW/REVOKE have no exception handling around their Postgres write.**~~
+  **FIXED 2026-08-22.** They logged only success, so a Postgres blip erased the
+  whole attempt: no command line, no failure line, and no ACK — the exception
+  walked out through the connection handler, which appended `DISCONNECT` and hung
+  up. Now every accepted verb writes two lines like MKDIR always did (the command,
+  then its outcome), every failing path ends in `ALLOW-ERROR`/`REVOKE-ERROR` and
+  an `ERROR` reply, and the contract table in [[device-verb-protocol]] says so.
+- ~~**`pen.write()` discards on `QueueFull` with no `PEN-OVERFLOW` line.**~~
+  **FIXED 2026-08-22.** Dropping is correct — the file holds every line and the
+  mirror is the copy — but an unmarked drop is two memories diverging in silence,
+  and the front reads the mirror, where a hole with no marker looks like a quiet
+  stretch. The gap is now bracketed at both ends: one file line when it opens, and
+  a counted `PEN-OVERFLOW n lines never reached postgres` that goes into the
+  MIRROR when it closes. Both regressions are pinned in `test_listener.py`, and
+  both tests were run against the old code first to watch them go red.
+- ~~**The listener has no read/idle timeout.**~~ **FIXED 2026-08-22** (`d065634`),
+  and this line survived the fix by a day. Two windows, not one knob: 300s of idle
+  for a device that has already spoken, 10s to finish the FIRST line — with a
+  single window a reconnecting attacker keeps the door jammed forever.
+- ~~**costwatch never checks logrotate**, though [[do-budget]] and the listener
+  unit both state that it does.~~ **FIXED 2026-08-22 — the code caught up to the
+  documentation instead of the documentation being downgraded.** Four signals,
+  because a config that validates is not a rotation that happens: the config
+  parses, `logrotate.timer` is active, the last rotation in
+  `/var/lib/logrotate/status` is at most three days old, and `aire.log` is under
+  64 MB. All three red paths (never rotated / stale / oversized) were provoked on
+  the droplet before the check was trusted, and its state file was put back.
 - **The front's `tables()` has no per-table fault isolation** — one ungranted
   table throws and the entire console reports the database unreachable — and
   `claudeFolders()`/`gatewaySessions()` aggregate whole tables with no window,
@@ -151,9 +170,14 @@ Each is real, none is bleeding; filed here rather than half-fixed:
 ## Status / next step
 
 Shipped and verified. `/health` now reports its own guards; the wall is code
-with a red it can reach; the slot leak is closed with tests. The two open forks
-are Bernard's, and the list above is the honest remainder — filed so the next
-session inherits it instead of rediscovering it (Art. 1).
+with a red it can reach; the slot leak is closed with tests.
+
+**Five of the eight leftovers are now closed too (2026-08-22, second pass)** —
+the two silent-divergence ones in the listener, the kill test's missing units,
+the logrotate watch, and the idle timeout that had already shipped. What remains
+below is real and unbled: the five ways to reach Postgres (185 ms to connect,
+12 ms to work, paid on every billed turn) and the front's unbounded aggregates.
+The two open forks are Bernard's.
 
 See also [[verify-before-assuming]] Rule 22 (the signal that cannot fail),
 [[device-verb-protocol]] (the kill test this extends past the droplet),

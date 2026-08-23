@@ -13,8 +13,16 @@ quietly rot or "disappear".
 | Verb | Line | Effect | Log event |
 |---|---|---|---|
 | MKDIR | `MKDIR <token> <name>` | create a session casita `workspaces/{ts}_{uuid}_{name}` | `MKDIR` + `FOLDER-CREATED` |
-| ALLOW | `ALLOW <token> <ip> [note]` | add a device to the whitelist (`aire_device`) | `ALLOWED-DEVICE <ip>` |
-| REVOKE | `REVOKE <token> <ip>` | remove a device from the whitelist | `REVOKED-DEVICE <ip>` |
+| ALLOW | `ALLOW <token> <ip> [note]` | add a device to the whitelist (`aire_device`) | `ALLOW <ip>` + `ALLOWED-DEVICE <ip>` |
+| REVOKE | `REVOKE <token> <ip>` | remove a device from the whitelist | `REVOKE <ip>` + `REVOKED-DEVICE <ip>` |
+
+**Two lines per accepted verb, never one** (fixed 2026-08-22, backlog #40).
+MKDIR always logged the command it accepted and then what came of it; ALLOW and
+REVOKE logged only success, so a Postgres blip erased the entire attempt — no
+command, no failure, no ACK, because the exception left through the connection
+handler and the client saw a hangup. A write nobody recorded is the one thing an
+append-only log exists to make impossible. Every failing path now ends in an
+`ALLOW-ERROR` / `REVOKE-ERROR` line and an `ERROR` reply the caller can read.
 
 Contract invariants (do not break without updating this rule):
 

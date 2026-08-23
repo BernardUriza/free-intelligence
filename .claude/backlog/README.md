@@ -21,7 +21,7 @@ kept honest, a status flipped the day it changes.
 | [35](35-the-consumer-map.md) | The consumer map | Accepted 2026-08-21 |
 | [37](37-the-mode-dial-is-coarse.md) | The mode dial is coarse | Proposed 2026-08-22 |
 | [39](39-two-slots-for-a-fleet.md) | Two slots for a fleet | Proposed 2026-08-22, MEASURED the same day |
-| [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | 3 fixes shipped 2026-08-22; 2 decisions open (Bernard's) |
+| [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | 8 fixes shipped 2026-08-22; 2 leftovers + 2 decisions open |
 | [42](42-the-guards-are-observational.md) | The guards ride observational | Observational half Done 2026-08-22; the buffered half Proposed |
 
 ## Closed

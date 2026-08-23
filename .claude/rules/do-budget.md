@@ -42,11 +42,14 @@ over its own live window, red past `AIRE_DB_CEILING_MB`. Watching only the broom
 was watching the wrong end: one that runs perfectly while the input rate climbs
 is a green light over a rising line.
 
-The **logrotate** half is NOT in that nightly check, despite what this paragraph
-claimed until 2026-08-22. Its config is validated on every DEPLOY
-(`deploy-server.yml` runs `logrotate --debug`), so a broken config cannot ship —
-but a rotation that stops firing for some other reason surfaces only as the disk
-percentage climbing, which is a late and indirect signal.
+The **logrotate** half joined that nightly check on 2026-08-22, hours after
+this paragraph was rewritten to admit it had not. It is four signals, because a config
+that validates is not a rotation that happens: the config exists and parses,
+`logrotate.timer` is active, the last rotation recorded in
+`/var/lib/logrotate/status` is at most three days old (the one that cannot be
+faked — `notifempty` buys the slack), and `aire.log` itself is under 64 MB.
+Every one of them was proven able to go red on the droplet before it was
+trusted, and the file's own record was put back afterwards.
 
 **Never watch only the cloud where the spend is frozen.** The blind spot always
 opens over the thing that grows.
