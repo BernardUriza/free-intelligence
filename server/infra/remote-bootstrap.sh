@@ -91,8 +91,15 @@ verify_units() {
   sleep 3
   # is-active with multiple units exits 0 if AT LEAST ONE is active — check each
   # unit on its own so a dead one actually fails the bootstrap.
+  #
+  # The SAME six a routine push verifies (deploy-server.yml). It checked four
+  # until 2026-08-22, which made the kill test — the one thing that proves a
+  # destroyed droplet comes back whole — WEAKER than a deploy. The two it
+  # skipped were aire-mirror.timer, whose entire job is proving the SSH door's
+  # memory leaves the mortal disk, and aire-tmpclean.timer.
   local u
-  for u in aire-listener aire-server aire-nickname aire-sweep.timer; do
+  for u in aire-listener aire-server aire-nickname aire-sweep.timer \
+           aire-mirror.timer aire-tmpclean.timer; do
     if ! systemctl --quiet is-active "$u"; then
       echo "$u is NOT active"
       systemctl status "$u" --no-pager || true
