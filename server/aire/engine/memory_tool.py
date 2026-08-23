@@ -13,11 +13,11 @@ one project can never read another's memory.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
-import asyncpg
 from claude_agent_sdk import create_sdk_mcp_server, tool
+
+from .. import db
 
 _TABLE = "claude_session_store"
 _MAX_LIMIT = 20
@@ -25,10 +25,9 @@ _SNIPPET = 500
 # `recall` is an ILIKE over `entry::text` — no index can serve it, so its cost
 # grows linearly with the transcript, which is the one thing AIRE guarantees
 # will grow forever. It runs INSIDE a paid turn, so an unbounded one does not
-# fail: it stalls, and the bill keeps running. Both bounds are deliberate — a
-# connect that can hang forever (every sibling call site passes a timeout; this
-# one did not) and a scan that can outlive the caller's patience.
-_CONNECT_TIMEOUT_S = 10
+# fail: it stalls, and the bill keeps running. The connect bound now comes from
+# the shared pool; this one is the scan's, and it rides as SET LOCAL inside a
+# transaction so it governs THIS query and never the next borrower's.
 _STATEMENT_TIMEOUT_MS = 5_000
 
 
@@ -49,18 +48,13 @@ def _clamp(raw: Any, default: int) -> int:
 
 async def _search(project_key: str, query: str, limit: int) -> list[str]:
     """The matching transcript entries for this project, newest first."""
-    conn = await asyncpg.connect(os.environ.get("AIRE_DATABASE_URL", ""),
-                                 timeout=_CONNECT_TIMEOUT_S,
-                                 server_settings={"statement_timeout": str(_STATEMENT_TIMEOUT_MS)})
-    try:
+    async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
         rows = await conn.fetch(
             f"SELECT seq, entry::text AS body FROM {_TABLE} "
             "WHERE project_key = $1 AND entry::text ILIKE $2 "
             "ORDER BY seq DESC LIMIT $3",
             project_key, f"%{query}%", limit,
         )
-    finally:
-        await conn.close()
     return [f"[seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 

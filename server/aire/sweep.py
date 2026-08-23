@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import os
 
+from . import db
 from .listen.applog import _now, append
 from .listen.config import DSN
 
@@ -104,19 +105,19 @@ async def sweep() -> int:
         append(f"{_now()} - SWEEP skipped (no AIRE_DATABASE_URL, file-only mode)")
         return 0
 
-    import asyncpg
-
-    conn = await asyncpg.connect(DSN)
     try:
-        total = 0
-        for table, column, days in TABLES:
-            total += await _sweep_table(conn, table, column, days)
-        # AFTER the log, never before: a row deleted above is a reference gone,
-        # and this is what turns that into reclaimed space instead of a leak.
-        total += await _sweep_blobs(conn, GATEWAY_RETENTION_DAYS)
-        return total
+        async with db.acquire() as conn:
+            total = 0
+            for table, column, days in TABLES:
+                total += await _sweep_table(conn, table, column, days)
+            # AFTER the log, never before: a row deleted above is a reference
+            # gone, and this is what turns that into reclaimed space, not a leak.
+            total += await _sweep_blobs(conn, GATEWAY_RETENTION_DAYS)
+            return total
     finally:
-        await conn.close()
+        # A oneshot ENDS. The pool would otherwise hold connections open until
+        # the interpreter tore them down without asking Postgres first.
+        await db.close()
 
 
 if __name__ == "__main__":

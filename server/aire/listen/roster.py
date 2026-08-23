@@ -6,8 +6,9 @@ sanctioned exception in [[write-only-daemon]]; the table is created as role
 
 import asyncio
 
+from .. import db
 from .applog import _now, append
-from .config import DB_TIMEOUT_S, DSN, WHITELIST_ENFORCE
+from .config import DSN, WHITELIST_ENFORCE
 from .tasks import spawn
 
 DDL = ("CREATE TABLE IF NOT EXISTS aire_device (ip text PRIMARY KEY, note text, "
@@ -28,21 +29,12 @@ def allows(ip: str) -> bool:
     return ip in IPS
 
 
-async def _connect():
-    import asyncpg
-
-    return await asyncpg.connect(DSN, timeout=DB_TIMEOUT_S)
-
-
 async def load() -> None:
     global IPS, READY
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)
         IPS = {r["ip"] for r in await conn.fetch("SELECT ip FROM aire_device")}
         READY = True
-    finally:
-        await conn.close()
 
 
 async def refresh() -> None:
@@ -53,22 +45,16 @@ async def refresh() -> None:
 
 
 async def add(ip: str, note: str) -> None:
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(
             "INSERT INTO aire_device (ip, note) VALUES ($1, $2) "
             "ON CONFLICT (ip) DO UPDATE SET note = EXCLUDED.note", ip, note or None)
-    finally:
-        await conn.close()
     IPS.add(ip)
 
 
 async def remove(ip: str) -> None:
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute("DELETE FROM aire_device WHERE ip = $1", ip)
-    finally:
-        await conn.close()
     IPS.discard(ip)
 
 

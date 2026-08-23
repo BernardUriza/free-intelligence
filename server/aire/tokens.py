@@ -25,9 +25,7 @@ import secrets
 from dataclasses import dataclass
 from typing import Any
 
-import asyncpg
-
-from . import pricing
+from . import db, pricing
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS aire_token ("
@@ -56,21 +54,14 @@ def digest(plaintext: str) -> str:
     return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
 
 
-async def _connect() -> asyncpg.Connection:
-    return await asyncpg.connect(os.environ.get("AIRE_DATABASE_URL", ""), timeout=10)
-
-
 async def load() -> None:
     """Every live key, at startup. A revoked one is simply absent from the cache."""
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)  # as role `aire`, so the console's reader can see it
         rows = await conn.fetch(
             "SELECT nickname, token_hash, budget_usd, spent_usd FROM aire_token "
             "WHERE revoked_at IS NULL"
         )
-    finally:
-        await conn.close()
     _by_hash.clear()
     for row in rows:
         _by_hash[row["token_hash"]] = Holder(
@@ -86,8 +77,7 @@ async def mint(nickname: str, budget_usd: float = DEFAULT_BUDGET_USD) -> str:
     """A new key for a nickname, replacing any previous one — approving twice
     hands out one working key, never two. The plaintext is returned once."""
     plaintext = f"aire_{secrets.token_urlsafe(32)}"
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)
         await conn.execute(
             "INSERT INTO aire_token (nickname, token_hash, budget_usd) VALUES ($1, $2, $3) "
@@ -95,8 +85,6 @@ async def mint(nickname: str, budget_usd: float = DEFAULT_BUDGET_USD) -> str:
             "budget_usd = EXCLUDED.budget_usd, spent_usd = 0, revoked_at = NULL",
             nickname, digest(plaintext), budget_usd,
         )
-    finally:
-        await conn.close()
     await load()
     return plaintext
 
@@ -124,27 +112,21 @@ async def charge(nickname: str, usd: float) -> None:
     breath, so the very next request already sees the new total."""
     if usd <= 0:
         return
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(
             "UPDATE aire_token SET spent_usd = spent_usd + $2 WHERE nickname = $1", nickname, usd
         )
-    finally:
-        await conn.close()
     for holder in _by_hash.values():
         if holder.nickname == nickname:
             holder.spent_usd += usd
 
 
 async def revoke(nickname: str) -> bool:
-    conn = await _connect()
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)
         result = await conn.execute(
             "UPDATE aire_token SET revoked_at = now() WHERE nickname = $1 AND revoked_at IS NULL",
             nickname,
         )
-    finally:
-        await conn.close()
     await load()
     return result.endswith("1")

@@ -22,11 +22,10 @@ import hmac
 import os
 import time
 
-import asyncpg
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from . import mail, tokens
+from . import db, mail, tokens
 
 router = APIRouter(prefix="/access")
 DDL = (
@@ -68,27 +67,21 @@ def _throttled() -> bool:
 
 
 async def _record(nickname: str, blurb: str) -> None:
-    conn = await asyncpg.connect(os.environ.get("AIRE_DATABASE_URL", ""), timeout=10)
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)  # as role `aire`, so the console's reader can see it
         await conn.execute(
             "INSERT INTO aire_access_request (nickname, blurb) VALUES ($1, $2) "
             "ON CONFLICT (nickname) DO UPDATE SET blurb = EXCLUDED.blurb",
             nickname, blurb or None,
         )
-    finally:
-        await conn.close()
 
 
 async def _approve(nickname: str) -> None:
-    conn = await asyncpg.connect(os.environ.get("AIRE_DATABASE_URL", ""), timeout=10)
-    try:
+    async with db.acquire() as conn:
         await conn.execute(DDL)
         await conn.execute(
             "UPDATE aire_access_request SET approved_at = now() WHERE nickname = $1", nickname
         )
-    finally:
-        await conn.close()
 
 
 @router.post("/request")
