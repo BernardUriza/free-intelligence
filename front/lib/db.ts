@@ -47,7 +47,7 @@ export class UnknownTable extends Error {
   override name = "UnknownTable";
 }
 
-export type Table = { name: string; rows: number; size: string };
+export type Table = { name: string; rows: number | null; size: string };
 export type Column = { name: string; type: string; nullable: boolean };
 
 const TEXTUAL = new Set([
@@ -142,10 +142,23 @@ export const tables = cache(async function tables(): Promise<Table[]> {
 
   const out: Table[] = [];
   for (const { name, size } of listed) {
-    const [{ count }] = await read<{ count: string }>(
-      `SELECT count(*)::text AS count FROM public.${quote(name)}`,
-    );
-    out.push({ name, size, rows: Number(count) });
+    // One table per try. The catalog lists what the DATABASE holds, and this
+    // role holds SELECT on what the pen granted it — a table created by another
+    // role, or one whose grant went missing, is listed and unreadable. Counting
+    // them in one shot meant that single table took the whole console down with
+    // it: every page renders <Shell>, which needs this list, so an ungranted
+    // table read as "the database is unreachable". An unreadable count is a
+    // null, rendered as a dash, next to a table name that is still true.
+    let rows: number | null = null;
+    try {
+      const [{ count }] = await read<{ count: string }>(
+        `SELECT count(*)::text AS count FROM public.${quote(name)}`,
+      );
+      rows = Number(count);
+    } catch {
+      rows = null;
+    }
+    out.push({ name, size, rows });
   }
   return out;
 });
@@ -390,7 +403,7 @@ export async function claudeFolders(): Promise<ClaudeFolder[]> {
   return read<ClaudeFolder>(
     `
     SELECT project_key, count(DISTINCT session_id)::int AS sessions,
-           count(*)::int AS entries, sum(length(entry::text))::int AS weight_bytes,
+           count(*)::int AS entries, sum(entry_bytes)::int AS weight_bytes,
            max(mtime)::text AS mtime
     FROM claude_session_store WHERE subpath = ''
     GROUP BY project_key ORDER BY max(mtime) DESC
@@ -441,11 +454,15 @@ export type GatewayTurn = {
   exchange: string; ts: string; model: string | null; session_id: string | null;
   project: string | null; holder: string | null; stop_reason: string | null;
   status: number | null; input_tokens: number | null; output_tokens: number | null;
-  asked: string | null;
+  asked: string | null; seq: string;
 };
 export type GatewaySession = {
   session_id: string; project: string | null; holder: string | null;
   model: string | null; turns: number; ts: string; asked: string | null;
+  // The keyset cursor: this row's newest `seq`. The next page asks for what
+  // sits BELOW it. An OFFSET would have to re-walk everything it skips, and it
+  // shifts under you when a turn arrives mid-read; a seq never moves.
+  last_seq: string;
 };
 export type GatewayHalves = {
   request: unknown; response: unknown; ts: string;
@@ -472,8 +489,10 @@ const ASKED_TAIL = `right(
 // empty cell — and the cell often carries the row's link.
 const EPOCH_MS = (col: string) => `(extract(epoch FROM ${col}) * 1000)::bigint::text`;
 
-/** Turns that arrived with no session id — loose exchanges, one row each. */
-export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
+/** Turns that arrived with no session id — loose exchanges, one row each.
+ *  Same keyset as the sessions above: `before` is the previous page's last
+ *  `seq`, so the console can walk the whole log instead of seeing its tip. */
+export async function gatewayTurns(limit = 60, before?: string): Promise<GatewayTurn[]> {
   return read<GatewayTurn>(
     `
     SELECT q.exchange,
@@ -483,34 +502,38 @@ export async function gatewayTurns(limit = 60): Promise<GatewayTurn[]> {
            a.stop_reason, a.status,
            (a.usage->>'input_tokens')::int     AS input_tokens,
            (a.usage->>'output_tokens')::int    AS output_tokens,
-           ${ASKED_TAIL}                       AS asked
+           ${ASKED_TAIL}                       AS asked,
+           q.seq::text                         AS seq
     FROM aire_gateway_log q
     LEFT JOIN aire_gateway_log a ON a.exchange = q.exchange AND a.kind = 'response'
     CROSS JOIN LATERAL (SELECT jsonb_path_query_first(q.body, '$.messages[last].content') AS content) m
     WHERE q.kind = 'request' AND q.session_id IS NULL
+      AND ($2::bigint IS NULL OR q.seq < $2::bigint)
     ORDER BY q.seq DESC LIMIT $1
     `,
-    [limit],
+    [limit, before ?? null],
   );
 }
 
 /** The gateway's conversations: one row per session, newest first — the same
  *  shape /claude gives a casita's sessions, read from the relay's own log. */
-export async function gatewaySessions(limit = 60): Promise<GatewaySession[]> {
+export async function gatewaySessions(limit = 60, before?: string): Promise<GatewaySession[]> {
   return read<GatewaySession>(
     `
     SELECT s.session_id, q.project, q.holder, q.model, s.turns,
-           ${EPOCH_MS("q.ts")} AS ts,
-           ${ASKED_TAIL}       AS asked
+           ${EPOCH_MS("q.ts")}  AS ts,
+           ${ASKED_TAIL}        AS asked,
+           s.last_seq::text     AS last_seq
     FROM (SELECT session_id, count(*) AS turns, max(seq) AS last_seq
           FROM aire_gateway_log
           WHERE kind = 'request' AND session_id IS NOT NULL
-          GROUP BY session_id) s
+          GROUP BY session_id
+          HAVING $2::bigint IS NULL OR max(seq) < $2::bigint) s
     JOIN aire_gateway_log q ON q.seq = s.last_seq
     CROSS JOIN LATERAL (SELECT jsonb_path_query_first(q.body, '$.messages[last].content') AS content) m
     ORDER BY s.last_seq DESC LIMIT $1
     `,
-    [limit],
+    [limit, before ?? null],
   );
 }
 

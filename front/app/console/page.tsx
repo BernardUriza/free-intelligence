@@ -191,7 +191,7 @@ export default async function Overview() {
                   <td className="name">
                     <Link href={`/t/${t.name}`}>{t.name}</Link>
                   </td>
-                  <td className="num">{t.rows.toLocaleString("en-US")}</td>
+                  <td className="num">{t.rows === null ? "—" : t.rows.toLocaleString("en-US")}</td>
                   <td className="num">{t.size}</td>
                 </tr>
               ))}

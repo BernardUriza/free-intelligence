@@ -9,8 +9,24 @@ export const dynamic = "force-dynamic";
 /** The gateway door's memory, grouped the way /claude groups a casita: one row
  *  per CONVERSATION (the session id the caller sent), loose one-shot exchanges
  *  below. What crossed the wire, read straight from aire_gateway_log. */
-export default async function GatewayPage() {
-  const [sessions, loose] = await Promise.all([gatewaySessions(), gatewayTurns()]);
+const PAGE = 60;
+
+export default async function GatewayPage(
+  { searchParams }: { searchParams: Promise<{ before?: string; looseBefore?: string }> },
+) {
+  const { before, looseBefore } = await searchParams;
+  const [sessions, loose] = await Promise.all([
+    gatewaySessions(PAGE, before),
+    gatewayTurns(PAGE, looseBefore),
+  ]);
+  // The cursor is the last row's own seq, so "older" asks for what sits below
+  // this page. A full page means there is probably more; a short one is the end.
+  const olderSessions = sessions.length === PAGE
+    ? `?before=${sessions[sessions.length - 1].last_seq}${looseBefore ? `&looseBefore=${looseBefore}` : ""}`
+    : null;
+  const olderLoose = loose.length === PAGE
+    ? `?looseBefore=${loose[loose.length - 1].seq}${before ? `&before=${before}` : ""}`
+    : null;
 
   return (
     <Shell active="~gateway">
@@ -24,6 +40,7 @@ export default async function GatewayPage() {
 
       <h2 className="sect">
         <span>conversations · {sessions.length}</span>
+        {before ? <Link href="/gateway">newest</Link> : null}
       </h2>
       {sessions.length === 0 ? (
         <div className="panel">
@@ -64,8 +81,15 @@ export default async function GatewayPage() {
         </div>
       )}
 
+      {olderSessions ? (
+        <p className="sub">
+          <Link href={`/gateway${olderSessions}`}>older conversations →</Link>
+        </p>
+      ) : null}
+
       <h2 className="sect">
         <span>loose exchanges · {loose.length}</span>
+        {looseBefore ? <Link href="/gateway">newest</Link> : null}
       </h2>
       {loose.length === 0 ? (
         <div className="panel">
@@ -107,6 +131,11 @@ export default async function GatewayPage() {
           </div>
         </div>
       )}
+      {olderLoose ? (
+        <p className="sub">
+          <Link href={`/gateway${olderLoose}`}>older exchanges →</Link>
+        </p>
+      ) : null}
     </Shell>
   );
 }

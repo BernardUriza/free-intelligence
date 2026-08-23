@@ -75,7 +75,7 @@ export default async function Shell({
             list.map((t) => (
               <Link key={t.name} href={`/t/${t.name}`} className={t.name === active ? "on" : ""}>
                 <span className="lbl">{t.name}</span>
-                <span className="n">{t.rows.toLocaleString("en-US")}</span>
+                <span className="n">{t.rows === null ? "—" : t.rows.toLocaleString("en-US")}</span>
               </Link>
             ))
           )}

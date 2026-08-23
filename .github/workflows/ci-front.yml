@@ -111,6 +111,14 @@ jobs:
           psql "$AIRE_DATABASE_URL" -v ON_ERROR_STOP=1 \
             -c "SELECT count(*) FROM aire_born_later;"
 
+      # The other half of that guarantee, and the one nobody had checked: a
+      # table the reader CANNOT read must cost only its own row, not the page.
+      # The catalog lists what the database holds; the grant covers what the pen
+      # owns. Those are not the same set, and one unreadable table used to make
+      # the whole console report the database unreachable.
+      - name: An unreadable table does not blind the console
+        run: npm run blind-table
+
       # The suite says aire_log is untouched. Verify that from OUTSIDE the code
       # under test — a read path that could write could also lie about it.
       - name: Confirm from outside that nothing was written
