@@ -2,7 +2,8 @@
 
 `write()` is a cheap queue put; `run()` drains in batches and reconnects with
 backoff. Postgres unreachable → the queue buffers; overflow drops FOR THE
-MIRROR ONLY (the file already holds every line). A failed batch is HELD and
+MIRROR ONLY (the file already holds every line) and says so at both ends of the
+gap, in the file and in the mirror. A failed batch is HELD and
 retried first on reconnect — never re-queued to the tail: the front reads
 ORDER BY seq, so order must match the events. Poison-pill cure in
 `_mirror_line_by_line` (story: docs/listener-doctrine.md).
@@ -22,12 +23,19 @@ class Pen:
         self.dsn = dsn
         self.queue: asyncio.Queue[str] = asyncio.Queue(maxsize=maxsize)
         self.healthy = False
+        self.dropped = 0
 
     def write(self, line: str) -> None:
         try:
             self.queue.put_nowait(line)
         except asyncio.QueueFull:
-            pass
+            # The file keeps this line; the MIRROR is what loses it, and the
+            # front reads the mirror — so an unmarked drop is two memories
+            # diverging in silence. The gap gets both ends written down: this
+            # line the moment it opens, and a counted one when it closes.
+            if not self.dropped:
+                append_file(f"{_now()} - PEN-OVERFLOW mirror queue full, dropping")
+            self.dropped += 1
 
     def mark(self, healthy: bool, detail: str = "") -> None:
         if healthy and not self.healthy:
@@ -63,7 +71,18 @@ class Pen:
                 batch.append(self.queue.get_nowait())
             except asyncio.QueueEmpty:
                 break
-        return batch
+        return batch + self._overflow_marker()
+
+    def _overflow_marker(self) -> list[str]:
+        """Closes an open gap. It goes to BOTH memories on purpose: the file
+        already had its opening line, and the mirror needs the whole marker or
+        an outage reads there as a quiet stretch instead of a hole."""
+        if not self.dropped:
+            return []
+        line = f"{_now()} - PEN-OVERFLOW {self.dropped} lines never reached postgres"
+        self.dropped = 0
+        append_file(line)
+        return [line]
 
     async def _insert(self, conn, batch: list[str]) -> list[str]:
         import asyncpg

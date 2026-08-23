@@ -183,3 +183,48 @@ def test_the_whitelist_gate_fails_CLOSED_on_an_unloaded_roster(tmp_path, monkeyp
     monkeypatch.setattr(guards.roster, "ready", lambda: False)
     assert guards.admit("203.0.113.7", "203.0.113.7:5555", exempt=False) is False
     assert "DENIED-DEVICE" in _log(tmp_path), "a refused device must be SEEN, not silent"
+
+
+@pytest.mark.asyncio
+async def test_a_roster_write_that_FAILS_leaves_the_attempt_in_the_log(tmp_path, monkeypatch):
+    """The failure #40 named: ALLOW logged only its success, so a Postgres blip
+    took the whole command out of the append-only log AND out of the client's
+    hands — the exception walked up through the connection handler, which
+    appended DISCONNECT and hung up. Two devices, one roster, no record of who
+    asked for what."""
+    _wire(tmp_path, monkeypatch)
+    monkeypatch.setattr(verbs.roster, "enabled", lambda: True)
+
+    async def _explode(*_a, **_k):
+        raise OSError("postgres went away mid-ALLOW")
+
+    monkeypatch.setattr(verbs.roster, "add", _explode)
+    replies, _ = await _talk([f"ALLOW {TOKEN} 203.0.113.9 the-camera"])
+    text = _log(tmp_path)
+    assert replies == ["ERROR roster write failed"], "the client must be TOLD"
+    assert "ALLOW 203.0.113.9" in text, "the command itself was never recorded"
+    assert "ALLOW-ERROR 203.0.113.9" in text, "the failure was never recorded"
+    assert "ALLOWED-DEVICE" not in text, "a failed write must not read as a grant"
+    assert TOKEN not in text
+
+
+def test_an_overflowing_pen_marks_the_gap_in_BOTH_memories(tmp_path, monkeypatch):
+    """A dropped line is correct — the file holds it and the mirror is the copy.
+    A dropped line nobody counts is not: the front reads Postgres, where a hole
+    with no marker reads as a quiet stretch. So the gap is bracketed, and the
+    closing marker is the one that has to reach the MIRROR."""
+    from aire.listen import pen as pen_mod
+
+    _wire(tmp_path, monkeypatch)
+    pen = pen_mod.Pen("postgresql://unused", maxsize=2)
+    for i in range(5):
+        pen.write(f"line-{i}")
+
+    assert pen.dropped == 3
+    assert "PEN-OVERFLOW mirror queue full" in _log(tmp_path)
+
+    marker = pen._overflow_marker()
+    assert len(marker) == 1 and "3 lines never reached postgres" in marker[0], \
+        "the count must travel INTO the mirror, not only into the file"
+    assert pen.dropped == 0
+    assert marker[0] in _log(tmp_path)

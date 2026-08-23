@@ -1,7 +1,14 @@
 """The verbs — the daemon's write-command contract (device-verb-protocol rule).
 Token-gated (constant-time), command-as-event: the token-REDACTED command and
 its outcome are appended like any other line; the raw token never touches the
-log, the file, or Postgres. The reply is the one-line ACK the client reads."""
+log, the file, or Postgres. The reply is the one-line ACK the client reads.
+
+TWO lines per accepted verb, never one: the command when it is accepted, the
+outcome when it lands. MKDIR always did; ALLOW and REVOKE only logged success,
+so a Postgres blip took the whole attempt out of the append-only log — no
+command, no failure, and an ACK the client never received because the exception
+walked out through the connection handler. An unrecorded write is the one thing
+the log exists to make impossible (backlog #40)."""
 
 import ipaddress
 import secrets
@@ -60,8 +67,14 @@ async def allow_verb(msg: str, addr: str) -> str:
         append(f"{_now()} {addr} ALLOW-REJECTED bad-ip")
         return "REJECTED not an IP"
     if not roster.enabled():
+        append(f"{_now()} {addr} ALLOW-ERROR no-database")
         return "ERROR no database (whitelist needs AIRE_DATABASE_URL)"
-    await roster.add(ip, parts[3] if len(parts) > 3 else "")
+    append(f"{_now()} {addr} ALLOW {ip}")
+    try:
+        await roster.add(ip, parts[3] if len(parts) > 3 else "")
+    except Exception as exc:  # noqa: BLE001 - any failure, one visible outcome
+        append(f"{_now()} {addr} ALLOW-ERROR {ip} {exc!r}")
+        return "ERROR roster write failed"
     append(f"{_now()} {addr} ALLOWED-DEVICE {ip}")
     return f"ALLOWED {ip}"
 
@@ -76,8 +89,14 @@ async def revoke_verb(msg: str, addr: str) -> str:
         append(f"{_now()} {addr} REVOKE-DENIED")
         return "DENIED"
     if not roster.enabled():
+        append(f"{_now()} {addr} REVOKE-ERROR no-database")
         return "ERROR no database"
-    await roster.remove(ip)
+    append(f"{_now()} {addr} REVOKE {ip}")
+    try:
+        await roster.remove(ip)
+    except Exception as exc:  # noqa: BLE001 - see allow_verb
+        append(f"{_now()} {addr} REVOKE-ERROR {ip} {exc!r}")
+        return "ERROR roster write failed"
     append(f"{_now()} {addr} REVOKED-DEVICE {ip}")
     return f"REVOKED {ip}"
 
