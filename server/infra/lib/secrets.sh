@@ -48,12 +48,22 @@ compose_env() {
   append_secret "$CANARY_TOKEN_FILE" "AIRE_CANARY_TOKEN=" "the revocable Azure-front door"
   append_secret "$RUNNER_TOKEN_FILE" "AIRE_RUNNER_TOKEN=" "the revocable persona-runner door"
   append_secret "$OAUTH_FILE"      "CLAUDE_CODE_OAUTH_TOKEN=" "the engine's Anthropic auth"
-  # What AIRE LENDS to an invited key (#32e), in a slot of its own. Same token as
-  # the engine's today — one OAuth exists per account — but derived here rather
-  # than read from the engine's variable, so lending can be switched off, or
-  # pointed at a metered key, without touching how the engine dispatches.
-  if [[ -f "$OAUTH_FILE" ]] && grep -q '^CLAUDE_CODE_OAUTH_TOKEN=' "$OAUTH_FILE"; then
-    ENV_CONTENT+="AIRE_LEND_OAUTH_TOKEN=$(grep '^CLAUDE_CODE_OAUTH_TOKEN=' "$OAUTH_FILE" | cut -d= -f2-)"$'\n'
+  # What AIRE LENDS to an invited key (#32e), in a slot of its own.
+  #
+  # It lent the ENGINE'S OAuth until 2026-08-22 — the same token, one per
+  # account — and that made a stranger's turns and Bernard's own engine share
+  # one weekly pool: an invited key burning it left the engine unable to
+  # dispatch at all. A metered key has no pool to burn, is revocable without
+  # touching the subscription, and is already capped per invitation (#32d/#28).
+  #
+  # Derived from the failover file rather than copied into one of its own,
+  # because that is where the metered key already lives and a secret in two
+  # files is a secret that gets rotated in one. The residual coupling is real
+  # and named: this is ALSO the rotor's slot 3 (#31), so a stranger spends on
+  # the credential the engine falls back to. A dedicated file takes over the
+  # day one exists — the line below is composed after this one, so it wins.
+  if [[ -f "$API_KEY_FALLBACK_FILE" ]] && grep -q '^ANTHROPIC_API_KEY_FALLBACK=' "$API_KEY_FALLBACK_FILE"; then
+    ENV_CONTENT+="AIRE_LEND_API_KEY=$(grep '^ANTHROPIC_API_KEY_FALLBACK=' "$API_KEY_FALLBACK_FILE" | cut -d= -f2-)"$'\n'
   fi
   append_secret "$LEND_API_KEY_FILE" "AIRE_LEND_API_KEY=" "the metered key AIRE lends (#32e)"
   # The failover chain (#31): both slots are OPTIONAL — a missing file only

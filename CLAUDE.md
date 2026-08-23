@@ -54,18 +54,19 @@ memory. To contradict anything here, verify it first the same way.
    that is what being invited means — so for those callers AIRE lends its OWN
    (`aire/lending.py`) and prices the turn from tokens (`aire/pricing.py` +
    `prices.json`), because Anthropic reports tokens and a ceiling needs dollars.
-   **The lent credential has its own named slot** — `AIRE_LEND_OAUTH_TOKEN`, or
-   `AIRE_LEND_API_KEY` when a metered key exists (preferred). It deliberately
-   does NOT read the engine's `CLAUDE_CODE_OAUTH_TOKEN`, though provisioning
-   derives both from the same secrets file today: one OAuth exists per account,
-   so the value is the same. The slot is what makes the value *chosen* — lending
-   switches off by clearing one variable while the engine keeps dispatching, and
-   no unrelated credential that lands in the environment can silently become what
-   AIRE hands to strangers. Two facts to keep before touching this: that shared
-   value means an invited key burning the weekly pool **starves the engine too**
-   (the coupling #31's rotor exists to survive, and the argument for a metered
-   key); and an OAuth token is refused by `/v1/messages` unless `anthropic-beta:
-   oauth-2025-04-20` rides with it, appended to whatever betas the caller sent.
+   **The lent credential has its own named slot, and it is the METERED key**
+   (`AIRE_LEND_API_KEY`) since 2026-08-22 — verified on the box with a real
+   invited turn that relayed and banked $0.00005 against its own ceiling.
+   `AIRE_LEND_OAUTH_TOKEN` remains as a fallback in code that provisioning no
+   longer fills. Until that day AIRE lent the engine's own OAuth, so an invited
+   key burning the weekly pool **starved the engine too**; a metered key has no
+   pool to burn and is revocable without touching the subscription. What is
+   still shared, deliberately and in writing: that key is also the rotor's slot
+   3 (#31). Two facts to keep before touching this: the slot is what makes the
+   value *chosen* — lending switches off by clearing one variable while the
+   engine keeps dispatching — and an OAuth token, if one is ever lent again, is
+   refused by `/v1/messages` unless `anthropic-beta: oauth-2025-04-20` rides
+   with it, appended to whatever betas the caller sent.
 2. **One database, one `project_key` per project.** The SDK's `SessionKey` already
    carries `project_key`; its docstring says *"Multi-tenant deployments should set this."*
 3. **The memory (transcript) goes to Postgres. The work does NOT go to git — AIRE

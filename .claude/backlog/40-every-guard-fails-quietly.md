@@ -90,13 +90,24 @@ fail, it stalls with the bill running.
    about — and #31's failover machine has fuel. This paragraph claimed the
    opposite for as long as it took someone to read `/health` with a token.
 
-   **What that unlocks, and it is still Bernard's call because it routes spend:**
-   `lending.py:47` prefers `AIRE_LEND_API_KEY` "when a metered key exists
-   (preferred: it is revocable without touching the subscription)". One exists
-   now. The box still lends `AIRE_LEND_OAUTH_TOKEN` — the engine's own OAuth —
-   so the coupling `CLAUDE.md` names is LIVE: an invited key that burns the
-   weekly pool starves the engine too. The cure is one variable in the same file
-   the metered key already sits in.
+   ~~**What that unlocks…**~~ **DECIDED AND SHIPPED 2026-08-22, Bernard's call.**
+   The box lends `AIRE_LEND_API_KEY` now, derived in `secrets.sh` from the file
+   the metered key already sits in — not copied into a file of its own, because
+   a secret in two files is a secret that gets rotated in one. `AIRE_LEND_OAUTH_TOKEN`
+   stays as a fallback in code that provisioning no longer writes.
+
+   Verified on the box, and the first two probes were MINE being wrong, not the
+   code: an out-of-band `mint()` never reaches the daemon's cache, and an AIRE
+   key presented as `x-api-key` is not presented at all (the door reads the
+   Bearer, or `x-aire-key`). With the right header, a real invited turn relayed
+   and answered, `aire_token` banked **$0.00005 against its own $0.25 ceiling**,
+   the mirror row carries `holder = lendswitch-probe`, and a `mode=complete`
+   turn on the engine's own credential answered in the same minute — the two
+   halves are independent now. Probe key revoked.
+
+   **The residual coupling is named, not hidden:** that metered key is also the
+   rotor's slot 3 (#31), so a stranger spends on what the engine falls back to.
+   Splitting them is one more key and one more file, the day it matters.
 
 2. **Whether the daemon should refuse to start with a guard it expects armed.**
    Reporting is strictly better than silence, but it is still a report. A

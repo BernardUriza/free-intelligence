@@ -6,17 +6,27 @@ its own — that is the whole point of being invited — so for those callers AI
 substitutes its own, and the invitation's ceiling becomes the only thing between
 a stranger and Bernard's account. This module is that boundary.
 
-**The lent credential has its own named slot** — `AIRE_LEND_OAUTH_TOKEN`, or
-`AIRE_LEND_API_KEY` when a metered key exists (preferred: it is revocable
-without touching the subscription). It deliberately does NOT read the engine's
-`CLAUDE_CODE_OAUTH_TOKEN`, even though provisioning fills both from the same file
-today — one OAuth token exists per account, so the VALUE is the same. What the
-slot buys is that the value is *chosen*: lending can be switched off by clearing
-one variable while the engine keeps dispatching, a metered key can replace it
-without touching the engine, and no unrelated credential appearing in the
-daemon's environment can silently become the thing AIRE hands to strangers. It is
-the same reasoning that gave the Azure front its own `AIRE_CANARY_TOKEN` instead
-of Bernard's key: the lowest-trust consumer gets its own, revocable alone.
+**The lent credential has its own named slot**, and since 2026-08-22 the box
+fills the metered one: `AIRE_LEND_API_KEY`, with `AIRE_LEND_OAUTH_TOKEN` left as
+a fallback the provisioner no longer writes.
+
+Until that day it lent the engine's own OAuth — the same token, because one
+exists per account — which put a stranger's turns and Bernard's engine on ONE
+weekly pool: an invited key burning it left the engine unable to dispatch at
+all. A metered key has no pool to burn, is revocable without touching the
+subscription, and each invitation is already capped in dollars (#32d/#28).
+
+The residual coupling is real and named rather than hidden: that metered key is
+also the credential rotor's slot 3 (#31), so a stranger spends on what the
+engine falls back to. Splitting them is one more key and one more file, the day
+that matters.
+
+What the named slot buys is that the value is *chosen*: lending switches off by
+clearing one variable while the engine keeps dispatching, and no unrelated
+credential appearing in the daemon's environment can silently become the thing
+AIRE hands to strangers. Same reasoning that gave the Azure front its own
+`AIRE_CANARY_TOKEN` instead of Bernard's key: the lowest-trust consumer gets its
+own, revocable alone.
 
 Two headers, never one. An OAuth token is presented as `Authorization: Bearer`
 AND requires `anthropic-beta: oauth-2025-04-20` — `/v1/messages` rejects it

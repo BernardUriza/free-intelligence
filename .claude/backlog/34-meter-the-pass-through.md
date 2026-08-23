@@ -73,7 +73,7 @@ the two CONSTANT keys. This item is about the callers AIRE lends **nothing** to.
 ## The credential blocker this does not solve
 
 Related and worth naming so it is not conflated: **`AIRE_LEND_API_KEY` is still empty.**
-`server/infra/lib/secrets.sh:48` provisions only `AIRE_LEND_OAUTH_TOKEN`, filled from
+`server/infra/lib/secrets.sh` provisioned only `AIRE_LEND_OAUTH_TOKEN` (until 2026-08-22 — it now derives `AIRE_LEND_API_KEY` from the metered key instead), filled from
 `CLAUDE_CODE_OAUTH_TOKEN` — so what AIRE lends to invited keys today is the OAuth of the
 **Claude Max subscription Bernard's employer pays for**. `lending.py` already prefers the
 metered slot in code and documents why (revocable without touching the subscription); the
@@ -146,7 +146,7 @@ users but Bernard. **A metered key exists on the droplet today** —
 `ANTHROPIC_API_KEY_FALLBACK`, a real `sk-ant-` value — armed as the rotor's
 third slot (#31), which is a different use than the lending this item settled.
 The decision recorded here was about what the DOOR lends, and it still stands:
-the box lends `AIRE_LEND_OAUTH_TOKEN`, not the metered key.
+the box lends `AIRE_LEND_OAUTH_TOKEN`, not the metered key. **Reversed 2026-08-22**: it lends the metered key, verified with a real invited turn.
 
 Recorded because the two documents disagreed with reality in opposite
 directions and neither said so — [[40-every-guard-fails-quietly]] is the item
