@@ -166,10 +166,35 @@ Each is real, none is bleeding; filed here rather than half-fixed:
   `/var/lib/logrotate/status` is at most three days old, and `aire.log` is under
   64 MB. All three red paths (never rotated / stale / oversized) were provoked on
   the droplet before the check was trusted, and its state file was put back.
-- **The front's `tables()` has no per-table fault isolation** — one ungranted
-  table throws and the entire console reports the database unreachable — and
-  `claudeFolders()`/`gatewaySessions()` aggregate whole tables with no window,
-  the bomb pattern the front's own `graph()` was already bounded against.
+- ~~**The front's `tables()` has no per-table fault isolation**, and
+  `claudeFolders()`/`gatewaySessions()` aggregate whole tables with no window.~~
+  **FIXED 2026-08-22 — and the measurement moved the aim before a line was
+  written.** Against the real database: `aire_gateway_log` is 1,173 rows (51 MB
+  of fat bodies, not many rows) and its full aggregate runs in **1.3 ms**, so an
+  index there would have been ceremony. The one slow query was
+  `claudeFolders` at 110 ms, and decomposing it named the cost exactly:
+  `max(mtime)` 2.5 ms, `count(DISTINCT session_id)` 1.0 ms,
+  **`sum(length(entry::text))` 56.6 ms** — serializing every jsonb row to text
+  on every render, for a number that never changes after the row is written. A
+  covering index was tried and dropped: the planner would not take it, and
+  forcing it off seq scans changed nothing, because the cost was never the scan.
+
+  What fixed it is the pattern `store.py` already carried one of — a STORED
+  generated column beside `entry_uuid`. **110 ms → 2.9 ms on production**, same
+  number, 1537 of 1537 rows agreeing to the byte, with the ALTER doing the
+  backfill (a `CREATE TABLE IF NOT EXISTS` is a no-op on a live table, so the
+  column would never have reached production from the DDL alone).
+
+  `tables()` counts each table in its own try now: one unreadable table costs
+  its own row, not the page. `front/scripts/blind-table.ts` proves it against a
+  real database with real grants, in the attack job that already builds both
+  roles, and it was watched fail with the old code.
+
+  And the finding underneath the finding: the gateway's lists showed the newest
+  60 and stopped, while the log holds **237 conversations** — 177 of them
+  unreachable from the console of a repo whose law is that the log is the truth.
+  Both lists take a keyset cursor now (the page's own `seq`, never an OFFSET
+  that re-walks what it skips and shifts under a live log).
 - ~~**`aire-server` has no `MemoryMax` and `aire-listener` no `OOMScoreAdjust`**~~
   **FIXED 2026-08-22.** The pen now carries `MemoryLow=32M` + `OOMScoreAdjust=-900`
   (applying it pulled 11 MB of the pen out of swap); the engine carries
@@ -185,12 +210,11 @@ Each is real, none is bleeding; filed here rather than half-fixed:
 Shipped and verified. `/health` now reports its own guards; the wall is code
 with a red it can reach; the slot leak is closed with tests.
 
-**Six of the eight leftovers are now closed too (2026-08-22, second pass)** —
-the two silent-divergence ones in the listener, the kill test's missing units,
-the logrotate watch, the idle timeout that had already shipped, and the five
-ways to reach Postgres. What remains is the front's unbounded aggregates, which
-live in the other half of the monorepo, on its own credential and its own
-pipeline. The two open forks are Bernard's.
+**All eight leftovers are closed (2026-08-22, second pass)** — the two
+silent-divergence ones in the listener, the kill test's missing units, the
+logrotate watch, the idle timeout that had already shipped, the five ways to
+reach Postgres, and the front's three. What is left in this item is the two
+forks that were always Bernard's, below.
 
 See also [[verify-before-assuming]] Rule 22 (the signal that cannot fail),
 [[device-verb-protocol]] (the kill test this extends past the droplet),
