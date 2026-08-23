@@ -14,6 +14,11 @@ jobs:
     env:
       AIRE_VM_HOST: ${{ secrets.AIRE_VM_HOST }}
     steps:
+      # The canary at the end of this job runs a script that lives in the repo,
+      # so the repo has to be here. It was not, until 2026-08-23 — every step was
+      # a curl or an ssh.
+      - uses: actions/checkout@v4
+
       - name: Check DigitalOcean spend and inventory against the $20/mo budget
         env:
           DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
@@ -206,3 +211,26 @@ jobs:
           fi
           exit "$FAIL"
           REMOTE
+
+      # Every check above this line runs ON the box or against a vendor's API,
+      # and every one of them is a liveness proxy: units active, a timer armed, a
+      # config that parses, /health saying "ok". None can go red while the engine
+      # is dead. So the day's last word is the same canary the deploy fires — one
+      # real turn through the public door from outside the droplet — because a
+      # daemon that stops COMPLETING turns is exactly the failure a nightly watch
+      # built out of proxies would sit through in silence.
+      #
+      # It costs $0.028 (measured 2026-08-23: haiku, mode=complete, 13,598
+      # cache-creation tokens for the system prompt), so ~$0.85/month. That is the
+      # price of the watch, and [[do-budget]]'s own law is why it is worth paying:
+      # never watch only the cloud where the spend is frozen.
+      - name: The canary — one real turn through the public door
+        env:
+          AIRE_PULSE_TOKEN: ${{ secrets.AIRE_PULSE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${AIRE_PULSE_TOKEN}" ]]; then
+            echo "::error::AIRE_PULSE_TOKEN secret is missing — the canary is blind"
+            exit 1
+          fi
+          bash server/scripts/canary.sh

@@ -115,3 +115,33 @@ jobs:
           logrotate --debug /etc/logrotate.d/aire >/dev/null
           echo "logrotate config valid"
           REMOTE
+
+      # Everything above measures LIVENESS: a unit is active, a config parses, a
+      # port is bound. Not one of them can go red while the engine is dead — the
+      # root/bypassPermissions defect killed every agent turn with `is-active`
+      # green and /health "ok" (CLAUDE.md), and a dry credential rotor or a lost
+      # `claude` binary would read exactly the same. So the deploy's last word is
+      # a REAL turn through the public door, from outside the droplet, for $0.03:
+      # DNS → TLS → Caddy → Bearer → SDK → Anthropic → an SSE result with text.
+      - name: The canary — one real turn through the public door
+        env:
+          AIRE_PULSE_TOKEN: ${{ secrets.AIRE_PULSE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${AIRE_PULSE_TOKEN}" ]]; then
+            echo "::error::AIRE_PULSE_TOKEN secret is missing — the deploy would ship unverified"
+            exit 1
+          fi
+          bash server/scripts/canary.sh
+
+      # A red canary means the code now on the box does not serve. The rollback is
+      # printed, never automatic: the canary also goes red when ANTHROPIC is down,
+      # and undoing a good deploy because a vendor blipped is a wrong action taken
+      # confidently. The SHA is captured here so the human does not have to dig.
+      - name: How to roll back, if the canary went red
+        if: failure()
+        run: |
+          PREV=$(git rev-parse HEAD~1)
+          echo "the box is on $(git rev-parse HEAD) and it did not answer a real turn."
+          echo "roll back with:"
+          echo "  ssh root@<droplet> 'cd /opt/aire && git reset --hard ${PREV} && systemctl restart aire-server'"
