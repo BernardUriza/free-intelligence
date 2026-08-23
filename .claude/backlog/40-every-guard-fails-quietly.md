@@ -116,11 +116,24 @@ Each is real, none is bleeding; filed here rather than half-fixed:
   had been watching the same value under two names, so `/health` implied two
   independent memories. Pinned by `tests/test_dsn.py`, whose two structural
   checks were proven to go red by seeding a regression before they were trusted.
-- **Five ways to reach Postgres.** The store's pool, the gateway mirror's pool,
-  the pen's long-lived reconnecting connection (correct), and connect-per-call
-  in `tokens`, `access`, `sweep`, `roster` and `memory_tool`. Measured from the
-  droplet: **185 ms to open a connection, 12 ms to run the query** — fifteen
-  times the cost of the work, paid on every billed turn by `tokens.charge`.
+- ~~**Five ways to reach Postgres.**~~ **FIXED 2026-08-22.** Re-measured against
+  the real database before touching anything: **185–236 ms to connect, 12–29 ms
+  to run the query**, and a warm `acquire()` on the same box costs **0.0–0.6 ms**.
+  All five connect-per-call sites (`tokens`, `access`, `sweep`, `roster`,
+  `memory_tool`) now share one lazy per-process pool in `aire/db.py`. Bernard
+  chose uniformity over lifetime-fit — the broom is a oneshot that gains nothing
+  from a pool, and it uses the same door anyway, closing it on the way out.
+
+  What stayed on direct connections, because their lifetime was already right:
+  the store's pool, the gateway mirror's pool, the pen's long-lived reconnecting
+  connection, and `mirror`/`restore`, which each open one connection for one
+  oneshot run. A structural test names that whitelist, so the next call site
+  that opens its own goes red instead of quietly paying the toll again.
+
+  The hazard a pool introduces and a fresh connection never had: `memory_tool`
+  set `statement_timeout` as a connection-level server_setting, which on a
+  pooled connection would outlive the query and cap the next borrower's. It
+  rides as `SET LOCAL` inside a transaction now, pinned by its own test.
 - ~~**The kill test verifies fewer units than a routine push.**~~ **FIXED
   2026-08-22.** `remote-bootstrap` now checks the same six `deploy-server.yml`
   does. A kill test weaker than a deploy is not a kill test — the two it skipped
@@ -172,12 +185,12 @@ Each is real, none is bleeding; filed here rather than half-fixed:
 Shipped and verified. `/health` now reports its own guards; the wall is code
 with a red it can reach; the slot leak is closed with tests.
 
-**Five of the eight leftovers are now closed too (2026-08-22, second pass)** —
+**Six of the eight leftovers are now closed too (2026-08-22, second pass)** —
 the two silent-divergence ones in the listener, the kill test's missing units,
-the logrotate watch, and the idle timeout that had already shipped. What remains
-below is real and unbled: the five ways to reach Postgres (185 ms to connect,
-12 ms to work, paid on every billed turn) and the front's unbounded aggregates.
-The two open forks are Bernard's.
+the logrotate watch, the idle timeout that had already shipped, and the five
+ways to reach Postgres. What remains is the front's unbounded aggregates, which
+live in the other half of the monorepo, on its own credential and its own
+pipeline. The two open forks are Bernard's.
 
 See also [[verify-before-assuming]] Rule 22 (the signal that cannot fail),
 [[device-verb-protocol]] (the kill test this extends past the droplet),
