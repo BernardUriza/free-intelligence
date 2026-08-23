@@ -173,6 +173,14 @@ class PostgresSessionStore(SessionStore):
               -- be indexed. Generated (never written by hand) so it cannot drift
               -- from the entry it identifies.
               entry_uuid  text GENERATED ALWAYS AS (entry->>'uuid') STORED,
+              -- ADAPTED: the entry's own byte length, computed once at write
+              -- time. The console sums it per folder (#8's weight), and doing
+              -- that as `length(entry::text)` cost 56 ms of the folder view's
+              -- 60 — serializing every jsonb row to text on every render, for
+              -- a number that never changes after the row is written. Same
+              -- reasoning as entry_uuid above: lifted out, and generated so it
+              -- cannot drift from the entry it measures.
+              entry_bytes int GENERATED ALWAYS AS (length(entry::text)) STORED,
               PRIMARY KEY (project_key, session_id, subpath, seq)
             );
             CREATE INDEX IF NOT EXISTS {self._table}_list_idx
@@ -183,6 +191,13 @@ class PostgresSessionStore(SessionStore):
             CREATE UNIQUE INDEX IF NOT EXISTS {self._table}_uuid_idx
               ON {self._table} (project_key, session_id, subpath, entry_uuid)
               WHERE entry_uuid IS NOT NULL;
+            -- ADAPTED: CREATE TABLE IF NOT EXISTS is a no-op on a table that
+            -- already exists, so a column added later never reaches a live
+            -- database from the statement above. Adding it backfills every
+            -- existing row in the same breath, and re-running says so and
+            -- moves on.
+            ALTER TABLE {self._table} ADD COLUMN IF NOT EXISTS entry_bytes int
+              GENERATED ALWAYS AS (length(entry::text)) STORED;
             """
         )
 
