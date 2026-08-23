@@ -56,15 +56,13 @@ compose_env() {
   # dispatch at all. A metered key has no pool to burn, is revocable without
   # touching the subscription, and is already capped per invitation (#32d/#28).
   #
-  # Derived from the failover file rather than copied into one of its own,
-  # because that is where the metered key already lives and a secret in two
-  # files is a secret that gets rotated in one. The residual coupling is real
-  # and named: this is ALSO the rotor's slot 3 (#31), so a stranger spends on
-  # the credential the engine falls back to. A dedicated file takes over the
-  # day one exists — the line below is composed after this one, so it wins.
-  if [[ -f "$API_KEY_FALLBACK_FILE" ]] && grep -q '^ANTHROPIC_API_KEY_FALLBACK=' "$API_KEY_FALLBACK_FILE"; then
-    ENV_CONTENT+="AIRE_LEND_API_KEY=$(grep '^ANTHROPIC_API_KEY_FALLBACK=' "$API_KEY_FALLBACK_FILE" | cut -d= -f2-)"$'\n'
-  fi
+  # It has a FILE of its own since 2026-08-22, not a value derived from the
+  # rotor's. For one day it was derived, and the argument was that a secret in
+  # two files gets rotated in one — true, and beaten by what sharing bought: a
+  # stranger's turns and the engine's last-resort credential on one key, so
+  # revoking the lent one after an incident also disarmed the failover. Two
+  # roles, two keys, two files, each revocable alone. Absent, lending is simply
+  # off and `arming.py` says so, which is how costwatch would catch it.
   append_secret "$LEND_API_KEY_FILE" "AIRE_LEND_API_KEY=" "the metered key AIRE lends (#32e)"
   # The failover chain (#31): both slots are OPTIONAL — a missing file only
   # leaves that slot empty and the rotor skips it. The backup OAuth must come

@@ -16,10 +16,13 @@ weekly pool: an invited key burning it left the engine unable to dispatch at
 all. A metered key has no pool to burn, is revocable without touching the
 subscription, and each invitation is already capped in dollars (#32d/#28).
 
-The residual coupling is real and named rather than hidden: that metered key is
-also the credential rotor's slot 3 (#31), so a stranger spends on what the
-engine falls back to. Splitting them is one more key and one more file, the day
-that matters.
+For a few hours the lent key WAS the rotor's slot 3, and the argument for
+sharing was that a secret in two files gets rotated in one. That day arrived the
+same evening: the key was printed into a Claude Code transcript by a `diff` of
+`/etc/aire/env`, and revoking it would also have disarmed the failover. Two
+roles, two keys (`aire-lend`, `aire-failover-slot3-r2`), two files, each
+revocable alone — the same law that gave the Azure front its own
+`AIRE_CANARY_TOKEN` instead of Bernard's key.
 
 What the named slot buys is that the value is *chosen*: lending switches off by
 clearing one variable while the engine keeps dispatching, and no unrelated

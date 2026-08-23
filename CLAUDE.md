@@ -60,9 +60,10 @@ memory. To contradict anything here, verify it first the same way.
    `AIRE_LEND_OAUTH_TOKEN` remains as a fallback in code that provisioning no
    longer fills. Until that day AIRE lent the engine's own OAuth, so an invited
    key burning the weekly pool **starved the engine too**; a metered key has no
-   pool to burn and is revocable without touching the subscription. What is
-   still shared, deliberately and in writing: that key is also the rotor's slot
-   3 (#31). Two facts to keep before touching this: the slot is what makes the
+   pool to burn and is revocable without touching the subscription. It is its
+   OWN key, not the rotor's slot 3 — they shared one for a few hours, until the
+   evening that key had to be revoked and revoking it would have disarmed the
+   failover too. Two facts to keep before touching this: the slot is what makes the
    value *chosen* — lending switches off by clearing one variable while the
    engine keeps dispatching — and an OAuth token, if one is ever lent again, is
    refused by `/v1/messages` unless `anthropic-beta: oauth-2025-04-20` rides

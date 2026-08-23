@@ -105,9 +105,24 @@ fail, it stalls with the bill running.
    turn on the engine's own credential answered in the same minute — the two
    halves are independent now. Probe key revoked.
 
-   **The residual coupling is named, not hidden:** that metered key is also the
-   rotor's slot 3 (#31), so a stranger spends on what the engine falls back to.
-   Splitting them is one more key and one more file, the day it matters.
+   **The residual coupling lasted three hours.** That metered key was also the
+   rotor's slot 3, and the day it mattered was the same evening: a `diff` of
+   `/etc/aire/env` printed it into a Claude Code transcript — Anthropic's own
+   create-key dialog warns against exactly that, in those words — and revoking
+   it would have disarmed the failover along with lending. Both were rotated in
+   one trip through the console, into two keys with two files: `aire-lend`
+   (AIRE_LEND_API_KEY) and `aire-failover-slot3-r2` (ANTHROPIC_API_KEY_FALLBACK),
+   both non-expiring on purpose, because `arming.py` checks that a variable is
+   SET and not that a key is VALID — an expired one would report armed while
+   dead, which is this item's whole disease.
+
+   The leaked key was DISABLED rather than deleted, so the row stays as the
+   scar, and it answers 401 now (verified). The values never passed through the
+   assistant's context on the way back: page → Copy button → clipboard → file,
+   with only length and prefix read, and the clipboard overwritten after.
+   Verified end to end: an invited turn relayed and banked $0.00005 against its
+   own ceiling with `holder = rotation-probe` in the mirror, and a
+   `mode=complete` turn answered on the engine's own credential.
 
 2. **Whether the daemon should refuse to start with a guard it expects armed.**
    Reporting is strictly better than silence, but it is still a report. A
