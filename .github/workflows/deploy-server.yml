@@ -141,7 +141,10 @@ jobs:
       - name: How to roll back, if the canary went red
         if: failure()
         run: |
-          PREV=$(git rev-parse HEAD~1)
-          echo "the box is on $(git rev-parse HEAD) and it did not answer a real turn."
+          # `github.event.before`, not HEAD~1: actions/checkout is a depth-1
+          # clone, so HEAD~1 does not exist here and the rollback hint died with
+          # "ambiguous argument" on the one run that needed it.
+          PREV="${{ github.event.before }}"
+          echo "the box is on ${{ github.sha }} and it did not answer a real turn."
           echo "roll back with:"
           echo "  ssh root@<droplet> 'cd /opt/aire && git reset --hard ${PREV} && systemctl restart aire-server'"

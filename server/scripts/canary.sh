@@ -42,10 +42,15 @@ verdict() {  # <stream-file> → 0 if the turn really completed
     return 1
   fi
   text="$(jq -r '.result.text // ""' <<<"$result")"
-  cost="$(jq -r '.result.total_cost_usd // 0' <<<"$result")"
-  echo "text: ${text:0:40} | cost: \$${cost}"
+  # `.result.usage.total_cost_usd`, not `.result.total_cost_usd`: the dollars
+  # ride INSIDE usage (drain.py puts them there). Reading the shallow path
+  # returned null → 0 on the canary's first flight, and the "$0 with text" guard
+  # below caught the canary's own bug before it could ever excuse the daemon's.
+  cost="$(jq -r '.result.usage.total_cost_usd // 0' <<<"$result")"
+  echo "text: ${text:0:40} | cost: \$${cost} | $(jq -c '.result.usage | {cache_creation_input_tokens, cache_read_input_tokens, output_tokens}' <<<"$result")"
   [[ -n "$text" ]] || { echo "the result carried NO text — an empty turn is the budget lie (#23)"; return 1; }
-  awk -v c="$cost" 'BEGIN{exit !(c+0 > 0)}' || { echo "cost \$0 with text — the usage report is lying"; return 1; }
+  awk -v c="$cost" 'BEGIN{exit !(c+0 > 0)}' \
+    || { echo "cost \$0 with text — the usage report is lying"; jq -c '.result.usage' <<<"$result"; return 1; }
   awk -v c="$cost" -v m="$MAX_USD" 'BEGIN{exit !(c+0 <= m+0)}' \
     || { echo "::error::the canary cost \$${cost} > \$${MAX_USD} ceiling"; return 1; }
 }
