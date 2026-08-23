@@ -116,6 +116,14 @@ fail, it stalls with the bill running.
    SET and not that a key is VALID — an expired one would report armed while
    dead, which is this item's whole disease.
 
+   The behavioural half of that incident is not this repo's to keep: it rose to
+   the playbook the same night as `never-print-a-secret-bearing-file`, with a
+   PreToolUse hook that denies a Bash command about to dump a credential-bearing
+   path. It matches by PROXIMITY, not co-occurrence — the first version blocked
+   the very commit that documented the incident, because prose ABOUT those paths
+   read the same to it as a real dump, and a guard that fires while you write
+   its own rule is one somebody switches off.
+
    The leaked key was DISABLED rather than deleted, so the row stays as the
    scar, and it answers 401 now (verified). The values never passed through the
    assistant's context on the way back: page → Copy button → clipboard → file,
