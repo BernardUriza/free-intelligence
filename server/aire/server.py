@@ -29,7 +29,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import access, arming, artifacts, door, gateway, init_project, messages, spend, tokens
+from . import (access, arming, artifacts, corpus, door, gateway, init_project,
+               messages, spend, tokens)
 from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -49,6 +50,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await spend.ensure()
     except Exception as exc:  # noqa: BLE001 — same law: accounting never blocks the door
         print(f"spend ledger unavailable at startup: {exc!r}", flush=True)
+    try:
+        # Same reason as the ledger: the first turn that searches a corpus must
+        # not be the one racing its CREATE TABLE.
+        await corpus.ensure()
+    except Exception as exc:  # noqa: BLE001 — a corpus-less door still answers
+        print(f"corpus store unavailable at startup: {exc!r}", flush=True)
     yield
 
 

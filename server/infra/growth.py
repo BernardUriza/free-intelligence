@@ -28,10 +28,14 @@ import os
 import sys
 
 # table -> (the column that dates a row, whether it is a raw epoch number).
-# `claude_session_store` matters most of the three: it is the ONE table the broom
-# deliberately never sweeps, because deleting it breaks deathless sessions. Its
-# growth is therefore unbounded by design and this is the only thing measuring it.
+# TWO of these the broom deliberately never sweeps, so this is the only thing
+# measuring them: `claude_session_store`, because deleting it breaks deathless
+# sessions, and `aire_corpus_chunk`, because those are a consumer's uploaded
+# documents and age is not a reason to delete somebody's files. Unbounded by
+# design means watched on purpose — a table absent from this map is a table
+# nobody is measuring at all.
 TABLES = {
+    "aire_corpus_chunk": ("at", False),
     "aire_gateway_log": ("ts", False),
     "aire_log": ("at", False),
     "claude_session_store": ("mtime", True),

@@ -17,7 +17,10 @@ outcome is appended to the file log. Correcting is appending, never rewriting:
 mtime < cutoff`` policy — mutating an entry is what it forbids. NOT swept:
 ``claude_session_store`` — that is the agent's resumable memory, and deleting it
 breaks deathless sessions; its retention (per-project TTL, archiving) stays a
-decision that is Bernard's.
+decision that is Bernard's. Nor ``aire_corpus_chunk``: those rows are a
+consumer's uploaded documents, and a document does not stop being wanted because
+it is thirty days old. It shrinks only when someone deletes it through the tool,
+and `infra/growth.py` watches it because nothing else will.
 
 **No waiter read here, by law.** [[write-only-daemon]]: this repo only appends
 and deletes; every read that serves a VIEW lives in the front. The row count

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .corpus_tool import build_corpus_server
 from .memory_tool import build_memory_server
 from .persona_tool import build_persona_server
 from .tracker_tool import build_tracker_server
@@ -23,6 +24,7 @@ from .tracker_tool import build_tracker_server
 REGISTRY: dict[str, Any] = {
     "memory": build_memory_server,
     "persona": build_persona_server,
+    "rag_store": build_corpus_server,
     "task_tracker": build_tracker_server,
 }
 
