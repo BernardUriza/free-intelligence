@@ -1,0 +1,6 @@
+# Config.xcconfig NO se ignora: es un SYMLINK a ~/.secrets/theblowers-ios.xcconfig
+# y lo que el repo guarda es la ruta, nunca el valor. Si alguna vez aparece como
+# archivo regular en `git status` (typechange), NO se commitea: se restaura el link.
+*.xcodeproj/
+# xcodegen lo genera desde project.yml, igual que en og118-ios.
+Sources/Info.plist
