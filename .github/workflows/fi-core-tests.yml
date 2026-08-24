@@ -87,6 +87,29 @@ jobs:
           ls "/usr/lib/postgresql/${major}/bin/pg_ctl"
           find /usr/share/postgresql -name vector.control -print -quit
 
+      - name: A pgvector database for the retriever smoke test
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          set -euo pipefail
+          # `test_rag_pgvector_smoke.py` covers StoreBackedRetriever against a
+          # REAL pgvector database — the retriever path, which the store's own
+          # protocol tests do not reach. It skipped everywhere, not because the
+          # host lacked anything but because nobody exported one env var, so a
+          # whole backend went unexercised behind a skip that read as deliberate.
+          #
+          # Started as a STEP, not a `services:` block: services start on every
+          # invocation of this job, including the seconds-long path an unrelated
+          # PR takes, and paying a container pull there would undo the fast
+          # report that lets this check be required at all.
+          docker run -d --name fi-rag-pg -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=firag \
+            -p 5433:5432 pgvector/pgvector:pg16
+          for _ in $(seq 1 30); do
+            docker exec fi-rag-pg pg_isready -U postgres -d firag && break
+            sleep 2
+          done
+          docker exec fi-rag-pg psql -U postgres -d firag -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+          echo "FI_RAG_PGVECTOR_TEST_DSN=postgresql://postgres:smoke@localhost:5433/firag" >> "$GITHUB_ENV"
+
       - name: Install fi-core with the extras its tests exercise
         if: steps.touched.outputs.yes == 'true'
         run: |
@@ -114,7 +137,7 @@ jobs:
           # skipping, CI says so instead of quietly returning to zero coverage on
           # the store that was destroying data.
           pytest tests/test_stores_pgvector.py tests/test_memory_pgvector_store.py \
-            -q -rs --no-header | tee /tmp/pg.txt
+            tests/test_rag_pgvector_smoke.py -q -rs --no-header | tee /tmp/pg.txt
           if grep -qi 'skip' /tmp/pg.txt; then
             echo "::error::the pgvector suites SKIPPED on a runner with Postgres + pgvector installed — the probe is not finding them"
             exit 1
