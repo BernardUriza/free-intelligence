@@ -7,6 +7,7 @@ against a real Postgres for the same reason the blob sweep does: the bug this
 prevents lives in SQL (a window that drifts, a total that resets), not in a mock.
 """
 
+import asyncio
 import os
 
 import asyncpg
@@ -81,3 +82,25 @@ async def test_banking_never_raises_into_a_turn(monkeypatch) -> None:
 
     monkeypatch.setattr(db, "acquire", lambda *a, **k: Dead())
     await spend.bank("engine", "canary", "s1", None, 0.5)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_turns_all_leave_a_row() -> None:
+    """The DDL race: several first turns arriving together on a box whose table
+    does not exist yet. `CREATE TABLE IF NOT EXISTS` is not a mutex — two of them
+    can collide on the catalog, and `bank` swallows the error and prints, so the
+    cost is a lost row in the minutes right after a deploy. `ensure()` at startup
+    removes the race and the lock covers whoever still gets here first."""
+    await _clean()
+    await asyncio.gather(*(spend.bank("engine", "canary", f"s{i}", None, 0.01)
+                           for i in range(8)))
+    assert await spend.month_to_date() == pytest.approx(0.08)
+
+
+@pytest.mark.asyncio
+async def test_ensure_is_what_startup_calls() -> None:
+    """The door opens with the table already there, so no paid turn is the one
+    that discovers it is missing."""
+    await _clean()
+    await spend.ensure()
+    assert await spend.month_to_date() == pytest.approx(0.0)

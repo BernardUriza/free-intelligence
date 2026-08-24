@@ -56,18 +56,38 @@ DDL = (
 INDEX = "CREATE INDEX IF NOT EXISTS aire_spend_at ON aire_spend (at)"
 
 _ready = False
+_lock = asyncio.Lock()
 
 
-async def _ensure(conn: object) -> None:
-    """The table, once per process. Created by whoever writes first, which is
-    always the daemon — role ``aire``, so the reader's default privileges cover
-    it. A table born under any other role goes invisible to the front."""
+async def ensure() -> None:
+    """The table, committed and VISIBLE to other connections, before anything
+    inserts. Called at startup (`server.lifespan`) the way `tokens.load()` is,
+    and by every writer as its first step.
+
+    Two things had to be true at once and only one was. The lazy version created
+    the table on the first paid turn, so two concurrent first turns raced the
+    DDL. Worse — and this is the part that only a concurrency test finds — it ran
+    that DDL on the CALLER's connection, which `db.acquire(statement_timeout_ms)`
+    wraps in an explicit transaction: the flag flipped to ready while the CREATE
+    was still uncommitted, so every other coroutine skipped the DDL and inserted
+    against a table its own connection could not see. Measured on 8 concurrent
+    first turns: **three lost their row** to `UndefinedTableError`, swallowed and
+    printed, on exactly the turns that follow a deploy.
+
+    So the DDL takes its OWN connection with no surrounding transaction (asyncpg
+    autocommits a lone statement), and `_ready` flips only after it is committed.
+    The lock is taken with no connection in hand, so callers cannot deadlock the
+    pool waiting for each other."""
     global _ready
-    if _ready:
+    if _ready or not db.dsn():
         return
-    await conn.execute(DDL)  # type: ignore[attr-defined]
-    await conn.execute(INDEX)  # type: ignore[attr-defined]
-    _ready = True
+    async with _lock:
+        if _ready:
+            return
+        async with db.acquire() as conn:
+            await conn.execute(DDL)
+            await conn.execute(INDEX)
+        _ready = True
 
 
 async def bank(door: str, project: str | None, session: str | None,
@@ -88,8 +108,8 @@ async def bank(door: str, project: str | None, session: str | None,
 
 async def _insert(door: str, project: str | None, session: str | None,
                   holder: str | None, usd: float) -> None:
+    await ensure()
     async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
-        await _ensure(conn)
         await conn.execute(
             "INSERT INTO aire_spend (door, project, session, holder, usd)"
             " VALUES ($1, $2, $3, $4, $5)", door, project, session, holder, usd)
@@ -113,8 +133,8 @@ async def _sum_month() -> float:
     """The month's total, bounded like the insert: `/health` is what a watchdog
     polls, and a health endpoint that HANGS is worse than one that answers
     degraded — the watchdog waits instead of alarming."""
+    await ensure()
     async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
-        await _ensure(conn)
         total = await conn.fetchval(
             "SELECT coalesce(sum(usd), 0) FROM aire_spend"
             " WHERE at >= date_trunc('month', now())")

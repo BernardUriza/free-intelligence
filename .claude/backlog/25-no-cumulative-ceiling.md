@@ -111,3 +111,34 @@ exit the previous client took. `_drop`'s docstring, which claimed to be "the ONE
 way a client leaves the pool", was corrected — that false invariant is what made
 the bug invisible to a careful reader. Two regression tests, both proven red
 against the unfixed code before being trusted.
+
+## And the defect the /cruel-critic FIX introduced, found by the test that closed its debt
+
+The review left two debts named: no test joined the turn to the row, and the
+lazy `CREATE TABLE IF NOT EXISTS` could race. Working them turned out to be the
+same job, because the concurrency test found that the race was real, worse than
+described, and **caused by the review's own fix**.
+
+Bounding `bank` at 5s meant passing `db.acquire(statement_timeout_ms=…)`, and
+that helper wraps the call in an EXPLICIT transaction. The DDL then ran on the
+caller's transactional connection and `_ready` flipped while the `CREATE` was
+still uncommitted — so every other coroutine skipped the DDL and inserted
+against a table its own connection could not see. Eight concurrent first turns,
+measured: **three lost their row** to an `UndefinedTableError` that `bank`
+swallows and prints, on precisely the turns that follow a deploy.
+
+`ensure()` now takes its own connection with no surrounding transaction (asyncpg
+autocommits a lone statement), flips `_ready` only after the commit, and runs at
+startup from `server.lifespan` so no paid turn is the one that discovers the
+table is missing. The lock is taken with no connection in hand, so callers
+cannot deadlock the pool waiting on each other.
+
+**The tests that close the debt** (`tests/test_money_path.py`, 3): they drive the
+REAL `run_turn` — rotor loop, `_attempt`, pool, result seam — against a stub
+standing in for the `claude` subprocess and a real Postgres, so everything
+between the SDK's messages and the row is shipped code. Each was proven red
+against a real mutation: banking nothing ("a paid turn left no trace"), banking
+the cumulative instead of the delta, and the eviction bug itself. Honest limit:
+the concurrency test covers the shape that actually shipped, not every possible
+interleaving — a variant where the lock serializes callers past the commit
+passes either way.

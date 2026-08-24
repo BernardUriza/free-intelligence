@@ -43,6 +43,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         await tokens.load()
     except Exception as exc:  # noqa: BLE001 — a blank roster survives; a dead door does not
         print(f"invite tokens unavailable at startup: {exc!r}", flush=True)
+    try:
+        # Before the door opens, so two concurrent first turns cannot race the
+        # DDL and lose a row to a catalog collision (`spend.ensure`).
+        await spend.ensure()
+    except Exception as exc:  # noqa: BLE001 — same law: accounting never blocks the door
+        print(f"spend ledger unavailable at startup: {exc!r}", flush=True)
     yield
 
 
