@@ -12,6 +12,10 @@ system prompt. No active project → no binding, byte-identical to before.
 
 from __future__ import annotations
 
+import pytest
+from fi_core.rag import NothingToIndex
+from fi_runner.aire_corpus import AireCorpusError
+
 from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
@@ -162,3 +166,52 @@ def test_external_element_rag_failure_refuses_loud(monkeypatch, project_registry
     assert "No pude consultar los documentos" in resp.text
     assert sent == {}  # the external proxy never ran
     assert spy_runner.seen == {}
+
+
+# --- a library contract change must not turn a helpful 422 into a 500 --------
+
+
+class _RefusingRag:
+    """A store that refuses the way fi-core 0.25.0 does: by RAISING before it has
+    deleted anything, instead of returning the `0` it used to return after the
+    previous version of the document was already gone."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def ingest(self, *_a, **_kw):
+        raise self._exc
+
+    async def list_documents(self, _c):
+        return []
+
+    async def stats(self, _c):
+        return {"n_docs": 0, "n_chunks": 0, "bytes": 0}
+
+    def quota(self):
+        return {"max_docs": None, "max_bytes": None}
+
+
+def _upload(client, pid, body=b"una linea"):
+    return client.post(f"/projects/{pid}/upload",
+                       files={"file": ("nota.txt", body, "text/plain")})
+
+
+@pytest.mark.parametrize("make_exc", [
+    pytest.param(lambda: NothingToIndex("'nota.txt' produced no chunks at min_chunk_size=20"),
+                 id="local-store"),
+    pytest.param(lambda: AireCorpusError("AIRE corpus 422: an empty document indexes nothing"),
+                 id="aire-door"),
+])
+def test_a_document_too_short_to_index_still_answers_422(monkeypatch, project_registry, make_exc) -> None:
+    """Both stores refuse by raising. Uncaught, the message telling the user to
+    add more text arrives as an unhandled 500 instead."""
+    app_module.app.dependency_overrides[app_module.get_rag_store] = lambda: _RefusingRag(make_exc())
+    client = TestClient(app_module.app)
+    pid = project_registry.create("legacy-bearer", "P")["id"]
+    try:
+        resp = _upload(client, pid)
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["detail"]["code"] == "TOO_SHORT_TO_INDEX"
+    finally:
+        app_module.app.dependency_overrides.pop(app_module.get_rag_store, None)
