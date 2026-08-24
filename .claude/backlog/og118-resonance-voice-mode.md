@@ -1,6 +1,6 @@
 # RESONANCE — hands-free, screenless voice-call mode for og118
 
-Status: Proposed (name ratified by Bernard 2026-06-29)
+Status: **Done** (verificado contra el código 2026-08-23) — resonanceCallMachine/Controller/VadGate/CuePolicy + useResonanceCallLoop en fi-glass, consumidos por og118 vía useOg118ResonanceCall. Residual: sigue tras el flag `?resonance=1`, no default-on
 Proposed: 2026-06-29 by Bernard
 
 > Naming taxonomy locked: the **elementos** are the 118 named personas (atoms,

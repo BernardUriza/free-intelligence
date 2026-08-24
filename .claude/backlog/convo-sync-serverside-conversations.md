@@ -1,6 +1,6 @@
 # CONVO-SYNC-1 — server-side conversations (cross-device chat sync), gated on adoption
 
-Status: Proposed (deferred — adoption-gated)
+Status: **Done** (verificado contra el código 2026-08-23) — ConversationStore server-side + /conversations CRUD + RemoteConversationLibrary cloud-autoritativo con fallback IndexedDB (la bifurcación se decidió como dual). Residuales: ventana de 20 msgs/16k en runner.py y el prompt-cache, que sólo enciende con OG118_SESSION_STORE_DSN
 Proposed: 2026-06-21 by Bernard
 
 ## What it is

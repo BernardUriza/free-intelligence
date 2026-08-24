@@ -1,6 +1,6 @@
 # og118 Projects — papelería business space
 
-Status: Proposed
+Status: **Done** en lo técnico (verificado 2026-08-23) — upload + corpus por turno + active_corpus_binding. La vertiente papelería quedó DROPPED: servir a terceros con el OAuth personal rompe el ToS
 Proposed: 2026-06-19 by Bernard
 
 ## What it is

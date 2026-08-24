@@ -1,6 +1,6 @@
 # OG118-IOS-SWIFT62-1 — SE-0461 invierte el aislamiento por default y el decode se sube al main actor
 
-Status: Proposed
+Status: **Not built** (verificado 2026-08-23) — SWIFT_VERSION sigue en 5.9, sin SWIFT_STRICT_CONCURRENCY ni @concurrent. Los @MainActor a pagar el día del upgrade ya son 13, no 10
 Proposed: 2026-08-13 by Claude (investigación con /histerical-search)
 
 ## Qué es

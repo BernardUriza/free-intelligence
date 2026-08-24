@@ -1,6 +1,6 @@
 # CONV-CONCURRENCY-1 — pin/título pierden en last-write-wins entre dispositivos
 
-Status: Proposed
+Status: **Done** (2026-08-23) — PUT deja de opinar sobre las banderas; PATCH manda el delta
 Proposed: 2026-07-13 by Claude (hallazgo del /cruel-critic sobre CONV-ORGANIZE-1, aceptado por Bernard)
 
 ## What it is
@@ -70,3 +70,95 @@ PR #362/#364.
   *justo la copia en memoria y vieja* que esta tarjeta describe.
   `transformConversation` (`:205`) hace `get → transform → put` sin versión, así
   que también puede pisar.
+
+## Cerrada 2026-08-23 — la autoridad se movió, no se agregó una versión
+
+La tarjeta dejaba dos rutas y la decisión al dueño. **La ruta 1 (guard optimista
+409 sobre `updatedAt`) no era una de las dos: era incorrecta**, y lo prueba el
+propio código de este repo — no una preferencia de estilo:
+
+- `setConversationPinned` **deliberadamente NO toca `updatedAt`** (helpers.ts:
+  *"pinning is organization, not content, and must not fake recency"*). Un guard
+  que compara `updatedAt` no vería ningún cambio al fijar, y dejaría pasar
+  exactamente la escritura que existe para frenar.
+- `updatedAt` lo acuña el CLIENTE (`nowFn()`), y dos dispositivos no comparten
+  reloj. Un teléfono con la hora corrida daría 409 siempre o nunca.
+
+Así que no se agregó una versión: **se movió la autoridad.**
+
+| Verbo | Qué manda ahora |
+|---|---|
+| `PUT /conversations/{id}` | CONTENIDO — mensajes, preview, `updatedAt`. **No opina sobre las banderas**: el server conserva las suyas |
+| `PATCH /conversations/{id}` | ORGANIZACIÓN — `title`/`titleCustom`/`pinnedAt`/`archivedAt`, como delta |
+
+Un dispositivo con copia vieja **no puede perder un pin porque no tiene permiso
+de hablar de él**. No hay carrera que ganar: no hay carrera.
+
+### Lo que el delta expresa y el record entero no
+
+`null` = BORRA, ausente = NO TOQUES. Esa distinción es todo el bug: con el put
+entero, *"desfijar"* y *"un segundo dispositivo cuya copia es anterior al pin"*
+producían **bytes idénticos**, y el server no tenía cómo distinguir una decisión
+de una ignorancia. Ganaba la ignorancia, en silencio.
+
+Un test viejo (`test_unpin_upsert_drops_the_stored_flag`) afirmaba justo esa
+ambigüedad como si fuera el contrato. Se reescribió, no se borró: la razón por la
+que dejó de valer queda escrita ahí.
+
+### Las decisiones que se tomaron construyendo
+
+- **La semántica vive UNA vez, en core.** `applyConversationMetadataPatch` +
+  los tres constructores de delta; los transformers de record entero quedaron
+  como composiciones delgadas de ellos. Sin eso, la ruta local (aplicar y poner)
+  y la remota (mandar el delta) derivan, y hay un test que las compara campo por
+  campo para que no puedan.
+- **`patch()` es OPCIONAL en el contrato de `ConversationLibrary`**, duck-typeado
+  como `forget_session` en fi-runner. Sólo se gana el sueldo donde hay un segundo
+  escritor: IndexedDB es un navegador, no tiene con quién competir, y ahí
+  `get → transform → put` ya era correcto. Un verbo obligatorio habría sido
+  ceremonia para el adaptador que no lo necesita.
+- **El merge ocurre bajo el MISMO lock que la escritura** (`put_content` /
+  `patch_metadata` en el store). Un read-modify-write en el endpoint habría
+  metido una carrera nueva entre dos requests para arreglar la de dos
+  dispositivos.
+- **`titleCustom` es una bandera de organización**, aunque no lo parezca: un
+  rename es un acto del dueño, y dejar que el título auto-derivado del siguiente
+  mensaje lo pise es el mismo bug con otro nombre de campo. Pero un título que
+  NUNCA fue renombrado sí se sigue actualizando — hay test para las dos mitades.
+- **`projectId` se preserva** por lo mismo: es birth-only, y un put que lo omitió
+  no debe des-archivar el chat de su proyecto.
+- **El cliente adopta el record que devuelve el server**, no su propio cálculo
+  optimista — que es, por definición, la copia vieja. `PATCH` responde el record
+  completo para que no haga falta un GET extra.
+
+### Lo que NO se hizo, y por qué
+
+- **`projectId` no entró al PATCH.** Mover una conversación de proyecto no es una
+  función que exista; agregar el verbo antes que la función es inventar producto.
+- **El `persist` del cliente sigue acarreando las banderas.** No es redundancia:
+  es lo único que las preserva en el adaptador local. En la nube el server ignora
+  esa opinión, que es precisamente lo que cierra la carrera.
+- **Sigue sin haber orden entre escrituras de CONTENIDO.** Dos dispositivos
+  escribiendo mensajes distintos en el mismo hilo siguen siendo last-write-wins.
+  Esta tarjeta cerró la pérdida de banderas, que es la que ocurría en silencio;
+  el hilo divergente es un problema distinto y todavía abierto.
+
+### Por qué ahora y no "cuando el multi-dispositivo sea real"
+
+La tarjeta decía *"se activa cuando Bernard reporte el primer pin perdido entre
+su Mac y su teléfono"*. Ese día dejó de ser hipotético: **OG118-IOS-1 está In
+progress** — hay un cliente nativo de iPhone que compila y arranca. Esperar al
+primer pin perdido es esperar a que el bug cobre antes de cobrarlo.
+
+### Verificación
+
+core **100**, fi-glass **560**, og118-web **78**, og118 server **225**, fenix
+**68**. `tsc --noEmit` limpio en core y fi-glass; `dist/` de los dos reconstruido
+y commiteado ([[committed-dist-artifacts]]); og118-web y fenix-web compilan
+contra el fi-glass nuevo.
+
+**Cinco mutaciones probadas en rojo** — tres en el server (el PUT vuelto
+sobrescritura ciega tumbó 4 tests: pin, archive, rename y refile; quitar la
+preservación del título custom; el `null` tratado como "no toques") y dos en
+fi-glass (el seam ignorando el verbo `patch`; el cliente adoptando su propio
+cálculo en vez de la respuesta del store).

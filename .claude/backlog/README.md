@@ -2,38 +2,40 @@
 
 One markdown file per item. Status flips the day it changes (no fake-green).
 
-**Auditoría del 2026-08-22:** cada tarjeta se verificó contra el código, no
-contra su propia línea `Status:`. **Cinco** estaban marcadas como pendientes y
-ya estaban entregadas — el índice llevaba hasta dos meses mintiendo. Las que
-siguen abiertas se re-verificaron y traen la evidencia dentro.
+**Auditoría del 2026-08-23:** cada tarjeta se re-verificó contra el CÓDIGO, no
+contra su propia línea `Status:`. La del 2026-08-22 había encontrado cinco
+entregadas mal marcadas; ésta encontró **cinco más** — tres shipeadas hace
+semanas sentadas en la tabla equivocada, y dos entregadas a medias etiquetadas
+como "Proposed". El índice vuelve a mentir en cuanto alguien cierra una tarjeta
+sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 
 ## Abiertas
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai)](figlass-projects-page.md) | **Not built** — bloqueada por 4 huecos del contrato del server | 2026-07-14 |
-| [OG118-SESSION-DELETE-CASCADE-1 — borrar conversación debe borrar su sesión nativa](og118-session-store-delete-cascade.md) | **Not built** — y el borrado en bloque tiene el mismo hueco | 2026-07-13 |
-| [CONV-CONCURRENCY-1 — pin/título se pierden en last-write-wins entre dispositivos](og118-conv-concurrency.md) | **Not built** — la carrera sigue intacta | 2026-07-13 |
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Not built** — esperando una decisión de arquitectura de Bernard | 2026-07-05 |
-| [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | Proposed (sin auditar) | 2026-08-13 |
-| [RESONANCE — modo llamada de voz sin pantalla](og118-resonance-voice-mode.md) | Proposed (sin auditar) | 2026-06-29 |
-| [og118 Projects — espacio de negocio de la papelería](og118-projects-papeleria-business.md) | Proposed (sin auditar) | 2026-06-19 |
-| [B3-AURITY-REACT19-REFS-1 — errores latentes de ref-type de React 19 en aurity](b3-aurity-react19-refs.md) | Proposed (sin auditar) | 2026-06-19 |
-| [B3-FIGLASS-SHELL-PRIMITIVES-1 — extraer sidebar/resource/composer a fi-glass](b3-figlass-shell-primitives.md) | Proposed (sin auditar) | 2026-06-23 |
-| [CONVO-SYNC-1 — conversaciones server-side](convo-sync-serverside-conversations.md) | Proposed (sin auditar; posiblemente subsumida por PROJ-SYNC-1) | 2026-06-21 |
+| [B3-FIGLASS-SHELL-PRIMITIVES-1 — extraer sidebar/resource/composer a fi-glass](b3-figlass-shell-primitives.md) | **Parcial** (verificado 2026-08-23) — 1A y 1C entregados y consumidos por og118; faltan los slots del composer. El criterio de aceptación se movió al revés: `globals.css` pasó de 391 a 820 LOC | 2026-06-23 |
+| [B3-AURITY-REACT19-REFS-1 — errores latentes de ref-type de React 19 en aurity](b3-aurity-react19-refs.md) | **Casi cerrada** (verificado 2026-08-23) — 7 de los 8 murieron solos al subir `@types/react` a 19.2.16; queda `NeuralNetworkCanvas.tsx:20`. aurity sigue sin gate de tipos (`ignoreBuildErrors: true`) | 2026-06-19 |
+| [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (verificado 2026-08-23) — `SWIFT_VERSION` sigue en 5.9, sin strict-concurrency ni `@concurrent`. Es la vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 | [Gate 3 — Auth0 (+ Google social) para cuentas de og118](gate3-auth0-google.md) | Accepted | 2026-06-20 |
 
 ## En curso
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** — el gate de Apple se levantó; compila, arranca y pinta el login en simulador. Falta la primera vuelta de chat real | 2026-08-12 |
-| [AIREBACKEND-1 — el backend propio siempre-arriba y observable](fi-runner-aire-backend.md) | **In progress** — dos cortes entregados; el "gap" de `llm_router_policy.py` era falso. Sólo queda `tool_policy` | 2026-07-13 |
+| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado 2026-08-23) — compila, arranca y pinta el login en simulador. Falta la primera vuelta de chat real. ⚠️ `apps/og118-ios/README.md:131-136` sigue diciendo "bloqueado: falta Xcode", que su propia tabla desmiente | 2026-08-12 |
+| [AIREBACKEND-1 — el backend propio siempre-arriba y observable](fi-runner-aire-backend.md) | **In progress** (re-verificado 2026-08-23) — sólo queda que `tool_policy` viaje al backend; el propio `aire.py:45` lo declara como el único hueco | 2026-07-13 |
 
 ## Entregadas
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [CONV-CONCURRENCY-1 — pin/título se perdían en last-write-wins entre dispositivos](og118-conv-concurrency.md) | **Done 2026-08-23** — `PUT` deja de opinar sobre las banderas y `PATCH` manda el delta; la ruta del 409 sobre `updatedAt` resultó incorrecta y la tarjeta explica por qué | 2026-07-13 |
+| [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai)](figlass-projects-page.md) | **Done 2026-08-22** — los 3 PRs + `instructions` cableadas al prompt. Fase 2: composer en la página, pin/archive de proyectos | 2026-07-14 |
+| [OG118-SESSION-DELETE-CASCADE-1 — borrar conversación borra su sesión nativa](og118-session-store-delete-cascade.md) | **Done 2026-08-22** — cascada en las dos superficies de borrado. Queda el TTL de los huérfanos que el bug ya dejó | 2026-07-13 |
+| [RESONANCE — modo llamada de voz sin pantalla](og118-resonance-voice-mode.md) | **Done** (verificado 2026-08-23) — máquina de llamada, barge-in, VAD y hangup por inactividad en fi-glass, consumidos por og118. Residual: sigue tras el flag `?resonance=1` | 2026-06-29 |
+| [CONVO-SYNC-1 — conversaciones server-side](convo-sync-serverside-conversations.md) | **Done** (verificado 2026-08-23) — `ConversationStore` + CRUD + `RemoteConversationLibrary` cloud-autoritativo; la bifurcación "dual vs sólo server" se decidió como dual. Residuales: ventana de 20 msgs/16k y el prompt-cache env-gated | 2026-06-21 |
+| [og118 Projects — espacio de negocio de la papelería](og118-projects-papeleria-business.md) | **Done** (verificado 2026-08-23) — upload + corpus por turno + `active_corpus_binding` (el "hueco de framework" subió a fi-runner). La vertiente papelería quedó DROPPED por el ToS del OAuth personal | 2026-06-19 |
 | [OG118-LIVING-CLAUDE — un CLAUDE.md por chat que el agente reescribe](og118-living-claude-per-chat.md) | Done 2026-08-21 (PR #411, verificado en vivo) | 2026-08-21 |
 | [FI-RUNNER-MULTIMODAL-1 — imagen/documento como primitiva del turno](fi-runner-multimodal-turn.md) | **Done** — shipped como `images: list[TurnImage]` (verificado 2026-08-22) | 2026-07-05 |
 | [B3-FIGLASS-CONVERSATION-RENAME-1 — nombres de chat editables en fi-glass](b3-figlass-conversation-rename.md) | **Done** — con tests y consumido por og118 (verificado 2026-08-22) | 2026-06-24 |
