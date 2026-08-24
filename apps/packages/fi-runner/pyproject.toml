@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.18.0"
+version = "0.19.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -27,7 +27,13 @@ dependencies = [
     # Older fi-core only exposes the v1 4-tool surface, so the runner's
     # `_derive_plan_events` would silently drop step_noted / plan_amended /
     # plan_completed / plan_failed / plan_cancelled events.
-    "fi-core>=0.24,<0.25",
+    # fi-core 0.25.0 is the release that stopped a re-ingest from destroying the
+    # document it could not replace, and stopped `save_facts` from wiping a
+    # principal's memory on an empty snapshot. The one caller-visible change is
+    # that `RagStore.ingest` RAISES `NothingToIndex` where it used to return 0;
+    # og118 handles it and keeps its 422. Widened rather than pinned forward so
+    # the next 0.25.x patch does not need a second commit here.
+    "fi-core>=0.24,<0.26",
 ]
 
 [project.optional-dependencies]
