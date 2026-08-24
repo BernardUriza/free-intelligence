@@ -46,12 +46,7 @@ from fi_runner.backends.claude_code import ClaudeCodeBackend  # noqa: E402
 from fi_runner.session_stores import PostgresSessionStore  # noqa: E402
 
 
-def _pg_bin(name: str) -> str | None:
-    for prefix in ("/opt/homebrew/opt/postgresql@17/bin", "/usr/local/opt/postgresql@17/bin"):
-        candidate = os.path.join(prefix, name)
-        if os.path.exists(candidate):
-            return candidate
-    return shutil.which(name)
+from pg_probe import pg_bin as _pg_bin
 
 
 _INITDB, _PG_CTL = _pg_bin("initdb"), _pg_bin("pg_ctl")
