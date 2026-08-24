@@ -205,11 +205,14 @@ def _backend_aire(
     AIRE_CHAT_PROJECT, que app.py setea por request como og118-{chat}); el
     proyecto fijo queda de fallback para turnos sin conversación. Cada turno
     pide del registry de AIRE la tool `persona` (read/update sobre la parte viva
-    del CLAUDE.md de la casita) y `task_tracker` (aire-server backlog #45): el
-    plan en vivo dejó de ser una capability local que esta ruta perdía, y vuelve
-    a llegar por donde siempre llegó — como tool_calls que `_derive_plan_events`
-    traduce, sin que el runner sepa en qué puerta corrieron. Y viaja en el modo
-    que el caller fije —
+    del CLAUDE.md de la casita), `task_tracker` (backlog #45) y `rag_store`
+    (backlog #46): el plan en vivo y la búsqueda en los documentos del proyecto
+    dejaron de ser capabilities locales que esta ruta perdía, y vuelven a llegar
+    por donde siempre llegaron — tool_calls que el runner traduce sin saber en
+    qué puerta corrieron. El corpus vive en la Postgres de AIRE, con la búsqueda
+    full-text de Postgres: recupera por PALABRAS, no por parecido semántico, que
+    es el techo que se aceptó a cambio de que el corpus no viva en el disco
+    mortal del droplet. Y viaja en el modo que el caller fije —
     `complete` por default: desde aire-server 5ae8e33 la puerta corre registry
     tools en complete, así que og118 tiene su persona viva sin cargar los
     builtins del preset agent, que no quiere.
@@ -234,7 +237,7 @@ def _backend_aire(
         project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode=mode,
-        registry_tools=("persona", "task_tracker"),
+        registry_tools=("persona", "task_tracker", "rag_store"),
         project_for_turn=AIRE_CHAT_PROJECT.get,
     )
 
@@ -307,16 +310,14 @@ def build_runner(
         # vacío aquí — no confiar en que cada caller lo recuerde.
         capabilities = []
         extra_mcp_servers = []
-        # Y con ellas se va el binding del corpus. Medido 2026-08-24: un turno con
-        # proyecto activo viajaba con CERO servidores MCP y un system prompt que le
-        # ordenaba al modelo "call search_documents IMMEDIATELY... phrasings like
-        # '¿quieres que busque?' are FORBIDDEN" — una tool que en esa ruta no
-        # existe. Eso no es una feature perdida: es una persona instruida a mentir
-        # sobre lo que puede hacer, y el usuario ve al modelo inventar o
-        # disculparse. Un binding promete una HERRAMIENTA; sin la herramienta, el
-        # binding se va con ella. Las instrucciones del dueño no dependen de
-        # ninguna tool, así que ésas sí se quedan.
-        bindings = owner_instructions_binding()
+        # El binding del corpus VIVE O MUERE con su herramienta. El 2026-08-24 se
+        # midió lo que pasaba sin ella: el turno viajaba con CERO servidores MCP y
+        # un system prompt que le ordenaba al modelo "call search_documents
+        # IMMEDIATELY... phrasings like '¿quieres que busque?' are FORBIDDEN" —
+        # una persona instruida a mentir sobre lo que puede hacer. Ahora AIRE
+        # sirve `rag_store` desde su registry (aire-server backlog #46), así que
+        # la herramienta existe otra vez y el binding vuelve con ella, no antes.
+        bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
     else:
         backend = BackendAcotado(default_model=model, session_store=session_store)
         bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
