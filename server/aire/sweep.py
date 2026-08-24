@@ -44,9 +44,15 @@ RETENTION_DAYS = int(os.environ.get("AIRE_RETENTION_DAYS", "30"))
 GATEWAY_RETENTION_DAYS = int(
     os.environ.get("AIRE_GATEWAY_RETENTION_DAYS", str(RETENTION_DAYS))
 )
+# The spend ledger outlives the other two on purpose: its whole job is to answer
+# "what did this month cost", and a 30-day broom would erase the answer while the
+# month is still being asked about. A row is ~100 bytes and a busy day is ~100
+# turns, so a year of it is single-digit MB — growth.py watches it like the rest.
+SPEND_RETENTION_DAYS = int(os.environ.get("AIRE_SPEND_RETENTION_DAYS", "400"))
 TABLES = (
     ("aire_log", "at", RETENTION_DAYS),
     ("aire_gateway_log", "ts", GATEWAY_RETENTION_DAYS),
+    ("aire_spend", "at", SPEND_RETENTION_DAYS),
 )
 
 

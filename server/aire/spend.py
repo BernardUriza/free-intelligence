@@ -1,0 +1,95 @@
+"""Every dollar the daemon spends, in a row that outlives the process.
+
+The engine's ``Ledger`` counts spend in RAM, over the process lifetime, and
+that was the whole ceiling: ``AIRE_MAX_SPEND_USD`` refuses turns once the
+counter passes it, and the counter is born at ``0.0``. The daemon restarts on
+every deploy — fourteen times on 2026-08-23 alone — so a ceiling described as
+cumulative was in practice counting from zero several times a day, while
+``arming.py`` reported ``spend_backstop: armed`` and costwatch approved. A
+number that resets under the operator's feet is not a ceiling; it is a
+speed bump that reads like one.
+
+This is the ledger the counter never was: an append-only row per paid turn,
+in the same owned Postgres as the transcript, so "what did AIRE spend this
+month" has an answer that survives a restart, a re-provision, and the box
+itself ([[log-is-the-truth]]).
+
+**It does not refuse anything.** Bernard's call, 2026-08-23: a hard monthly
+cap can take og118 and Fénix down at 3am over an accounting threshold, and
+the per-process backstop already stops a single runaway session. So the month
+is REPORTED — on ``/health``'s gated half, where costwatch reads it and goes
+red — and the refusal stays where it is. An alarm that wakes a human beats a
+gate that silences a fleet.
+
+The read here is not a waiter read: nobody renders these rows. It feeds a
+watchdog's threshold — a check that arms an alarm, which is the criterion in
+[[write-only-daemon]], not the exception list.
+"""
+
+from __future__ import annotations
+
+from . import db
+
+DDL = (
+    "CREATE TABLE IF NOT EXISTS aire_spend ("
+    " seq bigserial PRIMARY KEY,"
+    " at timestamptz NOT NULL DEFAULT now(),"
+    " door text NOT NULL,"
+    " project text,"
+    " session text,"
+    " holder text,"
+    " usd double precision NOT NULL)"
+)
+INDEX = "CREATE INDEX IF NOT EXISTS aire_spend_at ON aire_spend (at)"
+
+_ready = False
+
+
+async def _ensure(conn: object) -> None:
+    """The table, once per process. Created by whoever writes first, which is
+    always the daemon — role ``aire``, so the reader's default privileges cover
+    it. A table born under any other role goes invisible to the front."""
+    global _ready
+    if _ready:
+        return
+    await conn.execute(DDL)  # type: ignore[attr-defined]
+    await conn.execute(INDEX)  # type: ignore[attr-defined]
+    _ready = True
+
+
+async def bank(door: str, project: str | None, session: str | None,
+               holder: str | None, usd: float) -> None:
+    """One paid turn, appended. Never raises into a turn: a dead database must
+    cost the accounting, never the answer the caller is waiting for — the same
+    law the gateway mirror runs under. It is LOUD, because a turn that spent
+    money and left no row is the exact silence this module exists to end."""
+    if usd <= 0 or not db.dsn():
+        return
+    try:
+        async with db.acquire() as conn:
+            await _ensure(conn)
+            await conn.execute(
+                "INSERT INTO aire_spend (door, project, session, holder, usd)"
+                " VALUES ($1, $2, $3, $4, $5)", door, project, session, holder, usd)
+    except Exception as exc:  # noqa: BLE001 — accounting never kills a turn
+        print(f"SPEND append failed (${usd:.4f} on {door}): "
+              f"{type(exc).__name__}: {exc}", flush=True)
+
+
+async def month_to_date() -> float:
+    """What this daemon has spent since the first of the month, across every
+    process that ran in it. Returns -1.0 when the figure is unavailable, which
+    a caller must not confuse with zero — an unreadable ledger is not a cheap
+    month, and reporting 0.0 for it would be the fake-green in miniature."""
+    if not db.dsn():
+        return -1.0
+    try:
+        async with db.acquire() as conn:
+            await _ensure(conn)
+            total = await conn.fetchval(
+                "SELECT coalesce(sum(usd), 0) FROM aire_spend"
+                " WHERE at >= date_trunc('month', now())")
+        return round(float(total), 4)
+    except Exception as exc:  # noqa: BLE001
+        print(f"SPEND month read failed: {type(exc).__name__}: {exc}", flush=True)
+        return -1.0

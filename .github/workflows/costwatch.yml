@@ -90,10 +90,14 @@ jobs:
         env:
           DISK_PCT_MAX: "80"
           LOG_MB_MAX: "64"
+          # The number Bernard chose for AIRE_MAX_SPEND_USD, finally applied to a
+          # month instead of to a process lifetime.
+          ANTHROPIC_WARN_USD: "20"
         run: |
           set -euo pipefail
           ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
-            "root@${AIRE_VM_HOST}" DISK_PCT_MAX="${DISK_PCT_MAX}" LOG_MB_MAX="${LOG_MB_MAX}" bash -s <<'REMOTE'
+            "root@${AIRE_VM_HOST}" DISK_PCT_MAX="${DISK_PCT_MAX}" LOG_MB_MAX="${LOG_MB_MAX}" \
+            ANTHROPIC_WARN_USD="${ANTHROPIC_WARN_USD}" bash -s <<'REMOTE'
           set -euo pipefail
           FAIL=0
 
@@ -204,6 +208,25 @@ jobs:
           DISARMED="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" \
                         http://127.0.0.1:8088/health | jq -c '.disarmed // "unreadable"')"
           echo "disarmed guards: ${DISARMED}  (declared: ${DECLARED})"
+
+          # What the daemon SPENT this month (#25, aire_spend). The $20 ceiling
+          # in AIRE_MAX_SPEND_USD lives in RAM and is born at zero on every
+          # restart — fourteen deploys on 2026-08-23 alone — so it never had a
+          # month to bite. Bernard's call (2026-08-23) is that the month alarms
+          # rather than refuses: a hard cap can take og118 and Fénix down at 3am
+          # over an accounting threshold, and the per-process backstop already
+          # stops a single runaway session. This is the alarm.
+          # -1 means the ledger was unreadable, which is NOT a cheap month.
+          MONTH="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" \
+                     http://127.0.0.1:8088/health | jq -r '.spend_month_usd // "unreadable"')"
+          echo "anthropic spend, month to date: \$${MONTH} (warn \$${ANTHROPIC_WARN_USD})"
+          if [[ "$MONTH" == "unreadable" ]] || awk -v m="$MONTH" 'BEGIN{exit !(m+0 < 0)}'; then
+            echo "::error::the spend ledger is unreadable — the month has no figure, which is not the same as no spend"
+            FAIL=1
+          elif awk -v m="$MONTH" -v w="$ANTHROPIC_WARN_USD" 'BEGIN{exit !(m+0 >= w+0)}'; then
+            echo "::error::Anthropic spend \$${MONTH} crossed the \$${ANTHROPIC_WARN_USD} line for the month"
+            FAIL=1
+          fi
           UNDECLARED="$(jq -nc --argjson d "$DISARMED" --argjson k "$DECLARED" '$d - $k' 2>/dev/null || echo '"unreadable"')"
           if [[ "$UNDECLARED" != "[]" ]]; then
             echo "::error::undeclared guards are disarmed: ${UNDECLARED} — a safety went off with nobody deciding it"

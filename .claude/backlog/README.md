@@ -15,7 +15,7 @@ kept honest, a status flipped the day it changes.
 | # | Item | Status |
 |---|------|--------|
 | [8](08-metrics.md) | Metrics per casita: weight, sessions, cost. | Weight+sessions Done 2026-07-20 (7e05a4e) |
-| [25](25-no-cumulative-ceiling.md) | No cumulative spend ceiling is set | Armed 2026-08-20 |
+| [25](25-no-cumulative-ceiling.md) | No cumulative spend ceiling is set | Ledger shipped 2026-08-23; refusal stays per-process by decision |
 | [28](28-per-token-budget.md) | Per-token budget | Done for INVITED keys 2026-08-11 (#32d); the 2 CONSTANT keys stay uncapped |
 | [31](31-credential-failover.md) | Credential failover | **Armed 2026-08-22** — slot 3 filled with a metered key, 2 slots live |
 | [35](35-the-consumer-map.md) | The consumer map | Accepted 2026-08-21 |

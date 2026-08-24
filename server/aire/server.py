@@ -29,7 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import access, arming, artifacts, door, gateway, init_project, messages, tokens
+from . import access, arming, artifacts, door, gateway, init_project, messages, spend, tokens
 from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -56,6 +56,19 @@ app = FastAPI(
 app.add_middleware(BaseHTTPMiddleware, dispatch=door.llm_door)
 
 
+async def _alive(detail: dict) -> dict:
+    """Proof the memory answers, plus — for a caller that carried a token — what
+    the daemon has spent this calendar month across every process that ran in it
+    (`spend.py`). The engine's RAM ceiling resets on every restart by
+    construction, so this figure is the only one a watchdog can alarm on;
+    `-1.0` means unreadable, which is not a cheap month."""
+    engine = await get_engine()
+    await engine.session_store.list_sessions("__health__")
+    if detail:
+        detail["spend_month_usd"] = await spend.month_to_date()
+    return {"status": "ok", "memory": "postgres", "modes": list(MODES), **detail}
+
+
 @app.get("/health")
 async def health(request: Request) -> JSONResponse:
     """The REAL state of the memory, including a downed database, without
@@ -74,10 +87,7 @@ async def health(request: Request) -> JSONResponse:
     always got; costwatch carries the token."""
     detail = arming.report() if accepted(presented_token(request)) else {}
     try:
-        engine = await get_engine()
-        await engine.session_store.list_sessions("__health__")
-        return JSONResponse({"status": "ok", "memory": "postgres",
-                             "modes": list(MODES), **detail})
+        return JSONResponse(await _alive(detail))
     except Exception as exc:  # noqa: BLE001 — health catches EVERYTHING, that's its job
         drop_engine()
         return JSONResponse(

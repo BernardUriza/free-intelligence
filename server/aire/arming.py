@@ -28,6 +28,10 @@ _GUARDS: tuple[tuple[str, str], ...] = (
     # AIRE_DSN until 2026-08-22, when the two names turned out to be one value
     # copied by the provisioner — so /health implied two independent memories.
     ("database", "AIRE_DATABASE_URL"),
+    # Armed means the env var is set, and for THIS guard that is all it can
+    # mean: the counter behind it lives in RAM and is born at zero on every
+    # restart (#25). The month's real figure rides beside this report as
+    # `spend_month_usd`, read from `aire_spend` — alarm on that, not on this.
     ("spend_backstop", "AIRE_MAX_SPEND_USD"),
     ("turn_cap", "AIRE_MAX_BUDGET_USD"),
     ("verbs", "AIRE_VERB_TOKEN"),

@@ -10,6 +10,7 @@ error. Red stays red."""
 from collections.abc import AsyncIterator
 from typing import Any
 
+from .. import spend
 from .contract import TurnSpec
 from .credentials import limit_hit
 from .drain import drain, turn_cost
@@ -45,6 +46,25 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
             return
 
 
+async def _account(engine: Any, project: str, session: str,
+                   event: dict[str, Any]) -> bool:
+    """Bank this turn twice, for two different questions, and report whether the
+    client hit its own cap (#23).
+
+    In RAM the ``Ledger`` answers "should this process stop"; in Postgres
+    ``aire_spend`` answers "what did AIRE spend this month" — the one the RAM
+    counter can never answer, because it is born at zero on every deploy.
+
+    The dollars are the DELTA, never ``total_cost_usd``, which is the client's
+    CUMULATIVE spend: the ledger's own counter moves by exactly that delta, so
+    reading it across the call bills the same money once."""
+    before = engine.ledger.spend_usd
+    spent = engine.ledger.account(f"{project}/{session}", turn_cost(event))
+    await spend.bank("engine", project, session, None,
+                     engine.ledger.spend_usd - before)
+    return spent
+
+
 async def _attempt(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec, images: tuple[dict[str, str], ...],
                    slot: Any) -> AsyncIterator[dict[str, Any]]:
@@ -60,7 +80,7 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
             await send_turn(client, prompt, images)
             async for event in drain(client):
                 if event.get("type") == "result":
-                    spent = engine.ledger.account(key, turn_cost(event))
+                    spent = await _account(engine, project, session, event)
                     result = event["result"]
                     if limit_hit(result.text, result.usage):
                         burned = True

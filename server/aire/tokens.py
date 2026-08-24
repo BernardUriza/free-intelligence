@@ -25,7 +25,7 @@ import secrets
 from dataclasses import dataclass
 from typing import Any
 
-from . import db, pricing
+from . import db, pricing, spend
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS aire_token ("
@@ -103,6 +103,11 @@ def biller(holder: Holder | None) -> Any:
             print(f"KEY {holder.nickname}: a relayed turn banked $0 "
                   f"(model={model!r}) — the ceiling is not biting", flush=True)
         await charge(holder.nickname, cost)
+        # The key's own ceiling and the daemon's month are two different
+        # questions: `aire_token.spent_usd` answers "has this invitation spent
+        # its allowance", `aire_spend` answers "what did AIRE spend". A turn
+        # that only updated the first left the month blind to the gateway.
+        await spend.bank("gateway", None, None, holder.nickname, cost)
 
     return bank
 

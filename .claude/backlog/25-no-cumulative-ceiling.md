@@ -1,10 +1,16 @@
 # No cumulative spend ceiling is actually set
 
-Status: **Armed 2026-08-20** — Bernard set **$20**; `~/.secrets/aire-budget.txt`
-+ `append_secret` in provisioning (`ec58e0d`), live `/etc/aire/env` verified
-carrying the line. The counter still resets on restart (backstop, not ledger);
-the Postgres-ledger question below stays open and is Bernard's.
-Proposed: 2026-07-20 by Claude (found while auditing the budget defect, #23)
+Status: **Ledger shipped 2026-08-23; the ceiling stays per-process on purpose.**
+Bernard set **$20** on 2026-08-20 (`~/.secrets/aire-budget.txt` + `append_secret`,
+`ec58e0d`) and it armed a counter born at `0.0` on every start — the daemon
+restarts on every deploy, fourteen times on 2026-08-23 alone, so a ceiling
+called cumulative was counting from zero several times a day while
+`arming.py` reported `spend_backstop: armed`. `aire/spend.py` now appends a row
+per paid turn to `aire_spend` (both doors), `/health`'s gated half reports
+`spend_month_usd`, and costwatch goes red when the month crosses $20. Asked
+whether the month should also REFUSE, Bernard chose alarm-only: a hard monthly
+cap can take og118 and Fénix down at 3am over an accounting threshold, and the
+per-process backstop already stops a single runaway session.
 
 ## What it is
 
@@ -52,3 +58,34 @@ already writes.
 
 Not built. One line of config once Bernard picks the number; the ledger question
 is a separate, larger call.
+
+
+## What shipped, 2026-08-23 — and what deliberately did not
+
+`aire/spend.py`, appended to by both doors at the seams that already knew the
+dollars: the engine's result seam (`engine/turn.py::_account`, banking the
+DELTA the ledger banks, never `total_cost_usd`, which is the client's
+cumulative spend) and the gateway's biller (`tokens.biller`, where a lent or
+metered turn is already priced). A pass-through turn costs AIRE nothing and
+writes no row.
+
+Three things this fixes that were not in the original item:
+
+- **The daemon could not answer "what did I spend this month."** `aire_token`
+  held per-invitation totals and `aire_gateway_log` held raw `usage`; nowhere
+  did a dollar survive in a form anyone could sum. The month was unanswerable,
+  not merely uncapped.
+- **`arming.py` reported the guard armed**, which was true of the env var and
+  false of the protection. It says so now, and points at the figure that is
+  real.
+- **The watchdog watched the wrong cloud again.** [[do-budget]]'s own law —
+  *never watch only the cloud where the spend is frozen* — had been applied to
+  the database's growth and never to the Anthropic bill behind the same door.
+
+**Not shipped, by decision:** the monthly refusal. `AIRE_MAX_SPEND_USD` keeps
+its per-process meaning. If the alarm ever fires on a month nobody can explain,
+that is the moment to revisit — not before.
+
+**Known limit:** the first month is partial. The table starts on 2026-08-23, so
+August's figure counts only from that day, and the first honest full month is
+September.
