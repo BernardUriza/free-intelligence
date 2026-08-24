@@ -19,10 +19,17 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-# Server name from fi_core.task_tracker.mcp_contract.MCP_SERVER_NAME. Inlined
-# as a literal (not imported) to keep fi-runner dep-free of fi-core — the
+# The servers whose calls ARE a plan. Two names, one contract: fi-core's local
+# capability (`mcp_contract.MCP_SERVER_NAME`) and AIRE's registry tenant, which
+# ships the same tool names on purpose (aire-server backlog #45) — its own
+# vocabulary is `task_tracker`, without a consumer's package name in it, and a
+# translator that knew only one of them would leave the glass box dark on
+# whichever door the turn happened to take.
+#
+# Inlined as literals (not imported) to keep fi-runner dep-free of fi-core — the
 # capability resolver pulls the spec lazily; this module just sees tool names.
 _TASK_TRACKER_SERVER = "fi_core_task_tracker"
+_TASK_TRACKER_SERVERS = (_TASK_TRACKER_SERVER, "task_tracker")
 
 
 @dataclass
@@ -105,7 +112,7 @@ def _derive_plan_events(
     tool calls — see ``CodexBackend._tool_call_from_item``). Without input we
     can't reconstruct the payload, so we drop silently (the raw tool_call
     still goes through for the generic UI)."""
-    if getattr(tool_call, "server", None) != _TASK_TRACKER_SERVER:
+    if getattr(tool_call, "server", None) not in _TASK_TRACKER_SERVERS:
         return []
     name = getattr(tool_call, "name", "") or ""
     # name is mcp__fi_core_task_tracker__<tool>; strip prefix to get the tool.
@@ -200,4 +207,5 @@ __all__ = [
     "_derive_plan_events",
     "_final_plan_status",
     "_TASK_TRACKER_SERVER",
+    "_TASK_TRACKER_SERVERS",
 ]

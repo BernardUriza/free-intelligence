@@ -204,8 +204,12 @@ def _backend_aire(
     OG118-LIVING-CLAUDE: cada chat vive en SU casita (project_for_turn lee
     AIRE_CHAT_PROJECT, que app.py setea por request como og118-{chat}); el
     proyecto fijo queda de fallback para turnos sin conversación. Cada turno
-    pide la tool `persona` del registry de AIRE (read/update sobre la parte
-    viva del CLAUDE.md de la casita), y viaja en el modo que el caller fije —
+    pide del registry de AIRE la tool `persona` (read/update sobre la parte viva
+    del CLAUDE.md de la casita) y `task_tracker` (aire-server backlog #45): el
+    plan en vivo dejó de ser una capability local que esta ruta perdía, y vuelve
+    a llegar por donde siempre llegó — como tool_calls que `_derive_plan_events`
+    traduce, sin que el runner sepa en qué puerta corrieron. Y viaja en el modo
+    que el caller fije —
     `complete` por default: desde aire-server 5ae8e33 la puerta corre registry
     tools en complete, así que og118 tiene su persona viva sin cargar los
     builtins del preset agent, que no quiere.
@@ -230,7 +234,7 @@ def _backend_aire(
         project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode=mode,
-        registry_tools=("persona",),
+        registry_tools=("persona", "task_tracker"),
         project_for_turn=AIRE_CHAT_PROJECT.get,
     )
 

@@ -436,3 +436,30 @@ async def test_an_unconfigured_door_is_still_a_loud_failure() -> None:
     b = AIREBackend(project="p", gate_url="", auth_token="")
     with pytest.raises(BackendError, match="door not configured"):
         await b.has_session("s")
+
+
+# --- the glass box works on this door too ------------------------------------
+# AIRE ships the same task_tracker tool names under its own server name
+# (aire-server #45). The plan events are derived from tool CALLS, so the only
+# thing that had to change is which server names count as a plan.
+
+
+def test_the_translator_reads_aires_tracker_as_well_as_fi_cores() -> None:
+    from fi_runner._plan_events import _derive_plan_events
+    from fi_runner.backend import ToolCall
+
+    for server, name in (("task_tracker", "mcp__task_tracker__declare_plan"),
+                         ("fi_core_task_tracker", "mcp__fi_core_task_tracker__declare_plan")):
+        call = ToolCall.make(name, input={"steps": ["buscar", "responder"]})
+        assert call.server == server
+        events = _derive_plan_events(call, session_id="s", request_id="r")
+        assert [e["type"] for e in events] == ["plan"], f"{server} left the glass box dark"
+        assert events[0]["data"]["steps"] == ["buscar", "responder"]
+
+
+def test_a_tool_from_some_other_server_is_not_a_plan() -> None:
+    from fi_runner._plan_events import _derive_plan_events
+    from fi_runner.backend import ToolCall
+
+    call = ToolCall.make("mcp__persona__update", input={"living": "x"})
+    assert _derive_plan_events(call, session_id="s", request_id="r") == []
