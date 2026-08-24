@@ -48,6 +48,7 @@ kept honest, a status flipped the day it changes.
 | [41](41-the-mirror-stores-the-conversation-n-times.md) | The mirror stores what the log already holds | Done 2026-08-22 (225cb72+8b301ae) |
 | [44](44-the-caller-cannot-ask-if-a-session-exists.md) | A caller had no way to ask whether a session exists — so it replayed | Done 2026-08-24 |
 | [45](45-the-glass-box-was-dark-on-this-door.md) | The glass box was dark on this door — `task_tracker` joins the registry | Done 2026-08-24 |
+| [46](46-the-corpus-lives-in-the-owners-database.md) | `rag_store` joins the registry — the corpus lives in the owner's database | Done 2026-08-24 |
 
 ## Before #19
 
