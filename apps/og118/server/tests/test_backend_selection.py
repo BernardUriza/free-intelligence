@@ -37,7 +37,7 @@ def test_aire_selecciona_el_puente_con_identidad_og118(monkeypatch) -> None:
     # tool que el turno PIDE es `persona`, del registry de AIRE — el CLAUDE.md
     # vivo de la casita del chat (OG118-LIVING-CLAUDE).
     assert runner.capabilities == []
-    assert runner.backend.registry_tools == ("persona",)
+    assert "persona" in runner.backend.registry_tools
 
 
 def test_aire_respeta_el_proyecto_del_entorno(monkeypatch) -> None:
@@ -90,3 +90,12 @@ def test_la_ruta_local_conserva_el_binding_del_corpus(monkeypatch) -> None:
     runner = build_runner()
     addendum = _addendum(runner)
     assert "search_documents" in addendum and "proj-42" in addendum
+
+
+def test_la_ruta_aire_pide_el_task_tracker_del_registry(monkeypatch) -> None:
+    """El plan en vivo dejó de ser una capability local que esta ruta perdía:
+    AIRE lo sirve desde su registry (aire-server #45) con los mismos nombres de
+    tool, así que `_derive_plan_events` lo traduce sin saber en qué puerta corrió."""
+    monkeypatch.setenv("OG118_BACKEND", "aire")
+    backend = build_runner().backend
+    assert set(backend.registry_tools) == {"persona", "task_tracker"}
