@@ -118,3 +118,26 @@ at all.
 
 None is a waiter read. If Bernard vetoes any, that feature moves out of scope —
 his call. Any read that serves a VIEW is a violation; it belongs in the front.
+
+## The one read Bernard widened the criterion for (2026-08-24, #47)
+
+`GET /projects/{p}/corpus/{c}/documents` (`corpus_door.py`) answers a CONSUMER's
+own document list and capacity meter — numbers a human then looks at, in og118's
+Projects panel. **By the criterion above it should have been excluded**, and it was
+built only because Bernard chose it explicitly when the alternative was named.
+
+His reasoning, recorded because a widened law that nobody can explain is a law that
+erodes: **the prohibition is on the daemon RENDERING a view, and a consumer reading
+back its own rows as JSON is not that.** The daemon still emits no HTML, still holds
+no template, still decides nothing about how anything looks. What the alternative
+would have cost is the actual argument: og118 keeping a second, local corpus store
+alive purely to draw a panel — two sources of truth for one surface, which is the
+duplication Art. 6 calls the smell, and which had already produced a real defect (a
+document written to one store and searched in the other).
+
+**The line this does NOT move:** a read whose result is *shaped for display* — a
+rendered transcript, an aggregate built for a chart, anything a view would consume
+as-is — still belongs in the front. The test that survives is narrower than "who
+looks at it" and sharper than before: **does the caller own the rows it is asking
+for?** A consumer reading its own corpus back is retrieving its data. The front
+reading everyone's transcripts to render them is the waiter's job, and stays there.

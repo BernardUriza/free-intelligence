@@ -96,3 +96,16 @@ async def drop(owner: str, corpus_id: str, doc_id: str | None = None) -> int:
     async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
         tag = await conn.execute(sql, *args)
     return int(tag.rsplit(" ", 1)[-1] or 0)
+
+
+async def stats(owner: str, corpus_id: str) -> dict:
+    """How full a corpus is: documents, chunks, bytes. One query, because the
+    panel that draws it draws all three at once and two round-trips would open a
+    window where they disagree."""
+    await ensure()
+    async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
+        row = await conn.fetchrow(
+            f"SELECT count(DISTINCT doc_id) AS docs, count(*) AS chunks,"
+            f" coalesce(sum(octet_length(body)), 0) AS bytes FROM {TABLE}"
+            " WHERE owner=$1 AND corpus_id=$2", owner, corpus_id)
+    return {"docs": row["docs"], "chunks": row["chunks"], "bytes": int(row["bytes"])}

@@ -1,6 +1,6 @@
 # Only the MODEL can write a corpus — the upload endpoint has no door
 
-Status: **Proposed — blocks Projects on the AIRE route**
+Status: **Done — both halves, by Bernard's decision on the read**
 Proposed: 2026-08-24, from a regression shipped and rolled back the same hour
 
 ## The gap, and how it was found
@@ -31,18 +31,22 @@ call — the [[ssh-is-a-missing-endpoint]] formula exactly.
 The write half is uncontroversial: `POST /projects/{p}/corpus/{corpus_id}/documents`
 appends, `DELETE` removes. The daemon appends; that is what it is for.
 
-**The read half is the decision, and it is Bernard's.** og118's project panel draws a
-document list and a capacity meter, which is a read whose result reaches a HUMAN'S
-EYES — the thing [[write-only-daemon]]'s criterion excludes. Two defensible readings:
+**The read half was the decision, and Bernard took it on 2026-08-24**: the door
+serves `GET .../documents` with the list and the capacity meter too, so og118 can
+switch its local store off on this route instead of keeping a second one alive to
+draw a panel. That widens [[write-only-daemon]]'s criterion — the rule now records
+the reasoning and, more usefully, the sharper test that replaced it: *does the
+caller own the rows it is asking for?* A consumer reading its own corpus back is
+retrieving its data; the front reading everyone's transcripts to render them is
+still the waiter's job.
 
-- It is a consumer reading ITS OWN corpus through an API, not AIRE rendering a view;
-  the rule is about the daemon never becoming a renderer, and JSON is not a view.
-- It is a waiter read wearing a consumer's clothes, and the honest home is the front.
-
-Nothing gets built on the read half until that is settled. The write half plus a
-`GET` that answers the machine (does this doc exist, how many chunks) may be enough
-to unblock the upload without touching the question at all — that is the shape to
-try first.
+What shipped: `POST .../documents` (replace by doc_id), `GET .../documents` (list +
+capacity), `DELETE .../documents/{doc_id}` and `DELETE .../corpus/{corpus_id}`. All
+behind the Bearer, all deriving `owner` from the casita's `@base` exactly as the
+tool does — so a document uploaded through the door and a search run inside a turn
+land on the same shelf by construction, not by two conventions that happen to
+agree. `tests/test_corpus_door.py` pins that crossing directly: write through the
+door in the base casita, search through the tool from a CHAT casita, find it.
 
 ## What NOT to do
 
