@@ -158,6 +158,62 @@ class TestSoftDeleteAndPurge:
         assert len(with_deleted) == 1
         assert with_deleted[0].deleted_at == 1000.0
 
+    async def test_a_manual_fact_passed_THROUGH_save_facts_survives(self, store):
+        """The invariant the test above is named after, actually exercised.
+
+        That one seeds its manual fact with `add_fact`, so nothing manual ever
+        passes THROUGH `save_facts` — which is precisely where the bug lived: the
+        INSERT hardcoded `'auto'` and ignored `f.source`, so a curated fact was
+        downgraded on the way in and the NEXT snapshot's
+        `DELETE ... WHERE source='auto'` hard-deleted it. No `deleted_at`, no
+        retention window, unrecoverable, while `protocols.py` promises in writing
+        that MANUAL and AGENT survive."""
+        await store.save_facts("u1", [
+            Fact(fact="allergic to penicillin", principal_id="u1", source=FactSource.MANUAL),
+            Fact(fact="lives in Madrid", principal_id="u1", source=FactSource.AUTO),
+        ])
+        stored = {f.fact: f for f in await store.get_facts("u1")}
+        assert stored["allergic to penicillin"].source is FactSource.MANUAL, \
+            "the source column must come from the fact, not a literal"
+
+        await store.save_facts("u1", [
+            Fact(fact="lives in Lisbon", principal_id="u1", source=FactSource.AUTO),
+        ])
+        after = {f.fact for f in await store.get_facts("u1")}
+        assert "allergic to penicillin" in after, "a curated fact outlives the snapshot"
+        assert "lives in Madrid" not in after, "and the auto snapshot is still replaced"
+
+    async def test_an_agent_fact_survives_too(self, store):
+        await store.save_facts("u1", [
+            Fact(fact="persona note", principal_id="u1", source=FactSource.AGENT),
+        ])
+        await store.save_facts("u1", [
+            Fact(fact="something auto", principal_id="u1", source=FactSource.AUTO),
+        ])
+        assert "persona note" in {f.fact for f in await store.get_facts("u1")}
+
+    async def test_a_fact_carrying_its_own_timestamp_keeps_it(self, store):
+        """`updated_at` was overwritten with `now` for every row, so a caller
+        replaying a snapshot could not preserve when a fact was actually learned."""
+        await store.save_facts("u1", [
+            Fact(fact="learned long ago", principal_id="u1", updated_at=1234.5),
+        ])
+        assert (await store.get_facts("u1"))[0].updated_at == 1234.5
+
+    async def test_an_empty_snapshot_refuses_instead_of_wiping(self, store):
+        """The DELETE ran before the empty check and returning from inside the
+        transaction context COMMITS, so an extractor that refused or failed to
+        parse erased the principal's whole auto memory."""
+        import pytest as _pytest
+
+        await store.save_facts("u1", [Fact(fact="keep me", principal_id="u1")])
+        with _pytest.raises(ValueError, match="allow_empty"):
+            await store.save_facts("u1", [])
+        assert {f.fact for f in await store.get_facts("u1")} == {"keep me"}
+
+        await store.save_facts("u1", [], allow_empty=True)
+        assert await store.get_facts("u1") == [], "clearing still works when asked for"
+
     async def test_soft_delete_unknown_id_returns_false(self, store):
         result = await store.soft_delete_fact(99999, deleted_at=1000.0)
         assert result is False
