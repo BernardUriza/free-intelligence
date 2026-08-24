@@ -384,6 +384,12 @@ class PgMemoryStore:
                 vec = await self._embedder.embed(fact)
                 embedding_vec = Vector(vec)
             except Exception:
+                _log.warning(
+                    "embedding failed for a new fact of principal %s; it is stored with a "
+                    "NULL embedding, which the vector arm filters out — the fact exists and "
+                    "is invisible to semantic search until something re-embeds it",
+                    principal_id, exc_info=True,
+                )
                 embedding_vec = None
         row_id = await self._p.fetchval(
             "INSERT INTO principal_facts "
@@ -484,13 +490,22 @@ class PgMemoryStore:
         """
         if not principal_ids:
             return []
+        # Every degraded path is capped at `limit`. Unbounded, they returned the
+        # principals' ENTIRE fact set from a method whose signature promises at
+        # most `limit` — so a caller that pastes the result into a prompt got a
+        # context blowup exactly when the embedder was down, which is the moment
+        # it is least able to notice why.
         if self._embedder is None:
-            return await self.get_facts_multi(principal_ids)
+            return (await self.get_facts_multi(principal_ids))[:limit]
 
         try:
             query_vec = await self._embedder.embed(query)
         except Exception:
-            return await self.get_facts_multi(principal_ids)
+            _log.warning(
+                "embedding the query failed; falling back to an UNRANKED slice of the "
+                "principals' facts — results are no longer semantic", exc_info=True,
+            )
+            return (await self.get_facts_multi(principal_ids))[:limit]
 
         ids = list(principal_ids)
         # Vector arm — top `limit` by cosine distance across all principals.
@@ -512,7 +527,7 @@ class PgMemoryStore:
         kw_facts = _keyword_rank(query, live)[:limit]
 
         if not vec_facts and not kw_facts:
-            return await self.get_facts_multi(ids)
+            return (await self.get_facts_multi(ids))[:limit]
 
         id_to_fact: dict[int, Fact] = {f.id: f for f in (*vec_facts, *kw_facts) if f.id is not None}
         fused = _rrf_fuse(
@@ -603,6 +618,15 @@ class PgMemoryStore:
                             vec = await self._embedder.embed(new_text)
                             embedding_vec = Vector(vec)
                         except Exception:
+                            # Worse here than anywhere: the merged row lands
+                            # unembedded while its SOURCE rows are soft-deleted,
+                            # so a consolidation meant to sharpen recall REDUCES
+                            # it — several findable facts become one that is not.
+                            _log.warning(
+                                "embedding failed for a MERGED fact; its sources are being "
+                                "soft-deleted and the merge lands with a NULL embedding, so "
+                                "semantic recall drops until it is re-embedded", exc_info=True,
+                            )
                             embedding_vec = None
 
                     for fid in merge_ids:

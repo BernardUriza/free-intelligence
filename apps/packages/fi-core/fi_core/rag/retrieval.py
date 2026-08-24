@@ -26,6 +26,7 @@ tildes while a corpus is correctly accented — without folding, recall collapse
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 import unicodedata
@@ -51,6 +52,9 @@ DEFAULT_LEXICAL_MIN = 0.12
 DEFAULT_SEMANTIC_MIN = 0.25
 
 
+_log = logging.getLogger(__name__)
+
+
 def fold_accents(text: str) -> str:
     """Lowercase and strip diacritics (áéíóúñ → aeioun) for matching.
 
@@ -67,8 +71,30 @@ def tokenize(text: str) -> set[str]:
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Cosine of two equal-length vectors; 0.0 if either is a zero vector."""
-    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    """Cosine of two equal-length vectors; 0.0 if either is a zero vector.
+
+    On a LENGTH MISMATCH it returns 0.0 and logs loudly, rather than the
+    plausible number it used to produce: `zip(..., strict=False)` truncated the
+    dot product to the shorter prefix while both norms used the full vectors, so
+    `cosine_similarity([1,0,5,5], [1,0])` answered 0.14 — a real-looking score
+    computed from two thirds of one vector.
+
+    It stays a 0.0 rather than a raise on purpose: `SemanticRetriever.rank`
+    returns `[]` on a mismatch and a test pins that as intended, so raising here
+    would overrule a decision somebody made deliberately. The log is what makes
+    it findable — the trigger is an embedder swap (1536 dims to 384, the two
+    names `protocols.py` lists) leaving old vectors beside new query vectors,
+    where "no relevant results" is a lie and a WARNING is not."""
+    if len(a) != len(b):
+        _log.warning(
+            "cosine_similarity got vectors of %d and %d dimensions and cannot compare "
+            "them — returning 0.0. This is almost always an embedder change with "
+            "vectors from the previous model still in the store; they need "
+            "re-embedding, and any ranking computed meanwhile is meaningless.",
+            len(a), len(b),
+        )
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     return dot / (na * nb) if na and nb else 0.0

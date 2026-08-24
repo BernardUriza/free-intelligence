@@ -181,6 +181,22 @@ def _resolve_packs(
         else:
             unknown.append(name)
 
+    if not resolved:
+        # Every name was garbage. Falling back to the default pack is the safe
+        # half: without it `check_drift` runs ZERO patterns and reports `clean`
+        # on anything — one typo in a consumer's config ("defualt_bilingual")
+        # disarms the whole detector and a blatant identity leak ships. The
+        # noisy half is `unknown`, which callers must surface; the fallback keeps
+        # responses checked, it does not make the typo acceptable.
+        for atomic_name in _COMPOSITE_PACKS.get(_DEFAULT_PACK_NAMES[0], ()) or ():
+            patterns, severity, _lang = _ATOMIC_PACKS[atomic_name]
+            resolved.append((atomic_name, patterns, severity))
+        if not resolved:  # the default is itself atomic
+            for name in _DEFAULT_PACK_NAMES:
+                if name in _ATOMIC_PACKS:
+                    patterns, severity, _lang = _ATOMIC_PACKS[name]
+                    resolved.append((name, patterns, severity))
+
     return resolved, unknown
 
 
@@ -466,6 +482,11 @@ async def validate_and_retry_prompt(
             "soft_drift": detection["matched_soft_drift"],
             "clarification_dump": detection["matched_clarification_dump"],
         },
+        # Forwarded from check_drift, which has always computed it and this tool
+        # used to drop. A caller whose pack name is misspelled has no other way
+        # to learn that the verdict it is about to trust was produced by a
+        # fallback rather than by the packs it asked for.
+        "packs_unknown": detection.get("packs_unknown", []),
     }
 
 
@@ -582,9 +603,16 @@ async def parse_consolidation_result(
     if not text:
         return {"ok": False, "ops": [], "error": "empty_response", "raw_len": 0}
 
-    # Strip markdown fence.
+    # Strip markdown fence. Not `split("\n", 1)[1]`: a judge that answers
+    # ```[{"op":"NOOP","id":1}]``` on ONE line has no newline to split on, and
+    # that raised IndexError out of a function whose whole contract is to return
+    # {"ok": False, ...}. `consolidate_principal` calls it with no try, so a
+    # nightly batch over 10k principals died on the first one-line fence.
     if text.startswith("```"):
-        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        body = text[3:]
+        if body.startswith("json"):
+            body = body[4:]
+        text = body.rsplit("```", 1)[0].strip()
 
     try:
         plan = _json.loads(text)
@@ -621,11 +649,24 @@ async def parse_consolidation_result(
         elif kind == "UPDATE":
             ids = op.get("merge_ids") or []
             new_text = op.get("new_fact")
-            if not isinstance(ids, list) or not new_text:
+            # `new_fact` reaches asyncpg as a TEXT parameter, so a dict here
+            # raised inside the transaction rather than being refused as input.
+            if not isinstance(ids, list) or not isinstance(new_text, str) or not new_text.strip():
                 continue
             ids_int = [
                 i for i in ids if isinstance(i, int) and i in valid_ids and i not in seen
             ]
+            if len(ids_int) != len(ids):
+                # The judge referenced an id that is unknown, or that an earlier
+                # op already claimed — a plausible LLM inconsistency. Pruning the
+                # list and KEEPING `new_fact` is what used to happen, and it
+                # applied a merge the judge never described: the surviving ids
+                # were soft-deleted, the merged sentence was inserted, and the
+                # pruned fact stayed alive next to it — two contradictory facts
+                # where there had been one. A partial merge is not a merge, so
+                # the op is dropped whole and the backfill below keeps every
+                # untouched id alive as an explicit NOOP.
+                continue
             if not ids_int:
                 continue
             seen.update(ids_int)

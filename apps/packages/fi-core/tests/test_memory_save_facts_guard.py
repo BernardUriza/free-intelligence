@@ -62,3 +62,41 @@ def test_a_manual_fact_survives_the_shape_the_delete_looks_for():
     """The invariant, stated as the values that actually decide it."""
     manual = Fact(fact="allergic to penicillin", principal_id="u1", source=FactSource.MANUAL)
     assert manual.source.value != "auto", "what the snapshot DELETE keys on"
+
+
+# --- semantic_search must honour the limit its signature promises ------------
+
+
+@pytest.mark.asyncio
+async def test_every_degraded_path_is_capped_at_limit():
+    """Unbounded, the fallbacks returned the principal's ENTIRE fact set from a
+    method that promises at most `limit` — a context blowup arriving exactly when
+    the embedder is down, which is when a caller is least able to see why."""
+    store = PgMemoryStore.__new__(PgMemoryStore)
+    store._pool = None
+    store._embedder = None
+    many = [Fact(fact=f"f{i}", principal_id="u1") for i in range(50)]
+
+    async def _all(_ids):
+        return many
+
+    store.get_facts_multi = _all
+    assert len(await store.semantic_search_multi(["u1"], "q", limit=5)) == 5
+
+
+@pytest.mark.asyncio
+async def test_a_query_that_will_not_embed_is_also_capped():
+    class _Broken:
+        async def embed(self, _t):
+            raise RuntimeError("embedding backend down")
+
+    store = PgMemoryStore.__new__(PgMemoryStore)
+    store._pool = None
+    store._embedder = _Broken()
+    many = [Fact(fact=f"f{i}", principal_id="u1") for i in range(50)]
+
+    async def _all(_ids):
+        return many
+
+    store.get_facts_multi = _all
+    assert len(await store.semantic_search_multi(["u1"], "q", limit=3)) == 3

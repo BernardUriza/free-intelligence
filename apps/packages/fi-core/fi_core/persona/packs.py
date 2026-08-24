@@ -124,10 +124,14 @@ SUMMARIZING: list[re.Pattern[str]] = [
 # Excludes legitimate emphasis (**bold**, *italic word*) by lookbehind / lookahead.
 # ============================================================
 STAGE_DIRECTIONS: list[re.Pattern[str]] = [
+    # (?i) because "*Sighs deeply*" — sentence-initial, the form a model actually
+    # emits — did not match while "*sighs deeply*" did. Its bracket sibling below
+    # has always been IGNORECASE, so the pack contradicted itself.
     re.compile(
         r"(?<!\*)\*(?!\*)"
         r"(?:sighs?|leans?|pauses?|smiles?|nods?|shrugs?|laughs?|winks?|"
-        r"looks|turns|walks|grabs|adjusts|crosses|tilts)[^*]*\*(?!\*)"
+        r"looks|turns|walks|grabs|adjusts|crosses|tilts)[^*]*\*(?!\*)",
+        re.IGNORECASE,
     ),
     re.compile(
         r"\[[^\]]*(?:leans|sighs|laughs|pauses|smiles|nods|shrugs)[^\]]*\]",
@@ -163,13 +167,17 @@ MORALIZING_ES: list[re.Pattern[str]] = [
 # ============================================================
 # Over-validation / excessive agreement
 # ============================================================
+# `[.!]` was REQUIRED right after "absolutely", so only "Absolutely. You're
+# right." fired — not "Absolutely, you're right about that.", not "Absolutely
+# you're right.", which are the forms models actually write. The tier was close
+# to unreachable. The separator is optional now and may be a comma.
 OVER_VALIDATION_EN: list[re.Pattern[str]] = [
-    re.compile(r"(?i)\babsolutely[.!]\s*you'?re\s*right\b"),
+    re.compile(r"(?i)\babsolutely[.,!]?\s*you'?re\s*right\b"),
     re.compile(r"(?i)\bcouldn'?t agree more\b"),
 ]
 
 OVER_VALIDATION_ES: list[re.Pattern[str]] = [
-    re.compile(r"(?i)\babsolutamente[.!]\s*tienes\s*raz[oó]n\b"),
+    re.compile(r"(?i)\babsolutamente[.,!]?\s*tienes\s*raz[oó]n\b"),
     re.compile(r"(?i)\btotalmente de acuerdo\b"),
 ]
 
@@ -188,7 +196,14 @@ CLARIFICATION_DUMP_ES: list[re.Pattern[str]] = [
     re.compile(r"(?i)\bqu[eé]\s+quieres\s+que\s+(?:busque|haga|diga|responda|pregunte|encuentre)\b"),
     re.compile(r"(?i)\ba\s+qu[eé]\s+te\s+refieres\b"),
     re.compile(r"(?im)(?<!\w)repite(?:\s+(?:la\s+pregunta|lo\s+que|por\s+favor|eso))?[.!?]?\s*$"),
-    re.compile(r"(?i)\b(?:s[eé]\s+(?:m[aá]s\s+)?espec[íi]fico|espec[íi]fica(?:me)?)\b"),
+    # The feminine half used to be unanchored, so the ordinary adjective in
+    # "Necesito la fecha específica del vuelo." fired clarification_dump and got
+    # the turn retried with CONTEXT_REINFORCEMENT — an instruction saying "the
+    # answer is in the context, do NOT ask a clarifying question", aimed at a
+    # response that asked nothing. A doubled call plus a degraded second answer.
+    # The masculine half was already required to follow sé / sé más; both are now.
+    re.compile(r"(?i)\bs[eé]\s+(?:m[aá]s\s+)?espec[íi]fic[oa]\b"),
+    re.compile(r"(?i)\bespec[íi]f[íi]came\b"),
 ]
 
 # ============================================================
