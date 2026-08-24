@@ -1114,8 +1114,64 @@ async def put_conversation(
                 "message": f"conversation exceeds the {MAX_CONVERSATION_BYTES // (1024 * 1024)} MB limit",
             },
         )
-    store.put(principal.sub, payload)
+    store.put_content(principal.sub, payload)
     return {"id": conversation_id}
+
+
+class ConversationMetadataPatchRequest(BaseModel):
+    """A metadata-only delta: rename / pin / archive.
+
+    Mirrors core's `ConversationMetadataPatch`. The three-way distinction is
+    load-bearing and pydantic gives it for free through `exclude_unset`: a key
+    that is ABSENT leaves the field alone, a key set to `null` CLEARS it, a value
+    sets it. A whole-record PUT cannot express that — an absent field and a
+    deliberately-cleared one look identical — which is exactly why pinning could
+    be lost by a device that simply did not know about the pin.
+    """
+
+    title: str | None = None
+    titleCustom: bool | None = None
+    pinnedAt: str | None = None
+    archivedAt: str | None = None
+    updatedAt: str | None = None
+
+
+@router.patch("/conversations/{conversation_id}")
+async def patch_conversation(
+    conversation_id: str,
+    patch: ConversationMetadataPatchRequest,
+    principal: Principal = Depends(get_principal),
+    store: ConversationStore = Depends(get_conversation_store),
+) -> dict:
+    """Move a conversation's organization flags without shipping the record.
+
+    This is the ONLY way pin / archive / rename change now: `PUT` preserves the
+    stored flags, so the two-device race that silently dropped a pin has no
+    surface left to happen on. The updated record comes back so the caller syncs
+    from the server's merge rather than from its own optimistic guess.
+
+    404 for a record the caller does not own — structural, same as `GET`: a
+    foreign id is indistinguishable from a missing one, so nothing can be probed.
+    """
+    if not valid_conversation_id(conversation_id):
+        raise HTTPException(status_code=422, detail="invalid conversation id")
+    delta = patch.model_dump(exclude_unset=True)
+    if not delta:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "EMPTY_PATCH", "message": "no fields to update"},
+        )
+    # `title` is the one field whose null is meaningless: a conversation always
+    # has a title. Reverting a rename sends the DERIVED title, not a clear.
+    if "title" in delta and delta["title"] is None:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "TITLE_REQUIRED", "message": "title cannot be null"},
+        )
+    record = store.patch_metadata(principal.sub, conversation_id, delta)
+    if record is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    return record
 
 
 def _turn_context(corpus_id: str | None, registry: ProjectRegistry) -> dict | None:

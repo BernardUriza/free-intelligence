@@ -177,13 +177,26 @@ def test_pin_archive_flags_roundtrip_and_surface_in_summaries(
     assert "pinnedAt" not in by_id["conv-arch"]
 
 
-def test_unpin_upsert_drops_the_stored_flag(client: TestClient, as_account) -> None:
-    """Unpinning = the client re-puts the record WITHOUT the field; exclude_none
-    must drop it from the stored JSON, not fossilize the old timestamp."""
+def test_unpin_is_an_explicit_patch_not_an_omission(client: TestClient, as_account) -> None:
+    """Unpinning says so; it does not merely FAIL TO MENTION the pin.
+
+    This test used to assert the opposite — that re-putting the whole record
+    without `pinnedAt` dropped the flag. That was the bug, not the contract
+    (CONV-CONCURRENCY-1): "unpin" and "a second device whose copy predates the
+    pin" produced byte-identical requests, so the server could not tell a
+    deliberate clear from ignorance, and ignorance won. Now a PUT carries no
+    opinion about the flags at all, and clearing one is an explicit null.
+    """
     pinned = _record("conv-1")
     pinned["pinnedAt"] = "2026-07-13T00:00:00Z"
     assert _put(client, pinned).status_code == 200
+
+    # An omission changes nothing — that request could have come from anywhere.
     assert _put(client, _record("conv-1")).status_code == 200
+    assert client.get("/conversations/conv-1").json()["pinnedAt"] == "2026-07-13T00:00:00Z"
+
+    # Saying it, clears it — and it clears out of the light summaries too.
+    assert client.patch("/conversations/conv-1", json={"pinnedAt": None}).status_code == 200
     assert "pinnedAt" not in client.get("/conversations/conv-1").json()
     convs = client.get("/conversations").json()["conversations"]
     assert "pinnedAt" not in convs[0]

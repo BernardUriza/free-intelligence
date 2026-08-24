@@ -84,18 +84,98 @@ class ConversationStore:
             path = self._record_path(owner, conversation_id)
         except ValueError:
             return None
+        return self._read(path)
+
+    @staticmethod
+    def _read(path: Path) -> dict | None:
         try:
             return json.loads(path.read_text("utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             return None
 
+    @staticmethod
+    def _write(path: Path, record: dict) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(json.dumps(record), "utf-8")
+        os.replace(tmp, path)
+
     def put(self, owner: str, record: dict) -> None:
+        """Blind upsert. Used by tests and seeding; the HTTP surface goes through
+        ``put_content`` so a stale device cannot clobber organization flags."""
         path = self._record_path(owner, record["id"])
         with self._lock:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(path.suffix + ".tmp")
-            tmp.write_text(json.dumps(record), "utf-8")
-            os.replace(tmp, path)
+            self._write(path, record)
+
+    # The fields the OWNER moves deliberately (rename / pin / archive) and the
+    # resource a conversation was born in. Everything else in a record is
+    # CONTENT, produced by whichever device is holding the turn.
+    ORGANIZATION_FIELDS = ("pinnedAt", "archivedAt", "projectId")
+
+    def put_content(self, owner: str, record: dict) -> dict:
+        """Upsert a record, but the STORED organization flags win.
+
+        Every mutation used to travel as a whole-record put, so the last writer
+        won the whole record: pin on the phone, then send a message from the
+        desktop whose in-memory copy predates the pin, and the pin is gone —
+        never reported, because nothing failed. Read-modify-write under the same
+        lock as the write, so two concurrent puts cannot interleave.
+
+        The fix is not a version check. It is that a put no longer CARRIES an
+        opinion about the flags: a stale device cannot lose a pin it is not
+        allowed to speak about. The only way to move them is ``patch_metadata``,
+        which sends the delta rather than the world.
+
+        ``updatedAt`` deliberately still comes from the body — that IS content
+        recency, and the device holding the turn is its rightful author.
+        """
+        path = self._record_path(owner, record["id"])
+        with self._lock:
+            stored = self._read(path)
+            merged = dict(record)
+            if stored is not None:
+                for field in self.ORGANIZATION_FIELDS:
+                    merged.pop(field, None)
+                    if stored.get(field) is not None:
+                        merged[field] = stored[field]
+                # A custom title is a rename — an organization act. Letting the
+                # auto-derived title of a later message overwrite it is the same
+                # bug wearing a different field's name.
+                if stored.get("titleCustom"):
+                    merged["title"] = stored["title"]
+                    merged["titleCustom"] = True
+            self._write(path, merged)
+        return merged
+
+    def patch_metadata(self, owner: str, conversation_id: str, patch: dict) -> dict | None:
+        """Merge a metadata delta into a stored record. ``None`` if absent.
+
+        Mirrors core's ``applyConversationMetadataPatch``: an explicit ``None``
+        CLEARS the field, an omitted key leaves it alone. That distinction is the
+        whole point — a whole-record put cannot tell "unpinned" from "this device
+        never knew about the pin".
+        """
+        try:
+            path = self._record_path(owner, conversation_id)
+        except ValueError:
+            return None
+        with self._lock:
+            stored = self._read(path)
+            if stored is None:
+                return None
+            merged = dict(stored)
+            for field in ("title", "titleCustom", "updatedAt"):
+                if field in patch:
+                    merged[field] = patch[field]
+            for field in ("pinnedAt", "archivedAt"):
+                if field not in patch:
+                    continue
+                if patch[field] is None:
+                    merged.pop(field, None)
+                else:
+                    merged[field] = patch[field]
+            self._write(path, merged)
+            return merged
 
     def delete(self, owner: str, conversation_id: str) -> None:
         """Remove the record (no-op if absent — mirrors the client contract)."""
