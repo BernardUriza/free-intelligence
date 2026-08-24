@@ -75,6 +75,7 @@ export type {
   ConversationRecord,
   ConversationSummary,
   ConversationLibrary,
+  ConversationMetadataPatch,
   CreateConversationRecordArgs,
   OrganizedConversations,
 } from './conversation';
@@ -90,6 +91,10 @@ export {
   renameConversationRecord,
   setConversationPinned,
   setConversationArchived,
+  applyConversationMetadataPatch,
+  conversationRenamePatch,
+  conversationPinPatch,
+  conversationArchivePatch,
   sanitizeConversationMessage,
   conversationToMarkdown,
   conversationFileName,

@@ -99,6 +99,33 @@ describe('RemoteConversationLibrary', () => {
     await expect(lib.put(rec)).rejects.toThrow('HTTP 413');
   });
 
+  it('patch PATCHes only the delta and returns the server\'s merged record', async () => {
+    // The whole point: what goes on the wire is the delta, not the record. A
+    // request carrying the full record is what let a stale device drop a pin.
+    const merged = { ...record('a'), pinnedAt: '2026-08-23T00:00:00Z' };
+    const fetchImpl = vi.fn(async () => jsonResponse(200, merged));
+    const lib = makeLibrary(fetchImpl as unknown as typeof fetch);
+
+    const result = await lib.patch('a', { pinnedAt: '2026-08-23T00:00:00Z', archivedAt: null });
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.test/conversations/a');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body as string)).toEqual({
+      pinnedAt: '2026-08-23T00:00:00Z',
+      archivedAt: null,
+    });
+    expect(result).toEqual(merged);
+  });
+
+  it('patch returns null on 404 and throws loud otherwise', async () => {
+    const gone = makeLibrary((async () => jsonResponse(404)) as unknown as typeof fetch);
+    await expect(gone.patch('a', { pinnedAt: null })).resolves.toBeNull();
+
+    const broken = makeLibrary((async () => jsonResponse(500)) as unknown as typeof fetch);
+    await expect(broken.patch('a', { pinnedAt: null })).rejects.toThrow(/patch failed: HTTP 500/);
+  });
+
   it('delete and clear hit their endpoints', async () => {
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse(200, {}));
     const lib = makeLibrary(fetchImpl as never);

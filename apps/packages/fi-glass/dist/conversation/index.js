@@ -148,6 +148,29 @@ var RemoteConversationLibrary = class _RemoteConversationLibrary {
     );
     if (!response.ok) await _RemoteConversationLibrary.fail("put", response);
   }
+  /**
+   * Send a metadata delta instead of the whole record.
+   *
+   * Implemented HERE and not on the IndexedDB adapter because this is the
+   * adapter with a second writer: the same account on a phone and a desktop
+   * both write this store. A whole-record `put` from whichever device holds the
+   * older copy drops the flags it never knew about — the delta carries no
+   * opinion about anything it does not name, so there is nothing to drop.
+   *
+   * Returns the server's merged record (it owns the merge), or `null` if the
+   * conversation is gone — deleted from the other device, the same shape `get`
+   * already reports.
+   */
+  async patch(id, patch) {
+    const response = await this.request(
+      "PATCH",
+      `/conversations/${encodeURIComponent(id)}`,
+      patch
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) await _RemoteConversationLibrary.fail("patch", response);
+    return await response.json();
+  }
   async delete(id) {
     const response = await this.request(
       "DELETE",
@@ -183,13 +206,14 @@ async function migrateConversationLibrary(source, target) {
 // src/conversation/useConversationLibrary.ts
 import { useCallback, useEffect, useState } from "react";
 import {
+  applyConversationMetadataPatch,
+  conversationArchivePatch,
+  conversationPinPatch,
+  conversationRenamePatch,
   CONVERSATION_SCHEMA_VERSION,
   deriveConversationPreview,
   resolveConversationTitle,
-  renameConversationRecord,
-  sanitizeConversationMessage,
-  setConversationArchived,
-  setConversationPinned
+  sanitizeConversationMessage
 } from "@free-intelligence/core";
 function useConversationLibrary(library, options = {}) {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
@@ -266,8 +290,10 @@ function useConversationLibrary(library, options = {}) {
         updatedAt: now,
         messages: clean,
         preview: deriveConversationPreview(clean),
-        // Organization flags ride along: persisting a new message must never
-        // silently unpin or unarchive the thread.
+        // Organization flags ride along for the SINGLE-WRITER (IndexedDB) store,
+        // where nothing else preserves them. A shared store ignores what a put
+        // says about them and keeps its own — a device with a stale copy is not
+        // allowed to have an opinion here, which is what closes the race.
         ...prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {},
         ...prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {},
         ...bornIn ? { projectId: bornIn } : {},
@@ -300,8 +326,8 @@ function useConversationLibrary(library, options = {}) {
     },
     [library, activeId, idFactory]
   );
-  const transformConversation = useCallback(
-    async (id, transform) => {
+  const mutateMetadata = useCallback(
+    async (id, patchOf) => {
       const record = await library.get(id);
       if (!record) {
         await refresh();
@@ -309,8 +335,20 @@ function useConversationLibrary(library, options = {}) {
           `useConversationLibrary: conversation "${id}" not found`
         );
       }
-      const next = transform(record);
-      await library.put(next);
+      const patch = patchOf(record);
+      let next;
+      if (library.patch) {
+        next = await library.patch(id, patch);
+        if (!next) {
+          await refresh();
+          throw new Error(
+            `useConversationLibrary: conversation "${id}" not found`
+          );
+        }
+      } else {
+        next = applyConversationMetadataPatch(record, patch);
+        await library.put(next);
+      }
       if (id === activeId) {
         setActiveRecord(next);
         setActiveMessages(next.messages);
@@ -320,25 +358,16 @@ function useConversationLibrary(library, options = {}) {
     [library, activeId, refresh]
   );
   const renameConversation = useCallback(
-    async (id, title) => transformConversation(
-      id,
-      (record) => renameConversationRecord(record, title, nowFn())
-    ),
-    [transformConversation, nowFn]
+    async (id, title) => mutateMetadata(id, (record) => conversationRenamePatch(record, title, nowFn())),
+    [mutateMetadata, nowFn]
   );
   const pinConversation = useCallback(
-    async (id, pinned) => transformConversation(
-      id,
-      (record) => setConversationPinned(record, pinned, nowFn())
-    ),
-    [transformConversation, nowFn]
+    async (id, pinned) => mutateMetadata(id, () => conversationPinPatch(pinned, nowFn())),
+    [mutateMetadata, nowFn]
   );
   const archiveConversation = useCallback(
-    async (id, archived) => transformConversation(
-      id,
-      (record) => setConversationArchived(record, archived, nowFn())
-    ),
-    [transformConversation, nowFn]
+    async (id, archived) => mutateMetadata(id, () => conversationArchivePatch(archived, nowFn())),
+    [mutateMetadata, nowFn]
   );
   return {
     ready,

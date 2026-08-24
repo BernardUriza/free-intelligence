@@ -1,6 +1,6 @@
 # B3-AURITY-REACT19-REFS-1 — Fix latent React-19 ref-type errors in aurity
 
-Status: Proposed
+Status: **Casi cerrada** (verificado 2026-08-23) — 7 de los 8 errores murieron al subir @types/react a 19.2.16, sin tocar el código. Queda NeuralNetworkCanvas.tsx:20 (useRef sin valor inicial) y aurity sigue con ignoreBuildErrors: true
 Proposed: 2026-06-19 by Claude (surfaced during B3-REPO-TYPES-1)
 
 ## What it is

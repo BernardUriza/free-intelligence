@@ -955,63 +955,6 @@ interface ConversationSummary {
 }
 
 /**
- * ConversationLibrary — the storage contract for local-first conversations.
- *
- * A pure async interface: adapters implement it over IndexedDB (fi-glass), a
- * backend, or filesystem (later layers) without core taking a dependency on any
- * of them. `list` returns light summaries (cheap); `get` hydrates one full
- * record; `put` upserts; `delete`/`clear` remove. Keeping the contract in core
- * is what stops a reusable persistence primitive from being trapped in a
- * consumer app (DD-002-LESSON / framework-first-canary).
- */
-
-interface ConversationLibrary {
-    /** All conversations as light summaries, newest `updatedAt` first. */
-    list(): Promise<ConversationSummary[]>;
-    /** The full record for `id`, or `null` if none. */
-    get(id: string): Promise<ConversationRecord | null>;
-    /** Insert or replace a record by its `id`. */
-    put(record: ConversationRecord): Promise<void>;
-    /** Remove the record for `id` (no-op if absent). */
-    delete(id: string): Promise<void>;
-    /** Remove every stored conversation. */
-    clear(): Promise<void>;
-}
-
-/**
- * conversationToMarkdown — la conversación como un archivo que alguien se lleva.
- *
- * Función pura sobre el record: sin React, sin navegador, sin descarga. Quien
- * quiera entregarlo (un Blob en el browser, un archivo en disco, un adjunto de
- * correo) pone ESA parte; aquí sólo vive la forma del documento, que es lo que
- * se repite en cada shell.
- *
- * Markdown y no PDF ni HTML porque el destino real es seguir trabajando: se
- * pega en un cuaderno digital, se abre en cualquier editor, se lee tal cual en
- * texto plano si no hay nada más a la mano.
- */
-
-interface ConversationMarkdownOptions {
-    /** Cómo se nombra a cada lado. Default: `Tú` / `Asistente`. */
-    labels?: {
-        user?: string;
-        assistant?: string;
-    };
-    /** Línea de procedencia bajo el título (de dónde salió esta conversación). */
-    source?: string;
-}
-/** El documento completo, listo para escribir a un archivo `.md`. */
-declare function conversationToMarkdown(record: ConversationRecord, options?: ConversationMarkdownOptions): string;
-/**
- * Un nombre de archivo seguro derivado del título.
- *
- * Los títulos vienen del primer mensaje del usuario, así que traen de todo:
- * `/`, `:`, saltos de línea, emoji. Un nombre sin sanear rompe la descarga en
- * silencio o crea directorios que nadie pidió.
- */
-declare function conversationFileName(record: ConversationRecord): string;
-
-/**
  * Conversation helpers — pure, deterministic primitives for building and
  * summarizing ConversationRecords. No React, no browser, no transport.
  *
@@ -1071,27 +1014,66 @@ declare function resolveConversationTitle(messages: ChatMessage[], prev?: {
     titleCustom?: boolean;
 }): string;
 /**
- * Apply a user rename to a record. A non-empty title is stored verbatim
- * (trimmed, whitespace-collapsed, capped at TITLE_MAX) and marks the record
- * `titleCustom` so future persists never re-derive it. An empty/whitespace
- * title reverts to the derived title and clears the custom flag
- * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
+ * The metadata delta of an organization mutation (rename / pin / archive).
+ *
+ * These three mutations used to exist only as whole-record transforms, which
+ * forced every transport to ship the whole record — and a whole-record write
+ * from a device holding a stale copy silently drops the flags it never meant to
+ * touch (CONV-CONCURRENCY-1). The delta expresses the same semantics as the
+ * SMALLEST thing that changed, so a transport can send just that.
+ *
+ * `null` means CLEAR the field; an omitted key means LEAVE IT ALONE. That is
+ * precisely the distinction a full-record put cannot express — an absent field
+ * and a deliberately-cleared one look identical on the wire.
+ */
+interface ConversationMetadataPatch {
+    title?: string;
+    titleCustom?: boolean;
+    /** ISO timestamp to pin at, or `null` to unpin. */
+    pinnedAt?: string | null;
+    /** ISO timestamp to archive at, or `null` to unarchive. */
+    archivedAt?: string | null;
+    /** Only a rename stamps this: pinning/archiving must not fake recency. */
+    updatedAt?: string;
+}
+/**
+ * Apply a metadata delta to a record. `null` clears the field, an omitted key
+ * leaves it untouched. Pure — the single place the merge rule is written, so the
+ * local (apply-then-put) and remote (send-the-delta) paths cannot drift.
+ */
+declare function applyConversationMetadataPatch(record: ConversationRecord, patch: ConversationMetadataPatch): ConversationRecord;
+/**
+ * The delta of a user rename. A non-empty title is stored verbatim (trimmed,
+ * whitespace-collapsed, capped at TITLE_MAX) and marks the record `titleCustom`
+ * so future persists never re-derive it. An empty/whitespace title reverts to
+ * the derived title and clears the custom flag (emptyTitlePolicy:
+ * revert-to-derived). Needs the record because reverting has to re-derive from
+ * its messages.
+ */
+declare function conversationRenamePatch(record: ConversationRecord, rawTitle: string, now?: string): ConversationMetadataPatch;
+/**
+ * The delta of a pin/unpin. Pinning lifts the record out of the archive — a pin
+ * is an explicit "keep this in front of me", incompatible with archived.
+ * `updatedAt` is deliberately absent: pinning is organization, not content, and
+ * must not fake recency in the active list.
+ */
+declare function conversationPinPatch(pinned: boolean, now?: string): ConversationMetadataPatch;
+/**
+ * The delta of an archive/unarchive. Archiving clears any pin (an archived
+ * conversation cannot stay in the pinned section). Unarchiving rejoins the
+ * active list at the record's own `updatedAt`, which — like pinning — is not
+ * touched.
+ */
+declare function conversationArchivePatch(archived: boolean, now?: string): ConversationMetadataPatch;
+/**
+ * Apply a user rename to a record. Thin composition of the delta and the merge
+ * rule above — kept so callers holding a whole record (the local, single-writer
+ * path) do not each re-implement it.
  */
 declare function renameConversationRecord(record: ConversationRecord, rawTitle: string, now?: string): ConversationRecord;
-/**
- * Pin or unpin a record. Pinning stamps `pinnedAt` (the pinned section orders by
- * last-pinned first) and lifts the record out of the archive — a pin is an
- * explicit "keep this in front of me", incompatible with archived. Unpinning
- * drops the field entirely. `updatedAt` is deliberately NOT touched: pinning is
- * organization, not content, and must not fake recency in the active list.
- */
+/** Pin or unpin a record (whole-record form of `conversationPinPatch`). */
 declare function setConversationPinned(record: ConversationRecord, pinned: boolean, now?: string): ConversationRecord;
-/**
- * Archive or unarchive a record. Archiving stamps `archivedAt` and clears any
- * pin (an archived conversation cannot stay in the pinned section). Unarchiving
- * drops the field and the record rejoins the active list at its own
- * `updatedAt` — which, like pinning, is deliberately not touched.
- */
+/** Archive or unarchive a record (whole-record form of `conversationArchivePatch`). */
 declare function setConversationArchived(record: ConversationRecord, archived: boolean, now?: string): ConversationRecord;
 /** Project a record to its light summary — excludes `messages`. */
 declare function summarizeConversation(record: ConversationRecord): ConversationSummary;
@@ -1119,4 +1101,72 @@ interface OrganizedConversations {
  */
 declare function organizeConversationSummaries(summaries: ConversationSummary[]): OrganizedConversations;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, conversationFileName, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };
+/**
+ * ConversationLibrary — the storage contract for local-first conversations.
+ *
+ * A pure async interface: adapters implement it over IndexedDB (fi-glass), a
+ * backend, or filesystem (later layers) without core taking a dependency on any
+ * of them. `list` returns light summaries (cheap); `get` hydrates one full
+ * record; `put` upserts; `delete`/`clear` remove. Keeping the contract in core
+ * is what stops a reusable persistence primitive from being trapped in a
+ * consumer app (DD-002-LESSON / framework-first-canary).
+ */
+
+interface ConversationLibrary {
+    /** All conversations as light summaries, newest `updatedAt` first. */
+    list(): Promise<ConversationSummary[]>;
+    /** The full record for `id`, or `null` if none. */
+    get(id: string): Promise<ConversationRecord | null>;
+    /** Insert or replace a record by its `id`. */
+    put(record: ConversationRecord): Promise<void>;
+    /**
+     * Apply a metadata-only delta (rename / pin / archive) to `id`.
+     *
+     * OPTIONAL, and duck-typed by callers, because it only earns its keep where
+     * more than one writer exists. A single-browser adapter (IndexedDB) has no
+     * second writer to race, so `get → transform → put` is already correct there
+     * and an extra verb would be ceremony. A shared backend does have one, and
+     * there a whole-record put from a stale device silently drops flags it never
+     * meant to touch — the delta is what makes that impossible.
+     */
+    patch?(id: string, patch: ConversationMetadataPatch): Promise<ConversationRecord | null>;
+    /** Remove the record for `id` (no-op if absent). */
+    delete(id: string): Promise<void>;
+    /** Remove every stored conversation. */
+    clear(): Promise<void>;
+}
+
+/**
+ * conversationToMarkdown — la conversación como un archivo que alguien se lleva.
+ *
+ * Función pura sobre el record: sin React, sin navegador, sin descarga. Quien
+ * quiera entregarlo (un Blob en el browser, un archivo en disco, un adjunto de
+ * correo) pone ESA parte; aquí sólo vive la forma del documento, que es lo que
+ * se repite en cada shell.
+ *
+ * Markdown y no PDF ni HTML porque el destino real es seguir trabajando: se
+ * pega en un cuaderno digital, se abre en cualquier editor, se lee tal cual en
+ * texto plano si no hay nada más a la mano.
+ */
+
+interface ConversationMarkdownOptions {
+    /** Cómo se nombra a cada lado. Default: `Tú` / `Asistente`. */
+    labels?: {
+        user?: string;
+        assistant?: string;
+    };
+    /** Línea de procedencia bajo el título (de dónde salió esta conversación). */
+    source?: string;
+}
+/** El documento completo, listo para escribir a un archivo `.md`. */
+declare function conversationToMarkdown(record: ConversationRecord, options?: ConversationMarkdownOptions): string;
+/**
+ * Un nombre de archivo seguro derivado del título.
+ *
+ * Los títulos vienen del primer mensaje del usuario, así que traen de todo:
+ * `/`, `:`, saltos de línea, emoji. Un nombre sin sanear rompe la descarga en
+ * silencio o crea directorios que nadie pidió.
+ */
+declare function conversationFileName(record: ConversationRecord): string;
+
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationMetadataPatch, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, applyConversationMetadataPatch, conversationArchivePatch, conversationFileName, conversationPinPatch, conversationRenamePatch, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };

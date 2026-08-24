@@ -1,6 +1,6 @@
 # B3-FIGLASS-SHELL-PRIMITIVES-1 — extract sidebar/resource/composer layout primitives to fi-glass
 
-Status: Proposed
+Status: **Parcial** (verificado 2026-08-23) — 1A (AgentSidebarItem/EditableResourceItem/slots) y 1C (AgentSidebarSection) entregados y consumidos por og118. Faltan los slots del composer (el rail salió como ComposerFrame footerStart) y el borrado de CSS: globals.css subió de 391 a 820 LOC
 Proposed: 2026-06-23 by Bernard (via coagent review of og118 globals.css size)
 
 ## What it is

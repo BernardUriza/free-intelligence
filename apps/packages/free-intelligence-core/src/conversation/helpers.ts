@@ -131,72 +131,145 @@ export function resolveConversationTitle(
 }
 
 /**
- * Apply a user rename to a record. A non-empty title is stored verbatim
- * (trimmed, whitespace-collapsed, capped at TITLE_MAX) and marks the record
- * `titleCustom` so future persists never re-derive it. An empty/whitespace
- * title reverts to the derived title and clears the custom flag
- * (emptyTitlePolicy: revert-to-derived). Pure — stamps `updatedAt` from `now`.
+ * The metadata delta of an organization mutation (rename / pin / archive).
+ *
+ * These three mutations used to exist only as whole-record transforms, which
+ * forced every transport to ship the whole record — and a whole-record write
+ * from a device holding a stale copy silently drops the flags it never meant to
+ * touch (CONV-CONCURRENCY-1). The delta expresses the same semantics as the
+ * SMALLEST thing that changed, so a transport can send just that.
+ *
+ * `null` means CLEAR the field; an omitted key means LEAVE IT ALONE. That is
+ * precisely the distinction a full-record put cannot express — an absent field
+ * and a deliberately-cleared one look identical on the wire.
+ */
+export interface ConversationMetadataPatch {
+  title?: string;
+  titleCustom?: boolean;
+  /** ISO timestamp to pin at, or `null` to unpin. */
+  pinnedAt?: string | null;
+  /** ISO timestamp to archive at, or `null` to unarchive. */
+  archivedAt?: string | null;
+  /** Only a rename stamps this: pinning/archiving must not fake recency. */
+  updatedAt?: string;
+}
+
+/**
+ * Apply a metadata delta to a record. `null` clears the field, an omitted key
+ * leaves it untouched. Pure — the single place the merge rule is written, so the
+ * local (apply-then-put) and remote (send-the-delta) paths cannot drift.
+ */
+export function applyConversationMetadataPatch(
+  record: ConversationRecord,
+  patch: ConversationMetadataPatch,
+): ConversationRecord {
+  const next: ConversationRecord = { ...record };
+  if (patch.title !== undefined) next.title = patch.title;
+  if (patch.titleCustom !== undefined) next.titleCustom = patch.titleCustom;
+  if (patch.updatedAt !== undefined) next.updatedAt = patch.updatedAt;
+  if (patch.pinnedAt !== undefined) {
+    if (patch.pinnedAt === null) delete next.pinnedAt;
+    else next.pinnedAt = patch.pinnedAt;
+  }
+  if (patch.archivedAt !== undefined) {
+    if (patch.archivedAt === null) delete next.archivedAt;
+    else next.archivedAt = patch.archivedAt;
+  }
+  return next;
+}
+
+/**
+ * The delta of a user rename. A non-empty title is stored verbatim (trimmed,
+ * whitespace-collapsed, capped at TITLE_MAX) and marks the record `titleCustom`
+ * so future persists never re-derive it. An empty/whitespace title reverts to
+ * the derived title and clears the custom flag (emptyTitlePolicy:
+ * revert-to-derived). Needs the record because reverting has to re-derive from
+ * its messages.
+ */
+export function conversationRenamePatch(
+  record: ConversationRecord,
+  rawTitle: string,
+  now?: string,
+): ConversationMetadataPatch {
+  const trimmed = rawTitle.trim().replace(/\s+/g, ' ');
+  const ts = now ?? new Date().toISOString();
+  if (trimmed === '') {
+    return {
+      title: deriveConversationTitle(record.messages),
+      titleCustom: false,
+      updatedAt: ts,
+    };
+  }
+  return { title: trimmed.slice(0, TITLE_MAX), titleCustom: true, updatedAt: ts };
+}
+
+/**
+ * The delta of a pin/unpin. Pinning lifts the record out of the archive — a pin
+ * is an explicit "keep this in front of me", incompatible with archived.
+ * `updatedAt` is deliberately absent: pinning is organization, not content, and
+ * must not fake recency in the active list.
+ */
+export function conversationPinPatch(
+  pinned: boolean,
+  now?: string,
+): ConversationMetadataPatch {
+  if (pinned) {
+    return { pinnedAt: now ?? new Date().toISOString(), archivedAt: null };
+  }
+  return { pinnedAt: null };
+}
+
+/**
+ * The delta of an archive/unarchive. Archiving clears any pin (an archived
+ * conversation cannot stay in the pinned section). Unarchiving rejoins the
+ * active list at the record's own `updatedAt`, which — like pinning — is not
+ * touched.
+ */
+export function conversationArchivePatch(
+  archived: boolean,
+  now?: string,
+): ConversationMetadataPatch {
+  if (archived) {
+    return { archivedAt: now ?? new Date().toISOString(), pinnedAt: null };
+  }
+  return { archivedAt: null };
+}
+
+/**
+ * Apply a user rename to a record. Thin composition of the delta and the merge
+ * rule above — kept so callers holding a whole record (the local, single-writer
+ * path) do not each re-implement it.
  */
 export function renameConversationRecord(
   record: ConversationRecord,
   rawTitle: string,
   now?: string,
 ): ConversationRecord {
-  const trimmed = rawTitle.trim().replace(/\s+/g, ' ');
-  const ts = now ?? new Date().toISOString();
-  if (trimmed === '') {
-    return {
-      ...record,
-      title: deriveConversationTitle(record.messages),
-      titleCustom: false,
-      updatedAt: ts,
-    };
-  }
-  return {
-    ...record,
-    title: trimmed.slice(0, TITLE_MAX),
-    titleCustom: true,
-    updatedAt: ts,
-  };
+  return applyConversationMetadataPatch(
+    record,
+    conversationRenamePatch(record, rawTitle, now),
+  );
 }
 
-/**
- * Pin or unpin a record. Pinning stamps `pinnedAt` (the pinned section orders by
- * last-pinned first) and lifts the record out of the archive — a pin is an
- * explicit "keep this in front of me", incompatible with archived. Unpinning
- * drops the field entirely. `updatedAt` is deliberately NOT touched: pinning is
- * organization, not content, and must not fake recency in the active list.
- */
+/** Pin or unpin a record (whole-record form of `conversationPinPatch`). */
 export function setConversationPinned(
   record: ConversationRecord,
   pinned: boolean,
   now?: string,
 ): ConversationRecord {
-  if (pinned) {
-    const { archivedAt: _archivedAt, ...rest } = record;
-    return { ...rest, pinnedAt: now ?? new Date().toISOString() };
-  }
-  const { pinnedAt: _pinnedAt, ...rest } = record;
-  return rest;
+  return applyConversationMetadataPatch(record, conversationPinPatch(pinned, now));
 }
 
-/**
- * Archive or unarchive a record. Archiving stamps `archivedAt` and clears any
- * pin (an archived conversation cannot stay in the pinned section). Unarchiving
- * drops the field and the record rejoins the active list at its own
- * `updatedAt` — which, like pinning, is deliberately not touched.
- */
+/** Archive or unarchive a record (whole-record form of `conversationArchivePatch`). */
 export function setConversationArchived(
   record: ConversationRecord,
   archived: boolean,
   now?: string,
 ): ConversationRecord {
-  if (archived) {
-    const { pinnedAt: _pinnedAt, ...rest } = record;
-    return { ...rest, archivedAt: now ?? new Date().toISOString() };
-  }
-  const { archivedAt: _archivedAt, ...rest } = record;
-  return rest;
+  return applyConversationMetadataPatch(
+    record,
+    conversationArchivePatch(archived, now),
+  );
 }
 
 /** Project a record to its light summary — excludes `messages`. */
