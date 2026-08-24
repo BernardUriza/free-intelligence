@@ -25,52 +25,13 @@ per-user id — the same guarantee its local store gave, carried over unchanged.
 
 from __future__ import annotations
 
-import asyncio
-
 from . import db
-from .chunking import chunk
+from .chunking import chunk, fold
+from .corpus_schema import TABLE, ensure
 
-TABLE = "aire_corpus_chunk"
 MAX_TOP_K = 20
 SNIPPET = 600
 STATEMENT_TIMEOUT_MS = 5_000
-
-DDL = (
-    f"CREATE TABLE IF NOT EXISTS {TABLE} ("
-    " seq bigserial PRIMARY KEY,"
-    " at timestamptz NOT NULL DEFAULT now(),"
-    " owner text NOT NULL,"
-    " corpus_id text NOT NULL,"
-    " doc_id text NOT NULL,"
-    " ord int NOT NULL,"
-    " body text NOT NULL,"
-    " fts tsvector GENERATED ALWAYS AS (to_tsvector('spanish', body)) STORED)"
-)
-INDEXES = (
-    f"CREATE INDEX IF NOT EXISTS aire_corpus_fts ON {TABLE} USING GIN (fts)",
-    f"CREATE INDEX IF NOT EXISTS aire_corpus_doc ON {TABLE} (owner, corpus_id, doc_id)",
-)
-
-_ready = False
-_lock = asyncio.Lock()
-
-
-async def ensure() -> None:
-    """The table, committed and visible to other connections, before anything
-    writes — on its OWN connection outside any transaction, for the reason
-    `spend.ensure` documents in full: a flag flipped over an uncommitted CREATE
-    sends every other coroutine at a table it cannot see."""
-    global _ready
-    if _ready or not db.dsn():
-        return
-    async with _lock:
-        if _ready:
-            return
-        async with db.acquire() as conn:
-            await conn.execute(DDL)
-            for index in INDEXES:
-                await conn.execute(index)
-        _ready = True
 
 
 async def ingest(owner: str, corpus_id: str, doc_id: str, text: str) -> int:
@@ -83,8 +44,9 @@ async def ingest(owner: str, corpus_id: str, doc_id: str, text: str) -> int:
         await conn.execute(f"DELETE FROM {TABLE} WHERE owner=$1 AND corpus_id=$2 AND doc_id=$3",
                            owner, corpus_id, doc_id)
         await conn.executemany(
-            f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, ord, body) VALUES ($1,$2,$3,$4,$5)",
-            [(owner, corpus_id, doc_id, i, body) for i, body in enumerate(chunks)])
+            f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, ord, body, norm)"
+            " VALUES ($1,$2,$3,$4,$5,$6)",
+            [(owner, corpus_id, doc_id, i, body, fold(body)) for i, body in enumerate(chunks)])
     return len(chunks)
 
 
@@ -93,7 +55,10 @@ async def search(owner: str, corpus_id: str, query: str, top_k: int) -> list[dic
 
     `websearch_to_tsquery` because the query is written by a model in prose: it
     tolerates quotes, `or`, and a bare sentence, where `to_tsquery` raises on the
-    first stray character and would turn a retrieval into an error mid-turn."""
+    first stray character and would turn a retrieval into an error mid-turn.
+
+    The query is folded with the same function the text was, or an accent the
+    writer used and the reader did not would silently mean no match."""
     await ensure()
     async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
         rows = await conn.fetch(
@@ -103,7 +68,7 @@ async def search(owner: str, corpus_id: str, query: str, top_k: int) -> list[dic
             " WHERE owner=$1 AND corpus_id=$2"
             "   AND fts @@ websearch_to_tsquery('spanish', $3)"
             " ORDER BY rank DESC, seq LIMIT $4",
-            owner, corpus_id, query, min(max(1, top_k), MAX_TOP_K))
+            owner, corpus_id, fold(query), min(max(1, top_k), MAX_TOP_K))
     return [{"doc_id": r["doc_id"], "chunk": r["ord"], "text": r["body"],
              "score": round(float(r["rank"]), 4)} for r in rows]
 

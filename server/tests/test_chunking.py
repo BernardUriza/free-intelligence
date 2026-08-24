@@ -23,3 +23,15 @@ def test_a_paragraph_longer_than_the_budget_rides_alone_uncut():
 
 def test_blank_space_between_paragraphs_never_becomes_a_chunk():
     assert chunk("uno\n\n\n\n   \n\ndos") == ["uno\n\ndos"]
+
+
+def test_matching_folds_accents_but_storage_keeps_them():
+    """Postgres's spanish config stems and drops stopwords but does NOT fold
+    diacritics without the `unaccent` extension, so `telemetría` and `telemetria`
+    are two different words to it. Measured on the live gate: a model searching
+    with the accent missed a document written without it and retried twice."""
+    from aire.chunking import fold
+
+    assert fold("telemetría") == fold("telemetria") == "telemetria"
+    assert fold("autorizó ñandú Peña") == "autorizo nandu Pena"
+    assert fold("sin acentos") == "sin acentos"

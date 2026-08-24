@@ -92,3 +92,13 @@ async def test_deleting_reports_what_it_removed(shelf):
 async def test_top_k_is_bounded(shelf):
     await corpus.ingest(shelf, "c1", "uno.md", DOC)
     assert len(await corpus.search(shelf, "c1", "semáforo", 10_000)) <= corpus.MAX_TOP_K
+
+
+async def test_an_accent_the_writer_used_and_the_reader_did_not_still_matches(shelf):
+    """The failure this was caught by, in both directions."""
+    await corpus.ingest(shelf, "c1", "acta.md",
+                        "El presupuesto de telemetria fue autorizado por Marisol.")
+    assert await corpus.search(shelf, "c1", "telemetría", 5), "accented query, plain document"
+    await corpus.ingest(shelf, "c1", "otra.md",
+                        "La telemetría de la máquina reportó una anomalía.")
+    assert await corpus.search(shelf, "c1", "telemetria maquina", 5), "plain query, accented document"

@@ -54,6 +54,25 @@ map the same hour. That map is explicit — a table absent from it is a table no
 is measuring — which is the [[do-budget]] lesson about never watching only the
 place where the spend is already frozen.
 
+## The correction the live turn forced
+
+The first shape indexed the accented text directly, and the very first real turn
+found the hole: a model searching `telemetría` missed a document that said
+`telemetria` and retried twice with narrower queries before it landed. Postgres's
+`spanish` configuration stems and drops stopwords but does NOT fold diacritics
+without the `unaccent` extension — and in Spanish that is the single most common
+way a search quietly fails, paid for in retries the user never sees.
+
+Folded in Python (`chunking.fold`) rather than by installing `unaccent`: it works
+on any Postgres, needs no extension enabled and no superuser asked. The row keeps
+its ORIGINAL text for reading; a `norm` column holds the folded copy and the
+tsvector is generated over that. `corpus_schema.py` carries the migration that
+brings an already-created table to that shape, guarded on the catalog so it runs
+exactly once.
+
+This is the loop doing its job: the first version was untested, the first real turn
+corrected it, and only then was it right.
+
 ## Verified
 
 Against the real Postgres, not a fake, because everything load-bearing here is the
