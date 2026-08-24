@@ -34,8 +34,15 @@ def detect_postgres_executable() -> str | None:
     import subprocess
     from pathlib import Path
 
+    # Homebrew (Apple Silicon, then Intel), then the Debian/Ubuntu layout — which
+    # is where CI lives, and which keeps its server binaries OFF `PATH`, so
+    # without this glob the probe skipped on the one machine that could actually
+    # run these tests. Globbed by version for the same reason everywhere: a
+    # hardcoded major goes stale the next release and silently stops finding
+    # anything.
     candidates: list[Path] = sorted(Path("/opt/homebrew/opt").glob("postgresql@*/bin/pg_ctl"))
     candidates += sorted(Path("/usr/local/opt").glob("postgresql@*/bin/pg_ctl"))
+    candidates += sorted(Path("/usr/lib/postgresql").glob("*/bin/pg_ctl"), reverse=True)
     on_path = shutil.which("pg_ctl")
     if on_path:
         candidates.append(Path(on_path))

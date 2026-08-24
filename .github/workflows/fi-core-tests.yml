@@ -71,6 +71,22 @@ jobs:
           cache: pip
           cache-dependency-path: apps/packages/fi-core/pyproject.toml
 
+      - name: Install a Postgres SERVER with pgvector, so the store tests RUN
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          set -euo pipefail
+          # 34 tests SKIP on any host without a matching Postgres + pgvector
+          # pair, and among them are the ones covering `save_facts` — the method
+          # that was hard-deleting curated facts and wiping a principal's memory
+          # on an empty snapshot. Skipping is honest, but a green suite that
+          # skipped the riskiest code in the package is a green nobody should
+          # bank on. The runner ships the server; only the extension is missing.
+          sudo apt-get update -qq
+          major=$(ls -d /usr/lib/postgresql/* | sed 's#.*/##' | sort -rn | head -1)
+          sudo apt-get install -y -qq "postgresql-${major}-pgvector"
+          ls "/usr/lib/postgresql/${major}/bin/pg_ctl"
+          find /usr/share/postgresql -name vector.control -print -quit
+
       - name: Install fi-core with the extras its tests exercise
         if: steps.touched.outputs.yes == 'true'
         run: |
@@ -88,6 +104,21 @@ jobs:
           # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
           # it is another green light that proves nothing.
           pytest tests -q
+
+      - name: The pgvector tests must RUN here, not skip
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          set -euo pipefail
+          # Installing the extension and then letting the probe skip anyway would
+          # look identical to success in the step above. If these ever go back to
+          # skipping, CI says so instead of quietly returning to zero coverage on
+          # the store that was destroying data.
+          pytest tests/test_stores_pgvector.py tests/test_memory_pgvector_store.py \
+            -q -rs --no-header | tee /tmp/pg.txt
+          if grep -qi 'skip' /tmp/pg.txt; then
+            echo "::error::the pgvector suites SKIPPED on a runner with Postgres + pgvector installed — the probe is not finding them"
+            exit 1
+          fi
 
       - name: Report what the host could not run
         if: always() && steps.touched.outputs.yes == 'true'
