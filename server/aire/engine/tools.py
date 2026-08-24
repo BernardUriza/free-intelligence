@@ -14,6 +14,7 @@ from typing import Any
 
 from .memory_tool import build_memory_server
 from .persona_tool import build_persona_server
+from .tracker_tool import build_tracker_server
 
 # name -> factory(project_key, cwd) -> an in-process SDK MCP server. In-process
 # ONLY: no `command`/`args` ever crosses the wire, so the door cannot be told to
@@ -22,6 +23,7 @@ from .persona_tool import build_persona_server
 REGISTRY: dict[str, Any] = {
     "memory": build_memory_server,
     "persona": build_persona_server,
+    "task_tracker": build_tracker_server,
 }
 
 
