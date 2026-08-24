@@ -25,15 +25,17 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   type ChatMessage,
   type ConversationLibrary,
+  type ConversationMetadataPatch,
   type ConversationRecord,
   type ConversationSummary,
+  applyConversationMetadataPatch,
+  conversationArchivePatch,
+  conversationPinPatch,
+  conversationRenamePatch,
   CONVERSATION_SCHEMA_VERSION,
   deriveConversationPreview,
   resolveConversationTitle,
-  renameConversationRecord,
   sanitizeConversationMessage,
-  setConversationArchived,
-  setConversationPinned,
 } from '@free-intelligence/core';
 
 export interface UseConversationLibraryOptions {
@@ -181,8 +183,10 @@ export function useConversationLibrary(
         updatedAt: now,
         messages: clean,
         preview: deriveConversationPreview(clean),
-        // Organization flags ride along: persisting a new message must never
-        // silently unpin or unarchive the thread.
+        // Organization flags ride along for the SINGLE-WRITER (IndexedDB) store,
+        // where nothing else preserves them. A shared store ignores what a put
+        // says about them and keeps its own — a device with a stale copy is not
+        // allowed to have an opinion here, which is what closes the race.
         ...(prevForTitle?.pinnedAt ? { pinnedAt: prevForTitle.pinnedAt } : {}),
         ...(prevForTitle?.archivedAt ? { archivedAt: prevForTitle.archivedAt } : {}),
         ...(bornIn ? { projectId: bornIn } : {}),
@@ -218,12 +222,20 @@ export function useConversationLibrary(
     [library, activeId, idFactory],
   );
 
-  // Shared "get → pure transform → put → sync active → refresh" round-trip that
-  // rename/pin/archive all ride (the record-metadata mutation seam).
-  const transformConversation = useCallback(
+  // Shared metadata-mutation seam for rename/pin/archive.
+  //
+  // The delta — not the whole record — is what travels when the backing store
+  // offers `patch`. A shared cloud store has a second writer (the same account
+  // on a phone and a desktop), and a whole-record write from whichever side
+  // holds the older copy silently drops the flags it never knew about: pin on
+  // the phone, send a message from the desktop, pin gone, nothing reported.
+  // A delta carries no opinion about what it does not name, so there is
+  // nothing left to drop. A single-browser store has no second writer, so the
+  // read-apply-write below stays correct there and needs no extra verb.
+  const mutateMetadata = useCallback(
     async (
       id: string,
-      transform: (record: ConversationRecord) => ConversationRecord,
+      patchOf: (record: ConversationRecord) => ConversationMetadataPatch,
     ) => {
       const record = await library.get(id);
       if (!record) {
@@ -233,8 +245,21 @@ export function useConversationLibrary(
           `useConversationLibrary: conversation "${id}" not found`,
         );
       }
-      const next = transform(record);
-      await library.put(next);
+      const patch = patchOf(record);
+      let next: ConversationRecord | null;
+      if (library.patch) {
+        next = await library.patch(id, patch);
+        if (!next) {
+          // Deleted between the read and the write, from the other device.
+          await refresh();
+          throw new Error(
+            `useConversationLibrary: conversation "${id}" not found`,
+          );
+        }
+      } else {
+        next = applyConversationMetadataPatch(record, patch);
+        await library.put(next);
+      }
       if (id === activeId) {
         setActiveRecord(next);
         setActiveMessages(next.messages);
@@ -246,26 +271,20 @@ export function useConversationLibrary(
 
   const renameConversation = useCallback(
     async (id: string, title: string) =>
-      transformConversation(id, (record) =>
-        renameConversationRecord(record, title, nowFn()),
-      ),
-    [transformConversation, nowFn],
+      mutateMetadata(id, (record) => conversationRenamePatch(record, title, nowFn())),
+    [mutateMetadata, nowFn],
   );
 
   const pinConversation = useCallback(
     async (id: string, pinned: boolean) =>
-      transformConversation(id, (record) =>
-        setConversationPinned(record, pinned, nowFn()),
-      ),
-    [transformConversation, nowFn],
+      mutateMetadata(id, () => conversationPinPatch(pinned, nowFn())),
+    [mutateMetadata, nowFn],
   );
 
   const archiveConversation = useCallback(
     async (id: string, archived: boolean) =>
-      transformConversation(id, (record) =>
-        setConversationArchived(record, archived, nowFn()),
-      ),
-    [transformConversation, nowFn],
+      mutateMetadata(id, () => conversationArchivePatch(archived, nowFn())),
+    [mutateMetadata, nowFn],
   );
 
   return {

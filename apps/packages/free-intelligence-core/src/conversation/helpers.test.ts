@@ -21,6 +21,10 @@ import {
   setConversationPinned,
   setConversationArchived,
   sanitizeConversationMessage,
+  applyConversationMetadataPatch,
+  conversationRenamePatch,
+  conversationPinPatch,
+  conversationArchivePatch,
 } from './helpers';
 
 const NOW = '2026-06-09T00:00:00.000Z';
@@ -375,5 +379,81 @@ describe('filterConversationSummaries (CONV-SEARCH-1)', () => {
   it('returns the input untouched for an empty or whitespace query', () => {
     expect(filterConversationSummaries(list, '')).toBe(list);
     expect(filterConversationSummaries(list, '   ')).toBe(list);
+  });
+});
+
+describe('metadata patches (CONV-CONCURRENCY-1)', () => {
+  const base = createConversationRecord({
+    id: 'c1',
+    now: '2026-01-01T00:00:00.000Z',
+    messages: [{ role: 'user', content: 'hola' }] as ChatMessage[],
+  });
+
+  it('an omitted key leaves the field alone; null clears it', () => {
+    const pinned = applyConversationMetadataPatch(base, {
+      pinnedAt: '2026-02-01T00:00:00.000Z',
+    });
+    // A patch that says nothing about the pin must not touch it — this is the
+    // distinction a whole-record put cannot make.
+    const renamed = applyConversationMetadataPatch(pinned, { title: 'Otro' });
+    expect(renamed.pinnedAt).toBe('2026-02-01T00:00:00.000Z');
+    expect(renamed.title).toBe('Otro');
+
+    const unpinned = applyConversationMetadataPatch(pinned, { pinnedAt: null });
+    expect('pinnedAt' in unpinned).toBe(false);
+  });
+
+  it('pinning clears the archive and does NOT stamp updatedAt', () => {
+    const patch = conversationPinPatch(true, '2026-03-01T00:00:00.000Z');
+    expect(patch).toEqual({
+      pinnedAt: '2026-03-01T00:00:00.000Z',
+      archivedAt: null,
+    });
+    // Organization must not fake content recency in the active list.
+    expect(patch.updatedAt).toBeUndefined();
+  });
+
+  it('archiving clears the pin and does NOT stamp updatedAt', () => {
+    const patch = conversationArchivePatch(true, '2026-03-01T00:00:00.000Z');
+    expect(patch).toEqual({
+      archivedAt: '2026-03-01T00:00:00.000Z',
+      pinnedAt: null,
+    });
+    expect(patch.updatedAt).toBeUndefined();
+  });
+
+  it('unpin/unarchive name only their own field', () => {
+    expect(conversationPinPatch(false)).toEqual({ pinnedAt: null });
+    expect(conversationArchivePatch(false)).toEqual({ archivedAt: null });
+  });
+
+  it('a rename patch marks the title custom and stamps updatedAt', () => {
+    const patch = conversationRenamePatch(base, '  Mi   chat  ', '2026-04-01T00:00:00.000Z');
+    expect(patch).toEqual({
+      title: 'Mi chat',
+      titleCustom: true,
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    });
+  });
+
+  it('an empty rename reverts to the derived title and clears the flag', () => {
+    const patch = conversationRenamePatch(base, '   ', '2026-04-01T00:00:00.000Z');
+    expect(patch.titleCustom).toBe(false);
+    expect(patch.title).toBe(deriveConversationTitle(base.messages));
+  });
+
+  it('the patch form and the whole-record form agree exactly', () => {
+    // The transformers are thin compositions; if they ever drift, the local
+    // (apply-then-put) and remote (send-the-delta) paths stop matching.
+    const now = '2026-05-01T00:00:00.000Z';
+    for (const [whole, patch] of [
+      [setConversationPinned(base, true, now), conversationPinPatch(true, now)],
+      [setConversationPinned(base, false, now), conversationPinPatch(false, now)],
+      [setConversationArchived(base, true, now), conversationArchivePatch(true, now)],
+      [renameConversationRecord(base, 'X', now), conversationRenamePatch(base, 'X', now)],
+      [renameConversationRecord(base, '', now), conversationRenamePatch(base, '', now)],
+    ] as const) {
+      expect(applyConversationMetadataPatch(base, patch)).toEqual(whole);
+    }
   });
 });

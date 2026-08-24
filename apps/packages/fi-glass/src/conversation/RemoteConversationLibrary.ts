@@ -15,6 +15,7 @@
 
 import type {
   ConversationLibrary,
+  ConversationMetadataPatch,
   ConversationRecord,
   ConversationSummary,
 } from '@free-intelligence/core';
@@ -88,6 +89,33 @@ export class RemoteConversationLibrary implements ConversationLibrary {
       record,
     );
     if (!response.ok) await RemoteConversationLibrary.fail('put', response);
+  }
+
+  /**
+   * Send a metadata delta instead of the whole record.
+   *
+   * Implemented HERE and not on the IndexedDB adapter because this is the
+   * adapter with a second writer: the same account on a phone and a desktop
+   * both write this store. A whole-record `put` from whichever device holds the
+   * older copy drops the flags it never knew about — the delta carries no
+   * opinion about anything it does not name, so there is nothing to drop.
+   *
+   * Returns the server's merged record (it owns the merge), or `null` if the
+   * conversation is gone — deleted from the other device, the same shape `get`
+   * already reports.
+   */
+  async patch(
+    id: string,
+    patch: ConversationMetadataPatch,
+  ): Promise<ConversationRecord | null> {
+    const response = await this.request(
+      'PATCH',
+      `/conversations/${encodeURIComponent(id)}`,
+      patch,
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) await RemoteConversationLibrary.fail('patch', response);
+    return (await response.json()) as ConversationRecord;
   }
 
   async delete(id: string): Promise<void> {

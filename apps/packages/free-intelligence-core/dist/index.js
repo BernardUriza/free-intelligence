@@ -331,39 +331,59 @@ function resolveConversationTitle(messages, prev) {
   if (prev?.titleCustom && prev.title.trim() !== "") return prev.title;
   return deriveConversationTitle(messages);
 }
-function renameConversationRecord(record, rawTitle, now) {
+function applyConversationMetadataPatch(record, patch) {
+  const next = { ...record };
+  if (patch.title !== void 0) next.title = patch.title;
+  if (patch.titleCustom !== void 0) next.titleCustom = patch.titleCustom;
+  if (patch.updatedAt !== void 0) next.updatedAt = patch.updatedAt;
+  if (patch.pinnedAt !== void 0) {
+    if (patch.pinnedAt === null) delete next.pinnedAt;
+    else next.pinnedAt = patch.pinnedAt;
+  }
+  if (patch.archivedAt !== void 0) {
+    if (patch.archivedAt === null) delete next.archivedAt;
+    else next.archivedAt = patch.archivedAt;
+  }
+  return next;
+}
+function conversationRenamePatch(record, rawTitle, now) {
   const trimmed = rawTitle.trim().replace(/\s+/g, " ");
   const ts = now ?? (/* @__PURE__ */ new Date()).toISOString();
   if (trimmed === "") {
     return {
-      ...record,
       title: deriveConversationTitle(record.messages),
       titleCustom: false,
       updatedAt: ts
     };
   }
-  return {
-    ...record,
-    title: trimmed.slice(0, TITLE_MAX),
-    titleCustom: true,
-    updatedAt: ts
-  };
+  return { title: trimmed.slice(0, TITLE_MAX), titleCustom: true, updatedAt: ts };
+}
+function conversationPinPatch(pinned, now) {
+  if (pinned) {
+    return { pinnedAt: now ?? (/* @__PURE__ */ new Date()).toISOString(), archivedAt: null };
+  }
+  return { pinnedAt: null };
+}
+function conversationArchivePatch(archived, now) {
+  if (archived) {
+    return { archivedAt: now ?? (/* @__PURE__ */ new Date()).toISOString(), pinnedAt: null };
+  }
+  return { archivedAt: null };
+}
+function renameConversationRecord(record, rawTitle, now) {
+  return applyConversationMetadataPatch(
+    record,
+    conversationRenamePatch(record, rawTitle, now)
+  );
 }
 function setConversationPinned(record, pinned, now) {
-  if (pinned) {
-    const { archivedAt: _archivedAt, ...rest2 } = record;
-    return { ...rest2, pinnedAt: now ?? (/* @__PURE__ */ new Date()).toISOString() };
-  }
-  const { pinnedAt: _pinnedAt, ...rest } = record;
-  return rest;
+  return applyConversationMetadataPatch(record, conversationPinPatch(pinned, now));
 }
 function setConversationArchived(record, archived, now) {
-  if (archived) {
-    const { pinnedAt: _pinnedAt, ...rest2 } = record;
-    return { ...rest2, archivedAt: now ?? (/* @__PURE__ */ new Date()).toISOString() };
-  }
-  const { archivedAt: _archivedAt, ...rest } = record;
-  return rest;
+  return applyConversationMetadataPatch(
+    record,
+    conversationArchivePatch(archived, now)
+  );
 }
 function summarizeConversation(record) {
   return {
@@ -406,7 +426,11 @@ export {
   CONVERSATION_SCHEMA_VERSION,
   applyAgentEvent,
   applyConversationEvent,
+  applyConversationMetadataPatch,
+  conversationArchivePatch,
   conversationFileName,
+  conversationPinPatch,
+  conversationRenamePatch,
   conversationToMarkdown,
   createConversationRecord,
   deriveConversationPreview,
