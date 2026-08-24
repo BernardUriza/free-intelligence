@@ -83,3 +83,27 @@ def test_semantic_ranks_by_cosine():
 def test_semantic_length_mismatch_returns_empty():
     sr = SemanticRetriever()
     assert sr.rank([1.0], ["a", "b"], [[1.0]], top_k=2) == []
+
+
+def test_mismatched_dimensions_score_zero_and_say_why(caplog):
+    """`zip(..., strict=False)` truncated the dot product to the shorter prefix
+    while both norms used the full vectors, so `cosine_similarity([1,0,5,5],
+    [1,0])` answered 0.14 — a real-looking score from two thirds of one vector.
+
+    It stays 0.0 rather than raising because `SemanticRetriever.rank` returns []
+    on a mismatch and a test pins that as intended; the WARNING is what turns "no
+    relevant results" back into the embedder change it actually is."""
+    import logging
+
+    from fi_core.rag.retrieval import cosine_similarity
+
+    with caplog.at_level(logging.WARNING, logger="fi_core.rag.retrieval"):
+        assert cosine_similarity([1.0, 0.0, 5.0, 5.0], [1.0, 0.0]) == 0.0
+    assert "dimensions" in caplog.text, "a silent 0.0 is the old bug wearing a new value"
+
+
+def test_equal_dimensions_are_unchanged():
+    from fi_core.rag.retrieval import cosine_similarity
+
+    assert round(cosine_similarity([1.0, 0.0, 0.0], [1.0, 0.0, 0.0]), 6) == 1.0
+    assert cosine_similarity([0.0, 0.0], [1.0, 1.0]) == 0.0

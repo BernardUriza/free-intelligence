@@ -83,6 +83,36 @@ class FactConsolidator:
         *,
         dry_run: bool = False,
     ) -> ConsolidationReport:
+        """Run one consolidation pass, and MAKE the never-raises promise true.
+
+        The promise was written down and only one stage kept it: `llm_call` had a
+        try, while `get_facts`, `build_consolidation_prompt`,
+        `parse_consolidation_result` and `apply_consolidation_plan` did not. A
+        batch looping ten thousand principals died on the first one whose judge
+        emitted a one-line fence or whose connection blipped mid-apply — and it
+        died at THAT principal, so the nine thousand after it were never
+        consolidated and nobody could tell from the reports, because there were
+        none.
+
+        The wrapper is the promise. Everything below is the pass itself."""
+        started = time.monotonic()
+        try:
+            return await self._consolidate_principal(principal_id, dry_run=dry_run)
+        except Exception as exc:  # noqa: BLE001 — the contract IS that this returns
+            return ConsolidationReport(
+                principal_id=principal_id,
+                facts_in=0,
+                facts_out=0,
+                error=f"{type(exc).__name__}: {exc}",
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+
+    async def _consolidate_principal(
+        self,
+        principal_id: str,
+        *,
+        dry_run: bool = False,
+    ) -> ConsolidationReport:
         """Run one consolidation pass for ``principal_id``.
 
         Steps:

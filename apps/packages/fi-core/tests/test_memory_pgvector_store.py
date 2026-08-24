@@ -13,7 +13,6 @@ Auto-skip behavior matches the chunk store tests:
 
 from __future__ import annotations
 
-import shutil
 from typing import ClassVar
 
 import pytest

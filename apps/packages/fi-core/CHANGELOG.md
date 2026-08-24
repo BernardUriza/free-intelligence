@@ -14,6 +14,54 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ## [Unreleased]
 
+### Fixed — the second pass: five defects that were computed and then ignored
+
+- **A misspelled pack name disarmed the drift detector entirely.**
+  `_resolve_packs` fell back to the default only when `names` was EMPTY, never
+  when every name was unrecognized — so `packs=["defualt_bilingual"]` resolved to
+  ZERO patterns, `check_drift` reported `clean` on an outright identity leak, and
+  `validate_and_retry_prompt` dropped the `packs_unknown` field that was the
+  caller's only clue. The fallback keeps responses checked; `packs_unknown` is
+  now forwarded so the typo is visible instead of merely survivable.
+- **Three drift patterns barely fired.** `STAGE_DIRECTIONS[0]` was the only
+  pattern in the module without `(?i)`, so `*Sighs deeply*` — the capitalised,
+  sentence-initial form a model actually writes — missed while its bracket
+  sibling matched. `absolutely[.!]` REQUIRED punctuation glued to the word, so
+  only `"Absolutely. You're right."` fired and the over-validation tier was close
+  to unreachable. And the feminine `específica` was unanchored, firing
+  `clarification_dump` on ordinary prose like *"Necesito la fecha específica del
+  vuelo"* — which retried the turn with an instruction not to ask a clarifying
+  question, aimed at a response that had asked nothing.
+- **`parse_consolidation_result` raised where its contract says it returns.** A
+  judge answering ```` ```[{...}]``` ```` on one line hit
+  `split("\n", 1)[1]` → `IndexError`, and `consolidate_principal` calls it with
+  no `try`. `consolidate_principal` now honours its documented "never raises" for
+  every stage, not just the `llm_call` that happened to have a guard: a batch
+  over ten thousand principals no longer dies at the first bad fence.
+- **An inconsistent merge plan was applied as a partial merge.** When a judge
+  referenced an id twice, the parser pruned `merge_ids` and KEPT `new_fact`, so
+  the store soft-deleted one fact, inserted the merged sentence, and left the
+  pruned fact alive beside it — two contradictory facts where there had been one.
+  A partial merge is not a merge; the op is dropped whole and the backfill keeps
+  every id. `new_fact` is also type-checked now: a dict used to reach asyncpg as
+  a TEXT parameter and raise inside the transaction.
+- **`semantic_search` ignored its own `limit` on every degraded path.** With no
+  embedder, or a query that would not embed, or no hits in either arm, it
+  returned the principals' ENTIRE fact set from a method that promises at most
+  `limit` — a context blowup arriving exactly when the embedder is down.
+
+### Changed
+- Every swallowed embedder failure now LOGS, which the `save_facts` docstring had
+  claimed for as long as the module had no logging import at all. The loudest is
+  the consolidation path: a merged row landing unembedded while its sources are
+  soft-deleted means the merge REDUCES recall.
+- `cosine_similarity` returns `0.0` and warns on a dimension mismatch instead of
+  the plausible number `zip(strict=False)` used to produce from the shorter
+  prefix. It does not raise: `SemanticRetriever.rank` returns `[]` on a mismatch
+  and a test pins that as deliberate, so the log is what makes an embedder swap
+  findable without overruling a decision someone made on purpose.
+
+
 ### Fixed — four ways a corpus or a memory could be destroyed in silence
 
 - **`RagStore.ingest` deleted before it knew whether it could replace.** A

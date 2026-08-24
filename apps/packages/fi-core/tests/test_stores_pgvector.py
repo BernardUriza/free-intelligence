@@ -22,7 +22,6 @@ Tests deliberately use small embedding_dim=3 vectors so the geometry of
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timezone
 
 import pytest
