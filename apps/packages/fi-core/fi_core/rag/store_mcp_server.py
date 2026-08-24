@@ -36,7 +36,7 @@ except ImportError as e:
 from fi_core.rag.chunking import ChunkingStrategy
 from fi_core.rag.protocols import DocumentChunkStore, Embedder
 from fi_core.rag.store_mcp_contract import MCP_SERVER_NAME, MCP_TOOLS
-from fi_core.rag.store_service import QuotaExceeded, RagStore, build_embedder_from_env, build_store_from_env
+from fi_core.rag.store_service import NothingToIndex, QuotaExceeded, RagStore, build_embedder_from_env, build_store_from_env
 
 mcp = FastMCP(
     "fi-core-rag-store",
@@ -117,6 +117,17 @@ async def ingest_document(
         )
     except QuotaExceeded as e:
         return {"error": str(e), "quota_exceeded": True}
+    except NothingToIndex as e:
+        # The text chunked to nothing, so the store was left untouched. Reported
+        # as an error rather than `chunks: 0`, because a caller cannot tell a
+        # zero that stored nothing from a zero that ALSO destroyed the previous
+        # version — which is exactly what the old ordering did.
+        return {"error": str(e), "nothing_to_index": True}
+    except ValueError as e:
+        # An impossible chunking window (overlap >= chunk_size, chunk_size < 2).
+        # These come straight from the agent, so they are its mistake to fix, not
+        # a reason for the stdio server to die.
+        return {"error": str(e), "invalid_chunking": True}
     return {"corpus_id": corpus_id, "doc_id": doc_id, "chunks": n}
 
 

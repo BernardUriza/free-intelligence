@@ -476,3 +476,76 @@ def test_out_of_range_step_index_raises():
         t.start_step(p.plan_id, 5)
     with pytest.raises(StepIndexInvalid):
         t.complete_step(p.plan_id, -1)
+
+
+# --- the backwards-dependency rule, on EVERY write path --------------------
+# It used to live in two of the three: declare_plan checked it inline, replan
+# checked it after the fact, and insert_step did not check it at all. Only
+# declare_plan had a test, which is how the third path stayed broken. These
+# pin all three, and the two concrete failures the gap produced.
+
+
+def test_insert_step_rejects_a_forward_dependency():
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a", "b"])
+    with pytest.raises(ValueError, match="invalid"):
+        t.insert_step(p.plan_id, after_index=0,
+                      spec={"label": "x", "depends_on": [7]}, session_id="s1")
+
+
+def test_insert_step_rejects_a_step_that_depends_on_itself():
+    """A self-dependency is a cycle of one. It was accepted, and the step could
+    then NEVER start — DependencyUnmet forever, so the plan never settled."""
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a"])
+    with pytest.raises(ValueError, match="invalid"):
+        t.insert_step(p.plan_id, after_index=0,
+                      spec={"label": "loop", "depends_on": [1]}, session_id="s1")
+
+
+def test_replan_rejects_a_forward_dependency():
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a", "b"])
+    with pytest.raises(ValueError, match="invalid"):
+        t.replan(p.plan_id, from_index=0,
+                 new_steps=[{"label": "x", "depends_on": [5]}], session_id="s1")
+
+
+def test_an_out_of_range_dependency_can_no_longer_crash_start_step():
+    """The failure the missing check produced: `depends_on=[7]` on a three-step
+    plan was accepted, and `start_step` then indexed past the tuple and raised a
+    bare IndexError — which the MCP boundary does not map, so it escaped as a
+    crash mid-turn instead of a structured error the agent could act on."""
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a", "b"])
+    with pytest.raises(ValueError):
+        t.insert_step(p.plan_id, after_index=0,
+                      spec={"label": "x", "depends_on": [7]}, session_id="s1")
+    for step in t.get(p.plan_id, session_id="s1").steps:
+        for dep in step.depends_on:
+            assert 0 <= dep < step.index, "no reachable state holds an unusable dependency"
+
+
+def test_a_dependency_on_an_earlier_step_is_still_accepted_everywhere():
+    """The rule tightened; it did not narrow what legitimately works."""
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a", {"label": "b", "depends_on": [0]}])
+    assert p.steps[1].depends_on == (0,)
+    inserted = t.insert_step(p.plan_id, after_index=1,
+                             spec={"label": "c", "depends_on": [0]}, session_id="s1")
+    assert inserted.steps[2].depends_on == (0,)
+    t.complete_step(p.plan_id, 0, session_id="s1")  # replan needs the kept prefix settled
+    replanned = t.replan(p.plan_id, from_index=1,
+                         new_steps=["b2", {"label": "c2", "depends_on": [1]}], session_id="s1")
+    assert replanned.steps[2].depends_on == (1,)
+
+
+def test_a_non_integer_dependency_is_refused_rather_than_carried():
+    """It crosses the MCP boundary as arbitrary JSON. A string dependency used to
+    survive declare_plan's isinstance check only there — the other two paths kept
+    it, and it blew up later at indexing time."""
+    t = TaskTracker()
+    p = t.declare_plan(session_id="s1", steps=["a", "b"])
+    with pytest.raises(ValueError, match="invalid"):
+        t.insert_step(p.plan_id, after_index=1,
+                      spec={"label": "x", "depends_on": ["0"]}, session_id="s1")

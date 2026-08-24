@@ -14,7 +14,59 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ## [Unreleased]
 
-(Add entries here as work lands on `dev`.)
+### Fixed — four ways a corpus or a memory could be destroyed in silence
+
+- **`RagStore.ingest` deleted before it knew whether it could replace.** A
+  re-ingest whose text chunked to zero pieces removed the existing chunks and
+  returned `0` with no error: `chunk_count` at zero, `status` back to `pending`,
+  searches empty, and the byte count — the billing base — at zero. The chunking
+  is now checked FIRST and raises `NothingToIndex` (a `ValueError`, so existing
+  boundaries map it) with nothing stored and nothing removed. og118 had already
+  collided with this and handled the `0` at its call site with a 422 telling the
+  user to re-upload, after the copy they had was gone.
+- **`RagStore.ingest` erased a document's `attributes` on any re-ingest that did
+  not re-pass `metadata`.** A routine content correction dropped the document out
+  of every filtered query its tenant ran while leaving it visible to unfiltered
+  ones. `metadata=None` now means "leave them alone"; passing a dict is still how
+  a caller says "these are the attributes now".
+- **`PgMemoryStore.save_facts` wrote every row as `source='auto'`,** ignoring
+  `f.source`. A MANUAL fact was downgraded on the way in and the next snapshot's
+  `DELETE ... WHERE source='auto'` hard-deleted it — no `deleted_at`, no retention
+  window — against the invariant `protocols.py` states in writing. It also
+  overwrote `updated_at`; a fact carrying its own timestamp now keeps it.
+- **`PgMemoryStore.save_facts(pid, [])` wiped a principal's auto memory and
+  committed.** The `DELETE` ran before the empty check, and returning from inside
+  the transaction context commits it. Clearing now requires `allow_empty=True`,
+  because an extractor that returned nothing is far more often a failed
+  extraction than a principal with no facts.
+
+### Fixed — a hang, a rule with a hole, and a suite that could not go green
+
+- **`ChunkConfig` accepted a window that never advances.** `overlap >=
+  chunk_size` (or `chunk_size < 2`) made `chunk_by_fixed_size` loop forever
+  while appending on every pass — and both numbers arrive from an agent, since
+  `chunk_document` is an MCP tool, so one call hung the stdio server and ate the
+  box's memory. The config is validated at construction and refuses rather than
+  clamping, so nobody silently gets a different overlap than they asked for.
+- **The task_tracker's backwards-dependency rule was enforced on two write paths
+  of three.** `declare_plan` checked it inline and `replan` after the fact;
+  `insert_step` did not check at all, so `depends_on=[7]` on a three-step plan
+  was accepted and `start_step` then raised a bare `IndexError` the MCP boundary
+  does not map. `depends_on=[own_index]` was accepted too and deadlocked the plan
+  forever. The rule now lives in `_build_step`, the one funnel all three pass
+  through, and all three are tested.
+- **The pgvector test suites ERRORED instead of skipping on any host without a
+  matching Postgres.** The detector accepted any `pg_ctl` on `PATH` — including
+  Homebrew `libpq`, a client-only package with no `postgres` binary — and looked
+  for `vector.control` in a global share tree unrelated to the chosen install.
+  It now asks `pg_config --sharedir` and requires a real server binary. The
+  duplicate copy of the detector in the second test module is gone: one
+  `tests/pg_probe.py`. 28 errors became 28 honest skips.
+
+### Added
+- `NothingToIndex`, exported from `fi_core.rag`, and its `nothing_to_index` /
+  `invalid_chunking` error payloads on the `ingest_document` MCP tool — a tool
+  reports its failure, it does not kill the server.
 
 ## [0.24.4] — 2026-05-26
 

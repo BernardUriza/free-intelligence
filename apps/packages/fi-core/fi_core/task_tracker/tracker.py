@@ -232,31 +232,7 @@ class TaskTracker:
 
         with self._lock:
             plan_id = uuid.uuid4().hex[:16]  # 64 bits — collision-safe for the realistic in-memory volume
-            step_objs: list[Step] = []
-            for i, raw in enumerate(steps):
-                if isinstance(raw, str):
-                    step_objs.append(Step(index=i, label=raw))
-                    continue
-                if not isinstance(raw, dict):
-                    raise ValueError(f"step at index {i} must be str or dict, got {type(raw).__name__}")
-                label = raw.get("label")
-                if not isinstance(label, str) or not label:
-                    raise ValueError(f"step at index {i} missing required 'label' string")
-                depends_on = tuple(raw.get("depends_on") or ())
-                for dep in depends_on:
-                    if not isinstance(dep, int) or dep < 0 or dep >= i:
-                        # A step can only depend on EARLIER steps — forbids
-                        # cycles structurally without a DAG validator.
-                        raise ValueError(
-                            f"step {i} dependency {dep!r} is invalid; must reference an earlier step"
-                        )
-                step_objs.append(Step(
-                    index=i,
-                    label=label,
-                    active_form=raw.get("active_form", "") or "",
-                    depends_on=depends_on,
-                    metadata=raw.get("metadata") or None,
-                ))
+            step_objs = [self._build_step(i, raw) for i, raw in enumerate(steps)]
             plan = Plan(
                 plan_id=plan_id,
                 session_id=session_id,
@@ -458,17 +434,10 @@ class TaskTracker:
             self._step_starts[plan_id] = {
                 k: v for k, v in self._step_starts.get(plan_id, {}).items() if k in kept_indexes
             }
-            replacements: list[Step] = []
-            for offset, raw in enumerate(new_steps):
-                step = self._build_step(from_index + offset, raw)
-                # Replan deps must reference EARLIER steps (existing kept ones
-                # or earlier new ones) — same rule as declare_plan: no cycles.
-                for dep in step.depends_on:
-                    if dep < 0 or dep >= step.index:
-                        raise ValueError(
-                            f"replan step {step.index} depends on {dep!r}; must reference an earlier step"
-                        )
-                replacements.append(step)
+            # `_build_step` enforces the backwards-dependency rule for every
+            # write path, so a replanned step cannot point forward either.
+            replacements = [self._build_step(from_index + offset, raw)
+                            for offset, raw in enumerate(new_steps)]
             new_plan_steps = tuple([*kept, *replacements])
             new_plan = replace(plan, steps=new_plan_steps)
             self._plans[plan_id] = new_plan
@@ -547,13 +516,37 @@ class TaskTracker:
         label = spec.get("label")
         if not isinstance(label, str) or not label:
             raise ValueError(f"step spec at index {index} missing required 'label' string")
-        return Step(
+        step = Step(
             index=index,
             label=label,
             active_form=spec.get("active_form", "") or "",
             depends_on=tuple(spec.get("depends_on") or ()),
             metadata=spec.get("metadata") or None,
         )
+        self._check_backward_deps(step)
+        return step
+
+    @staticmethod
+    def _check_backward_deps(step: Step) -> None:
+        """A step may only depend on EARLIER steps. That one rule forbids cycles
+        structurally, with no DAG validator to write or to get wrong.
+
+        It lives HERE, in the single funnel every write path passes through,
+        because it used to live in two of them and not the third: `declare_plan`
+        checked it inline, `replan` checked it after the fact, and `insert_step`
+        did not check it at all. A step inserted with `depends_on=[7]` into a
+        three-step plan was accepted, and `start_step` on it raised a bare
+        `IndexError` the MCP boundary does not map — a crash mid-turn instead of
+        a structured error. `depends_on=[own_index]` was accepted too, and
+        deadlocked the plan: the step could never start, so the plan could never
+        settle. One rule enforced in two places out of three is how the third one
+        keeps being forgotten."""
+        for dep in step.depends_on:
+            if not isinstance(dep, int) or dep < 0 or dep >= step.index:
+                raise ValueError(
+                    f"step {step.index} dependency {dep!r} is invalid; "
+                    "must reference an earlier step"
+                )
 
     def _check_index(self, plan: Plan, step_index: int) -> None:
         if not (0 <= step_index < plan.step_count):

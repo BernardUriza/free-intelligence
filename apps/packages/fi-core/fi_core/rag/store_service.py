@@ -75,6 +75,21 @@ class QuotaExceeded(RuntimeError):
     The caller should surface this as a 429-style "over quota" to the tenant."""
 
 
+class NothingToIndex(ValueError):
+    """The text chunked to zero pieces, so there is nothing to store.
+
+    Raised BEFORE anything is deleted, which is the whole point. `ingest` used to
+    run the delete first and only then discover it had nothing to save: a
+    re-ingest whose text fell under `min_chunk_size` destroyed the version that
+    worked and returned `0` — no exception, `chunk_count` at zero, `status` back
+    to "pending", searches empty, and the byte count (the BILLING base) at zero.
+    og118 already collided with this and handled the `0` at its call site with a
+    422 telling the user to re-upload — after the copy they had was gone.
+
+    A ValueError so every boundary that already maps ValueError to "invalid
+    input" picks it up without knowing this class exists."""
+
+
 @dataclass
 class RagStore:
     """Persistent RAG over a DocumentChunkStore + an Embedder, keyed by corpus_id.
@@ -130,16 +145,33 @@ class RagStore:
         min_chunk_size: int = 100,
     ) -> int:
         """Chunk + embed + persist ``text`` under ``doc_id`` in ``corpus_id``.
-        Re-ingesting an existing ``doc_id`` REPLACES its chunks. Returns the count."""
+        Re-ingesting an existing ``doc_id`` REPLACES its chunks. Returns the count.
+
+        Two things happen in an order that matters. The chunking runs and is
+        CHECKED before a single row is deleted, so a text that indexes to nothing
+        cannot take the working version with it (:class:`NothingToIndex`). And
+        ``metadata=None`` on a re-ingest leaves the document's existing attributes
+        alone rather than clearing them — passing a dict is how a caller says
+        "these are the attributes now", and passing nothing used to mean "wipe
+        them", which silently removed documents from every filtered query their
+        tenant ran."""
         strat = ChunkingStrategy(strategy) if isinstance(strategy, str) else strategy
         pieces = chunk_document(text, strat, ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size))
+        if not pieces:
+            raise NothingToIndex(
+                f"{doc_id!r} produced no chunks at min_chunk_size={min_chunk_size}; "
+                "nothing was stored and nothing was removed"
+            )
         await self._enforce_quota(corpus_id, doc_id, new_bytes=sum(len(p.encode("utf-8")) for p in pieces))
-        md = DocumentMetadata(attributes=metadata or {})
-        if await self.store.get_document(namespace=corpus_id, document_id=doc_id) is not None:
+        existing = await self.store.get_document(namespace=corpus_id, document_id=doc_id)
+        if existing is not None:
+            keep = getattr(getattr(existing, "metadata", None), "attributes", None) or {}
+            md = DocumentMetadata(attributes=metadata if metadata is not None else keep)
             await self.store.delete_chunks_by_document(namespace=corpus_id, document_id=doc_id)
             await self.store.update_document(namespace=corpus_id, document_id=doc_id, content=text, metadata=md)
         else:
-            await self.store.create_document(namespace=corpus_id, document_id=doc_id, content=text, metadata=md)
+            await self.store.create_document(namespace=corpus_id, document_id=doc_id, content=text,
+                                             metadata=DocumentMetadata(attributes=metadata or {}))
         chunks: list[ChunkWithEmbedding] = []
         for piece in pieces:
             embedding = await self.embedder.embed(piece)

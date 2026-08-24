@@ -55,54 +55,7 @@ from fi_core.stores.pgvector import PgVectorChunkStore  # noqa: E402
 # ---------------------------------------------------------------------
 
 
-def _detect_postgres_executable() -> str | None:
-    """Return a pg_ctl path whose tree has pgvector available, or None.
-
-    Tries (in order): Homebrew postgresql@17, postgresql@18, generic
-    `pg_ctl` on PATH. The first one whose adjacent ``share/extension/``
-    contains ``vector.control`` wins.
-    """
-    from pathlib import Path
-
-    candidates: list[str] = []
-    # Homebrew Apple-Silicon paths first (most likely to have pgvector
-    # installed via `brew install pgvector`).
-    for prefix in ("postgresql@17", "postgresql@18", "postgresql@16"):
-        p = Path(f"/opt/homebrew/opt/{prefix}/bin/pg_ctl")
-        if p.exists():
-            candidates.append(str(p))
-    # Fallback: whatever's on PATH.
-    on_path = shutil.which("pg_ctl")
-    if on_path:
-        candidates.append(on_path)
-
-    # Brew links pgvector's extension files into the global
-    # /opt/homebrew/share/postgresql@<N>/extension/ tree, NOT inside the
-    # PG keg's own share/. So we check both: the keg's local share and
-    # the brew-global one keyed off the major version.
-    extension_roots: list[Path] = [
-        Path("/opt/homebrew/share"),
-        Path("/usr/local/share"),  # Intel-Mac brew layout
-    ]
-
-    def _has_pgvector_for(pg_ctl: str) -> bool:
-        bin_dir = Path(pg_ctl).resolve().parent
-        # Keg-local share check
-        for share in (bin_dir.parent / "share",):
-            if share.exists() and any(share.rglob("vector.control")):
-                return True
-        # Brew-global share check
-        for root in extension_roots:
-            if not root.exists():
-                continue
-            if any(root.rglob("vector.control")):
-                return True
-        return False
-
-    for pg_ctl in candidates:
-        if _has_pgvector_for(pg_ctl):
-            return pg_ctl
-    return None
+from pg_probe import detect_postgres_executable as _detect_postgres_executable
 
 
 _PG_CTL = _detect_postgres_executable()
@@ -120,9 +73,11 @@ else:
     @pytest.fixture(scope="session")
     def postgresql_proc():
         pytest.skip(
-            "No Postgres binary with pgvector extension found on this host "
-            "(checked /opt/homebrew/opt/postgresql@{17,18,16} and PATH). "
-            "Install with: brew install postgresql@17 pgvector"
+            "No Postgres SERVER with pgvector in its own sharedir on this host. "
+            "A client-only install (Homebrew `libpq`) does not count: it has "
+            "pg_ctl but no `postgres`. Nor does a pgvector built for a DIFFERENT "
+            "major than the server you have. Install a matching pair, e.g. "
+            "`brew install postgresql@17 pgvector`."
         )
 
 

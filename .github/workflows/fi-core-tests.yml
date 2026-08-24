@@ -1,0 +1,72 @@
+# fi-core's own suite, on every PR that touches it.
+#
+# It had none. Across the whole repo `pytest` was invoked in exactly ONE place —
+# pr-gate.yml's "Backend: Tests" — and that job runs `backend/tests/unit`, a
+# different tree entirely. So fi-core's 337 tests, fi-runner's, and og118's had
+# never run in CI: a PR touching any of them got a green "Backend: Tests" that
+# had not executed a line of the code it was gating.
+#
+# That is the check-that-cannot-fail in its purest form, and it is why this
+# library could ship a rule enforced on two write paths out of three. It lives in
+# its own file rather than as a job inside pr-gate.yml because the repo already
+# organises one workflow per unit (og118-backend, fenix-backend, publish-fi-core)
+# — and because pr-gate.yml has another session's uncommitted work in it.
+#
+# To make it BLOCKING, add "fi-core tests" to the branch protection rule for
+# main. Until then it runs and shows red on the PR, which is most of the value.
+name: fi-core tests
+
+on:
+  pull_request:
+    paths:
+      - 'apps/packages/fi-core/**'
+      - '.github/workflows/fi-core-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/packages/fi-core/**'
+  workflow_dispatch:
+
+concurrency:
+  group: fi-core-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: "fi-core: tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/packages/fi-core
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/packages/fi-core/pyproject.toml
+
+      - name: Install fi-core with the extras its tests exercise
+        run: |
+          python -m pip install --upgrade pip
+          # The FULL dev extra, torch and all. A leaner install would make the
+          # embedder tests `importorskip` themselves away, which is this job
+          # reporting green over coverage it silently declined to run — the same
+          # defect it exists to fix. No `||` fallback for the same reason: a
+          # fallback that installs less turns a broken install into a pass.
+          pip install -e '.[dev]' 
+
+      - name: Run the suite
+        run: |
+          # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
+          # it is another green light that proves nothing.
+          pytest tests -q
+
+      - name: Report what the host could not run
+        if: always()
+        run: |
+          # A skip is honest, but a suite that skips a whole subsystem should say
+          # so out loud rather than let "all green" imply full coverage.
+          pytest tests -q -rs 2>&1 | tail -20 >> "$GITHUB_STEP_SUMMARY" || true

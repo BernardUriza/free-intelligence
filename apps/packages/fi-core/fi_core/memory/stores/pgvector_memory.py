@@ -37,6 +37,8 @@ fact mutation.
 
 from __future__ import annotations
 
+import logging
+
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -172,6 +174,9 @@ def _rrf_fuse(rankings: list[list[int]], *, k: int = _RRF_K) -> dict[int, float]
 # ---------------------------------------------------------------------------
 
 
+_log = logging.getLogger(__name__)
+
+
 class PgMemoryStore:
     """Production-shape ``MemoryStore`` backed by Postgres + pgvector.
 
@@ -292,24 +297,49 @@ class PgMemoryStore:
         self,
         principal_id: str,
         facts: list[Fact],
+        *,
+        allow_empty: bool = False,
     ) -> None:
         """Replace AUTO-source facts with a snapshot. MANUAL + AGENT preserved.
 
-        Transactional. Embeddings, if an ``Embedder`` is wired, are
-        computed and persisted alongside the INSERT — failure to embed
-        does NOT roll back the SQL: it logs and the row goes in with
-        NULL embedding (consistent with discord-bot's failure mode).
+        Transactional. Embeddings, if an ``Embedder`` is wired, are computed and
+        persisted alongside the INSERT — failure to embed does NOT roll back the
+        SQL: it LOGS (really, now) and the row goes in with a NULL embedding.
+
+        Three things this used to get wrong, all of them silent and all of them
+        losing a principal's memory:
+
+        - **Every row was written as `source='auto'`, ignoring `f.source`.** A
+          caller who passed a MANUAL fact — a curated allergy, say — had it
+          downgraded on the way in, and the NEXT snapshot's
+          ``DELETE ... WHERE source='auto'`` hard-deleted it. No `deleted_at`, no
+          retention window, unrecoverable, while `protocols.py` states in writing
+          that MANUAL and AGENT facts are preserved.
+        - **`updated_at` was overwritten with `now`** for every fact, so a fact
+          carrying its own timestamp could not keep it.
+        - **An EMPTY snapshot wiped everything and committed.** The DELETE ran
+          first and `if not facts: return` exited the transaction context
+          normally. An extractor that refused, returned `[]`, or failed to parse
+          erased the principal's whole auto memory — with `retention.py`,
+          `deleted_at` and a 90-day window sitting right there, used by none of
+          it. Clearing is now something a caller has to ASK for, because the
+          accidental reading was indistinguishable from the deliberate one.
         """
         import time
 
+        if not facts and not allow_empty:
+            raise ValueError(
+                f"save_facts({principal_id!r}, []) would delete every auto fact. "
+                "An extractor that returned nothing is far more often a failed "
+                "extraction than a principal with no facts — pass allow_empty=True "
+                "if the erasure is what you mean."
+            )
         now = time.time()
         async with self._p.acquire() as conn, conn.transaction():
             await conn.execute(
                 "DELETE FROM principal_facts WHERE principal_id = $1 AND source = 'auto'",
                 principal_id,
             )
-            if not facts:
-                return
             for f in facts:
                 embedding_vec: Vector | None = None
                 if self._embedder is not None:
@@ -317,15 +347,21 @@ class PgMemoryStore:
                         vec = await self._embedder.embed(f.fact)
                         embedding_vec = Vector(vec)
                     except Exception:
+                        _log.warning(
+                            "embedding failed for a fact of principal %s; the row is stored "
+                            "with a NULL embedding and is INVISIBLE to semantic search until "
+                            "it is re-embedded", principal_id, exc_info=True,
+                        )
                         embedding_vec = None
                 await conn.execute(
                     "INSERT INTO principal_facts "
                     "(principal_id, fact, category, updated_at, source, embedding) "
-                    "VALUES ($1, $2, $3, $4, 'auto', $5)",
+                    "VALUES ($1, $2, $3, $4, $5, $6)",
                     principal_id,
                     f.fact,
                     f.category,
-                    now,
+                    f.updated_at or now,
+                    f.source.value,
                     embedding_vec,
                 )
 
