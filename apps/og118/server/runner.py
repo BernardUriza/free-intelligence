@@ -237,7 +237,7 @@ def _backend_aire(
         project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode=mode,
-        registry_tools=("persona", "task_tracker"),
+        registry_tools=("persona", "task_tracker", "rag_store"),
         project_for_turn=AIRE_CHAT_PROJECT.get,
     )
 
@@ -311,21 +311,18 @@ def build_runner(
         capabilities = []
         extra_mcp_servers = []
         # El binding del corpus VIVE O MUERE con su herramienta, y "la herramienta
-        # existe" resultó no ser suficiente. AIRE ya sirve `rag_store` desde su
-        # registry (aire-server backlog #46) y la búsqueda funciona — pero la
-        # SUBIDA de og118 sigue escribiendo en el store local (`RagStoreClient`
-        # sobre FI_RAG_STORE_PATH), que en esta ruta nadie lee. Medido en la UI
-        # real el 2026-08-24: el usuario sube un acta, el panel la muestra, y el
-        # agente contesta "el acta que mencionas no llegó o no se subió
-        # correctamente". Eso es peor que no buscar — es una respuesta segura y
-        # falsa sobre los archivos del propio usuario.
+        # existe" NO era la condición: el 2026-08-24 se prendió con la tool puesta
+        # y la subida todavía escribiendo en el store local, así que el corpus
+        # estaba siempre vacío y el agente le contestaba al usuario "el acta que
+        # mencionas no llegó o no se subió correctamente" sobre un archivo que sí
+        # estaba. Una respuesta segura y falsa sobre sus propios archivos.
         #
-        # Así que el binding y la tool se quedan fuera hasta que la subida escriba
-        # donde la búsqueda lee. Lo que falta es del lado de AIRE: una puerta HTTP
-        # para el corpus, porque hoy sólo el MODELO puede escribirlo y el endpoint
-        # de subida es código de servidor (la fórmula de [[ssh-is-a-missing-endpoint]]:
-        # si hace falta algo que la API no tiene, se crea el endpoint).
-        bindings = owner_instructions_binding()
+        # La condición es que LA SUBIDA ESCRIBA DONDE LA BÚSQUEDA LEE, y ahora se
+        # cumple: AIRE tiene la puerta HTTP del corpus (backlog #47) y `app.py`
+        # enruta su costura de rag_store a `AireCorpusClient` en esta ruta, así que
+        # los dos extremos del camino aterrizan en la misma repisa. Ver
+        # [[both-ends-of-the-data-path]].
+        bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
     else:
         backend = BackendAcotado(default_model=model, session_store=session_store)
         bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
