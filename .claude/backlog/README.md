@@ -49,6 +49,7 @@ kept honest, a status flipped the day it changes.
 | [44](44-the-caller-cannot-ask-if-a-session-exists.md) | A caller had no way to ask whether a session exists — so it replayed | Done 2026-08-24 |
 | [45](45-the-glass-box-was-dark-on-this-door.md) | The glass box was dark on this door — `task_tracker` joins the registry | Done 2026-08-24 |
 | [46](46-the-corpus-lives-in-the-owners-database.md) | `rag_store` joins the registry — the corpus lives in the owner's database | Done 2026-08-24 |
+| [47](47-only-the-model-can-write-a-corpus.md) | Only the model can write a corpus — the upload endpoint has no door | **Proposed** — blocks Projects on the AIRE route |
 
 ## Before #19
 
