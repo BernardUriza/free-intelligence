@@ -47,6 +47,7 @@ kept honest, a status flipped the day it changes.
 | [38](38-the-model-is-ignored-on-a-warm-session.md) | The model a turn asks for is silently ignored on a warm session | Fixed 2026-08-22 (21f5ee7) |
 | [41](41-the-mirror-stores-the-conversation-n-times.md) | The mirror stores what the log already holds | Done 2026-08-22 (225cb72+8b301ae) |
 | [44](44-the-caller-cannot-ask-if-a-session-exists.md) | A caller had no way to ask whether a session exists — so it replayed | Done 2026-08-24 |
+| [45](45-the-glass-box-was-dark-on-this-door.md) | The glass box was dark on this door — `task_tracker` joins the registry | Done 2026-08-24 |
 
 ## Before #19
 
