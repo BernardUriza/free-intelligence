@@ -118,3 +118,44 @@ def test_paragraph_strategy_falls_back_to_sentences_for_huge_paragraph():
     )
     # Should split into multiple chunks via sentence fallback
     assert len(chunks) > 1
+
+
+# --- a config that cannot terminate is refused, not obeyed -------------------
+# `chunk_size` and `overlap` arrive from an AGENT: `chunk_document` is an MCP
+# tool. `chunk_by_fixed_size` advances by `chunk_size - overlap`, so an overlap
+# at or above the chunk size is a step of <= 0 — the loop never ends AND appends
+# every pass, so one tool call hangs the stdio server and eats the box's memory.
+
+
+def test_an_overlap_at_or_above_the_chunk_size_is_refused():
+    import pytest
+
+    for overlap in (100, 150):
+        with pytest.raises(ValueError, match="never advances"):
+            ChunkConfig(chunk_size=100, overlap=overlap, min_chunk_size=1)
+
+
+def test_a_chunk_size_that_rounds_to_zero_words_is_refused():
+    """`words_per_chunk = int(chunk_size / 1.3)` is 0 for chunk_size 1, which is
+    the same non-terminating loop by a different road."""
+    import pytest
+
+    with pytest.raises(ValueError, match="at least 2"):
+        ChunkConfig(chunk_size=1, overlap=0, min_chunk_size=1)
+
+
+def test_negative_sizes_are_refused():
+    import pytest
+
+    with pytest.raises(ValueError):
+        ChunkConfig(chunk_size=100, overlap=-1)
+    with pytest.raises(ValueError):
+        ChunkConfig(chunk_size=100, overlap=10, min_chunk_size=-5)
+
+
+def test_a_legitimate_overlap_still_chunks():
+    """The rule tightened; it did not narrow what legitimately works."""
+    text = " ".join(f"w{i}" for i in range(400))
+    pieces = chunk_document(text, ChunkingStrategy.FIXED_SIZE,
+                            ChunkConfig(chunk_size=100, overlap=50, min_chunk_size=1))
+    assert len(pieces) > 1

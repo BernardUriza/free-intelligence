@@ -33,39 +33,7 @@ from fi_core.memory.stores.pgvector_memory import PgMemoryStore
 # ---------------------------------------------------------------------
 
 
-def _detect_postgres_executable() -> str | None:
-    from pathlib import Path
-
-    candidates: list[str] = []
-    for prefix in ("postgresql@17", "postgresql@18", "postgresql@16"):
-        p = Path(f"/opt/homebrew/opt/{prefix}/bin/pg_ctl")
-        if p.exists():
-            candidates.append(str(p))
-    on_path = shutil.which("pg_ctl")
-    if on_path:
-        candidates.append(on_path)
-
-    extension_roots: list[Path] = [
-        Path("/opt/homebrew/share"),
-        Path("/usr/local/share"),
-    ]
-
-    def _has_pgvector_for(pg_ctl: str) -> bool:
-        bin_dir = Path(pg_ctl).resolve().parent
-        for share in (bin_dir.parent / "share",):
-            if share.exists() and any(share.rglob("vector.control")):
-                return True
-        for root in extension_roots:
-            if not root.exists():
-                continue
-            if any(root.rglob("vector.control")):
-                return True
-        return False
-
-    for pg_ctl in candidates:
-        if _has_pgvector_for(pg_ctl):
-            return pg_ctl
-    return None
+from pg_probe import detect_postgres_executable as _detect_postgres_executable
 
 
 _PG_CTL = _detect_postgres_executable()

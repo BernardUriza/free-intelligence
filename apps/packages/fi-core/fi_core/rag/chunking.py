@@ -33,7 +33,19 @@ class ChunkingStrategy(str, Enum):
 
 
 class ChunkConfig:
-    """Configuration for chunking strategy."""
+    """Configuration for chunking strategy.
+
+    Validated HERE, at construction, because these numbers arrive from an agent:
+    `chunk_document` is an MCP tool and its `chunk_size` / `overlap` are whatever
+    the model typed. `chunk_by_fixed_size` advances by `chunk_size - overlap`, so
+    an overlap at or above the chunk size is a step of zero or less — the loop
+    never terminates AND appends on every pass, so one tool call hangs the stdio
+    server and eats the box's memory. A `chunk_size` under 2 does the same thing
+    by rounding the words-per-chunk to zero.
+
+    Refusing the config is the fix rather than clamping the step: a caller who
+    asked for an impossible window gets told, instead of silently receiving
+    chunks with a different overlap than the one they set."""
 
     def __init__(
         self,
@@ -41,6 +53,17 @@ class ChunkConfig:
         overlap: int = 50,  # Token overlap between chunks
         min_chunk_size: int = 100,  # Minimum chunk size (discard smaller)
     ):
+        if chunk_size < 2:
+            raise ValueError(f"chunk_size must be at least 2 tokens, got {chunk_size!r}")
+        if overlap < 0:
+            raise ValueError(f"overlap cannot be negative, got {overlap!r}")
+        if overlap >= chunk_size:
+            raise ValueError(
+                f"overlap ({overlap}) must be smaller than chunk_size ({chunk_size}); "
+                "an overlap that large means a window that never advances"
+            )
+        if min_chunk_size < 0:
+            raise ValueError(f"min_chunk_size cannot be negative, got {min_chunk_size!r}")
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.min_chunk_size = min_chunk_size

@@ -144,3 +144,56 @@ async def test_quota_max_docs_rejects_over_limit(tmp_path, monkeypatch):
         assert (await store_mcp.ingest_document("c2", "d1", _DOC, **_CHUNK))["chunks"] >= 1
     finally:
         store_mcp._reset()
+
+
+# --- a re-ingest must not destroy what it cannot replace --------------------
+# `ingest` deleted the old chunks and only then discovered the new text chunked
+# to nothing: the working version was gone, the call returned 0 with no error,
+# chunk_count went to zero, status reverted to "pending", searches came back
+# empty and the byte count — the BILLING base — read zero. og118 collided with
+# this and handled the 0 at its call site with a 422 telling the user to
+# re-upload, after the copy they had was already destroyed.
+
+
+@pytest.mark.asyncio
+async def test_a_reingest_that_indexes_to_nothing_leaves_the_old_version_intact(configured):
+    await store_mcp.ingest_document("c1", "d1", _DOC, **_CHUNK)
+    before = await store_mcp.search_documents("c1", "dolor toracico", top_k=3)
+    assert before["hits"], "precondition: the document is searchable"
+
+    out = await store_mcp.ingest_document("c1", "d1", "ok", chunk_size=400,
+                                          overlap=50, min_chunk_size=100)
+    assert out.get("error"), "an ingest that stores nothing must not report success"
+
+    after = await store_mcp.search_documents("c1", "dolor toracico", top_k=3)
+    assert after["hits"], "the version that worked survived the failed re-ingest"
+    docs = await store_mcp.list_documents("c1")
+    assert any(d["doc_id"] == "d1" and d["chunk_count"] > 0 for d in docs["documents"])
+
+
+@pytest.mark.asyncio
+async def test_a_reingest_without_metadata_keeps_the_documents_attributes(configured):
+    """`metadata=None` means "leave them alone". It used to mean "wipe them",
+    which removed a document from every filtered query its tenant ran while
+    leaving it visible to unfiltered ones — a routine content correction
+    silently dropping a document out of its own clinic's view."""
+    await store_mcp.ingest_document("c1", "d1", _DOC, metadata={"clinic_id": "x"}, **_CHUNK)
+    hits = await store_mcp.search_documents("c1", "dolor toracico", top_k=3,
+                                            filters={"clinic_id": "x"})
+    assert hits["hits"], "precondition: the filter finds it"
+
+    await store_mcp.ingest_document("c1", "d1", _DOC + " Nota corregida.", **_CHUNK)
+    still = await store_mcp.search_documents("c1", "dolor toracico", top_k=3,
+                                             filters={"clinic_id": "x"})
+    assert still["hits"], "the correction must not remove it from its tenant's view"
+
+
+@pytest.mark.asyncio
+async def test_metadata_when_passed_is_still_authoritative(configured):
+    """Preserving on None must not make attributes unchangeable."""
+    await store_mcp.ingest_document("c1", "d1", _DOC, metadata={"clinic_id": "x"}, **_CHUNK)
+    await store_mcp.ingest_document("c1", "d1", _DOC, metadata={"clinic_id": "y"}, **_CHUNK)
+    assert not (await store_mcp.search_documents("c1", "dolor", top_k=3,
+                                                 filters={"clinic_id": "x"}))["hits"]
+    assert (await store_mcp.search_documents("c1", "dolor toracico", top_k=3,
+                                             filters={"clinic_id": "y"}))["hits"]
