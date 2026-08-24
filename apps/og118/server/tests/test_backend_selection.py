@@ -55,3 +55,38 @@ def test_aire_project_del_caller_gana_sobre_el_entorno(monkeypatch) -> None:
     monkeypatch.setenv("OG118_AIRE_PROJECT", "fenix")
     runner = build_runner(aire_project="fenix-tutor")
     assert runner.backend.project == "fenix-tutor"
+
+
+# --- a binding may not promise a tool the turn does not carry -----------------
+# Measured 2026-08-24: on the AIRE route a turn with an active project shipped
+# ZERO mcp_servers and a system prompt ordering the model to "call
+# search_documents IMMEDIATELY ... phrasings like '¿quieres que busque?' are
+# FORBIDDEN". The tool does not exist there. That is not a lost feature — it is
+# a persona instructed to lie about what it can do, and the user watches the
+# model invent or apologise. The corpus binding now leaves with its tools.
+
+
+def _addendum(runner, corpus_id: str = "proj-42") -> str:
+    return runner.context_prompt({"corpus_id": corpus_id}) or ""
+
+
+def test_la_ruta_aire_no_promete_una_tool_que_no_lleva(monkeypatch) -> None:
+    monkeypatch.setenv("OG118_BACKEND", "aire")
+    runner = build_runner()
+    assert runner.capabilities == [] and runner.extra_mcp_servers == []
+    assert "search_documents" not in _addendum(runner)
+    assert "proj-42" not in _addendum(runner)
+
+
+def test_pero_las_instrucciones_del_dueno_siguen(monkeypatch) -> None:
+    """Owner instructions depend on no tool, so dropping the corpus binding must
+    not take them with it — that would be a second bug fixing the first."""
+    monkeypatch.setenv("OG118_BACKEND", "aire")
+    assert build_runner().context_prompt is not None
+
+
+def test_la_ruta_local_conserva_el_binding_del_corpus(monkeypatch) -> None:
+    monkeypatch.delenv("OG118_BACKEND", raising=False)
+    runner = build_runner()
+    addendum = _addendum(runner)
+    assert "search_documents" in addendum and "proj-42" in addendum

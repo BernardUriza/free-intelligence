@@ -303,8 +303,19 @@ def build_runner(
         # vacío aquí — no confiar en que cada caller lo recuerde.
         capabilities = []
         extra_mcp_servers = []
+        # Y con ellas se va el binding del corpus. Medido 2026-08-24: un turno con
+        # proyecto activo viajaba con CERO servidores MCP y un system prompt que le
+        # ordenaba al modelo "call search_documents IMMEDIATELY... phrasings like
+        # '¿quieres que busque?' are FORBIDDEN" — una tool que en esa ruta no
+        # existe. Eso no es una feature perdida: es una persona instruida a mentir
+        # sobre lo que puede hacer, y el usuario ve al modelo inventar o
+        # disculparse. Un binding promete una HERRAMIENTA; sin la herramienta, el
+        # binding se va con ella. Las instrucciones del dueño no dependen de
+        # ninguna tool, así que ésas sí se quedan.
+        bindings = owner_instructions_binding()
     else:
         backend = BackendAcotado(default_model=model, session_store=session_store)
+        bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
     return Runner(
         # session_store (og118-session-store wiring): the SDK's native durable
         # memory, INJECTED by app.py's lifespan when OG118_SESSION_STORE_DSN is
@@ -352,7 +363,7 @@ def build_runner(
         # user message: the corpus binding says WHERE to look, the owner says HOW
         # to answer, and the owner's voice is the one that should still be in
         # earshot when the model starts writing.
-        context_prompt=compose_bindings(active_corpus_binding(), owner_instructions_binding()),
+        context_prompt=bindings,
         # DD-002C → og118-continuity canary: conversation continuity by CLIENT-SENT
         # history replay. og118 is local-first — the transcript lives in the
         # browser's IndexedDB and the client replays it on each /chat/stream turn
