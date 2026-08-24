@@ -237,7 +237,7 @@ def _backend_aire(
         project=project or os.getenv("OG118_AIRE_PROJECT", "og118"),
         default_model=model,
         default_mode=mode,
-        registry_tools=("persona", "task_tracker", "rag_store"),
+        registry_tools=("persona", "task_tracker"),
         project_for_turn=AIRE_CHAT_PROJECT.get,
     )
 
@@ -310,14 +310,22 @@ def build_runner(
         # vacío aquí — no confiar en que cada caller lo recuerde.
         capabilities = []
         extra_mcp_servers = []
-        # El binding del corpus VIVE O MUERE con su herramienta. El 2026-08-24 se
-        # midió lo que pasaba sin ella: el turno viajaba con CERO servidores MCP y
-        # un system prompt que le ordenaba al modelo "call search_documents
-        # IMMEDIATELY... phrasings like '¿quieres que busque?' are FORBIDDEN" —
-        # una persona instruida a mentir sobre lo que puede hacer. Ahora AIRE
-        # sirve `rag_store` desde su registry (aire-server backlog #46), así que
-        # la herramienta existe otra vez y el binding vuelve con ella, no antes.
-        bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
+        # El binding del corpus VIVE O MUERE con su herramienta, y "la herramienta
+        # existe" resultó no ser suficiente. AIRE ya sirve `rag_store` desde su
+        # registry (aire-server backlog #46) y la búsqueda funciona — pero la
+        # SUBIDA de og118 sigue escribiendo en el store local (`RagStoreClient`
+        # sobre FI_RAG_STORE_PATH), que en esta ruta nadie lee. Medido en la UI
+        # real el 2026-08-24: el usuario sube un acta, el panel la muestra, y el
+        # agente contesta "el acta que mencionas no llegó o no se subió
+        # correctamente". Eso es peor que no buscar — es una respuesta segura y
+        # falsa sobre los archivos del propio usuario.
+        #
+        # Así que el binding y la tool se quedan fuera hasta que la subida escriba
+        # donde la búsqueda lee. Lo que falta es del lado de AIRE: una puerta HTTP
+        # para el corpus, porque hoy sólo el MODELO puede escribirlo y el endpoint
+        # de subida es código de servidor (la fórmula de [[ssh-is-a-missing-endpoint]]:
+        # si hace falta algo que la API no tiene, se crea el endpoint).
+        bindings = owner_instructions_binding()
     else:
         backend = BackendAcotado(default_model=model, session_store=session_store)
         bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
