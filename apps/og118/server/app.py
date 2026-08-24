@@ -34,6 +34,8 @@ from fi_runner.auth import (
     make_auth_dependency,
 )
 from fi_runner import MAX_OWNER_INSTRUCTIONS_CHARS
+from fi_core.rag import NothingToIndex
+from fi_runner.aire_corpus import AireCorpusError
 from fi_runner.rag_store import RagStoreClient
 from conversations import ConversationStore, valid_conversation_id
 from projects import ProjectRegistry
@@ -1020,11 +1022,29 @@ async def upload_project_document(
     doc_id = file.filename or "document.txt"
     # min_chunk_size lowered from fi-core's default (100 TOKENS): papelería docs
     # (inventory lists, short notes) are short and would otherwise yield 0 chunks.
-    chunks = await rag.ingest(project_id, doc_id, text, min_chunk_size=20)
-    if chunks == 0:
-        # Non-empty text that produced no chunks = below the chunker's floor (a
-        # one-line note). Nothing was indexed, so the doc is unsearchable. Fail
-        # LOUD instead of a silent 200 that looks ingested but answers nothing.
+    # Non-empty text that produces no chunks is below the chunker's floor (a
+    # one-line note). Nothing is indexed, so the doc would be unsearchable — fail
+    # LOUD instead of a silent 200 that looks ingested and answers nothing.
+    #
+    # It arrives as an EXCEPTION now, not a `0`. fi-core 0.25.0 raises
+    # `NothingToIndex` BEFORE it deletes anything, which is the point: the old
+    # `0` was returned after the previous version of the document had already
+    # been destroyed, so this 422 told the user to re-upload a copy that no
+    # longer existed. `AireCorpusError` is the same refusal arriving from AIRE's
+    # corpus door on the AIRE route. Both are caught, or a message meant to be
+    # helpful becomes a 500.
+    try:
+        chunks = await rag.ingest(project_id, doc_id, text, min_chunk_size=20)
+    except (NothingToIndex, AireCorpusError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "TOO_SHORT_TO_INDEX",
+                "message": "document is too short to index; add more text and re-upload",
+                "detail": str(exc),
+            },
+        ) from exc
+    if chunks == 0:  # a store that still reports it this way rather than raising
         raise HTTPException(
             status_code=422,
             detail={
