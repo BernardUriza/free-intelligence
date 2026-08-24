@@ -120,3 +120,29 @@ def test_a_hostile_name_never_reaches_the_store(client):
                       headers=AUTH).status_code == 404
     assert client.get(f"/projects/{BASE}/corpus/..%2F..%2Fetc/documents",
                       headers=AUTH).status_code == 404
+
+
+def test_server_side_search_returns_ranked_passages(client, clean):
+    """A consumer that folds documents into a turn it sends ELSEWHERE retrieves
+    from server code, not from inside a turn — so the door runs the same retrieval
+    the tool does."""
+    client.post(f"/projects/{BASE}/corpus/{CORPUS}/documents", headers=AUTH,
+                json={"doc_id": "acta.md",
+                      "text": "El presupuesto de telemetria fue autorizado por Marisol Vega."})
+    hits = client.get(f"/projects/{BASE}/corpus/{CORPUS}/documents/search",
+                      headers=AUTH, params={"q": "telemetría autorizada"}).json()
+    assert hits and "Marisol Vega" in hits[0]["text"] and hits[0]["doc_id"] == "acta.md"
+
+
+def test_search_is_not_shadowed_by_the_document_route(client, clean):
+    """`/documents/search` and `/documents/{doc_id}` differ by nothing but order.
+    Declared the other way round, `search` reads as a document name and this
+    endpoint silently never exists."""
+    out = client.get(f"/projects/{BASE}/corpus/{CORPUS}/documents/search",
+                     headers=AUTH, params={"q": "cualquiera"})
+    assert out.status_code == 200 and out.json() == []
+
+
+def test_a_search_with_no_query_is_refused(client, clean):
+    assert client.get(f"/projects/{BASE}/corpus/{CORPUS}/documents/search",
+                      headers=AUTH, params={"q": "  "}).status_code == 422

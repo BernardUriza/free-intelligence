@@ -74,6 +74,21 @@ async def list_documents(project: str, corpus_id: str) -> JSONResponse:
                          "capacity": await corpus.stats(owner, corpus_id)})
 
 
+@router.get("/projects/{project}/corpus/{corpus_id}/documents/search")
+async def search_documents(project: str, corpus_id: str, q: str = "",
+                           top_k: int = 5) -> JSONResponse:
+    """The passages matching `q`, best first — the same retrieval the model's tool
+    runs, for a consumer that needs to retrieve from SERVER code (folding context
+    into a turn it is about to send elsewhere) instead of from inside a turn.
+
+    Declared before the `{doc_id}` route, or `search` would be read as a document
+    name and this endpoint would silently never exist."""
+    owner, corpus_id = _scope(project, corpus_id)
+    if not q.strip():
+        raise HTTPException(status_code=422, detail="q is required")
+    return JSONResponse(await corpus.search(owner, corpus_id, q, top_k))
+
+
 @router.delete("/projects/{project}/corpus/{corpus_id}/documents/{doc_id}")
 async def delete_document(project: str, corpus_id: str, doc_id: str) -> JSONResponse:
     """Remove one document. Reports the rows removed, so a delete that matched
