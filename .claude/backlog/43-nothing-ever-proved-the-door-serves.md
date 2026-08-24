@@ -60,16 +60,31 @@ true, which is its own small piece of budget news.
 
 ## What it does NOT cover
 
-- **Mean time to detection is still a day.** The canary fires on deploys and at
+- **Mean time to detection is still a day** — the one open item here. The canary fires on deploys and at
   13:17 UTC. A door that dies at 14:00 is discovered ~23h later. A cheap
   external `/health` pulse every few minutes would cut that — and it must be
   external, because a watchdog on the box cannot report the box being gone.
   Not built; a scheduled GitHub cron burns Actions minutes and a third-party
   uptime monitor is an account to own. **Bernard's call.**
-- **`mode=agent` is untested.** The canary runs `mode=complete`, which is the
-  cheap notch — and the founding defect (root + `bypassPermissions`) killed
-  precisely the notch this canary does not exercise. A second agent-mode canary
-  costs more per run; whether the coverage is worth it is open.
+- ~~**`mode=agent` is untested.**~~ **Closed 2026-08-24.** The canary probes BOTH
+  notches, because the gap was the founding defect's own shape: root +
+  `bypassPermissions` killed every agent turn while complete stayed green.
+
+  The agent probe forces a TOOL and asserts the call came back without error —
+  a turn that answers `PONG` without ever entering the tool loop proves the
+  notch dispatched, not that it works, and that exact red was demonstrated
+  before the assertion was trusted (ask it something needing no tool → `tool
+  calls: 0` → red). The tool is **read-only** after two measured false starts:
+  `Write` flails against the cage on absolute paths ($0.061, 38s, 8 calls, four
+  of them the cage correctly refusing `/tmp`, `/workspace`, `/casita`), and with
+  a relative path it hits the SDK's read-before-write guard the SECOND day —
+  a canary that passes on Monday and fails on Tuesday for a reason that is not
+  the daemon's is worse than none. A file per run would also be a canary that
+  grows the disk it watches. `Glob` is deterministic: one call, no error, no
+  litter, **$0.0099 in 15s**.
+
+  Both notches, warm: **$0.0071 in 30s**. Three assertions proven red against
+  the live door — no tool call, the cost ceiling, and a dead token.
 
 See also [#25](25-no-cumulative-ceiling.md) (the other half of this audit: the
 cumulative backstop resets on every restart, so a ceiling that reads "armed" is
