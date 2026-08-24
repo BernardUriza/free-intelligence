@@ -303,10 +303,26 @@ def get_rag_store() -> RagStoreClient:
     first use and reused — HDF5 loads its on-disk index at construction. Backend +
     path resolve from FI_RAG_BACKEND / FI_RAG_STORE_PATH (hdf5 + hashing zero-model
     by default). Overridable in tests via app.dependency_overrides so they hit a
-    tmp store, never prod."""
+    tmp store, never prod.
+
+    On the AIRE route the corpus lives in AIRE's Postgres instead, and this ONE
+    seam is where that is decided — `AireCorpusClient` matches this interface
+    method for method, so the four call sites (upload, list, delete, the
+    external-engine fold) stay untouched.
+
+    That it is one seam is the whole point. On 2026-08-24 only HALF the data path
+    moved: the model searched AIRE while the upload kept writing to the local file,
+    so the corpus was always empty and og118 told a user their working upload had
+    failed. Two stores for one surface is what produced that, and choosing the
+    store in one place is what stops it recurring — see [[both-ends-of-the-data-path]]."""
     global _rag_store
     if _rag_store is None:
-        _rag_store = RagStoreClient()
+        if os.getenv("OG118_BACKEND", "").strip().lower() == "aire":
+            from fi_runner.aire_corpus import AireCorpusClient
+
+            _rag_store = AireCorpusClient(os.getenv("OG118_AIRE_PROJECT", "og118"))
+        else:
+            _rag_store = RagStoreClient()
     return _rag_store
 
 

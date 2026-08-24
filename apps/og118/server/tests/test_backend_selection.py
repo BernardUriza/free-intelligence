@@ -70,16 +70,27 @@ def _addendum(runner, corpus_id: str = "proj-42") -> str:
     return runner.context_prompt({"corpus_id": corpus_id}) or ""
 
 
-def test_la_ruta_aire_no_promete_buscar_donde_la_subida_no_escribe(monkeypatch) -> None:
-    """Que la tool EXISTA no basta. AIRE ya sirve `rag_store`, pero la subida de
-    og118 escribe en el store local, que en esta ruta nadie lee — así que el
-    corpus está siempre vacío. Medido en la UI real: el agente contestaba "el acta
-    que mencionas no llegó o no se subió correctamente" sobre un archivo que sí
-    estaba. El binding vuelve cuando la subida escriba donde la búsqueda lee."""
+def test_los_dos_extremos_del_camino_aterrizan_en_aire(monkeypatch) -> None:
+    """La condición no era "la tool existe" — era que la subida escriba donde la
+    búsqueda lee. Con la puerta del corpus (aire-server #47) los dos extremos son
+    AIRE, así que la tool y el binding vuelven JUNTOS con la costura de escritura.
+    Este test los ata: si alguien devuelve el binding sin enrutar la subida, o al
+    revés, falla aquí y no en la cara de un usuario."""
     monkeypatch.setenv("OG118_BACKEND", "aire")
+    monkeypatch.setenv("AIRE_GATE_URL", "https://gate.example")
+    monkeypatch.setenv("AIRE_AUTH_TOKEN", "tok")
+    import app as og118_app
+    from fi_runner.aire_corpus import AireCorpusClient
+
+    og118_app._rag_store = None
+    try:
+        assert isinstance(og118_app.get_rag_store(), AireCorpusClient), \
+            "la subida tiene que escribir en AIRE"
+    finally:
+        og118_app._rag_store = None
     runner = build_runner()
-    assert "rag_store" not in runner.backend.registry_tools
-    assert "search_documents" not in _addendum(runner)
+    assert "rag_store" in runner.backend.registry_tools
+    assert "search_documents" in _addendum(runner) and "proj-42" in _addendum(runner)
 
 
 def test_pero_las_instrucciones_del_dueno_siguen(monkeypatch) -> None:
@@ -102,4 +113,4 @@ def test_la_ruta_aire_pide_sus_tools_al_registry_de_aire(monkeypatch) -> None:
     tool, así que `_derive_plan_events` lo traduce sin saber en qué puerta corrió."""
     monkeypatch.setenv("OG118_BACKEND", "aire")
     backend = build_runner().backend
-    assert set(backend.registry_tools) == {"persona", "task_tracker"}
+    assert set(backend.registry_tools) == {"persona", "task_tracker", "rag_store"}
