@@ -87,6 +87,23 @@ async def session_status(project: str, session: str) -> JSONResponse:
                          "running": engine.detached.running(f"{project}/{session}")})
 
 
+@router.get("/projects/{project}/sessions/{session}")
+async def session_exists(project: str, session: str) -> JSONResponse:
+    """Does this session already hold a transcript AIRE can resume?
+
+    A caller that keeps its own conversation history needs this before a turn:
+    replaying that history into a session that ALREADY holds it pays for the
+    same tokens twice and buries the tool_use/tool_result blocks a text replay
+    cannot carry. The read is the engine's own `has_session` — the SDK's resume
+    check ([[write-only-daemon]] exception 1): it feeds the machine's decision
+    about how to send the turn, never a human's eyes.
+    """
+    project, session = safe_names(project, session)
+    engine = await get_engine()
+    return JSONResponse({"session": session,
+                         "exists": await engine.has_session(project, session)})
+
+
 async def _events(project: str, session: str, message: str, spec: TurnSpec,
                   images: tuple[dict[str, str], ...],
                   holder: Any = None,
