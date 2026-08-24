@@ -159,3 +159,40 @@ def test_a_legitimate_overlap_still_chunks():
     pieces = chunk_document(text, ChunkingStrategy.FIXED_SIZE,
                             ChunkConfig(chunk_size=100, overlap=50, min_chunk_size=1))
     assert len(pieces) > 1
+
+
+# --- the tail of a document is not a rounding error -------------------------
+
+
+def test_a_short_tail_joins_the_previous_chunk_instead_of_vanishing():
+    """Measured at defaults before the fix: a 330-word text came back as ONE
+    chunk covering 307 words, with w307..w329 present in no chunk and no signal
+    that anything was missing. The end of a document is where conclusions and the
+    most recent entries live — the worst part to lose, and the easiest to not
+    notice losing."""
+    words = [f"w{i}" for i in range(330)]
+    pieces = chunk_document(" ".join(words), ChunkingStrategy.FIXED_SIZE, ChunkConfig())
+    covered = {w for piece in pieces for w in piece.split()}
+    assert set(words) - covered == set(), "no word may be absent from every chunk"
+
+
+def test_no_strategy_drops_text_at_any_size():
+    """A sweep rather than one case: the loss showed up at 330 words under
+    FIXED_SIZE and nowhere else, so a single example would have pinned the
+    example instead of the property."""
+    for strategy in ChunkingStrategy:
+        for n in (50, 120, 200, 330, 500, 700, 1000):
+            words = [f"w{i}" for i in range(n)]
+            pieces = chunk_document(" ".join(words), strategy, ChunkConfig())
+            if not pieces:
+                continue  # a document too short to index at all — RagStore refuses it
+            covered = {w for piece in pieces for w in piece.split()}
+            assert set(words) - covered == set(), f"{strategy.value} lost text at n={n}"
+
+
+def test_min_chunk_size_still_prevents_a_tiny_STANDALONE_chunk():
+    """The rule means "no tiny chunks", not "discard text" — merging the tail must
+    not reintroduce the fragment it was there to prevent."""
+    words = [f"w{i}" for i in range(330)]
+    pieces = chunk_document(" ".join(words), ChunkingStrategy.FIXED_SIZE, ChunkConfig())
+    assert all(estimate_tokens(p) >= ChunkConfig().min_chunk_size for p in pieces)

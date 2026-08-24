@@ -159,8 +159,58 @@ async def test_search_documents_uses_injected_retriever():
 @pytest.mark.asyncio
 async def test_search_documents_unconfigured_returns_error(monkeypatch):
     # No retriever injected + env unset → graceful error dict, not a crash.
-    for var in ("FI_RAG_EMBEDDER", "FI_RAG_STORE"):
+    # `FI_RAG_BACKEND` is the name every other consumer sets; `FI_RAG_STORE` was
+    # this module's private spelling and is why a correctly configured box left
+    # this server unconfigured. Both cleared, so the test cannot pass merely
+    # because it is unsetting a variable nobody sets.
+    for var in ("FI_RAG_EMBEDDER", "FI_RAG_STORE", "FI_RAG_BACKEND", "FI_RAG_STORE_PATH"):
         monkeypatch.delenv(var, raising=False)
     r = await mcp_server.search_documents("q", namespace="n")
     assert r["hits"] == []
     assert "not configured" in r["error"]
+
+
+@pytest.mark.asyncio
+async def test_the_env_every_other_consumer_sets_actually_configures_this_server(monkeypatch, tmp_path):
+    """This module read `FI_RAG_STORE` and `FI_RAG_HDF5_PATH` — names that appear
+    NOWHERE else in the repo. `store_service`, fi-runner's capability and both
+    deploy docs all set `FI_RAG_BACKEND` / `FI_RAG_STORE_PATH`, so a correctly
+    configured box left this server unconfigured: `search_documents` answered
+    `{"error": "...not configured", "hits": []}` and the agent reported "nothing
+    found" — a retrieval failure wearing the face of an empty corpus."""
+    monkeypatch.setenv("FI_RAG_BACKEND", "hdf5")
+    monkeypatch.setenv("FI_RAG_STORE_PATH", str(tmp_path / "r.h5"))
+    monkeypatch.setenv("FI_RAG_EMBEDDER", "hashing")
+    monkeypatch.setenv("FI_RAG_EMBED_DIM", "64")
+    retriever = mcp_server._build_retriever_from_env()
+    assert retriever is not None
+
+
+@pytest.mark.asyncio
+async def test_hashing_is_accepted_here_as_it_is_everywhere_else(monkeypatch, tmp_path):
+    """The private copy had no `hashing` branch at all, though hashing is the
+    documented default embedder — so the one value the docs tell you to use was
+    the one value this server refused."""
+    monkeypatch.setenv("FI_RAG_BACKEND", "hdf5")
+    monkeypatch.setenv("FI_RAG_STORE_PATH", str(tmp_path / "r.h5"))
+    monkeypatch.setenv("FI_RAG_EMBEDDER", "hashing")
+    assert mcp_server._build_retriever_from_env() is not None
+
+
+@pytest.mark.asyncio
+async def test_the_embedding_dim_default_matches_the_store_it_writes_to(monkeypatch, tmp_path):
+    """This module defaulted FI_RAG_EMBED_DIM to 1536 while `store_service`
+    defaults to 256, so a corpus written at 256 would be read back through a
+    1536-dim store. Asserted on the embedder this server actually builds, not on
+    the text of the file — one builder now, so one default."""
+    monkeypatch.setenv("FI_RAG_BACKEND", "hdf5")
+    monkeypatch.setenv("FI_RAG_STORE_PATH", str(tmp_path / "r.h5"))
+    monkeypatch.setenv("FI_RAG_EMBEDDER", "hashing")
+    monkeypatch.delenv("FI_RAG_EMBED_DIM", raising=False)
+
+    from fi_core.rag.store_service import build_embedder_from_env
+
+    mine = mcp_server._build_retriever_from_env().embedder
+    theirs = build_embedder_from_env()
+    assert len(await mine.embed("x")) == len(await theirs.embed("x")), \
+        "a corpus written by one and read by the other must agree on dimension"
