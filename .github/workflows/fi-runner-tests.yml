@@ -1,0 +1,127 @@
+# fi-runner's own suite, on every PR that touches it.
+#
+# It had none, for the same reason fi-core had none: across the whole repo
+# `pytest` was invoked in exactly ONE place — pr-gate.yml's "Backend: Tests" —
+# and that job runs `backend/tests/unit`, a different tree entirely. So these
+# 336 tests had never run in CI, and a PR touching fi_runner/ got a green gate
+# that had not executed a line of the code it was gating.
+#
+# Sibling of fi-core-tests.yml; the two share their shape on purpose. Own file
+# rather than a job inside pr-gate.yml because the repo already organises one
+# workflow per unit (og118-backend, fenix-backend, publish-fi-runner) — and
+# because pr-gate.yml has another session's uncommitted work in it.
+#
+# It is safe to make REQUIRED, and that took one design decision. A required
+# check whose workflow is path-filtered never reports on a PR that misses the
+# filter, so GitHub leaves it "Expected — waiting for status" forever and blocks
+# every unrelated PR in the repo. So the job ALWAYS runs; it decides for itself
+# whether fi-runner changed, and reports success in seconds when it did not. The
+# expensive half (the install) is what gets skipped, never the report.
+name: fi-runner tests
+
+on:
+  # No `paths:` on pull_request, deliberately — see the note above. The job
+  # decides whether there is anything to test; the filter would decide whether
+  # there is anything to REPORT, which is not the same thing.
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/packages/fi-runner/**'
+      # fi-runner's tests import fi-core (capability contracts, RagStore), so a
+      # fi-core change can break this suite without touching a fi-runner file.
+      - 'apps/packages/fi-core/**'
+  workflow_dispatch:
+
+concurrency:
+  group: fi-runner-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: "fi-runner: tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/packages/fi-runner
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the diff below needs the base commit
+
+      - name: Does this PR touch fi-runner?
+        id: touched
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base="origin/${{ github.base_ref }}"
+          git fetch --quiet origin "${{ github.base_ref }}"
+          if git diff --name-only "$base"...HEAD | grep -qE '^(apps/packages/fi-runner/|apps/packages/fi-core/|\.github/workflows/fi-runner-tests\.yml)'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "fi-runner untouched — nothing to test." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-python@v6
+        if: steps.touched.outputs.yes == 'true'
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/packages/fi-runner/pyproject.toml
+
+      - name: Install fi-core from the monorepo path
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          # FIRST, and from the local path: fi-runner declares `fi-core>=0.24,<0.26`,
+          # so with nothing installed the resolver reaches for PyPI and the suite
+          # would test the LAST RELEASE against this checkout's runner — green on
+          # code nobody is proposing. Installing the sibling first satisfies the
+          # constraint from disk, and the fi-runner install below leaves it alone.
+          #
+          # [mcp,stores-hdf5] are the extras fi-runner's tests actually exercise —
+          # the same pair og118's Dockerfile installs. Without `mcp`,
+          # `fi_core.persona` fails to import and capabilities.resolve() falls back
+          # to an EMPTY tool tuple, so test_capabilities asserts against a silent
+          # degradation instead of the contract. Without `stores-hdf5`,
+          # RagStore.from_env() raises and test_rag_quota dies on it. A leaner
+          # install would be this job reporting green over coverage it declined to
+          # run — the same defect it exists to fix.
+          pip install -e '../fi-core[mcp,stores-hdf5]'
+
+      - name: Install fi-runner with every extra its tests exercise
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # All seven extras, because the suite has a module per backend and each
+          # one HARD-imports its SDK: claude (test_claude_code_backend), aire +
+          # httpx (test_aire_backend), postgres/asyncpg (test_postgres_session_store),
+          # redis (test_conversation), auth/PyJWT (test_auth), contract/pydantic
+          # (test_event_contract), cli (test_subprocess_cli). Install fewer and the
+          # missing ones do not skip politely — they ERROR at collection.
+          #
+          # fastapi is here rather than in the `dev` extra because fi-runner's
+          # runtime does not depend on it: only tests/test_auth.py does, for the
+          # FastAPI dependency the auth layer ships. Putting it in `dev` would put
+          # it in the published package's metadata for a test-only need.
+          #
+          # No `||` fallback, by design: a fallback that installs less turns a
+          # broken install into a pass.
+          pip install -e '.[dev,claude,postgres,aire,redis,auth,contract,cli]' fastapi
+
+      - name: Run the suite
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
+          # it is another green light that proves nothing.
+          pytest tests -q
+
+      - name: Report what the host could not run
+        if: always() && steps.touched.outputs.yes == 'true'
+        run: |
+          # A skip is honest, but a suite that skips a whole subsystem should say
+          # so out loud rather than let "all green" imply full coverage.
+          pytest tests -q -rs 2>&1 | tail -20 >> "$GITHUB_STEP_SUMMARY" || true

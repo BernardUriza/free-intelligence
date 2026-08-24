@@ -1,0 +1,126 @@
+# og118's server suite, on every PR that touches it.
+#
+# It had none, for the same reason fi-core and fi-runner had none: across the
+# whole repo `pytest` was invoked in exactly ONE place — pr-gate.yml's
+# "Backend: Tests" — and that job runs `backend/tests/unit`, a different tree
+# entirely. So these 231 tests had never run in CI. og118 already HAD a workflow
+# that touched this code (og118-backend.yml), and it only ever built the image
+# and shipped it: the first thing to exercise app.py was production.
+#
+# Sibling of fi-core-tests.yml and fi-runner-tests.yml; the three share their
+# shape on purpose.
+#
+# It is safe to make REQUIRED, and that took one design decision. A required
+# check whose workflow is path-filtered never reports on a PR that misses the
+# filter, so GitHub leaves it "Expected — waiting for status" forever and blocks
+# every unrelated PR in the repo. So the job ALWAYS runs; it decides for itself
+# whether og118 changed, and reports success in seconds when it did not. The
+# expensive half (the install) is what gets skipped, never the report.
+name: og118 tests
+
+on:
+  # No `paths:` on pull_request, deliberately — see the note above. The job
+  # decides whether there is anything to test; the filter would decide whether
+  # there is anything to REPORT, which is not the same thing.
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/og118/server/**'
+      # The server is a thin consumer of both packages and its tests import them
+      # directly (fi_runner.auth, fi_core contracts), so either can break this
+      # suite without an og118 file changing. Same trigger set as
+      # og118-backend.yml, which deploys exactly this code.
+      - 'apps/packages/fi-runner/**'
+      - 'apps/packages/fi-core/**'
+  workflow_dispatch:
+
+concurrency:
+  group: og118-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: "og118: tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/og118/server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the diff below needs the base commit
+
+      - name: Does this PR touch og118?
+        id: touched
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base="origin/${{ github.base_ref }}"
+          git fetch --quiet origin "${{ github.base_ref }}"
+          if git diff --name-only "$base"...HEAD | grep -qE '^(apps/og118/server/|apps/packages/fi-runner/|apps/packages/fi-core/|\.github/workflows/og118-tests\.yml)'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "og118 untouched — nothing to test." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-python@v6
+        if: steps.touched.outputs.yes == 'true'
+        with:
+          python-version: '3.12'  # the version og118's Dockerfile runs
+          cache: pip
+          cache-dependency-path: apps/og118/server/requirements-dev.txt
+
+      - name: Install the substrate exactly as the Dockerfile does
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          # These two lines are the Dockerfile's own (apps/og118/server/Dockerfile),
+          # with the paths made relative: same packages, same extras, so the suite
+          # runs against the substrate production runs — not against whatever the
+          # resolver would pull from PyPI. fi-core FIRST and from the local path:
+          # fi-runner declares `fi-core>=0.24,<0.26`, and with nothing installed
+          # the resolver satisfies that from PyPI, testing this checkout's server
+          # against a released fi-core nobody is proposing.
+          #
+          # Installing the packages is why no PYTHONPATH is needed here: the server
+          # dir itself is put on sys.path by tests/conftest.py, which is what makes
+          # `import app` resolve from this working directory.
+          pip install -e '../../packages/fi-core[mcp,stores-hdf5]'
+          pip install -e '../../packages/fi-runner[claude,auth,postgres]'
+
+      - name: Install the server and its test deps
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # requirements-dev.txt pulls requirements.txt via `-r`, so this is the
+          # runtime + pytest in one line.
+          #
+          # pytest-asyncio is NOT in requirements-dev.txt and three modules need
+          # it (test_external_engine, test_heartbeat, test_living_claude use
+          # @pytest.mark.asyncio). Because the repo-root pyproject.toml sets
+          # `--strict-markers`, its absence is not a quiet skip — collection ERRORS
+          # on an unknown marker, which is at least honest. It is pinned here
+          # rather than added to requirements-dev.txt to keep this PR to workflow
+          # files; the better home is that file, and it is worth a follow-up.
+          #
+          # No `||` fallback, by design: a fallback that installs less turns a
+          # broken install into a pass.
+          pip install -r requirements-dev.txt pytest-asyncio
+
+      - name: Run the suite
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
+          # it is another green light that proves nothing.
+          pytest tests -q
+
+      - name: Report what the host could not run
+        if: always() && steps.touched.outputs.yes == 'true'
+        run: |
+          # A skip is honest, but a suite that skips a whole subsystem should say
+          # so out loud rather than let "all green" imply full coverage.
+          pytest tests -q -rs 2>&1 | tail -20 >> "$GITHUB_STEP_SUMMARY" || true
