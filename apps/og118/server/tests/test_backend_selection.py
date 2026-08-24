@@ -70,12 +70,16 @@ def _addendum(runner, corpus_id: str = "proj-42") -> str:
     return runner.context_prompt({"corpus_id": corpus_id}) or ""
 
 
-def test_la_ruta_aire_no_promete_una_tool_que_no_lleva(monkeypatch) -> None:
+def test_el_binding_del_corpus_vuelve_cuando_vuelve_su_herramienta(monkeypatch) -> None:
+    """La ley no era "esta ruta no busca": era que un binding no promete una tool
+    que el turno no lleva. AIRE sirve `rag_store` desde su registry (aire-server
+    #46), así que la herramienta existe y el binding viaja con ella."""
     monkeypatch.setenv("OG118_BACKEND", "aire")
     runner = build_runner()
-    assert runner.capabilities == [] and runner.extra_mcp_servers == []
-    assert "search_documents" not in _addendum(runner)
-    assert "proj-42" not in _addendum(runner)
+    assert runner.capabilities == [] and runner.extra_mcp_servers == [], \
+        "los MCP LOCALES siguen sin viajar: la puerta 422ea cualquier spec"
+    assert "rag_store" in runner.backend.registry_tools
+    assert "search_documents" in _addendum(runner) and "proj-42" in _addendum(runner)
 
 
 def test_pero_las_instrucciones_del_dueno_siguen(monkeypatch) -> None:
@@ -92,10 +96,10 @@ def test_la_ruta_local_conserva_el_binding_del_corpus(monkeypatch) -> None:
     assert "search_documents" in addendum and "proj-42" in addendum
 
 
-def test_la_ruta_aire_pide_el_task_tracker_del_registry(monkeypatch) -> None:
+def test_la_ruta_aire_pide_sus_tools_al_registry_de_aire(monkeypatch) -> None:
     """El plan en vivo dejó de ser una capability local que esta ruta perdía:
     AIRE lo sirve desde su registry (aire-server #45) con los mismos nombres de
     tool, así que `_derive_plan_events` lo traduce sin saber en qué puerta corrió."""
     monkeypatch.setenv("OG118_BACKEND", "aire")
     backend = build_runner().backend
-    assert set(backend.registry_tools) == {"persona", "task_tracker"}
+    assert set(backend.registry_tools) == {"persona", "task_tracker", "rag_store"}
