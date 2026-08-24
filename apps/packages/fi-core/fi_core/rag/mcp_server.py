@@ -44,6 +44,7 @@ from fi_core.rag.chunking import (
 from fi_core.rag.chunking import (
     estimate_tokens as _estimate_tokens,
 )
+from fi_core.rag.store_service import build_embedder_from_env, build_store_from_env
 from fi_core.rag.retrieval import (
     LexicalRetriever,
     SemanticRetriever,
@@ -97,41 +98,40 @@ def _build_retriever_from_env() -> StoreBackedRetriever:
       - ``azure``: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT,
         FI_RAG_AZURE_DEPLOYMENT, FI_RAG_EMBED_DIM (default 1536)
       - ``sentence_transformers``: FI_RAG_ST_MODEL
-    Store (FI_RAG_STORE):
-      - ``pgvector``: FI_RAG_PGVECTOR_DSN, FI_RAG_EMBED_DIM (default 1536)
-      - ``hdf5``: FI_RAG_HDF5_PATH
+    Configured by the SAME env vars as every other consumer — ``FI_RAG_BACKEND``,
+    ``FI_RAG_STORE_PATH``, ``FI_RAG_EMBEDDER``, ``FI_RAG_EMBED_DIM`` — because it
+    now calls the same builders they do.
+
+    It used to carry its own copy, reading ``FI_RAG_STORE`` and
+    ``FI_RAG_HDF5_PATH``: names that appear NOWHERE else in the repo, not in
+    `store_service`, not in fi-runner's capability, not in either deploy doc. So
+    a correctly configured box left this server unconfigured, `search_documents`
+    answered `{"error": "...not configured", "hits": []}`, and the agent reported
+    "nothing found" — a retrieval failure wearing the face of an empty corpus.
+    The copy had drifted twice over: no ``hashing`` branch at all, though hashing
+    is the documented default everywhere else, and ``FI_RAG_EMBED_DIM`` defaulting
+    to 1536 against `store_service`'s 256, so a corpus written at 256 would be
+    read back through a 1536-dim store.
+
+    One pair of builders, one set of names. That is the fix; the drift was the
+    symptom of there being two.
+
+    What did NOT change is the strictness: with nothing set this still refuses
+    rather than defaulting to an hdf5 file in the working directory. Its sibling
+    `store_mcp_server` does default, and that difference is deliberate — a
+    STATEFUL store is asked to persist, a stateless retriever silently writing a
+    file nobody named is a surprise. A test pinned that behaviour and it is not
+    this change's business to overrule it; the bug was the NAMES.
     """
-    embedder_kind = os.getenv("FI_RAG_EMBEDDER", "").lower()
-    dim = int(os.getenv("FI_RAG_EMBED_DIM", "1536"))
-    if embedder_kind == "azure":
-        from fi_core.embeddings.azure_openai import AzureOpenAIEmbedder
-
-        embedder = AzureOpenAIEmbedder(
-            api_key=os.environ["AZURE_OPENAI_API_KEY"],
-            endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-            deployment=os.environ["FI_RAG_AZURE_DEPLOYMENT"],
-            dim=dim,
+    if not (os.getenv("FI_RAG_BACKEND") or os.getenv("FI_RAG_EMBEDDER")):
+        raise RuntimeError(
+            "retrieval not configured: set FI_RAG_BACKEND (hdf5|pgvector) and "
+            "FI_RAG_EMBEDDER (hashing|azure|sentence_transformers)"
         )
-    elif embedder_kind in ("sentence_transformers", "st"):
-        from fi_core.embeddings.sentence_transformers import SentenceTransformersEmbedder
-
-        embedder = SentenceTransformersEmbedder(model_name=os.environ["FI_RAG_ST_MODEL"])
-    else:
-        raise RuntimeError("set FI_RAG_EMBEDDER to 'azure' or 'sentence_transformers'")
-
-    store_kind = os.getenv("FI_RAG_STORE", "").lower()
-    if store_kind == "pgvector":
-        from fi_core.stores.pgvector import PgVectorChunkStore
-
-        store = PgVectorChunkStore(dsn=os.environ["FI_RAG_PGVECTOR_DSN"], embedding_dim=dim)
-    elif store_kind == "hdf5":
-        from fi_core.stores.hdf5 import HDF5ChunkStore
-
-        store = HDF5ChunkStore(file_path=os.environ["FI_RAG_HDF5_PATH"])
-    else:
-        raise RuntimeError("set FI_RAG_STORE to 'pgvector' or 'hdf5'")
-
-    return StoreBackedRetriever(embedder=embedder, store=store)
+    return StoreBackedRetriever(
+        embedder=build_embedder_from_env(),
+        store=build_store_from_env(),
+    )
 
 
 def _get_retriever() -> StoreBackedRetriever:
@@ -278,7 +278,7 @@ async def search_documents(
     ranks vectors you supply), this owns the embed + store query. ``filters``
     restricts to chunks whose parent document's attributes contain the given pairs
     (e.g. ``{"clinic_id": "c1"}``). Requires the server to be configured
-    (FI_RAG_EMBEDDER + FI_RAG_STORE env, or an injected retriever); ``error`` if not."""
+    (FI_RAG_EMBEDDER + FI_RAG_BACKEND env, or an injected retriever); ``error`` if not."""
     try:
         retriever = _get_retriever()
     except Exception as e:  # noqa: BLE001 - unconfigured/missing-extra → graceful error, not a crash

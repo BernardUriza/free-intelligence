@@ -46,3 +46,4 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 | [B3-OG118-MOBILE-1 — shell responsive / drawer móvil](b3-og118-mobile-responsive-shell.md) | Done (2026-06-30) | 2026-06-19 |
 | [B3-FIGLASS-UX-DISTRIBUTION-1 — contratos de distribución](b3-figlass-ux-distribution.md) | Done — 6/6 (#306-312) | 2026-06-30 |
 | [OG118-EXTERNAL-CORPUS-GAP-1 — elementos externos ignoraban el Project activo](og118-external-elements-corpus-gap.md) | Done (2026-07-14, RAG server-side) | 2026-07-14 |
+| [fi-core — a corrected document leaves its old chunks retrievable](b3-fi-core-retriever-reingest-stale.md) | Proposed — reproduced; the obvious fix removes zero rows, so the route is a design call | 2026-08-24 |

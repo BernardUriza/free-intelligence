@@ -97,6 +97,22 @@ def chunk_by_fixed_size(text: str, config: ChunkConfig) -> list[str]:
 
         if estimate_tokens(chunk_text) >= config.min_chunk_size:
             chunks.append(chunk_text)
+        elif chunks:
+            # The TAIL, too short to stand alone. Dropping it deleted the end of
+            # the document in silence: measured at defaults, a 330-word text came
+            # back as one chunk covering 307 words, with w307..w329 present in NO
+            # chunk and no signal that anything was missing. The end of a document
+            # is where conclusions and the most recent entries live, so it is the
+            # worst part to lose.
+            #
+            # `min_chunk_size` means "no tiny chunks", not "discard text", so the
+            # remainder joins the previous chunk. With no previous chunk the whole
+            # document is simply too short — that stays a drop, and `RagStore`
+            # turns the resulting zero into `NothingToIndex` rather than a silent
+            # success.
+            tail = [w for w in chunk_words if w not in chunks[-1].split()]
+            if tail:
+                chunks[-1] = chunks[-1] + " " + " ".join(tail)
 
         # Move forward with overlap
         i += words_per_chunk - words_overlap
