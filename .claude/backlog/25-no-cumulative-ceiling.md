@@ -89,3 +89,25 @@ that is the moment to revisit — not before.
 **Known limit:** the first month is partial. The table starts on 2026-08-23, so
 August's figure counts only from that day, and the first honest full month is
 September.
+
+## The defect the review found in the ledger it was built on (same day)
+
+`/cruel-critic`, hours after the above shipped: the RAM ledger banks a DELTA
+against the client's CUMULATIVE `total_cost_usd`, and **only `_retire` (#23)
+ever cleared its memory of a client.** Eviction does not go through `_retire` —
+`pool.evict()` and `make_space()` call `close_one` directly, and on a two-slot
+pool with a casita per chat that is the COMMON path. So a reborn client, whose
+own cumulative starts at zero, met a remembered predecessor and `max(0.0, cost
+- seen)` clamped its turns to **$0** until it out-spent the dead one.
+
+Measured, not reasoned: a client banking 0.028 → 0.030 → 0.033, then a reborn
+one at 0.025, banked **$0.00** for a paid turn — no ceiling movement and **no
+`aire_spend` row at all**. The very table shipped that morning to make the month
+trustworthy was being fed by a counter that silently skipped turns.
+
+Fixed at the client's BIRTH (`Ledger.adopt`, called by `_client_for`), which is
+the only moment the `_seen` invariant becomes true again regardless of which
+exit the previous client took. `_drop`'s docstring, which claimed to be "the ONE
+way a client leaves the pool", was corrected — that false invariant is what made
+the bug invisible to a careful reader. Two regression tests, both proven red
+against the unfixed code before being trusted.

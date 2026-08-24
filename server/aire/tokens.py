@@ -102,11 +102,13 @@ def biller(holder: Holder | None) -> Any:
         if cost <= 0:
             print(f"KEY {holder.nickname}: a relayed turn banked $0 "
                   f"(model={model!r}) — the ceiling is not biting", flush=True)
+        # The key's ceiling first, the daemon's month second, and the order is a
+        # choice: they are two different questions — `aire_token.spent_usd`
+        # answers "has this invitation spent its allowance", `aire_spend` answers
+        # "what did AIRE spend" — and if the database is failing, exactly one of
+        # them can be recorded. The ceiling wins because it GATES the next turn
+        # while the month only reports on turns already taken.
         await charge(holder.nickname, cost)
-        # The key's own ceiling and the daemon's month are two different
-        # questions: `aire_token.spent_usd` answers "has this invitation spent
-        # its allowance", `aire_spend` answers "what did AIRE spend". A turn
-        # that only updated the first left the month blind to the gateway.
         await spend.bank("gateway", None, None, holder.nickname, cost)
 
     return bank

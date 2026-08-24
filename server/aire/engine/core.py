@@ -57,6 +57,7 @@ class Engine:
             client = self.pool.clients.get(key)
             if client is None:
                 await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
+                self.ledger.adopt(key)  # its predecessor's total counts for nothing
                 resuming = await self.has_session(project, session)
                 options = build_options(self.session_store, project,
                                         str(self._cwd(project)),
@@ -105,8 +106,11 @@ class Engine:
         await self._drop(f"{project}/{session}")
 
     async def _drop(self, key: str) -> None:
-        """Let go of a pooled client. The ONE way a client leaves the pool, so a
-        retire (#23) and a rebind (#38) can never forget half its state."""
+        """Let go of a pooled client deliberately — a retire (#23) or a rebind
+        (#38). It is NOT the only exit, and claiming it was is what hid a ledger
+        bug for a month: `evict`/`make_space` call `close_one` directly, on the
+        common path. So every exit is repaired at the next BIRTH instead
+        (`_client_for`: slot_of, spec_of, and the ledger's `adopt`)."""
         self.slot_of.pop(key, None)
         self.spec_of.pop(key, None)
         async with self.pool.guard:

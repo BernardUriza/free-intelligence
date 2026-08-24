@@ -63,7 +63,10 @@ for attempt in 1 2; do
     exit 0
   fi
   echo "attempt ${attempt} failed"
-  [[ $attempt == 1 ]] && sleep 20
+  # `[[ ... ]] && sleep` here would be the loop body's last command, and under
+  # `set -e` its false branch is exempt only by a subtlety of AND-lists. An
+  # explicit `if` cannot be broken by someone tidying it up later.
+  if [[ "$attempt" == 1 ]]; then sleep 20; fi
 done
 echo "::error::the door did NOT complete a real turn — units and /health prove nothing about this"
 exit 1

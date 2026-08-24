@@ -28,7 +28,20 @@ watchdog's threshold — a check that arms an alarm, which is the criterion in
 
 from __future__ import annotations
 
+import asyncio
+import os
+
 from . import db
+
+# Accounting runs INSIDE the turn's result seam, holding that session's lock and
+# one of the pool's two RAM slots. So a slow database does not merely delay a
+# row: it stalls the SSE stream after the answer and starves the pool, until a
+# third turn waits out SLOT_WAIT_S and gets a 503. The docstring above promises
+# the accounting never costs the caller the answer; this bound is what makes the
+# promise true. It wraps the WHOLE call because a statement timeout governs a
+# query and not the wait for a free connection, which is the half that hangs.
+BANK_TIMEOUT_S = float(os.environ.get("AIRE_SPEND_TIMEOUT_S", "5"))
+STATEMENT_TIMEOUT_MS = int(BANK_TIMEOUT_S * 1000)
 
 DDL = (
     "CREATE TABLE IF NOT EXISTS aire_spend ("
@@ -66,14 +79,20 @@ async def bank(door: str, project: str | None, session: str | None,
     if usd <= 0 or not db.dsn():
         return
     try:
-        async with db.acquire() as conn:
-            await _ensure(conn)
-            await conn.execute(
-                "INSERT INTO aire_spend (door, project, session, holder, usd)"
-                " VALUES ($1, $2, $3, $4, $5)", door, project, session, holder, usd)
+        await asyncio.wait_for(_insert(door, project, session, holder, usd),
+                               timeout=BANK_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001 — accounting never kills a turn
         print(f"SPEND append failed (${usd:.4f} on {door}): "
               f"{type(exc).__name__}: {exc}", flush=True)
+
+
+async def _insert(door: str, project: str | None, session: str | None,
+                  holder: str | None, usd: float) -> None:
+    async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
+        await _ensure(conn)
+        await conn.execute(
+            "INSERT INTO aire_spend (door, project, session, holder, usd)"
+            " VALUES ($1, $2, $3, $4, $5)", door, project, session, holder, usd)
 
 
 async def month_to_date() -> float:
@@ -84,12 +103,19 @@ async def month_to_date() -> float:
     if not db.dsn():
         return -1.0
     try:
-        async with db.acquire() as conn:
-            await _ensure(conn)
-            total = await conn.fetchval(
-                "SELECT coalesce(sum(usd), 0) FROM aire_spend"
-                " WHERE at >= date_trunc('month', now())")
-        return round(float(total), 4)
+        return await asyncio.wait_for(_sum_month(), timeout=BANK_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         print(f"SPEND month read failed: {type(exc).__name__}: {exc}", flush=True)
         return -1.0
+
+
+async def _sum_month() -> float:
+    """The month's total, bounded like the insert: `/health` is what a watchdog
+    polls, and a health endpoint that HANGS is worse than one that answers
+    degraded — the watchdog waits instead of alarming."""
+    async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
+        await _ensure(conn)
+        total = await conn.fetchval(
+            "SELECT coalesce(sum(usd), 0) FROM aire_spend"
+            " WHERE at >= date_trunc('month', now())")
+    return round(float(total), 4)

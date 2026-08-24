@@ -47,6 +47,24 @@ class Ledger:
         """Its spend is banked; a reborn client starts counting from zero."""
         self._seen.pop(key, None)
 
+    def adopt(self, key: str) -> None:
+        """A NEW client was just built for this key — take its predecessor's
+        total off the books, because that number belongs to a process that no
+        longer exists and the newborn counts from zero.
+
+        Left in place it does not merely go stale, it INVERTS the meter:
+        `account`'s `max(0.0, cost - seen)` clamps every turn to $0 until the
+        newborn out-spends the dead one, so real turns burning real money move
+        neither the ceiling nor `aire_spend`. Until 2026-08-23 only `_retire`
+        (#23) forgot, and a pool of two slots evicts constantly — eviction, the
+        COMMON exit, forgot nothing. Measured: a client banking 0.028/0.030/0.033
+        followed by a reborn one at 0.025 banked **$0.00** for a paid turn.
+
+        It lives here rather than at the eviction site because this is where the
+        `_seen` invariant is stated, and BIRTH is the only moment it becomes
+        true again — whatever route the previous client took out of the pool."""
+        self._seen.pop(key, None)
+
     @staticmethod
     def cut_event() -> dict[str, Any]:
         return {"type": "error", "error": "budget_exhausted",
