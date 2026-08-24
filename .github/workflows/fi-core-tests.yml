@@ -12,15 +12,19 @@
 # organises one workflow per unit (og118-backend, fenix-backend, publish-fi-core)
 # — and because pr-gate.yml has another session's uncommitted work in it.
 #
-# To make it BLOCKING, add "fi-core tests" to the branch protection rule for
-# main. Until then it runs and shows red on the PR, which is most of the value.
+# It is safe to make REQUIRED, and that took one design decision. A required
+# check whose workflow is path-filtered never reports on a PR that misses the
+# filter, so GitHub leaves it "Expected — waiting for status" forever and blocks
+# every unrelated PR in the repo. So the job ALWAYS runs; it decides for itself
+# whether fi-core changed, and reports success in seconds when it did not. The
+# expensive half (a torch-sized install) is what gets skipped, never the report.
 name: fi-core tests
 
 on:
+  # No `paths:` on pull_request, deliberately — see the note above. The job
+  # decides whether there is anything to test; the filter would decide whether
+  # there is anything to REPORT, which is not the same thing.
   pull_request:
-    paths:
-      - 'apps/packages/fi-core/**'
-      - '.github/workflows/fi-core-tests.yml'
   push:
     branches: [main]
     paths:
@@ -41,14 +45,34 @@ jobs:
         working-directory: apps/packages/fi-core
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the diff below needs the base commit
+
+      - name: Does this PR touch fi-core?
+        id: touched
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base="origin/${{ github.base_ref }}"
+          git fetch --quiet origin "${{ github.base_ref }}"
+          if git diff --name-only "$base"...HEAD | grep -qE '^(apps/packages/fi-core/|\.github/workflows/fi-core-tests\.yml)'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "fi-core untouched — nothing to test." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/setup-python@v6
+        if: steps.touched.outputs.yes == 'true' 
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: apps/packages/fi-core/pyproject.toml
 
       - name: Install fi-core with the extras its tests exercise
+        if: steps.touched.outputs.yes == 'true'
         run: |
           python -m pip install --upgrade pip
           # The FULL dev extra, torch and all. A leaner install would make the
@@ -59,13 +83,14 @@ jobs:
           pip install -e '.[dev]' 
 
       - name: Run the suite
+        if: steps.touched.outputs.yes == 'true'
         run: |
           # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
           # it is another green light that proves nothing.
           pytest tests -q
 
       - name: Report what the host could not run
-        if: always()
+        if: always() && steps.touched.outputs.yes == 'true'
         run: |
           # A skip is honest, but a suite that skips a whole subsystem should say
           # so out loud rather than let "all green" imply full coverage.
