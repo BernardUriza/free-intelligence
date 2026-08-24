@@ -121,7 +121,7 @@ async def test_turn_lands_in_the_chats_casita_with_the_persona_tool(aire_runner,
 
     assert [p for p, _ in seen] == ["og118-chat-abc", "og118"]
     for _, body in seen:
-        assert body["tools"] == ["persona", "task_tracker", "rag_store"]
+        assert body["tools"] == ["persona", "task_tracker"]
         # Tools en complete (aire-server 5ae8e33): forzar agent regalaría los
         # builtins del preset (Read/Write/WebSearch…) que og118 no quiere.
         assert body["mode"] == "complete"
