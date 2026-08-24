@@ -203,8 +203,8 @@ class Runner:
         replay IS the continuity, so we never also resume a native session. Guards
         still see the ORIGINAL ``user_message`` — only the BACKEND gets the fold.
 
-        EXCEPT when the backend has its own durable memory (a wired
-        ``session_store``): the native transcript holds what replay cannot carry —
+        EXCEPT when the backend declares its own durable memory
+        (``has_durable_memory``): the native transcript holds what replay cannot carry —
         ``tool_use``/``tool_result`` blocks — and resuming it costs no per-turn
         re-send, so it OUTRANKS the replay. The store is asked, never the pool:
 
@@ -213,11 +213,17 @@ class Runner:
           preserved, so the backend births the session with the replayed context
           as its first exchange); every later turn resumes natively.
 
-        A backend without a store (Codex, fakes) never enters this branch —
-        behavior stays byte-identical."""
+        A backend that does not declare durable memory (Codex, fakes) never
+        enters this branch — behavior stays byte-identical.
+
+        The probe asks for the CAPABILITY, not for one backend's plumbing. It
+        used to read ``backend.session_store``, which is the local SDK host's
+        attribute and nothing else — so AIREBackend, whose memory is the whole
+        point of AIRE and lives server-side, could never answer yes. It replayed
+        on every turn AND minted a throwaway session for each one."""
         native = (
             session_id is not None
-            and getattr(self.backend, "session_store", None) is not None
+            and bool(getattr(self.backend, "has_durable_memory", False))
             and callable(getattr(self.backend, "has_session", None))
         )
         if native and await self.backend.has_session(session_id):

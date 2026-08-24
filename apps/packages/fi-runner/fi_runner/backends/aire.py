@@ -64,6 +64,19 @@ born fat before this cut is rebased to the stub on the next process restart
 (the per-process init cache is empty then), and AIRE's rebase preserves its
 living part — the soul survives, the frozen base copy dies.
 
+FOURTH CUT (2026-08-24, the end of the double memory). The backend now declares
+``has_durable_memory`` and answers ``has_session`` off the door's
+``GET /projects/{p}/sessions/{s}``, so the Runner RESUMES AIRE's transcript
+instead of replaying the caller's. Until this cut the Runner probed
+``backend.session_store`` — an attribute only the local SDK host owns — so this
+backend, whose entire premise is that the memory is server-side, always answered
+"no durable memory". Measured on the live gate: two turns of one og118 chat
+landed in TWO different AIRE sessions of the same casita, the second carrying the
+first as ``"Conversation so far: …"`` prompt text. Every turn re-paid the
+conversation in tokens, re-paid the persona's cache creation on a cold spawn, and
+orphaned a transcript nobody would ever resume — while the ``tool_use`` /
+``tool_result`` blocks a text replay cannot carry were dropped each time.
+
 Requires the ``aire`` extra::
 
     pip install 'fi-runner[aire]'
@@ -275,6 +288,48 @@ class AIREBackend:
                 "no effect until the door grows per-turn tools.",
                 self.default_mode,
             )
+
+    # --- native memory -------------------------------------------------------
+
+    @property
+    def has_durable_memory(self) -> bool:
+        """Always. AIRE's ``session_store`` in the owner's Postgres IS this
+        backend's memory — it is the reason the backend exists, and unlike the
+        CLI hosts it cannot be absent: there is no configuration in which this
+        door remembers less than durably.
+
+        Declaring it is what lets the Runner RESUME instead of replaying. Until
+        this existed the Runner probed ``backend.session_store`` — an attribute
+        only the local SDK host has — so this backend always answered no, and
+        every turn re-sent the whole conversation as prompt text AND was handed
+        ``session_id=None``, minting a throwaway session per turn. The casita
+        filled with transcripts nobody ever resumed, and the ``tool_use`` /
+        ``tool_result`` blocks a text replay cannot carry were lost each time."""
+        return True
+
+    async def has_session(self, session_id: str) -> bool:
+        """Does AIRE already hold this session's transcript, in the casita THIS
+        turn addresses? Answered by the door (``GET /projects/{p}/sessions/{s}``),
+        which exposes the engine's own resume check.
+
+        The casita is resolved the same way a turn resolves it, so a per-chat
+        consumer asks about the chat it is actually about to send. A door that
+        cannot answer (unreachable, or an older AIRE without the route) returns
+        False: the Runner then replays, which is what it did before this method
+        existed — degrade to the old cost, never to a wrong resume."""
+        self._require_door()
+        project = self._resolve_project()
+        try:
+            res = await self._http().get(
+                f"{self.gate_url}/projects/{project}/sessions/{session_id}",
+                headers=self._headers,
+            )
+        except Exception:  # noqa: BLE001 - any transport failure degrades to replay
+            _logger.warning("AIREBackend: session probe failed for %s/%s", project, session_id)
+            return False
+        if res.status_code >= 400:
+            return False
+        return bool(res.json().get("exists"))
 
     # --- the AgentBackend port ----------------------------------------------
 

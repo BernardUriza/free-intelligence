@@ -349,3 +349,90 @@ async def test_process_restart_rebases_a_fat_born_chat_to_the_stub() -> None:
 
 async def _anoop(*args: Any, **kwargs: Any) -> None:
     return None
+
+
+# --- native memory: the probe that ends the double-memory ---------------------
+# AIRE owns the transcript, so the Runner must RESUME it instead of replaying the
+# client's history into a throwaway session. That decision hangs on two members;
+# these pin them, including the degrade path (a door that cannot answer must fall
+# back to the old replay cost, never to a wrong resume).
+
+
+class _FakeResponse:
+    def __init__(self, status_code: int, payload: Any = None) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> Any:
+        return self._payload
+
+
+class _FakeHTTP:
+    def __init__(self, response: Any = None, boom: Exception | None = None) -> None:
+        self.response = response
+        self.boom = boom
+        self.calls: list[tuple[str, dict[str, str]]] = []
+
+    async def get(self, url: str, headers: dict[str, str]) -> Any:
+        self.calls.append((url, headers))
+        if self.boom is not None:
+            raise self.boom
+        return self.response
+
+
+def _with_http(b: AIREBackend, http: _FakeHTTP) -> AIREBackend:
+    b._http = lambda: http  # type: ignore[method-assign]
+    return b
+
+
+def test_durable_memory_is_not_configurable() -> None:
+    """AIRE's store IS this backend's memory; there is no wiring in which it
+    remembers less. The local host derives the same flag from its session_store."""
+    assert _backend().has_durable_memory is True
+
+
+@pytest.mark.asyncio
+async def test_has_session_asks_the_door_about_the_casita_this_turn_addresses() -> None:
+    b = AIREBackend(
+        project="og118",
+        gate_url="https://gate.example",
+        auth_token="tok",
+        project_for_turn=lambda: "og118-chat-7",
+    )
+    http = _FakeHTTP(_FakeResponse(200, {"session": "chat-7", "exists": True}))
+    _with_http(b, http)
+    assert await b.has_session("chat-7") is True
+    url, headers = http.calls[0]
+    assert url == "https://gate.example/projects/og118-chat-7/sessions/chat-7"
+    assert headers["Authorization"] == "Bearer tok"
+
+
+@pytest.mark.asyncio
+async def test_a_session_the_door_does_not_know_is_absent() -> None:
+    b = _with_http(_backend(), _FakeHTTP(_FakeResponse(200, {"exists": False})))
+    assert await b.has_session("nope") is False
+
+
+@pytest.mark.asyncio
+async def test_an_older_door_without_the_route_degrades_to_replay() -> None:
+    """A 404 means this AIRE predates the route. Answering False makes the Runner
+    replay — the exact behavior it had before this method existed."""
+    b = _with_http(_backend(), _FakeHTTP(_FakeResponse(404, None)))
+    assert await b.has_session("s") is False
+
+
+@pytest.mark.asyncio
+async def test_an_unreachable_door_degrades_instead_of_raising() -> None:
+    """A probe failure must not kill a turn that would otherwise run fine on
+    replay. The cost regresses; the turn does not die."""
+    b = _with_http(_backend(), _FakeHTTP(boom=OSError("connection refused")))
+    assert await b.has_session("s") is False
+
+
+@pytest.mark.asyncio
+async def test_an_unconfigured_door_is_still_a_loud_failure() -> None:
+    """Degrading covers a door that answers badly, never one that was never set:
+    that is a misconfiguration and stays as loud here as it is on a turn."""
+    b = AIREBackend(project="p", gate_url="", auth_token="")
+    with pytest.raises(BackendError, match="door not configured"):
+        await b.has_session("s")
