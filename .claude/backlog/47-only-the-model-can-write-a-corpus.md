@@ -10,17 +10,28 @@ document ingested in one session retrieved from another. On that evidence og118 
 its corpus binding back — and fifteen minutes later the real UI showed what the
 verification had missed.
 
-A user uploads an acta. The project panel shows it. The agent answers:
+**The `ingest` in that verification was done by Claude, calling the new tool.** The
+product's own write path — og118's upload endpoint — still wrote through
+`RagStoreClient` to a local hdf5 file that nothing on the AIRE route reads. Two
+stores for one surface: any file a user uploaded would have been invisible to the
+agent. Rolled back in free-intelligence #429 the same hour, fixed here.
 
-> *"No encuentro ningún documento en tu proyecto — el acta que mencionas no llegó o
-> no se subió correctamente."*
+### A correction to how this was first written down
 
-**The `ingest` in the verification was done by Claude, calling the new tool.** The
-product's own write path — og118's upload endpoint — still writes through
-`RagStoreClient` to a local hdf5 file that nothing on the AIRE route reads. Half the
-data path moved, so the corpus the agent searches is always empty, and the answer is
-not merely unhelpful: it is confident, false, and it blames the user for an upload
-that worked. Rolled back in free-intelligence #429 the same hour.
+The first version of this item claimed the failure had been OBSERVED end to end — a
+user uploading an acta, the panel showing it, the agent answering *"no llegó o no se
+subió correctamente"*. **Only that last sentence was observed.** Claude had been
+firing `change` on the wrong file input — the chat's IMAGE picker
+(`accept="image/*"`), not the document one — so the upload never happened, the panel
+never showed anything, and the model's answer was *correct*: there was no document.
+Instrumenting `fetch` and seeing ZERO requests is what exposed it.
+
+The underlying defect was real, verified in the code, and the fix is the right one.
+What was invented was the evidence — and that matters as much, because a record whose
+founding story did not happen stops being worth anything the day somebody audits it.
+The sharper lesson lives in [[both-ends-of-the-data-path]]: an observation that
+CONFIRMS the hypothesis deserves the same scrutiny as one that refutes it, and a
+negative result proves nothing until a control shows there was something to find.
 
 ## What is missing
 
