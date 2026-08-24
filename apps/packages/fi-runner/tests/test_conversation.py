@@ -385,11 +385,17 @@ async def test_redis_store_drives_runner_continuity_across_instances():
 
 @dataclass
 class _NativeSpyBackend(_SpyBackend):
-    """A _SpyBackend that claims native durable memory (session_store wired)."""
+    """A _SpyBackend that claims native durable memory, the way the local SDK
+    host does: the capability is DERIVED from a wired store, so `session_store=None`
+    still models a host whose transcript dies with the container."""
 
     session_store: object = "wired"
     session_in_store: bool = False
     asked: list[str] = field(default_factory=list)
+
+    @property
+    def has_durable_memory(self) -> bool:
+        return self.session_store is not None
 
     async def has_session(self, session_id: str) -> bool:
         self.asked.append(session_id)
@@ -430,8 +436,8 @@ async def test_native_backend_without_history_gets_the_session_born_clean():
 
 @pytest.mark.asyncio
 async def test_backend_without_store_is_byte_identical_under_history():
-    # has_session exists but session_store is None → the native branch never
-    # engages: fold + stateless backend, exactly the pre-store contract.
+    # has_session exists but the backend declares no durable memory → the native
+    # branch never engages: fold + stateless backend, exactly the pre-store contract.
     backend = _NativeSpyBackend(session_store=None, session_in_store=True)
     runner = _runner(backend)
     await runner.run("otra", session_id="c1", history=[Message("user", "hola")])
@@ -444,7 +450,7 @@ async def test_backend_without_store_is_byte_identical_under_history():
 async def test_native_resume_applies_to_the_streaming_path_too():
     @dataclass
     class _NativeSpyStream(_SpyStreamBackend):
-        session_store: object = "wired"
+        has_durable_memory: bool = True
 
         async def has_session(self, session_id: str) -> bool:  # noqa: ARG002
             return True

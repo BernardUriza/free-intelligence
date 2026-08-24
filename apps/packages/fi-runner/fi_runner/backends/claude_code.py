@@ -339,6 +339,15 @@ class ClaudeCodeBackend:
                 session_id = getattr(message, "session_id", None) or session_id
         return "".join(parts), usage, session_id, tool_calls
 
+    @property
+    def has_durable_memory(self) -> bool:
+        """This host owns durable memory only when a ``session_store`` is wired;
+        without one the transcript dies with the container, so the Runner must
+        keep replaying. Declaring the capability instead of letting the Runner
+        read ``session_store`` directly is what lets a backend whose memory is
+        REMOTE (AIRE) answer this question at all."""
+        return self.session_store is not None
+
     async def has_session(self, session_id: str) -> bool:
         """Does the store already hold this session? `load()` returns None when it
         does not (SDK Protocol, types.py:1370). This is what decides born-vs-resume
@@ -346,8 +355,8 @@ class ClaudeCodeBackend:
         about whether the transcript survived, and that confusion is precisely the
         bug (a `session_id=` on a continuation stomps the session).
 
-        PUBLIC on purpose: the Runner duck-types it (with ``session_store``) to
-        decide whether native memory outranks the history replay for a turn."""
+        PUBLIC on purpose: the Runner duck-types it (with ``has_durable_memory``)
+        to decide whether native memory outranks the history replay for a turn."""
         if self.session_store is None:
             return False
         entries = await self.session_store.load(self.session_key(session_id))
