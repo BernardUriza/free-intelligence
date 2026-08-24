@@ -54,6 +54,23 @@ trusted, and the file's own record was put back afterwards.
 **Never watch only the cloud where the spend is frozen.** The blind spot always
 opens over the thing that grows.
 
+## The external pulse — the only watcher that is not on the box
+
+Everything else here runs ON the droplet or once a day from GitHub. Both blind
+spots are the same one: a watchdog living on the box cannot report the box being
+gone, and a daily cron finds a door that died at 14:00 at 13:17 the next day.
+
+Since 2026-08-24 an **UptimeRobot free** account polls
+`https://gate.bernarduriza.com/health` **every 5 minutes** from outside and mails
+bernarduriza@gmail.com. It is a KEYWORD monitor — it opens an incident when
+`"status":"ok"` is ABSENT — because a plain status check passes on any 200 and
+Caddy can answer 200 with something that is not the app. $0: a 5-minute GitHub
+cron on this private repo would be ~8,640 runs/month against 2,000 free minutes.
+
+Credential and monitor ids: `~/.secrets/uptimerobot.txt`. It is the one alarm in
+this file that costs nothing and sees the box from the outside; the others watch
+what is inside it.
+
 ## Enforcement (the parts that alarm on their own)
 
 - **`.github/workflows/costwatch.yml`** — daily cron: fails RED (→ GitHub

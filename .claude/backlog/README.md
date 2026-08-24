@@ -23,7 +23,7 @@ kept honest, a status flipped the day it changes.
 | [39](39-two-slots-for-a-fleet.md) | Two slots for a fleet | Proposed 2026-08-22, MEASURED the same day |
 | [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | All 8 leftovers shipped 2026-08-22; 2 decisions open (Bernard's) |
 | [42](42-the-guards-are-observational.md) | The guards ride observational | Observational half Done 2026-08-22; the buffered half Proposed |
-| [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | Both notches covered 2026-08-24; only MTTD open |
+| [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | **Done 2026-08-24** — both notches, plus a 5-min external pulse |
 
 ## Closed
 

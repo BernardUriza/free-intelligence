@@ -58,17 +58,27 @@ session pays even in the cheap mode. Daily + per deploy ≈ **$1/month**. The
 ceiling `AIRE_CANARY_MAX_USD=0.15` makes the canary red if that stops being
 true, which is its own small piece of budget news.
 
-## What it does NOT cover
+## What it did NOT cover — both closed since
 
-- **Mean time to detection is still a day** — the one open item here. The canary fires on deploys and at
-  13:17 UTC. A door that dies at 14:00 is discovered ~23h later. A cheap
-  external `/health` pulse every few minutes would cut that — and it must be
-  external, because a watchdog on the box cannot report the box being gone.
-  Not built; a scheduled GitHub cron burns Actions minutes and a third-party
-  uptime monitor is an account to own. **Bernard's call.**
-- ~~**`mode=agent` is untested.**~~ **Closed 2026-08-24.** The canary probes BOTH
-  notches, because the gap was the founding defect's own shape: root +
-  `bypassPermissions` killed every agent turn while complete stayed green.
+- ~~**Mean time to detection is still a day.**~~ **Closed 2026-08-24.** The canary
+  fires on deploys and at 13:17 UTC, so a door that died at 14:00 was found ~23h
+  later. The poller has to live OUTSIDE the droplet — a watchdog on the box
+  cannot report the box being gone — and a 5-minute GitHub cron is ~8,640 runs a
+  month against 2,000 free minutes on a PRIVATE repo, roughly $53/mo. So the
+  canonical instrument was used instead of built (Art. 6): **UptimeRobot free**,
+  5-minute checks, $0.
+
+  It is a **keyword** monitor, not an HTTP one: it opens an incident when
+  `"status":"ok"` is ABSENT from `https://gate.bernarduriza.com/health`. A plain
+  status check passes on any 200, and Caddy can answer 200 with something that is
+  not the app — the same Rule 22 reasoning that made the canary a real turn
+  instead of a ping. The HTTP monitor the sign-up flow created was deleted: one
+  surface, one monitor.
+
+  Alerts go to bernarduriza@gmail.com. Both halves were proven, not assumed: the
+  channel with a test notification, and the DETECTION with a throwaway monitor on
+  the same URL whose keyword can never appear — an alarm never seen to go red is
+  a guess about what will happen the day it matters.
 
   The agent probe forces a TOOL and asserts the call came back without error —
   a turn that answers `PONG` without ever entering the tool loop proves the
