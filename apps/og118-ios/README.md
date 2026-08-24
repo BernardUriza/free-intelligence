@@ -130,16 +130,23 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 
 ## Lo que falta para la primera corrida
 
-Xcode 26.6 está instalado (vía `xcodes`, sin la App Store) y el proyecto
-**compila, arranca y pinta el login en el simulador** — verificado el
-2026-08-23. Lo que falta es la vuelta completa del tracer bullet, y se presume
-rota hasta que ocurra: login de Auth0 contra el tenant → `POST /chat/stream` →
-SSE → respuesta pintada. El único átomo humano es la contraseña de Auth0 en el
-simulador; build, install, launch y screenshot se manejan desde la sesión.
+Xcode 26.6 está instalado (`/Applications/Xcode-26.6.0.app`, vía `xcodes`, sin
+la App Store) y la app **compila, se instala, arranca y pinta el login en el
+simulador** — corrido en vivo el 2026-09-09.
 
-El teléfono físico es un paso aparte: firma con Apple ID gratis (la app dura 7
-días antes de recaducar; reinstalar es darle Run otra vez) o los $99 del año
-completo. El simulador no necesita cuenta de desarrollador ni firma.
+1. **La vuelta completa del tracer bullet en el simulador**: login de Auth0 →
+   `POST /chat/stream` → SSE → respuesta pintada. El único átomo humano es la
+   contraseña de Auth0; build, install, launch y screenshot se manejan desde
+   aquí. Hasta que ocurra, se presume rota (Loop Law).
+2. **El teléfono físico** es un paso posterior y aparte: cable, Modo
+   desarrollador y firma con Apple ID gratis (la app recaduca a los 7 días; el
+   año completo son los $99). El simulador no necesita nada de eso.
+
+⚠️ Esta Mac tiene el runtime de iOS pero **cero dispositivos de simulador
+creados**, y `xcode-select` apunta a las CommandLineTools. Sin
+`DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer` y sin un
+`xcrun simctl create`, `xcodebuild` falla con un error de destino que se lee
+como toolchain rota. La receta está en `.claude/backlog/og118-ios-tracer.md`.
 
 ## Anatomía
 
