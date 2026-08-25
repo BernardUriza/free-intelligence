@@ -129,6 +129,29 @@ pero uno de esos 6 era sobre-ruteo ("Holii, si hay que ver peli" → vultur, que
 coordinación social, no petición de crítica) y se corrigió solo al simplificar el
 prompt a una palabra. **Menos ruteos y mejores.**
 
+**Re-medido el 2026-08-25 al registrar a Valentis, y el número de arriba envejeció.**
+El mismo set congelado, corrido ese día con el prompt **sin tocar** (control), dio
+**6/30 = 20.0%** — no 16.7%. O sea que la cifra documentada no es un invariante del
+prompt: **el modelo deriva**, y comparar contra un número de hace tres semanas mide
+la deriva, no tu cambio. Por eso el control se corre el mismo día, no se lee del doc:
+
+| corrida (2026-08-25, mismo set) | siblings | reparto |
+|---|---|---|
+| prompt viejo (control) | 6/30 · 20.0% | 4 frugívoro + **2** vultur |
+| prompt con Valentis | 6/30 · 20.0% | **5** frugívoro + 1 vultur |
+
+Mismo volumen, distinta composición: **salió** el sobre-ruteo que este mismo
+documento denuncia arriba ("Holii, si hay que ver peli" → vultur, que volvió a
+aparecer solo en el control y se fue a insult con el prompt nuevo) y **entró**
+`"un manjaaar"` → frugívoro, continuación legítima de la charla de comida bajo la
+RULE 1. Y lo que importaba del registro de Valentis: **cero ruteos a valentis en las
+dos corridas** — registrarla no le abrió el ruteo del desahogo personal, que sigue
+siendo de insult.
+
+**La lección operativa:** el veredicto de este eval es la **diferencia contra un
+control corrido el mismo día**, nunca contra la cifra escrita aquí. Un número
+guardado es un baseline que envejece en silencio; el control no.
+
 **El reparto no es el veredicto.** Cada ruteo a un especialista se revisa a mano:
 ¿el mensaje PEDÍA a esa persona, o sólo mencionaba su tema? En la corrida
 fundadora, 2 de 3 cambios eran recuperaciones legítimas y 1 era sobre-ruteo.

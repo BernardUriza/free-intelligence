@@ -154,6 +154,37 @@ PERSONAS: dict[str, Persona] = {
         gateway_enabled=True,
         corpus_namespace="__corpus_unborn__",  # NDE/DMT + contra-apologética clásica
     ),
+    # Valentis — la persona de acompañamiento psicológico (2026-08-25). Nace de una
+    # propuesta de Aníbal, que sobre su propia app dijo que sacar una beta pública
+    # era peligroso "porque si hay algún sesgo, la persona no va a saber cómo
+    # manejarlo, no voy a poder estar en primera mano para corregir esos errores".
+    # Aquí eso no es una frase: es esta entrada. Vive SOLO en Khimeras — donde quien
+    # la usa tiene nombre y hay humanos que pueden ver lo que pasó y corregirlo — y
+    # arranca aliases=[] para que nadie se la tope sin querer.
+    #
+    # ADN y guidance los escribió Alex (issues #41 y #42): acompaña, no trata; no
+    # diagnostica, no opina de medicación, no interpreta; y derivar NUNCA cierra la
+    # conversación. Su preset RESPECTFUL_SERIOUS invierte a propósito el orden de
+    # Insult: con deseo suicida expresado y sustancias de por medio, DERIVA antes de
+    # contener, porque no puede ofrecer cuerpo y todos los manuales suponen que sí.
+    #
+    # El ruteo por tema NO se le abre: la revelación personal y el peso emocional
+    # siguen siendo de insult, el host (ver demux_ai/prompts/host_routing.md, y los
+    # dos incidentes que pusieron esa regla ahí). A Valentis se la invoca por su
+    # nombre, igual que a ALICE.
+    "valentis": Persona(
+        persona_id="valentis",
+        display_name="Valentis",
+        persona_file="valentis.md",
+        token_env="VALENTIS_DISCORD_TOKEN",  # nosec B106 — env-var NAME, not a secret
+        bot_user_id="1541815100023767131",  # Discord app/bot id, created 2026-08-25
+        aliases=[],  # mention-only: una palabra suelta que la despierte en una
+        # conversación que no era para ella es peor, EN ESTE TEMA, que no estar.
+        avatar=None,
+        tts_voice="shimmer",  # la única libre; onyx/nova/fable/alloy/echo ocupadas
+        gateway_enabled=True,
+        corpus_namespace=None,  # sin corpus RAG: fase 2, no entra hoy
+    ),
 }
 
 
