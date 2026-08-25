@@ -13,35 +13,47 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PERSONA = ROOT / "shared" / "personas" / "insult.md"
-INSULT = ROOT / "personas" / "insult"
+
+# Every path this script probes lives in the POST-PURGA packages. Before
+# 2026-08-25 they all pointed at `personas/insult/`, deleted in the purga
+# (2f8d9ad) — so every probe answered False and this script quietly stripped
+# TTS, web search, transcription, reminders and deep memory from Insult's DNA
+# on the first commit after the purge. Nothing went red: an absent module is
+# indistinguishable from a removed capability. `tests/arch/test_sync_capabilities_probes_live_paths.py`
+# is what turns that rot red from now on.
+CAPABILITY_PATHS = {
+    "tts": ROOT / "persona_gateway" / "voice.py",
+    "whisper": ROOT / "khimeras_shared" / "stt.py",
+    "reminders": ROOT / "persona_gateway" / "workers" / "reminders.py",
+    "research": ROOT / "persona_gateway" / "workers" / "research.py",
+    "vision": ROOT / "persona_gateway" / "vision.py",
+    "web_search": ROOT / "persona_runner" / "engine" / "options.py",
+    "deep_memory": ROOT / "persona_runner" / "mcp_tools" / "memory_reads.py",
+    "html_artifacts": ROOT / "persona_runner" / "mcp_tools" / "artifacts.py",
+    "agent_runner_mcp": ROOT / "persona_runner" / "mcp_tools" / "__init__.py",
+}
+
+FI_CORE_HEADER = "**fi-core persona detectors**"
 
 START_MARKER = "<!-- CAPABILITIES:START -->"
 END_MARKER = "<!-- CAPABILITIES:END -->"
 
 
-def extract_tool_names(filepath: Path) -> list[dict]:
-    """Extract tool name + first line of description from a *_TOOLS list in a Python file."""
-    source = filepath.read_text()
-    tree = ast.parse(source)
+def _previous_fi_core_lines(previous: str) -> list[str]:
+    """Recover the fi-core detector block verbatim from the DNA file as it stands.
 
-    tools = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id.endswith("_TOOLS") and isinstance(node.value, ast.List):
-                    for elt in node.value.elts:
-                        if isinstance(elt, ast.Dict):
-                            name = desc = ""
-                            for k, v in zip(elt.keys, elt.values, strict=False):
-                                if isinstance(k, ast.Constant) and k.value == "name":
-                                    name = v.value if isinstance(v, ast.Constant) else ""
-                                if isinstance(k, ast.Constant) and k.value == "description":
-                                    desc = _extract_string(v)
-                            if name:
-                                # First sentence only
-                                first_sentence = desc.split(". ")[0] + "." if desc else ""
-                                tools.append({"name": name, "desc": first_sentence})
-    return tools
+    Returns the header line plus its bullet list, or [] when there is nothing to
+    recover. Used only when fi-core is declared but not importable here.
+    """
+    if FI_CORE_HEADER not in previous:
+        return []
+    tail = previous[previous.index(FI_CORE_HEADER) :]
+    out: list[str] = []
+    for line in tail.splitlines():
+        if out and not line.startswith("- `mcp__"):
+            break
+        out.append(line)
+    return out if len(out) > 1 else []
 
 
 def _extract_string(node) -> str:
@@ -54,21 +66,13 @@ def _extract_string(node) -> str:
 
 
 def detect_modules() -> dict[str, bool]:
-    """Detect which optional capability modules exist."""
-    return {
-        "tts": (INSULT / "cogs" / "voice.py").exists(),
-        "whisper": (INSULT / "core" / "transcribe.py").exists(),
-        "images": (INSULT / "core" / "images.py").exists(),
-        "audio": (INSULT / "core" / "audio.py").exists(),
-        "reminders": (INSULT / "core" / "reminders.py").exists(),
-        "summaries": (INSULT / "core" / "summaries.py").exists(),
-        "vectors": (INSULT / "core" / "vectors.py").exists(),
-        "web_search": (INSULT / "core" / "llm.py").exists(),
-        # Newer capabilities (2026-05) — detect by module presence
-        "deep_memory": (INSULT / "core" / "deep_memory.py").exists(),
-        "html_artifacts": (INSULT / "core" / "html_artifacts.py").exists(),
-        "agent_runner_mcp": (ROOT / "persona_runner" / "mcp_tools" / "__init__.py").exists(),
-    }
+    """Detect which capability modules exist, probing the LIVE packages."""
+    modules = {name: path.exists() for name, path in CAPABILITY_PATHS.items()}
+    # Image generation and audio playback were removed on purpose; they are
+    # asserted absent, not probed, so a stray file cannot resurrect the claim.
+    modules["images"] = False
+    modules["audio"] = False
+    return modules
 
 
 def detect_fi_core() -> bool:
@@ -84,10 +88,10 @@ def detect_fi_core() -> bool:
     if both exist during a hypothetical reversal — defensive, not expected.
     """
     env = ROOT / "environment.yml"
-    if env.exists() and "fi-core" in env.read_text():
+    if env.exists() and "fi-core" in env.read_text(encoding="utf-8"):
         return True
     req = ROOT / "requirements.txt"
-    return req.exists() and "fi-core" in req.read_text()
+    return req.exists() and "fi-core" in req.read_text(encoding="utf-8")
 
 
 def _registered_tool_order(init_py) -> list[str]:
@@ -95,7 +99,7 @@ def _registered_tool_order(init_py) -> list[str]:
     if not init_py.exists():
         return []
     try:
-        tree = ast.parse(init_py.read_text())
+        tree = ast.parse(init_py.read_text(encoding="utf-8"))
     except SyntaxError:
         return []
     for node in ast.walk(tree):
@@ -121,7 +125,7 @@ def extract_mcp_tool_names() -> list[dict]:
     by_func: dict[str, dict] = {}
     for mcp in sorted(pkg.glob("*.py")):
         try:
-            tree = ast.parse(mcp.read_text())
+            tree = ast.parse(mcp.read_text(encoding="utf-8"))
         except SyntaxError:
             continue
         for node in ast.walk(tree):
@@ -204,7 +208,7 @@ def extract_fi_core_mcp_tools() -> list[dict]:
         return []
     src_path = Path(fi_mcp.__file__)
     try:
-        tree = ast.parse(src_path.read_text())
+        tree = ast.parse(src_path.read_text(encoding="utf-8"))
     except (SyntaxError, OSError):
         return []
 
@@ -242,17 +246,15 @@ def extract_fi_core_mcp_tools() -> list[dict]:
     return tools
 
 
-def build_capabilities_block() -> str:
-    """Build the full self-awareness markdown block from code inspection."""
-    # Collect tools from all tool definition files
-    all_tools = []
-    for py_file in sorted(INSULT.rglob("*.py")):
-        try:
-            tools = extract_tool_names(py_file)
-            all_tools.extend(tools)
-        except (SyntaxError, UnicodeDecodeError):
-            continue
+def build_capabilities_block(previous: str = "") -> str:
+    """Build the full self-awareness markdown block from code inspection.
 
+    ``previous`` is the current content of the DNA file. It is NOT decoration:
+    when fi-core is a declared dependency but is not importable on THIS machine,
+    the detector list is recovered verbatim from it instead of being emitted
+    empty. Emitting empty would DELETE nine lines of Insult's DNA on a laptop
+    that simply lacked a conda env — and the hook would `git add` the amputation.
+    """
     modules = detect_modules()
 
     lines = [
@@ -287,13 +289,12 @@ def build_capabilities_block() -> str:
             '- **Reminders**: Set reminders for users ("recuerdame X el viernes"). Supports one-time and recurring (daily/weekly/monthly).'
         )
 
-    if modules["summaries"]:
+    if modules["research"]:
         lines.append(
-            "- **Cross-channel awareness**: You know what's happening in other channels via periodic summaries."
+            "- **Deferred research**: `[RESEARCH: <task>]` hands a task to a durable worker that "
+            "investigates and comes back to the channel with the result in your voice. "
+            'Promising "te lo traigo al rato" is only true WITH the marker.'
         )
-
-    if modules["vectors"]:
-        lines.append("- **Semantic memory**: You search user facts by meaning, not just keywords.")
 
     if modules["deep_memory"]:
         lines.append(
@@ -323,13 +324,20 @@ def build_capabilities_block() -> str:
     # agent sees them with the same wire-name shape: mcp__<server>__<tool>.
     insult_mcp_tools = extract_mcp_tool_names() if modules.get("agent_runner_mcp") else []
     fi_core_mcp_tools = extract_fi_core_mcp_tools() if detect_fi_core() else []
+    fi_core_lines_recovered: list[str] = []
+    if detect_fi_core() and not fi_core_mcp_tools:
+        fi_core_lines_recovered = _previous_fi_core_lines(previous)
+        if fi_core_lines_recovered:
+            print(
+                "sync_capabilities: fi-core no importable aquí — conservo el bloque de detectores "
+                "que ya estaba en insult.md en vez de borrarlo",
+                file=sys.stderr,
+            )
 
     # Add tool-specific capabilities
-    if all_tools or insult_mcp_tools or fi_core_mcp_tools:
+    if insult_mcp_tools or fi_core_mcp_tools or fi_core_lines_recovered:
         lines.append("")
         lines.append("### Available Tools")
-        for tool in all_tools:
-            lines.append(f"- `{tool['name']}`: {tool['desc']}")
         for tool in insult_mcp_tools:
             lines.append(f"- `{tool['name']}`: {tool['desc']}")
         if fi_core_mcp_tools:
@@ -340,6 +348,9 @@ def build_capabilities_block() -> str:
             )
             for tool in fi_core_mcp_tools:
                 lines.append(f"- `{tool['name']}`: {tool['desc']}")
+        elif fi_core_lines_recovered:
+            lines.append("")
+            lines.extend(fi_core_lines_recovered)
 
     # Origins — credit + provenance.
     if detect_fi_core():
@@ -383,8 +394,8 @@ def build_capabilities_block() -> str:
 
 def sync() -> bool:
     """Inject capabilities block into the Insult DNA file. Returns True if content changed."""
-    content = PERSONA.read_text()
-    new_block = build_capabilities_block()
+    content = PERSONA.read_text(encoding="utf-8")
+    new_block = build_capabilities_block(previous=content)
 
     if START_MARKER in content and END_MARKER in content:
         before = content[: content.index(START_MARKER)]
@@ -400,7 +411,7 @@ def sync() -> bool:
             new_content = content + "\n\n" + new_block
 
     if new_content != content:
-        PERSONA.write_text(new_content)
+        PERSONA.write_text(new_content, encoding="utf-8")
         return True
     return False
 

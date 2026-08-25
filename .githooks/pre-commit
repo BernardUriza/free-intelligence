@@ -37,9 +37,24 @@ else
 fi
 
 # --- Step 1: Auto-sync capabilities ---
-PYTHON=${PYTHON:-python3}
-[ -x .venv/bin/python ] && PYTHON=.venv/bin/python
-$PYTHON scripts/sync_capabilities.py 2>/dev/null
+# Pick an interpreter that EXISTS. Git Bash on Windows ships `python`, never
+# `python3`, so the old `PYTHON=${PYTHON:-python3}` aborted every commit on
+# Alex's machine — and `2>/dev/null` hid the reason, so it looked like the
+# hook itself was broken. Errors are visible now; find the interpreter first.
+if [ -x .venv/bin/python ]; then
+    PYTHON=.venv/bin/python
+elif [ -n "$PYTHON" ]; then
+    :
+elif command -v python3 >/dev/null; then
+    PYTHON=python3
+elif command -v python >/dev/null; then
+    PYTHON=python
+else
+    echo "pre-commit ERROR: no python found (ni python3 ni python). Activa el env: conda activate discord-bot"
+    exit 1
+fi
+
+PYTHONUTF8=1 $PYTHON scripts/sync_capabilities.py
 if git diff --name-only | grep -q "shared/personas/insult.md"; then
     git add shared/personas/insult.md
     echo "pre-commit: insult.md capabilities auto-synced"
