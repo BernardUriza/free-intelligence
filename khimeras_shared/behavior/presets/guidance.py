@@ -6,6 +6,10 @@ voice, living in ``shared/personas/guidance/<persona_id>/presets/*.md``
 ``preset_vulnerable_overlay``). Editing any of those files is picked up on the
 next request without a restart. A persona with no content contributes nothing —
 the engine still classifies, the prompt just carries no voice-specific block.
+
+The ONE exception is ``preset_vulnerable_overlay``: its safety floor lives in
+the shared ``_base`` guidance id and EVERY persona inherits it, so an absent
+file there means "no tone of my own", never "no safety floor".
 """
 
 from __future__ import annotations
@@ -48,9 +52,25 @@ def is_vulnerable_overlay_selection(selection: PresetSelection) -> bool:
     return selection.reason.startswith(_OVERLAY_REASON_PREFIXES)
 
 
+# The safety floor lives ONCE, under the reserved ``_base`` guidance id, and
+# every persona inherits it. A persona's own overlay file carries ONLY its
+# tone. The merge is asymmetric ON PURPOSE: base first, persona voice after,
+# and the persona layer may ADD, never subtract. If each persona brought its
+# own floor there would be no floor — five different answers to what to do
+# with someone fragile. See #44.
+BASE_GUIDANCE_ID = "_base"
+
+
 def build_vulnerable_overlay_prompt(persona_id: str) -> str:
-    """Return the safety overlay text appended when a user is vulnerable."""
-    return "\n" + load_guidance(persona_id, "presets", "preset_vulnerable_overlay")
+    """Return the safety overlay text appended when a user is vulnerable.
+
+    Shared safety floor first, persona tone second. Every persona receives the
+    floor even when it has written no overlay of its own: an absent file is a
+    missing TONE, never a missing safety floor.
+    """
+    base = load_guidance(BASE_GUIDANCE_ID, "presets", "preset_vulnerable_overlay")
+    voice = "" if persona_id == BASE_GUIDANCE_ID else load_guidance(persona_id, "presets", "preset_vulnerable_overlay")
+    return "\n" + "\n\n".join(part for part in (base, voice) if part)
 
 
 # ---------------------------------------------------------------------------
