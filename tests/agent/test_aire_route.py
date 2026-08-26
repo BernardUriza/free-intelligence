@@ -316,6 +316,68 @@ async def test_a_cut_turn_raises_instead_of_returning_empty_success(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_a_budget_cut_is_resent_once_and_the_resend_answers(monkeypatch):
+    """AIRE's #23 cut retires the spent client and prescribes its own cure —
+    "send the turn again to continue". One resend rides a fresh client on the
+    same session; without it the persona answered "…" every time a pooled
+    client crossed its ceiling mid-conversation (the 2026-08-26 P1)."""
+    backend = AsyncMock()
+    backend.run_turn.side_effect = [
+        AIREDoorError("AIRE turn error [budget_exhausted]: cut", code="budget_exhausted"),
+        _Result(),
+    ]
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        "persona_runner.engine.session_pool._route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+
+    resp = await aire_route.turn_via_aire(_turn_request())
+
+    assert resp.text == "hola", "the resend AIRE prescribes never happened"
+    assert backend.run_turn.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_a_second_cut_in_a_row_is_terminal_not_a_retry_storm(monkeypatch):
+    """The resend is ONE: a client cut twice on the same turn is a real fault
+    and maps to 500 exactly as before, so the gateway's neutral path takes over."""
+    backend = AsyncMock()
+    backend.run_turn.side_effect = AIREDoorError("AIRE turn error [budget_exhausted]: cut", code="budget_exhausted")
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        "persona_runner.engine.session_pool._route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+
+    with pytest.raises(HTTPException) as caught:
+        await aire_route.turn_via_aire(_turn_request())
+    assert caught.value.status_code == 500
+    assert backend.run_turn.await_count == 2, "terminal after exactly one resend"
+
+
+@pytest.mark.asyncio
+async def test_other_terminal_codes_are_never_resent(monkeypatch):
+    """`budget_exceeded` (the process ceiling) and `credentials_exhausted` are
+    not cured by a resend — retrying them is the storm the 500 mapping kills."""
+    backend = AsyncMock()
+    backend.run_turn.side_effect = AIREDoorError("AIRE turn error [budget_exceeded]: ceiling", code="budget_exceeded")
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        "persona_runner.engine.session_pool._route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+
+    with pytest.raises(HTTPException) as caught:
+        await aire_route.turn_via_aire(_turn_request())
+    assert caught.value.status_code == 500
+    assert backend.run_turn.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_judge_via_aire_runs_in_the_personas_utility_casita(monkeypatch):
     """The judge is a mode=complete turn in `{persona}-judge`, session-less."""
     backend = AsyncMock()

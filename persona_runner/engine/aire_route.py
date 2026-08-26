@@ -502,9 +502,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         )
 
     backend = backend_for(base_id)
-    token = _chat_casita.set(casita)
-    try:
-        result = await backend.run_turn(
+
+    async def send_turn():
+        return await backend.run_turn(
             system_prompt=load_persona(req.persona_id),
             user_message=framed,
             mcp_servers=[],
@@ -513,6 +513,27 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             session_id=claim.topic_id,
             images=images or None,
         )
+
+    token = _chat_casita.set(casita)
+    try:
+        try:
+            result = await send_turn()
+        except BackendError as first:
+            # AIRE's budget cut (#23) retires the spent client and its error
+            # text prescribes the cure: "send the turn again to continue". ONE
+            # resend rides a fresh client that resumes the same session; without
+            # it the persona answered "…" every time a pooled client crossed its
+            # $ ceiling mid-conversation (the 2026-08-26 P1). A second cut in a
+            # row is a real fault and maps to 500 exactly as before.
+            if getattr(first, "code", None) != "budget_exhausted":
+                raise
+            log.warning(
+                "aire_route_budget_cut_retrying",
+                casita=casita,
+                topic=claim.topic_id,
+                channel_id=req.channel_id,
+            )
+            result = await send_turn()
     except BackendError as exc:
         log.error(
             "aire_route_turn_failed",

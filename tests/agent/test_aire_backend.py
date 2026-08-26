@@ -260,3 +260,30 @@ async def test_a_torn_stream_stays_an_uncoded_failure():
         await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
 
     assert getattr(caught.value, "code", None) is None
+
+
+@pytest.mark.asyncio
+async def test_a_budget_cut_after_the_result_keeps_the_answer():
+    """AIRE emits the #23 cut AFTER the result event, as a footnote saying the
+    spent client was retired. Raising over it threw a finished answer away and
+    left the channel on the neutral "…" — the 2026-08-26 P1. The answer wins;
+    the retired client rebuilds on the next turn."""
+    cut = {"type": "error", "error": "budget_exhausted", "detail": "the turn reached the $1.00 ceiling"}
+    http = _FakeHTTP(lines=_sse(_RESULT, cut))
+    backend = _backend(http)
+
+    result = await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
+
+    assert result.text == "hola", "a budget footnote voided a delivered answer"
+
+
+@pytest.mark.asyncio
+async def test_a_budget_cut_with_no_answer_stays_an_error():
+    """Only a result IN HAND survives the cut: with nothing to deliver, the
+    error must surface so the route's one resend can continue the work."""
+    cut = {"type": "error", "error": "budget_exhausted", "detail": "cut"}
+    http = _FakeHTTP(lines=_sse(cut))
+    backend = _backend(http)
+
+    with pytest.raises(BackendError, match="budget_exhausted"):
+        await backend.run_turn(system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy())
