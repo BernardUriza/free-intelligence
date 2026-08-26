@@ -7,7 +7,7 @@ Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 | Container App | State | Role |
 |---|---|---|
 | **persona-gateway** | LIVE (min=max=1) | The Discord turn path. One bot user per persona (Insult, Vultur, Frugívoro, ALICE…), all mention-gated, sharing ONE brain via `persona_id`. Owns marker parsing, chunked delivery, facts extraction, reminders, voice (🔊). Binds :8788 for `/invite` + health. Code: `persona_gateway/`. |
-| **persona-runner** | LIVE (min=max=1) | The shared Claude-Agent-SDK brain. FastAPI `/v1/turn` (+ `/v1/judge`, artifacts at `GET /a/{id}`). Loads `shared/personas/<id>.md` as DNA. OAuth Max. Code: `persona_runner/`. |
+| **persona-runner** | LIVE (min=0, max=1 — verificado `az` 2026-08-26; escala a cero y arranca en frío, por eso `agent_runner_starting` frecuente en KQL no es crash loop) | The shared Claude-Agent-SDK brain. FastAPI `/v1/turn` (+ `/v1/judge`, artifacts at `GET /a/{id}`). Loads `shared/personas/<id>.md` as DNA. OAuth Max. Code: `persona_runner/`. |
 | **khimeras-host** | LIVE (min=max=1) | The demux reception host (#6): owns reception (`HOST_OWNS_RECEPTION` → `CONFIG.host_owns_reception` in the gateway suppresses persona self-reception), routes via gpt-4.1 (Azure OpenAI), summons personas invite-only. Code: `demux_ai/`. |
 | **discord-bot** | RETIRED — scaled to 0 | The legacy plumbing container (ex `insult-bot`, renamed 2026-05-14). Dead FQDN; do not treat as a live host. |
 | *(alice-bot)* | DELETED | The legacy gpt-4.1 ALICE container no longer exists; ALICE runs through the gateway on the runner. |
