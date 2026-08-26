@@ -44,6 +44,15 @@ class Slot:
 AMBIENT = Slot("ambient")
 
 
+def is_metered(slot_name: str) -> bool:
+    """Whether a slot's dollars are REAL. The oauth-* slots ride the Max
+    subscription — their `total_cost_usd` is nominal, already paid, and must not
+    move the process spend ceiling (counting it muted every persona for 16 hours
+    on 2026-08-25 to protect money nobody was billed). The API-key slot bills
+    the card; `ambient` (local dev, Keychain) is unknown, so it counts."""
+    return not slot_name.startswith("oauth-")
+
+
 def limit_hit(text: str | None, usage: dict | None) -> bool:
     """The burned-pool signature: the limit phrase AND all-zero usage. BOTH are
     required — a turn that merely TALKS about limits has nonzero tokens, and an

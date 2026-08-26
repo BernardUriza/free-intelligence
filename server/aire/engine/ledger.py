@@ -10,7 +10,11 @@ concept and not a stray field:
   cut and retire the client, because the SDK will not say it.
 - `AIRE_MAX_SPEND_USD` is this process's own backstop: turns refused BEFORE the
   API is called. It resets on restart, which is a known limit — a ledger that
-  survives restarts is Bernard's open decision (#25).
+  survives restarts is Bernard's open decision (#25). Since 2026-08-26 it counts
+  METERED dollars only (`credentials.is_metered`): an OAuth turn's cost is
+  nominal — the Max subscription already paid — and banking it against the
+  ceiling turned a card backstop into a scheduled outage (every ~$20 of nominal
+  spend, every persona went mute until a restart).
 
 `account` adds the DELTA, never the total: `total_cost_usd` is the client's
 CUMULATIVE spend, so banking it whole would N-count the same dollars over N
@@ -37,11 +41,16 @@ class Ledger:
     def refusal(self) -> str:
         return f"cumulative spend ${self.spend_usd:.2f} >= ceiling ${MAX_SPEND_USD:.2f}"
 
-    def account(self, key: str, cost: float) -> bool:
-        """Bank this turn's spend; report whether the client hit its ceiling."""
-        self.spend_usd += max(0.0, cost - self._seen.get(key, 0.0))
+    def account(self, key: str, cost: float, metered: bool = True) -> tuple[float, bool]:
+        """Bank this turn's spend; return (its delta, whether the client hit its
+        ceiling). Only metered spend moves the process ceiling; the delta is
+        returned either way so the caller can still record nominal spend in
+        `aire_spend` — the monthly ledger keeps the whole story."""
+        delta = max(0.0, cost - self._seen.get(key, 0.0))
+        if metered:
+            self.spend_usd += delta
         self._seen[key] = cost
-        return TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+        return delta, TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
     def forget(self, key: str) -> None:
         """Its spend is banked; a reborn client starts counting from zero."""

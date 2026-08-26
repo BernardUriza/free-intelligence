@@ -12,7 +12,7 @@ from typing import Any
 from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
-from .contract import BudgetExceeded, CostSink, TurnSpec
+from .contract import CostSink, TurnSpec
 from .credentials import Rotor
 from .detach import Detached, drain_detached
 from .ledger import Ledger
@@ -76,9 +76,11 @@ class Engine:
     async def run_stream(self, project: str, session: str, prompt: str, spec: TurnSpec,
                          images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
-        (backpressure) is held for the whole turn: a 3rd device queues."""
-        if self.ledger.exhausted():
-            raise BudgetExceeded(self.ledger.refusal())
+        (backpressure) is held for the whole turn: a 3rd device queues.
+
+        The spend-ceiling gate lives in ``run_turn``, not here: whether the
+        ceiling applies depends on which credential SLOT the turn rides, and
+        the slot is chosen there."""
         async with self.pool.slot():
             # The turn lifecycle (attempts, budget cut, credential failover)
             # lives in turn.py — the #23/#31 detections share the result seam.

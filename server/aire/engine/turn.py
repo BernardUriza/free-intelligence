@@ -11,8 +11,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from .. import spend
-from .contract import TurnSpec
-from .credentials import limit_hit
+from .contract import BudgetExceeded, TurnSpec
+from .credentials import is_metered, limit_hit
 from .drain import drain, turn_cost
 from .vision import send_turn
 
@@ -36,6 +36,11 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
         if slot is None:
             yield _all_dry_event(engine.rotor)
             return
+        # The spend ceiling guards the CARD, so it refuses only turns that would
+        # ride a metered slot. A subscription turn costs nothing real; blocking
+        # it here is how every persona went mute for 16 hours on 2026-08-25.
+        if is_metered(slot.name) and engine.ledger.exhausted():
+            raise BudgetExceeded(engine.ledger.refusal())
         rotated = False
         async for event in _attempt(engine, project, session, prompt, spec, images, slot):
             if event is _ROTATE:
@@ -47,21 +52,23 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
 
 
 async def _account(engine: Any, project: str, session: str,
-                   event: dict[str, Any]) -> bool:
+                   event: dict[str, Any], slot_name: str) -> bool:
     """Bank this turn twice, for two different questions, and report whether the
     client hit its own cap (#23).
 
-    In RAM the ``Ledger`` answers "should this process stop"; in Postgres
-    ``aire_spend`` answers "what did AIRE spend this month" — the one the RAM
-    counter can never answer, because it is born at zero on every deploy.
+    In RAM the ``Ledger`` answers "should this process stop lending the CARD" —
+    so only a metered slot's dollars move it (``is_metered``); in Postgres
+    ``aire_spend`` answers "what did AIRE spend this month" and records every
+    turn, nominal or not — the one the RAM counter can never answer, because it
+    is born at zero on every deploy.
 
     The dollars are the DELTA, never ``total_cost_usd``, which is the client's
-    CUMULATIVE spend: the ledger's own counter moves by exactly that delta, so
-    reading it across the call bills the same money once."""
-    before = engine.ledger.spend_usd
-    spent = engine.ledger.account(f"{project}/{session}", turn_cost(event))
-    await spend.bank("engine", project, session, None,
-                     engine.ledger.spend_usd - before)
+    CUMULATIVE spend: banking it whole would bill the same money once per turn.
+    The slot is the one the client was BORN with, not this attempt's — the
+    client that spent is the one that pays."""
+    delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event),
+                                         is_metered(slot_name))
+    await spend.bank("engine", project, session, None, delta)
     return spent
 
 
@@ -80,7 +87,7 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
             await send_turn(client, prompt, images)
             async for event in drain(client):
                 if event.get("type") == "result":
-                    spent = await _account(engine, project, session, event)
+                    spent = await _account(engine, project, session, event, born_with)
                     result = event["result"]
                     if limit_hit(result.text, result.usage):
                         burned = True
