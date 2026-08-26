@@ -66,9 +66,9 @@ async def _account(engine: Any, project: str, session: str,
     CUMULATIVE spend: banking it whole would bill the same money once per turn.
     The slot is the one the client was BORN with, not this attempt's — the
     client that spent is the one that pays."""
-    delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event),
-                                         is_metered(slot_name))
-    await spend.bank("engine", project, session, None, delta)
+    metered = is_metered(slot_name)
+    delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event), metered)
+    await spend.bank("engine", project, session, None, delta, metered)
     return spent
 
 

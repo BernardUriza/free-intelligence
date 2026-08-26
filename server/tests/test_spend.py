@@ -104,3 +104,44 @@ async def test_ensure_is_what_startup_calls() -> None:
     await _clean()
     await spend.ensure()
     assert await spend.month_to_date() == pytest.approx(0.0)
+
+
+@pytest.mark.asyncio
+async def test_nominal_spend_is_recorded_but_never_alarms() -> None:
+    """An OAuth turn's dollars are nominal — the Max subscription already paid.
+    Its row survives (the usage record), but the figure costwatch alarms on
+    counts metered dollars only: summing nominal spend held the alarm
+    permanently red over money nobody was billed (2026-08-26)."""
+    await _clean()
+    await spend.bank("engine", "canary", "s1", None, 0.50, metered=False)
+    await spend.bank("engine", "canary", "s1", None, 0.05)
+
+    assert await spend.month_to_date() == pytest.approx(0.05)
+
+    conn = await asyncpg.connect(DSN, timeout=10)
+    rows = await conn.fetch("SELECT usd, metered FROM aire_spend ORDER BY seq")
+    await conn.close()
+    assert [(float(r["usd"]), r["metered"]) for r in rows] == [(0.50, False), (0.05, True)], \
+        "the nominal row must survive — only the alarm's sum filters it"
+
+
+@pytest.mark.asyncio
+async def test_the_metered_column_migrates_onto_a_pre_existing_table() -> None:
+    """The prod table predates the column: `ensure` must ALTER it in, and the
+    old rows must default to metered (an unlabeled dollar counts as real)."""
+    spend._ready = False
+    conn = await asyncpg.connect(DSN, timeout=10)
+    await conn.execute("DROP TABLE IF EXISTS aire_spend")
+    await conn.execute(
+        "CREATE TABLE aire_spend ("
+        " seq bigserial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(),"
+        " door text NOT NULL, project text, session text, holder text,"
+        " usd double precision NOT NULL)")
+    await conn.execute(
+        "INSERT INTO aire_spend (door, usd) VALUES ('engine', 0.09)")
+    await conn.close()
+
+    await spend.bank("engine", "canary", "s1", None, 0.01, metered=False)
+
+    assert await spend.month_to_date() == pytest.approx(0.09), \
+        "the pre-migration row lost its default-metered dollars"

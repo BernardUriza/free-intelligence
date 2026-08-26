@@ -51,8 +51,16 @@ DDL = (
     " project text,"
     " session text,"
     " holder text,"
-    " usd double precision NOT NULL)"
+    " usd double precision NOT NULL,"
+    " metered boolean NOT NULL DEFAULT true)"
 )
+# `metered` (2026-08-26): whether the row's dollars are REAL. An OAuth turn's
+# `total_cost_usd` is nominal — the Max subscription already paid — and summing
+# it into `month_to_date` put costwatch permanently red at "$21.36 crossed the
+# $20 line" over money nobody was billed. The row is still written (the usage
+# record survives); only the alarm's sum filters. Default true: an unlabeled
+# dollar counts as real, the conservative direction for a card alarm.
+MIGRATE = "ALTER TABLE aire_spend ADD COLUMN IF NOT EXISTS metered boolean NOT NULL DEFAULT true"
 INDEX = "CREATE INDEX IF NOT EXISTS aire_spend_at ON aire_spend (at)"
 
 _ready = False
@@ -86,12 +94,13 @@ async def ensure() -> None:
             return
         async with db.acquire() as conn:
             await conn.execute(DDL)
+            await conn.execute(MIGRATE)
             await conn.execute(INDEX)
         _ready = True
 
 
 async def bank(door: str, project: str | None, session: str | None,
-               holder: str | None, usd: float) -> None:
+               holder: str | None, usd: float, metered: bool = True) -> None:
     """One paid turn, appended. Never raises into a turn: a dead database must
     cost the accounting, never the answer the caller is waiting for — the same
     law the gateway mirror runs under. It is LOUD, because a turn that spent
@@ -99,7 +108,7 @@ async def bank(door: str, project: str | None, session: str | None,
     if usd <= 0 or not db.dsn():
         return
     try:
-        await asyncio.wait_for(_insert(door, project, session, holder, usd),
+        await asyncio.wait_for(_insert(door, project, session, holder, usd, metered),
                                timeout=BANK_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001 — accounting never kills a turn
         print(f"SPEND append failed (${usd:.4f} on {door}): "
@@ -107,12 +116,12 @@ async def bank(door: str, project: str | None, session: str | None,
 
 
 async def _insert(door: str, project: str | None, session: str | None,
-                  holder: str | None, usd: float) -> None:
+                  holder: str | None, usd: float, metered: bool) -> None:
     await ensure()
     async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
         await conn.execute(
-            "INSERT INTO aire_spend (door, project, session, holder, usd)"
-            " VALUES ($1, $2, $3, $4, $5)", door, project, session, holder, usd)
+            "INSERT INTO aire_spend (door, project, session, holder, usd, metered)"
+            " VALUES ($1, $2, $3, $4, $5, $6)", door, project, session, holder, usd, metered)
 
 
 async def month_to_date() -> float:
@@ -137,5 +146,5 @@ async def _sum_month() -> float:
     async with db.acquire(STATEMENT_TIMEOUT_MS) as conn:
         total = await conn.fetchval(
             "SELECT coalesce(sum(usd), 0) FROM aire_spend"
-            " WHERE at >= date_trunc('month', now())")
+            " WHERE metered AND at >= date_trunc('month', now())")
     return round(float(total), 4)
