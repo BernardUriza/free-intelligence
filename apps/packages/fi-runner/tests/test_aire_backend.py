@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
-from fi_runner import AIREBackend, ToolPolicy
+from fi_runner import AIREBackend, AIREDoorError, ToolPolicy
 from fi_runner.backend import AgentBackend, BackendError, MCPServerSpec, TurnImage
 
 
@@ -166,7 +166,7 @@ async def test_error_event_raises(monkeypatch: Any) -> None:
     monkeypatch.setattr(b, "_stream_events", fake_stream)
     monkeypatch.setattr(b, "_ensure_prompt", _anoop)
 
-    with pytest.raises(BackendError, match="budget_exhausted"):
+    with pytest.raises(AIREDoorError, match="budget_exhausted") as exc_info:
         async for _ in b.run_turn_stream(
             system_prompt="",
             user_message="hi",
@@ -175,6 +175,67 @@ async def test_error_event_raises(monkeypatch: Any) -> None:
             session_id="s",
         ):
             pass
+    # The code rides as DATA: consumers classify terminal-vs-backpressure on it,
+    # never on the message wording. And it stays a BackendError, so nothing
+    # upstream needs to know the subclass exists.
+    assert exc_info.value.code == "budget_exhausted"
+    assert isinstance(exc_info.value, BackendError)
+
+
+class _FakeSSEStream:
+    """An httpx-shaped streaming response: enough surface for _stream_events."""
+
+    def __init__(self, status_code: int, lines: list[str], body: bytes = b"") -> None:
+        self.status_code = status_code
+        self._lines = lines
+        self._body = body
+
+    async def __aenter__(self) -> "_FakeSSEStream":
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        return None
+
+    async def aread(self) -> bytes:
+        return self._body
+
+    async def aiter_lines(self) -> AsyncIterator[str]:
+        for line in self._lines:
+            yield line
+
+
+class _FakeStreamHTTP:
+    def __init__(self, response: _FakeSSEStream) -> None:
+        self._response = response
+
+    def stream(self, *args: Any, **kwargs: Any) -> _FakeSSEStream:
+        return self._response
+
+
+@pytest.mark.asyncio
+async def test_typeless_error_payload_is_normalized_to_an_error_event() -> None:
+    """AIRE's edge yields budget_exceeded / slot_busy payloads WITHOUT a "type"
+    key (messages.py emits them from except-clauses). Dropping them would kill
+    the turn later as a bare "no result event" — the code must survive."""
+    b = _backend()
+    b._http = lambda: _FakeStreamHTTP(  # type: ignore[method-assign]
+        _FakeSSEStream(200, ['data: {"error": "slot_busy", "detail": "pool full"}'])
+    )
+    events = [ev async for ev in b._stream_events("p", "s", {})]
+    assert events == [{"type": "error", "error": "slot_busy", "detail": "pool full"}]
+
+
+@pytest.mark.asyncio
+async def test_http_door_failure_keeps_the_status_as_data() -> None:
+    b = _backend()
+    b._http = lambda: _FakeStreamHTTP(  # type: ignore[method-assign]
+        _FakeSSEStream(503, [], body=b"busy")
+    )
+    with pytest.raises(AIREDoorError, match="AIRE door 503") as exc_info:
+        async for _ in b._stream_events("p", "s", {}):
+            pass
+    assert exc_info.value.http_status == 503
+    assert exc_info.value.code is None
 
 
 @pytest.mark.asyncio

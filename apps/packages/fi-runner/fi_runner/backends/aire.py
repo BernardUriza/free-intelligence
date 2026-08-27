@@ -104,6 +104,29 @@ from ..backend import (
 _logger = logging.getLogger(__name__)
 
 
+# The door speaks ``{"error": "<code>", "detail": "..."}``; the code is the only
+# part that carries a decision (terminal vs backpressure vs unknown), and a
+# formatted message string is the one place it cannot be read reliably — a
+# wording change on AIRE's side would silently reroute a terminal cut into a
+# retry storm for any consumer classifying by substring. Subclassing
+# BackendError keeps every existing ``except BackendError`` working.
+class AIREDoorError(BackendError):
+    """A door failure that kept AIRE's own error code as data.
+
+    ``code`` is AIRE's structured error name (``budget_exhausted``,
+    ``slot_busy``, …) when the failure came from an SSE error event; ``None``
+    when the door failed before speaking its protocol. ``http_status`` is the
+    door's response status when the failure was an HTTP one.
+    """
+
+    def __init__(
+        self, message: str, *, code: str | None = None, http_status: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
+
+
 class AIREBackend:
     """Agent backend backed by AIRE (a persistent HTTP server, not a CLI)."""
 
@@ -265,7 +288,9 @@ class AIREBackend:
         ) as res:
             if res.status_code >= 400:
                 detail = (await res.aread()).decode("utf-8", "replace")
-                raise BackendError(f"AIRE door {res.status_code}: {detail}")
+                raise AIREDoorError(
+                    f"AIRE door {res.status_code}: {detail}", http_status=res.status_code
+                )
             async for line in res.aiter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -273,9 +298,16 @@ class AIREBackend:
                 if not payload:
                     continue
                 try:
-                    yield json.loads(payload)
+                    ev = json.loads(payload)
                 except json.JSONDecodeError:  # a keep-alive or partial line — skip
                     continue
+                # AIRE's edge yields budget_exceeded / slot_busy payloads WITHOUT
+                # a "type" key (messages.py emits them from except-clauses).
+                # Dropping them kills the turn later as a bare "no result event";
+                # normalizing keeps the error CODE the consumer classifies on.
+                if "type" not in ev and "error" in ev:
+                    ev = {"type": "error", **ev}
+                yield ev
 
     def _warn_unenforceable(self, tool_policy: ToolPolicy) -> None:
         """The one remaining unforwardable input: AIRE configures the tool
@@ -380,7 +412,10 @@ class AIREBackend:
             elif kind == "result":
                 yield {"type": "result", "result": self._to_result(ev.get("result") or {}, session)}
             elif kind == "error":
-                raise BackendError(f"AIRE turn error [{ev.get('error')}]: {ev.get('detail', '')}")
+                code = ev.get("error")
+                raise AIREDoorError(
+                    f"AIRE turn error [{code}]: {ev.get('detail', '')}", code=code or None
+                )
             # "done" is the stream terminator — nothing to forward.
 
     async def run_turn(
