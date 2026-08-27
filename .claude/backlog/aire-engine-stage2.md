@@ -6,14 +6,21 @@ Status: **ENCENDIDA EN PROD; falta el paso de BORRADO** (verificado en vivo
 `AIRE_GATE_URL=https://gate.bernarduriza.com`: los turnos de producción salen
 por la puerta engine. Evidencia adicional de tráfico real: v4.32.81 (fix de
 cortes `budget_*` de AIRE en canales vivos) sólo existe porque turnos reales se
-cortaban por esa ruta. Lo que SIGUE abierto: (a) el paso de BORRADO con su
-criterio de grep — la ruta local del SDK y el vendored `aire_backend.py` siguen
-vivos detrás del default `local` ([[migrations-end-with-deletion]]); (b) los
-dos hallazgos (el `model` ignorado en sesión caliente; las tools de memoria
-perdidas) no constan como resueltos — verificar antes de cerrarlos.
+cortaban por esa ruta. **El vendored `aire_backend.py` MURIÓ el 2026-08-27**
+(paso de borrado nº 6): fi-runner 0.20.0 publica `fi_runner.backends.aire` con
+las seis adaptaciones upstreameadas (free-intelligence PR #443, incluida la
+sexta — el corte post-result de v4.32.81, que el vendoreo había crecido sin
+documentar), el pin subió `0.11.0 → 0.20.0` y
+`grep -rn "engine.aire_backend" persona_runner/ tests/` devuelve vacío. Lo que
+SIGUE abierto: (a) el resto del BORRADO — la ruta local del SDK
+(`session_pool`, `build_options`, el flag `TURN_BACKEND`) sigue viva detrás
+del default `local` ([[migrations-end-with-deletion]]); (b) los dos hallazgos
+(el `model` ignorado en sesión caliente; las tools de memoria perdidas) no
+constan como resueltos — verificar antes de cerrarlos.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
 · Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
 · Encendida en prod: revisión del 2026-08-26; verificada en el env vivo 2026-08-27
+· Des-vendoreada: 2026-08-27 (fi-runner 0.20.0 en el canal; borrado nº 6 hecho)
 
 ## Qué es
 
@@ -41,7 +48,7 @@ runner delgado; éste no.
 
 | Archivo | Qué es |
 |---|---|
-| `persona_runner/engine/aire_backend.py` | El cliente canónico de la puerta, **VENDOREADO** desde `fi_runner/backends/aire.py` (free-intelligence `b99a26ba`, PR #413). Vendoreado y no importado porque **ningún fi-runner publicado lo trae**: el canal de conda tope 0.17.1 no empaqueta `backends/aire.py` y este repo pinnea `fi-runner=0.11.0`. Cinco adaptaciones marcadas: la quinta (`AIREDoorError`) conserva el CÓDIGO de error de AIRE como dato |
+| ~~`persona_runner/engine/aire_backend.py`~~ | **BORRADO 2026-08-27**: el cliente es el REAL `fi_runner.backends.aire` (fi-runner 0.20.0 del canal). Las seis adaptaciones del vendoreo viven upstream (free-intelligence PR #443): `AIREDoorError` (código como dato), la normalización de errores sin `type`, y el corte `budget_exhausted` post-result que no anula una respuesta entregada (v4.32.81) |
 | `persona_runner/engine/aire_route.py` | La ruta: casitas, pre-fetch de facts, guard de capacidades, mapeo de errores, judge, el candado por casita |
 | `persona_runner/engine/aire_topic.py` | **El tercer eje**: el claim atómico del topic contra `aire_topics`, su fallback en RAM y el bit durable que gobierna el pliegue de historia |
 | `persona_runner/api/turn.py` · `api/judge.py` | La bifurcación por `TURN_BACKEND` |
@@ -352,9 +359,10 @@ Cuando Bernard declare permanente el flag, en el MISMO PR mueren:
    se cerró; hasta entonces NO se borran, se migran
 5. Las specs de Playwright en `options.py` y la dep `@playwright/mcp` del
    Dockerfile
-6. `persona_runner/engine/aire_backend.py` muere aparte, el día que un
-   fi-runner ≥0.19 con `AIREBackend` + thin birth llegue al canal de conda:
-   `aire_route` pasa a `from fi_runner.backends.aire import AIREBackend`
+6. ~~`persona_runner/engine/aire_backend.py`~~ **HECHO 2026-08-27**: fi-runner
+   0.20.0 (canal conda) trae `AIREBackend` + `AIREDoorError` + thin birth con
+   las seis adaptaciones; `aire_route` importa `from fi_runner import
+   AIREBackend` y el grep de `engine.aire_backend` devuelve vacío
 
 **Criterio de terminado (el grep, no el relato):** las tres salidas vacías, en
 el reporte, textuales.

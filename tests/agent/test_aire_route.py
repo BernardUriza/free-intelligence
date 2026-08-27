@@ -15,10 +15,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from fi_runner import AIREDoorError
+from fi_runner.backend import BackendError
 
 from persona_runner.core.schemas import JudgeRequest, TurnRequest
 from persona_runner.engine import aire_route
-from persona_runner.engine.aire_backend import AIREDoorError, BackendError
 from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
 
 

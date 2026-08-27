@@ -23,10 +23,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from fi_runner.backend import BackendError
 
 from persona_runner.core.schemas import TurnRequest
 from persona_runner.engine import aire_route, aire_topic
-from persona_runner.engine.aire_backend import BackendError
 
 
 class _Clock:

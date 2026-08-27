@@ -59,11 +59,12 @@ from dataclasses import dataclass, field
 
 import structlog
 from fastapi import HTTPException
+from fi_runner import AIREBackend
+from fi_runner.backend import BackendError, ToolPolicy, TurnImage
 
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
 from persona_runner.engine import aire_topic
-from persona_runner.engine.aire_backend import AIREBackend, BackendError, ToolPolicy, TurnImage
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path

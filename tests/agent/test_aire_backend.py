@@ -1,10 +1,11 @@
-"""The vendored AIRE door client — the wire contract, without touching the wire.
+"""The AIRE door client's wire contract, without touching the wire.
 
-`aire_backend.py` is a vendored copy of fi-runner's canonical client (it dies the
-day a fi-runner carrying it reaches the conda channel). What is asserted here is
-only what THIS repo depends on and what the four vendoring adaptations changed:
-thin birth, the tools field, the model field, and the type-less error payloads
-AIRE's edge really emits.
+Since v4.33.0 the client is the REAL `fi_runner.backends.aire` from the conda
+channel (fi-runner >=0.20.0) — the vendored copy died with its grep criterion.
+What is asserted here is only what THIS repo depends on: thin birth, the tools
+field, the model field, the type-less error payloads AIRE's edge really emits,
+and AIREDoorError carrying the code as data. A fi-runner bump that breaks any
+of these fails here before it reaches prod.
 """
 
 from __future__ import annotations
@@ -12,8 +13,8 @@ from __future__ import annotations
 import json
 
 import pytest
-
-from persona_runner.engine.aire_backend import AIREBackend, AIREDoorError, BackendError, ToolPolicy
+from fi_runner import AIREBackend, AIREDoorError
+from fi_runner.backend import BackendError, ToolPolicy
 
 
 class _Response:
