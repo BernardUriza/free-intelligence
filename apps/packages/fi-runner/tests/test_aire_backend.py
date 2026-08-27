@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
-from fi_runner import AIREBackend, ToolPolicy
+from fi_runner import AIREBackend, AIREDoorError, ToolPolicy
 from fi_runner.backend import AgentBackend, BackendError, MCPServerSpec, TurnImage
 
 
@@ -166,7 +166,7 @@ async def test_error_event_raises(monkeypatch: Any) -> None:
     monkeypatch.setattr(b, "_stream_events", fake_stream)
     monkeypatch.setattr(b, "_ensure_prompt", _anoop)
 
-    with pytest.raises(BackendError, match="budget_exhausted"):
+    with pytest.raises(AIREDoorError, match="budget_exhausted") as exc_info:
         async for _ in b.run_turn_stream(
             system_prompt="",
             user_message="hi",
@@ -175,6 +175,106 @@ async def test_error_event_raises(monkeypatch: Any) -> None:
             session_id="s",
         ):
             pass
+    # The code rides as DATA: consumers classify terminal-vs-backpressure on it,
+    # never on the message wording. And it stays a BackendError, so nothing
+    # upstream needs to know the subclass exists.
+    assert exc_info.value.code == "budget_exhausted"
+    assert isinstance(exc_info.value, BackendError)
+
+
+class _FakeSSEStream:
+    """An httpx-shaped streaming response: enough surface for _stream_events."""
+
+    def __init__(self, status_code: int, lines: list[str], body: bytes = b"") -> None:
+        self.status_code = status_code
+        self._lines = lines
+        self._body = body
+
+    async def __aenter__(self) -> "_FakeSSEStream":
+        return self
+
+    async def __aexit__(self, *exc: Any) -> None:
+        return None
+
+    async def aread(self) -> bytes:
+        return self._body
+
+    async def aiter_lines(self) -> AsyncIterator[str]:
+        for line in self._lines:
+            yield line
+
+
+class _FakeStreamHTTP:
+    def __init__(self, response: _FakeSSEStream) -> None:
+        self._response = response
+
+    def stream(self, *args: Any, **kwargs: Any) -> _FakeSSEStream:
+        return self._response
+
+
+@pytest.mark.asyncio
+async def test_typeless_error_payload_is_normalized_to_an_error_event() -> None:
+    """AIRE's edge yields budget_exceeded / slot_busy payloads WITHOUT a "type"
+    key (messages.py emits them from except-clauses). Dropping them would kill
+    the turn later as a bare "no result event" — the code must survive."""
+    b = _backend()
+    b._http = lambda: _FakeStreamHTTP(  # type: ignore[method-assign]
+        _FakeSSEStream(200, ['data: {"error": "slot_busy", "detail": "pool full"}'])
+    )
+    events = [ev async for ev in b._stream_events("p", "s", {})]
+    assert events == [{"type": "error", "error": "slot_busy", "detail": "pool full"}]
+
+
+@pytest.mark.asyncio
+async def test_http_door_failure_keeps_the_status_as_data() -> None:
+    b = _backend()
+    b._http = lambda: _FakeStreamHTTP(  # type: ignore[method-assign]
+        _FakeSSEStream(503, [], body=b"busy")
+    )
+    with pytest.raises(AIREDoorError, match="AIRE door 503") as exc_info:
+        async for _ in b._stream_events("p", "s", {}):
+            pass
+    assert exc_info.value.http_status == 503
+    assert exc_info.value.code is None
+
+
+@pytest.mark.asyncio
+async def test_a_budget_cut_after_the_result_keeps_the_answer(monkeypatch: Any) -> None:
+    """AIRE emits the #23 cut AFTER the result event, as a footnote saying the
+    spent client was retired. Raising over it throws a finished answer away
+    (discord-bot's 2026-08-26 P1: the channel stuck on a neutral "…"). The
+    answer wins; the retired client rebuilds on the next turn."""
+    b = _backend()
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        yield {"type": "result", "result": {"text": "hola", "session_id": "sid-1"}}
+        yield {"type": "error", "error": "budget_exhausted", "detail": "ceiling reached"}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+
+    result = await b.run_turn(
+        system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy(), session_id="s"
+    )
+    assert result.text == "hola", "a budget footnote voided a delivered answer"
+
+
+@pytest.mark.asyncio
+async def test_a_budget_cut_with_no_answer_stays_an_error(monkeypatch: Any) -> None:
+    """Only a result IN HAND survives the cut: with nothing to deliver, the
+    error must surface so the caller's resend can continue the work."""
+    b = _backend()
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        yield {"type": "error", "error": "budget_exhausted", "detail": "cut"}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+
+    with pytest.raises(AIREDoorError, match="budget_exhausted"):
+        await b.run_turn(
+            system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy(), session_id="s"
+        )
 
 
 @pytest.mark.asyncio

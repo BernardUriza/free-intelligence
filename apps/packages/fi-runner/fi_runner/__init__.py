@@ -42,7 +42,7 @@ from .backend import (
     mcp_server_token,
     mcp_tool_id,
 )
-from .backends import AIREBackend, ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
+from .backends import AIREBackend, AIREDoorError, ClaudeCodeBackend, CodexBackend, ProviderConfig, SubprocessCLIBackend
 from .conversation import (
     ConversationStore,
     InMemoryConversationStore,
@@ -84,7 +84,7 @@ from .context_binding import (
 from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.17.1"
+__version__ = "0.20.0"
 
 __all__ = [
     "AgentBackend",
@@ -100,6 +100,7 @@ __all__ = [
     "mcp_server_token",
     "mcp_server_of",
     "AIREBackend",
+    "AIREDoorError",
     "ClaudeCodeBackend",
     "CodexBackend",
     "ProviderConfig",
