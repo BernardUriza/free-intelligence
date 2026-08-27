@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.20.0"
+version = "0.20.1"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -33,7 +33,9 @@ dependencies = [
     # that `RagStore.ingest` RAISES `NothingToIndex` where it used to return 0;
     # og118 handles it and keeps its 422. Widened rather than pinned forward so
     # the next 0.25.x patch does not need a second commit here.
-    "fi-core>=0.24,<0.26",
+    # Floor 0.25: narrate.py imports fi_core.prompts (load_prompt) at import
+    # time — added in fi-core 0.25. A 0.24 install crashes `import fi_runner`.
+    "fi-core>=0.25,<0.26",
 ]
 
 [project.optional-dependencies]
