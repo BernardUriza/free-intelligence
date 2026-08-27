@@ -239,6 +239,45 @@ async def test_http_door_failure_keeps_the_status_as_data() -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_budget_cut_after_the_result_keeps_the_answer(monkeypatch: Any) -> None:
+    """AIRE emits the #23 cut AFTER the result event, as a footnote saying the
+    spent client was retired. Raising over it throws a finished answer away
+    (discord-bot's 2026-08-26 P1: the channel stuck on a neutral "…"). The
+    answer wins; the retired client rebuilds on the next turn."""
+    b = _backend()
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        yield {"type": "result", "result": {"text": "hola", "session_id": "sid-1"}}
+        yield {"type": "error", "error": "budget_exhausted", "detail": "ceiling reached"}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+
+    result = await b.run_turn(
+        system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy(), session_id="s"
+    )
+    assert result.text == "hola", "a budget footnote voided a delivered answer"
+
+
+@pytest.mark.asyncio
+async def test_a_budget_cut_with_no_answer_stays_an_error(monkeypatch: Any) -> None:
+    """Only a result IN HAND survives the cut: with nothing to deliver, the
+    error must surface so the caller's resend can continue the work."""
+    b = _backend()
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        yield {"type": "error", "error": "budget_exhausted", "detail": "cut"}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+
+    with pytest.raises(AIREDoorError, match="budget_exhausted"):
+        await b.run_turn(
+            system_prompt="", user_message="m", mcp_servers=[], tool_policy=ToolPolicy(), session_id="s"
+        )
+
+
+@pytest.mark.asyncio
 async def test_run_turn_raises_on_no_result(monkeypatch: Any) -> None:
     """A stream that never yields a result is a real failure, not empty success."""
     b = _backend()

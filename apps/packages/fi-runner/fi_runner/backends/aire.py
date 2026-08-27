@@ -431,19 +431,38 @@ class AIREBackend:
     ) -> TurnResult:
         """One turn through the AIRE door. Drains the stream and returns the final
         ``result`` event. If AIRE never emits one (a torn stream), that is a real
-        failure — surface it, do not invent an empty success (Art. 2)."""
+        failure — surface it, do not invent an empty success (Art. 2).
+
+        The ONE error that does not void a result already in hand is AIRE's
+        ``budget_exhausted`` (aire #23): the engine emits it AFTER the result
+        event, as a footnote saying the client hit its own ceiling and was
+        retired. Raising over it throws away a full answer. The answer is kept
+        (it may be cut short, which still beats silence); an EMPTY one stays an
+        error so the caller's resend — AIRE's own prescription — can continue
+        the work."""
         result: TurnResult | None = None
-        async for event in self.run_turn_stream(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            mcp_servers=mcp_servers,
-            tool_policy=tool_policy,
-            model=model,
-            session_id=session_id,
-            images=images,
-        ):
-            if event.get("type") == "result":
-                result = event["result"]
+        try:
+            async for event in self.run_turn_stream(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                mcp_servers=mcp_servers,
+                tool_policy=tool_policy,
+                model=model,
+                session_id=session_id,
+                images=images,
+            ):
+                if event.get("type") == "result":
+                    result = event["result"]
+        except AIREDoorError as exc:
+            if exc.code != "budget_exhausted" or result is None or not result.text:
+                raise
+            _logger.warning(
+                "AIRE cut the client at its budget ceiling after the result "
+                "(session=%s, text_len=%d); the answer is delivered and the "
+                "retired client rebuilds next turn.",
+                session_id,
+                len(result.text),
+            )
         if result is None:
             raise BackendError("AIRE door closed the stream with no result event.")
         return result
