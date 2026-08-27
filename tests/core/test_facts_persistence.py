@@ -87,11 +87,19 @@ async def test_repeated_auto_saves_do_not_accumulate_but_manual_persists(pg_memo
 
 @pytest.mark.asyncio
 async def test_manual_fact_isolation_between_users(pg_memory_store):
+    """fi-core 0.25 HARDENED the property this test defends: an empty auto
+    snapshot no longer silently proceeds — save_facts([]) raises unless the
+    caller passes allow_empty=True, because an extractor returning nothing is
+    far more often a failed extraction than a principal with no facts. Prod
+    never sends an empty list (persona_gateway/facts.py returns early when
+    nothing was added), so the guard firing IS the contract now — and either
+    way, nobody's facts move."""
     await pg_memory_store.add_manual_fact("u1", "u1 private detail", "personal")
     await pg_memory_store.add_manual_fact("u2", "u2 private detail", "personal")
     assert len(await pg_memory_store.get_facts("u1")) == 1
     assert len(await pg_memory_store.get_facts("u2")) == 1
-    await pg_memory_store.save_facts("u1", [])
+    with pytest.raises(ValueError, match="allow_empty"):
+        await pg_memory_store.save_facts("u1", [])
     assert any(f["fact"] == "u1 private detail" for f in await pg_memory_store.get_facts("u1"))
     assert any(f["fact"] == "u2 private detail" for f in await pg_memory_store.get_facts("u2"))
 
