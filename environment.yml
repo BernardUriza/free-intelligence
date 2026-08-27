@@ -41,15 +41,13 @@ dependencies:
   # Floor raised to 0.9.1 (alice 0.1.20): ALICE's clinical reflection layer
   # imports fi_core.cognitive.PSYCHIATRY (the ClinicalDomain added in 0.9.1);
   # 0.9.0 lacks it and crashes ALICE at boot with ImportError.
-  # PINNED exact to 0.24.4: this is the modern fi-core the rest of the env
-  # actually resolves with (fi-runner 0.11.0 requires fi-core>=0.21; forcing an
-  # older fi-core cascades into unsatisfiable starlette/fastapi pins). The whole
-  # suite passes on 0.24.4 (CI runs proved 1421 pass; the lone test_detects_openai
-  # failure was fi-core's persona pack dropping `\bOpenAI\b` — now guarded
-  # repo-side in INSULT_BREAK_PATTERNS, independent of fi-core's pack). Pinned
-  # exact so a future fi-core bump can't drift behavior silently. See
+  # PINNED exact to 0.25.1 (v4.33.1): fi-runner >=0.20 imports fi_core.prompts
+  # (the P0 prompts-as-content loader) at import time, which first ships in
+  # fi-core 0.25 — 0.24.4 crashes `import fi_runner` (caught by CI on the
+  # 0.20.0 bump; fi-runner 0.20.1 encodes the honest floor). Pinned exact so a
+  # future fi-core bump can't drift behavior silently. See
   # conda_version_constraint.
-  - fi-core=0.24.4
+  - fi-core=0.25.1
   # fi-runner — the backend-agnostic runner framework. insult's runner now
   # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
   # MUST be published to the bernardurizaorozco channel for the prod build.
@@ -62,15 +60,15 @@ dependencies:
   # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
   # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
   # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
-  # PINNED exact to 0.20.0 (v4.33.0) — the release that ships
+  # PINNED exact to 0.20.1 (v4.33.0/.1) — the release that ships
   # fi_runner.backends.aire (AIREBackend + AIREDoorError + thin birth), which
   # let this repo DELETE its vendored persona_runner/engine/aire_backend.py
   # and import the canonical client. Also carries antidrift_guard + packs +
   # capabilities + ClaudeCodeBackend (all imported by the repo) and requires
-  # fi-core>=0.24,<0.26, satisfied by the pinned fi-core=0.24.4. Pinned exact
+  # fi-core>=0.25,<0.26, satisfied by the pinned fi-core=0.25.1. Pinned exact
   # (not `>=`) so the fi-core/fi-runner pair stays the validated combo and
   # can't drift apart on a fresh solve. See conda_version_constraint.
-  - fi-runner=0.20.0
+  - fi-runner=0.20.1
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
