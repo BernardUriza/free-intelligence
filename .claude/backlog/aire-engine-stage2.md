@@ -1,13 +1,19 @@
 # AIRE engine — etapa 2: el runner deja de hostear el SDK y las personas viven en casitas
 
-Status: **Flag shipped, OFF en prod; la ruta vieja SIGUE VIVA** (2026-08-22).
-El código de la ruta AIRE está en `main`, con tests, detrás de
-`TURN_BACKEND=aire`, cuyo default es `local`. **Nada está migrado** — ni un
-turno de producción ha salido por la puerta engine, y el tercer eje (topics)
-tampoco ha corrido nunca contra la puerta real: está probado en tests, no en
-vivo. Verificación en vivo y decisión de encender: de Bernard.
+Status: **ENCENDIDA EN PROD; falta el paso de BORRADO** (verificado en vivo
+2026-08-27). La Container App `persona-runner` (insult-rg, revisión activa
+`persona-runner--0000185`, creada 2026-08-26) corre con `TURN_BACKEND=aire` y
+`AIRE_GATE_URL=https://gate.bernarduriza.com`: los turnos de producción salen
+por la puerta engine. Evidencia adicional de tráfico real: v4.32.81 (fix de
+cortes `budget_*` de AIRE en canales vivos) sólo existe porque turnos reales se
+cortaban por esa ruta. Lo que SIGUE abierto: (a) el paso de BORRADO con su
+criterio de grep — la ruta local del SDK y el vendored `aire_backend.py` siguen
+vivos detrás del default `local` ([[migrations-end-with-deletion]]); (b) los
+dos hallazgos (el `model` ignorado en sesión caliente; las tools de memoria
+perdidas) no constan como resueltos — verificar antes de cerrarlos.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
 · Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
+· Encendida en prod: revisión del 2026-08-26; verificada en el env vivo 2026-08-27
 
 ## Qué es
 
