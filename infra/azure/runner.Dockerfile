@@ -1,19 +1,15 @@
-# Insult Agent SDK Runner — Container Apps image.
+# persona-runner — Container Apps image.
 #
-# Built on `khimeras-runner-base` (infra/azure/runner-base.Dockerfile), which
-# owns the whole toolchain — the conda env from environment.yml, Node 22, the
-# Claude Code CLI and Playwright's Chromium. This image is COPY layers only, so
-# a code commit no longer reinstalls ~260s of dependencies nor re-pushes a
-# multi-GB Chromium.
+# Built straight on `khimeras-base` (the shared conda env): since v4.35.x the
+# runner fronts AIRE's engine door over httpx — no Node, no Claude CLI, no
+# Chromium. The intermediate `khimeras-runner-base` that carried that toolchain
+# was deleted when its last consumer (the local SDK host) died. This image is
+# COPY layers only.
 #
 # Workspace state is NOT in the image. It comes from an Azure Files mount at
 # /data/insult-workspace populated by the workspace_renderer (Postgres -> markdown).
 #
-# This image is intentionally fat (Node + Python + Claude Code) because the runner
-# is a single co-located process. Splitting Node and Python would mean inter-container
-# IPC which is overkill at this scale.
-
-ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-runner-base:latest
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-base:latest
 FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-l", "-c"]
@@ -40,19 +36,12 @@ COPY demux_ai/ demux_ai/
 # single source of truth). Renderer NEVER overwrites these.
 COPY shared/personas/ /app/personas/
 
-# Entrypoint script orchestrates two processes: renderer (background) +
-# FastAPI runner (foreground). See infra/azure/entrypoint.sh for details
-# on OAuth credential materialization and process lifecycle.
+# Entrypoint: boot log + uvicorn foreground. See infra/azure/entrypoint.sh.
 COPY infra/azure/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Non-root user is MANDATORY for Claude Code: it refuses to run with
-# `--dangerously-skip-permissions` (which our `bypassPermissions` mode
-# uses under the hood) when the process is root. Discovered the hard
-# way in v3.9.22 prod test: agent loop exits with
-# "--dangerously-skip-permissions cannot be used with root/sudo
-# privileges for security reasons". HOME is set so the SDK writes
-# `~/.claude/.credentials.json` to the right place.
+# Non-root stays (least privilege for a container fronting Discord input),
+# even though the Claude-CLI root refusal that originally forced it is gone.
 RUN useradd --create-home --shell /bin/bash --uid 10001 runner \
  && chown -R runner:runner /app /home/runner
 USER runner

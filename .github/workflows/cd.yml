@@ -92,7 +92,6 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       base_tag: ${{ steps.tags.outputs.base_tag }}
-      runner_base_tag: ${{ steps.tags.outputs.runner_base_tag }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -112,11 +111,8 @@ jobs:
         run: |
           set -euo pipefail
           BASE_TAG=$(cat environment.yml Dockerfile.base | sha256sum | cut -c1-12)
-          RUNNER_BASE_TAG=$(cat environment.yml Dockerfile.base infra/azure/runner-base.Dockerfile \
-            | sha256sum | cut -c1-12)
           echo "base_tag=$BASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "runner_base_tag=$RUNNER_BASE_TAG" >> "$GITHUB_OUTPUT"
-          echo "base: \`$BASE_TAG\` · runner-base: \`$RUNNER_BASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "base: \`$BASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build khimeras-base if absent
         # `docker manifest inspect` is the GHCR equivalent of the old
@@ -133,21 +129,6 @@ jobs:
               -f Dockerfile.base \
               -t "$REGISTRY/khimeras-base:$TAG" \
               -t "$REGISTRY/khimeras-base:latest" \
-              --push .
-          fi
-
-      - name: Build khimeras-runner-base if absent
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.tags.outputs.runner_base_tag }}"
-          if docker manifest inspect "$REGISTRY/khimeras-runner-base:$TAG" >/dev/null 2>&1; then
-            echo "khimeras-runner-base:$TAG already in GHCR — skipping."
-          else
-            docker buildx build --platform linux/amd64 \
-              -f infra/azure/runner-base.Dockerfile \
-              --build-arg BASE_IMAGE="$REGISTRY/khimeras-base:${{ steps.tags.outputs.base_tag }}" \
-              -t "$REGISTRY/khimeras-runner-base:$TAG" \
-              -t "$REGISTRY/khimeras-runner-base:latest" \
               --push .
           fi
 
@@ -229,7 +210,7 @@ jobs:
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
             environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
             infra/azure/runner.Dockerfile infra/azure/entrypoint.sh \
-            infra/azure/runner-base.Dockerfile Dockerfile.base)
+            Dockerfile.base)
 
           {
             echo "build_gw=$BUILD_GW"
@@ -307,12 +288,11 @@ jobs:
       - name: Build ${{ matrix.surface }} image
         env:
           BASE_TAG: ${{ needs.bases.outputs.base_tag }}
-          RUNNER_BASE_TAG: ${{ needs.bases.outputs.runner_base_tag }}
         run: |
           set -euo pipefail
           case "${{ matrix.surface }}" in
             persona-gateway) FILE="Dockerfile.gateway";              BASE="khimeras-base:$BASE_TAG" ;;
-            persona-runner)  FILE="infra/azure/runner.Dockerfile";   BASE="khimeras-runner-base:$RUNNER_BASE_TAG" ;;
+            persona-runner)  FILE="infra/azure/runner.Dockerfile";   BASE="khimeras-base:$BASE_TAG" ;;
             khimeras-host)   FILE="Dockerfile.host";                 BASE="khimeras-base:$BASE_TAG" ;;
             *) echo "unknown surface '${{ matrix.surface }}' — detect and build disagree"; exit 1 ;;
           esac

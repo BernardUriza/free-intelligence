@@ -10,32 +10,15 @@
 # the renderer activity. (TODO Fase 4: ship renderer logs to stdout too via
 # a tee or a sidecar process — for now this keeps the main log stream clean.)
 #
-# OAuth Max credentials: if CLAUDE_CODE_OAUTH_TOKEN is set in env, materialize
-# the credentials.json file the Claude Agent SDK looks for at
-# ~/.claude/.credentials.json. This is the same pattern air-lite uses, but
-# adapted to a persistent context (no shutdown cleanup needed).
+# No Anthropic credential lives here: since v4.35.0 every turn rides AIRE's
+# engine door (AIRE_AUTH_TOKEN, a door bearer — not the fleet OAuth). The
+# credentials.json materialization died with the local SDK host
+# (backlog runner-base-node-cli-muertos.md).
 
 set -euo pipefail
 
 echo "[entrypoint] persona-runner booting"
-echo "[entrypoint] node $(node --version) | python $(python3 --version) | claude $(claude --version 2>&1 | head -1)"
-
-# --- OAuth Max credentials --------------------------------------------------
-
-CRED_DIR="${HOME:-/home/runner}/.claude"
-CRED_FILE="${CRED_DIR}/.credentials.json"
-
-if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
-  mkdir -p "$CRED_DIR"
-  # JSON written byte-exact so the SDK can read it without surprise. Mode 0600
-  # so other replicas (none today, but room for max-replicas > 1 later) and
-  # other users on the container can't peek.
-  printf '{"oauth_token":"%s"}\n' "$CLAUDE_CODE_OAUTH_TOKEN" > "$CRED_FILE"
-  chmod 600 "$CRED_FILE"
-  echo "[entrypoint] wrote $CRED_FILE (oauth token configured)"
-else
-  echo "[entrypoint] WARN: CLAUDE_CODE_OAUTH_TOKEN not set — agent loop will 401"
-fi
+echo "[entrypoint] python $(python3 --version)"
 
 # --- Workspace renderer (DISABLED in F4 phase 3, v3.9.56) -------------------
 #
