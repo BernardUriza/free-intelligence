@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS
+from .signals import WeightedSignals
 from .urgency import (
     DEFAULT_CRITICAL_PATTERNS,
     DEFAULT_CRITICAL_SYMPTOMS,
@@ -126,6 +128,13 @@ class ClinicalDomain:
     """A specialty's urgency vocabularies, ready to build a classifier.
 
     Adding a domain = one ClinicalDomain instance; the triage algorithm is shared.
+
+    The two optional WEIGHTED axes (see :mod:`.signals`) exist because flat
+    sets can only count, never accumulate: ``chronic_signals`` evaluates the
+    subject's long-term record (facts) for a vulnerability CLUSTER, and
+    ``acute_signals`` evaluates the current message for distress NOW. A domain
+    that ships them lets a consumer retire its own parallel corpus — one
+    clinical source of truth instead of a union.
     """
 
     name: str
@@ -134,6 +143,8 @@ class ClinicalDomain:
     medium_symptoms: frozenset[str]
     critical_patterns: frozenset[str]
     high_risk_conditions: frozenset[str]
+    chronic_signals: WeightedSignals | None = None
+    acute_signals: WeightedSignals | None = None
 
     def urgency_classifier(self) -> UrgencyClassifier:
         """An :class:`UrgencyClassifier` wired with this domain's vocabularies."""
@@ -155,7 +166,9 @@ CARDIOLOGY = ClinicalDomain(
     critical_patterns=DEFAULT_CRITICAL_PATTERNS,
     high_risk_conditions=DEFAULT_HIGH_RISK_CONDITIONS,
 )
-#: Psychiatry / mental health (Spanish) — ALICE's clinical reflection domain.
+#: Psychiatry / mental health (Spanish flat sets + bilingual weighted axes) —
+#: ALICE's clinical reflection domain and, since the weighted axes landed,
+#: the single clinical source discord-bot's crisis path consumes.
 PSYCHIATRY = ClinicalDomain(
     name="psychiatry",
     critical_symptoms=PSYCH_CRITICAL_SYMPTOMS,
@@ -163,6 +176,8 @@ PSYCHIATRY = ClinicalDomain(
     medium_symptoms=PSYCH_MEDIUM_SYMPTOMS,
     critical_patterns=PSYCH_CRITICAL_PATTERNS,
     high_risk_conditions=PSYCH_HIGH_RISK_CONDITIONS,
+    chronic_signals=PSYCH_CHRONIC_SIGNALS,
+    acute_signals=PSYCH_ACUTE_SIGNALS,
 )
 
 #: Registry — look a domain up by name.

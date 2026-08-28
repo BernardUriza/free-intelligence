@@ -18,6 +18,8 @@ the ``cognitive`` extra::
     print(p.get("urgency_rules"))  # preset-specific fields via .get()
 """
 
+from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS
+from .signals import ScoredSignals, SignalGroup, WeightedSignals
 from .domains import (
     CARDIOLOGY,
     DOMAINS,
@@ -95,6 +97,11 @@ __all__ = [
     "MCP_SERVER_NAME",
     "MCP_TOOLS",
     "PSYCHIATRY",
+    "PSYCH_ACUTE_SIGNALS",
+    "PSYCH_CHRONIC_SIGNALS",
+    "ScoredSignals",
+    "SignalGroup",
+    "WeightedSignals",
     "SECTION_WEIGHTS",
     "SUGGESTED_STATE_PRESETS",
     "TERMINAL_STATES",
