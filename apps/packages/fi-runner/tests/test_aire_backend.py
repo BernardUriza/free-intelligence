@@ -563,3 +563,47 @@ def test_a_tool_from_some_other_server_is_not_a_plan() -> None:
 
     call = ToolCall.make("mcp__persona__update", input={"living": "x"})
     assert _derive_plan_events(call, session_id="s", request_id="r") == []
+
+
+@pytest.mark.asyncio
+async def test_http_specs_ride_remote_tools_not_registry_names(monkeypatch: Any) -> None:
+    """R6: an MCPServerSpec with a url is a server the RUNNER hosts — it must
+    reach the door as `remote_tools` (spec whole), never as a registry NAME the
+    door would 422. Headers travel as data; stdio/in-process specs keep riding
+    `tools` by name."""
+    from fi_runner.backend import MCPServerSpec
+
+    b = AIREBackend(project="p", gate_url="https://g", auth_token="t", registry_tools=("memory",))
+    http_spec = MCPServerSpec(
+        name="persona_memory", url="https://runner.example.com/mcp/c1",
+        headers={"Authorization": "Bearer tok"},
+    )
+    named = MCPServerSpec(name="rag", command="python", args=["-m", "rag"])
+    assert b._turn_tools([http_spec, named]) == ["memory", "rag"]
+    assert b._remote_tools([http_spec, named]) == [{
+        "name": "persona_memory", "url": "https://runner.example.com/mcp/c1",
+        "headers": {"Authorization": "Bearer tok"},
+    }]
+
+    seen: dict[str, Any] = {}
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        seen.update(body)
+        yield {"type": "result", "result": {"text": "ok"}}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    await b.run_turn(system_prompt="", user_message="hi", mcp_servers=[http_spec, named],
+                     tool_policy=ToolPolicy(), session_id="s")
+    assert seen["tools"] == ["memory", "rag"]
+    assert seen["remote_tools"][0]["name"] == "persona_memory"
+
+
+def test_http_spec_excludes_other_transports_and_redacts_headers() -> None:
+    from fi_runner.backend import MCPServerSpec
+
+    with pytest.raises(ValueError, match="one transport"):
+        MCPServerSpec(name="x", url="https://a/b", command="python")
+    spec = MCPServerSpec(name="x", url="https://a/b", headers={"Authorization": "Bearer sekret"})
+    assert spec.is_http and not spec.is_in_process
+    assert "sekret" not in repr(spec)

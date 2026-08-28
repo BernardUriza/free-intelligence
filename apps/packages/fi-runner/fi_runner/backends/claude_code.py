@@ -148,11 +148,17 @@ class ClaudeCodeBackend:
         return allowed
 
     def _mcp_dict(self, mcp_servers: list[MCPServerSpec]) -> dict[str, Any]:
-        """Build the SDK ``mcp_servers`` mapping (in-process objects or stdio dicts)."""
+        """Build the SDK ``mcp_servers`` mapping (in-process objects, remote
+        HTTP endpoints, or stdio dicts)."""
         out: dict[str, Any] = {}
         for spec in mcp_servers:
             if spec.is_in_process:
                 out[spec.name] = spec.server
+            elif spec.is_http:
+                entry = {"type": "http", "url": spec.url}
+                if spec.headers:
+                    entry["headers"] = dict(spec.headers)
+                out[spec.name] = entry
             else:
                 entry: dict[str, Any] = {"command": spec.command, "args": spec.args}
                 # env_passthrough=True forwards the full os.environ (legacy
