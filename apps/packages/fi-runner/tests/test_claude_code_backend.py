@@ -255,3 +255,16 @@ async def test_collect_unknown_tool_result_stays_none():
     _text, _usage, _sess, tools = await ClaudeCodeBackend._collect(client)
     assert tools[0].is_error is None  # present result, unknown status
     assert tools[1].is_error is None  # never saw a result
+
+
+def test_mcp_dict_builds_http_entry_with_headers() -> None:
+    """R6: a url spec becomes the SDK's {type: "http"} config — nothing spawns."""
+    from fi_runner import ClaudeCodeBackend
+    from fi_runner.backend import MCPServerSpec
+
+    b = ClaudeCodeBackend(cwd=".")
+    spec = MCPServerSpec(name="remote", url="https://runner.example.com/mcp",
+                         headers={"Authorization": "Bearer tok"})
+    out = b._mcp_dict([spec])
+    assert out["remote"] == {"type": "http", "url": "https://runner.example.com/mcp",
+                             "headers": {"Authorization": "Bearer tok"}}

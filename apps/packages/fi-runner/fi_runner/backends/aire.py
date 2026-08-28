@@ -207,9 +207,26 @@ class AIREBackend:
         ``registry_tools`` plus each per-turn spec's name, deduped in order.
         Only the name crosses the wire — the specs' local ``command``/``args``
         cannot run on AIRE; the door mounts its OWN server of that name, and
-        422s (→ ``BackendError``) any name its registry does not ship."""
-        names = list(self.registry_tools) + [s.name for s in mcp_servers]
+        422s (→ ``BackendError``) any name its registry does not ship.
+        HTTP specs are NOT registry names — they ride ``remote_tools``."""
+        names = list(self.registry_tools) + [s.name for s in mcp_servers if not s.is_http]
         return list(dict.fromkeys(n for n in names if n))
+
+    def _remote_tools(self, mcp_servers: list[MCPServerSpec]) -> list[dict[str, Any]]:
+        """The HTTP specs, as the door's ``remote_tools`` field (aire-server
+        #48): servers the RUNNER hosts and AIRE only wires. The url's origin
+        must be in the door's ``AIRE_REMOTE_TOOL_ORIGINS`` allowlist — an
+        unlisted origin is a 422 (→ ``AIREDoorError``). The headers carry the
+        runner's own bearer to its own server: data, never logged."""
+        out: list[dict[str, Any]] = []
+        for spec in mcp_servers:
+            if not spec.is_http:
+                continue
+            entry: dict[str, Any] = {"name": spec.name, "url": spec.url}
+            if spec.headers:
+                entry["headers"] = dict(spec.headers)
+            out.append(entry)
+        return out
 
     def _resolve_project(self) -> str:
         """The casita THIS turn addresses: the per-turn resolver's answer when
@@ -396,6 +413,8 @@ class AIREBackend:
         }
         if tools:
             body["tools"] = tools
+        if remote := self._remote_tools(mcp_servers):
+            body["remote_tools"] = remote
         chosen_model = model or self.default_model
         if chosen_model:
             body["model"] = chosen_model
