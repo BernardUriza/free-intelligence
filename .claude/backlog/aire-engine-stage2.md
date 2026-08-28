@@ -1,7 +1,8 @@
 # AIRE engine — etapa 2: el runner deja de hostear el SDK y las personas viven en casitas
 
-Status: **ENCENDIDA EN PROD; falta el paso de BORRADO** (verificado en vivo
-2026-08-27). La Container App `persona-runner` (insult-rg, revisión activa
+Status: **TERMINADA — borrado completo 2026-08-28 (v4.35.0)** (encendida en
+prod y verificada en vivo 2026-08-27; Bernard declaró el flag permanente el
+2026-08-28: "dale con el borrado"). La Container App `persona-runner` (insult-rg, revisión activa
 `persona-runner--0000185`, creada 2026-08-26) corre con `TURN_BACKEND=aire` y
 `AIRE_GATE_URL=https://gate.bernarduriza.com`: los turnos de producción salen
 por la puerta engine. Evidencia adicional de tráfico real: v4.32.81 (fix de
@@ -11,10 +12,20 @@ cortaban por esa ruta. **El vendored `aire_backend.py` MURIÓ el 2026-08-27**
 las seis adaptaciones upstreameadas (free-intelligence PR #443, incluida la
 sexta — el corte post-result de v4.32.81, que el vendoreo había crecido sin
 documentar), el pin subió `0.11.0 → 0.20.0` y
-`grep -rn "engine.aire_backend" persona_runner/ tests/` devuelve vacío. Lo que
-SIGUE abierto: (a) el resto del BORRADO — la ruta local del SDK
-(`session_pool`, `build_options`, el flag `TURN_BACKEND`) sigue viva detrás
-del default `local` ([[migrations-end-with-deletion]]); (b) hallazgo 1 (el `model` ignorado en
+`grep -rn "engine.aire_backend" persona_runner/ tests/` devuelve vacío. **El BORRADO se completó el 2026-08-28 (v4.35.0)**: murieron `session_pool.py`,
+`options.py` (Playwright incluido), la rama local de `api/turn.py`/`api/judge.py`,
+el flag `TURN_BACKEND`, el reaper, la dep `claude-agent-sdk` (las tools de
+memoria se declaran vía `mcp_tools/tooldef.py`, mismo JSON Schema pinneado por
+test) y las capas Playwright/Chromium de `runner-base.Dockerfile`. `route_model`
+se mudó a `routing/router_runtime.py`; el reset de canal renació sobre topics
+(`aire_route.reset_channel` + `aire_topic.reset_channel`: DELETE de la fila
+durable ⇒ el siguiente claim acuña topic fresco); `/health.credentials_rejected`
+ahora lo marca la ruta AIRE en `credentials_exhausted` (la señal volvía a ser
+un verde incapaz de fallar). Los tres greps del criterio, corridos 2026-08-28:
+`grep -rn "session_pool\|build_options\|TURN_BACKEND" persona_runner/ tests/` → **0**
+· `grep -rn "claude_agent_sdk" persona_runner/` → **0 imports** (2 docstrings de
+procedencia en tooldef.py) · `grep -rni "playwright" persona_runner/ Dockerfile.* environment.yml` → **0**.
+Suite: 1423 passed. Lo que sigue abierto: (b) hallazgo 1 (el `model` ignorado en
 sesión caliente) CERRADO 2026-08-28: aire-server #38 rebindea al cambiar el
 spec, verificado en vivo (misma sesión: haiku y luego `claude-sonnet-4-6`,
 cada turno contestado por SU modelo). Hallazgo 2 (las tools de memoria)

@@ -13,10 +13,19 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 import persona_runner.api.artifacts as artifacts
 from persona_runner.runner import app
+
+
+@pytest.fixture(autouse=True)
+def _door_env(monkeypatch):
+    """The lifespan verifies the AIRE route at boot — TestClient needs the door
+    env the real container gets out-of-band."""
+    monkeypatch.setenv("AIRE_GATE_URL", "https://gate.test")
+    monkeypatch.setenv("AIRE_AUTH_TOKEN", "t0ken")
 
 
 def test_known_artifact_is_served_as_html():

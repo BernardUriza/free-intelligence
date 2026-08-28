@@ -9,9 +9,9 @@ the conversation lives in the gateway's reflection worker.
 from __future__ import annotations
 
 import asyncpg
-from claude_agent_sdk import tool
 
 from persona_runner.mcp_tools import shared
+from persona_runner.mcp_tools.tooldef import tool
 
 _PROVENANCE_VALUES = ("self_declared", "user_attributed", "system_prompt", "consolidation")
 

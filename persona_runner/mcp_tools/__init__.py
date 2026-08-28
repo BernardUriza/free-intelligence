@@ -34,8 +34,6 @@ Migration path:
 
 from __future__ import annotations
 
-from claude_agent_sdk import create_sdk_mcp_server
-
 from persona_runner.mcp_tools.agent_facts import add_agent_fact, get_agent_facts, update_agent_fact
 from persona_runner.mcp_tools.artifacts import publish_html_artifact
 from persona_runner.mcp_tools.memory_reads import (
@@ -61,23 +59,8 @@ PERSONA_MEMORY_TOOLS = [
     update_agent_fact,
 ]
 
-# Name used in `allowed_tools`: `mcp__persona_memory__<tool_name>`
+# Tool name on the wire: `mcp__persona_memory__<tool_name>`
 PERSONA_MEMORY_SERVER_NAME = "persona_memory"
-
-
-def build_persona_memory_server():
-    """Return the McpSdkServerConfig the runner registers in ClaudeAgentOptions.
-
-    Called once per session at client construction. The server itself is
-    stateless — each tool opens its own connection per invocation, matching
-    the pg_state pattern. No shared pool to leak across sessions.
-    """
-    return create_sdk_mcp_server(
-        name=PERSONA_MEMORY_SERVER_NAME,
-        version="1.0.0",
-        tools=PERSONA_MEMORY_TOOLS,
-    )
-
 
 __all__ = [
     "PERSONA_MEMORY_SERVER_NAME",
@@ -86,7 +69,6 @@ __all__ = [
     "_error",
     "_text",
     "add_agent_fact",
-    "build_persona_memory_server",
     "deep_memory",
     "get_agent_facts",
     "get_disclosure_log",

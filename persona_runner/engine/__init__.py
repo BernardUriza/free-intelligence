@@ -1,5 +1,5 @@
-"""Runner engine — persona DNA, turn framing, SDK options, the session pool."""
+"""Runner engine — persona DNA, turn framing, the AIRE door and its topic axis."""
 
-from persona_runner.engine import framing, options, persona_files, session_pool
+from persona_runner.engine import framing, persona_files
 
-__all__ = ["framing", "options", "persona_files", "session_pool"]
+__all__ = ["framing", "persona_files"]

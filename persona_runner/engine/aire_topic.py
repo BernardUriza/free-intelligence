@@ -313,3 +313,33 @@ async def mark_answered(casita: str, topic_id: str, memory: TopicMemory) -> None
             await conn.execute(_MARK_SQL, casita, topic_id)
     except Exception:
         log.exception("aire_topic_mark_failed", casita=casita, topic=topic_id)
+
+
+_RESET_SQL = """
+DELETE FROM aire_topics WHERE casita LIKE '%-' || $1 RETURNING casita
+"""
+
+
+async def reset_channel(cleaned_channel: str) -> list[str] | None:
+    """Durable half of a channel reset: drop every persona's topic row for the
+    channel, so each casita's NEXT claim mints a fresh topic and folds history
+    anew — the AIRE-route equivalent of force-closing the pooled SDK sessions.
+
+    ``cleaned_channel`` must already be filtered to AIRE's name allowlist (the
+    caller owns the casita naming). Returns the casitas whose rows were dropped,
+    or ``None`` when Postgres is unreachable — a reset that could not be made
+    durable must be REPORTED as such, never silently equated with one that was.
+    """
+    from persona_runner.mcp_tools import shared
+
+    escaped = cleaned_channel.replace("\\", "\\\\").replace("_", "\\_").replace("%", "\\%")
+    try:
+        async with shared.acquire() as conn:
+            if conn is None:
+                return None
+            await _ensure_table(conn)
+            rows = await conn.fetch(_RESET_SQL, escaped)
+            return [r["casita"] for r in rows]
+    except Exception:
+        log.exception("aire_topic_reset_failed", channel=cleaned_channel)
+        return None

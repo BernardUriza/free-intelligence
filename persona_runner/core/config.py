@@ -26,13 +26,6 @@ RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("IN
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 
-# AIRE engine stage 2 (backlog aire-engine-stage2.md): "aire" sends persona
-# turns + judge calls through AIRE's engine door (aire_route.py) instead of the
-# local Claude Agent SDK host. "local" (default, and today's deploy) keeps the
-# turn byte-identical. The flag is SCAFFOLDING, not a parking permit — when it
-# flips permanent, the local SDK host path (session_pool + engine/options build
-# path) dies with it (migrations-end-with-deletion).
-TURN_BACKEND = os.environ.get("TURN_BACKEND", "local").strip().lower()
 # The AIRE door mode persona turns ride. Only "agent" carries WebSearch/WebFetch
 # (server-side dial); verify_aire_route crashes the boot on anything else.
 AIRE_TURN_MODE = os.environ.get("AIRE_TURN_MODE", "agent").strip().lower()
@@ -41,8 +34,7 @@ AIRE_FACTS_MAX_CHARS = int(os.environ.get("AIRE_FACTS_MAX_CHARS", "6000"))
 
 # The THIRD axis of the AIRE mapping (Bernard, 2026-08-22): the casita is the
 # channel's SOUL and lives forever; the SESSION inside it is a TOPIC that rolls
-# over after this many seconds of channel silence. Same vocabulary as the local
-# path's SESSION_IDLE_TIMEOUT_S below — idle is idle on both backends.
+# over after this many seconds of channel silence.
 #
 # WHAT A ROLLOVER COSTS: the next turn is a COLD AIRE session, so the persona
 # system prompt (~14k tokens of DNA alone) is cache-CREATED again — a
@@ -60,28 +52,13 @@ AIRE_FACTS_MAX_CHARS = int(os.environ.get("AIRE_FACTS_MAX_CHARS", "6000"))
 # starts being spent, and that — not tidiness — is the trade to weigh.
 AIRE_TOPIC_IDLE_TIMEOUT_S = float(os.environ.get("AIRE_TOPIC_IDLE_TIMEOUT_S", "3600"))
 
-# Close a per-channel ClaudeSDKClient after this many seconds of no turn
-# activity. Default 15 min — comfortably past the 5-min cache TTL so the
-# next turn after this re-opens with a fresh cache window anyway.
-SESSION_IDLE_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_SESSION_IDLE_TIMEOUT_S", "900"))
-
-# Hard ceiling on concurrent pool slots. Each slot is a live Node subprocess,
-# and og118 keys slots by client-minted conversation UUIDs (OG118-CONTINUITY),
-# so without a cap an authed caller can grow the pool without bound — the
-# 2026-05-22 judge pile-up OOM'd this exact 1-CPU/2Gi runner. At the cap the
-# least-recently-used slot is closed before a new one opens: Discord channels
-# keep durable context in the workspace and og118 reseeds from replayed
-# history, so an eviction costs one cold start, never permanent context loss.
-MAX_POOL_SESSIONS = int(os.environ.get("AGENT_RUNNER_MAX_POOL_SESSIONS", "8"))
-
-# Max concurrent /v1/judge SDK calls. Default 1 — the judge spawns a FRESH
-# Node subprocess per call (no session pool) and generates thousands of tokens
-# (the SDK has no max_tokens cap). On 2026-05-22 a consolidator backlog fired
-# ~25 judges at once on a 1-CPU/2Gi runner: the subprocess pile-up OOM-killed
-# the chat turns' SDK and starved their CPU (p50 turn latency 27-53s). Judges
-# are background utility work (consolidator, fact-extraction, summaries) — the
-# user is NOT waiting on them — so serializing them protects the interactive
-# turns. Override via env for a bigger runner.
+# Max concurrent /v1/judge calls. Default 1. Born on 2026-05-22, when a
+# consolidator backlog fired ~25 judges at once and the local SDK's subprocess
+# pile-up OOM-killed the chat turns (p50 turn latency 27-53s). The pile-up only
+# MOVED with the AIRE migration — to the droplet's 2 RAM slots — so the gate
+# still protects the interactive turns from consolidator bursts. Judges are
+# background utility work (consolidator, fact-extraction, summaries); the user
+# is NOT waiting on them. Override via env for a bigger AIRE pool.
 JUDGE_MAX_CONCURRENCY = int(os.environ.get("AGENT_RUNNER_JUDGE_MAX_CONCURRENCY", "1"))
 JUDGE_DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_JUDGE_MODEL", "claude-haiku-4-5-20251001")
 

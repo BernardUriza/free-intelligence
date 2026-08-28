@@ -83,7 +83,9 @@ dependencies:
   # import conditional).
   - audioop-lts
   - anthropic>=0.42.0
-  - claude-agent-sdk>=0.1.81
+  # claude-agent-sdk left with the local SDK host (aire-engine-stage2
+  # deletion): turns/judges ride AIRE's door over httpx, and the memory
+  # tools declare themselves via persona_runner.mcp_tools.tooldef.
   - python-dotenv>=1.0.0
   - pydantic>=2.5.0
   - pydantic-settings>=2.1.0

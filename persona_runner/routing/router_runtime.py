@@ -247,3 +247,44 @@ def _reset_budget_for_tests() -> Any:
     old = _BUDGET
     _BUDGET = OpusBudget(cap=OPUS_24H_CAP)
     return old
+
+
+async def route_model(channel_id: str, user_id: str, user_text: str) -> tuple[str, dict[str, Any]]:
+    """Run the 3-tier router (Haiku/Sonnet/Opus) for a turn about to run.
+
+    Lived beside the local SDK host's session pool while that host existed (the model
+    stuck per pooled session there); on the AIRE route it is consulted per turn.
+    Every failure falls back to DEFAULT_MODEL — a routing fault must never cost
+    the turn.
+    """
+    import contextlib
+
+    from persona_runner.core import config
+
+    pg_conn = None
+    try:
+        from persona_runner.mcp_tools import _connect as _pg_connect
+
+        pg_conn = await _pg_connect()
+        decision = await route_for_session(
+            channel_id=channel_id,
+            user_id=user_id,
+            user_text=user_text,
+            pg_conn=pg_conn,
+        )
+        return decision.model, {
+            "routed": True,
+            "tier": decision.tier,
+            "reason": decision.reason,
+            "preset_mode": decision.preset_mode,
+            "preset_modifiers": decision.preset_modifiers,
+            "disclosure_severity": decision.disclosure_severity,
+            "forced": decision.forced,
+        }
+    except Exception:
+        log.exception("agent_runner_router_failed", channel_id=channel_id)
+        return config.DEFAULT_MODEL, {"routed": False, "reason": "exception_fallback"}
+    finally:
+        if pg_conn is not None:
+            with contextlib.suppress(Exception):
+                await pg_conn.close()

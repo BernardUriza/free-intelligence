@@ -163,7 +163,7 @@ def door(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: d)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
     return d
@@ -454,25 +454,3 @@ async def test_a_failed_create_is_retried_not_cached_as_done(monkeypatch):
     await aire_topic.claim("insult-555", aire_topic.TopicMemory())
 
     assert aire_topic._table_ready is False
-
-
-# --- the local SDK path is untouched ---------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_the_local_sdk_path_never_touches_the_topic_axis(monkeypatch):
-    """The axis is AIRE-only. The local path keeps ONE live SDK session per
-    channel — its freshness is `is_open(key)`, and it must not gain a Postgres
-    round-trip nor a rollover it has no session semantics for."""
-    from persona_runner.api import turn as turn_api
-
-    monkeypatch.setattr(turn_api.config, "TURN_BACKEND", "local")
-    monkeypatch.setattr(turn_api, "check_auth", lambda _a: None)
-    monkeypatch.setattr(aire_topic, "claim", AsyncMock(side_effect=AssertionError("the local path claimed a topic")))
-    monkeypatch.setattr(
-        "persona_runner.engine.session_pool.get_or_create_client",
-        AsyncMock(side_effect=RuntimeError("local path reached")),
-    )
-
-    with pytest.raises(Exception, match="local path reached"):
-        await turn_api.turn(_turn_request(), authorization=None)

@@ -12,7 +12,7 @@ validación de formato lo habría detenido.
 La cura no es validar mejor el parámetro: es que el parámetro no exista.
 
 Un ContextVar y no un valor fijo al construir la sesión, porque el pool se llavea
-por `channel_id[:persona_id]` (`engine/session_pool.py`) y un canal es
+por `channel_id[:persona_id]` (hoy la casita `{persona}-{canal}`) y un canal es
 multi-usuario — en #general la misma sesión atiende a Bernard y a Alex. Atar al
 crear la sesión congelaría al primero que habló. El principal cambia turno a
 turno; el binding tiene que cambiar con él.

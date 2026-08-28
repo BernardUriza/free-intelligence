@@ -1,78 +1,84 @@
-"""Session reset must close EVERY persona's slot in a channel, not just Insult's.
+"""Channel reset must reach EVERY persona's casita in the channel — and say
+whether it was durable.
 
-Found while modularizing runner.py (2026-07-14). A channel hosts one SDK session
-per persona — keyed `channel_id` for the default persona and `channel_id:<id>` for
-each sibling. `DELETE /v1/session/{channel_id}` closed only the bare key, so a
-Vultur/Frugívoro/ALICE session stuck in a poisoned belief (the exact failure the
-endpoint exists to cure, 2026-05-19) survived the reset SILENTLY and kept
-answering from the bad state.
+The recovery need predates the AIRE route (2026-05-19: a failed tool call left
+a session convinced the tool did not exist for as long as the session lived; on
+2026-07-14 a reset that missed the sibling personas left a stuck Vultur session
+poisoned in silence). On the AIRE route the session is the TOPIC, so the reset
+drops the channel's durable topic rows and clears the RAM mirrors — the next
+turn of each casita mints a fresh topic and folds history anew.
 
-Positive: every slot of the channel closes. Resistance: another channel's slots
-are never touched, and resetting an idle channel is a no-op that doesn't raise.
+Positive: every casita of the channel resets. Resistance: another channel's
+casitas are never touched, an idle channel is a no-op that doesn't raise, and a
+reset Postgres could not make durable REPORTS itself as such instead of
+impersonating one that held.
 """
 
 from __future__ import annotations
 
-import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
-from persona_runner.engine import session_pool
-
-
-class _FakeClient:
-    def __init__(self) -> None:
-        self.closed = False
-
-    async def __aexit__(self, *exc) -> bool:
-        self.closed = True
-        return False
+from persona_runner.engine import aire_route, aire_topic
 
 
 @pytest.fixture(autouse=True)
-def _clean_pool(monkeypatch):
-    monkeypatch.setattr(session_pool, "_pool", {})
-    monkeypatch.setattr(session_pool, "_pool_last_used", {})
-    monkeypatch.setattr(session_pool, "_channel_locks", {})
-    monkeypatch.setattr(session_pool, "_pool_models", {})
-    yield
+def _clean_state(monkeypatch):
+    monkeypatch.setattr(aire_route, "_casita_state", aire_route._casita_state.__class__())
 
 
-def _seed(key: str) -> _FakeClient:
-    client = _FakeClient()
-    session_pool._pool[key] = client
-    session_pool._pool_last_used[key] = 100.0
-    session_pool._channel_locks[key] = asyncio.Lock()
-    session_pool._pool_models[key] = "m"
-    return client
+def _seed(casita: str, topic_id: str) -> aire_route.CasitaState:
+    state = aire_route.casita_state(casita)
+    state.topic = aire_topic.TopicMemory(topic_id=topic_id, last_activity=100.0, answered=True)
+    return state
 
 
-async def test_reset_closes_every_persona_slot_of_the_channel():
-    insult = _seed("C1")
-    vultur = _seed("C1:vultur")
-    frugi = _seed("C1:frugivoro")
+@pytest.mark.asyncio
+async def test_reset_clears_every_persona_of_the_channel(monkeypatch):
+    insult = _seed("insult-C1", "t1")
+    vultur = _seed("vultur-C1", "t2")
+    monkeypatch.setattr(aire_topic, "reset_channel", AsyncMock(return_value=["insult-C1", "vultur-C1"]))
 
-    closed = await session_pool.close_channel("C1")
+    result = await aire_route.reset_channel("C1")
 
-    assert sorted(closed) == ["C1", "C1:frugivoro", "C1:vultur"]
-    assert insult.closed and vultur.closed and frugi.closed
-    assert session_pool.pool_size() == 0
-
-
-async def test_reset_never_touches_another_channel():
-    """RESISTANCE: a prefix collision must not evict a neighbour's sessions."""
-    mine = _seed("C1:vultur")
-    other = _seed("C12")  # startswith("C1") but is a DIFFERENT channel
-    other_sibling = _seed("C12:vultur")
-
-    closed = await session_pool.close_channel("C1")
-
-    assert closed == ["C1:vultur"]
-    assert mine.closed
-    assert not other.closed and not other_sibling.closed
-    assert session_pool.pool_size() == 2
+    assert result["durable"] is True
+    assert result["casitas"] == ["insult-C1", "vultur-C1"]
+    assert insult.topic.topic_id == "" and insult.topic.answered is False
+    assert vultur.topic.topic_id == "" and vultur.topic.answered is False
 
 
-async def test_reset_of_idle_channel_is_a_noop():
-    assert await session_pool.close_channel("nobody-home") == []
-    assert session_pool.pool_size() == 0
+@pytest.mark.asyncio
+async def test_reset_never_touches_another_channels_casitas(monkeypatch):
+    _seed("insult-C1", "t1")
+    other = _seed("insult-C2", "t9")
+    monkeypatch.setattr(aire_topic, "reset_channel", AsyncMock(return_value=["insult-C1"]))
+
+    result = await aire_route.reset_channel("C1")
+
+    assert "insult-C2" not in result["casitas"]
+    assert other.topic.topic_id == "t9" and other.topic.answered is True
+
+
+@pytest.mark.asyncio
+async def test_resetting_an_idle_channel_is_a_noop_that_does_not_raise(monkeypatch):
+    monkeypatch.setattr(aire_topic, "reset_channel", AsyncMock(return_value=[]))
+
+    result = await aire_route.reset_channel("nobody-home")
+
+    assert result == {"durable": True, "casitas": []}
+
+
+@pytest.mark.asyncio
+async def test_a_reset_postgres_could_not_hold_reports_itself_as_not_durable(monkeypatch):
+    """None from the durable half means the reset lives only in this process's
+    RAM — a restart loses it, and equating it with a durable one would be the
+    autosave-ACK lie (verify-before-assuming Rule 19)."""
+    ram = _seed("insult-C1", "t1")
+    monkeypatch.setattr(aire_topic, "reset_channel", AsyncMock(return_value=None))
+
+    result = await aire_route.reset_channel("C1")
+
+    assert result["durable"] is False
+    assert result["casitas"] == ["insult-C1"]
+    assert ram.topic.topic_id == ""  # the RAM half still reset

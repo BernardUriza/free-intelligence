@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import os
 
-from claude_agent_sdk import tool
-
 from persona_runner.mcp_tools import shared
+from persona_runner.mcp_tools.tooldef import tool
 
 
 @tool(

@@ -63,13 +63,11 @@ def _rpc_error(id_: Any, code: int, message: str) -> dict[str, Any]:
 
 
 def _tools_list() -> dict[str, Any]:
-    from claude_agent_sdk import _build_input_schema  # the SDK's own converter,
+    from persona_runner.mcp_tools.tooldef import build_input_schema
 
-    # the same one create_sdk_mcp_server feeds the in-process transport — one
-    # schema source for both routes, not a hand-copied second truth.
     return {
         "tools": [
-            {"name": t.name, "description": t.description, "inputSchema": _build_input_schema(t)}
+            {"name": t.name, "description": t.description, "inputSchema": build_input_schema(t)}
             for t in _TOOLS.values()
         ]
     }

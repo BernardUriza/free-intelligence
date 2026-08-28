@@ -28,12 +28,6 @@ RUN mamba install -n base -c conda-forge -y 'nodejs>=22,<23' \
 # /home/runner/.claude/.credentials.json (NOT baked into the image).
 RUN npm install -g --silent @anthropic-ai/claude-code
 
-# Playwright MCP server + headless Chromium for scraping JS-heavy / social-media
-# sites (IG/FB/TikTok/X) that web_search cannot reach. Chromium lives at
-# PLAYWRIGHT_BROWSERS_PATH so the non-root runner user can read it. apt deps
-# (libnss3, libgbm, libxcomposite, libxdamage, libasound, etc.) are pulled in
-# by `--with-deps`, which needs root — done here, before any USER switch.
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
-RUN npm install -g --silent @playwright/mcp \
- && npx -y playwright install --with-deps chromium \
- && chmod -R a+rX /opt/playwright-browsers
+# Playwright (+ its multi-GB Chromium) left with the local SDK host: scraping
+# on the AIRE route rides the droplet's own mode surface, and this image no
+# longer spawns MCP subprocesses (aire-engine-stage2 deletion step 5).

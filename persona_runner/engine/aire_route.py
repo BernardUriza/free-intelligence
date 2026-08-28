@@ -1,5 +1,5 @@
-"""The AIRE turn route — ``TURN_BACKEND=aire`` sends persona turns through
-AIRE's engine door instead of hosting the Claude Agent SDK in this container.
+"""The AIRE turn route — every persona turn rides AIRE's engine door instead
+of a Claude Agent SDK hosted in this container.
 
 Stage 2 of the AIRE migration (backlog ``aire-engine-stage2.md``). The mapping,
 decided by Bernard 2026-08-22:
@@ -60,9 +60,8 @@ from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage
 
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
-from persona_runner.engine import aire_principal, aire_topic
+from persona_runner.engine import aire_principal, aire_topic, auth_failure
 from persona_runner.engine.framing import fold_history, frame_turn_text
-from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
 
 log = structlog.get_logger()
@@ -71,6 +70,11 @@ log = structlog.get_logger()
 # `persona` = the living half of the casita's CLAUDE.md, `memory` = recall over
 # the session's own transcript in AIRE's session store.
 AIRE_REQUIRED_TOOLS = ("persona", "memory")
+# Built-in Claude Code tools a persona turn MUST be able to call. WebSearch is
+# load-bearing and its absence fails SILENTLY (the agent simply never searches
+# and deflects with banter, 2026-06-14). Lived in `engine.options` while the
+# local SDK host existed; the audit below asserts AIRE's mode grants them.
+REQUIRED_BUILTIN_TOOLS = ("WebSearch", "WebFetch")
 # WebSearch/WebFetch exist ONLY in AIRE's `agent` mode (server-side MODES dial,
 # verified in aire-server engine/options.py 2026-08-22, which also excludes Bash
 # there and cages file tools to the casita). Any other mode silently strips the
@@ -188,7 +192,7 @@ def casita_state(casita: str) -> CasitaState:
     to be known before the thing it decides.
 
     Creation is a single synchronous step (no await between the miss and the
-    insert), exactly like ``session_pool.slot_lock``'s ``setdefault`` — so two
+    insert), the setdefault pattern the old session pool's slot_lock used — so two
     coroutines can never walk away holding two different locks for one casita,
     which would reopen the very race the lock closes.
     """
@@ -222,7 +226,7 @@ def verify_aire_route() -> None:
     token = os.environ.get("AIRE_AUTH_TOKEN", "") or os.environ.get("AIRE_CANARY_TOKEN", "")
     if not gate or not token:
         raise RuntimeError(
-            "TURN_BACKEND=aire requires AIRE_GATE_URL and AIRE_AUTH_TOKEN in the "
+            "The AIRE route requires AIRE_GATE_URL and AIRE_AUTH_TOKEN in the "
             "environment (set out-of-band, see docs/runbook_dr.md) — refusing to "
             "boot a runner whose every turn would 502."
         )
@@ -233,7 +237,7 @@ def verify_aire_route() -> None:
             "silently strips the load-bearing web tools (2026-06-14 class)."
         )
     verify_audited_surface(config.AIRE_TURN_MODE)
-    # Assert the REAL wiring, exactly like the boot's build_options check does
+    # Assert the REAL wiring, exactly as the boot's capability check demands
     # for the local route: the backend a turn would actually get must carry the
     # required registry tools and ride an allowlisted mode. It is BUILT, not
     # cached — verifying must not mutate module state, or the boot check quietly
@@ -472,7 +476,7 @@ def log_topic_decision(casita: str, claim: aire_topic.TopicClaim) -> None:
 
 
 async def turn_via_aire(req: TurnRequest) -> TurnResponse:
-    """One persona turn through AIRE's engine door (the TURN_BACKEND=aire path).
+    """One persona turn through AIRE's engine door.
 
     The whole decide-topic → turn → mark window runs under the casita's lock, so
     "first turn of this topic" can only be true for the turn that actually opens
@@ -489,7 +493,7 @@ async def turn_via_aire(req: TurnRequest) -> TurnResponse:
 
 async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaState) -> TurnResponse:
     """The turn itself. ALWAYS called under ``state.lock`` — see ``turn_via_aire``."""
-    from persona_runner.engine.session_pool import _route_model
+    from persona_runner.routing.router_runtime import route_model
 
     start = time.monotonic()
     # The topic decision is the first thing under the lock: it names the AIRE
@@ -501,7 +505,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     log_topic_decision(casita, claim)
     is_first_turn = claim.needs_fold
 
-    model, route_meta = await _route_model(req.channel_id, req.user_id, req.user_text)
+    model, route_meta = await route_model(req.channel_id, req.user_id, req.user_text)
     memory_block = await fetch_user_facts(req.user_id)
     framed = frame_turn_text(
         channel_id=req.channel_id,
@@ -572,12 +576,20 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             error=str(exc)[:300],
             elapsed_ms=int((time.monotonic() - start) * 1000),
         )
+        # /health's `credentials_rejected` used to be set by the local SDK path;
+        # with that path gone, THIS is the only place a dead upstream credential
+        # (now the droplet's, surfaced as AIRE's structured code) can be seen.
+        # Without it the field is a green that cannot fail (verify-before-assuming
+        # Rule 22).
+        if getattr(exc, "code", None) == "credentials_exhausted":
+            auth_failure.mark_failure(str(exc)[:200])
         raise to_http_error(exc) from exc
     finally:
         _chat_casita.reset(token)
         if principal_bound:
             await aire_principal.clear(casita)
 
+    auth_failure.clear_failure()
     # Only a turn that SUCCEEDED marks the topic answered: a failed one never
     # reached AIRE's memory, so the next attempt must still fold the history.
     await aire_topic.mark_answered(casita, claim.topic_id, state.topic)
@@ -724,3 +736,31 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
         input_tokens=int(usage.get("input_tokens", 0) or 0),
         output_tokens=int(usage.get("output_tokens", 0) or 0),
     )
+
+
+async def reset_channel(channel_id: str) -> dict:
+    """Force a fresh AIRE session for EVERY persona's casita in a channel — the
+    AIRE-route successor of force-closing the channel's pooled SDK clients.
+
+    A poisoned belief now lives in the AIRE session's transcript, and the
+    session is the TOPIC: dropping the channel's durable topic rows makes each
+    casita's next claim mint a fresh topic (new AIRE session, history folded
+    anew). The RAM mirrors are cleared under each casita's lock so the
+    Postgres-is-down fallback cannot resurrect the old topic; the abandoned
+    transcripts stay in AIRE's tables until its sweep — unreferenced.
+    """
+    cleaned = _NAME_UNSAFE.sub("", channel_id) or "unknown"
+    dropped = await aire_topic.reset_channel(cleaned)
+    suffix = f"-{cleaned}"
+    ram_cleared: list[str] = []
+    for casita, state in list(_casita_state.items()):
+        if casita.endswith(suffix):
+            async with state.lock:
+                state.topic = aire_topic.TopicMemory()
+            ram_cleared.append(casita)
+    return {
+        # None ⇔ Postgres unreachable: the reset held only in RAM and a restart
+        # loses it. Reported, never silently equated with a durable one.
+        "durable": dropped is not None,
+        "casitas": sorted(set(dropped or []) | set(ram_cleared)),
+    }

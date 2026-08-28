@@ -1,31 +1,17 @@
-"""Runner multi-persona (Khimeras): persona_id resolution + pool keying.
+"""Runner multi-persona (Khimeras): persona_id resolution.
 
 A turn may carry a `persona_id` so a sibling persona (e.g. "vultur") answers
-instead of Insult. Two safety-critical properties, each with a resistance case:
-
-- Resolution: a valid id loads PERSONAS_DIR/<id>.md; None / path-traversal /
-  unknown id ALL fall back to Insult's PERSONA_PATH (no directory escape, no
-  silent Insult-impersonation without a log).
-- Pool keying: Insult (None) keeps the bare channel_id slot (backward-compat,
-  existing sessions untouched); a sibling gets channel_id:persona_id so it never
-  shares Insult's SDK session in the same channel.
+instead of Insult. Resolution is safety-critical: a valid id loads
+PERSONAS_DIR/<id>.md; None / path-traversal / unknown id ALL fall back to
+Insult's PERSONA_PATH (no directory escape, no silent Insult-impersonation
+without a log). The casita naming that keeps siblings apart on the AIRE route
+is pinned in tests/agent/test_aire_route.py (chat_casita tests).
 """
 
 from __future__ import annotations
 
 from persona_runner.core import config as runner_config
-from persona_runner.engine import persona_files, session_pool
-
-
-def test_pool_key_insult_is_bare_channel():
-    # Insult keeps the exact channel_id — existing sessions/behavior unchanged.
-    assert session_pool.pool_key("chan123", None) == "chan123"
-
-
-def test_pool_key_sibling_is_namespaced():
-    assert session_pool.pool_key("chan123", "vultur") == "chan123:vultur"
-    # Different personas in the same channel never collide.
-    assert session_pool.pool_key("chan123", "vultur") != session_pool.pool_key("chan123", "reaper")
+from persona_runner.engine import persona_files
 
 
 def test_resolve_persona_none_is_insult():

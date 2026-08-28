@@ -1,4 +1,4 @@
-"""The AIRE route (TURN_BACKEND=aire) — the guards that must never degrade.
+"""The AIRE route — the guards that must never degrade.
 
 Stage 2 sends every persona turn through AIRE's engine door instead of the local
 SDK host. The capability guard, the casita naming and the error mapping are the
@@ -20,7 +20,7 @@ from fi_runner.backend import BackendError
 
 from persona_runner.core.schemas import JudgeRequest, TurnRequest
 from persona_runner.engine import aire_route
-from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
+from persona_runner.engine.aire_route import REQUIRED_BUILTIN_TOOLS
 
 
 @pytest.fixture(autouse=True)
@@ -243,7 +243,7 @@ async def test_turn_via_aire_addresses_the_persona_channel_casita(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -263,7 +263,7 @@ async def test_turn_via_aire_folds_history_only_on_the_first_turn(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
     req = _turn_request(history=[{"role": "user", "content": "el turno viejo"}])
@@ -286,7 +286,7 @@ async def test_turn_via_aire_carries_facts_and_guidance_in_band(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value="- [health] toma su tratamiento"))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -306,7 +306,7 @@ async def test_a_cut_turn_raises_instead_of_returning_empty_success(monkeypatch)
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -330,7 +330,7 @@ async def test_a_budget_cut_is_resent_once_and_the_resend_answers(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -349,7 +349,7 @@ async def test_a_second_cut_in_a_row_is_terminal_not_a_retry_storm(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -368,7 +368,7 @@ async def test_other_terminal_codes_are_never_resent(monkeypatch):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -376,6 +376,38 @@ async def test_other_terminal_codes_are_never_resent(monkeypatch):
         await aire_route.turn_via_aire(_turn_request())
     assert caught.value.status_code == 500
     assert backend.run_turn.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_a_credentials_cut_marks_health_and_a_success_clears_it(monkeypatch):
+    """/health's `credentials_rejected` must reflect a REAL turn's verdict. With
+    the local SDK path gone, the AIRE door's structured code is the only place a
+    dead upstream credential is visible — unmarked, the field is a green that
+    cannot fail (verify-before-assuming Rule 22)."""
+    from persona_runner.engine import auth_failure
+
+    auth_failure.clear_failure()
+    failing = AsyncMock()
+    exc = BackendError("AIRE turn terminal: credentials pool exhausted")
+    exc.code = "credentials_exhausted"
+    failing.run_turn.side_effect = exc
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: failing)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        "persona_runner.routing.router_runtime.route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+
+    with pytest.raises(HTTPException):
+        await aire_route.turn_via_aire(_turn_request())
+    recorded = auth_failure.last_failure()
+    assert recorded is not None and "credentials" in recorded["detail"]
+
+    healthy = AsyncMock()
+    healthy.run_turn.return_value = _Result()
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: healthy)
+    await aire_route.turn_via_aire(_turn_request())
+    assert auth_failure.last_failure() is None
 
 
 @pytest.mark.asyncio
@@ -511,7 +543,7 @@ def _wire_turn(monkeypatch, backend):
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
-        "persona_runner.engine.session_pool._route_model",
+        "persona_runner.routing.router_runtime.route_model",
         AsyncMock(return_value=("claude-sonnet-4-6", {})),
     )
 
@@ -632,7 +664,6 @@ def _concurrent_judges(monkeypatch):
     own prompt), so nothing warns you before you raise it."""
     from persona_runner.api import judge as judge_api
 
-    monkeypatch.setattr(judge_api.config, "TURN_BACKEND", "aire")
     monkeypatch.setattr(judge_api.config, "JUDGE_MAX_CONCURRENCY", 4)
     monkeypatch.setattr(judge_api, "check_auth", lambda _a: None)
     judge_api.reset_judge_semaphore()
@@ -777,10 +808,7 @@ async def test_the_runner_lifespan_closes_the_aire_backends(monkeypatch):
     session pool and nothing else."""
     from persona_runner import runner as runner_mod
 
-    monkeypatch.setattr(runner_mod.config, "TURN_BACKEND", "aire")
     monkeypatch.setattr(aire_route, "verify_aire_route", lambda: None)
-    monkeypatch.setattr("persona_runner.engine.session_pool.reap_idle_sessions", AsyncMock(return_value=None))
-    monkeypatch.setattr("persona_runner.engine.session_pool.close_all", AsyncMock(return_value=None))
     closed_pool = AsyncMock(return_value=None)
     monkeypatch.setattr("persona_runner.mcp_tools.shared.close_pool", closed_pool)
     backend = _Closable("insult")

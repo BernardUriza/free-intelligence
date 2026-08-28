@@ -63,12 +63,13 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
      ante AIRE; llena la columna app de la vista `/gateway` del front
      (aire-server backlog #33, 2026-08-12).
 
-   **Etapa 2 (la puerta ENGINE) — HOY APAGADA.** El código está en `main` detrás
-   de `TURN_BACKEND`, cuyo default es `local`: un recreate que no ponga NADA de
-   lo siguiente reconstruye el runner con el turno de siempre, que es lo
-   correcto. Estas variables se ponen **fuera de banda** (nunca en un archivo del
-   repo) sólo el día que Bernard encienda la ruta:
-   - `TURN_BACKEND=aire` — enciende la ruta AIRE (default `local`).
+   **La puerta ENGINE — LA ÚNICA RUTA (desde v4.35.0).** La ruta local del SDK
+   y el flag `TURN_BACKEND` fueron BORRADOS (etapa 2, paso de borrado): el
+   runner ya no puede servir un turno sin la puerta, y **un recreate sin estas
+   variables NO BOOTEA** — truena fuerte en el arranque en vez de degradar en
+   silencio a un backend que ya no existe. Se ponen **fuera de banda** (nunca
+   en un archivo del repo); `TURN_BACKEND` puede seguir seteada en la app vieja
+   sin efecto (el código ya no la lee — quitarla en la próxima revisión):
    - `AIRE_GATE_URL=https://gate.bernarduriza.com` — la puerta engine.
    - `AIRE_AUTH_TOKEN` — Bearer de esa puerta, **como secret del Container App**,
      referenciado por nombre (`secretref:aire-auth-token`), nunca como literal.
@@ -94,15 +95,13 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
    az containerapp secret set -n persona-runner -g insult-rg \
      --secrets aire-auth-token=<token>
    az containerapp update -n persona-runner -g insult-rg \
-     --set-env-vars TURN_BACKEND=aire \
-                    AIRE_GATE_URL=https://gate.bernarduriza.com \
+     --set-env-vars AIRE_GATE_URL=https://gate.bernarduriza.com \
                     AIRE_AUTH_TOKEN=secretref:aire-auth-token
-   # apagar (rollback en una revisión)
-   az containerapp update -n persona-runner -g insult-rg \
-     --remove-env-vars TURN_BACKEND AIRE_GATE_URL AIRE_AUTH_TOKEN AIRE_TURN_MODE
+   # NO hay "apagar": desde v4.35.0 la puerta es la única ruta. El rollback de
+   # una emergencia es la REVISIÓN anterior del Container App, no un flag.
    ```
 
-   Con la ruta encendida el runner **exige** la puerta: sin `AIRE_GATE_URL` o sin
+   El runner **exige** la puerta: sin `AIRE_GATE_URL` o sin
    token el boot truena, en vez de levantar un runner cuyos turnos serían todos
    502. Lo que se pierde por esa ruta y lo que la bloquea está en
    [`.claude/backlog/aire-engine-stage2.md`](../.claude/backlog/aire-engine-stage2.md).

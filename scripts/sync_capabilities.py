@@ -27,7 +27,7 @@ CAPABILITY_PATHS = {
     "reminders": ROOT / "persona_gateway" / "workers" / "reminders.py",
     "research": ROOT / "persona_gateway" / "workers" / "research.py",
     "vision": ROOT / "persona_gateway" / "vision.py",
-    "web_search": ROOT / "persona_runner" / "engine" / "options.py",
+    "web_search": ROOT / "persona_runner" / "engine" / "aire_route.py",
     "deep_memory": ROOT / "persona_runner" / "mcp_tools" / "memory_reads.py",
     "html_artifacts": ROOT / "persona_runner" / "mcp_tools" / "artifacts.py",
     "agent_runner_mcp": ROOT / "persona_runner" / "mcp_tools" / "__init__.py",
