@@ -24,7 +24,7 @@ from .engine.contract import Guard
 from .engine.drain import turn_cost
 from .engine.guards import observe
 from .intake import (build_guards, safe_guard_names, safe_images, safe_mode,
-                     safe_model, safe_names, safe_tools)
+                     safe_model, safe_names, safe_remote_tools, safe_tools)
 
 router = APIRouter()
 
@@ -36,7 +36,8 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     message = str(body.get("message", body.get("prompt", ""))).strip()
     mode = safe_mode(body.get("mode"))
     spec = TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
-                    model=safe_model(body.get("model")))
+                    model=safe_model(body.get("model")),
+                    remote_tools=safe_remote_tools(body.get("remote_tools")))
     images = safe_images(body.get("images"))
     guard_names = safe_guard_names(body.get("guards"))
     # An empty turn spends real money for nothing, so the edge cuts it. An

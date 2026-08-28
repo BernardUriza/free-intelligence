@@ -21,15 +21,38 @@ class SlotBusy(Exception):
     caller was queued (backpressure), not dropped, and the box did not OOM."""
 
 
+@dataclass(frozen=True, repr=False)
+class RemoteTool:
+    """An HTTP MCP server the CALLER hosts and the door only wires (#48).
+
+    This is not the RCE the registry doctrine bans: no command ever crosses the
+    wire — the agent makes an outbound HTTPS call to a host the OPERATOR chose.
+    The wire names the url; the environment defines the trust: its origin must
+    be listed in ``AIRE_REMOTE_TOOL_ORIGINS`` or the door refuses the turn.
+
+    ``headers`` carry the caller's credential to its OWN server (a bearer the
+    runner mints for itself). They are a secret in transit: the redacting
+    ``__repr__`` below is load-bearing — TurnSpec is printed on every REBIND."""
+
+    name: str
+    url: str
+    headers: tuple[tuple[str, str], ...] = ()
+
+    def __repr__(self) -> str:
+        return f"RemoteTool(name={self.name!r}, url={self.url!r}, headers=<{len(self.headers)} redacted>)"
+
+
 @dataclass(frozen=True)
 class TurnSpec:
     """One turn's requested shape, threaded whole through the turn path (#29).
-    All three bind when the session's pooled client is (re)born — the SDK takes
-    them at construction — so a live session keeps the shape it started with."""
+    Everything here binds when the session's pooled client is (re)born — the SDK
+    takes it at construction — and a turn that asks for a DIFFERENT shape drops
+    the warm client first (#38), so remote_tools rebind like model and tools."""
 
     mode: str
     tools: tuple[str, ...] = ()
     model: str | None = None
+    remote_tools: tuple[RemoteTool, ...] = ()
 
 
 @dataclass(frozen=True)

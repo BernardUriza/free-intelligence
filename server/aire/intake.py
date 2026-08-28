@@ -9,13 +9,15 @@ thing about SSE. The daemon is internet-open and runs as root, so this is where
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 
 from .engine import DEFAULT_MODE, MODES
-from .engine.contract import Guard
+from .engine.contract import Guard, RemoteTool
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
 from .engine.vision import BadImage, clean_images
@@ -78,6 +80,69 @@ def safe_guard_names(raw: Any) -> list[str]:
         return clean_guards(raw)
     except UnknownGuard as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+REMOTE_TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
+_REMOTE_TOOLS_MAX = 4
+_REMOTE_HEADERS_MAX = 8
+
+
+def _allowed_remote_origins() -> frozenset[str]:
+    """The origins a remote_tools url may point at — defined by the OPERATOR in
+    ``AIRE_REMOTE_TOOL_ORIGINS`` (comma-separated ``https://host[:port]``), never
+    by the wire. Read per-request so provisioning can add one without a restart."""
+    raw = os.environ.get("AIRE_REMOTE_TOOL_ORIGINS", "")
+    return frozenset(o.strip().rstrip("/").lower() for o in raw.split(",") if o.strip())
+
+
+def safe_remote_tools(raw: Any) -> tuple[RemoteTool, ...]:
+    """Validate `remote_tools` (#48): HTTP MCP servers the caller hosts.
+
+    The registry doctrine holds — no command ever crosses the wire. What IS
+    accepted is ``{name, url, headers?}`` where the url's origin sits in the
+    operator's allowlist: the wire names a capability, the environment defines
+    the trust. Everything else is a 422 that never echoes a header value."""
+    if raw is None or raw == []:
+        return ()
+    if not isinstance(raw, list) or len(raw) > _REMOTE_TOOLS_MAX:
+        raise HTTPException(status_code=422,
+                            detail=f"remote_tools must be a list of at most {_REMOTE_TOOLS_MAX} specs")
+    allowed = _allowed_remote_origins()
+    from .engine.tools import REGISTRY
+    out: list[RemoteTool] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=422, detail="each remote tool must be an object")
+        name = item.get("name")
+        if not isinstance(name, str) or not REMOTE_TOOL_NAME.match(name):
+            raise HTTPException(status_code=422,
+                                detail="remote tool name must match ^[a-z][a-z0-9_]{0,31}$")
+        if name in REGISTRY or name in seen:
+            raise HTTPException(status_code=422,
+                                detail=f"remote tool name {name!r} collides with the registry or repeats")
+        url = item.get("url")
+        if not isinstance(url, str) or len(url) > 512:
+            raise HTTPException(status_code=422, detail="remote tool url must be a string (<=512 chars)")
+        parts = urlsplit(url)
+        if parts.scheme != "https" or not parts.netloc or parts.username or parts.password:
+            raise HTTPException(status_code=422, detail="remote tool url must be plain https")
+        origin = f"https://{parts.netloc}".lower()
+        if origin not in allowed:
+            raise HTTPException(status_code=422,
+                                detail=f"origin {origin} is not in AIRE_REMOTE_TOOL_ORIGINS")
+        headers = item.get("headers") or {}
+        if (not isinstance(headers, dict) or len(headers) > _REMOTE_HEADERS_MAX
+                or not all(isinstance(k, str) and isinstance(v, str)
+                           and len(k) <= 64 and len(v) <= 512
+                           and "\n" not in k and "\r" not in k
+                           and "\n" not in v and "\r" not in v for k, v in headers.items())):
+            raise HTTPException(status_code=422,
+                                detail=f"remote tool headers must be a small flat str map "
+                                       f"(<= {_REMOTE_HEADERS_MAX} entries, no newlines)")
+        seen.add(name)
+        out.append(RemoteTool(name=name, url=url, headers=tuple(sorted(headers.items()))))
+    return tuple(out)
 
 
 def build_guards(names: list[str]) -> list[Guard]:
