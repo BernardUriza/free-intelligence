@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 
 from aire.engine.contract import RemoteTool, TurnSpec
-from aire.engine.options import _mount_remote_tools
+from aire.engine.remote_tools import mount_remote_tools
 from aire.intake import safe_remote_tools
 
 ORIGIN = "https://runner.example.com"
@@ -110,7 +110,7 @@ def test_different_remote_tools_change_the_spec_identity():
 def test_mount_builds_the_sdk_http_config_and_allows_the_server():
     (rt,) = safe_remote_tools([_spec()])
     kwargs = {"allowed_tools": ["Read"], "mcp_servers": {"memory": object()}}
-    _mount_remote_tools(kwargs, (rt,))
+    mount_remote_tools(kwargs, (rt,))
     assert kwargs["mcp_servers"]["persona_memory"] == {
         "type": "http", "url": f"{ORIGIN}/mcp/insult-c1",
         "headers": {"Authorization": "Bearer sekret-123"},
@@ -121,13 +121,13 @@ def test_mount_builds_the_sdk_http_config_and_allows_the_server():
 
 def test_mount_without_remote_tools_changes_nothing():
     kwargs = {"allowed_tools": ["Read"]}
-    _mount_remote_tools(kwargs, ())
+    mount_remote_tools(kwargs, ())
     assert kwargs == {"allowed_tools": ["Read"]}
 
 
 def test_headerless_spec_omits_the_headers_key():
     (rt,) = safe_remote_tools([_spec(headers=None)])
     kwargs: dict = {"allowed_tools": []}
-    _mount_remote_tools(kwargs, (rt,))
+    mount_remote_tools(kwargs, (rt,))
     assert "headers" not in kwargs["mcp_servers"]["persona_memory"]
     assert isinstance(RemoteTool(name="x", url="https://a/b"), RemoteTool)

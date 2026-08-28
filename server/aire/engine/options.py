@@ -109,24 +109,10 @@ def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> No
     kwargs["allowed_tools"] = list(kwargs["allowed_tools"]) + allowed
 
 
-def _mount_remote_tools(kwargs: dict[str, Any], remote: tuple[Any, ...]) -> None:
-    """Add the caller-hosted HTTP MCP servers (#48) — wired, never executed.
-
-    Each spec already passed the intake's origin allowlist; here it becomes the
-    SDK's ``{type: "http"}`` config, so the agent's tool calls travel as
-    outbound HTTPS to the caller's own server (where its credentials live —
-    the droplet keeps holding none). Allowed whole-server, same as the registry."""
-    if not remote:
-        return
-    servers = kwargs.setdefault("mcp_servers", {})
-    allowed = list(kwargs["allowed_tools"])
-    for rt in remote:
-        config: dict[str, Any] = {"type": "http", "url": rt.url}
-        if rt.headers:
-            config["headers"] = dict(rt.headers)
-        servers[rt.name] = config
-        allowed.append(f"mcp__{rt.name}")
-    kwargs["allowed_tools"] = allowed
+def _mount_all(kwargs: dict[str, Any], cwd: str, spec: TurnSpec) -> None:
+    from .remote_tools import mount_remote_tools
+    _mount_tools(kwargs, cwd, spec.tools)
+    mount_remote_tools(kwargs, spec.remote_tools)  # after: _mount_tools assigns the dict
 
 
 def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
@@ -148,8 +134,7 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
         "session_store_flush": "eager",  # no loss window if the process dies
         "hooks": cage_hooks(cwd),  # confine file tools to the casita (#24)
     }
-    _mount_tools(kwargs, cwd, spec.tools)
-    _mount_remote_tools(kwargs, spec.remote_tools)  # after: _mount_tools assigns the dict
+    _mount_all(kwargs, cwd, spec)
     if spec.model:
         kwargs["model"] = spec.model  # → the CLI's `--model`, verbatim (#29 gap 3)
     if budget := os.environ.get("AIRE_MAX_BUDGET_USD"):
