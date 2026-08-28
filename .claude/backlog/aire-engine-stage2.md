@@ -17,8 +17,14 @@ SIGUE abierto: (a) el resto del BORRADO — la ruta local del SDK
 del default `local` ([[migrations-end-with-deletion]]); (b) hallazgo 1 (el `model` ignorado en
 sesión caliente) CERRADO 2026-08-28: aire-server #38 rebindea al cambiar el
 spec, verificado en vivo (misma sesión: haiku y luego `claude-sonnet-4-6`,
-cada turno contestado por SU modelo). Hallazgo 2 (las tools de memoria):
-código cableado en v4.34.0, la verificación en vivo cierra abajo.
+cada turno contestado por SU modelo). Hallazgo 2 (las tools de memoria)
+CERRADO 2026-08-28 (v4.34.1): Insult, desde el droplet, invocó
+`mcp__persona_memory__get_emotional_arc` por la cadena completa (fi-runner
+0.21.0 remote_tools → puerta AIRE → SDK → HTTPS de vuelta a /mcp/{casita} →
+principal durable → Khimeras PG) y contestó el registro real en #general
+(phase: stability, crisis_depth: 0, turns_in_phase: 145). El primer turno
+real destapó además un bug pre-existente del tool (SELECT de una columna
+inexistente, `intensity` → `crisis_depth`), arreglado en v4.34.1.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
 · Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
 · Encendida en prod: revisión del 2026-08-26; verificada en el env vivo 2026-08-27
@@ -223,7 +229,15 @@ nuevo = modelo honrado.
 **Hueco de AIRE:** la puerta necesita rebindear el `TurnSpec` cuando cambia
 (o un `?rebirth=1` / `DELETE .../client` que fuerce el renacimiento del cliente).
 
-### 2. 🔴 La personalidad pierde 9 de sus 10 tools de memoria
+### 2. ✅ CERRADO 2026-08-28 — las 10 tools viven en la puerta MCP-sobre-HTTP (v4.34.0/.1)
+
+`api/mcp_http.py` sirve los MISMOS objetos SdkMcpTool por HTTPS; AIRE las
+cablea vía `remote_tools` (aire-server #48, origen allowlisteado) y la
+identidad sale de la fila durable de `engine/aire_principal` — el modelo
+jamás la pide. Recibo en vivo arriba, en el Status. El texto original, como
+historia:
+
+### ~~2. 🔴 La personalidad pierde 9 de sus 10 tools de memoria~~
 
 La ruta local monta `persona_memory` (in-process, contra el Postgres de
 Khimeras) con diez tools. En AIRE sólo existen las del registry vetado
