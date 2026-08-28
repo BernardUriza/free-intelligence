@@ -1,6 +1,6 @@
 # fi-core: ClinicalDomain con señales PESADAS y bilingües — discord-bot consume SOLO el clinical domain
 
-Status: Proposed
+Status: In progress — fase fi-core SHIPPEADA (0.26.0: SignalGroup/WeightedSignals + PSYCHIATRY con ambos ejes, 32 tests); falta la fase de consumo en discord-bot (trilogía de Alex) y su validación de los pesos propuestos
 Proposed: 2026-08-28 by Bernard (Discord: *"creo que deberíamos mejorar free
 intelligence para que discordbot solo use el clinical domain"*, sobre el cierre
 del #52 de Alex — mensaje 1542680953602707526 en Khimeras #general)
