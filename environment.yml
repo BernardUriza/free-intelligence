@@ -60,7 +60,9 @@ dependencies:
   # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
   # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
   # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
-  # PINNED exact to 0.20.1 (v4.33.0/.1) — the release that ships
+  # PINNED exact to 0.21.0 (v4.34.0) — adds the HTTP MCP transport on
+  # MCPServerSpec (R6): aire_route sends persona_memory as remote_tools so the
+  # droplet agent calls THIS runner's /mcp/{casita} door. Also the release that ships
   # fi_runner.backends.aire (AIREBackend + AIREDoorError + thin birth), which
   # let this repo DELETE its vendored persona_runner/engine/aire_backend.py
   # and import the canonical client. Also carries antidrift_guard + packs +
@@ -68,7 +70,7 @@ dependencies:
   # fi-core>=0.25,<0.26, satisfied by the pinned fi-core=0.25.1. Pinned exact
   # (not `>=`) so the fi-core/fi-runner pair stays the validated combo and
   # can't drift apart on a fresh solve. See conda_version_constraint.
-  - fi-runner=0.20.1
+  - fi-runner=0.21.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

@@ -199,10 +199,10 @@ def test_turn_tools_dedupes_while_keeping_order():
     """Only NAMES cross the wire, deduped — the door mounts its own servers."""
     backend = AIREBackend("insult", registry_tools=("persona", "memory"))
 
-    class _Spec:
-        name = "memory"
+    from fi_runner.backend import MCPServerSpec
 
-    assert backend._turn_tools([_Spec()]) == ["persona", "memory"]
+    spec = MCPServerSpec(name="memory", command="python", args=["-m", "memory"])
+    assert backend._turn_tools([spec]) == ["persona", "memory"]
 
 
 # --- ADAPTATION 5: AIRE's error CODE survives as data, not as prose ----------

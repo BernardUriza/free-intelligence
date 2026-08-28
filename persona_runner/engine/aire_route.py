@@ -60,11 +60,11 @@ from dataclasses import dataclass, field
 import structlog
 from fastapi import HTTPException
 from fi_runner import AIREBackend
-from fi_runner.backend import BackendError, ToolPolicy, TurnImage
+from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage
 
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
-from persona_runner.engine import aire_topic
+from persona_runner.engine import aire_principal, aire_topic
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.options import REQUIRED_BUILTIN_TOOLS
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
@@ -113,6 +113,28 @@ _STATUS_PREFIX = {500: "aire turn terminal", 503: "aire backpressure", 502: "air
 
 _NAME_UNSAFE = re.compile(r"[^A-Za-z0-9_-]")
 _NAME_MAX = 128
+
+
+def memory_tool_specs(casita: str) -> list[MCPServerSpec]:
+    """The persona_memory HTTP MCP spec for THIS casita — the 9 tools the AIRE
+    route lost, hosted here where the Khimeras credentials live (api/mcp_http).
+
+    Feature-gated on BOTH env vars: RUNNER_MCP_BASE (this runner's public
+    https origin, which must also sit in AIRE's AIRE_REMOTE_TOOL_ORIGINS) and
+    RUNNER_MCP_TOKEN (the bearer the endpoint demands back). Either absent →
+    no spec, and the turn runs exactly as before this feature existed."""
+    base = os.environ.get("RUNNER_MCP_BASE", "").strip().rstrip("/")
+    token = os.environ.get("RUNNER_MCP_TOKEN", "").strip()
+    if not base or not token:
+        return []
+    return [
+        MCPServerSpec(
+            name="persona_memory",
+            url=f"{base}/mcp/{casita}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    ]
+
 
 # The casita THIS turn addresses — a ContextVar (not a mutable attribute)
 # because turns are concurrent; AIREBackend resolves it at the top of each turn.
@@ -503,12 +525,21 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         )
 
     backend = backend_for(base_id)
+    remote_specs = memory_tool_specs(casita)
+    principal_bound = False
+    if remote_specs:
+        # The remote tools resolve identity from this durable row (the server
+        # binds it, the model never asks — engine/aire_principal). Published
+        # under the casita lock, so the live row IS the turn being served.
+        principal_bound = await aire_principal.bind(casita, user_id=req.user_id, channel_id=req.channel_id)
+        if not principal_bound:
+            remote_specs = []  # no identity, no memory tools — never a guessed user
 
     async def send_turn():
         return await backend.run_turn(
             system_prompt=load_persona(req.persona_id),
             user_message=framed,
-            mcp_servers=[],
+            mcp_servers=remote_specs,
             tool_policy=_default_policy,
             model=model,
             session_id=claim.topic_id,
@@ -548,6 +579,8 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         raise to_http_error(exc) from exc
     finally:
         _chat_casita.reset(token)
+        if principal_bound:
+            await aire_principal.clear(casita)
 
     # Only a turn that SUCCEEDED marks the topic answered: a failed one never
     # reached AIRE's memory, so the next attempt must still fold the history.
