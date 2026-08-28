@@ -222,7 +222,7 @@ async def get_emotional_arc(args: dict) -> dict:
         return shared._error("Postgres unreachable")
     try:
         row = await conn.fetchrow(
-            "SELECT phase, intensity, recovery_signals, turns_in_phase, updated_at "
+            "SELECT phase, crisis_depth, recovery_signals, turns_in_phase, updated_at "
             "FROM emotional_arcs WHERE user_id = $1 AND channel_id = $2",
             user_id,
             channel_id,
@@ -232,7 +232,7 @@ async def get_emotional_arc(args: dict) -> dict:
         return shared._text(
             f"# Emotional arc — user {user_id} / channel {channel_id}\n"
             f"phase: {row['phase']}\n"
-            f"intensity: {row['intensity']}\n"
+            f"crisis_depth: {row['crisis_depth']}\n"
             f"recovery_signals: {row['recovery_signals']}\n"
             f"turns_in_phase: {row['turns_in_phase']}"
         )

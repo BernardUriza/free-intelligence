@@ -14,9 +14,11 @@ documentar), el pin subió `0.11.0 → 0.20.0` y
 `grep -rn "engine.aire_backend" persona_runner/ tests/` devuelve vacío. Lo que
 SIGUE abierto: (a) el resto del BORRADO — la ruta local del SDK
 (`session_pool`, `build_options`, el flag `TURN_BACKEND`) sigue viva detrás
-del default `local` ([[migrations-end-with-deletion]]); (b) los dos hallazgos
-(el `model` ignorado en sesión caliente; las tools de memoria perdidas) no
-constan como resueltos — verificar antes de cerrarlos.
+del default `local` ([[migrations-end-with-deletion]]); (b) hallazgo 1 (el `model` ignorado en
+sesión caliente) CERRADO 2026-08-28: aire-server #38 rebindea al cambiar el
+spec, verificado en vivo (misma sesión: haiku y luego `claude-sonnet-4-6`,
+cada turno contestado por SU modelo). Hallazgo 2 (las tools de memoria):
+código cableado en v4.34.0, la verificación en vivo cierra abajo.
 Proposed: 2026-08-22 (orden de Bernard: "etapa 2, NO hoy") · Construida: 2026-08-22
 · Auditada por code review y corregida: 2026-08-22 (seis defectos, abajo)
 · Encendida en prod: revisión del 2026-08-26; verificada en el env vivo 2026-08-27
@@ -182,7 +184,18 @@ one-liner el día que se quiera — pero toca la ruta local, así que va a decis
 Ninguno se sabía al proponer el item. Los dos primeros son de AIRE (cada uno =
 un endpoint/capacidad que le falta a `aire-server`); el tercero es de este repo.
 
-### 1. 🔴 AIRE ignora el `model` en una sesión CALIENTE (medido en vivo)
+### 1. ✅ CERRADO 2026-08-28 — AIRE rebindea en sesión caliente (aire-server #38)
+
+`engine/core.py::_rebind` (llamado en cada turno, `turn.py:81`) tira el cliente
+caliente cuando el turno pide OTRA forma (mode/tools/model/remote_tools):
+una cache-creation de costo, cero memoria perdida (el transcript resume de
+Postgres). Re-medido en vivo contra la puerta el 2026-08-28, misma sesión:
+haiku → contestó haiku; `claude-sonnet-4-6` → contestó `claude-sonnet-4-6`.
+La divergencia queda acotada a lo sumo al turno en vuelo. `model_diverged`
+sigue como tripwire de regresión. El texto original del hallazgo, abajo,
+queda como historia:
+
+### ~~1. 🔴 AIRE ignora el `model` en una sesión CALIENTE (medido en vivo)~~
 
 Probado el 2026-08-22 contra `https://gate.bernarduriza.com`, dos turnos en una
 sola sesión:

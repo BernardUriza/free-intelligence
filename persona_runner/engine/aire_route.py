@@ -20,18 +20,14 @@ decided by Bernard 2026-08-22:
   as it composes turn_context — no Khimeras credential ever reaches the droplet.
   AIRE's registry tools ``persona`` + ``memory`` ride every turn, so the agent
   keeps a living identity and transcript recall.
-- **Model routing rides the door per turn** (aire-server #29) — but AIRE HONOURS
-  IT ONLY ON A COLD SESSION. Measured live 2026-08-22 against
-  ``gate.bernarduriza.com``: two turns on one session, the first asking
-  ``claude-haiku-4-5-20251001`` and the second ``claude-sonnet-4-6``, both
-  answered ``claude-haiku-4-5-20251001``. No error, no warning — the field is
-  simply ignored. Root cause in aire-server ``engine/core.py::_client_for``:
-  options (mode, tools AND model) are built only on a POOL MISS, so a warm
-  client keeps the shape it was born with for ~55 min
-  (``AIRE_POOL_IDLE_S=3300``). This runner routes a model per turn, so on the
-  AIRE route that routing degrades to "the model the session started with".
-  ``model_diverged`` logs every occurrence; the flag must NOT go permanent
-  until AIRE can rebind (named as an AIRE-side gap in the backlog).
+- **Model routing rides the door per turn** (aire-server #29) — and since
+  aire-server #38 AIRE HONOURS it on a WARM session too: a turn that names a
+  different shape drops the pooled client first (one cache-creation, no memory
+  lost — the transcript resumes from Postgres). Re-measured live 2026-08-28
+  against ``gate.bernarduriza.com``: two turns on one session, haiku then
+  ``claude-sonnet-4-6``, each answered by the model it asked for. The
+  divergence window is now at most ONE in-flight turn. ``model_diverged``
+  stays as the tripwire; a recurrence means AIRE regressed.
 - **Concurrency is guarded structurally, never by a knob's current value**
   (code review, 2026-08-22). A turn holds its casita's lock across
   decide→turn→mark, so two messages arriving together in one channel cannot both
