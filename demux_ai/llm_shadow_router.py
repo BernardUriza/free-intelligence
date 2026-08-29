@@ -38,10 +38,12 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
-# Azure OpenAI defaults — mirror demux_ai.host_llm so the direct transport reads
-# the SAME env (AZURE_OPENAI_ENDPOINT/KEY/GPT_DEPLOYMENT/API_VERSION) the agentic
-# one does, without importing host_llm (which would drag fi_runner onto the cheap
-# direct path).
+# Azure OpenAI defaults. These USED to mirror demux_ai.host_llm, which read the
+# same AZURE_OPENAI_* env through fi_runner's Codex backend; since the 2026-08-29
+# AIREBackend consolidation host_llm speaks to AIRE's door instead, so this is
+# now the ONLY reader of these vars in the repo — no longer a mirror, the
+# original. Still declared here rather than imported, so the cheap direct path
+# never drags fi_runner in.
 _DEFAULT_DEPLOYMENT = "gpt-4.1"
 _DEFAULT_API_VERSION = "2024-10-21"
 
@@ -127,7 +129,7 @@ def _is_content_filter(error: BaseException) -> bool:
 class LLMShadowRouter:
     """Wraps the gpt-4.1 ``HostRouterLLM`` as a shadow-only persona classifier.
 
-    Construct it (which builds ``HostRouterLLM`` → ``CodexBackend``) ONLY behind
+    Construct it (which builds ``HostRouterLLM`` → ``AIREBackend``) ONLY behind
     the ``llm_shadow_router_enabled`` flag — that construction is the spend gate.
     ``route`` is async (a real Azure call); callers run it OFF the turn's critical
     path (a background task) so the user's reply is never delayed by routing
@@ -160,14 +162,18 @@ class LLMShadowRouter:
 class DirectAzureLLMRouter:
     """Direct Azure OpenAI chat-completion transport for the shadow router.
 
-    The cheap alternative to ``LLMShadowRouter`` (which goes through the agentic
-    ``CodexBackend`` → ``codex exec`` CLI and pays ~9.5k input tokens of agent
-    harness per call, HOST 5/6 slice A.2 token-bloat fix). This sends ONLY the
-    routing instruction + the user input over ``openai.AsyncAzureOpenAI`` against
-    the SAME ``insult-openai`` deployment — no agent harness, no tool schemas — so
-    a one-word classification costs hundreds of tokens, not thousands. Shape-
-    compatible: same ``route(text) -> LLMShadowDecision`` contract, so it drops
-    into ``TurnRuntimeDeps.llm_shadow_route`` behind the same seam."""
+    The cheap alternative to ``LLMShadowRouter``, which routes through an agentic
+    backend: when it was measured (HOST 5/6 slice A.2 token-bloat fix) that was
+    ``CodexBackend`` → ``codex exec``, paying ~9.5k input tokens of agent harness
+    per call; since 2026-08-29 it is ``AIREBackend`` and the harness cost has NOT
+    been re-measured. This class sends ONLY the routing instruction + the user
+    input over ``openai.AsyncAzureOpenAI`` against the ``insult-openai``
+    deployment — no agent harness, no tool schemas — so a one-word classification
+    costs hundreds of tokens, not thousands. It is also the only brain in this
+    repo that does not depend on AIRE's door: the provider split the host used to
+    get from Codex now lives here alone. Shape-compatible: same
+    ``route(text) -> LLMShadowDecision`` contract, so it drops into
+    ``TurnRuntimeDeps.llm_shadow_route`` behind the same seam."""
 
     def __init__(
         self,

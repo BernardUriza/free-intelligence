@@ -48,8 +48,13 @@ dependencies:
   # future fi-core bump can't drift behavior silently. See
   # conda_version_constraint.
   - fi-core=0.25.1
-  # fi-runner — the backend-agnostic runner framework. insult's runner now
-  # delegates ClaudeAgentOptions assembly to it (fi_runner.ClaudeCodeBackend).
+  # fi-runner — the runner framework. Every LLM path in this repo now crosses
+  # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
+  # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
+  # fi-runner deleted ClaudeCodeBackend / CodexBackend / SubprocessCLIBackend and
+  # AIREBackend became the only backend. The floor history below is kept as the
+  # record of why the pin moved; the CodexBackend fixes it names are dead code
+  # upstream now, and this repo imports none of the deleted classes.
   # MUST be published to the bernardurizaorozco channel for the prod build.
   # Floor raised to 0.2.1 (alice 0.1.20): CodexBackend._extract_text drops
   # aborted-retry partials (Azure content_filter mid-stream); 0.2.0 concatenates
@@ -66,10 +71,13 @@ dependencies:
   # fi_runner.backends.aire (AIREBackend + AIREDoorError + thin birth), which
   # let this repo DELETE its vendored persona_runner/engine/aire_backend.py
   # and import the canonical client. Also carries antidrift_guard + packs +
-  # capabilities + ClaudeCodeBackend (all imported by the repo) and requires
-  # fi-core>=0.25,<0.26, satisfied by the pinned fi-core=0.25.1. Pinned exact
-  # (not `>=`) so the fi-core/fi-runner pair stays the validated combo and
-  # can't drift apart on a fresh solve. See conda_version_constraint.
+  # capabilities (all imported by the repo) and requires fi-core>=0.25,<0.26,
+  # satisfied by the pinned fi-core=0.25.1. Pinned exact (not `>=`) so the
+  # fi-core/fi-runner pair stays the validated combo and can't drift apart on a
+  # fresh solve. See conda_version_constraint.
+  # NOTE: 0.21.0 still SHIPS the deleted backends, so this pin does not break
+  # today — but it is also the last version that does. The next bump must land
+  # together with an AIRE-only repo, which is what the host_llm migration bought.
   - fi-runner=0.21.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
