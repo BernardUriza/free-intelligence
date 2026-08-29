@@ -28,22 +28,30 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def apagado(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
-    """og118 como corre en producción."""
+    """og118 como corre en producción: el singleton nació con el flag abajo."""
     import app as app_module
 
     monkeypatch.delenv("OG118_PROYECTOS", raising=False)
-    monkeypatch.setattr(app_module, "app", app_module.create_app())
     yield app_module
 
 
 @pytest.fixture
 def encendido(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
-    """og118 el día que Bernard retome Proyectos."""
+    """og118 el día que Bernard retome Proyectos.
+
+    MONTA el `projects_router` en la app compartida en vez de construir una
+    nueva: el conftest raíz corre ANTES que esta fixture y deja ahí sus
+    `dependency_overrides` (entre ellos el registry en tmp, que evita escribir en
+    el volumen real). Sustituir la app los tiraba al piso, y el handler intentaba
+    crear `/opt/fi` — PermissionError en local, y peor en un runner con permisos.
+    """
     import app as app_module
 
     monkeypatch.setenv("OG118_PROYECTOS", "1")
-    monkeypatch.setattr(app_module, "app", app_module.create_app())
+    previas = list(app_module.app.router.routes)
+    app_module.app.include_router(app_module.projects_router)
     yield app_module
+    app_module.app.router.routes[:] = previas
 
 
 # --- la rama APAGADA: la que corre en producción -----------------------------
@@ -58,24 +66,21 @@ def test_apagado_por_default(monkeypatch) -> None:
     assert app_module.proyectos_activos() is False
 
 
-def _paths(app) -> set[str]:
-    """Los paths montados, tolerando las formas que cambian entre versiones.
-
-    En FastAPI reciente `app.routes` puede contener `_IncludedRouter`, que NO
-    tiene `.path` — un `{r.path for r in ...}` revienta con AttributeError. Pasó
-    en CI mientras local iba verde, que es exactamente la clase de test que se
-    cree portátil y no lo es."""
-    return {p for p in (getattr(r, "path", None) for r in app.routes) if p}
-
-
 def test_apagado_las_rutas_NO_EXISTEN(apagado) -> None:
     """404 real, no un handler que consulta un flag: el `projects_router` no se
-    monta, así que no hay ruta que responder."""
-    rutas = _paths(apagado.app)
-    assert not any(p.startswith("/projects") for p in rutas), sorted(rutas)
-    c = TestClient(apagado.app)
-    for ruta in ("/projects", "/projects/x", "/projects/x/documents"):
-        assert c.get(ruta).status_code == 404
+    monta, así que no hay ruta que responder.
+
+    Se afirma por PETICIÓN y no leyendo `app.routes`. La primera versión
+    inspeccionaba esa lista y pasaba VACUAMENTE en CI: en la FastAPI del runner
+    las rutas de la app viven dentro de objetos `_IncludedRouter` y la lista sólo
+    expone las de `/docs`, así que "no hay ninguna `/projects`" salía verde
+    porque no había NINGUNA ruta visible. Un check incapaz de dar rojo."""
+    # Se prueba con `GET /projects` (el listado) y NO con las rutas de detalle:
+    # `/projects/x` contesta 404 por DISEÑO cuando el proyecto no existe, así que
+    # su 404 no distingue "la feature está apagada" de "ese id no es tuyo". El
+    # listado es la única cuyo 404 sólo puede significar que no está montada —
+    # prendida devuelve 200 con la lista vacía.
+    assert TestClient(apagado.app).get("/projects").status_code == 404
 
 
 def test_apagado_el_runner_no_pide_rag_store(apagado) -> None:
@@ -109,9 +114,13 @@ def test_apagado_un_corpus_id_viejo_NO_rompe_el_chat(apagado) -> None:
 
 
 def test_encendido_las_rutas_se_montan(encendido) -> None:
-    rutas = _paths(encendido.app)
-    for esperada in ("/projects", "/projects/{project_id}", "/projects/{project_id}/documents"):
-        assert esperada in rutas, sorted(p for p in rutas if "project" in p)
+    """El contrapeso del anterior, y la razón de que aquél no pueda mentir: si el
+    montaje condicional se rompiera, ESTE daría rojo.
+
+    El par 404/200 sobre la MISMA ruta es lo que hace que ninguno de los dos
+    pueda pasar por accidente: si el montaje condicional se rompiera en cualquier
+    dirección, uno de los dos da rojo."""
+    assert TestClient(encendido.app).get("/projects").status_code == 200
 
 
 def test_encendido_el_runner_recupera_rag_store(encendido) -> None:
