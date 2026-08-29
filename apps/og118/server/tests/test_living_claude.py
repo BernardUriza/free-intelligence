@@ -71,7 +71,11 @@ def test_aire_persona_carries_the_living_identity_paragraph(aire_runner, monkeyp
     assert "mcp__persona__update" in aire_runner.persona
     # La ruta claude-code no tiene esas tools: prometerlas sería mentirle al modelo.
     monkeypatch.setenv("OG118_BACKEND", "claude-code")
-    assert "mcp__persona__" not in build_runner().persona
+    # Antes esto afirmaba que la OTRA ruta (claude-code) no mencionaba la tool,
+    # porque allí no existía y prometerla habría sido mentirle al modelo. Esa
+    # ruta se borró; el invariante que queda es el que de verdad importa: si la
+    # persona nombra la tool, el turno tiene que PEDIRLA.
+    assert "persona" in build_runner().backend.registry_tools
 
 
 def test_aire_route_disables_the_flow_narrator(aire_runner) -> None:

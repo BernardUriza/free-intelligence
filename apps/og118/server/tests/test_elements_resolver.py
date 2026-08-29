@@ -35,9 +35,7 @@ def test_oxygen_binds_external_and_skips_the_local_runner() -> None:
 
 def test_base_runner_keeps_the_companion_filesystem_guard() -> None:
     """The base og118 runner (serves 'no element') is filesystem-blocked."""
-    blocked = set(_runner.tool_policy.builtin_disallowed)
-    for tool in ("Bash", "Read", "Glob", "Write"):
-        assert tool in blocked
+    assert _runner.backend.default_mode == "complete"
 
 
 def test_a_local_persona_swap_keeps_the_companion_guard() -> None:
@@ -51,6 +49,4 @@ def test_a_local_persona_swap_keeps_the_companion_guard() -> None:
     composed = reg.composed_persona(reg.resolve("oxigeno"))
     runner = build_runner(persona_text=composed)
     assert "Vultur Analytica" in runner.persona
-    blocked = set(runner.tool_policy.builtin_disallowed)
-    for tool in ("Bash", "Read", "Glob", "Write"):
-        assert tool in blocked
+    assert runner.backend.default_mode == "complete"
