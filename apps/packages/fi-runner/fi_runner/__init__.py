@@ -54,7 +54,7 @@ from .backend import (
     mcp_server_token,
     mcp_tool_id,
 )
-from .backends import AIREBackend
+from .backends import AIREBackend, AIREDoorError
 from .conversation import (
     ConversationStore,
     InMemoryConversationStore,
@@ -97,7 +97,7 @@ from .context_binding import (
 from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.17.1"
+__version__ = "0.21.1"
 
 __all__ = [
     "AgentBackend",
@@ -114,6 +114,7 @@ __all__ = [
     "mcp_server_of",
     "pinned_arg_violation",
     "AIREBackend",
+    "AIREDoorError",
     "Runner",
     "RetryPolicy",
     "FlowNarrator",

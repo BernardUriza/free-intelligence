@@ -104,6 +104,29 @@ from ..backend import (
 _logger = logging.getLogger(__name__)
 
 
+# The door speaks ``{"error": "<code>", "detail": "..."}``; the code is the only
+# part that carries a decision (terminal vs backpressure vs unknown), and a
+# formatted message string is the one place it cannot be read reliably — a
+# wording change on AIRE's side would silently reroute a terminal cut into a
+# retry storm for any consumer classifying by substring. Subclassing
+# BackendError keeps every existing ``except BackendError`` working.
+class AIREDoorError(BackendError):
+    """A door failure that kept AIRE's own error code as data.
+
+    ``code`` is AIRE's structured error name (``budget_exhausted``,
+    ``slot_busy``, …) when the failure came from an SSE error event; ``None``
+    when the door failed before speaking its protocol. ``http_status`` is the
+    door's response status when the failure was an HTTP one.
+    """
+
+    def __init__(
+        self, message: str, *, code: str | None = None, http_status: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
+
+
 class AIREBackend:
     """Agent backend backed by AIRE (a persistent HTTP server, not a CLI)."""
 
@@ -184,9 +207,26 @@ class AIREBackend:
         ``registry_tools`` plus each per-turn spec's name, deduped in order.
         Only the name crosses the wire — the specs' local ``command``/``args``
         cannot run on AIRE; the door mounts its OWN server of that name, and
-        422s (→ ``BackendError``) any name its registry does not ship."""
-        names = list(self.registry_tools) + [s.name for s in mcp_servers]
+        422s (→ ``BackendError``) any name its registry does not ship.
+        HTTP specs are NOT registry names — they ride ``remote_tools``."""
+        names = list(self.registry_tools) + [s.name for s in mcp_servers if not s.is_http]
         return list(dict.fromkeys(n for n in names if n))
+
+    def _remote_tools(self, mcp_servers: list[MCPServerSpec]) -> list[dict[str, Any]]:
+        """The HTTP specs, as the door's ``remote_tools`` field (aire-server
+        #48): servers the RUNNER hosts and AIRE only wires. The url's origin
+        must be in the door's ``AIRE_REMOTE_TOOL_ORIGINS`` allowlist — an
+        unlisted origin is a 422 (→ ``AIREDoorError``). The headers carry the
+        runner's own bearer to its own server: data, never logged."""
+        out: list[dict[str, Any]] = []
+        for spec in mcp_servers:
+            if not spec.is_http:
+                continue
+            entry: dict[str, Any] = {"name": spec.name, "url": spec.url}
+            if spec.headers:
+                entry["headers"] = dict(spec.headers)
+            out.append(entry)
+        return out
 
     def _resolve_project(self) -> str:
         """The casita THIS turn addresses: the per-turn resolver's answer when
@@ -265,7 +305,9 @@ class AIREBackend:
         ) as res:
             if res.status_code >= 400:
                 detail = (await res.aread()).decode("utf-8", "replace")
-                raise BackendError(f"AIRE door {res.status_code}: {detail}")
+                raise AIREDoorError(
+                    f"AIRE door {res.status_code}: {detail}", http_status=res.status_code
+                )
             async for line in res.aiter_lines():
                 if not line.startswith("data:"):
                     continue
@@ -273,9 +315,16 @@ class AIREBackend:
                 if not payload:
                     continue
                 try:
-                    yield json.loads(payload)
+                    ev = json.loads(payload)
                 except json.JSONDecodeError:  # a keep-alive or partial line — skip
                     continue
+                # AIRE's edge yields budget_exceeded / slot_busy payloads WITHOUT
+                # a "type" key (messages.py emits them from except-clauses).
+                # Dropping them kills the turn later as a bare "no result event";
+                # normalizing keeps the error CODE the consumer classifies on.
+                if "type" not in ev and "error" in ev:
+                    ev = {"type": "error", **ev}
+                yield ev
 
     def _warn_unenforceable(self, tool_policy: ToolPolicy) -> None:
         """The one remaining unforwardable input: AIRE configures the tool
@@ -364,6 +413,8 @@ class AIREBackend:
         }
         if tools:
             body["tools"] = tools
+        if remote := self._remote_tools(mcp_servers):
+            body["remote_tools"] = remote
         chosen_model = model or self.default_model
         if chosen_model:
             body["model"] = chosen_model
@@ -380,7 +431,10 @@ class AIREBackend:
             elif kind == "result":
                 yield {"type": "result", "result": self._to_result(ev.get("result") or {}, session)}
             elif kind == "error":
-                raise BackendError(f"AIRE turn error [{ev.get('error')}]: {ev.get('detail', '')}")
+                code = ev.get("error")
+                raise AIREDoorError(
+                    f"AIRE turn error [{code}]: {ev.get('detail', '')}", code=code or None
+                )
             # "done" is the stream terminator — nothing to forward.
 
     async def run_turn(
@@ -396,19 +450,38 @@ class AIREBackend:
     ) -> TurnResult:
         """One turn through the AIRE door. Drains the stream and returns the final
         ``result`` event. If AIRE never emits one (a torn stream), that is a real
-        failure — surface it, do not invent an empty success (Art. 2)."""
+        failure — surface it, do not invent an empty success (Art. 2).
+
+        The ONE error that does not void a result already in hand is AIRE's
+        ``budget_exhausted`` (aire #23): the engine emits it AFTER the result
+        event, as a footnote saying the client hit its own ceiling and was
+        retired. Raising over it throws away a full answer. The answer is kept
+        (it may be cut short, which still beats silence); an EMPTY one stays an
+        error so the caller's resend — AIRE's own prescription — can continue
+        the work."""
         result: TurnResult | None = None
-        async for event in self.run_turn_stream(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            mcp_servers=mcp_servers,
-            tool_policy=tool_policy,
-            model=model,
-            session_id=session_id,
-            images=images,
-        ):
-            if event.get("type") == "result":
-                result = event["result"]
+        try:
+            async for event in self.run_turn_stream(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                mcp_servers=mcp_servers,
+                tool_policy=tool_policy,
+                model=model,
+                session_id=session_id,
+                images=images,
+            ):
+                if event.get("type") == "result":
+                    result = event["result"]
+        except AIREDoorError as exc:
+            if exc.code != "budget_exhausted" or result is None or not result.text:
+                raise
+            _logger.warning(
+                "AIRE cut the client at its budget ceiling after the result "
+                "(session=%s, text_len=%d); the answer is delivered and the "
+                "retired client rebuilds next turn.",
+                session_id,
+                len(result.text),
+            )
         if result is None:
             raise BackendError("AIRE door closed the stream with no result event.")
         return result

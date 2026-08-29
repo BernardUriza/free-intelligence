@@ -31,6 +31,6 @@ What went with them, stated plainly rather than discovered later:
   believe a tenant is fenced when nothing is fencing it.
 """
 
-from .aire import AIREBackend
+from .aire import AIREBackend, AIREDoorError
 
-__all__ = ["AIREBackend"]
+__all__ = ["AIREBackend", "AIREDoorError"]

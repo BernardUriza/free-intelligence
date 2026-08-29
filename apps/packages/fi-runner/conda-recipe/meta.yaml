@@ -33,7 +33,9 @@ requirements:
   run:
     - python >=3.12
     # 0.20: rag_store capability + RagStore client need fi-core's store service.
-    - fi-core >=0.23
+    # 0.25: narrate.py imports fi_core.prompts at import time (P0
+    # prompts-as-content loader) — a 0.24 env crashes `import fi_runner`.
+    - fi-core >=0.25
     # typer powers the `fi-runner` shell-out CLI (entry point below). Tiny,
     # pure-python, conda-available — shipped so `conda install fi-runner` yields
     # a working `fi-runner` binary out of the box. `import fi_runner` stays

@@ -84,8 +84,9 @@ class PermissionMode(str, Enum):
 
 @dataclass(frozen=True)
 class MCPServerSpec:
-    """An MCP server: either a stdio subprocess (command+args) or an in-process
-    server object (``server``), plus the tools it exposes."""
+    """An MCP server: a stdio subprocess (command+args), an in-process server
+    object (``server``), or — R6 — a remote HTTP MCP endpoint (``url``), plus
+    the tools it exposes."""
 
     name: str
     # stdio transport: the executable + args. Left empty when ``server`` is set.
@@ -129,12 +130,32 @@ class MCPServerSpec:
     # constrains what a value may be, never whether the tool is called. Set it
     # per turn via :attr:`fi_runner.Runner.pin_tool_args`.
     pinned_args: Mapping[str, Any] = field(default_factory=dict)
+    # R6 — remote HTTP MCP transport: the endpoint of a server someone HOSTS
+    # (nothing is spawned). Mutually exclusive with ``command`` and ``server``.
+    # ``headers`` usually carry a bearer to that server: they are a SECRET, so
+    # they are excluded from the dataclass repr and no backend may log them.
+    url: str = ""
+    headers: dict[str, str] = field(default_factory=dict, repr=False)
 
     @property
     def is_in_process(self) -> bool:
         return self.server is not None
 
+    @property
+    def is_http(self) -> bool:
+        return bool(self.url)
+
     def __post_init__(self) -> None:
+        if self.url and (self.command or self.server is not None):
+            raise ValueError(
+                f"MCPServerSpec(name={self.name!r}): url is one transport and "
+                "command/server are others — pick exactly one."
+            )
+        if self.url and self.headers and not self.url.startswith("https://"):
+            _logger.warning(
+                "MCPServerSpec(name=%r): headers over a non-https url travel in "
+                "cleartext — use https.", self.name,
+            )
         # Lint: wrapping the MCP server in a shell ("/bin/bash -c python ...")
         # makes the real PID invisible to the harness's child tracker — when
         # the wrapper exits, the python child becomes a zombie/orphan instead
