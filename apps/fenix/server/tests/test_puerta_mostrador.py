@@ -182,7 +182,7 @@ def test_el_runner_publico_no_alcanza_los_datos_del_negocio(app_fenix):
     # maestra, que es su trabajo entero.
     from app import _runner
 
-    assert "rag_store" in " ".join(str(s) for s in (_runner.capabilities or []))
+    assert "rag_store" in " ".join(str(s) for s in (_runner.backend.registry_tools or ()))
 
 
 def test_la_persona_del_tutor_existe_y_permite_buscar(app_fenix):

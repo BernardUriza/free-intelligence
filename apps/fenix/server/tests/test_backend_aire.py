@@ -29,32 +29,21 @@ import pytest
 from fi_runner import AIREBackend
 
 from arranque import configurar_motor
-from runner import BUILTINS_DISPONIBLES, BackendAcotado, aire_project_for_chat, build_runner
+from runner import aire_project_for_chat, build_runner
 
 # --- configurar_motor: el contrato FENIX_* traducido al runtime ---------------
 
 
-def test_sin_fenix_backend_no_toca_el_entorno(monkeypatch) -> None:
-    monkeypatch.delenv("FENIX_BACKEND", raising=False)
-    monkeypatch.delenv("OG118_BACKEND", raising=False)
-    monkeypatch.delenv("OG118_AIRE_PROJECT", raising=False)
-    configurar_motor()
-    assert "OG118_BACKEND" not in os.environ
-    assert "OG118_AIRE_PROJECT" not in os.environ
-
-
-def test_fenix_backend_aire_traduce_a_las_variables_del_runtime(monkeypatch) -> None:
-    monkeypatch.setenv("FENIX_BACKEND", "aire")
+def test_la_casita_por_defecto_es_fenix(monkeypatch) -> None:
+    """Sin variable, la casita base es `fenix` — nunca `og118`. Si compartieran
+    base, cada runner init-earía la misma con SU persona y el último ganaría."""
     monkeypatch.delenv("FENIX_AIRE_PROJECT", raising=False)
-    monkeypatch.delenv("OG118_BACKEND", raising=False)
     monkeypatch.delenv("OG118_AIRE_PROJECT", raising=False)
     configurar_motor()
-    assert os.environ["OG118_BACKEND"] == "aire"
     assert os.environ["OG118_AIRE_PROJECT"] == "fenix"
 
 
 def test_fenix_aire_project_respeta_el_entorno(monkeypatch) -> None:
-    monkeypatch.setenv("FENIX_BACKEND", "aire")
     monkeypatch.setenv("FENIX_AIRE_PROJECT", "fenix-staging")
     configurar_motor()
     assert os.environ["OG118_AIRE_PROJECT"] == "fenix-staging"
@@ -65,7 +54,6 @@ def test_fenix_aire_project_respeta_el_entorno(monkeypatch) -> None:
 
 @pytest.fixture
 def motor_aire(monkeypatch):
-    monkeypatch.setenv("FENIX_BACKEND", "aire")
     monkeypatch.delenv("FENIX_AIRE_PROJECT", raising=False)
     monkeypatch.delenv("OG118_AIRE_PROJECT", raising=False)
     monkeypatch.delenv("OG118_BACKEND", raising=False)
@@ -77,7 +65,7 @@ def test_la_ruta_aire_lleva_la_identidad_fenix(motor_aire) -> None:
     assert isinstance(runner.backend, AIREBackend)
     assert runner.backend.project == "fenix"
     assert runner.backend.default_mode == "complete"
-    assert runner.backend.registry_tools == ("persona",)
+    assert set(runner.backend.registry_tools) == {"persona", "task_tracker", "rag_store"}
     # AIRE es dueño de las tools server-side: el MCP local de expedientes
     # (guardar_cotizacion) y el rag_store NO cruzan la puerta.
     assert runner.capabilities == []
@@ -87,36 +75,8 @@ def test_los_chats_se_nombran_con_el_prefijo_fenix(motor_aire) -> None:
     assert aire_project_for_chat("abc-123") == "fenix-abc-123"
 
 
-def test_sin_motor_la_ruta_es_byte_identica(monkeypatch) -> None:
-    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
-        monkeypatch.delenv(var, raising=False)
-    configurar_motor()
-    runner = build_runner(capabilities=["task_tracker"], extra_mcp_servers=[])
-    assert isinstance(runner.backend, BackendAcotado)
-    assert runner.capabilities == ["task_tracker"]
-    assert aire_project_for_chat("abc") == "og118-abc"
 
 
-def test_sin_motor_el_tutor_busca_por_los_builtins_de_siempre(monkeypatch) -> None:
-    """La ruta claude-code no se enteró de que existe un dial de modos.
-
-    Aquí la búsqueda del tutor no viene de la puerta sino de `BackendAcotado`,
-    que fija `tools` a `BUILTINS_DISPONIBLES` — y ahí siguen WebSearch/WebFetch,
-    intactos. Pedir `aire_mode` no puede cambiar esta ruta: si algún día la
-    tocara, este test es el que se pone rojo."""
-    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
-        monkeypatch.delenv(var, raising=False)
-    configurar_motor()
-    runner = build_runner(
-        persona_text="Eres el tutor del cibercafé.",
-        capabilities=["task_tracker"],
-        extra_mcp_servers=[],
-        aire_project="fenix-tutor",
-        aire_mode="agent",
-    )
-    assert isinstance(runner.backend, BackendAcotado)
-    assert not hasattr(runner.backend, "default_mode")
-    assert set(BUILTINS_DISPONIBLES) == {"WebSearch", "WebFetch"}
 
 
 # --- el tutor: segunda persona, segunda casita base ---------------------------
@@ -126,14 +86,15 @@ def test_el_tutor_tiene_su_propia_casita_base(motor_aire) -> None:
     runner = build_runner(
         persona_text="Eres el tutor del cibercafé.",
         capabilities=["task_tracker"],
-        extra_mcp_servers=[],
         aire_project="fenix-tutor",
     )
     assert isinstance(runner.backend, AIREBackend)
     assert runner.backend.project == "fenix-tutor"
     # También el tutor pide la tool persona y carga el párrafo de identidad viva.
-    assert runner.backend.registry_tools == ("persona",)
-    assert "mcp__persona__read" in runner.persona
+    # El tutor pide UNA tool y ahora recibe UNA — y su persona ya no le promete
+    # `mcp__persona__`, que su turno no monta.
+    assert runner.backend.registry_tools == ("task_tracker",)
+    assert "mcp__persona__read" not in runner.persona
     # En la ruta aire las capabilities locales se fuerzan a vacío aunque el
     # caller pida task_tracker: ese MCP corre local y no existe en el droplet.
     assert runner.capabilities == []
@@ -163,7 +124,6 @@ async def test_nacimiento_delgado_del_chat_del_tutor(motor_aire) -> None:
     runner = build_runner(
         persona_text="Eres el tutor del cibercafé.",
         capabilities=["task_tracker"],
-        extra_mcp_servers=[],
         aire_project="fenix-tutor",
     )
     backend = runner.backend
@@ -233,12 +193,11 @@ def tutor_real(monkeypatch):
     monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
     monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")
     monkeypatch.delenv("OG118_ACCESS_TOKEN", raising=False)
-    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
+    for var in ("FENIX_AIRE_PROJECT", "OG118_AIRE_PROJECT"):
         monkeypatch.delenv(var, raising=False)
 
     import fenix_app
 
-    monkeypatch.setenv("FENIX_BACKEND", "aire")
     configurar_motor()
     monkeypatch.setattr(fenix_app, "_runner_tutor", None)
     return fenix_app._tutor()
@@ -255,7 +214,7 @@ def test_el_tutor_vuelve_a_poder_buscar_en_internet(tutor_real) -> None:
     assert tutor_real.backend.project == "fenix-tutor"
     # Y sigue pidiendo su tool del registry: el modo se suma a `tools`, no lo
     # sustituye (aire-server _mount_tools une los dos en allowed_tools).
-    assert tutor_real.backend.registry_tools == ("persona",)
+    assert tutor_real.backend.registry_tools == ("task_tracker",)
 
 
 def test_el_modo_agent_tambien_concede_los_tools_de_archivo(tutor_real) -> None:
