@@ -58,10 +58,20 @@ def test_apagado_por_default(monkeypatch) -> None:
     assert app_module.proyectos_activos() is False
 
 
+def _paths(app) -> set[str]:
+    """Los paths montados, tolerando las formas que cambian entre versiones.
+
+    En FastAPI reciente `app.routes` puede contener `_IncludedRouter`, que NO
+    tiene `.path` — un `{r.path for r in ...}` revienta con AttributeError. Pasó
+    en CI mientras local iba verde, que es exactamente la clase de test que se
+    cree portátil y no lo es."""
+    return {p for p in (getattr(r, "path", None) for r in app.routes) if p}
+
+
 def test_apagado_las_rutas_NO_EXISTEN(apagado) -> None:
     """404 real, no un handler que consulta un flag: el `projects_router` no se
     monta, así que no hay ruta que responder."""
-    rutas = {r.path for r in apagado.app.routes}
+    rutas = _paths(apagado.app)
     assert not any(p.startswith("/projects") for p in rutas), sorted(rutas)
     c = TestClient(apagado.app)
     for ruta in ("/projects", "/projects/x", "/projects/x/documents"):
@@ -99,7 +109,7 @@ def test_apagado_un_corpus_id_viejo_NO_rompe_el_chat(apagado) -> None:
 
 
 def test_encendido_las_rutas_se_montan(encendido) -> None:
-    rutas = {r.path for r in encendido.app.routes}
+    rutas = _paths(encendido.app)
     for esperada in ("/projects", "/projects/{project_id}", "/projects/{project_id}/documents"):
         assert esperada in rutas, sorted(p for p in rutas if "project" in p)
 
