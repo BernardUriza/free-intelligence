@@ -94,7 +94,6 @@ _AUTH_MODE = os.getenv("OG118_AUTH_MODE", "bearer").lower()
 # transcript (tool_use/tool_result blocks included) persists across container
 # recycles and the Runner resumes it instead of re-folding the client's history
 # replay every turn. Unset (default) → no store, byte-identical behavior.
-_SESSION_STORE_DSN = os.getenv("OG118_SESSION_STORE_DSN")
 _AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
 _AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 _auth0_validator = (
@@ -129,7 +128,6 @@ _principal_impl = _build_principal_impl()
 
 @asynccontextmanager
 async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
-    global _session_store, _runner
     if _AUTH_MODE == "bearer" and not _ACCESS_TOKEN:
         logger.warning(
             "OG118_AUTH_MODE=bearer with OG118_ACCESS_TOKEN unset: routes are OPEN. "
@@ -140,36 +138,7 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
             "OG118_AUTH_MODE=%s but AUTH0_DOMAIN/AUTH0_AUDIENCE are unset — every "
             "request would 401. Set them or revert to bearer mode.", _AUTH_MODE
         )
-    if _SESSION_STORE_DSN:
-        # Native SDK memory: build the store, rebuild the runners with it. The
-        # element cache is cleared so lazily-built element runners inherit it too.
-        # A dead Postgres DEGRADES (chat still works on history replay — the
-        # memory layer must never kill live turns) but SCREAMS: this error means
-        # the operator configured durable memory and is not getting it.
-        try:
-            from fi_runner.session_stores import create_postgres_session_store
-
-            # Small pool on purpose: og118 is single-replica personal use and the
-            # Postgres is a shared Burstable B1ms (~50 max connections, insult
-            # lives there too). asyncpg's default of 10 would squat a fifth of
-            # the server for a low-traffic memory layer.
-            _session_store = await create_postgres_session_store(
-                _SESSION_STORE_DSN, min_size=1, max_size=4
-            )
-            _runner = build_runner(session_store=_session_store)
-            _element_runners.clear()
-            logger.info("session store wired (Postgres): native SDK memory ON")
-        except Exception:
-            logger.exception(
-                "OG118_SESSION_STORE_DSN is set but the session store failed to "
-                "initialize — running WITHOUT native memory (history replay only)"
-            )
-            _session_store = None
     yield
-    if _session_store is not None:
-        # The store owns its pool (factory path) — close it on shutdown.
-        await _session_store.close()
-        _session_store = None
 
 
 # Las rutas se declaran sobre un ROUTER, no sobre una app concreta, para que
@@ -229,7 +198,6 @@ _runner = build_runner()
 
 # The wired session store (lifespan-owned). Module-level because the element
 # runners are built lazily at request time and must inherit it.
-_session_store = None
 
 # Elemento runners (OG118-ELEMENTS-ADR-1): an active element swaps ONLY the
 # persona. The base runner serves "no element". Per-element runners are built
@@ -249,10 +217,7 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
         return _runner, el
     cached = _element_runners.get(el.id)
     if cached is None:
-        cached = build_runner(
-            persona_text=get_registry().composed_persona(el),
-            session_store=_session_store,
-        )
+        cached = build_runner(persona_text=get_registry().composed_persona(el))
         _element_runners[el.id] = cached
     return cached, el
 
@@ -319,12 +284,15 @@ def get_rag_store() -> RagStoreClient:
     store in one place is what stops it recurring — see [[both-ends-of-the-data-path]]."""
     global _rag_store
     if _rag_store is None:
-        if os.getenv("OG118_BACKEND", "").strip().lower() == "aire":
-            from fi_runner.aire_corpus import AireCorpusClient
+        # Sin rama. La local escribía en un HDF5 del contenedor que, desde la
+        # consolidación en AIRE (2026-08-29), NADIE lee: la búsqueda del agente
+        # entra por la puerta y aterriza en la Postgres de AIRE. Dejar el `else`
+        # habría reconstruido exactamente el bug del 24-ago —la subida en una
+        # repisa, la búsqueda en otra— con la diferencia de que esta vez la rama
+        # muerta era la que corría por default.
+        from fi_runner.aire_corpus import AireCorpusClient
 
-            _rag_store = AireCorpusClient(os.getenv("OG118_AIRE_PROJECT", "og118"))
-        else:
-            _rag_store = RagStoreClient()
+        _rag_store = AireCorpusClient(os.getenv("OG118_AIRE_PROJECT", "og118"))
     return _rag_store
 
 

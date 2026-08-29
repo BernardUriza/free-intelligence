@@ -5,7 +5,7 @@ non-Python backend (the Java/Spring portfolio via ``Runtime.exec``) — can run 
 ``fi_runner`` Runner WITHOUT importing Python and WITHOUT a persistent sidecar
 service. It mirrors how fi-runner itself shells out to ``codex exec --json``::
 
-    fi-runner exec "Summarize this repo" --backend codex --model gpt-4.1
+    fi-runner exec "Summarize this repo" --model claude-sonnet-4-5
     echo "70yo male, chest pain + dyspnea" | fi-runner exec - --persona-file medic.md
     fi-runner exec "What changed?" --json --session-id pr-42
 
@@ -31,7 +31,7 @@ from typing import Optional
 
 import typer
 
-from . import ClaudeCodeBackend, CodexBackend, Runner, __version__
+from . import AIREBackend, Runner, __version__
 
 app = typer.Typer(
     help="fi-runner — backend-agnostic agent runner, as a shell-out CLI.",
@@ -59,47 +59,47 @@ def _resolve_persona(persona: Optional[str], persona_file: Optional[Path]) -> st
 
 
 def _build_backend(
-    backend: str,
+    project: str,
     model: Optional[str],
-    azure_endpoint: Optional[str],
-    azure_key_env: str,
+    mode: str,
+    tools: tuple[str, ...],
 ):
-    """Compose the AgentBackend. The harness SDK is pulled lazily by the backend
-    on the first turn, so this stays cheap."""
-    if backend == "claude":
-        return ClaudeCodeBackend(default_model=model)
-    if backend == "codex":
-        # API-motor against Azure when an endpoint is given; else a ChatGPT login.
-        return CodexBackend(
-            default_model=model,
-            azure_endpoint=azure_endpoint or None,
-            azure_api_key_env=azure_key_env,
-        )
-    raise ValueError(f"unknown backend {backend!r} (expected 'codex' or 'claude')")
+    """Compose the AgentBackend. One door now: AIRE. The HTTP client is pulled
+    lazily on the first turn, so this stays cheap.
+
+    ``--backend claude|codex`` is gone with the local SDK/CLI hosts (see
+    :mod:`fi_runner.backends`); what used to be a harness choice is now the
+    door's MODE, which is a genuinely different question — ``complete`` grants
+    no builtins, ``agent`` grants file+web tools caged to the casita."""
+    return AIREBackend(
+        project=project,
+        default_model=model,
+        default_mode=mode,
+        registry_tools=tools,
+    )
 
 
 @app.command("exec")
 def exec_turn(
     prompt: str = typer.Argument(..., help="Prompt text, or '-' to read from stdin."),
-    backend: str = typer.Option("codex", "--backend", "-b", help="Agent harness: codex | claude."),
+    project: str = typer.Option(
+        "fi-runner", "--project", "-p", envvar="FI_RUNNER_AIRE_PROJECT",
+        help="AIRE casita this turn runs in ([A-Za-z0-9_-], 128 max).",
+    ),
     model: Optional[str] = typer.Option(
-        None, "--model", "-m", help="Model / Azure deployment (e.g. gpt-4.1, claude-sonnet-4-5)."
+        None, "--model", "-m", help="Model the door pins for the turn (e.g. claude-sonnet-4-5)."
+    ),
+    mode: str = typer.Option(
+        "complete", "--mode",
+        help="Door mode: complete (no builtins) | agent (Read/Write/Glob/Grep/WebSearch/WebFetch, caged; never Bash).",
     ),
     persona: Optional[str] = typer.Option(None, "--persona", help="System persona text."),
     persona_file: Optional[Path] = typer.Option(
         None, "--persona-file", help="Read the persona from a file (wins over --persona)."
     ),
     capability: list[str] = typer.Option(
-        [], "--capability", "-c", help="fi-core capability wired as an MCP server (repeatable)."
-    ),
-    azure_endpoint: Optional[str] = typer.Option(
-        None,
-        "--azure-endpoint",
-        envvar="FI_RUNNER_AZURE_ENDPOINT",
-        help="Azure OpenAI v1 endpoint for codex API-motor mode (e.g. https://<res>.openai.azure.com/openai/v1).",
-    ),
-    azure_key_env: str = typer.Option(
-        "AZURE_OPENAI_KEY", "--azure-key-env", help="Env var holding the Azure OpenAI API key."
+        [], "--capability", "-c",
+        help="AIRE registry tool this turn requests by NAME (repeatable). The door 422s any name outside its registry.",
     ),
     session_id: Optional[str] = typer.Option(
         None, "--session-id", "-s", help="Session id for stateful conversation continuity."
@@ -111,7 +111,7 @@ def exec_turn(
     """Run a single agent turn and print the result to stdout.
 
     Examples:
-        fi-runner exec "Refactor the auth module" --backend codex --model gpt-4.1
+        fi-runner exec "Refactor the auth module" --model claude-sonnet-4-5
         echo "70yo male, chest pain" | fi-runner exec - --persona-file medic.md
         fi-runner exec "What changed in this PR?" --json --session-id pr-42
     """
@@ -121,11 +121,12 @@ def exec_turn(
         raise typer.Exit(code=2)
 
     try:
-        backend_obj = _build_backend(backend, model, azure_endpoint, azure_key_env)
+        # `capability` names AIRE registry tools, so it rides the BACKEND, not
+        # `Runner.capabilities` — the latter spawns local MCP subprocesses that
+        # cannot cross the door.
         runner = Runner(
-            backend=backend_obj,
+            backend=_build_backend(project, model, mode, tuple(capability)),
             persona=_resolve_persona(persona, persona_file),
-            capabilities=list(capability),
         )
         result = asyncio.run(runner.run(text, session_id=session_id))
     except Exception as exc:  # surface as a clean CLI error + nonzero exit

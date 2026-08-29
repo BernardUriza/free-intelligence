@@ -44,8 +44,8 @@ if str(OG118) not in sys.path:
     sys.path.insert(0, str(OG118))
 
 # El motor del turno se decide ANTES de importar el runtime: og118 construye su
-# runner al importar `app`, así que FENIX_BACKEND tiene que estar ya traducido a
-# OG118_BACKEND / OG118_AIRE_PROJECT cuando ese import corra (aire-server #35).
+# runner al importar `app`, así que FENIX_AIRE_PROJECT tiene que estar ya
+# traducido a OG118_AIRE_PROJECT cuando ese import corra (aire-server #35).
 from arranque import configurar_motor, exigir_config  # noqa: E402
 
 configurar_motor()
@@ -607,7 +607,7 @@ def _tutor():
     Perezoso porque la mayoría de los arranques son del mostrador. `load_prompt`
     relee por mtime, así que editar `tutor.md` aplica sin reiniciar.
 
-    En la ruta AIRE (FENIX_BACKEND=aire) el tutor tiene SU casita base —
+    El tutor tiene SU casita base —
     `fenix-tutor` — separada de la del mostrador (`fenix`): son dos personas en
     el mismo proceso, y si compartieran base cada runner la init-earía con su
     propia voz y el último ganaría. Los chats de ambos productos se nombran
@@ -647,7 +647,6 @@ def _tutor():
                 _runner_tutor = build_runner(
                     persona_text=load_prompt(TUTOR_PATH),
                     capabilities=["task_tracker"],
-                    extra_mcp_servers=[],
                     aire_project=f"{os.getenv('OG118_AIRE_PROJECT') or 'fenix'}-tutor",
                     aire_mode="agent",
                 )

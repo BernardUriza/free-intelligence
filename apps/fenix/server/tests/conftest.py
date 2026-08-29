@@ -36,7 +36,7 @@ def app_fenix(tmp_path, monkeypatch):
     monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")
     # El motor del turno no se hereda del entorno de quien corre los tests: la
     # app del fixture siempre nace en la ruta byte-idéntica de siempre.
-    for var in ("FENIX_BACKEND", "OG118_BACKEND", "OG118_AIRE_PROJECT"):
+    for var in ("FENIX_AIRE_PROJECT", "OG118_AIRE_PROJECT"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("FENIX_EXPEDIENTES_PATH", str(tmp_path / "expedientes.json"))
     monkeypatch.setenv("OG118_PROJECT_REGISTRY_PATH", str(tmp_path / "projects.json"))

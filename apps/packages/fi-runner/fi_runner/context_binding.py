@@ -110,6 +110,45 @@ def owner_instructions_binding(
     return render
 
 
+#: The MCP server name fi-core's stateful RAG capability registers under.
+RAG_STORE_SERVER = "fi-core-rag-store"
+
+
+def pinned_corpus_args(
+    *,
+    context_key: str = "corpus_id",
+    server: str = RAG_STORE_SERVER,
+    arg: str = "corpus_id",
+) -> Callable[[Mapping[str, Any]], dict[str, dict[str, Any]]]:
+    """The enforcement twin of :func:`active_corpus_binding`, for
+    :attr:`fi_runner.Runner.pin_tool_args`.
+
+    ``active_corpus_binding`` writes "search corpus X" into the system prompt.
+    That is an instruction, and ``corpus_id`` is an argument the MODEL types on
+    every rag_store call — so the prompt asks the agent not to read another
+    tenant's documents, it does not stop it. Anything that can talk the model
+    into a different id (a retrieved document carrying an injection, a user who
+    learned an id, a plain hallucination) walks straight through, and the same
+    capability exposes ``delete_document`` and ``delete_corpus``.
+
+    This pins the value instead: any rag_store call whose ``corpus_id`` is not
+    the turn's own is DENIED before the server sees it. Use BOTH — the addendum
+    so the agent knows where to look, the pin so that is the only place it can.
+
+    Returns no pins when the turn has no active corpus, which leaves the tools
+    unconstrained: a runner that offers rag_store on a shared corpus with no
+    per-turn scope has nothing to pin, and pretending otherwise would be theatre.
+    """
+
+    def render(context: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+        corpus = context.get(context_key)
+        if not corpus:
+            return {}
+        return {server: {arg: str(corpus)}}
+
+    return render
+
+
 def compose_bindings(*bindings: ContextPrompt | None) -> ContextPrompt:
     """Join several bindings into the ONE ``context_prompt`` the Runner holds.
 
@@ -141,8 +180,10 @@ def compose_bindings(*bindings: ContextPrompt | None) -> ContextPrompt:
 
 __all__ = [
     "MAX_OWNER_INSTRUCTIONS_CHARS",
+    "RAG_STORE_SERVER",
     "ContextPrompt",
     "active_corpus_binding",
     "compose_bindings",
     "owner_instructions_binding",
+    "pinned_corpus_args",
 ]

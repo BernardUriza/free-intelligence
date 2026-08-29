@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
@@ -112,6 +111,25 @@ class MCPServerSpec:
     # insult's insult_db). When set, it is passed straight to the harness and
     # ``command``/``args`` are ignored.
     server: Any = None
+    # SECURITY — the argument BOUNDARY. Tool arguments come from the MODEL, so a
+    # capability that namespaces its data by an argument (``corpus_id`` on
+    # rag_store, ``session_id`` on task_tracker) is scoped by whatever the model
+    # decided to type. Telling it which corpus to use in the system prompt is an
+    # INSTRUCTION, not a boundary: it asks the model not to touch another tenant,
+    # it does not stop it — and a document carrying an injection is a way to ask
+    # the model for something else.
+    #
+    # ``pinned_args`` closes that. Every entry is an argument name mapped to the
+    # ONLY value this turn may use. A call to this server whose input disagrees
+    # is DENIED before it reaches the server, and the denial is surfaced as
+    # ``tool_args_denied``. Denied, not silently rewritten: a rewrite would let a
+    # model believe it read corpus A when the runner had sent it to corpus B,
+    # which converts an attack into a confident wrong answer.
+    #
+    # An argument the model OMITS is not pinned into existence — the pin
+    # constrains what a value may be, never whether the tool is called. Set it
+    # per turn via :attr:`fi_runner.Runner.pin_tool_args`.
+    pinned_args: Mapping[str, Any] = field(default_factory=dict)
     # R6 — remote HTTP MCP transport: the endpoint of a server someone HOSTS
     # (nothing is spawned). Mutually exclusive with ``command`` and ``server``.
     # ``headers`` usually carry a bearer to that server: they are a SECRET, so
@@ -245,6 +263,41 @@ def mcp_server_of(tool_name: str) -> str | None:
     return tool_name[len(_MCP_PREFIX) :].split(_MCP_SEP, 1)[0] or None
 
 
+def pinned_arg_violation(
+    tool_name: str,
+    tool_input: Mapping[str, Any],
+    mcp_servers: Iterable[MCPServerSpec],
+) -> str | None:
+    """The reason to DENY this tool call, or ``None`` to let it through.
+
+    Enforces :attr:`MCPServerSpec.pinned_args` — the boundary a system-prompt
+    addendum cannot be. Pure and dependency-free so the rule is testable
+    without a harness; the backend is what installs it on the real tool gate.
+
+    Only arguments the model actually SUPPLIED are compared: a pin says what a
+    value must be when given, never that the tool must be called with it. Values
+    are compared by equality after string coercion, because a harness may hand
+    back an id as a string where the pin holds an int (or vice versa) and a type
+    mismatch is not a security event.
+    """
+    server = mcp_server_of(tool_name)
+    if server is None:
+        return None  # a built-in tool — the tool policy governs it, not a pin
+    for spec in mcp_servers:
+        if spec.name != server or not spec.pinned_args:
+            continue
+        for arg, pinned in spec.pinned_args.items():
+            if arg not in tool_input:
+                continue
+            if str(tool_input[arg]) != str(pinned):
+                return (
+                    f"{arg}={tool_input[arg]!r} is not permitted in this turn. "
+                    f"This turn is pinned to {arg}={pinned!r}; call {tool_name} "
+                    f"with that value or not at all."
+                )
+    return None
+
+
 @dataclass(frozen=True)
 class ToolCall:
     """One tool invocation the agent made during a turn (the tool-trace).
@@ -349,7 +402,24 @@ class TurnResult:
 
 @runtime_checkable
 class AgentBackend(Protocol):
-    """A swappable agent runtime (Claude Code, Codex, raw API, ...)."""
+    """A swappable agent runtime (Claude Code, Codex, raw API, ...).
+
+    OPTIONAL CAPABILITY PROBES, duck-typed (a backend that omits one answers
+    "no", so the port stays minimal and old backends keep working):
+
+    - ``has_durable_memory`` / ``has_session`` / ``forget_session`` — a native
+      transcript the runner should resume instead of re-folding a replay.
+    - ``run_turn_stream`` — live events instead of one settled result.
+    - ``enforces_pinned_args`` — **the security probe.** True only for a backend
+      that actually gates tool INPUT (:attr:`MCPServerSpec.pinned_args`) before
+      the call reaches the server. A backend that ships tool NAMES to a remote
+      door (AIREBackend) or shells out to a CLI (Codex) cannot: it never sees
+      the arguments. The runner REFUSES a turn that carries pins onto a backend
+      that does not declare this, because a boundary that silently no-ops is
+      worse than no boundary — the operator reads the pin in the config, sees
+      the ``tool_args_pinned`` telemetry, and believes a tenant is fenced when
+      nothing is fencing it.
+    """
 
     async def run_turn(
         self,

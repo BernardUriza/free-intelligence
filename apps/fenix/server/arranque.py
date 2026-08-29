@@ -131,24 +131,24 @@ def exigir_contrasena_publica() -> None:
 
 
 def configurar_motor() -> None:
-    """`FENIX_BACKEND` es el contrato de Fénix; el runtime lo lee como `OG118_BACKEND`.
+    """Nombra la casita de Fénix: `FENIX_AIRE_PROJECT` → `OG118_AIRE_PROJECT`.
 
-    Fénix corre el runtime de og118 tal cual, y el selector del motor vive allá
-    (`OG118_BACKEND` elige claude-code|aire; `OG118_AIRE_PROJECT` nombra la
-    casita base Y prefija la casita de cada chat — aire-server backlog #35).
-    Este mapeo traduce las variables con el nombre de ESTA app a las del
-    runtime, y tiene que correr ANTES de importar `app`: og118 construye su
-    runner al importar el módulo, no al primer request.
+    Fénix corre el runtime de og118 tal cual, así que la variable que nombra la
+    casita vive allá. Ésta traduce el nombre de ESTA app al del runtime, y tiene
+    que correr ANTES de importar `app`: og118 construye su runner al importar el
+    módulo, no al primer request.
 
-    Sin `FENIX_BACKEND` no se toca nada — el deploy de hoy queda byte-idéntico,
-    exactamente como el default de og118. Con `FENIX_BACKEND=aire`, la casita
-    base es `fenix` (o `FENIX_AIRE_PROJECT`) y cada chat vive en
-    `fenix-{conversationId}` con el stub `@base fenix` (nacimiento delgado).
+    `OG118_AIRE_PROJECT` nombra la casita base Y prefija la de cada chat, así que
+    sin esto los chats de Fénix nacerían como `og118-{conversationId}` y las dos
+    apps compartirían casita base — cada runner init-earía la misma con SU
+    persona y el último en arrancar ganaría.
+
+    **`FENIX_BACKEND` desapareció el 2026-08-29.** Elegía entre `claude-code` y
+    `aire`, y ya no hay dos motores: la flota se consolidó en la puerta de AIRE
+    y los hosts locales del SDK/CLI se borraron de fi-runner. Una variable que
+    selecciona entre una sola opción no es configuración, es un residuo que la
+    siguiente sesión lee como si todavía decidiera algo.
     """
-    motor = _var("FENIX_BACKEND").lower()
-    if not motor:
-        return
-    os.environ["OG118_BACKEND"] = motor
     os.environ["OG118_AIRE_PROJECT"] = _var("FENIX_AIRE_PROJECT") or "fenix"
 
 

@@ -34,23 +34,26 @@ def test_persona_declares_it_is_not_a_coding_agent() -> None:
     assert "filesystem" in p or "files" in p
 
 
-def test_filesystem_builtins_are_disallowed() -> None:
-    """og118 must NOT reach the host container's filesystem. A user asking 'show me
-    your code' made it Glob+Read its own deployment source — a real exposure on the
-    shared papelería host. The repo/file builtins are hard-blocked so the persona's
-    'you have no filesystem' is TRUE, not merely asserted."""
-    runner = build_runner()
-    blocked = set(runner.tool_policy.builtin_disallowed)
-    for tool in ("Bash", "Write", "Edit", "Read", "Grep", "Glob", "LS"):
-        assert tool in blocked, f"{tool} must be disallowed (host-filesystem exposure)"
+def test_el_modo_de_la_puerta_no_concede_builtins() -> None:
+    """El cerco de filesystem ya NO lo pone este proceso: lo pone la puerta.
+
+    Antes se afirmaba sobre `tool_policy.builtin_disallowed`, que era una lista
+    que el backend local leía. Con la consolidación en AIRE (2026-08-29) el
+    tool_policy no se reenvía —AIRE configura sus tools server-side— así que
+    seguir afirmando sobre esa lista habría sido verificar una garantía escrita
+    y no ejercida. Lo que de verdad acota ahora es el MODO: `complete` no
+    concede NINGÚN builtin, y `Bash` no existe en ninguno de los dos modos del
+    dial, más la jaula de AIRE que confina los de archivo a la casita del chat.
+    """
+    assert build_runner().backend.default_mode == "complete"
 
 
 def test_build_runner_wires_rag_store() -> None:
     """The Runner declares rag_store (project search) alongside task_tracker."""
     runner = build_runner()
-    assert "rag_store" in runner.capabilities
+    assert "rag_store" in runner.backend.registry_tools
     # task_tracker stays — the glass-box plan/step events come from it.
-    assert "task_tracker" in runner.capabilities
+    assert "task_tracker" in runner.backend.registry_tools
 
 
 def test_rag_store_capability_resolves_to_mcp_spec() -> None:
