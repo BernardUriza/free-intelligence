@@ -73,32 +73,6 @@ jobs:
           cache: pip
           cache-dependency-path: apps/packages/fi-runner/pyproject.toml
 
-      - name: Put the Postgres SERVER binaries on PATH, so the store tests RUN
-        if: steps.touched.outputs.yes == 'true'
-        run: |
-          set -euo pipefail
-          # Six tests SKIP on any host where tests/pg_probe.py cannot find a real
-          # Postgres server — the two conformance suites for PostgresSessionStore
-          # and the four that wire it into the Claude backend, i.e. the durable
-          # transcript. ubuntu-latest SHIPS that server; what is on PATH is
-          # libpq's client-only bin, which is the exact trap pg_probe's docstring
-          # names. So the server's dir goes on PATH, and its absence is a hard
-          # failure rather than six quiet skips under a green check.
-          #
-          # Same intent as fi-core-tests.yml's pgvector step; fi-runner needs no
-          # extension, only the server, because its cluster is plain Postgres on
-          # a unix socket in a tmpdir.
-          shopt -s nullglob
-          dirs=(/usr/lib/postgresql/*/bin)
-          if [ ${#dirs[@]} -eq 0 ]; then
-            echo "::error::no PostgreSQL server under /usr/lib/postgresql/*/bin — the session-store tests would skip silently"
-            exit 1
-          fi
-          bin_dir="${dirs[-1]}"
-          for b in postgres initdb pg_ctl; do test -x "$bin_dir/$b"; done
-          echo "$bin_dir" >> "$GITHUB_PATH"
-          echo "Postgres server binaries: $bin_dir"
-
       - name: Install fi-core from the monorepo path
         if: steps.touched.outputs.yes == 'true'
         run: |
@@ -122,12 +96,17 @@ jobs:
       - name: Install fi-runner with every extra its tests exercise
         if: steps.touched.outputs.yes == 'true'
         run: |
-          # All seven extras, because the suite has a module per backend and each
-          # one HARD-imports its SDK: claude (test_claude_code_backend), aire +
-          # httpx (test_aire_backend), postgres/asyncpg (test_postgres_session_store),
-          # redis (test_conversation), auth/PyJWT (test_auth), contract/pydantic
-          # (test_event_contract), cli (test_subprocess_cli). Install fewer and the
-          # missing ones do not skip politely — they ERROR at collection.
+          # Every extra the suite exercises, because a test module HARD-imports
+          # its dependency: aire + httpx (test_aire_backend), redis
+          # (test_conversation), auth/PyJWT (test_auth), contract/pydantic
+          # (test_event_contract), cli. Install fewer and the missing ones do not
+          # skip politely — they ERROR at collection.
+          #
+          # `claude` y `postgres` se fueron el 2026-08-29 con ClaudeCodeBackend,
+          # CodexBackend y fi_runner.session_stores: la flota se consolidó en la
+          # puerta de AIRE. Con ellos se fueron los dos pasos de Postgres que este
+          # workflow tenía — el que ponía el servidor en el PATH y el que exigía
+          # que esas suites CORRIERAN en vez de skipear.
           #
           # fastapi is here rather than in the `dev` extra because fi-runner's
           # runtime does not depend on it: only tests/test_auth.py does, for the
@@ -136,7 +115,7 @@ jobs:
           #
           # No `||` fallback, by design: a fallback that installs less turns a
           # broken install into a pass.
-          pip install -e '.[dev,claude,postgres,aire,redis,auth,contract,cli]' fastapi
+          pip install -e '.[dev,aire,redis,auth,contract,cli]' fastapi
 
       - name: Run the suite
         if: steps.touched.outputs.yes == 'true'
@@ -144,21 +123,6 @@ jobs:
           # No `|| true` and no `-exec`: this job's exit status IS pytest's, or
           # it is another green light that proves nothing.
           pytest tests -q
-
-      - name: The Postgres session-store tests must RUN here, not skip
-        if: steps.touched.outputs.yes == 'true'
-        run: |
-          set -euo pipefail
-          # Putting the server on PATH and then letting the probe skip anyway
-          # would look identical to success in the step above. If these ever go
-          # back to skipping, CI says so instead of quietly returning to zero
-          # coverage on the store that owns the durable transcript.
-          pytest tests/test_postgres_session_store.py tests/test_claude_session_store_wiring.py \
-            -q -rs --no-header | tee /tmp/pg.txt
-          if grep -qi 'skip' /tmp/pg.txt; then
-            echo "::error::the Postgres suites SKIPPED on a runner that has the server installed — the probe is not finding it"
-            exit 1
-          fi
 
       - name: Report what the host could not run
         if: always() && steps.touched.outputs.yes == 'true'
