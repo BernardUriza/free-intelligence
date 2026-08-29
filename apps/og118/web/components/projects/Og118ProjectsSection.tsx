@@ -17,6 +17,7 @@
 import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from 'fi-glass/shell';
 import type { UploadStatus } from 'fi-glass/shell';
 import { AgentSidebarSection, useInlineRename, useSidebarItemStyle } from 'fi-glass/agent';
+import { proyectosActivos } from '../../lib/og118Flags';
 import type { Og118Project } from '../../lib/useOg118Projects';
 import { Og118ProjectCreateRow } from './Og118ProjectCreateRow';
 import { Og118ProjectRow } from './Og118ProjectRow';
@@ -68,6 +69,13 @@ export function Og118ProjectsSection({
     },
     { maxLength: 80, emptyPolicy: 'keep' },
   );
+
+  // NEXT_PUBLIC_OG118_PROYECTOS off → the section does not exist in the tree.
+  // The gate lives HERE, below the hooks (the flag is a build-time constant, so
+  // the hook order never varies), and not only at the Og118AgentChat call site:
+  // whoever drops this component somewhere else inherits the switch instead of
+  // re-deciding it.
+  if (!proyectosActivos()) return null;
 
   return (
     <AgentSidebarSection

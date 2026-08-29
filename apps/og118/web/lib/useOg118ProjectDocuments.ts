@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authHeaders } from './og118Token';
+import { proyectosActivos } from './og118Flags';
 
 export interface Og118ProjectDocument {
   docId: string;
@@ -58,7 +59,7 @@ export function useOg118ProjectDocuments(
   currentRef.current = projectId;
 
   useEffect(() => {
-    if (!projectId || !tokenReady) {
+    if (!projectId || !tokenReady || !proyectosActivos()) {
       setDocuments([]);
       setCapacity(null);
       setReady(!projectId);

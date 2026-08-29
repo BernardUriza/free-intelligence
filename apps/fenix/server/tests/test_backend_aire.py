@@ -65,7 +65,9 @@ def test_la_ruta_aire_lleva_la_identidad_fenix(motor_aire) -> None:
     assert isinstance(runner.backend, AIREBackend)
     assert runner.backend.project == "fenix"
     assert runner.backend.default_mode == "complete"
-    assert set(runner.backend.registry_tools) == {"persona", "task_tracker", "rag_store"}
+    # `rag_store` viaja sólo con Proyectos prendido (OG118_PROYECTOS), apagado
+    # por default desde el 2026-08-29. Fénix hereda ese default.
+    assert set(runner.backend.registry_tools) == {"persona", "task_tracker"}
     # AIRE es dueño de las tools server-side: el MCP local de expedientes
     # (guardar_cotizacion) y el rag_store NO cruzan la puerta.
     assert runner.capabilities == []

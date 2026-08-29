@@ -86,7 +86,22 @@ def aire_project_for_chat(session_id: str | None) -> str | None:
 #                  que la persona anexa promete una tool que no existe.
 #   task_tracker → el plan/steps del glass-box (backlog #45)
 #   rag_store    → búsqueda en los documentos del proyecto (backlog #46)
-CAPACIDADES_POR_DEFECTO = ["persona", "task_tracker", "rag_store"]
+#
+# `rag_store` ENTRA SÓLO con Proyectos prendido (OG118_PROYECTOS), y la razón no
+# es higiene: en og118 el corpus ES el del proyecto (`corpus_id` = el id del
+# proyecto), así que con Proyectos apagado esa tool busca en un almacén que nadie
+# llena — la mitad de un camino de datos, que es exactamente lo que
+# [[both-ends-of-the-data-path]] prohíbe dejar prendido. Y arrastra
+# `delete_corpus`, que el modelo puede llamar sin confirmación: una destructiva
+# viva para una feature que nadie usa.
+def proyectos_activos() -> bool:
+    """El mismo interruptor que `app.proyectos_activos`, leído al llamar."""
+    return os.getenv("OG118_PROYECTOS", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def capacidades_por_defecto() -> list[str]:
+    """Las tools del registry de un turno normal, según el flag."""
+    return ["persona", "task_tracker", "rag_store"] if proyectos_activos() else ["persona", "task_tracker"]
 
 # El MODO de la puerta que monta cada turno de la ruta aire. El dial de AIRE
 # tiene exactamente dos muescas (aire-server `server/aire/engine/options.py`,
@@ -221,7 +236,7 @@ def build_runner(
     # puerta 422ea cualquiera fuera de su registry. Por eso lo que el caller
     # llama `capabilities` son aquí los `registry_tools` del turno — un consumer
     # que pide MENOS (el tutor del cibercafé) ahora recibe menos de verdad.
-    registry_tools = tuple(CAPACIDADES_POR_DEFECTO if capabilities is None else capabilities)
+    registry_tools = tuple(capacidades_por_defecto() if capabilities is None else capabilities)
     persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
     # El párrafo de identidad viva le enseña al modelo a llamar
     # `mcp__persona__read/update`, así que va SÓLO si el turno pide esa tool.
@@ -244,7 +259,15 @@ def build_runner(
     # enruta su costura de rag_store a `AireCorpusClient`, así que los dos
     # extremos del camino aterrizan en la misma repisa. Ver
     # [[both-ends-of-the-data-path]].
-    bindings = compose_bindings(active_corpus_binding(), owner_instructions_binding())
+    # Los dos bindings son de Proyectos: uno dice DÓNDE buscar (el corpus activo),
+    # el otro CÓMO contestar (las instrucciones del workspace). Con la feature
+    # apagada no hay ni corpus ni workspace, así que atar el addendum sería
+    # prometerle al modelo un contexto que el turno nunca trae.
+    bindings = (
+        compose_bindings(active_corpus_binding(), owner_instructions_binding())
+        if proyectos_activos()
+        else None
+    )
     return Runner(
         backend=backend,
         # La narración del flow es una SEGUNDA llamada al mismo backend con el

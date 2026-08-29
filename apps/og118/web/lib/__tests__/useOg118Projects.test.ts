@@ -26,7 +26,11 @@ function ownerOf(init?: RequestInit): string {
   return h.Authorization ?? 'anon';
 }
 
+// These exercise the flag-ON branch: Projects lives behind
+// NEXT_PUBLIC_OG118_PROYECTOS (off by default since 2026-08-29), so the switch is
+// turned on here explicitly. The OFF branch is pinned in og118Flags.test.ts.
 beforeEach(() => {
+  vi.stubEnv('NEXT_PUBLIC_OG118_PROYECTOS', '1');
   localStorage.clear();
   store = new Map();
   mintCount = 0;
@@ -65,6 +69,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('useOg118Projects (PROJ-SYNC-1, server-owned)', () => {

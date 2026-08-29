@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { scopedStoreName } from 'fi-glass/identity';
 import { authHeaders } from './og118Token';
+import { proyectosActivos } from './og118Flags';
 
 export interface Og118Project {
   /** Also the corpus_id (corpus_id = project id), MINTED server-side. */
@@ -176,6 +177,18 @@ export function useOg118Projects(
   useEffect(() => {
     let cancelled = false;
 
+    // Projects hidden (NEXT_PUBLIC_OG118_PROYECTOS off): settle EMPTY and fire
+    // nothing. The gate lives in the hook, not only at the call sites, so no
+    // future caller can reintroduce the request — with the server flag off
+    // `GET /projects` is a real 404 and one per mount is noise that reads as a bug.
+    if (!proyectosActivos()) {
+      projectsRef.current = [];
+      setProjects([]);
+      setActiveProjectId(null);
+      setReady(true);
+      return;
+    }
+
     const cached = loadProjects(projectsKey);
     projectsRef.current = cached;
     setProjects(cached);
@@ -223,6 +236,7 @@ export function useOg118Projects(
 
   const createProject = useCallback(
     async (name: string): Promise<string> => {
+      if (!proyectosActivos()) throw new Error('Proyectos está desactivado');
       const displayName = name.trim() || 'Proyecto';
       const res = await fetch(`${API}/projects`, {
         method: 'POST',
@@ -245,6 +259,7 @@ export function useOg118Projects(
 
   const updateProject = useCallback(
     async (id: string, patch: Og118ProjectPatch): Promise<void> => {
+      if (!proyectosActivos()) return;
       const res = await fetch(`${API}/projects/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -265,6 +280,7 @@ export function useOg118Projects(
 
   const deleteProject = useCallback(
     async (id: string): Promise<void> => {
+      if (!proyectosActivos()) return;
       // Optimistic: drop from the cache + clear the active selection immediately.
       writeProjects((prev) => prev.filter((p) => p.id !== id));
       if (activeRef.current === id) writeActive(null);

@@ -11,6 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { authHeaders } from './og118Token';
+import { proyectosActivos } from './og118Flags';
 
 export interface Og118ProjectConversation {
   id: string;
@@ -30,7 +31,7 @@ export function useOg118ProjectConversations(
   currentRef.current = projectId;
 
   useEffect(() => {
-    if (!projectId || !tokenReady) {
+    if (!projectId || !tokenReady || !proyectosActivos()) {
       setConversations([]);
       setReady(!projectId);
       return;
