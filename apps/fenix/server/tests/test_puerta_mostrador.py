@@ -1,6 +1,7 @@
 """La puerta del mostrador sobre las rutas que Fénix hereda de og118.
 
-og118 sirve `/conversations` y `/projects` abiertas: es una app de una sola
+og118 sirve `/conversations` abierta (y `/projects` cuando OG118_PROYECTOS lo
+enciende): es una app de una sola
 cuenta. En la papelería no puede serlo — el título de cada conversación lleva el
 nombre del alumno, su escuela y el WhatsApp de la mamá, y las PCs del cibercafé
 llegan al mismo servidor.
@@ -24,14 +25,16 @@ ADMIN = {"X-Fenix-Admin": "token-de-prueba"}
 
 def test_las_rutas_heredadas_no_responden_sin_token(app_fenix):
     c = _cliente(app_fenix)
-    for ruta in ("/conversations", "/projects"):
+    for ruta in ("/conversations",):
         r = c.get(ruta)
         assert r.status_code == 404, f"{ruta} quedó abierta: {r.status_code}"
 
 
 def test_las_rutas_heredadas_responden_con_el_token(app_fenix):
     c = _cliente(app_fenix)
-    for ruta in ("/conversations", "/projects"):
+    # `/projects` no se prueba aquí: con Proyectos apagado la ruta NO EXISTE, así
+    # que su 404 no distinguiría "la puerta la bloqueó" de "no está montada".
+    for ruta in ("/conversations",):
         assert c.get(ruta, headers=ADMIN).status_code == 200
 
 
@@ -174,15 +177,19 @@ def test_el_runner_publico_no_alcanza_los_datos_del_negocio(app_fenix):
     import fenix_app
 
     tutor = fenix_app._tutor()
-    herramientas = " ".join(str(s) for s in (tutor.capabilities or []))
-    assert "rag_store" not in herramientas
+    tools = tuple(tutor.backend.registry_tools or ())
+    assert "rag_store" not in tools
     assert not (tutor.extra_mcp_servers or []), "el tutor no lleva el MCP de expedientes"
 
-    # El del mostrador SÍ los necesita: sin rag_store no puede leer la lista
-    # maestra, que es su trabajo entero.
-    from app import _runner
+    # El acotamiento en positivo, no sólo en negativo: un denylist olvida lo que
+    # todavía no existe, y a este tutor le escriben niños.
+    assert tools == ("task_tracker",)
 
-    assert "rag_store" in " ".join(str(s) for s in (_runner.backend.registry_tools or ()))
+    # NOTA (2026-08-29): el mostrador tampoco tiene `rag_store` hoy — se fue con
+    # Proyectos, que está apagado por default (OG118_PROYECTOS). Si el mostrador
+    # vuelve a necesitar la lista maestra, ÉSE es el interruptor; el acotamiento
+    # del tutor de arriba sigue valiendo con la feature prendida, porque pide sus
+    # tools por nombre y no hereda los defaults.
 
 
 def test_la_persona_del_tutor_existe_y_permite_buscar(app_fenix):
