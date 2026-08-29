@@ -120,11 +120,22 @@ class Runner:
     # write a file / push to a dashboard. The runner stays dumb about WHERE it
     # goes. A raising callback never breaks the turn. It may be called twice per
     # turn — first the mechanical diagram, then the narrated one (latest wins).
+    # BOTH entrypoints publish the mechanical diagram. It used to be run()-only
+    # while every consumer called run_stream, so the flagship glass-box view had
+    # never once rendered in production — a comment that read "always" three
+    # lines up and was false where it mattered.
     on_turn_flow: Callable[[str, str], None] | None = None
     # The INSIDE view: after each turn, the runner's own backend refines the flow
     # diagram into a dev-facing narrative (see :class:`FlowNarrator`). On by
     # DEFAULT (observability is core to Free Intelligence); set ``None`` to skip
     # the second backend call. Runs in the background; drained by ``aclose()``.
+    #
+    # NARRATION IS ``run()``-ONLY, deliberately — unlike the mechanical diagram
+    # above. It is a second REAL backend call per turn, so turning it on for
+    # streaming would silently double the per-turn bill of every consumer that
+    # left this field at its default. Widening a consumer's spend is not a
+    # documentation fix; a streaming consumer that wants narration should ask
+    # for it explicitly (and that seam does not exist yet — by design).
     flow_narrator: FlowNarrator | None = field(default_factory=FlowNarrator)
     # Internal: in-flight background narration tasks, awaited by ``aclose()`` /
     # the async context manager so a narration is never silently lost.
@@ -170,6 +181,19 @@ class Runner:
     # transcript and be untyped). Default None → no addendum, byte-identical to
     # before. See fi_runner.context_binding.active_corpus_binding.
     context_prompt: Callable[[Mapping[str, Any]], str | None] | None = None
+    # The BOUNDARY half of ``context_prompt``, and the reason both exist. The
+    # prompt addendum TELLS the agent which corpus is active; this PINS it, by
+    # returning ``{server_name: {arg: value}}`` for the turn's context. The specs
+    # are stamped before the backend sees them and a tool call that disagrees is
+    # denied (:attr:`fi_runner.MCPServerSpec.pinned_args`).
+    #
+    # They are separate because they answer different questions. The addendum
+    # decides what the agent SHOULD do and is subject to persuasion — an injected
+    # instruction inside a retrieved document is exactly a way to persuade it. The
+    # pin decides what it CAN do and is not. A consumer that namespaces tenant
+    # data by a tool argument needs the second one; the first alone was never a
+    # frontier, only a request. Default None → no pins, byte-identical.
+    pin_tool_args: Callable[[Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None = None
 
     def __post_init__(self) -> None:
         # Fail fast on a misconfigured runner instead of shipping an empty system
@@ -284,6 +308,63 @@ class Runner:
             return addendum
         return ""
 
+    def _pin_args(
+        self,
+        mcp_servers: list[MCPServerSpec],
+        context: dict[str, Any] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+        request_id: str,
+    ) -> list[MCPServerSpec]:
+        """Stamp this turn's argument pins onto the resolved MCP specs.
+
+        Returns the list unchanged when no ``pin_tool_args`` is configured or it
+        yields nothing, so a runner without pins is byte-identical.
+
+        A raising or unusable pin callback FAILS CLOSED in the only way it can:
+        the turn continues with NO pins, and the failure is surfaced loudly as
+        ``pin_tool_args_error``. There is no safe alternative — refusing the turn
+        would let a buggy binding take a product down, and inventing a pin would
+        be worse. This is the one place where the framework cannot protect a
+        consumer from its own binding, so the consumer must alert on that event.
+        """
+        if self.pin_tool_args is None:
+            return mcp_servers
+        try:
+            pins = self.pin_tool_args(context or {}) or {}
+        except Exception as exc:  # noqa: BLE001 - a hostile/buggy binding must not kill the turn
+            emit("pin_tool_args_error", {"request_id": request_id, "error": str(exc)})
+            return mcp_servers
+        if not pins:
+            return mcp_servers
+        # A pin only exists if the BACKEND can gate tool input. AIREBackend ships
+        # tool NAMES to a remote door and never sees the arguments, so stamping
+        # a spec for it would
+        # produce a `tool_args_pinned` event, a pin in the config, and zero
+        # enforcement. That is the exact fake-green shape this framework exists
+        # to refuse: fail the turn instead, LOUD, naming the backend.
+        if not getattr(self.backend, "enforces_pinned_args", False):
+            raise BackendError(
+                f"{type(self.backend).__name__} cannot enforce pinned tool arguments "
+                f"({', '.join(sorted(pins))}), so the pin would be silently dropped. "
+                "Since the fleet consolidated on AIRE (2026-08-29) NO backend can: "
+                "the door receives tool NAMES, never their arguments. Scope the data "
+                "server-side on the door that owns it, or teach aire-server to accept "
+                "the pin in the turn body — do not run pinned capabilities unenforced."
+            )
+        stamped: list[MCPServerSpec] = []
+        for spec in mcp_servers:
+            pinned = pins.get(spec.name)
+            if not pinned:
+                stamped.append(spec)
+                continue
+            stamped.append(replace(spec, pinned_args=dict(pinned)))
+            emit("tool_args_pinned", {
+                "request_id": request_id,
+                "server": spec.name,
+                "args": sorted(pinned),  # names only — a value can be tenant data
+            })
+        return stamped
+
     def _compose_system_prompt(self, context_addendum: str, reinforcement: str) -> str:
         """persona [+ context addendum] [+ guard reinforcement], joined by blank lines."""
         parts = [self.persona]
@@ -319,7 +400,10 @@ class Runner:
                 "images_attached",
                 {"request_id": request_id, "count": len(images), "media_types": [i.media_type for i in images]},
             )
-        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
+        mcp_servers = self._pin_args(
+            _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers),
+            context, emit, request_id,
+        )
         model = self.model
         if self.model_router is not None:
             chosen = await self.model_router.choose(
@@ -423,6 +507,192 @@ class Runner:
             )
         return result
 
+    @property
+    def _enforces_before_delivery(self) -> bool:
+        """Whether anything on this runner must decide BEFORE the user sees the answer.
+
+        A guard cannot enforce what has already been delivered. So the streaming
+        path withholds TEXT deltas whenever this is true and flushes the settled
+        text once guards have run. When it is false — no guards, no plan guard,
+        a single attempt — nothing can change the answer, so deltas stream live
+        and the turn is byte-identical to one on a runner that never had guards.
+
+        Tool-call and plan events are NEVER withheld: they are observability,
+        not the answer, and a checklist that arrives after the reply is useless.
+        """
+        return bool(self.guards) or self.plan_guard is not None or self.retry_policy.max_attempts > 1
+
+    async def _attempt_stream(
+        self,
+        setup: _TurnSetup,
+        *,
+        user_message: str,
+        session_id: str | None,
+        turn_images: list[TurnImage] | None,
+        emit: Callable[[str, dict[str, Any]], None],
+        live_text: bool,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """THE turn attempt loop — shared by :meth:`run` and :meth:`run_stream`.
+
+        Yields the backend's stream events as they happen and, last, the private
+        sentinel ``{"type": "_settled", "result", "model", "attempts"}``. Both
+        entrypoints drain this one generator: :meth:`run` ignores everything but
+        the sentinel, :meth:`run_stream` re-yields the rest.
+
+        That sharing is the point. The retry budget, the guard verdict and the
+        plan-guard veto used to live only in ``run``'s private loop, so every
+        guarantee this framework advertises was structurally absent from
+        ``run_stream`` — the only entrypoint its consumers call.
+
+        ``live_text=False`` withholds text deltas so guards decide before the
+        answer is delivered (see :attr:`_enforces_before_delivery`); the settled
+        text is then emitted as ONE text event just before the sentinel.
+        """
+        attempts = max(1, self.retry_policy.max_attempts)
+        reinforcement = ""
+        model = setup.model
+        result: TurnResult | None = None
+        attempt = 0
+        images_kwarg = {"images": turn_images} if turn_images else {}
+
+        for attempt in range(attempts):
+            is_last = attempt == attempts - 1
+            system_prompt = self._compose_system_prompt(setup.context_addendum, reinforcement)
+            # Per-ATTEMPT, not per-turn: a retried turn declares a fresh plan and
+            # its step counters must not inherit the abandoned attempt's tallies.
+            plan_observer = _PlanStreamObserver()
+            withheld: list[str] = []
+            plan_reinforcement = ""
+            result = None
+            try:
+                if hasattr(self.backend, "run_turn_stream"):
+                    async for event in self.backend.run_turn_stream(
+                        system_prompt=system_prompt,
+                        user_message=setup.backend_message,
+                        mcp_servers=setup.mcp_servers,
+                        tool_policy=self.tool_policy,
+                        model=model,
+                        session_id=setup.backend_session_id,
+                        # Only image-carrying turns pass the kwarg: a text-only
+                        # turn stays byte-identical for every backend, and a
+                        # vision-less backend fails LOUD (TypeError → BackendError)
+                        # instead of silently answering without the picture.
+                        **images_kwarg,
+                    ):
+                        kind = event.get("type")
+                        if kind == "result":
+                            result = event["result"]
+                            continue
+                        if kind == "text":
+                            if live_text:
+                                yield event
+                            else:
+                                withheld.append(event.get("text") or "")
+                            continue
+                        yield event  # tool_call and anything else — always live
+                        # Plan-first observability: when the agent calls the task_tracker
+                        # MCP, re-emit the semantic event (plan / step_started / step_done /
+                        # step_noted / plan_amended / plan_completed / plan_failed /
+                        # plan_cancelled) so the UI can paint a checklist without parsing
+                        # tool names itself. The original tool_call event still goes
+                        # through above, so a generic panel keeps working — these are ADDITIVE.
+                        if kind != "tool_call":
+                            continue
+                        for derived in _derive_plan_events(
+                            event["tool"],
+                            session_id=session_id,
+                            request_id=setup.request_id,
+                            observer=plan_observer,
+                        ):
+                            yield derived
+                            if derived.get("type") != "plan" or self.plan_guard is None:
+                                continue
+                            # Plan-first anti-drift. The veto is still SOFT on the
+                            # wire — we cannot interrupt a backend mid-turn — but it
+                            # now has teeth: its reinforcement forces another attempt
+                            # when the retry budget allows, and in enforcing mode the
+                            # rejected attempt's text was never delivered.
+                            steps = (derived.get("data") or {}).get("steps") or []
+                            outcome = self.plan_guard.inspect(steps)
+                            if outcome.allowed:
+                                continue
+                            yield {"type": "plan_rejected", "data": {
+                                "request_id": setup.request_id,
+                                "reason": outcome.reason,
+                                "matched": list(outcome.matched),
+                                "reinforcement": outcome.reinforcement,
+                                "guard": self.plan_guard.name,
+                            }}
+                            plan_reinforcement = outcome.reinforcement or ""
+                else:
+                    # Backend can't stream → one-shot, settled as a single result.
+                    result = await self.backend.run_turn(
+                        system_prompt=system_prompt,
+                        user_message=setup.backend_message,
+                        mcp_servers=setup.mcp_servers,
+                        tool_policy=self.tool_policy,
+                        model=model,
+                        session_id=setup.backend_session_id,
+                        **images_kwarg,
+                    )
+            except BackendError:
+                raise  # already typed — don't double-wrap
+            except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
+                emit(
+                    "backend_error",
+                    {
+                        "backend": type(self.backend).__name__,
+                        "model": model,
+                        "attempt": attempt + 1,
+                        "error": str(exc),
+                    },
+                )
+                raise BackendError(
+                    f"{type(self.backend).__name__} failed on attempt "
+                    f"{attempt + 1}/{attempts}: {exc}"
+                ) from exc
+
+            if result is None:
+                # The backend ended without a result event. This used to be an
+                # `assert`, which `python -O` strips — the runner then handed the
+                # consumer `result=None` where its own contract promises a
+                # TurnResult, and the consumer crashed reading attributes off it.
+                # A contract worth asserting is worth raising.
+                raise BackendError(
+                    f"{type(self.backend).__name__} ended the turn without a result event "
+                    f"(attempt {attempt + 1}/{attempts})"
+                )
+
+            if not self.guards and not plan_reinforcement:
+                break
+
+            text, outcomes, wants_retry, added = run_guards(
+                self.guards, result.text, user_message,
+                final=is_last, request_id=setup.request_id, emit=emit,
+            )
+            result = replace(result, text=text, guard_outcomes=outcomes)
+            if is_last or not (wants_retry or plan_reinforcement):
+                break
+            # A guard (or the plan guard) asked to retry and attempts remain:
+            # reinforce + (maybe) escalate the model.
+            reinforcement = "\n\n".join(
+                p for p in (reinforcement, added, plan_reinforcement) if p
+            ).strip()
+            model = self.retry_policy.fallback_model or model
+
+        assert result is not None  # every path above either sets it or raises
+        if not live_text:
+            # The withheld deltas are DISCARDED in favour of the settled text: a
+            # transformational guard may have rewritten it, and shipping the raw
+            # deltas would deliver exactly the text the guard rejected.
+            yield {"type": "text", "text": result.text}
+        yield {
+            "type": "_settled",
+            "result": result,
+            "model": model,
+            "attempts": attempt + 1,
+        }
+
     async def run(
         self,
         user_message: str,
@@ -472,64 +742,31 @@ class Runner:
             user_message, session_id, context, request_id, history, emit, images=turn_images
         )
         request_id = setup.request_id
-        attempts = max(1, self.retry_policy.max_attempts)
-        reinforcement = ""
         model = setup.model
         result: TurnResult | None = None
-        attempt = 0
+        attempts_used = 1
 
         try:
-            for attempt in range(attempts):
-                is_last = attempt == attempts - 1
-                system_prompt = self._compose_system_prompt(setup.context_addendum, reinforcement)
-                try:
-                    result = await self.backend.run_turn(
-                        system_prompt=system_prompt,
-                        user_message=setup.backend_message,
-                        mcp_servers=setup.mcp_servers,
-                        tool_policy=self.tool_policy,
-                        model=model,
-                        session_id=setup.backend_session_id,
-                        # Only image-carrying turns pass the kwarg: a text-only
-                        # turn stays byte-identical for every backend, and a
-                        # vision-less backend fails LOUD (TypeError → BackendError)
-                        # instead of silently answering without the picture.
-                        **({"images": turn_images} if turn_images else {}),
-                    )
-                except BackendError:
-                    raise  # already typed — don't double-wrap
-                except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
-                    emit(
-                        "backend_error",
-                        {
-                            "backend": type(self.backend).__name__,
-                            "model": model,
-                            "attempt": attempt + 1,
-                            "error": str(exc),
-                        },
-                    )
-                    raise BackendError(
-                        f"{type(self.backend).__name__} failed on attempt "
-                        f"{attempt + 1}/{attempts}: {exc}"
-                    ) from exc
-                if not self.guards:
-                    break
+            # run() and run_stream() drain the SAME attempt loop (retry, guards,
+            # plan veto). run() has nobody to stream to, so every live event is
+            # discarded and only the settled outcome is read off the sentinel.
+            async for event in self._attempt_stream(
+                setup,
+                user_message=user_message,
+                session_id=session_id,
+                turn_images=turn_images,
+                emit=emit,
+                live_text=False,
+            ):
+                if event.get("type") == "_settled":
+                    result = event["result"]
+                    model = event["model"]
+                    attempts_used = event["attempts"]
 
-                text, outcomes, wants_retry, added = run_guards(
-                    self.guards, result.text, user_message,
-                    final=is_last, request_id=request_id, emit=emit,
-                )
-                result = replace(result, text=text, guard_outcomes=outcomes)
-                if is_last or not wants_retry:
-                    break
-                # A guard asked to retry and attempts remain: reinforce + (maybe) escalate model.
-                reinforcement = f"{reinforcement}\n\n{added}".strip()
-                model = self.retry_policy.fallback_model or model
-
-            assert result is not None  # the loop runs at least once
+            assert result is not None  # the attempt loop always settles or raises
             result = await self._settle_turn(
                 result, setup,
-                model=model, attempts=attempt + 1, streamed=False, phase="run",
+                model=model, attempts=attempts_used, streamed=False, phase="run",
                 session_id=session_id, user_message=user_message,
                 context=context, emit=emit,
             )
@@ -561,113 +798,94 @@ class Runner:
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn: yields backend events AS THEY HAPPEN —
         ``{"type":"tool_call","tool":ToolCall}`` per tool call,
-        ``{"type":"text","text":delta}`` per text delta — then a final
-        ``{"type":"result","result":TurnResult}`` once guards + post-processors
-        settle. Additive: :meth:`run` is unchanged.
+        ``{"type":"text","text":delta}`` per text delta, plus the derived
+        plan/step events — then a final ``{"type":"result","result":TurnResult}``
+        once post-processors settle.
 
-        Single attempt (the text is already streamed, so no retry); guards run with
-        ``final=True`` so a transformational guard sanitizes the final result text
-        (the live text may differ from the sanitized final — reconcile on result).
-        Backends without ``run_turn_stream`` fall back to one result event. Telemetry
-        (turn_completed, tool_called, guard_critical) still fires via on_event; the
-        flow diagram + narration are run()-only (not produced for streamed turns)."""
+        It drains the SAME attempt loop as :meth:`run` (see
+        :meth:`_attempt_stream`), so the retry budget, the guard verdict and the
+        plan-guard veto apply here too — they used to be ``run``-only, which made
+        every guarantee this framework advertises absent from the path its
+        consumers actually call.
+
+        **Text delivery depends on whether anything can still change the answer**
+        (:attr:`_enforces_before_delivery`):
+
+        - No guards, no plan guard, one attempt → deltas stream LIVE, token by
+          token, exactly as before.
+        - Guards / plan guard / a retry budget → text deltas are WITHHELD and the
+          settled text is emitted as one ``text`` event after guards run. A guard
+          cannot enforce what has already been delivered, so a runner that
+          declares one trades live tokens for a verdict that means something.
+
+        Tool-call and plan events are never withheld — they are observability,
+        and a checklist that arrives after the reply is useless.
+
+        Backends without ``run_turn_stream`` fall back to one result event.
+        Telemetry (turn_completed, tool_called, guard_critical) fires via
+        on_event, and the MECHANICAL flow diagram is emitted here too. The
+        background NARRATION stays ``run()``-only on purpose: it is a second
+        real backend call per turn, and silently doubling a streaming consumer's
+        bill is not observability, it is a surprise invoice."""
+        # Mirror this turn's events into a local buffer (local → safe under
+        # concurrent runs) so the flow diagram can be rendered once it settles.
+        turn_events: list[Event] = []
+
+        def emit(event: str, fields: dict[str, Any]) -> None:
+            turn_events.append((event, fields))
+            self._emit(event, fields)
+
         turn_images = [TurnImage.from_any(i) for i in images] if images else None
         setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, self._emit, images=turn_images
+            user_message, session_id, context, request_id, history, emit, images=turn_images
         )
         request_id = setup.request_id
-
-        # Per-turn observer for the plan-first derived events. Tracks the
-        # per-plan_id counters (done/failed/cancelled) needed to pick the
-        # terminal event when ``finalize_plan`` lands.
-        plan_observer = _PlanStreamObserver()
-
+        model = setup.model
         result: TurnResult | None = None
-        try:
-            if hasattr(self.backend, "run_turn_stream"):
-                async for event in self.backend.run_turn_stream(
-                    system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
-                    user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
-                    tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
-                    # Same contract as run(): the kwarg exists only on image turns.
-                    **({"images": turn_images} if turn_images else {}),
-                ):
-                    if event.get("type") == "result":
-                        result = event["result"]
-                    else:
-                        yield event  # tool_call / text — live, before the turn ends
-                        # Plan-first observability: when the agent calls the task_tracker
-                        # MCP, re-emit the semantic event (plan / step_started / step_done /
-                        # step_noted / plan_amended / plan_completed / plan_failed / plan_cancelled)
-                        # so the UI can paint a checklist without parsing tool names itself.
-                        # The original tool_call event still goes through above, so the
-                        # generic ThinkingPanel keeps working — these are ADDITIVE.
-                        if event.get("type") == "tool_call":
-                            for derived in _derive_plan_events(
-                                event["tool"],
-                                session_id=session_id,
-                                request_id=request_id,
-                                observer=plan_observer,
-                            ):
-                                yield derived
-                                # Plan-first anti-drift: when a fresh ``plan`` event is
-                                # emitted, give the optional PlanGuard a chance to veto
-                                # before the agent fires any other tool. Rejection is
-                                # SOFT — we emit ``plan_rejected`` but do not interrupt
-                                # the stream; the consumer's turn loop (or the agent's
-                                # own logic, prompted via reinforcement) decides to abort.
-                                if derived.get("type") == "plan" and self.plan_guard is not None:
-                                    steps = (derived.get("data") or {}).get("steps") or []
-                                    outcome = self.plan_guard.inspect(steps)
-                                    if not outcome.allowed:
-                                        yield {"type": "plan_rejected", "data": {
-                                            "request_id": request_id,
-                                            "reason": outcome.reason,
-                                            "matched": list(outcome.matched),
-                                            "reinforcement": outcome.reinforcement,
-                                            "guard": self.plan_guard.name,
-                                        }}
-            else:
-                # Backend can't stream → one-shot, surfaced as a single result event.
-                result = await self.backend.run_turn(
-                    system_prompt=self._compose_system_prompt(setup.context_addendum, ""),
-                    user_message=setup.backend_message, mcp_servers=setup.mcp_servers,
-                    tool_policy=self.tool_policy, model=setup.model, session_id=setup.backend_session_id,
-                    **({"images": turn_images} if turn_images else {}),
-                )
-        except BackendError:
-            raise
-        except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
-            self._emit("backend_error", {"backend": type(self.backend).__name__, "model": setup.model, "attempt": 1, "error": str(exc)})
-            raise BackendError(f"{type(self.backend).__name__} failed (stream): {exc}") from exc
+        attempts_used = 1
 
-        assert result is not None  # the backend always emits a result
-        # R10: the post-stream pipeline (guards + tool_call telemetry + post-
-        # processors + turn_completed + conversation_store append) is wrapped
-        # in a single try/except so a failure here can never crash the async
-        # generator before the consumer receives its ``result`` event. The
-        # final ``yield`` sits OUTSIDE the guarded block — even a catastrophic
-        # post-processor crash still hands back the best-available result.
         try:
-            if self.guards:
-                text, outcomes, _retry, _added = run_guards(
-                    self.guards, result.text, user_message,
-                    final=True, request_id=request_id, emit=self._emit,
+            async for event in self._attempt_stream(
+                setup,
+                user_message=user_message,
+                session_id=session_id,
+                turn_images=turn_images,
+                emit=emit,
+                live_text=not self._enforces_before_delivery,
+            ):
+                if event.get("type") == "_settled":
+                    result = event["result"]
+                    model = event["model"]
+                    attempts_used = event["attempts"]
+                    continue
+                yield event
+
+            assert result is not None  # the attempt loop always settles or raises
+            # R10: the post-stream pipeline (tool_call telemetry + post-processors
+            # + turn_completed + conversation_store append) is wrapped so a failure
+            # here can never crash the async generator before the consumer receives
+            # its ``result`` event. The final ``yield`` sits OUTSIDE the guarded
+            # block — even a catastrophic post-processor crash still hands back the
+            # best-available result. Guards already ran inside the attempt loop.
+            try:
+                result = await self._settle_turn(
+                    result, setup,
+                    model=model, attempts=attempts_used, streamed=True, phase="run_stream",
+                    session_id=session_id, user_message=user_message,
+                    context=context, emit=emit,
                 )
-                result = replace(result, text=text, guard_outcomes=outcomes)
-            result = await self._settle_turn(
-                result, setup,
-                model=setup.model, attempts=1, streamed=True, phase="run_stream",
-                session_id=session_id, user_message=user_message,
-                context=context, emit=self._emit,
-            )
-        except Exception as exc:  # noqa: BLE001 - R10: never lose the result event
-            self._emit("stream_postprocess_error", {
-                "request_id": request_id,
-                "error_type": type(exc).__name__,
-                "error": str(exc),
-            })
-        yield {"type": "result", "result": result}
+            except Exception as exc:  # noqa: BLE001 - R10: never lose the result event
+                emit("stream_postprocess_error", {
+                    "request_id": request_id,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                })
+            yield {"type": "result", "result": result}
+        finally:
+            # Render the turn's flow even if it crashed — a failed turn's diagram
+            # (error node, no completion) is as useful as a clean one. Guarded so a
+            # raising renderer/callback can never mask the turn's own outcome.
+            deliver_turn_flow(request_id, turn_events, emit=self._emit, on_turn_flow=self.on_turn_flow)
 
     async def _append_to_store(
         self,
@@ -734,6 +952,22 @@ class Runner:
         """
         forget = getattr(self.backend, "forget_session", None)
         if not callable(forget):
+            # LOUD, not silent. Since the fleet consolidated on AIRE (2026-08-29)
+            # NO backend implements this: AIRE owns the transcript in its own
+            # Postgres and its door exposes no session-delete route (it has
+            # `store.delete()` internally and DELETE routes for the corpus, but
+            # none for a session). So a consumer that deletes a conversation
+            # deletes what the USER sees while the transcript survives — the
+            # exact failure this method was written to prevent.
+            #
+            # Returning False quietly would let og118's delete path report
+            # success. The event is what makes the gap alertable until
+            # aire-server grows the endpoint.
+            self._emit("forget_session_unsupported", {
+                "backend": type(self.backend).__name__,
+                "session_id": session_id,
+                "consequence": "native transcript survives the user's delete",
+            })
             return False
         return bool(await forget(session_id))
 

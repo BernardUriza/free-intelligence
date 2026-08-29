@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live ClaudeCodeBackend query — ask about French history, show the telemetry.
+"""Live AIREBackend query — ask about French history, show the telemetry.
 
 A real turn through the Claude Agent SDK (Max subscription via OAuth). The SDK
 reads auth from the ENVIRONMENT, so this file holds NO secret. Run with the
@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # noqa: E402
 
-from fi_runner import ClaudeCodeBackend, PermissionMode, Runner, ToolPolicy  # noqa: E402
+from fi_runner import AIREBackend, Runner  # noqa: E402
 
 
 def event_sink(event: str, fields: dict) -> None:
@@ -36,12 +36,8 @@ async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="  [log] %(name)s | %(message)s")
 
     runner = Runner(
-        backend=ClaudeCodeBackend(default_model="sonnet"),
+        backend=AIREBackend(project="fi-runner-example", default_model="sonnet"),
         persona="Eres un historiador conciso. Responde en español, claro y directo, sin relleno.",
-        tool_policy=ToolPolicy(
-            builtin_disallowed=["Bash", "Write", "Edit", "Read"],  # text-only turn
-            permission_mode=PermissionMode.DEFAULT,
-        ),
         on_event=event_sink,
     )
 
@@ -50,7 +46,7 @@ async def main() -> None:
         "Responde breve, en tres puntos."
     )
     print("=" * 64)
-    print("  fi_runner LIVE QUERY  (ClaudeCodeBackend, real LLM)")
+    print("  fi_runner LIVE QUERY  (AIREBackend, real LLM through the door)")
     print("=" * 64)
     print(f"\n  >> {question}\n")
 

@@ -38,30 +38,13 @@ dependencies = [
 
 [project.optional-dependencies]
 # Claude Code backend — the Claude Agent SDK (runs on a Max subscription via
-# OAuth; full Claude Code toolset + deep MCP).
-claude = [
-    "claude-agent-sdk>=0.1,<1.0",
-]
 # Postgres-backed SessionStore — the SDK's durable transcript for the Claude
 # backend (see fi_runner/session_stores/postgres.py, Anthropic's official
 # reference adapter). OPTIONAL: fi-runner never imports asyncpg at import time,
 # and a deploy that has no Postgres simply does not wire a store — the backend
-# falls back to the in-RAM pool + the text history-replay, exactly as before.
-postgres = [
-    "asyncpg>=0.29",
-]
 # Codex backend — OpenAI Codex headless CLI (`codex exec --json`). It drives the
 # `codex` BINARY as a subprocess, so there is NO Python dependency: install the
 # CLI separately (`npm i -g @openai/codex`) and sign in (or set a provider key
-# for API-motor mode). The extra exists only to document this install path.
-codex = []
-# AIRE backend — an HTTP client of AIRE (Bernard's persistent server that wraps
-# the Claude Agent SDK and owns the raw transcript in Postgres). NO Anthropic SDK
-# here: the turn crosses the network to AIRE's door, so all this needs is an
-# async HTTP client that can read an SSE stream.
-aire = [
-    "httpx>=0.27,<1.0",
-]
 # Redis-backed conversation continuity (RedisConversationStore) — container-safe
 # history replay. Just the async client; the deploy runs the Redis instance.
 redis = [

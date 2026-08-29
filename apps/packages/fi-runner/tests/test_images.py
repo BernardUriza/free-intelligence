@@ -15,7 +15,6 @@ from typing import Any
 import pytest
 
 from fi_runner import BackendError, Runner, TurnImage, TurnResult
-from fi_runner.backends import ClaudeCodeBackend
 
 JPEG = TurnImage(media_type="image/jpeg", data="aGVsbG8=")
 PNG = TurnImage(media_type="image/png", data="d29ybGQ=")
@@ -114,38 +113,3 @@ async def test_run_passes_images_and_emits_light_telemetry():
     assert attached[0]["media_types"] == ["image/jpeg"]
     # Telemetry never carries the bytes.
     assert "data" not in attached[0] and "aGVsbG8=" not in str(attached[0])
-
-
-# --- ClaudeCodeBackend query input (SDK-free builder) -------------------------
-
-
-def test_build_query_input_text_only_stays_a_plain_string():
-    assert ClaudeCodeBackend.build_query_input("hola", None) == "hola"
-    assert ClaudeCodeBackend.build_query_input("hola", []) == "hola"
-
-
-def test_build_query_input_images_before_text_blocks():
-    blocks = ClaudeCodeBackend.build_query_input("¿qué es esto?", [JPEG, PNG])
-    assert [b["type"] for b in blocks] == ["image", "image", "text"]
-    assert blocks[0]["source"] == {"type": "base64", "media_type": "image/jpeg", "data": "aGVsbG8="}
-    assert blocks[2] == {"type": "text", "text": "¿qué es esto?"}
-
-
-def test_build_query_input_image_only_skips_the_text_block():
-    blocks = ClaudeCodeBackend.build_query_input("  ", [PNG])
-    assert [b["type"] for b in blocks] == ["image"]
-
-
-# --- Vision-less backends fail loud -------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_subprocess_cli_backend_rejects_images():
-    from fi_runner import CodexBackend
-
-    backend = CodexBackend()
-    with pytest.raises(BackendError, match="image"):
-        await backend.run_turn(
-            system_prompt="p", user_message="hola", mcp_servers=[],
-            tool_policy=None, images=[JPEG],
-        )
