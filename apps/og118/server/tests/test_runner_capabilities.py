@@ -48,12 +48,17 @@ def test_el_modo_de_la_puerta_no_concede_builtins() -> None:
     assert build_runner().backend.default_mode == "complete"
 
 
-def test_build_runner_wires_rag_store() -> None:
-    """The Runner declares rag_store (project search) alongside task_tracker."""
-    runner = build_runner()
-    assert "rag_store" in runner.backend.registry_tools
-    # task_tracker stays — the glass-box plan/step events come from it.
-    assert "task_tracker" in runner.backend.registry_tools
+def test_el_turno_normal_pide_persona_y_task_tracker() -> None:
+    """La superficie por default, que es la de producción.
+
+    `rag_store` salió de aquí el 2026-08-29: se enciende con Proyectos
+    (`OG118_PROYECTOS`), porque en og118 el corpus ES el del proyecto. La rama
+    encendida se afirma en `test_projects_flag.py`; ésta fija que el default no
+    arrastre una destructiva (`delete_corpus` viaja dentro de `rag_store`) para
+    una feature que nadie está usando."""
+    tools = build_runner().backend.registry_tools
+    assert tools == ("persona", "task_tracker")
+    assert "rag_store" not in tools
 
 
 def test_rag_store_capability_resolves_to_mcp_spec() -> None:

@@ -89,6 +89,29 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 # owns projects (PROJ-ACCOUNT-1).
 _ACCESS_TOKEN = os.getenv("OG118_ACCESS_TOKEN")
 _AUTH_MODE = os.getenv("OG118_AUTH_MODE", "bearer").lower()
+
+# OG118_PROYECTOS — la feature de Proyectos (workspaces con corpus de documentos)
+# APAGADA por default. Bernard dejó de usarla el 2026-08-29 y pidió esconderla en
+# vez de borrarla, para retomarla después.
+#
+# El apagado NO es un `if` dentro de cada handler: las 7 rutas viven en su propio
+# `projects_router`, que `create_app()` monta SÓLO con el flag prendido. Apagado,
+# las rutas no existen y el 404 es real, no simulado — y `corpus_id` deja de
+# atarse al turno, así que ningún prompt promete documentos que nadie va a leer.
+#
+# La rama prendida está CUBIERTA POR TESTS (`test_projects_flag.py`), y eso no es
+# decoración: el bug del corpus del 2026-08-29 existió porque había un `else` que
+# nadie corría. Una feature apagada sin test de su rama viva es esa misma trampa
+# esperando a que alguien la prenda.
+def proyectos_activos() -> bool:
+    """Lee el flag EN CADA LLAMADA, no al importar.
+
+    Una constante de módulo obligaría a `importlib.reload` para probar la otra
+    rama, y una recarga de `app` en una sesión de pytest le derrama estado a las
+    suites que corren después — se probó, y contaminó siete tests ajenos. Leer
+    el entorno cuesta nanosegundos y `create_app()` ya es la costura por-consumer
+    documentada, así que la rama se prueba llamando, no recargando."""
+    return os.getenv("OG118_PROYECTOS", "0").strip().lower() in ("1", "true", "yes", "on")
 # Native SDK memory (og118-session-store wiring). When set, the lifespan builds a
 # PostgresSessionStore from this DSN and rebuilds the runners with it: the agent's
 # transcript (tool_use/tool_result blocks included) persists across container
@@ -146,6 +169,8 @@ async def _lifespan(_: FastAPI) -> AsyncIterator[None]:
 # objetos APIRoute NUEVOS por instancia, así que un consumer que necesite
 # endurecer una ruta heredada muta la suya y no la de og118.
 router = APIRouter()
+#: Las rutas de Proyectos. Montado por `create_app()` sólo si PROYECTOS_ACTIVOS.
+projects_router = APIRouter()
 
 # The ceiling on ANY request body, enforced before the body is read.
 #
@@ -512,11 +537,17 @@ async def chat_stream(
     rag: RagStoreClient = Depends(get_rag_store),
     seleccionar_runner: RunnerSelector = Depends(get_runner_selector),
 ) -> StreamingResponse:
+    # Con Proyectos apagado, un `corpus_id` que llegue se IGNORA en vez de
+    # rechazarse: un cliente viejo (una pestaña sin recargar, una app móvil sin
+    # actualizar) sigue chateando, sólo que sin corpus. Rechazarlo con 422 le
+    # rompería el chat entero por una feature que él no pidió.
+    corpus_id = req.corpus_id if proyectos_activos() else None
+
     # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
     # from client-asserted into server-validated (no cross-account corpus reads).
     # Skipped for the legacy single shared account (bearer mode): there is one
     # tenant, ownership is moot, and pre-registry corpora keep working.
-    if req.corpus_id and not principal.is_legacy_bearer and not registry.owns(req.corpus_id, principal.sub):
+    if corpus_id and not principal.is_legacy_bearer and not registry.owns(corpus_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
 
     runner, element = seleccionar_runner(req.element)
@@ -564,9 +595,9 @@ async def chat_stream(
             # A retrieval failure refuses LOUD; answering without the documents
             # the user believes are in play is the silent lie this kills.
             outbound_text = req.message
-            if req.corpus_id:
+            if corpus_id:
                 try:
-                    hits = await rag.search(req.corpus_id, req.message, top_k=4)
+                    hits = await rag.search(corpus_id, req.message, top_k=4)
                 except Exception:
                     yield _sse(
                         {
@@ -618,7 +649,7 @@ async def chat_stream(
             yield _sse({"type": "done"})
             return
         try:
-            context = _turn_context(req.corpus_id, registry)
+            context = _turn_context(corpus_id, registry)
             images = [i.model_dump() for i in req.images] if req.images else None
             async for event in _with_heartbeat(
                 runner.run_stream(
@@ -805,7 +836,7 @@ class ProjectUpdateRequest(BaseModel):
     instructions: str | None = None
 
 
-@router.post("/projects")
+@projects_router.post("/projects")
 async def create_project(
     req: ProjectCreateRequest,
     principal: Principal = Depends(get_principal),
@@ -820,7 +851,7 @@ async def create_project(
     return {"project_id": project["id"], "name": project["name"], "project": project}
 
 
-@router.get("/projects")
+@projects_router.get("/projects")
 async def list_projects(
     principal: Principal = Depends(get_principal),
     registry: ProjectRegistry = Depends(get_project_registry),
@@ -829,7 +860,7 @@ async def list_projects(
     return {"projects": registry.list_for(principal.sub)}
 
 
-@router.get("/projects/{project_id}")
+@projects_router.get("/projects/{project_id}")
 async def get_project(
     project_id: str,
     principal: Principal = Depends(get_principal),
@@ -842,7 +873,7 @@ async def get_project(
     return {"project": registry.get(project_id)}
 
 
-@router.patch("/projects/{project_id}")
+@projects_router.patch("/projects/{project_id}")
 async def update_project(
     project_id: str,
     req: ProjectUpdateRequest,
@@ -879,7 +910,7 @@ async def update_project(
     return {"project": project}
 
 
-@router.get("/projects/{project_id}/documents")
+@projects_router.get("/projects/{project_id}/documents")
 async def list_project_documents(
     project_id: str,
     principal: Principal = Depends(get_principal),
@@ -922,7 +953,7 @@ async def list_project_documents(
     }
 
 
-@router.delete("/projects/{project_id}")
+@projects_router.delete("/projects/{project_id}")
 async def delete_project(
     project_id: str,
     principal: Principal = Depends(get_principal),
@@ -942,7 +973,7 @@ async def delete_project(
     return {"deleted": project_id}
 
 
-@router.post("/projects/{project_id}/upload")
+@projects_router.post("/projects/{project_id}/upload")
 async def upload_project_document(
     project_id: str,
     file: UploadFile = File(...),
@@ -1294,6 +1325,8 @@ def create_app(dependencies: list | None = None) -> FastAPI:
     )
     application.middleware("http")(cap_request_body)
     application.include_router(router)
+    if proyectos_activos():
+        application.include_router(projects_router)
     return application
 
 

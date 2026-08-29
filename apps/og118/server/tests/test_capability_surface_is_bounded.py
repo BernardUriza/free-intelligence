@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import pytest
 
-from runner import CAPACIDADES_POR_DEFECTO, MODO_AIRE_POR_DEFECTO, build_runner
+from runner import MODO_AIRE_POR_DEFECTO, build_runner, capacidades_por_defecto
 
 
 def test_un_runner_normal_pide_las_capacidades_por_defecto() -> None:
-    assert set(build_runner().backend.registry_tools) == set(CAPACIDADES_POR_DEFECTO)
+    assert set(build_runner().backend.registry_tools) == set(capacidades_por_defecto())
 
 
 def test_un_consumer_que_pide_MENOS_recibe_menos() -> None:

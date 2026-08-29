@@ -63,6 +63,7 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `OG118_API_NAME` | `og118-api` |
 | `OG118_ALLOWED_ORIGINS` | `https://<staging-swa-host>` (set after step 5) |
 | `OG118_MODEL` | `claude-sonnet-4-5` (optional) |
+| `OG118_PROYECTOS` | **Proyectos (workspaces con corpus de documentos). APAGADO por default** desde el 2026-08-29 — Bernard dejó de usarlo y se escondió en vez de borrarse. `1`/`true`/`yes`/`on` lo enciende. Ver la sección siguiente antes de prenderlo. |
 | `OG118_API_URL` | `https://<backend-fqdn>` (set after first backend deploy) |
 | `OG118_TTS_ENDPOINT` | Azure OpenAI endpoint base, e.g. `https://<res>.openai.azure.com` (TTS; optional) |
 | `OG118_TTS_DEPLOYMENT` | TTS deployment name, e.g. `tts-hd` (TTS; optional) |
@@ -198,3 +199,39 @@ session.
   doesn't confirm the freshly-deployed revision is the active one. Add a
   `properties.latestRevisionName` / provisioning-state check so a stale healthy
   replica can't mask a failed new image.
+
+## `OG118_PROYECTOS` — qué prende exactamente, y qué revisar antes
+
+Apagado (el default, y lo que corre hoy):
+
+- Las 7 rutas `/projects*` **no existen** — viven en un `projects_router` que
+  `create_app()` no monta, así que el 404 es real, no un handler consultando un
+  flag.
+- `corpus_id` en `/chat/stream` se **ignora** en vez de rechazarse: una pestaña
+  vieja que lo siga mandando conserva su chat, sólo que sin corpus. Rechazarlo
+  con 422 le rompería el chat entero por una feature que no pidió.
+- El turno pide `persona` + `task_tracker` del registry de AIRE, y **no**
+  `rag_store` — que es quien arrastra `delete_corpus`, una destructiva que el
+  modelo puede llamar sin confirmación.
+- El runner no ata contexto por turno (ni el corpus activo ni las instrucciones
+  del workspace), porque no hay ni uno ni otro.
+
+Encendido: vuelve todo lo anterior. **Dos cosas a arreglar antes de dejarlo
+prendido en serio**, y están escritas porque el día que se prenda nadie se va a
+acordar:
+
+1. **La frontera del corpus no existe.** `corpus_id` es un argumento que teclea
+   el MODELO en cada llamada a `rag_store`; el binding del prompt le pide usar el
+   correcto, no se lo impone (el propio `build_runner` lo decía: *"es un addendum
+   al prompt, no una frontera"*). El contrato para cerrarlo ya vive en fi-runner
+   (`MCPServerSpec.pinned_args`), pero **ningún backend puede ejercerlo** hasta
+   que la puerta de AIRE acepte el pin en el body del turno.
+2. **`delete_corpus` se auto-aprueba.** La tool `rag_store` entrega
+   ingest/delete_document/delete_corpus sin confirmación. Una superficie pública
+   que herede la lista completa puede leer, envenenar o borrar el corpus.
+
+El flag se lee **al llamar** (`app.proyectos_activos()`), no al importar, así que
+las dos ramas se prueban sin recargar módulos: `tests/test_projects_flag.py`
+afirma el interruptor en las dos posiciones y `tests/projects/` es la cobertura
+del lado encendido. Esa cobertura es la condición del trato: una rama apagada sin
+tests se pudre y se descubre rota el día que se prende.
