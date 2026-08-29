@@ -202,6 +202,27 @@ session.
 
 ## `OG118_PROYECTOS` — qué prende exactamente, y qué revisar antes
 
+**Son DOS mitades y hay que mover las dos**, en dos lugares distintos:
+
+```bash
+# 1. Backend (runtime, sin rebuild)
+az containerapp update -n og118-api -g og118-rg --set-env-vars OG118_PROYECTOS=1
+```
+
+```yaml
+# 2. Frontend (BUILD time — se hornea en el bundle, así que exige un deploy).
+#    En .github/workflows/og118-web-staging.yml, paso "Build static export",
+#    dentro del bloque `env:` que ya lista los otros NEXT_PUBLIC_*:
+          NEXT_PUBLIC_OG118_PROYECTOS: "1"
+```
+
+Prender sólo el backend deja la UI escondida (nadie llega a las rutas). Prender
+sólo el frontend es peor: la UI aparece y pega contra un `/projects` que
+responde 404 real. **Backend primero, luego el deploy del web.**
+
+Para apagar: `--remove-env-vars OG118_PROYECTOS` y quitar la línea del workflow.
+
+
 Apagado (el default, y lo que corre hoy):
 
 - Las 7 rutas `/projects*` **no existen** — viven en un `projects_router` que
@@ -235,3 +256,38 @@ las dos ramas se prueban sin recargar módulos: `tests/test_projects_flag.py`
 afirma el interruptor en las dos posiciones y `tests/projects/` es la cobertura
 del lado encendido. Esa cobertura es la condición del trato: una rama apagada sin
 tests se pudre y se descubre rota el día que se prende.
+
+### La mitad del frontend: `NEXT_PUBLIC_OG118_PROYECTOS`
+
+El web tiene su propio interruptor, con el **mismo vocabulario**
+(`1|true|yes|on`, sin distinguir mayúsculas ni espacios) y **apagado por
+default**. Vive en un solo módulo, `apps/og118/web/lib/og118Flags.ts`
+(`proyectosActivos()`), y todo lo demás lo lee de ahí — un flag repartido en seis
+archivos es un flag que se prende a medias.
+
+Apagado, con el servidor apagado también, **el cliente no manda ni una sola
+request a `/projects*`**. Eso no es cortesía: con el router desmontado cada
+llamada es un 404 real, y un 404 por montaje ensucia la consola con algo que
+parece un bug. Lo que el flag quita:
+
+| Superficie | Apagado |
+|---|---|
+| Sección "Proyectos" del sidebar (`+ Nuevo`, subir archivo, `Ver todos los proyectos →`) | no se monta |
+| Ruta `/projects/` | el export estático la sigue emitiendo, pero sirve un aviso — el árbol cliente (Auth0Wrapper, AuthGate, los hooks) nunca monta |
+| `Subir documento al proyecto` en el menú `+` del composer | ausente |
+| `GET/POST/PATCH/DELETE /projects`, `/upload`, `/documents`, `/conversations?projectId=` | ninguna se dispara |
+| `corpus_id` en el body de `/chat/stream` | se omite (el server lo aceptaría e ignoraría, pero mandar una llave que el backend ya decidió ignorar es mentir en el payload) |
+
+Prenderlo: `NEXT_PUBLIC_OG118_PROYECTOS=1` en el `env:` del paso *Build static
+export* de `.github/workflows/og118-web-staging.yml` (hoy no está puesta, y
+ausente = apagada), y en el `.env.local` de `apps/og118/web` para local. Es una
+variable de **build**, no de runtime: Next la hornea en el bundle, así que
+cambiarla exige volver a construir y desplegar. Las dos mitades — server y web —
+se prenden juntas, o el usuario ve una UI que pega contra 404s.
+
+Las **dos ramas están cubiertas**, por la misma razón que del lado del server:
+`lib/__tests__/og118Flags.test.ts` (el parser, el hook de Projects sin request, y
+`corpus_id` fuera del body) y `components/__tests__/Og118ProyectosFlag.test.tsx`
+(la sección y la ruta). Cada aserción del lado apagado va con su control
+encendido: un "no se disparó ninguna request" no prueba nada si el caso prendido
+no demuestra, con el mismo mock, que sí se dispara una.

@@ -22,6 +22,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { UploadStatus } from 'fi-glass/shell';
 import { authHeaders } from './og118Token';
+import { proyectosActivos } from './og118Flags';
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
 const MAX_SIZE_MB = 5;
@@ -87,6 +88,11 @@ export function useOg118ProjectUpload(): UseOg118ProjectUpload {
 
   const uploadFile = useCallback(
     async (projectId: string, picked: File): Promise<void> => {
+      // Projects hidden → the corpus endpoint does not exist server-side.
+      // Silent no-op rather than an error banner: with the flag off there is no
+      // affordance that can reach this, so a visible message would only appear
+      // for a caller that should not have called.
+      if (!proyectosActivos()) return;
       if (!isTextFile(picked)) {
         setFile(picked);
         setStatus('error');

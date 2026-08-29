@@ -38,6 +38,7 @@ import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
 import { useOg118Identity } from '@/lib/og118Identity';
 import { isAuth0Mode } from '@/lib/authMode';
+import { proyectosActivos } from '@/lib/og118Flags';
 import { useOg118VoiceComposer } from '@/lib/useOg118VoiceComposer';
 import { useOg118ResonanceCall } from '@/lib/useOg118ResonanceCall';
 import { Og118StartScreen } from './Og118StartScreen';
@@ -101,6 +102,11 @@ export function Og118AgentChat() {
   // project is active is STAMPED with it (`projectId`) — that stamp is the only
   // thing that makes the project's "Recents" list possible. Before it, the
   // corpus binding was per-request and vanished the moment the turn ended.
+  // Projects is hidden behind NEXT_PUBLIC_OG118_PROYECTOS (off by default). The
+  // hook still runs — it settles empty and fires no request with the flag off —
+  // so the hook order is identical in both branches; what the flag removes is
+  // the rendered surface below.
+  const proyectos = proyectosActivos();
   const projects = useOg118Projects(userId, tokenReady);
   const lib = useConversationLibrary(conversationLibrary, {
     projectId: projects.activeProjectId ?? undefined,
@@ -197,6 +203,7 @@ export function Og118AgentChat() {
       sidebar={(shell) => (
         <>
         <Og118ActiveElementStrip element={activeElement} />
+        {proyectos && (
         <Og118ProjectsSection
           projects={projects.projects}
           activeProjectId={projects.activeProjectId}
@@ -222,6 +229,7 @@ export function Og118AgentChat() {
           onUpload={(id) => upload.openFilePicker(id)}
           onCancelUpload={upload.cancel}
         />
+        )}
         <Og118Sidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
@@ -331,7 +339,7 @@ export function Og118AgentChat() {
           // sidebar — now it is where the user composes, in the same menu, which is
           // exactly why the composer has one trigger instead of a button per feature.
           composerActions={
-            projects.activeProjectId
+            proyectos && projects.activeProjectId
               ? [
                   {
                     id: 'upload-document',

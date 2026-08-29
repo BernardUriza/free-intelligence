@@ -33,6 +33,7 @@ import {
   type AgentTurnState,
 } from '@free-intelligence/core';
 import { authHeaders, AUTH401 } from './og118Token';
+import { proyectosActivos } from './og118Flags';
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
 
@@ -194,7 +195,11 @@ export function useOg118Agent(
     // context, not auth; the history fold is text-only, so a re-shown image is
     // re-attached by the user, never silently re-uploaded).
     const history = (meta?.history ?? []).map((m) => ({ role: m.role, content: m.content }));
-    const corpusId = corpusIdRef.current;
+    // With Projects hidden there is no corpus to bind: the key is omitted from
+    // the wire entirely. The server still ACCEPTS `corpus_id` with its own flag
+    // off (it ignores it, so an old open tab keeps chatting) — but sending a key
+    // the backend has decided to ignore is a lie in the payload, so we drop it.
+    const corpusId = proyectosActivos() ? corpusIdRef.current : null;
     const element = elementRef.current;
 
     let state = initialAgentTurnState();

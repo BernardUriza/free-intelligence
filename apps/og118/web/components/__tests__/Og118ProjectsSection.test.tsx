@@ -14,6 +14,16 @@ import userEvent from '@testing-library/user-event';
 import { Og118ProjectsSection } from '../projects';
 import type { Og118Project } from '../../lib/useOg118Projects';
 
+// These exercise the flag-ON branch: Projects lives behind
+// NEXT_PUBLIC_OG118_PROYECTOS (off by default since 2026-08-29), so the switch is
+// turned on here explicitly. The OFF branch is pinned in Og118ProyectosFlag.test.tsx.
+beforeEach(() => {
+  vi.stubEnv('NEXT_PUBLIC_OG118_PROYECTOS', '1');
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 const projects: Og118Project[] = [
   { id: 'p1', name: 'Negocio de mamá' } as Og118Project,
   { id: 'p2', name: 'Tareas escuela' } as Og118Project,

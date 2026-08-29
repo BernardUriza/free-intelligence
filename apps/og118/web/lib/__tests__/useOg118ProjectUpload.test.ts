@@ -15,7 +15,11 @@ function textFile(name = 'inventario.txt', body = 'lápices 100\nplumas 50') {
 let lastUrl = '';
 let lastInit: RequestInit | null = null;
 
+// These exercise the flag-ON branch: Projects lives behind
+// NEXT_PUBLIC_OG118_PROYECTOS (off by default since 2026-08-29), so the switch is
+// turned on here explicitly. The OFF branch is pinned in og118Flags.test.ts.
 beforeEach(() => {
+  vi.stubEnv('NEXT_PUBLIC_OG118_PROYECTOS', '1');
   localStorage.clear();
   localStorage.setItem('og118_access_token', 'tok-123');
   lastUrl = '';
@@ -24,6 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('useOg118ProjectUpload', () => {
