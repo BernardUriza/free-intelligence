@@ -7874,6 +7874,8 @@ var FI_PANEL_TITLE_CLASS = "fi-panel-title";
 var FI_NOTE_CLASS = "fi-note";
 var FI_LITERAL_CLASS = "fi-literal";
 var FI_DATA_TABLE_CLASS = "fi-data-table";
+var FI_LITERAL_INLINE_CLASS = "fi-literal-inline";
+var FI_NOTE_INLINE_CLASS = "fi-note-inline";
 var SURFACE_STYLE_ID = "fi-surface-style";
 var CSS7 = `
 .${FI_PANEL_CLASS} {
@@ -7911,6 +7913,23 @@ var CSS7 = `
   border-radius: 10px;
   padding: 0.75rem;
   white-space: pre-wrap;
+}
+/* The inline twins: a verbatim fragment quoted MID-SENTENCE (a cited phrase
+   from a source document) and a muted aside that must not break the line.
+   Block Literal/Note render <pre>/<p>; these render <span>, because a block
+   element inside a paragraph is invalid HTML and React will say so. */
+.${FI_LITERAL_INLINE_CLASS} {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  border-radius: 6px;
+  padding: 0 0.3rem;
+  white-space: pre-wrap;
+}
+.${FI_NOTE_INLINE_CLASS} {
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+  font-size: ${glassTokens.itemSubtitleSize};
 }
 .${FI_DATA_TABLE_CLASS} {
   width: 100%;
@@ -7957,12 +7976,18 @@ function Panel({ children, title, className }) {
     children
   ] });
 }
-function Note({ children, className }) {
+function Note({ children, inline = false, className }) {
   useSurfaceStyle();
+  if (inline) {
+    return /* @__PURE__ */ jsx53("span", { className: join(FI_NOTE_INLINE_CLASS, className), children });
+  }
   return /* @__PURE__ */ jsx53("p", { className: join(FI_NOTE_CLASS, className), children });
 }
-function Literal({ children, live = false, className }) {
+function Literal({ children, live = false, inline = false, className }) {
   useSurfaceStyle();
+  if (inline) {
+    return /* @__PURE__ */ jsx53("span", { className: join(FI_LITERAL_INLINE_CLASS, className), children });
+  }
   return /* @__PURE__ */ jsx53("pre", { className: join(FI_LITERAL_CLASS, className), "aria-live": live ? "polite" : void 0, children });
 }
 function DataTable({ head, rows, rowHeader = false, className }) {
@@ -8034,12 +8059,14 @@ export {
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
   FI_LITERAL_CLASS,
+  FI_LITERAL_INLINE_CLASS,
   FI_METER_CLASS,
   FI_METER_FILL_CLASS,
   FI_METER_LABEL_CLASS,
   FI_METER_TRACK_CLASS,
   FI_MSG_ACTIONS_CLASS,
   FI_NOTE_CLASS,
+  FI_NOTE_INLINE_CLASS,
   FI_PANEL_CLASS,
   FI_PANEL_TITLE_CLASS,
   FI_RAIL_PANEL_CLASS,

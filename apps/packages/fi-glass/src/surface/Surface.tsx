@@ -17,7 +17,9 @@ import { type ReactNode } from 'react';
 import {
   FI_DATA_TABLE_CLASS,
   FI_LITERAL_CLASS,
+  FI_LITERAL_INLINE_CLASS,
   FI_NOTE_CLASS,
+  FI_NOTE_INLINE_CLASS,
   FI_PANEL_CLASS,
   FI_PANEL_TITLE_CLASS,
   useSurfaceStyle,
@@ -46,12 +48,17 @@ export function Panel({ children, title, className }: PanelProps) {
 
 export interface NoteProps {
   children: ReactNode;
+  /** Render as a <span> so the note can live inside a sentence. */
+  inline?: boolean;
   className?: string;
 }
 
 /** A muted aside: the caveat under a control, the provenance under a figure. */
-export function Note({ children, className }: NoteProps) {
+export function Note({ children, inline = false, className }: NoteProps) {
   useSurfaceStyle();
+  if (inline) {
+    return <span className={join(FI_NOTE_INLINE_CLASS, className)}>{children}</span>;
+  }
   return <p className={join(FI_NOTE_CLASS, className)}>{children}</p>;
 }
 
@@ -62,12 +69,17 @@ export interface LiteralProps {
    * Default: `false` — a static literal should not narrate itself.
    */
   live?: boolean;
+  /** Render as a <span> so a verbatim fragment can be quoted mid-sentence. */
+  inline?: boolean;
   className?: string;
 }
 
 /** Verbatim server-rendered text: a preview, a draft, a quoted source. */
-export function Literal({ children, live = false, className }: LiteralProps) {
+export function Literal({ children, live = false, inline = false, className }: LiteralProps) {
   useSurfaceStyle();
+  if (inline) {
+    return <span className={join(FI_LITERAL_INLINE_CLASS, className)}>{children}</span>;
+  }
   return (
     <pre className={join(FI_LITERAL_CLASS, className)} aria-live={live ? 'polite' : undefined}>
       {children}

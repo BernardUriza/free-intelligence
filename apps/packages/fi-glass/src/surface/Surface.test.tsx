@@ -32,12 +32,24 @@ describe('Literal', () => {
     const viva = render(<Literal live>fragmento</Literal>);
     expect(viva.container.querySelector('pre')?.getAttribute('aria-live')).toBe('polite');
   });
+
+  it('quotes mid-sentence as a span when inline', () => {
+    const { container } = render(<Literal inline>{'fiebre > 38.5'}</Literal>);
+    expect(container.querySelector('pre')).toBeNull();
+    expect(container.querySelector('span')?.textContent).toBe('fiebre > 38.5');
+  });
 });
 
 describe('Note', () => {
   it('renders a paragraph', () => {
     const { container } = render(<Note>al margen</Note>);
     expect(container.querySelector('p')?.textContent).toBe('al margen');
+  });
+
+  it('renders a span when inline — a note inside a sentence must not break it', () => {
+    const { container } = render(<Note inline>(p. 12)</Note>);
+    expect(container.querySelector('p')).toBeNull();
+    expect(container.querySelector('span')?.textContent).toBe('(p. 12)');
   });
 });
 
