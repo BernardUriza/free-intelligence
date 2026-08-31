@@ -59,6 +59,12 @@ const CSS = `
   margin-inline-start: 0.2em;
 }
 .${FI_FIELD_CONTROL_CLASS} {
+  /* Self-declared like resourceStyle does: width:100% + padding relies on
+     border-box, and og118 only ever supplied it via Tailwind preflight. The
+     first consumer without Tailwind (consulta-medica web, 2026-08-31) got
+     controls 21px wider than their grid columns, climbing onto the neighbour
+     field. A component's geometry cannot depend on the host's reset. */
+  box-sizing: border-box;
   width: 100%;
   min-height: var(--fi-touch-target, 44px);
   padding: 0.45rem 0.6rem;
