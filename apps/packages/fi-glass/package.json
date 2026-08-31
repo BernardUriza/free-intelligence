@@ -1,6 +1,6 @@
 {
   "name": "fi-glass",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "sideEffects": [
     "**/*.css"
   ],
@@ -55,6 +55,10 @@
     "./resource": {
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
+    },
+    "./surface": {
+      "types": "./dist/surface/index.d.ts",
+      "import": "./dist/surface/index.js"
     },
     "./form": {
       "types": "./dist/form/index.d.ts",
