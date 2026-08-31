@@ -1,12 +1,12 @@
 {
   "name": "fi-glass",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "sideEffects": [
     "**/*.css"
   ],
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
-  "description": "fi-glass \u2014 the glassmorphism material (skin) for Free Intelligence chat frontends. Glass-box agentic UI rendered as frosted surfaces. Depends only on @free-intelligence/core.",
+  "description": "fi-glass — the glassmorphism material (skin) for Free Intelligence chat frontends. Glass-box agentic UI rendered as frosted surfaces. Depends only on @free-intelligence/core.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -55,6 +55,14 @@
     "./resource": {
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
+    },
+    "./form": {
+      "types": "./dist/form/index.d.ts",
+      "import": "./dist/form/index.js"
+    },
+    "./feedback": {
+      "types": "./dist/feedback/index.d.ts",
+      "import": "./dist/feedback/index.js"
     }
   },
   "files": [
