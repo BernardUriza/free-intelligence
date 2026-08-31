@@ -21,6 +21,7 @@ export default defineConfig({
     'src/resource/index.ts',
     'src/form/index.ts',
     'src/feedback/index.ts',
+    'src/surface/index.ts',
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },

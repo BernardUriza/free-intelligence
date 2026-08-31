@@ -7866,6 +7866,115 @@ function WorkspaceBreadcrumb({
     }
   );
 }
+
+// src/surface/surfaceStyle.ts
+import { useEffect as useEffect30 } from "react";
+var FI_PANEL_CLASS = "fi-panel";
+var FI_PANEL_TITLE_CLASS = "fi-panel-title";
+var FI_NOTE_CLASS = "fi-note";
+var FI_LITERAL_CLASS = "fi-literal";
+var FI_DATA_TABLE_CLASS = "fi-data-table";
+var SURFACE_STYLE_ID = "fi-surface-style";
+var CSS7 = `
+.${FI_PANEL_CLASS} {
+  background: var(--glass-chat-surface, ${glassTokens.surface});
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  border-radius: var(--glass-chat-radius, ${glassTokens.radius});
+  padding: 1rem 1.5rem;
+  margin-block-end: 1rem;
+  box-shadow: var(--glass-chat-shadow, ${glassTokens.shadow});
+}
+.${FI_PANEL_TITLE_CLASS} {
+  margin: 0 0 0.5rem;
+  font-size: ${glassTokens.itemMetaSize};
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--glass-chat-accent-text, ${glassTokens.accentText});
+}
+/* Actions inside a panel breathe on their own; outside one, the form layer
+   already spaces them. Scoped here so the form layer stays panel-agnostic. */
+.${FI_PANEL_CLASS} .fi-form-actions {
+  margin-block-start: 1rem;
+}
+.${FI_NOTE_CLASS} {
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+  font-size: ${glassTokens.itemSubtitleSize};
+}
+/* Server-rendered text shown VERBATIM \u2014 a privacy preview, a streamed draft.
+   pre-wrap because the whole point is that nothing gets reflowed away. */
+.${FI_LITERAL_CLASS} {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  border-radius: 10px;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+}
+.${FI_DATA_TABLE_CLASS} {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: ${glassTokens.itemSubtitleSize};
+}
+.${FI_DATA_TABLE_CLASS} th,
+.${FI_DATA_TABLE_CLASS} td {
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  padding: 6px 8px;
+  text-align: left;
+}
+.${FI_DATA_TABLE_CLASS} th {
+  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+`;
+function ensureSurfaceStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(SURFACE_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = SURFACE_STYLE_ID;
+  el.textContent = CSS7;
+  document.head.appendChild(el);
+}
+function useSurfaceStyle() {
+  useEffect30(() => {
+    ensureSurfaceStyle();
+  }, []);
+}
+
+// src/surface/Surface.tsx
+import { jsx as jsx53, jsxs as jsxs42 } from "react/jsx-runtime";
+function join(base, extra) {
+  return extra ? `${base} ${extra}` : base;
+}
+function Panel({ children, title, className }) {
+  useSurfaceStyle();
+  return /* @__PURE__ */ jsxs42("section", { className: join(FI_PANEL_CLASS, className), children: [
+    title ? /* @__PURE__ */ jsx53("h2", { className: FI_PANEL_TITLE_CLASS, children: title }) : null,
+    children
+  ] });
+}
+function Note({ children, className }) {
+  useSurfaceStyle();
+  return /* @__PURE__ */ jsx53("p", { className: join(FI_NOTE_CLASS, className), children });
+}
+function Literal({ children, live = false, className }) {
+  useSurfaceStyle();
+  return /* @__PURE__ */ jsx53("pre", { className: join(FI_LITERAL_CLASS, className), "aria-live": live ? "polite" : void 0, children });
+}
+function DataTable({ head, rows, rowHeader = false, className }) {
+  useSurfaceStyle();
+  if (!rows.length) return null;
+  return /* @__PURE__ */ jsxs42("table", { className: join(FI_DATA_TABLE_CLASS, className), children: [
+    head ? /* @__PURE__ */ jsx53("thead", { children: /* @__PURE__ */ jsx53("tr", { children: head.map((celda, i) => /* @__PURE__ */ jsx53("th", { children: celda }, i)) }) }) : null,
+    /* @__PURE__ */ jsx53("tbody", { children: rows.map((fila) => /* @__PURE__ */ jsx53("tr", { children: fila.cells.map(
+      (celda, i) => rowHeader && i === 0 ? /* @__PURE__ */ jsx53("th", { scope: "row", children: celda }, i) : /* @__PURE__ */ jsx53("td", { children: celda }, i)
+    ) }, fila.key)) })
+  ] });
+}
 export {
   AUDIO_QUEUE_DEFAULTS,
   ActionMenu,
@@ -7897,6 +8006,7 @@ export {
   DEFAULT_MAX_IMAGES,
   DEFAULT_TURN_TIMEOUT_MS,
   DEFAULT_VAD_CONFIG,
+  DataTable,
   DestructiveActionSlot,
   DocCard,
   DocCardGrid,
@@ -7907,6 +8017,7 @@ export {
   FI_CARD_GRID_CLASS,
   FI_CARD_META_CLASS,
   FI_CARD_TITLE_CLASS,
+  FI_DATA_TABLE_CLASS,
   FI_DETAIL_CLASS,
   FI_DETAIL_MAIN_CLASS,
   FI_DETAIL_RAIL_CLASS,
@@ -7922,11 +8033,15 @@ export {
   FI_ITEM_META_CLASS,
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
+  FI_LITERAL_CLASS,
   FI_METER_CLASS,
   FI_METER_FILL_CLASS,
   FI_METER_LABEL_CLASS,
   FI_METER_TRACK_CLASS,
   FI_MSG_ACTIONS_CLASS,
+  FI_NOTE_CLASS,
+  FI_PANEL_CLASS,
+  FI_PANEL_TITLE_CLASS,
   FI_RAIL_PANEL_CLASS,
   FI_RAIL_PANEL_HEAD_CLASS,
   FI_RAIL_PANEL_TITLE_CLASS,
@@ -7942,12 +8057,15 @@ export {
   FI_SIDEBAR_SECTION_CLASS,
   FI_TOUCH_TARGET_CLASS,
   ItemActionSlot,
+  Literal,
   MessageAuthorHeader,
   MessageBubble,
   MessageContent,
   MessageImages,
   MessageList,
   MessageModelBadge,
+  Note,
+  Panel,
   PersonaSelector,
   PlanChecklist,
   PulseRings,
@@ -7990,6 +8108,7 @@ export {
   ensureResourceStyle,
   ensureSidebarItemStyle,
   ensureSidebarSectionStyle,
+  ensureSurfaceStyle,
   ensureTouchTargetStyle,
   filterByQuery,
   formatArtifactDuration,
@@ -8036,6 +8155,7 @@ export {
   useResourceStyle,
   useSidebarItemStyle,
   useSidebarSectionStyle,
+  useSurfaceStyle,
   useTouchTargetStyle,
   useVoice,
   withTouchTarget

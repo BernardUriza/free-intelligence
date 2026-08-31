@@ -39,3 +39,8 @@ export * from './resource';
 // The framework's ONE menu (extracted from aurity's toolbar — the SSOT of this
 // anatomy). Both the shell toolbar ("⋮") and the composer ("+") render it.
 export { ActionMenu, type MenuAction, type ActionMenuProps } from './menu/ActionMenu';
+
+// The section surface (panel, note, literal, data table) — born from the
+// consulta-medica canary, the page-of-sections counterpart of the chat shell.
+// Also importable via `fi-glass/surface`.
+export * from './surface';
