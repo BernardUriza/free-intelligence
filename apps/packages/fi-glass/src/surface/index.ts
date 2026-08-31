@@ -11,7 +11,9 @@ export {
   useSurfaceStyle,
   FI_DATA_TABLE_CLASS,
   FI_LITERAL_CLASS,
+  FI_LITERAL_INLINE_CLASS,
   FI_NOTE_CLASS,
+  FI_NOTE_INLINE_CLASS,
   FI_PANEL_CLASS,
   FI_PANEL_TITLE_CLASS,
 } from './surfaceStyle';

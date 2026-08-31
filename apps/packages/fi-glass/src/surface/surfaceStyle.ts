@@ -23,6 +23,8 @@ export const FI_PANEL_TITLE_CLASS = 'fi-panel-title';
 export const FI_NOTE_CLASS = 'fi-note';
 export const FI_LITERAL_CLASS = 'fi-literal';
 export const FI_DATA_TABLE_CLASS = 'fi-data-table';
+export const FI_LITERAL_INLINE_CLASS = 'fi-literal-inline';
+export const FI_NOTE_INLINE_CLASS = 'fi-note-inline';
 
 const SURFACE_STYLE_ID = 'fi-surface-style';
 
@@ -62,6 +64,23 @@ const CSS = `
   border-radius: 10px;
   padding: 0.75rem;
   white-space: pre-wrap;
+}
+/* The inline twins: a verbatim fragment quoted MID-SENTENCE (a cited phrase
+   from a source document) and a muted aside that must not break the line.
+   Block Literal/Note render <pre>/<p>; these render <span>, because a block
+   element inside a paragraph is invalid HTML and React will say so. */
+.${FI_LITERAL_INLINE_CLASS} {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  border-radius: 6px;
+  padding: 0 0.3rem;
+  white-space: pre-wrap;
+}
+.${FI_NOTE_INLINE_CLASS} {
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+  font-size: ${glassTokens.itemSubtitleSize};
 }
 .${FI_DATA_TABLE_CLASS} {
   width: 100%;

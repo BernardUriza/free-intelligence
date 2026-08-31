@@ -10,10 +10,12 @@ interface PanelProps {
 declare function Panel({ children, title, className }: PanelProps): react.JSX.Element;
 interface NoteProps {
     children: ReactNode;
+    /** Render as a <span> so the note can live inside a sentence. */
+    inline?: boolean;
     className?: string;
 }
 /** A muted aside: the caveat under a control, the provenance under a figure. */
-declare function Note({ children, className }: NoteProps): react.JSX.Element;
+declare function Note({ children, inline, className }: NoteProps): react.JSX.Element;
 interface LiteralProps {
     children: ReactNode;
     /**
@@ -21,10 +23,12 @@ interface LiteralProps {
      * Default: `false` — a static literal should not narrate itself.
      */
     live?: boolean;
+    /** Render as a <span> so a verbatim fragment can be quoted mid-sentence. */
+    inline?: boolean;
     className?: string;
 }
 /** Verbatim server-rendered text: a preview, a draft, a quoted source. */
-declare function Literal({ children, live, className }: LiteralProps): react.JSX.Element;
+declare function Literal({ children, live, inline, className }: LiteralProps): react.JSX.Element;
 interface DataTableRow {
     key: string;
     cells: ReactNode[];
@@ -50,9 +54,11 @@ declare const FI_PANEL_TITLE_CLASS = "fi-panel-title";
 declare const FI_NOTE_CLASS = "fi-note";
 declare const FI_LITERAL_CLASS = "fi-literal";
 declare const FI_DATA_TABLE_CLASS = "fi-data-table";
+declare const FI_LITERAL_INLINE_CLASS = "fi-literal-inline";
+declare const FI_NOTE_INLINE_CLASS = "fi-note-inline";
 /** Inject the idempotent surface stylesheet (no-op on the server / if already present). */
 declare function ensureSurfaceStyle(): void;
 /** Ensure the surface stylesheet is present for the lifetime of the component. */
 declare function useSurfaceStyle(): void;
 
-export { DataTable, type DataTableProps, type DataTableRow, FI_DATA_TABLE_CLASS, FI_LITERAL_CLASS, FI_NOTE_CLASS, FI_PANEL_CLASS, FI_PANEL_TITLE_CLASS, Literal, type LiteralProps, Note, type NoteProps, Panel, type PanelProps, ensureSurfaceStyle, useSurfaceStyle };
+export { DataTable, type DataTableProps, type DataTableRow, FI_DATA_TABLE_CLASS, FI_LITERAL_CLASS, FI_LITERAL_INLINE_CLASS, FI_NOTE_CLASS, FI_NOTE_INLINE_CLASS, FI_PANEL_CLASS, FI_PANEL_TITLE_CLASS, Literal, type LiteralProps, Note, type NoteProps, Panel, type PanelProps, ensureSurfaceStyle, useSurfaceStyle };
