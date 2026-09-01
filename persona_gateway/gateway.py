@@ -298,7 +298,7 @@ class PersonaClient(discord.Client):
             exclude_user_id=user_id,
         )
         messages = [*turn.context, {"role": "user", "content": user_content}]
-        await self._run_and_deliver(
+        delivered = await self._run_and_deliver(
             channel=message.channel,
             channel_id=channel_id,
             user_id=user_id,
@@ -310,9 +310,11 @@ class PersonaClient(discord.Client):
             other_people=turn.other_people,
             relevant_memory=turn.relevant_memory,
         )
-        # Reply delivered — the persona is not mute. Stamp it so /health can tell
-        # "answered recently" from "took a message and went silent".
-        self.last_turn_delivered = time.time()
+        # Stamp ONLY if the user actually saw something. Stamping on return
+        # alone made /health report "answered recently" for a turn that sent
+        # nothing, and `mute_suspected` could never fire (issue #40).
+        if delivered:
+            self.last_turn_delivered = time.time()
         # A mention carries a REAL user ask — the only turn worth mining for facts.
         # Runs AFTER delivery, in the background, so the extraction's LLM round-trip
         # never sits between the user and their reply.
@@ -514,7 +516,7 @@ class PersonaClient(discord.Client):
             exclude_user_id=subject_user_id or (str(self.user.id) if self.user else ""),
         )
         messages = [*turn.context, {"role": "user", "content": instruction_content}]
-        await self._run_and_deliver(
+        delivered = await self._run_and_deliver(
             channel=channel,
             channel_id=channel_id,
             user_id=subject_user_id or (str(self.user.id) if self.user else ""),
@@ -527,7 +529,9 @@ class PersonaClient(discord.Client):
             other_people=turn.other_people,
             relevant_memory=turn.relevant_memory,
         )
-        self.last_turn_delivered = time.time()
+        # Same rule as the mention path: no delivery, no stamp (issue #40).
+        if delivered:
+            self.last_turn_delivered = time.time()
         if subject is not None and subject_ask:
             self._spawn_fact_extraction(
                 str(subject.id),
@@ -561,9 +565,11 @@ class PersonaClient(discord.Client):
         behavioral_guidance: str | None = None,
         other_people: str | None = None,
         relevant_memory: str | None = None,
-    ) -> None:
-        """Thin delegate to the injected TurnRunner (tests drive this directly)."""
-        await self._turns.run_and_deliver(
+    ) -> bool:
+        """Thin delegate to the injected TurnRunner (tests drive this directly).
+
+        Returns whether the user saw anything — see TurnRunner.run_and_deliver."""
+        return await self._turns.run_and_deliver(
             channel=channel,
             channel_id=channel_id,
             user_id=user_id,

@@ -66,8 +66,13 @@ class TurnRunner:
         behavioral_guidance: str | None = None,
         other_people: str | None = None,
         relevant_memory: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Shared tail for mention + invite: runner call → react → markers → send.
+
+        Returns True only if the user SAW something — text, a GIF or a reaction.
+        The caller stamps `last_turn_delivered` off this, so a turn that dies
+        with empty text can no longer pass for "answered recently" in /health
+        (issue #40: a turn died in silence and /health called it delivered).
 
         Typing keepalive is a fire-and-forget background task so the user sees
         "[persona] is typing…" during the long runner call. Deliberately NOT
@@ -105,6 +110,8 @@ class TurnRunner:
                 await _typing_task
 
         text = (resp.text or "").strip()
+        raw_had_text = bool(text)
+        reacted = False
 
         # Reactions FIRST (they need the live `react_to` message and the
         # module-level `add_reactions` the tests monkeypatch).
@@ -115,6 +122,7 @@ class TurnRunner:
                 task = asyncio.create_task(add_reactions(react_to, reactions))
                 self._bg_tasks.add(task)
                 task.add_done_callback(self._bg_tasks.discard)
+                reacted = True
                 log.info(
                     "persona_gateway_reactions_fired",
                     persona_id=self.persona.persona_id,
@@ -137,13 +145,25 @@ class TurnRunner:
         gif_urls = resolve_gifs(self.persona.persona_id, text)
         text = strip_gif_markers(text)
         if not text and not gif_urls:
-            return
+            # The turn ends with nothing to send. Name the reason instead of
+            # returning in silence — an orphan turn has to be findable in KQL,
+            # not deduced from a missing `persona_gateway_turn_complete`.
+            reason = "reactions_only" if reacted else ("markers_only" if raw_had_text else "runner_empty")
+            log.info(
+                "persona_gateway_turn_empty",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+                turn_kind=turn_kind,
+                reason=reason,
+                delivered=reacted,
+            )
+            return reacted
 
         if text:
             await send_chunked(channel, text)
         await self._send_gifs(channel, gif_urls, turn_kind=turn_kind)
         if not text:
-            return
+            return True
 
         # What was actually said in Discord is the delimiter-free text — memory
         # and voice never see the `[SEND]` pacing marker.
@@ -171,6 +191,8 @@ class TurnRunner:
         # listen instead of reading a wall (gated by auto_tts_min_chars; 0=off).
         if self._voice.should_auto_speak(delivered, self.auto_tts_min_chars):
             await self._voice.speak(channel, delivered, reason="auto")
+
+        return True
 
     async def _send_gifs(self, channel, urls: list[str], *, turn_kind: str) -> None:
         """Post each GIF as its OWN bare message — no version tag, no chunking.

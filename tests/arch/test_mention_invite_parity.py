@@ -729,3 +729,24 @@ async def test_an_attachment_only_turn_extracts_facts_only_on_the_mention_door()
     invite.spawn_facts.assert_not_called()
     mention.spawn_vision.assert_called_once()
     invite.spawn_vision.assert_called_once()
+
+
+@pytest.mark.parametrize("path", BOTH_PATHS)
+async def test_neither_door_stamps_delivery_when_nothing_was_sent(path: str):
+    """El estado "vio un mensaje y no contestó" tiene que ser ALCANZABLE.
+
+    `tests/core/test_gateway_liveness.py::test_message_seen_but_no_reply_past_grace_is_mute`
+    lleva desde el 2026-06-13 describiendo este escenario en verde, pero arma el
+    estado a mano: en producción, con el sello incondicional, `delivered` siempre
+    quedaba después de `seen` y `mute_suspected` no podía encenderse por esta vía.
+
+    Es el turno del 2026-08-11 22:08 UTC — el runner se reinició a media petición
+    y devolvió texto vacío. Con el sello puesto, /health lo reportaba entregado.
+    Issue #40, confirmado por KQL el 2026-08-19.
+    """
+    outcome = await _run(path, reply_text="")
+
+    assert outcome.client.last_message_seen is not None, f"[{path}] el turno ni siquiera dejó marca de 'mensaje visto'"
+    assert outcome.client.last_turn_delivered is None, (
+        f"[{path}] se selló la entrega de un turno que no mandó NADA — /health vuelve a mentir"
+    )
