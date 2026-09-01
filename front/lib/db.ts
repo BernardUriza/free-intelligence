@@ -395,18 +395,34 @@ export function where(): { host: string; database: string } {
  * `project_key` IS the CLI's dash-encoded cwd — one key, one casita. *
  * ------------------------------------------------------------------ */
 
-export type ClaudeFolder = { project_key: string; sessions: number; entries: number; weight_bytes: number; mtime: string };
+export type ClaudeFolder = {
+  project_key: string; sessions: number; entries: number; weight_bytes: number;
+  mtime: string;
+  /** Metered + nominal dollars the engine banked for this casita (`aire_spend`,
+   *  backlog #8/#25) — null for a casita the engine door never ran (the SSH
+   *  door's own sessions, or one born before the ledger existed). */
+  spend_usd: number | null;
+};
 export type ClaudeSession = { session_id: string; entries: number; mtime: string; first_user: unknown; ai_title: string | null };
 export type ClaudeEntry = { entry: unknown; mtime: string };
 
 export async function claudeFolders(): Promise<ClaudeFolder[]> {
+  // The spend join reconstructs the store's key from the ledger's project NAME:
+  // the engine runs every casita under /opt/aire/workspaces/<project> and the
+  // SDK dash-encodes that cwd into project_key (verified live: og118 ↔
+  // -opt-aire-workspaces-og118). A casita from another door (the droplet's own
+  // CLI sessions) matches no ledger row and renders a dash — honest, not zero:
+  // the engine never spent there; what the CLI spent, this table cannot know.
   return read<ClaudeFolder>(
     `
-    SELECT project_key, count(DISTINCT session_id)::int AS sessions,
-           count(*)::int AS entries, sum(entry_bytes)::int AS weight_bytes,
-           max(mtime)::text AS mtime
-    FROM claude_session_store WHERE subpath = ''
-    GROUP BY project_key ORDER BY max(mtime) DESC
+    SELECT s.project_key, count(DISTINCT s.session_id)::int AS sessions,
+           count(*)::int AS entries, sum(s.entry_bytes)::int AS weight_bytes,
+           max(s.mtime)::text AS mtime,
+           (SELECT sum(sp.usd)::float FROM aire_spend sp
+            WHERE sp.door = 'engine'
+              AND s.project_key = '-opt-aire-workspaces-' || sp.project) AS spend_usd
+    FROM claude_session_store s WHERE s.subpath = ''
+    GROUP BY s.project_key ORDER BY max(s.mtime) DESC
     `,
     [],
   );

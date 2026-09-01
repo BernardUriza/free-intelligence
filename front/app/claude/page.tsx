@@ -34,6 +34,7 @@ export default async function ClaudePage() {
                   <th className="num">sessions</th>
                   <th className="num">entries</th>
                   <th className="num">weight</th>
+                  <th className="num">spend</th>
                   <th>last activity</th>
                 </tr>
               </thead>
@@ -48,6 +49,7 @@ export default async function ClaudePage() {
                     <td className="num">{f.sessions}</td>
                     <td className="num">{f.entries}</td>
                     <td className="num">{humanBytes(f.weight_bytes)}</td>
+                    <td className="num">{f.spend_usd === null ? "—" : `$${f.spend_usd.toFixed(2)}`}</td>
                     <td>
                       <When mtime={f.mtime} />
                     </td>
