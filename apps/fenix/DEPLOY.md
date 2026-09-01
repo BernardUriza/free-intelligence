@@ -56,19 +56,22 @@ FENIX_CUOTA_POR_MINUTO=15    # defaults; suben o bajan sin redeploy
 FENIX_CUOTA_POR_HORA=60
 FENIX_BITACORA_PATH=…        # opcional; por defecto, junto a los expedientes
 HDF5_USE_FILE_LOCKING=FALSE  # HDF5 pelea con SMB; seguro porque hay una sola réplica
-FENIX_BACKEND=aire           # opcional; enciende la ruta AIRE (ver sección siguiente)
+AIRE_GATE_URL=https://gate.bernarduriza.com  # sin ella, cada turno muere: la puerta es el único motor
+AIRE_AUTH_TOKEN=…            # ~/.secrets/aire-llm-token.txt; va como secretref
 ```
 
-### El motor del turno: `FENIX_BACKEND=aire` (aire-server backlog #35)
+### El motor del turno: la puerta de AIRE (y nada más)
 
-Sin la variable, nada cambia: el turno corre como hoy (el CLI de Claude Code en
-el contenedor, pagando con `ANTHROPIC_API_KEY`). Con `FENIX_BACKEND=aire` el
-turno viaja por HTTP a la puerta del engine de AIRE — el servidor
-siempre-arriba de Bernard que envuelve el Agent SDK y guarda el transcript
-crudo en SU Postgres — exactamente la migración que og118 estrenó el 21-ago
-(fi PRs #409/#411/#413).
+**`FENIX_BACKEND` desapareció el 2026-08-29 (`fe446e53`, junto con
+`70ac4062`/`23019587`): el CLI de Claude Code en el contenedor ya no existe y
+`AIREBackend` es el único motor de la flota.** Esta sección describía un knob
+opcional; hoy describe el único camino. El turno viaja por HTTP a la puerta
+del engine de AIRE — el servidor siempre-arriba de Bernard que envuelve el
+Agent SDK y guarda el transcript crudo en SU Postgres — la migración que
+og118 estrenó el 21-ago (fi PRs #409/#411/#413) y que se volvió la única ruta
+una semana después.
 
-Qué cambia con el flip:
+Qué cambió con la migración:
 
 - **La memoria se vuelve inmortal.** Cada chat vive en su casita AIRE
   (`fenix-{conversationId}`, nacimiento delgado con el stub `@base fenix`); el
@@ -86,8 +89,10 @@ Qué cambia con el flip:
 - **Lo que se pierde (documentado, no accidental):** los MCP locales no cruzan
   la puerta, así que el mostrador pierde `guardar_cotizacion`/rag_store —
   `/expedientes/extraer` responde `guardado=false` en esta ruta. El mostrador
-  hoy no está lanzado, así que nadie lo siente. Se revierte quitando la
-  variable.
+  hoy no está lanzado, así que nadie lo siente. El camino para revivirlo no es
+  un MCP local sino el patrón de aire-server #48 (`remote_tools`): Fénix
+  hosteando su propio MCP por HTTPS (el código ya existe en `fenix_mcp.py`) y
+  la puerta cableándolo — como hizo el persona-runner de discord-bot.
 
 ### Qué herramientas tiene el tutor en la ruta AIRE (y por qué son ésas)
 
@@ -130,22 +135,15 @@ internet» funcione, y está tomado a sabiendas.
 Variables de la ruta (las lee `AIREBackend` del entorno):
 
 ```
-FENIX_BACKEND=aire
 AIRE_GATE_URL=https://gate.bernarduriza.com
 AIRE_AUTH_TOKEN=…            # ~/.secrets/aire-llm-token.txt; va como secretref
 FENIX_AIRE_PROJECT=fenix     # opcional; default fenix
 ```
 
-El flip en producción (sin redeploy, igual que el de og118 en `og118-api`):
-
-```bash
-az containerapp secret set -n fenix-api -g og118-rg \
-  --secrets "aire-auth-token=$(grep '^AIRE_AUTH_TOKEN=' ~/.secrets/aire-llm-token.txt | cut -d= -f2)"
-az containerapp update -n fenix-api -g og118-rg \
-  --set-env-vars "FENIX_BACKEND=aire" \
-                 "AIRE_GATE_URL=https://gate.bernarduriza.com" \
-                 "AIRE_AUTH_TOKEN=secretref:aire-auth-token"
-```
+Desde 2026-09-01 las pone `fenix-backend.yml` en cada deploy (secret
+`aire-auth-token` desde el GH secret `AIRE_AUTH_TOKEN` + env en `COMUNES`) —
+antes vivían sólo en el Container App, puestas a mano en el flip, y un
+`create` fresco levantaba la app sin puerta.
 
 Verificación (Art. 2) — **tres cosas, y la tercera es la que este flip casi
 rompe**:
@@ -159,8 +157,8 @@ rompe**:
    prueba esto: en `mode=complete` el tutor contesta igual de bonito, sólo que
    sin haber buscado. Lo que no puede mentir es la cita.
 
-Para revertir:
-`az containerapp update -n fenix-api -g og118-rg --remove-env-vars FENIX_BACKEND`.
+No hay reversa por variable: el motor viejo se borró del código. Revertir la
+ruta AIRE es revertir `fe446e53`/`70ac4062` — una decisión de repo, no un flip.
 
 ### Las tres credenciales protegen cosas distintas
 

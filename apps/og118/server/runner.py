@@ -204,7 +204,8 @@ def build_runner(
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
     events (the glass-box stream og118's AgentHook maps onto core's
-    AgentStreamEvent). Auth is ambient (`CLAUDE_CODE_OAUTH_TOKEN`).
+    AgentStreamEvent). Auth is ambient (`AIRE_GATE_URL` + `AIRE_AUTH_TOKEN`,
+    read by AIREBackend — the credential that pays lives in AIRE's rotor).
 
     The system prompt comes from `persona_text` when given (PERSONA-SSOT-1: an
     "elemento" composes the shared fi-personas core + its operative-context block,

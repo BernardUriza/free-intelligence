@@ -50,7 +50,7 @@ else
 fi
 
 export FI_PERSONA_PATH="$REPO/apps/fenix/server/prompts/persona.md"
-export FI_EXTRA_MCP="fenix-expedientes:$REPO/apps/fenix/server/fenix_mcp.py"
+# FI_EXTRA_MCP murió con el motor CLI (70ac4062): nada lo lee ya (ver Dockerfile).
 export FENIX_EXPEDIENTES_PATH="$DATOS/expedientes.json"
 export FENIX_ADMIN_EMAILS="${FENIX_ADMIN_EMAILS:-lidia@fenix.mx,ximena@fenix.mx}"
 

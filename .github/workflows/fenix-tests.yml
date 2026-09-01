@@ -1,0 +1,106 @@
+# Fénix's server suite, on every PR that touches it.
+#
+# It had none: the 65 tests in apps/fenix/server/tests ran only on whoever's
+# laptop remembered to run them — fenix-backend.yml deploys without a test
+# step, og118-tests.yml is scoped to og118's tree, and pr-gate.yml runs
+# backend/tests/unit. The first thing to exercise fenix_app.py was production.
+#
+# Sibling of og118-tests.yml (same shape on purpose, including the design
+# decision that makes it safe to mark REQUIRED: no `paths:` filter on
+# pull_request — the job always reports, and decides for itself whether there
+# is anything to test, so a required check never hangs an unrelated PR on
+# "Expected — waiting for status").
+#
+# Fénix is not its own server: it mounts og118's app (fenix_app.py puts
+# apps/og118/server on sys.path), so og118's tree and both packages are part
+# of this suite's substrate and of its trigger set.
+name: fenix tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/fenix/server/**'
+      - 'apps/og118/server/**'
+      - 'apps/packages/fi-runner/**'
+      - 'apps/packages/fi-core/**'
+  workflow_dispatch:
+
+concurrency:
+  group: fenix-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: "fenix: tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/fenix/server
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the diff below needs the base commit
+
+      - name: Does this PR touch fenix?
+        id: touched
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base="origin/${{ github.base_ref }}"
+          git fetch --quiet origin "${{ github.base_ref }}"
+          if git diff --name-only "$base"...HEAD | grep -qE '^(apps/fenix/server/|apps/og118/server/|apps/packages/fi-runner/|apps/packages/fi-core/|\.github/workflows/fenix-tests\.yml)'; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+            echo "fenix untouched — nothing to test." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-python@v6
+        if: steps.touched.outputs.yes == 'true'
+        with:
+          python-version: '3.12'  # the version the Dockerfile family runs
+          cache: pip
+          cache-dependency-path: apps/fenix/server/requirements-dev.txt
+
+      - name: Install the substrate exactly as the image does
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          # fenix's requirements.txt only ADDS what it needs over og118 (its
+          # own header says so): the runtime it mounts is og118's image. So the
+          # substrate is og118's — fi-core first and from the local path, for
+          # og118-tests.yml's reason: fi-runner declares a fi-core range that
+          # the resolver would otherwise satisfy from PyPI, testing this
+          # checkout against a release nobody is proposing.
+          pip install -e '../../packages/fi-core[mcp,stores-hdf5]'
+          pip install -e '../../packages/fi-runner[claude,auth,postgres]'
+          pip install -r ../../og118/server/requirements.txt
+
+      - name: Install fenix and its test deps
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # requirements-dev.txt pulls requirements.txt via `-r`. pytest-asyncio
+          # is pinned here for og118-tests.yml's reason: two modules mark
+          # @pytest.mark.asyncio and --strict-markers turns its absence into a
+          # collection ERROR. No `||` fallback — a fallback that installs less
+          # turns a broken install into a pass.
+          pip install -r requirements-dev.txt pytest-asyncio
+
+      - name: Run the suite
+        if: steps.touched.outputs.yes == 'true'
+        run: |
+          # No `|| true`: this job's exit status IS pytest's, or it is another
+          # green light that proves nothing.
+          pytest tests -q
+
+      - name: Report what the host could not run
+        if: always() && steps.touched.outputs.yes == 'true'
+        run: |
+          # A skip is honest, but a suite that skips a whole subsystem should
+          # say so out loud rather than let "all green" imply full coverage.
+          pytest tests -q -rs 2>&1 | tail -20 >> "$GITHUB_STEP_SUMMARY" || true

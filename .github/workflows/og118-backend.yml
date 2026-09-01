@@ -107,30 +107,35 @@ jobs:
       - name: Create or update Container App
         # Secrets/vars come through env: (GitHub masks them and they never enter
         # the run: command interpolation); every az arg is individually quoted so
-        # no value is word-split or shell-expanded. CLAUDE_CODE_OAUTH_TOKEN
-        # (subscription mode) — PERSONAL USE ONLY: og118 serves only Bernard (Auth0
-        # gated), never third parties, so routing his Max OAuth is within ToS. The
-        # papelería/third-party plan is deferred; if it returns, switch back to an
-        # ANTHROPIC_API_KEY (commercial API). No ANTHROPIC_API_KEY here.
+        # no value is word-split or shell-expanded.
+        #
+        # The engine is the AIRE door and nothing else since 23019587/70ac4062
+        # (2026-08-29): AIREBackend raises "AIRE door not configured" on every
+        # turn without AIRE_GATE_URL + AIRE_AUTH_TOKEN. Until now those two
+        # lived ONLY on the Container App (set by hand during the flip), so a
+        # fresh `create` brought the app up doorless. CLAUDE_CODE_OAUTH_TOKEN
+        # and OG118_BACKEND are relics of the deleted CLI backend — removed
+        # here so the live app matches the code that runs it.
         env:
           IMG: ghcr.io/bernarduriza/free-intelligence/og118-server:${{ github.sha }}
           GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-          OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AIRE_TOKEN: ${{ secrets.AIRE_AUTH_TOKEN }}
           ACCESS_TOKEN: ${{ secrets.OG118_ACCESS_TOKEN }}
           ALLOWED_ORIGINS: ${{ vars.OG118_ALLOWED_ORIGINS }}
           MODEL: ${{ vars.OG118_MODEL }}
         run: |
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN"
+              --secrets "aire-auth-token=$AIRE_TOKEN" "access-token=$ACCESS_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars \
-                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
+                "AIRE_GATE_URL=https://gate.bernarduriza.com" \
+                "AIRE_AUTH_TOKEN=secretref:aire-auth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
                 "HDF5_USE_FILE_LOCKING=FALSE" \
-              --remove-env-vars "ANTHROPIC_API_KEY"
+              --remove-env-vars "ANTHROPIC_API_KEY" "CLAUDE_CODE_OAUTH_TOKEN" "OG118_BACKEND"
           else
             az containerapp create -n "$APP" -g "$RG" --environment "$ACA_ENV" \
               --image "$IMG" \
@@ -138,9 +143,10 @@ jobs:
               --registry-username BernardUriza --registry-password "$GHCR_TOKEN" \
               --target-port 8118 --ingress external \
               --min-replicas 0 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "claude-oauth-token=$OAUTH_TOKEN" "access-token=$ACCESS_TOKEN" \
+              --secrets "aire-auth-token=$AIRE_TOKEN" "access-token=$ACCESS_TOKEN" \
               --env-vars \
-                "CLAUDE_CODE_OAUTH_TOKEN=secretref:claude-oauth-token" \
+                "AIRE_GATE_URL=https://gate.bernarduriza.com" \
+                "AIRE_AUTH_TOKEN=secretref:aire-auth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \

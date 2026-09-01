@@ -50,8 +50,10 @@ ENV FI_OG118_DIR=/opt/fi/server \
     FENIX_EXPEDIENTES_PATH=/opt/fi/data/expedientes.json \
     OG118_CONVERSATIONS_PATH=/opt/fi/data/conversations \
     OG118_PROJECT_REGISTRY_PATH=/opt/fi/data/projects.json \
-    FI_PERSONA_PATH=/opt/fi/fenix/prompts/persona.md \
-    FI_EXTRA_MCP=fenix-expedientes:/opt/fi/fenix/fenix_mcp.py
+    FI_PERSONA_PATH=/opt/fi/fenix/prompts/persona.md
+# FI_EXTRA_MCP murió con el motor CLI (70ac4062): nada lo lee ya. Los MCP
+# locales no cruzan la puerta de AIRE; el camino de vuelta para fenix_mcp.py
+# es hostearlo por HTTPS y cablearlo vía remote_tools (aire-server #48).
 
 USER fenix
 ENV HOME=/home/fenix

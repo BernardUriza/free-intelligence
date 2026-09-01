@@ -55,7 +55,6 @@ def test_project_name_prefix_follows_the_deploys_base(monkeypatch) -> None:
 
 @pytest.fixture
 def aire_runner(monkeypatch):
-    monkeypatch.setenv("OG118_BACKEND", "aire")
     monkeypatch.delenv("OG118_AIRE_PROJECT", raising=False)
     return build_runner()
 
@@ -66,11 +65,9 @@ def test_aire_route_requests_the_persona_tool(aire_runner) -> None:
     assert aire_runner.backend.project_for_turn == AIRE_CHAT_PROJECT.get
 
 
-def test_aire_persona_carries_the_living_identity_paragraph(aire_runner, monkeypatch) -> None:
+def test_aire_persona_carries_the_living_identity_paragraph(aire_runner) -> None:
     assert "mcp__persona__read" in aire_runner.persona
     assert "mcp__persona__update" in aire_runner.persona
-    # La ruta claude-code no tiene esas tools: prometerlas sería mentirle al modelo.
-    monkeypatch.setenv("OG118_BACKEND", "claude-code")
     # Antes esto afirmaba que la OTRA ruta (claude-code) no mencionaba la tool,
     # porque allí no existía y prometerla habría sido mentirle al modelo. Esa
     # ruta se borró; el invariante que queda es el que de verdad importa: si la
