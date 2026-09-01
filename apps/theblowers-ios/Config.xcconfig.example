@@ -1,0 +1,4 @@
+DEVELOPMENT_TEAM = <tu Team ID de Apple>
+CODE_SIGN_STYLE = Automatic
+THEBLOWERS_EMAIL = <tu correo en theblowers.com>
+THEBLOWERS_PASSWORD = <tu password — vive en ~/.secrets/theblowers-bernard.txt>
