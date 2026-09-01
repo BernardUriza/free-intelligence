@@ -1,11 +1,10 @@
-"""FENIX_BACKEND=aire — el turno de Fénix viaja por la puerta del engine de AIRE.
+"""El turno de Fénix viaja por la puerta del engine de AIRE — el único motor.
 
-La migración de og118 (fi PRs #409/#411/#413, aire-server backlog #35) es la
-plantilla y Fénix la hereda entera, porque corre el MISMO runtime: sin
-FENIX_BACKEND la ruta es byte-idéntica a la de hoy (BackendAcotado sobre el CLI
-con ANTHROPIC_API_KEY); con FENIX_BACKEND=aire, `configurar_motor()` traduce el
-contrato de esta app a las variables del runtime (OG118_BACKEND /
-OG118_AIRE_PROJECT) ANTES de importar `app`, y entonces:
+La migración de og118 (fi PRs #409/#411/#413, aire-server backlog #35) fue la
+plantilla y Fénix la heredó entera, porque corre el MISMO runtime. Desde
+fe446e53/70ac4062 (2026-08-29) no hay selector: el CLI se borró y AIREBackend
+es la única ruta. `configurar_motor()` traduce el contrato de esta app a la
+variable del runtime (OG118_AIRE_PROJECT) ANTES de importar `app`, y entonces:
 
 - la casita base es `fenix` (la persona del mostrador, compuesta con las
   constraints y la identidad viva, vive UNA vez ahí);
@@ -56,7 +55,6 @@ def test_fenix_aire_project_respeta_el_entorno(monkeypatch) -> None:
 def motor_aire(monkeypatch):
     monkeypatch.delenv("FENIX_AIRE_PROJECT", raising=False)
     monkeypatch.delenv("OG118_AIRE_PROJECT", raising=False)
-    monkeypatch.delenv("OG118_BACKEND", raising=False)
     configurar_motor()
 
 
@@ -189,8 +187,8 @@ def tutor_real(monkeypatch):
     `_runner` de módulo AL IMPORTARSE, una sola vez por proceso, así que
     dejarlo nacer en la ruta aire le quitaría el rag_store al mostrador para
     toda la suite (un test de otro archivo se puso rojo por eso). El motor se
-    enciende DESPUÉS: `_tutor()` es perezoso y `build_runner` lee
-    OG118_BACKEND en la llamada, no en el import."""
+    enciende DESPUÉS: `_tutor()` es perezoso y `build_runner` lee su config
+    en la llamada, no en el import."""
     monkeypatch.setenv("FENIX_ADMIN_TOKEN", "token-de-prueba")
     monkeypatch.setenv("FENIX_USO_PERSONAL", "1")
     monkeypatch.setenv("FENIX_TUTOR_ABIERTO", "1")

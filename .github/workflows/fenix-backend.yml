@@ -111,6 +111,7 @@ jobs:
           TUTOR_PASSWORD: ${{ secrets.FENIX_TUTOR_PASSWORD }}
           ALLOWED_ORIGINS: ${{ vars.FENIX_ALLOWED_ORIGINS }}
           ADMIN_EMAILS: ${{ vars.FENIX_ADMIN_EMAILS }}
+          AIRE_TOKEN: ${{ secrets.AIRE_AUTH_TOKEN }}
         run: |
           # Sin OG118_ACCESS_TOKEN a propósito. Ese bearer es de og118, que es
           # de una sola cuenta; aquí corría ANTES de la puerta de Fénix y hacía
@@ -133,10 +134,17 @@ jobs:
             # HDF5 pelea con el bloqueo de SMB; seguro porque la app está
             # clavada en una sola réplica (un solo escritor).
             "HDF5_USE_FILE_LOCKING=FALSE"
+            # La puerta de AIRE es el ÚNICO motor desde fe446e53 (2026-08-29):
+            # AIREBackend truena "AIRE door not configured" en cada turno si
+            # estas dos faltan. Vivían sólo en el Container App, puestas a mano
+            # en el flip — un `create` fresco levantaba la app sin puerta y el
+            # chat moría en silencio. IaC completo o el flip no está terminado.
+            "AIRE_GATE_URL=https://gate.bernarduriza.com"
+            "AIRE_AUTH_TOKEN=secretref:aire-auth-token"
           )
           if az containerapp show -n "$APP" -g "$RG" >/dev/null 2>&1; then
             az containerapp secret set -n "$APP" -g "$RG" \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD"
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD" "aire-auth-token=$AIRE_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
               --set-env-vars "${COMUNES[@]}" \
               --remove-env-vars "CLAUDE_CODE_OAUTH_TOKEN" "OG118_ACCESS_TOKEN"
@@ -147,7 +155,7 @@ jobs:
               --registry-username BernardUriza --registry-password "$GHCR_TOKEN" \
               --target-port 8118 --ingress external \
               --min-replicas 0 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
-              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD" \
+              --secrets "anthropic-api-key=$API_KEY" "fenix-admin-token=$ADMIN_TOKEN" "fenix-tutor-password=$TUTOR_PASSWORD" "aire-auth-token=$AIRE_TOKEN" \
               --env-vars "${COMUNES[@]}"
           fi
 
