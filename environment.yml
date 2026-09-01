@@ -47,7 +47,13 @@ dependencies:
   # 0.20.0 bump; fi-runner 0.20.1 encodes the honest floor). Pinned exact so a
   # future fi-core bump can't drift behavior silently. See
   # conda_version_constraint.
-  - fi-core=0.25.1
+  # SUBIDO a 0.26.0 (publicada 2026-08-28, un día después de que se pinneara
+  # 0.25.1): es la primera que trae `PSYCHIATRY.acute_signals` y
+  # `PSYCHIATRY.chronic_signals` — los 5 regex de crisis y los 6 grupos de
+  # vulnerabilidad de este repo, migrados verbatim con sus pesos y su umbral.
+  # El issue #52 delega en ellos y borra las copias locales; en 0.25.1 esos dos
+  # atributos NO existen y `khimeras_shared/behavior/vulnerability.py` no importa.
+  - fi-core=0.26.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
@@ -71,8 +77,10 @@ dependencies:
   # fi_runner.backends.aire (AIREBackend + AIREDoorError + thin birth), which
   # let this repo DELETE its vendored persona_runner/engine/aire_backend.py
   # and import the canonical client. Also carries antidrift_guard + packs +
-  # capabilities (all imported by the repo) and requires fi-core>=0.25,<0.26,
-  # satisfied by the pinned fi-core=0.25.1. Pinned exact (not `>=`) so the
+  # capabilities (all imported by the repo) and requires fi-core>=0.25 (no
+  # upper bound — verified in the conda metadata of 0.21.0/0.21.1 on
+  # 2026-08-31), satisfied by the pinned fi-core=0.26.0. Pinned exact (not
+  # `>=`) so the
   # fi-core/fi-runner pair stays the validated combo and can't drift apart on a
   # fresh solve. See conda_version_constraint.
   # NOTE: 0.21.0 still SHIPS the deleted backends, so this pin does not break

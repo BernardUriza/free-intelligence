@@ -10,4 +10,4 @@ Bumped per commit by the pre-commit hook trio (pyproject.toml,
 personas/insult/__init__.py, this file).
 """
 
-VERSION_TAG = "ᵛ⁴·³⁶·¹"
+VERSION_TAG = "ᵛ⁴·³⁷·¹"
