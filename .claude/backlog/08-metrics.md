@@ -1,6 +1,6 @@
 # Metrics: how much each project weighs, how many sessions, what they cost
 
-Status: Proposed — split by feasibility after a 2026-07-20 data check
+Status: Done 2026-09-01 — all three columns live on `/claude`
 Proposed: 2026-06 (original backlog); refined 2026-07-20 by Claude
 
 ## What it is
@@ -48,8 +48,24 @@ The weight column needs no decision and can ship on its own.
 
 ## Status / next step
 
-Weight column: buildable now (front, read-only). Cost: blocked on the persistence
-decision above, then a write-path change + the front read.
+Weight column: shipped `7e05a4e`. Cost: shipped `52fe5e3` (2026-09-01) — see
+below.
+
+## The cost half unblocked itself — #25's ledger WAS the persistence decision
+
+The 2026-07-20 blocker was "cost is not persisted anywhere durable". The #25
+spend ledger (2026-08-23) resolved it in passing: `aire_spend` rows carry
+`(door, project, session, usd, metered)` per engine turn — a dedicated table,
+created as role `aire`, which is exactly the shape this file recommended. No
+separate decision remained; the front only had to read it.
+
+`claudeFolders()` now joins the ledger back to the casita by reconstructing the
+store key from the ledger's project name (`og118` ↔
+`-opt-aire-workspaces-og118` — the SDK's dash-encoded cwd, verified live). A
+casita the engine door never ran (the droplet's own CLI sessions) renders a
+dash, not a zero: the engine never spent there, and what the CLI spent this
+table cannot know. Query tested as `aire_reader` against production (the insult
+channel casita reads $39.05); `npm run attack` green (13 refusals).
 
 ## Receipts (moved here 2026-08-22 from the index, which was the only place they lived)
 
