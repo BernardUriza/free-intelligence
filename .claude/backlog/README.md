@@ -17,7 +17,6 @@ kept honest, a status flipped the day it changes.
 | [25](25-no-cumulative-ceiling.md) | No cumulative spend ceiling is set | Ledger shipped 2026-08-23; refusal stays per-process by decision |
 | [28](28-per-token-budget.md) | Per-token budget | Done for INVITED keys 2026-08-11 (#32d); the 2 CONSTANT keys stay uncapped |
 | [31](31-credential-failover.md) | Credential failover | **Armed 2026-08-22** — slot 3 filled with a metered key, 2 slots live |
-| [35](35-the-consumer-map.md) | The consumer map | Accepted 2026-08-21 |
 | [37](37-the-mode-dial-is-coarse.md) | The mode dial is coarse | Proposed 2026-08-22 |
 | [39](39-two-slots-for-a-fleet.md) | Two slots for a fleet | Proposed 2026-08-22, MEASURED the same day |
 | [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | All 8 leftovers shipped 2026-08-22; 2 decisions open (Bernard's) |
@@ -43,6 +42,7 @@ kept honest, a status flipped the day it changes.
 | [32](32-the-nickname-door.md) | The nickname door | Done 2026-08-11 |
 | [33](33-consumers-should-name-themselves.md) | Consumers should name themselves | Done 2026-08-12 |
 | [34](34-meter-the-pass-through.md) | Meter the pass-through | Done 2026-08-21 (f0195a6) |
+| [35](35-the-consumer-map.md) | The consumer map | Done 2026-08-29 — fleet single-backend (fi 70ac4062); learned + IaC closed 2026-09-01 (fi PR #455) |
 | [36](36-the-living-casita-prompt.md) | The living casita prompt | Done 2026-08-21; its persona made deathless 2026-08-22 |
 | [38](38-the-model-is-ignored-on-a-warm-session.md) | The model a turn asks for is silently ignored on a warm session | Fixed 2026-08-22 (21f5ee7) |
 | [41](41-the-mirror-stores-the-conversation-n-times.md) | The mirror stores what the log already holds | Done 2026-08-22 (225cb72+8b301ae) |

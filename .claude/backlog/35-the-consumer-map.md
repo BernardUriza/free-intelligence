@@ -1,7 +1,7 @@
 # The consumer map — where each of Bernard's LLM callers routes, settled
 
-Status: **Accepted** (the map is Bernard's, 2026-08-21; the fi-fleet migration it
-orders is the open work)
+Status: **Done 2026-08-29** — the fleet migration this map ordered is complete
+(learned here 2026-09-01; see the closing note at the bottom)
 Proposed: 2026-08-21 by Bernard
 
 ## What it is
@@ -100,3 +100,37 @@ the app consumers are done — Bernard's ordering, 2026-08-21.
 og118's migration landed as fi PRs **#410–#413** (2026-08-21). discord-bot's
 stage 1 — the whole fleet through the gateway door via `ANTHROPIC_BASE_URL` —
 went in flight 2026-08-22, with its engine-door migration filed as stage 2.
+
+## The closing note (2026-09-01) — the migration finished a week before this file knew
+
+On **2026-08-29** fi consolidated the whole fleet in three commits this file
+never heard about: `70ac4062` (fi-runner 0.21.x keeps ONLY `AIREBackend` —
+`ClaudeCodeBackend`, `CodexBackend`, `SubprocessCLIBackend` and
+`fi_runner.session_stores` deleted), `23019587` (og118 drops the
+`OG118_BACKEND` selector — the AIRE route is the only route), `fe446e53`
+(fenix same, `FENIX_BACKEND` gone; its production flip verified in the commit
+body). So:
+
+- **og118**: code-level migration DONE (the "flipped in production, not
+  migrated in code" paragraph above is history).
+- **fenix**: migrated and flipped 2026-08-29 — it was never a separate
+  migration; fenix mounts og118's runtime (`fenix_app.py` imports og118's
+  `build_runner`), so `23019587` carried it and `fe446e53` deleted its flag.
+- **aurity / activist-os / fi-monitor**: no-ops, as the 2026-08-22 sweep
+  already measured (zero `fi_runner` imports).
+- **discord-bot stage 2**: TERMINADA 2026-08-28 (v4.35.0, its own backlog) —
+  persona_memory restored through the #48 remote_tools door.
+- **fi-runner itself** is no longer a route to retire: post-`70ac4062` it IS
+  the AIRE client library. "fi-runner → zero" resolved by inversion.
+
+What the discovery pass also surfaced and fixed the same day (fi PR
+[#455](https://github.com/BernardUriza/free-intelligence/pull/455)):
+`AIRE_GATE_URL`/`AIRE_AUTH_TOKEN` lived only on the Container Apps, hand-set
+during the flips — a fresh `az containerapp create` would boot og118/fenix
+doorless. Now both deploy workflows provision the door, the CLI-era relics
+(`CLAUDE_CODE_OAUTH_TOKEN`, `OG118_BACKEND`) come off the live apps, and
+fenix's 65 tests run in CI for the first time.
+
+Still parked by Bernard's ordering: the CLI/Bedrock wiring (pointing Claude
+Code sessions at the gate) — last, after the app consumers, and the app
+consumers are done.
