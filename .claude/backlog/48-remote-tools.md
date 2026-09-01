@@ -1,6 +1,6 @@
 # 48 — Remote tools: the caller's own HTTP MCP
 
-Status: In progress — AIRE's half shipped and verified at the door; the E2E waits on the consumer's endpoint
+Status: **Done 2026-08-28** — both halves live; the founding consumer's E2E receipt stands (see below; this file only learned it 2026-09-01)
 Proposed: 2026-08-28 (shipped in `744ed51` + `adf3753` before this file existed — the index owed it for four days)
 
 ## What it is
@@ -36,12 +36,37 @@ droplet** with no `~/.secrets/` home and no `compose_env` line — a kill test
 would have silently disarmed the feature ([[device-verb-protocol]]'s exact
 prohibition). Now `~/.secrets/aire-remote-tools.txt` + provisioning restore it.
 
-## What is still open — the other end of the data path
+## The other end of the data path — it was already alive, and this file said it wasn't
 
-The persona-runner serves `/health` but **has no MCP endpoint** (`/mcp` → 404,
-probed 2026-09-01). Until discord-bot ships its HTTP MCP server, no turn can
-actually EXECUTE a remote tool — the feature is wired, refusal-proven, and
-never once exercised end-to-end. Per [[both-ends-of-the-data-path]] this item
-does not close on AIRE's half alone: Done means one real turn through the gate
-whose agent calls `mcp__persona_memory__*` and gets a real result back from the
-runner. That work lives in the discord-bot repo; this item tracks the receipt.
+The first version of this file (2026-09-01, morning) claimed the persona-runner
+*"has no MCP endpoint (`/mcp` → 404)"*. **False.** The endpoint is
+`POST /mcp/{casita}` (`persona_runner/api/mcp_http.py`, deployed image
+`2cdc203`), so the bare-`/mcp` probe hit a path with no route — and that
+handler returns 404 *by design* on a missing or wrong bearer, so the probe
+could not distinguish "not shipped" from "shipped, token elsewhere". A check
+whose failure mode is indistinguishable from absence proves nothing
+([[verify-before-assuming]] Rule 22); the corrected probe, same day, with the
+real bearer (`~/.secrets/discord-bot-runner-mcp-token.txt`, provisioned on the
+Container App as `RUNNER_MCP_TOKEN` + `RUNNER_MCP_BASE`):
+
+    POST /mcp/probe-48 tools/list → 200, all 10 tools:
+    get_user_facts, get_recent_messages, search_messages, get_disclosure_log,
+    deep_memory, publish_html_artifact, get_emotional_arc, get_agent_facts,
+    add_agent_fact, update_agent_fact
+
+## The E2E receipt (the founding consumer's, 2026-08-28)
+
+discord-bot's `.claude/backlog/aire-engine-stage2.md` finding 2, **CERRADO
+2026-08-28** (v4.34.0/.1, receipt commit `e8e1e07`): Insult, running through
+this door from the droplet, called `mcp__persona_memory__get_emotional_arc`
+live in #general — the full chain (runner spec → fi-runner 0.21.0 →
+`remote_tools` → droplet SDK → outbound HTTPS → `mcp_http` → Khimeras
+Postgres) executed with a real result. Identity binds server-side from
+`aire_turn_principals`, never from the model; `tools/call` outside a live turn
+window answers "the turn window is closed" — by design, which is why the
+freshest full-chain receipt belongs to a real persona turn, not to a probe.
+
+What stays true from the morning's work: the origin allowlist fix
+(`AIRE_REMOTE_TOOL_ORIGINS` now provisioned from `~/.secrets/`, `7321e55`) and
+the two zero-spend door verifications (attacker origin 422; allowlisted origin
+clears).

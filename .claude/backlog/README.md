@@ -23,7 +23,6 @@ kept honest, a status flipped the day it changes.
 | [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | All 8 leftovers shipped 2026-08-22; 2 decisions open (Bernard's) |
 | [42](42-the-guards-are-observational.md) | The guards ride observational | Observational half Done 2026-08-22; the buffered half Proposed |
 | [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | **Done 2026-08-24** — both notches, plus a 5-min external pulse |
-| [48](48-remote-tools.md) | Remote tools — the caller's own HTTP MCP | In progress: door verified 2026-09-01; E2E waits on discord-bot's MCP endpoint |
 
 ## Closed
 
@@ -51,6 +50,7 @@ kept honest, a status flipped the day it changes.
 | [45](45-the-glass-box-was-dark-on-this-door.md) | The glass box was dark on this door — `task_tracker` joins the registry | Done 2026-08-24 |
 | [46](46-the-corpus-lives-in-the-owners-database.md) | `rag_store` joins the registry — the corpus lives in the owner's database | Done 2026-08-24 |
 | [47](47-only-the-model-can-write-a-corpus.md) | Only the model could write a corpus — the door the upload was missing | Done 2026-08-24 |
+| [48](48-remote-tools.md) | Remote tools — the caller's own HTTP MCP | Done 2026-08-28 (E2E receipt: Insult via mcp_http); file corrected 2026-09-01 |
 
 ## Before #19
 
