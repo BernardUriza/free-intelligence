@@ -30,6 +30,7 @@ LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered k
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow: signing key + owner
 BUDGET_FILE="$HOME/.secrets/aire-budget.txt"              # #25 cumulative spend backstop
+REMOTE_TOOLS_FILE="$HOME/.secrets/aire-remote-tools.txt"  # #48 remote-tool origin allowlist
 RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport
 REPO_URL="git@github.com:BernardUriza/aire-server.git"
 REMOTE_DIR="/opt/aire"

@@ -91,6 +91,11 @@ compose_env() {
   # once the process's total spend crosses it. Absent, the guard never arms —
   # which is how the daemon ran uncapped for a month. Resets on restart.
   append_secret "$BUDGET_FILE" "AIRE_MAX_SPEND_USD=" "the cumulative spend backstop (#25)"
+  # Which origins a turn's remote_tools may name (#48). This was hand-set on the
+  # droplet for four days before it had a ~/.secrets/ home — a kill test would
+  # have silently disarmed the feature. Absent, remote_tools answers 422 for
+  # every origin, which is the safe default, not a degraded one.
+  append_secret "$REMOTE_TOOLS_FILE" "AIRE_REMOTE_TOOL_ORIGINS=" "the remote-tool origin allowlist (#48)"
   if [[ -n "$ENV_CONTENT" ]]; then
     printf '%s' "$ENV_CONTENT" | $SSH "root@${IP}" "install -d -m 700 /etc/aire; umask 077; cat > /etc/aire/env"
   fi
