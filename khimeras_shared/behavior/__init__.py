@@ -23,6 +23,7 @@ from khimeras_shared.behavior.presets import (
 from khimeras_shared.behavior.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
+    crisis_band,
     is_vulnerable_user,
 )
 
@@ -35,6 +36,7 @@ __all__ = [
     "build_vulnerable_overlay_prompt",
     "classify_preset",
     "compute_vulnerability_score",
+    "crisis_band",
     "is_vulnerable_overlay_selection",
     "is_vulnerable_user",
 ]
