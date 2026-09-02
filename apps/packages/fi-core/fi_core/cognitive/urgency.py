@@ -27,8 +27,26 @@ In the consultation state machine this is what the ``TRIAGE`` state runs
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import lru_cache
+
+
+def _fold(text: str) -> str:
+    """Lowercase and drop diacritics so 'ideación' and 'ideacion' are one word.
+
+    Vocabularies are written with accents; a chat user, an ASR transcript or a
+    hurried clinician often are not. Both sides of every match go through this,
+    so the vocab entry 'autolesión activa' still fires on 'autolesion activa'."""
+    return "".join(
+        ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch)
+    )
+
+
+@lru_cache(maxsize=64)
+def _fold_vocab(vocab: frozenset[str]) -> frozenset[str]:
+    return frozenset(_fold(term) for term in vocab)
 
 
 # --- Negation handling ------------------------------------------------------
@@ -67,13 +85,40 @@ _NEGATION_RE = re.compile(
 )
 
 
-def _strip_negations(text: str) -> str:
+@lru_cache(maxsize=64)
+def _negation_shaped_terms(vocab: frozenset[str]) -> tuple[str, ...]:
+    """Vocabulary phrases that carry a negation cue INSIDE them.
+
+    'mejor sin mí' and 'sin esperanza' are symptoms, not denials — the 'sin' is
+    the symptom's own grammar. Left unprotected, the cue stripper ate exactly
+    the phrases the vocabulary existed to catch (0.26.0 regression, found by a
+    consumer measuring PSYCHIATRY). Longest first, so a longer phrase is shielded
+    before any shorter phrase it contains."""
+    folded = _fold_vocab(vocab)
+    return tuple(sorted((t for t in folded if _NEGATION_RE.search(t)), key=len, reverse=True))
+
+
+def _strip_negations(text: str, protected: tuple[str, ...] = ()) -> str:
     """Remove clauses falling under a negation cue's scope.
+
+    ``protected`` phrases (already folded) are shielded from the stripper so a
+    symptom spelled with a cue survives, while a real denial that CONTAINS such
+    a phrase ("niega sentirse mejor sin mí") is still removed whole — the shield
+    only hides the phrase's own cue, not the cue that governs it.
 
     Returns the text with negated runs replaced by a single space. Idempotent:
     a re-run finds no more cues. See module-level comment for the scope rules
     and the deliberate edge cases."""
-    return _NEGATION_RE.sub(" ", text)
+    shields: dict[str, str] = {}
+    for i, term in enumerate(protected):
+        if term in text:
+            token = f"\x00{i}\x00"
+            shields[token] = term
+            text = text.replace(term, token)
+    text = _NEGATION_RE.sub(" ", text)
+    for token, term in shields.items():
+        text = text.replace(token, term)
+    return text
 
 
 class UrgencyLevel(str, Enum):
@@ -157,16 +202,17 @@ class GravityScore:
     reasons: tuple[str, ...] = ()
 
 
-def _normalize(items: list[str]) -> list[str]:
-    # Strip negation BEFORE returning so every downstream substring matcher
-    # (base_gravity, critical_pattern, modifiers) sees only un-negated text.
-    # Centralizing the pass here avoids missing a site that handles its own
-    # normalization in the future.
-    return [_strip_negations(str(i).strip().lower()) for i in items if str(i).strip()]
+def _normalize(items: list[str], protected: tuple[str, ...] = ()) -> list[str]:
+    # Fold accents and strip negation BEFORE returning so every downstream
+    # substring matcher (base_gravity, critical_pattern, modifiers) sees only
+    # un-negated, diacritic-free text. Centralizing the pass here avoids missing
+    # a site that handles its own normalization in the future.
+    return [_strip_negations(_fold(str(i).strip()), protected) for i in items if str(i).strip()]
 
 
 def _matches(item: str, vocab: frozenset[str]) -> bool:
-    return item in vocab or any(term in item for term in vocab)
+    folded = _fold_vocab(vocab)
+    return item in folded or any(term in item for term in folded)
 
 
 def band_for_gravity(gravity: float) -> UrgencyBand:
@@ -196,10 +242,20 @@ class UrgencyClassifier:
     critical_patterns: frozenset[str] = DEFAULT_CRITICAL_PATTERNS
     high_risk_conditions: frozenset[str] = DEFAULT_HIGH_RISK_CONDITIONS
 
+    @property
+    def _protected(self) -> tuple[str, ...]:
+        return _negation_shaped_terms(
+            self.critical_symptoms
+            | self.high_symptoms
+            | self.medium_symptoms
+            | self.critical_patterns
+            | self.high_risk_conditions
+        )
+
     def base_gravity(self, symptoms: list[str]) -> tuple[int, list[str]]:
         score = 0
         reasons: list[str] = []
-        for s in _normalize(symptoms):
+        for s in _normalize(symptoms, self._protected):
             if _matches(s, self.critical_symptoms):
                 sev = 9
             elif _matches(s, self.high_symptoms):
@@ -223,22 +279,22 @@ class UrgencyClassifier:
             if patient.age < 1:
                 mod += 1.5
                 reasons.append("age < 1 (+1.5)")
-        history = _normalize(patient.medical_history)
+        history = _normalize(patient.medical_history, self._protected)
         for cond in sorted(self.high_risk_conditions):
-            if any(cond in h for h in history):
+            if any(_fold(cond) in h for h in history):
                 mod += 0.5
                 reasons.append(f"comorbidity '{cond}' (+0.5)")
         if (patient.gender or "").lower() == "female" and any(
-            "pregnant" in s for s in _normalize(patient.symptoms)
+            "pregnant" in s for s in _normalize(patient.symptoms, self._protected)
         ):
             mod += 1.0
             reasons.append("pregnancy (+1.0)")
         return mod, reasons
 
     def critical_pattern(self, patient: PatientContext) -> str | None:
-        text = " ".join(_normalize(patient.symptoms + patient.medical_history))
+        text = " ".join(_normalize(patient.symptoms + patient.medical_history, self._protected))
         for pattern in sorted(self.critical_patterns):
-            if pattern in text:
+            if _fold(pattern) in text:
                 return pattern
         return None
 

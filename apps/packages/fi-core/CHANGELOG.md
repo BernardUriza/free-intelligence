@@ -12,7 +12,33 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
-## [Unreleased]
+## [0.26.1] — 2026-09-02
+
+### Fixed — the PSYCHIATRY vocabulary could not see two kinds of its own phrases
+
+Both found by a consumer (discord-bot, issue #53) composing `UrgencyClassifier`
+with `PSYCHIATRY` and measuring real phrases instead of trusting the table.
+
+- **A symptom spelled with a negation cue was eaten before matching.** `sin` is
+  a denial cue (`sin ideación suicida`), so `_strip_negations` removed
+  `mejor sin mí` — a phrase that IS in `high_symptoms` — and it scored 3 like
+  noise. Vocabulary phrases that carry a cue inside them are now shielded from
+  the stripper; a denial that CONTAINS such a phrase (`niega sentirse mejor sin
+  mí`) is still stripped whole.
+- **Accents decided the band.** The classifier lowercased but never folded
+  diacritics while every entry carries them: 16 PSYCHIATRY phrases changed band
+  when typed without accents, 5 of them from CRITICAL to LOW (`autolesion
+  activa`, `hacerme dano`). Both sides of every match — symptoms, history,
+  critical patterns, comorbidities — now go through NFKD folding. `reasons` quote
+  the folded input; vocabulary terms in `reasons` keep their spelling.
+
+`tests/test_urgency_negation_accents.py` pins both, including the sweep that
+every accented vocabulary entry scores identically without its accents.
+
+## [0.25.1] — 2026-08-27 · [0.26.0] — 2026-08-28
+
+Shipped without their own entries; this block covers both (weighted clinical
+signals landed in 0.26.0).
 
 ### Fixed — the second pass: five defects that were computed and then ignored
 
