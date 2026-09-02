@@ -53,7 +53,11 @@ dependencies:
   # vulnerabilidad de este repo, migrados verbatim con sus pesos y su umbral.
   # El issue #52 delega en ellos y borra las copias locales; en 0.25.1 esos dos
   # atributos NO existen y `khimeras_shared/behavior/vulnerability.py` no importa.
-  - fi-core=0.26.0
+  # SUBIDO a 0.26.1 (2026-09-02): Alex midió la composición del #53 y en 0.26.0
+  # `UrgencyClassifier` no veía "mejor sin mí" (el stripper de negaciones se la
+  # comía por el "sin") ni ninguna frase sin acentos (16 bajaban de banda, 5 de
+  # CRITICAL a LOW). free-intelligence PR #456 lo arregla en la fuente.
+  - fi-core=0.26.1
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
