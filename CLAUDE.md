@@ -150,6 +150,6 @@ Detailed rules in `.claude/rules/`: architecture, robustness, testing, workflow,
 - **Un contador en cero no prueba salud: puede ser una rama que no puede sonar.** `recovered_without_context` fue inalcanzable seis semanas; `effort` se calculaba y se tiraba. El arnés que cierra la clase es `tests/arch/test_routing_prompt_promises_are_kept.py` — lo que el prompt promete, el código lo provee o lo consume.
 - **Sibling personas (Vultur, future) run from a durable Azure Container App** (`persona-gateway`, cloned from `alice-bot`), NEVER an ephemeral local-Mac process — see `.claude/rules/sibling-personas.md`. Diagnose "sibling X no responde" by host-liveness FIRST, not the corpus.
 - **Never expose "Claude"/"Anthropic"/"AI"** in bot responses — post-purga there is NO regex character-guard anymore; the persona DNA + neutral error paths carry this alone
-- Error paths to users are neutral and in-character: turn failure → "…" send with reaction fallback (`persona_gateway/gateway.py::_dispatch`), never internals
+- Error paths to users are neutral and in-character: turn failure → "…" send with reaction fallback (`persona_gateway/gateway.py::_dispatch`), never internals. **On the host-routed path the HOST owns the failure (v4.38.0):** `/invite?wait` returns the real outcome, the host retries once and then says in its own voice who could not answer (`demux_ai/fallback.py`); the persona's "…" survives only where the host is deaf (DM, sibling `[INVITE:]`).
 - All logging via structlog, never print()
 - DB write failures are logged but don't kill the turn

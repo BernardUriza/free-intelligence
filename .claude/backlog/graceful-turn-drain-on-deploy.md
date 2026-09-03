@@ -51,6 +51,14 @@ Nota: el usuario SÍ vio algo — el `dispatch_invite` guard (v4.29.4, mismo dí
 mandó el "…" neutral. Antes de ese guard esto habría sido silencio total con el
 fallo enterrado en los logs. El guard es la red, no la cura.
 
+**Actualización 2026-09-03 (v4.38.0):** en el camino ruteado por el host el
+"…" de la persona ya no existe. El host invoca `/invite` con `wait: true`, lee
+el resultado real del turno (`delivered` / `empty` / `failed`), reintenta UNA
+vez con la misma persona y, si vuelve a fallar, publica él mismo el aviso con
+el nombre de la persona (`demux_ai/fallback.py`). Un 502 del runner que
+sobreviva al retry del cliente cae ahora en ese segundo intento del host, no
+en un "…". El drenaje (pasos 2-3) sigue pendiente.
+
 ## Canonical path to reuse (Art. 6)
 El signal handling ya existe (`bot.py`: SIGTERM/SIGINT → graceful shutdown que
 cierra DB y bot). El drain se cuelga AHÍ: al recibir SIGTERM, (1) dejar de
