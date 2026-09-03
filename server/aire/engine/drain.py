@@ -108,16 +108,13 @@ def _on_user(content: list, st: _State) -> None:
 def _on_result(message: Any, st: _State) -> None:
     """The result's usage, unless the CLI zeroed it under an answer it DID stream.
 
-    `error_max_budget_usd` (the turn that crosses the client's `max_budget_usd`,
-    measured 2026-09-03 on SDK 0.2.123): the API call completes, the text
-    streams, and the result arrives `is_error` with every token count at 0. A
-    zero under real text is the shape consumers rightly read as "text no model
-    generated" — discord-bot's gateway refused eight of Insult's answers in two
-    days on exactly that. The AssistantMessages carry the call's true INPUT
-    usage; when the result denies any spend, that leaves here and the output
-    count leaves as ABSENT — unknown, never a zero and never the stream's
-    placeholder. A burned credential (`limit_hit`) streams NO tokens, so it
-    stays all-zero and still detectable."""
+    `error_max_budget_usd` (SDK 0.2.123, measured 2026-09-03): the call completes,
+    the text streams, and the result arrives with every token count at 0 — the
+    shape consumers rightly read as "text no model generated" (discord-bot's
+    gateway refused eight of Insult's answers in two days on it). When the result
+    denies any spend, the streamed INPUT usage leaves here and the output count
+    leaves ABSENT — unknown, never a zero, never the stream's placeholder. A
+    burned credential (`limit_hit`) streams nothing, so it stays all-zero."""
     raw = getattr(message, "usage", None)
     if raw is not None:
         st.usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
