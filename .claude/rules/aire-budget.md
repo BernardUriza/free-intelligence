@@ -13,7 +13,7 @@ código dentro del texto del error:
 
 | Código | Qué pasó | Desde 2026-08-26 |
 |---|---|---|
-| `budget_exhausted` | el CLIENTE pooled cruzó su techo (`AIRE_MAX_BUDGET_USD=$1` acumulado del cliente, NO por turno) y el turno se cortó | el runner conserva la respuesta si ya llegó (el corte viene DESPUÉS del result) y si no, reenvía UNA vez — AIRE mismo receta "send the turn again to continue" |
+| `budget_exhausted` | el CLIENTE pooled cruzó su techo (`AIRE_MAX_BUDGET_USD=$1` acumulado del cliente, NO por turno) y el turno se cortó. **Desde 2026-09-03 solo el slot METERED nace con el cap** (aire-server `options.build_options` + `ledger.account`): un cliente OAuth corre sin corte, porque cortarlo cada ~3 turnos `crisis` de Alex solo compraba un cache-creation por renacimiento | el runner conserva la respuesta si ya llegó (el corte viene DESPUÉS del result) y si no, reenvía UNA vez — AIRE mismo receta "send the turn again to continue" |
 | `budget_exceeded` | el techo de proceso (`AIRE_MAX_SPEND_USD=$20`) se agotó | solo puede dispararse en el slot METERED (api-key-fallback); un ledger agotado ya NO bloquea turnos OAuth |
 | `credentials_exhausted` | toda la cadena de credenciales enfrió (weekly limits) | sin cambio: terminal, 500, espera el probe horario |
 
