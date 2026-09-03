@@ -30,6 +30,8 @@ from .urgency import (
     DEFAULT_HIGH_SYMPTOMS,
     DEFAULT_MEDIUM_SYMPTOMS,
     UrgencyClassifier,
+    _negation_shaped_terms,
+    find_terms,
 )
 
 # --- Psychiatry / mental-health vocabularies (Spanish, NON-EXHAUSTIVE) -------
@@ -124,6 +126,22 @@ PSYCH_HIGH_RISK_CONDITIONS: frozenset[str] = frozenset({
 
 
 @dataclass(frozen=True)
+class VocabularyHits:
+    """What :meth:`ClinicalDomain.match` found in a text, in vocabulary spelling.
+
+    ``symptoms`` feeds :class:`PatientContext.symptoms` directly; the other two
+    are exposed so a consumer can see WHY a message will override or add
+    gravity before it ever calls the classifier."""
+
+    symptoms: tuple[str, ...] = ()
+    critical_patterns: tuple[str, ...] = ()
+    high_risk_conditions: tuple[str, ...] = ()
+
+    def __bool__(self) -> bool:
+        return bool(self.symptoms or self.critical_patterns or self.high_risk_conditions)
+
+
+@dataclass(frozen=True)
 class ClinicalDomain:
     """A specialty's urgency vocabularies, ready to build a classifier.
 
@@ -154,6 +172,36 @@ class ClinicalDomain:
             medium_symptoms=self.medium_symptoms,
             critical_patterns=self.critical_patterns,
             high_risk_conditions=self.high_risk_conditions,
+        )
+
+    def match(self, text: str) -> VocabularyHits:
+        """Find this domain's vocabulary inside free text — a person's message, a
+        note, a fact — folded and negation-aware exactly like the classifier.
+
+        This is the official way to go from raw text to ``PatientContext``:
+        the vocabularies carry accents and a chat user usually does not, so a
+        consumer that greps the frozensets by hand loses 'ideacion suicida'
+        (fi-core #458). ``match`` folds both sides with the classifier's own
+        ``_fold``, strips negated clauses with the same shielded phrases, and
+        returns entries in vocabulary spelling::
+
+            hits = PSYCHIATRY.match("ando con ideacion suicida y sin ganas")
+            score = PSYCHIATRY.urgency_classifier().classify(
+                PatientContext(symptoms=list(hits.symptoms)))
+        """
+        protected = _negation_shaped_terms(
+            self.critical_symptoms
+            | self.high_symptoms
+            | self.medium_symptoms
+            | self.critical_patterns
+            | self.high_risk_conditions
+        )
+        return VocabularyHits(
+            symptoms=find_terms(
+                text, self.critical_symptoms | self.high_symptoms | self.medium_symptoms, protected
+            ),
+            critical_patterns=find_terms(text, self.critical_patterns, protected),
+            high_risk_conditions=find_terms(text, self.high_risk_conditions, protected),
         )
 
 

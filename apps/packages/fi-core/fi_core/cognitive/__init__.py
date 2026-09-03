@@ -25,6 +25,7 @@ from .domains import (
     DOMAINS,
     PSYCHIATRY,
     ClinicalDomain,
+    VocabularyHits,
 )
 from .events import (
     ACTION_TO_EVENT_MAP,
@@ -110,6 +111,7 @@ __all__ = [
     "Assessment",
     # clinical domains (specialty vocabularies for triage)
     "ClinicalDomain",
+    "VocabularyHits",
     # presets
     "CognitivePreset",
     "CompletenessMetrics",
