@@ -349,7 +349,8 @@ class PersonaClient(discord.Client):
         invited_by: str = "insult_rest",
         trigger_message_id: str | None = None,
         trigger_transcript: str = "",
-    ) -> None:
+        fallback: bool = True,
+    ) -> str:
         """Guarded entry for the invite path — what `/invite` schedules.
 
         `_dispatch` has protected the @mention path since day one, but the
@@ -357,11 +358,19 @@ class PersonaClient(discord.Client):
         `create_task`, so any fault died as "Task exception was never
         retrieved" and the user got NOTHING. Found 2026-07-23: a runner 422
         left a voice note unanswered with the failure visible only in the
-        logs. Same contract as `_dispatch`: log, then a neutral "…" so the
-        persona is never silently mute.
+        logs.
+
+        Returns the turn's outcome — ``"delivered"``, ``"empty"`` (the persona
+        chose reactions/markers only, or had nothing to say) or ``"failed"`` —
+        so a caller that can act on it does. ``fallback`` decides who owns the
+        failure UX: True (the fire-and-forget callers — the legacy 202 wire, a
+        sibling's ``[INVITE:]``) keeps the neutral "…" so the persona is never
+        silently mute; False means the caller owns it — the host, which awaits
+        the outcome over ``/invite?wait``, retries once and posts a fallback in
+        its OWN voice instead of making the persona mumble an ellipsis.
         """
         try:
-            await self.respond_to_invite(
+            delivered = await self.respond_to_invite(
                 channel_id=channel_id,
                 guild_id=guild_id,
                 channel_name=channel_name,
@@ -370,17 +379,24 @@ class PersonaClient(discord.Client):
                 trigger_message_id=trigger_message_id,
                 trigger_transcript=trigger_transcript,
             )
-        except Exception:
+        except Exception as exc:
             log.exception(
                 "persona_gateway_invite_failed",
                 persona_id=self.persona.persona_id,
                 channel_id=channel_id,
                 invited_by=invited_by,
+                error_type=type(exc).__name__,
+                fallback=fallback,
             )
-            channel = await resolve_messageable(self, channel_id)
-            if channel is not None:
-                with contextlib.suppress(discord.HTTPException):
-                    await channel.send("…")
+            if fallback:
+                channel = await resolve_messageable(self, channel_id)
+                if channel is not None:
+                    with contextlib.suppress(discord.HTTPException):
+                        await channel.send("…")
+            return "failed"
+        if delivered is None:
+            return "failed"
+        return "delivered" if delivered else "empty"
 
     async def respond_to_invite(
         self,
@@ -392,7 +408,7 @@ class PersonaClient(discord.Client):
         invited_by: str = "insult_rest",
         trigger_transcript: str = "",
         trigger_message_id: str | None = None,
-    ) -> None:
+    ) -> bool | None:
         """Entry point for the gateway's ported /invite handler.
 
         Routes through the persona-runner (this persona's brain). The ``reason``
@@ -402,6 +418,9 @@ class PersonaClient(discord.Client):
         (every host-routed turn post-cutover), that user turn IS stored —
         idempotently by discord_message_id — so the longitudinal memory keeps
         both halves of the conversation.
+
+        Returns whether the user saw something (see ``TurnRunner.run_and_deliver``),
+        or None when the channel could not even be resolved.
         """
         channel = await resolve_messageable(self, channel_id)
         if channel is None:
@@ -410,7 +429,7 @@ class PersonaClient(discord.Client):
                 persona_id=self.persona.persona_id,
                 channel_id=channel_id,
             )
-            return
+            return None
 
         # Un turno aceptado es un turno VISTO. `/health` detecta la mudez
         # comparando este sello contra `last_turn_delivered`, y hasta hoy sólo se
@@ -543,6 +562,7 @@ class PersonaClient(discord.Client):
             )
         if react_to is not None and attachment_blocks:
             self._vision.spawn(self.judge_client, str(react_to.id), attachment_blocks)
+        return delivered
 
     # --- delegates -------------------------------------------------------------
 

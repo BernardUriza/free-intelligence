@@ -116,3 +116,18 @@ async def test_no_target_summons_nobody():
         result = await dispatch.route_and_dispatch(router, channel_id="C1", text="???")
     assert result is not None
     summon.assert_not_awaited()
+
+
+async def test_injected_dispatcher_replaces_the_bare_summon():
+    """The live host injects a dispatcher that waits for the turn and owns its
+    failure (`demux_ai.fallback`); `route_and_dispatch` must use it for BOTH the
+    routed and the @mention path and never touch `summon_persona`."""
+    router = SimpleNamespace(route=AsyncMock(return_value=SimpleNamespace(target="vultur", reason="llm_vultur")))
+    dispatcher = AsyncMock(return_value=True)
+    with patch.object(dispatch, "summon_persona", new=AsyncMock(return_value=True)) as bare:
+        await dispatch.route_and_dispatch(router, channel_id="C1", text="reséñame Stalker", dispatcher=dispatcher)
+        await dispatch.route_and_dispatch(
+            router, channel_id="C1", text="@Insult hola", forced_targets=["insult"], dispatcher=dispatcher
+        )
+    bare.assert_not_awaited()
+    assert [c.kwargs["persona_id"] for c in dispatcher.await_args_list] == ["vultur", "insult"]

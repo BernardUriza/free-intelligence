@@ -12,6 +12,21 @@
   failure logs `persona_gateway_turn_failed` and NEVER exposes internals to the
   channel — the recovery is a neutral "…" send, itself guarded, falling through
   to a reaction (different rate-limit bucket) if the send 429s.
+- **The host-routed path (THE path post-cutover) no longer ends in "…" from the
+  persona (2026-09-03, v4.38.0).** The host summons with `wait: true`
+  (`demux_ai/summon.py::summon_and_wait`), the gateway awaits the turn and
+  answers 200 delivered/empty or 502 failed (`dispatch_invite(fallback=False)`
+  posts nothing), and `demux_ai/fallback.py` retries ONCE with the same persona
+  and then speaks for the house, naming who could not answer. KQL receipts per
+  turn: `host_turn_delivered` / `host_turn_failed` / `host_turn_recovered` /
+  `host_turn_gave_up` / `host_fallback_posted`. The gateway's own "…" survives
+  only where the host is structurally deaf — a DM, a sibling's `[INVITE:]` —
+  and for legacy fire-and-forget callers (202). Why: eight ellipses to Alex in
+  two days for a server-side budget cut the host never learned about, because
+  a 202 at scheduling time made success and failure indistinguishable.
+  A retry is safe because a "failed" turn delivered nothing: `turns.py` reports
+  delivered the moment the user saw text, and faults after that (store, TTS)
+  are logged, never raised.
 - NEVER expose "Claude", "Anthropic", "API", or internal error types to users.
 - DB write failures are logged but don't kill the turn (the user still gets a
   response).

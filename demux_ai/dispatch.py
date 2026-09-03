@@ -15,6 +15,7 @@ routing fault must never wedge the host's loop.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -24,6 +25,13 @@ from demux_ai.llm_shadow_router import DEFAULT_TARGET
 from demux_ai.summon import summon_persona
 
 log = structlog.get_logger()
+
+# Anything with `summon_persona`'s signature. The live host injects a dispatcher
+# that summons WITH wait in the background and owns the outcome
+# (`HostClient.dispatch_with_fallback`); the default keeps the bare
+# fire-and-forget summon for callers that pass nothing (and for the tests that
+# patch `summon_persona` on this module).
+Dispatcher = Callable[..., Awaitable[Any]]
 
 
 class _Router(Protocol):
@@ -73,6 +81,7 @@ async def route_and_dispatch(
     forced_targets: list[str] | None = None,
     voice_transcript: str = "",
     prev_target: str | None = None,
+    dispatcher: Dispatcher | None = None,
 ) -> Any | None:
     """Route `text` to a persona and summon it. Returns the decision that was
     acted on (for telemetry) — never None once a message has been received.
@@ -85,7 +94,12 @@ async def route_and_dispatch(
     `voice_transcript` rides UNCAPPED and separate from the capped reason: the
     host owns susurro, so this is the persona's only copy of what was said, and
     a 600-char cap would silently truncate a long voice note.
+
+    `dispatcher` is how the persona is actually summoned; None means the bare
+    `summon_persona` (202 = done). The live host passes one that waits for the
+    turn's outcome in the background and owns the failure (`demux_ai.fallback`).
     """
+    summon = dispatcher if dispatcher is not None else summon_persona
     if forced_targets:
         reason = f"{user_name}: «{text[:600]}»" if user_name else text[:600]
         # Every mentioned persona is summoned, concurrently: "@Vultur @Insult
@@ -93,7 +107,7 @@ async def route_and_dispatch(
         # one to survive an overwrite. One failed summon never costs the others.
         outcomes = await asyncio.gather(
             *(
-                summon_persona(
+                summon(
                     {"reason": reason},
                     channel_id=channel_id,
                     guild_id=guild_id,
@@ -143,7 +157,7 @@ async def route_and_dispatch(
         return decision
 
     reason = f"{user_name}: «{text[:600]}»" if user_name else text[:600]
-    accepted = await summon_persona(
+    accepted = await summon(
         {"reason": reason},
         channel_id=channel_id,
         guild_id=guild_id,
