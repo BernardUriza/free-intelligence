@@ -54,8 +54,13 @@ class TurnRequest(BaseModel):
 class TurnResponse(BaseModel):
     text: str
     session_uuid: str | None = None
-    input_tokens: int = 0
-    output_tokens: int = 0
+    # None = the backend reported no usage. Never coerce that to 0: the gateway
+    # reads an EXPLICIT output_tokens == 0 under real text as "text no model
+    # generated" and answers "…" (its 2026-07-19 auth-error guard). A zero it was
+    # never told is an accusation this side invented — 2026-09-03, eight of
+    # Insult's answers to Alex died that way on AIRE's budget-cut turns.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     model: str = ""
     stop_reason: str = ""
     tool_calls: list[dict] = Field(default_factory=list)

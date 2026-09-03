@@ -819,3 +819,24 @@ async def test_the_runner_lifespan_closes_the_aire_backends(monkeypatch):
 
     assert backend.closed, "shutdown left an AIRE door client open"
     closed_pool.assert_awaited_once()
+
+
+# --- token counts: only what AIRE stated is a number (2026-09-03) -------------
+
+
+def test_reported_tokens_returns_the_stated_count():
+    assert aire_route.reported_tokens({"output_tokens": 1590, "input_tokens": 6}, "output_tokens") == 1590
+
+
+def test_reported_tokens_keeps_an_explicit_zero():
+    """A zero AIRE actually stated is evidence; the gateway may accuse on it."""
+    assert aire_route.reported_tokens({"output_tokens": 0}, "output_tokens") == 0
+
+
+def test_reported_tokens_is_none_when_aire_reported_nothing():
+    """THE BUG: `int(usage.get(key, 0) or 0)` turned an absent usage into an
+    explicit 0, and the gateway's zero-generation guard degraded Insult's real
+    answer to "…" — eight times in two days on AIRE's budget-cut turns."""
+    assert aire_route.reported_tokens(None, "output_tokens") is None
+    assert aire_route.reported_tokens({}, "output_tokens") is None
+    assert aire_route.reported_tokens({"output_tokens": None}, "output_tokens") is None
