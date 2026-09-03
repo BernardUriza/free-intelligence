@@ -73,6 +73,10 @@ class TurnResult:
     model: str | None = None
     """The model that actually answered — read off the assistant messages, never
     echoed from the request (#29 gap 3: provenance, not an unhonoured promise)."""
+    subtype: str | None = None
+    """The SDK result's own verdict (`success`, `error_max_budget_usd`, …) — on
+    the wire so a consumer can tell a cut turn from a clean one without guessing
+    from its token counts."""
 
 
 @dataclass(frozen=True)

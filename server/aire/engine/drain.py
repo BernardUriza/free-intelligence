@@ -35,11 +35,34 @@ def turn_cost(event: dict[str, Any]) -> float:
 class _State:
     parts: list[str] = field(default_factory=list)
     usage: dict[str, Any] | None = None
+    streamed: dict[str, Any] = field(default_factory=dict)
+    streamed_ids: set[str] = field(default_factory=set)
+    subtype: str | None = None
     session_id: str | None = None
     model: str | None = None
     tools: list[ToolCall] = field(default_factory=list)
     by_id: dict[str, int] = field(default_factory=dict)
     start_ts: dict[str, float] = field(default_factory=dict)
+
+
+def _tokens_spent(usage: dict[str, Any] | None) -> bool:
+    return bool(usage) and any(bool(usage.get(k)) for k in ("input_tokens", "output_tokens"))
+
+
+def _bank_streamed(message: Any, st: _State) -> None:
+    """Sum the usage the SDK stamps on every AssistantMessage. It yields one
+    message per CONTENT BLOCK of an API call (thinking, then text), all carrying
+    that call's usage, so an API call counts once — by its message id."""
+    raw = getattr(message, "usage", None)
+    if not isinstance(raw, dict):
+        return
+    key = str(getattr(message, "message_id", None) or sorted(raw.items()))
+    if key in st.streamed_ids:
+        return
+    st.streamed_ids.add(key)
+    for k, v in raw.items():
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            st.streamed[k] = st.streamed.get(k, 0) + v
 
 
 def _on_assistant(content: list, st: _State) -> list[dict[str, Any]]:
@@ -81,12 +104,25 @@ def _on_user(content: list, st: _State) -> None:
 
 
 def _on_result(message: Any, st: _State) -> None:
+    """The result's usage, unless the CLI zeroed it under an answer it DID stream.
+
+    `error_max_budget_usd` (the turn that crosses the client's `max_budget_usd`,
+    measured 2026-09-03 on SDK 0.2.123): the API call completes, the text
+    streams, and the result arrives `is_error` with every token count at 0. A
+    zero under real text is the shape consumers rightly read as "text no model
+    generated" — discord-bot's gateway refused eight of Insult's answers in two
+    days on exactly that. The AssistantMessages carry the call's true usage;
+    when the result denies it, that is what leaves here. A burned credential
+    (`limit_hit`) streams NO tokens, so it stays all-zero and still detectable."""
     raw = getattr(message, "usage", None)
     if raw is not None:
         st.usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
-        cost = getattr(message, "total_cost_usd", None)
-        if cost is not None:
-            st.usage["total_cost_usd"] = cost
+    if not _tokens_spent(st.usage) and _tokens_spent(st.streamed):
+        st.usage = {**(st.usage or {}), **st.streamed}
+    cost = getattr(message, "total_cost_usd", None)
+    if cost is not None and st.usage is not None:
+        st.usage["total_cost_usd"] = cost
+    st.subtype = getattr(message, "subtype", None)
     st.session_id = getattr(message, "session_id", None) or st.session_id
 
 
@@ -98,6 +134,7 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
         content = getattr(message, "content", None)
         if kind == "AssistantMessage" and isinstance(content, list):
             st.model = getattr(message, "model", None) or st.model
+            _bank_streamed(message, st)
             for event in _on_assistant(content, st):
                 yield event
         elif kind == "UserMessage" and isinstance(content, list):
@@ -107,4 +144,4 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
     yield {"type": "result",
            "result": TurnResult(text="".join(st.parts), usage=st.usage,
                                 session_id=st.session_id, tool_calls=tuple(st.tools),
-                                model=st.model)}
+                                model=st.model, subtype=st.subtype)}
