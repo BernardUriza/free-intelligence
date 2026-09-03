@@ -60,6 +60,8 @@ def test_limit_hit_needs_both_the_phrase_and_zero_usage():
     assert limit_hit(LIMIT_TEXT, ZERO_USAGE)
     assert limit_hit(LIMIT_TEXT, None)
     assert limit_hit("Usage limit reached · resets tomorrow", ZERO_USAGE)
+    assert limit_hit("You've hit your session limit · resets 11:20pm (UTC)", ZERO_USAGE), \
+        "the 5-hour window's notice (measured live 2026-09-03) must turn the rotor too"
     assert not limit_hit(LIMIT_TEXT, {**ZERO_USAGE, "output_tokens": 42})
     assert not limit_hit("Here is your poem about limits", ZERO_USAGE)
     assert not limit_hit("", ZERO_USAGE)

@@ -23,7 +23,10 @@ from dataclasses import dataclass, field
 from ..listen.applog import _now, append
 
 COOLDOWN_S = float(os.environ.get("AIRE_CREDENTIAL_COOLDOWN_S", "3600"))
-LIMIT_PHRASE = re.compile(r"hit your (weekly|usage) limit|usage limit.*resets",
+# `session` (2026-09-03): the Max plan's 5-hour window. Its text — "You've hit
+# your session limit · resets 11:20pm (UTC)" — went unrecognised, so the rotor
+# never turned and Insult answered the limit notice as prose, twice.
+LIMIT_PHRASE = re.compile(r"hit your (weekly|usage|session) limit|usage limit.*resets",
                           re.IGNORECASE)
 CHAIN = (
     ("oauth-primary", "CLAUDE_CODE_OAUTH_TOKEN",
