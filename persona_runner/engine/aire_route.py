@@ -618,8 +618,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         text_len=len(result.text),
         tool_calls=len(result.tool_calls),
         tool_names=[tc.name for tc in result.tool_calls],
-        input_tokens=int(usage.get("input_tokens", 0) or 0),
-        output_tokens=int(usage.get("output_tokens", 0) or 0),
+        input_tokens=reported_tokens(usage, "input_tokens"),
+        output_tokens=reported_tokens(usage, "output_tokens"),
+        result_subtype=getattr(result, "subtype", None),
         model=result.model or model,
         requested_model=model,
         elapsed_ms=int((time.monotonic() - start) * 1000),
@@ -630,12 +631,27 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     return TurnResponse(
         text=result.text,
         session_uuid=result.session_id,
-        input_tokens=int(usage.get("input_tokens", 0) or 0),
-        output_tokens=int(usage.get("output_tokens", 0) or 0),
+        input_tokens=reported_tokens(usage, "input_tokens"),
+        output_tokens=reported_tokens(usage, "output_tokens"),
         model=result.model or model,
         stop_reason="end_turn",
         tool_calls=[{"name": tc.name, "input_keys": list((tc.input or {}).keys())} for tc in result.tool_calls],
     )
+
+
+def reported_tokens(usage: dict | None, key: str) -> int | None:
+    """A token count AIRE actually reported, or None when it reported none.
+
+    Coercing an absent count to 0 turned "unknown" into an ACCUSATION: the
+    gateway's zero-generation guard reads an explicit ``output_tokens == 0``
+    under real text as prose no model wrote, and degrades the turn to "…". On
+    2026-09-03 every one of Insult's answers on a budget-cut AIRE turn (the SDK
+    zeroes the result's usage on ``error_max_budget_usd``) died exactly there —
+    eight in two days, all to Alex, while every log line stayed green. Unknown
+    travels as None; only a count the backend stated is a number.
+    """
+    value = (usage or {}).get(key)
+    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
 def model_diverged(requested: str | None, answered: str | None) -> bool:

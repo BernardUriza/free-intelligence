@@ -121,3 +121,11 @@ async def test_whitespace_only_text_is_not_flagged(monkeypatch):
     _patch_response(monkeypatch, {"text": "   \n ", "output_tokens": 0})
     resp = await _client().chat("", MESSAGES, user_id="1", channel_id="c")
     assert resp.text.strip() == ""
+
+
+async def test_null_output_tokens_does_not_accuse(monkeypatch):
+    """RESISTANCE: the runner now sends `null` (not 0) when AIRE reported no
+    usage — the 2026-09-03 budget-cut shape. Null is unknown, never evidence."""
+    _patch_response(monkeypatch, {"text": "Visto, amix.", "input_tokens": None, "output_tokens": None})
+    resp = await _client().chat("", MESSAGES, user_id="1", channel_id="c")
+    assert resp.text == "Visto, amix."
