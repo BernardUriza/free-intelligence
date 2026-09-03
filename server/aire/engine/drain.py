@@ -50,9 +50,11 @@ def _tokens_spent(usage: dict[str, Any] | None) -> bool:
 
 
 def _bank_streamed(message: Any, st: _State) -> None:
-    """Sum the usage the SDK stamps on every AssistantMessage. It yields one
-    message per CONTENT BLOCK of an API call (thinking, then text), all carrying
-    that call's usage, so an API call counts once — by its message id."""
+    """Sum the INPUT-side usage the SDK stamps on every AssistantMessage. It
+    yields one message per CONTENT BLOCK of an API call (thinking, then text),
+    all carrying that call's usage, so an API call counts once — by message id.
+    `output_tokens` is NOT banked: on the stream it is the `message_start`
+    placeholder (measured 1 against a result of 233), not a count."""
     raw = getattr(message, "usage", None)
     if not isinstance(raw, dict):
         return
@@ -61,7 +63,7 @@ def _bank_streamed(message: Any, st: _State) -> None:
         return
     st.streamed_ids.add(key)
     for k, v in raw.items():
-        if isinstance(v, (int, float)) and not isinstance(v, bool):
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and not k.startswith("output_tokens"):
             st.streamed[k] = st.streamed.get(k, 0) + v
 
 
@@ -111,14 +113,17 @@ def _on_result(message: Any, st: _State) -> None:
     streams, and the result arrives `is_error` with every token count at 0. A
     zero under real text is the shape consumers rightly read as "text no model
     generated" — discord-bot's gateway refused eight of Insult's answers in two
-    days on exactly that. The AssistantMessages carry the call's true usage;
-    when the result denies it, that is what leaves here. A burned credential
-    (`limit_hit`) streams NO tokens, so it stays all-zero and still detectable."""
+    days on exactly that. The AssistantMessages carry the call's true INPUT
+    usage; when the result denies any spend, that leaves here and the output
+    count leaves as ABSENT — unknown, never a zero and never the stream's
+    placeholder. A burned credential (`limit_hit`) streams NO tokens, so it
+    stays all-zero and still detectable."""
     raw = getattr(message, "usage", None)
     if raw is not None:
         st.usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})
     if not _tokens_spent(st.usage) and _tokens_spent(st.streamed):
-        st.usage = {**(st.usage or {}), **st.streamed}
+        st.usage = {k: v for k, v in {**(st.usage or {}), **st.streamed}.items()
+                    if not k.startswith("output_tokens")}
     cost = getattr(message, "total_cost_usd", None)
     if cost is not None and st.usage is not None:
         st.usage["total_cost_usd"] = cost

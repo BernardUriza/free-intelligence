@@ -6,7 +6,9 @@ completes, the text streams, and the ResultMessage arrives with
 while each AssistantMessage of that same call still carries the real usage.
 AIRE shipped the zeros; discord-bot's gateway read "text with zero output
 tokens" as the 2026-07-19 auth-error shape and answered "…" to Alex eight times
-in two days. The drain reports the streamed usage when the result denies it.
+in two days. The drain reports the streamed INPUT usage when the result denies
+it, and leaves the output count absent: on the stream `output_tokens` is the
+`message_start` placeholder (measured 1 against a result of 233), not a count.
 """
 
 from dataclasses import dataclass, field
@@ -17,7 +19,7 @@ import pytest
 from aire.engine.drain import drain
 
 CALL = {"input_tokens": 6, "cache_creation_input_tokens": 35329, "cache_read_input_tokens": 89267,
-        "output_tokens": 1590}
+        "output_tokens": 1}
 ZERO = {"input_tokens": 0, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0,
         "output_tokens": 0}
 
@@ -71,9 +73,15 @@ def _cut_turn() -> list[Any]:
 async def test_a_budget_cut_result_carries_the_streamed_usage() -> None:
     result = await _result(_cut_turn())
     assert result.text.startswith("Amix, tranqui")
-    assert result.usage["output_tokens"] == 1590
     assert result.usage["input_tokens"] == 6
     assert result.usage["cache_read_input_tokens"] == 89267
+
+
+@pytest.mark.asyncio
+async def test_the_cut_leaves_the_output_count_absent_not_placeholder() -> None:
+    """Neither the result's 0 nor the stream's 1 is a count; unknown is absent."""
+    result = await _result(_cut_turn())
+    assert "output_tokens" not in result.usage
 
 
 @pytest.mark.asyncio
@@ -87,7 +95,7 @@ async def test_the_cut_keeps_its_cost_and_names_itself() -> None:
 async def test_one_api_call_counts_once_across_its_content_blocks() -> None:
     """Thinking and text arrive as two AssistantMessages of ONE call."""
     result = await _result(_cut_turn())
-    assert result.usage["output_tokens"] == 1590, "not 3180"
+    assert result.usage["cache_read_input_tokens"] == 89267, "not 178534"
 
 
 @pytest.mark.asyncio
