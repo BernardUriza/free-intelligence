@@ -651,7 +651,7 @@ def reported_tokens(usage: dict | None, key: str) -> int | None:
     travels as None; only a count the backend stated is a number.
     """
     value = (usage or {}).get(key)
-    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+    return int(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
 def model_diverged(requested: str | None, answered: str | None) -> bool:
