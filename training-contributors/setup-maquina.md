@@ -67,6 +67,57 @@ la corre en el PR. La persona no tiene que cargarla en su máquina.
 Python 3.9 del sistema el `conftest.py` truena al importar (`NameError` en una
 anotación). Es la versión, no las dependencias.
 
+## El gestor de paquetes que olvidaste sigue votando
+
+Hallazgo del **2026-09-03**, actualizando el entorno a `fi-core 0.27.0`.
+
+El síntoma es de los que hacen perder horas porque **todo dice que está bien**:
+
+```
+mamba env update -f environment.yml   ->  "All requested packages already installed"
+python -c "import fi_core; print(fi_core.__version__)"  ->  0.26.1
+```
+
+`environment.yml` pinea `fi-core=0.27.0`, mamba jura que ya está, y el runtime
+carga la vieja. Y como el código nuevo pide la API de 0.27.0, lo que truena
+truena por un motivo que no aparece en ningún lado.
+
+**La causa:** `fi-core` y `fi-runner` estaban instalados por **pip encima de
+conda**. Dos gestores creyendo que mandan sobre el mismo env, y el runtime
+cargando el que perdió.
+
+### El comando que lo destapa
+
+```powershell
+conda list -n <env> | Select-String "<paquete>"
+```
+
+Si la columna de canal dice `pypi_0` en vez del canal de conda, ahí está:
+
+```
+fi-core     0.26.1     pypi_0     pypi        # <- lo puso pip
+fi-core     0.27.0     py_0       <canal>     # <- lo puso conda
+```
+
+El equivalente de Insult para un `.venv` es `pip freeze | grep <paquete>`. Es el
+mismo pecado con otro traje.
+
+### El comando que lo cura
+
+```powershell
+<env>/python.exe -m pip uninstall -y <paquete-1> <paquete-2>
+mamba install -n <env> -c <canal> "<paquete-1>=<version>" --force-reinstall -y
+```
+
+**El `--force-reinstall` no es opcional.** Al desinstalar con pip se borran los
+archivos, pero los metadatos de conda quedan intactos: conda sigue reportando el
+paquete como instalado mientras Python contesta `ModuleNotFoundError`. Sin
+forzar, `mamba install` vuelve a decir "already installed" y no repara nada.
+
+> **La regla, más allá de este caso:** cualquier gestor de paquetes olvidado
+> sigue votando en el runtime. Antes de perseguir un fantasma, pregunta **quién
+> instaló** la versión que se está cargando, no sólo **cuál** es.
+
 ## Clonar
 
 ```powershell
@@ -118,5 +169,6 @@ versión mentía — y ese tag es justo con lo que se verifica que un deploy ate
 - [ ] **`git config core.hooksPath .githooks` corrido** (sin esto no hay hooks)
 - [ ] Invite de colaborador aceptado
 - [ ] Entorno mínimo de Python + pytest (**no** el env pesado)
+- [ ] Verificado que **un solo gestor** instaló los paquetes del proyecto
 - [ ] **Tests en verde en su máquina, antes de tocar código**
 - [ ] Control remoto devuelto (solo lectura) y avisado por Discord
