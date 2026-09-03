@@ -41,6 +41,6 @@ Importing ``fi_core`` directly is cheap: this ``__init__`` only sets
 torch, openai, etc.) never load unless their extra is actually used.
 """
 
-__version__ = "0.26.1"
+__version__ = "0.27.0"
 
 __all__ = ["__version__"]

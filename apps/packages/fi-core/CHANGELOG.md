@@ -12,6 +12,32 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.27.0] — 2026-09-03
+
+### Added — `ClinicalDomain.match(text)`: from what a person wrote to what the classifier scores
+
+The vocabularies carry accents; a chat user, an ASR transcript or a hurried
+note usually do not. 0.26.1 taught the classifier to fold what it RECEIVES,
+but a consumer that finds the vocabulary inside free text by hand still
+matched against the raw frozensets — 22 of PSYCHIATRY's 130 entries carry a
+diacritic and none has a plain twin, so `"ando con ideacion suicida"` found
+nothing and the (fixed) classifier never got a symptom (#458, measured by
+discord-bot for its #53).
+
+- `ClinicalDomain.match(text) -> VocabularyHits` folds both sides with the
+  classifier's own `_fold`, strips negated clauses with the same shielded
+  phrases, and returns entries in vocabulary spelling — `symptoms` (all three
+  tiers, ready for `PatientContext.symptoms`), `critical_patterns` and
+  `high_risk_conditions` reported separately so a consumer can see why a
+  message will override or add gravity. `niega ideación suicida` finds
+  nothing; `mejor sin mi` finds `mejor sin mí`.
+- `fi_core.cognitive.urgency.find_terms(text, vocab, protected)` is the
+  underlying primitive, public for domains built outside fi-core.
+- `VocabularyHits` is exported from `fi_core.cognitive`.
+
+Duplicating the lists with plain-spelled twins was the rejected alternative:
+two spellings per entry to keep in sync by hand.
+
 ## [0.26.1] — 2026-09-02
 
 ### Fixed — the PSYCHIATRY vocabulary could not see two kinds of its own phrases
