@@ -620,7 +620,6 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         tool_names=[tc.name for tc in result.tool_calls],
         input_tokens=reported_tokens(usage, "input_tokens"),
         output_tokens=reported_tokens(usage, "output_tokens"),
-        result_subtype=getattr(result, "subtype", None),
         model=result.model or model,
         requested_model=model,
         elapsed_ms=int((time.monotonic() - start) * 1000),
