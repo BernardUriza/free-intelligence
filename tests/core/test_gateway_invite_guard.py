@@ -44,14 +44,15 @@ def _channel():
     return channel
 
 
-async def _dispatch(client: PersonaClient) -> None:
-    await client.dispatch_invite(
+async def _dispatch(client: PersonaClient, **overrides) -> str:
+    return await client.dispatch_invite(
         channel_id=CHANNEL_ID,
         guild_id="G1",
         channel_name="general",
         reason="bernard2389: «[adjuntó: voice-message.ogg]»",
         invited_by="host",
         trigger_message_id="1527198401375113227",
+        **overrides,
     )
 
 
@@ -66,19 +67,52 @@ async def test_invite_fault_sends_the_neutral_recovery():
         ),
         patch("persona_gateway.gateway.resolve_messageable", new=AsyncMock(return_value=channel)),
     ):
-        await _dispatch(client)
+        outcome = await _dispatch(client)
     channel.send.assert_awaited_once_with("…")
+    assert outcome == "failed"
 
 
-async def test_healthy_invite_sends_no_recovery():
+async def test_invite_fault_without_fallback_stays_silent_and_reports_it():
+    """The waiting caller (the host over `/invite?wait`) owns the failure UX:
+    the persona posts no "…" and the outcome says what happened (2026-09-03 —
+    eight ellipses to Alex for a server-side budget cut nobody could see)."""
     client = _client()
     channel = _channel()
     with (
-        patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(return_value=None)),
+        patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(side_effect=RuntimeError("budget cut"))),
         patch("persona_gateway.gateway.resolve_messageable", new=AsyncMock(return_value=channel)),
     ):
-        await _dispatch(client)
+        outcome = await _dispatch(client, fallback=False)
     channel.send.assert_not_awaited()
+    assert outcome == "failed"
+
+
+async def test_healthy_invite_sends_no_recovery_and_reports_delivered():
+    client = _client()
+    channel = _channel()
+    with (
+        patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(return_value=True)),
+        patch("persona_gateway.gateway.resolve_messageable", new=AsyncMock(return_value=channel)),
+    ):
+        outcome = await _dispatch(client)
+    channel.send.assert_not_awaited()
+    assert outcome == "delivered"
+
+
+async def test_turn_that_delivered_nothing_reports_empty_not_failed():
+    """Reactions-only / markers-only is a CHOICE of the persona, not a fault —
+    the host must not retry it."""
+    client = _client()
+    with patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(return_value=False)):
+        outcome = await _dispatch(client)
+    assert outcome == "empty"
+
+
+async def test_unresolvable_channel_reports_failed():
+    client = _client()
+    with patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(return_value=None)):
+        outcome = await _dispatch(client)
+    assert outcome == "failed"
 
 
 async def test_invite_fault_with_unresolvable_channel_does_not_raise():
@@ -87,4 +121,5 @@ async def test_invite_fault_with_unresolvable_channel_does_not_raise():
         patch.object(PersonaClient, "respond_to_invite", new=AsyncMock(side_effect=RuntimeError("boom"))),
         patch("persona_gateway.gateway.resolve_messageable", new=AsyncMock(return_value=None)),
     ):
-        await _dispatch(client)
+        outcome = await _dispatch(client)
+    assert outcome == "failed"

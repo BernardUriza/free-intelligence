@@ -62,6 +62,112 @@ log = structlog.get_logger()
 SUMMON_CONNECT_TIMEOUT_S = 5.0
 SUMMON_READ_TIMEOUT_S = 90.0
 
+# `summon_and_wait` holds the request open for the WHOLE turn: the gateway's
+# runner call is budgeted at 240s (`first_turn_timeout_s`), plus chunk pacing.
+# Below that, a slow-but-alive turn would be reported "unreachable" and retried
+# on top of itself — the double reply this whole seam exists to avoid.
+SUMMON_WAIT_READ_TIMEOUT_S = 300.0
+
+# Outcomes a turn can end in, as the host sees them. The first three mean the
+# persona took the turn (a 202 says nothing more than "scheduled" — that is the
+# whole reason `summon_and_wait` exists); the rest are the host's to act on.
+TURN_TAKEN = frozenset({"invited", "delivered", "empty"})
+
+
+def _build_payload(
+    reason: str,
+    *,
+    channel_id: str,
+    guild_id: str | None,
+    channel_name: str | None,
+    persona_id: str | None,
+    invited_by: str | None,
+    trigger_message_id: str | None,
+    trigger_transcript: str,
+) -> dict:
+    payload: dict = {
+        "channel_id": channel_id,
+        "guild_id": guild_id,
+        "channel_name": channel_name,
+        "reason": reason,
+    }
+    if persona_id:
+        payload["persona_id"] = persona_id
+    if invited_by:
+        payload["invited_by"] = invited_by
+    if trigger_message_id:
+        payload["trigger_message_id"] = trigger_message_id
+    if trigger_transcript:
+        payload["trigger_transcript"] = trigger_transcript
+    return payload
+
+
+async def _post_invite(payload: dict, *, read_timeout_s: float) -> str:
+    """POST the invite and name what came back — never raises.
+
+    ``"invited"`` (202), ``"delivered"`` / ``"empty"`` / ``"failed"`` (the
+    awaited outcomes the gateway reports on ``wait``), ``"rejected"`` (any
+    other status), ``"unreachable"`` (transport error) or ``"error"``.
+    """
+    url = os.environ.get("GATEWAY_INVITE_URL", "http://localhost:8788/invite")
+    token = os.environ.get("GATEWAY_INVITE_TOKEN", "")
+    channel_id = payload["channel_id"]
+    reason = payload["reason"]
+
+    # Always log entry so we can prove the function executed even when the
+    # outcome is silent (e.g. early returns). Token length only, never the
+    # value. URL host visible because internal Container App DNS is not
+    # secret.
+    log.info(
+        "summon_called",
+        channel_id=channel_id,
+        url_host=url.split("/")[2] if "//" in url else "?",
+        token_len=len(token),
+        wait=bool(payload.get("wait")),
+    )
+    if not token:
+        log.warning("summon_no_token_configured")
+        return "rejected"
+
+    try:
+        # follow_redirects=True because Azure Container Apps internal ingress
+        # 301s http→https. Without this httpx returns the 301 as-is and we
+        # treat the redirect as a rejection. Discovered v3.9.13 in prod logs:
+        # `summon_rejected status: 301 body: ""`.
+        timeout = httpx.Timeout(read_timeout_s, connect=SUMMON_CONNECT_TIMEOUT_S)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            resp = await client.post(
+                url,
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if resp.status_code == 202:
+            log.info("summon_accepted", channel_id=channel_id, reason_preview=reason[:80])
+            return "invited"
+        if resp.status_code in (200, 502) and payload.get("wait"):
+            outcome = _awaited_outcome(resp)
+            if outcome is not None:
+                log.info("summon_outcome", channel_id=channel_id, outcome=outcome, status=resp.status_code)
+                return outcome
+        log.warning("summon_rejected", status=resp.status_code, body=resp.text[:200])
+        return "rejected"
+    except httpx.HTTPError as e:
+        log.warning("summon_http_error", error=str(e), error_type=type(e).__name__)
+        return "unreachable"
+    except Exception as e:
+        # Catch-all so the caller's tracked-task wrapper sees a clean
+        # `background_task_ok` only when we genuinely succeeded.
+        log.exception("summon_unexpected_error", error=str(e), error_type=type(e).__name__)
+        return "error"
+
+
+def _awaited_outcome(resp: httpx.Response) -> str | None:
+    try:
+        outcome = resp.json().get("status")
+    except ValueError:
+        return None
+    return outcome if outcome in ("delivered", "empty", "failed") else None
+
 
 async def summon_persona(
     tool_input: dict,
@@ -82,74 +188,55 @@ async def summon_persona(
     got a response; the sibling arriving late is acceptable, the sibling not
     arriving at all is also acceptable (just suboptimal).
     """
-    url = os.environ.get("GATEWAY_INVITE_URL", "http://localhost:8788/invite")
-    token = os.environ.get("GATEWAY_INVITE_TOKEN", "")
-
-    # Always log entry so we can prove the function executed even when the
-    # outcome is silent (e.g. early returns). Token length only, never the
-    # value. URL host visible because internal Container App DNS is not
-    # secret.
-    log.info(
-        "summon_called",
-        channel_id=channel_id,
-        url_host=url.split("/")[2] if "//" in url else "?",
-        token_len=len(token),
-    )
-
-    if not token:
-        log.warning("summon_no_token_configured")
-        return False
-
     reason = tool_input.get("reason", "").strip()
     if not reason:
         log.warning("summon_empty_reason")
         return False
+    payload = _build_payload(
+        reason,
+        channel_id=channel_id,
+        guild_id=guild_id,
+        channel_name=channel_name,
+        persona_id=persona_id,
+        invited_by=invited_by,
+        trigger_message_id=trigger_message_id,
+        trigger_transcript=trigger_transcript,
+    )
+    return await _post_invite(payload, read_timeout_s=SUMMON_READ_TIMEOUT_S) == "invited"
 
-    payload = {
-        "channel_id": channel_id,
-        "guild_id": guild_id,
-        "channel_name": channel_name,
-        "reason": reason,
-    }
-    if persona_id:
-        payload["persona_id"] = persona_id
-    if invited_by:
-        payload["invited_by"] = invited_by
-    if trigger_message_id:
-        payload["trigger_message_id"] = trigger_message_id
-    if trigger_transcript:
-        payload["trigger_transcript"] = trigger_transcript
 
-    try:
-        # follow_redirects=True because Azure Container Apps internal ingress
-        # 301s http→https. Without this httpx returns the 301 as-is and we
-        # treat the redirect as a rejection. Discovered v3.9.13 in prod logs:
-        # `summon_rejected status: 301 body: ""`.
-        timeout = httpx.Timeout(SUMMON_READ_TIMEOUT_S, connect=SUMMON_CONNECT_TIMEOUT_S)
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
-            resp = await client.post(
-                url,
-                json=payload,
-                headers={"Authorization": f"Bearer {token}"},
-            )
-        if resp.status_code == 202:
-            log.info(
-                "summon_accepted",
-                channel_id=channel_id,
-                reason_preview=reason[:80],
-            )
-            return True
-        log.warning(
-            "summon_rejected",
-            status=resp.status_code,
-            body=resp.text[:200],
-        )
-        return False
-    except httpx.HTTPError as e:
-        log.warning("summon_http_error", error=str(e), error_type=type(e).__name__)
-        return False
-    except Exception as e:
-        # Catch-all so the caller's tracked-task wrapper sees a clean
-        # `background_task_ok` only when we genuinely succeeded.
-        log.exception("summon_unexpected_error", error=str(e), error_type=type(e).__name__)
-        return False
+async def summon_and_wait(
+    tool_input: dict,
+    *,
+    channel_id: str,
+    guild_id: str | None = None,
+    channel_name: str | None = None,
+    persona_id: str | None = None,
+    invited_by: str | None = None,
+    trigger_message_id: str | None = None,
+    trigger_transcript: str = "",
+) -> str:
+    """Summon a persona and stay on the line until its turn ends.
+
+    The host owns reception, so it owns what happens when the persona it chose
+    cannot answer — and a 202 at scheduling time told it nothing. This POSTs
+    with ``wait: true`` and returns the turn's real outcome (see
+    `_post_invite`), which `demux_ai.fallback` turns into a retry or a
+    host-voiced notice. Same never-raises contract as `summon_persona`.
+    """
+    reason = tool_input.get("reason", "").strip()
+    if not reason:
+        log.warning("summon_empty_reason")
+        return "rejected"
+    payload = _build_payload(
+        reason,
+        channel_id=channel_id,
+        guild_id=guild_id,
+        channel_name=channel_name,
+        persona_id=persona_id,
+        invited_by=invited_by,
+        trigger_message_id=trigger_message_id,
+        trigger_transcript=trigger_transcript,
+    )
+    payload["wait"] = True
+    return await _post_invite(payload, read_timeout_s=SUMMON_WAIT_READ_TIMEOUT_S)

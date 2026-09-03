@@ -116,7 +116,10 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   EVERY persona (Insult included, `aliases=[]`) is @mention-only; omnipresence
   returns only through the khimeras-host reception.
 - **Guarded turn entry**: `_dispatch` wraps `_handle`; failures log + neutral
-  recovery ("…" → reaction fallback), never internals.
+  recovery ("…" → reaction fallback), never internals. On the host-routed path
+  the HOST owns the failure instead (2026-09-03): `/invite` with `wait: true`
+  returns the turn's real outcome, `demux_ai/fallback.py` retries once and then
+  posts a house-voiced notice naming the persona — see `robustness.md`.
 - Settings from env (`persona_gateway/config.py`), structured logging via
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");

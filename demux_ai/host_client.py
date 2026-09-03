@@ -15,6 +15,7 @@ one, so the shell is dormant (no double-omnipresent conflict) until he flips it 
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 
@@ -22,6 +23,7 @@ import discord
 import structlog
 from discord.ext import tasks
 
+from demux_ai.fallback import deliver_or_fallback
 from demux_ai.host_loop import HostDispatchLoop
 from khimeras_shared.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
@@ -55,6 +57,30 @@ class HostClient(discord.Client):
         super().__init__(intents=intents)
         self.dispatch_loop = dispatch_loop
         self._stt_client = stt_client
+        self._bg_tasks: set[asyncio.Task] = set()
+
+    async def dispatch_with_fallback(self, tool_input: dict, **summon_kwargs) -> bool:
+        """The host's dispatcher: summon WITH wait in the background and own the
+        outcome — one retry, then a notice in the host's voice (`demux_ai.fallback`).
+
+        Same signature as `summon_persona` so `route_and_dispatch` cannot tell
+        them apart. Returns True the moment the turn is SCHEDULED (that is what
+        `host_dispatched.accepted` has always meant); the real per-turn receipt
+        is the `host_turn_*` event the background task emits. Background on
+        purpose: a turn takes up to ~4 min and the tick loop is serial over
+        channels — awaiting it here would stall every other conversation.
+        """
+        task = asyncio.create_task(deliver_or_fallback(tool_input, say=self.say_in_channel, **summon_kwargs))
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
+        return True
+
+    async def say_in_channel(self, channel_id: str, text: str) -> None:
+        """Raw sidecar send by channel id — no version tag, no chunking. The
+        fallback's voice: the HOUSE says the persona could not answer, instead
+        of the persona mumbling "…" in its own name."""
+        channel = self.get_channel(int(channel_id)) or await self.fetch_channel(int(channel_id))
+        await channel.send(text)  # type: ignore[union-attr]
 
     def _ingest(self, message: discord.Message, now: float, voice_text: str = "") -> bool:
         """Map a Discord message onto the loop and batch it. Pure over the loop —
@@ -233,7 +259,7 @@ def build_host(router: object) -> HostClient:
         api_key=os.environ.get("SUSURRO_KEY", ""),
     )
     log.info("host_stt_configured", enabled=stt_client is not None)
-    return HostClient(
+    host = HostClient(
         HostDispatchLoop(
             router=router,
             mention_targets=persona_id_by_bot_user_id(),
@@ -242,6 +268,10 @@ def build_host(router: object) -> HostClient:
         intents=intents,
         stt_client=stt_client,
     )
+    # The host owns the outcome of every turn it routes (2026-09-03): summon
+    # with wait, retry once, speak for the house if the persona cannot.
+    host.dispatch_loop.dispatcher = host.dispatch_with_fallback
+    return host
 
 
 def run_host(router: object, token: str | None = None) -> None:

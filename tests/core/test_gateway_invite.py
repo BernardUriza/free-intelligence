@@ -152,3 +152,44 @@ def test_invite_explicit_unknown_persona_is_400():
         r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 400
     alice.dispatch_invite.assert_not_called()
+
+
+# --- wait: the caller owns the outcome (2026-09-03) ---------------------------
+
+
+def _client_with_outcome(outcome: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        user=SimpleNamespace(id=1503983124982534284), dispatch_invite=AsyncMock(return_value=outcome)
+    )
+
+
+def test_wait_reports_delivered_with_200_and_no_gateway_fallback():
+    """`wait: true` awaits the turn and answers with what happened — the 202 at
+    scheduling time told the host nothing, so the persona was left to mumble
+    "…" on its own. The waiting caller owns the failure: `fallback=False`."""
+    client = _client_with_outcome("delivered")
+    app = build_invite_app({INVITE_PERSONA_ID: client}, TOKEN)
+    with TestClient(app) as http:
+        r = http.post("/invite", json={**PAYLOAD, "wait": True}, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "delivered"
+    assert client.dispatch_invite.call_args.kwargs["fallback"] is False
+
+
+def test_wait_reports_failed_with_502():
+    client = _client_with_outcome("failed")
+    app = build_invite_app({INVITE_PERSONA_ID: client}, TOKEN)
+    with TestClient(app) as http:
+        r = http.post("/invite", json={**PAYLOAD, "wait": True}, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 502
+    assert r.json()["status"] == "failed"
+
+
+def test_without_wait_the_202_contract_is_untouched():
+    """Fire-and-forget callers keep the gateway-owned "…" (fallback default True)."""
+    client = _ready_client()
+    app = build_invite_app({INVITE_PERSONA_ID: client}, TOKEN)
+    with TestClient(app) as http:
+        r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
+    assert r.status_code == 202
+    assert "fallback" not in client.dispatch_invite.call_args.kwargs
