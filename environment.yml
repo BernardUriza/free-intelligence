@@ -57,7 +57,11 @@ dependencies:
   # `UrgencyClassifier` no veía "mejor sin mí" (el stripper de negaciones se la
   # comía por el "sin") ni ninguna frase sin acentos (16 bajaban de banda, 5 de
   # CRITICAL a LOW). free-intelligence PR #456 lo arregla en la fuente.
-  - fi-core=0.26.1
+  # SUBIDO a 0.27.0 (2026-09-03): trae `PSYCHIATRY.match(texto)` — el emparejador
+  # oficial que pliega acentos y respeta negaciones igual que el clasificador
+  # (free-intelligence #458 / PR #459). Es el paso previo del #53: nadie en este
+  # repo vuelve a plegar ni a grepear las listas de PSYCHIATRY por su cuenta.
+  - fi-core=0.27.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
@@ -90,7 +94,11 @@ dependencies:
   # NOTE: 0.21.0 still SHIPS the deleted backends, so this pin does not break
   # today — but it is also the last version that does. The next bump must land
   # together with an AIRE-only repo, which is what the host_llm migration bought.
-  - fi-runner=0.21.0
+  # SUBIDO a 0.21.2 (2026-09-03): el repo ya es AIRE-only (host_llm migró el
+  # 2026-08-29; los backends borrados sólo sobreviven en docstrings), y 0.21.2
+  # es la primera fi-runner cuyo cap de fi-core (<0.28) admite la 0.27.0 de
+  # arriba — con 0.21.0/0.21.1 (cap <0.27) el par no resuelve.
+  - fi-runner=0.21.2
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
