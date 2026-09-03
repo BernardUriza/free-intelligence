@@ -31,6 +31,7 @@ from khimeras_shared.behavior import (
     build_vulnerable_overlay_prompt,
     classify_preset,
     compute_vulnerability_score,
+    crisis_band,
     is_vulnerable_overlay_selection,
 )
 from khimeras_shared.constraints import build_constraints_block
@@ -104,10 +105,24 @@ def build_turn_guidance(
                 cap=MAX_GUIDANCE_CHARS,
             )
             guidance = guidance[:MAX_GUIDANCE_CHARS]
+        # Issue #53 — MODO OBSERVACIÓN. La banda se calcula y se registra; NO
+        # entra al guidance ni cambia lo que la persona lee. Va en su propio
+        # try porque observar nunca puede tumbar producción: si fi-core truena,
+        # se pierde la métrica, no el turno.
+        try:
+            band = crisis_band(current_message, user_facts)
+            band_level, band_gravity = band.level.value, band.final_gravity
+            band_reasons = list(band.reasons[:3])
+        except Exception:
+            log.warning("crisis_band_failed", persona_id=persona_id)
+            band_level, band_gravity, band_reasons = None, None, []
         log.info(
             "guidance_built",
             persona_id=persona_id,
             preset=selection.mode.value,
+            crisis_band=band_level,
+            crisis_gravity=band_gravity,
+            crisis_band_reasons=band_reasons,
             modifiers=[m.value for m in selection.modifiers],
             reason=selection.reason[:80],
             constraints=constraints.count("\n- ") if constraints else 0,

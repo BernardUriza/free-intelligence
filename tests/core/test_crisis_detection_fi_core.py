@@ -265,7 +265,13 @@ def test_the_lists_are_imported_not_copied():
     with open(fuente, encoding="utf-8") as fh:
         codigo = fh.read()
 
-    assert "from fi_core.cognitive import PSYCHIATRY" in codigo
+    # Identidad de objeto, no cadena de texto (endurecido el 2026-09-01): buscar
+    # la línea del import se rompía con sólo reformatearlo, y una copia local
+    # con el mismo nombre lo habría pasado. Esto exige que sea EL objeto de
+    # fi-core, no uno igualito.
+    import fi_core.cognitive
+
+    assert vulnerability.PSYCHIATRY is fi_core.cognitive.PSYCHIATRY
     assert "_ACUTE_CRISIS_PATTERNS" not in codigo
     assert "_SIGNAL_GROUPS" not in codigo
     # Una frase clínica cualquiera de la lista NO debe estar escrita en el repo.
