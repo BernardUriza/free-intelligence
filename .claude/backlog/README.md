@@ -16,7 +16,7 @@ kept honest, a status flipped the day it changes.
 |---|------|--------|
 | [25](25-no-cumulative-ceiling.md) | No cumulative spend ceiling is set | Ledger shipped 2026-08-23; refusal stays per-process by decision |
 | [28](28-per-token-budget.md) | Per-token budget | Done for INVITED keys 2026-08-11 (#32d); the 2 CONSTANT keys stay uncapped |
-| [31](31-credential-failover.md) | Credential failover | **Armed 2026-08-22** — slot 3 filled with a metered key, 2 slots live |
+| [31](31-credential-failover.md) | Credential failover | **Rotated live 2026-09-03** on a 5-h session limit the detector had missed (fixed `1fecad8`); open: cooldown ignores the reset time, $1 cap does not bound a turn |
 | [37](37-the-mode-dial-is-coarse.md) | The mode dial is coarse | Proposed 2026-08-22 |
 | [39](39-two-slots-for-a-fleet.md) | Two slots for a fleet | Proposed 2026-08-22, MEASURED the same day |
 | [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | All 8 leftovers shipped 2026-08-22; 2 decisions open (Bernard's) |

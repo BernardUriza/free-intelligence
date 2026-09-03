@@ -1,4 +1,34 @@
 # Credential failover — the engine survives a burned weekly pool
+## Rotated for real 2026-09-03 — and the founding signature had a sibling
+
+The first live rotation, and it happened because the detector missed it once.
+At 22:47 UTC `oauth-primary` answered *"You've hit your session limit · resets
+11:20pm (UTC)"* — the Max plan's **5-hour window**, not the weekly pool —
+with `<synthetic>` as model and zero usage. `LIMIT_PHRASE` knew `weekly` and
+`usage`; it did not know `session`, so the slot never cooled and the notice
+rode out as a successful turn, twice (discord-bot's host retried once on the
+same slot, then posted its own fallback). Fixed in `1fecad8`: one word in the
+regex, the live text pinned in `test_credentials.py`.
+
+Verified on the redeploy: the deploy's own smoke turn hit the same limit 25 s
+after the restart and the rotor burned the slot (`aire.log`:
+`2026-09-03T22:55:45 - CREDENTIAL-EXHAUSTED oauth-primary`); the next persona
+turn at 22:57 answered on `api-key-fallback` — `aire_spend` row
+`metered: true`, **$2.108 for the one turn** (a fresh client with no cache,
+Opus, ~90k of context).
+
+Two things that row says, both open:
+
+1. **The cooldown ignores the reset the notice carries.** The slot cools
+   `AIRE_CREDENTIAL_COOLDOWN_S` (1 h, until ~23:57) while the window reopens at
+   23:20 — every persona turn in that half hour rides the card at ~$2 each.
+   Design step 3 already said *"parse the reset time if cheap"*; a session
+   limit makes it worth it, because its resets are hours away, not days.
+2. **The $1 cap on the metered slot does not bound a turn.** The SDK lets the
+   call that crosses `max_budget_usd` finish (#23, measured), so the first
+   metered turn cost $2.11 against a $1 ceiling, and only the client that
+   spent it was retired. The cap bounds the CLIENT's lifetime, not the bill.
+
 ## Armed 2026-08-22 — the machine finally has fuel
 
 The rotor shipped 2026-08-07 and held **one slot** for fifteen days: a failover
