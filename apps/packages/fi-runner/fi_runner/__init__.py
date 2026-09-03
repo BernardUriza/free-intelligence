@@ -97,7 +97,7 @@ from .context_binding import (
 from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.21.1"
+__version__ = "0.21.2"
 
 __all__ = [
     "AgentBackend",

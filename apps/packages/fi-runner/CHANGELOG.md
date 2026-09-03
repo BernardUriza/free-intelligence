@@ -22,6 +22,17 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.2] — 2026-09-03
+
+### Changed
+
+- **fi-core cap raised to `<0.28`.** fi-core 0.27.0 adds `ClinicalDomain.match`
+  (the folded, negation-aware vocabulary matcher, fi-core #458) and touches
+  nothing the runner imports; the previous `<0.27` cap would have made the
+  pair unresolvable for consumers pinning both.
+
+---
+
 ## [0.17.1] — 2026-05-26
 
 ### Added
