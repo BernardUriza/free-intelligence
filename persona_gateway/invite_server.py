@@ -23,6 +23,17 @@ Endpoint contract (unchanged from the legacy server):
 
 The persona responds asynchronously: the HTTP call returns as soon as the work
 is scheduled. Insult does not wait — the reply lands in Discord directly.
+
+With ``"wait": true`` (2026-09-03) the call AWAITS the turn and reports what
+actually happened, because a 202 at scheduling time made success and failure
+indistinguishable to the host — the persona was left to mumble "…" on its own:
+
+    → 200 OK           { "status": "delivered" | "empty", "channel_id": "..." }
+    → 502 Bad Gateway  { "status": "failed", "channel_id": "...", "detail": "<error type>" }
+
+A waiting caller OWNS the failure: the gateway posts no "…" on this path. The
+host retries once and, if the persona still cannot answer, says so in its own
+voice (`demux_ai/fallback.py`).
 """
 
 from __future__ import annotations
@@ -34,6 +45,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 from fastapi import FastAPI, Header, HTTPException, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from persona_gateway.boot import GatewayBootState
@@ -90,6 +102,14 @@ class InviteRequest(BaseModel):
             "What the trigger message's voice notes SAID, transcribed by the host — "
             "the only component that talks to susurro. Uncapped on purpose: `reason` "
             "is truncated for the router, this is the persona's copy of the words."
+        ),
+    )
+    wait: bool = Field(
+        default=False,
+        description=(
+            "Await the turn and report its outcome (200 delivered/empty, 502 failed) "
+            "instead of a 202 at scheduling time. The waiting caller owns the failure "
+            "UX: the gateway posts no '…' on this path."
         ),
     )
 
@@ -165,7 +185,9 @@ def build_invite_app(
         }
 
     @app.post("/invite", response_model=InviteResponse, status_code=status.HTTP_202_ACCEPTED)
-    async def invite(req: InviteRequest, authorization: str | None = Header(default=None)) -> InviteResponse:
+    async def invite(
+        req: InviteRequest, authorization: str | None = Header(default=None)
+    ) -> InviteResponse | JSONResponse:
         if not expected_token:
             log.error("persona_gateway_invite_no_token_configured")
             raise HTTPException(status_code=503, detail="Invite endpoint not configured (missing token).")
@@ -188,6 +210,30 @@ def build_invite_app(
         if client is None or client.user is None:
             log.error("persona_gateway_invite_persona_not_ready", persona_id=persona_id)
             raise HTTPException(status_code=503, detail="Persona not finished booting; retry in a few seconds.")
+
+        if req.wait:
+            # The caller owns the outcome — so it gets the outcome, not a receipt
+            # for the scheduling. No "…" from the gateway on this path.
+            outcome = await client.dispatch_invite(
+                channel_id=req.channel_id,
+                guild_id=req.guild_id,
+                channel_name=req.channel_name,
+                reason=req.reason,
+                invited_by=req.invited_by or "insult_rest",
+                trigger_message_id=req.trigger_message_id,
+                trigger_transcript=req.trigger_transcript,
+                fallback=False,
+            )
+            log.info(
+                "persona_gateway_invite_awaited",
+                persona_id=persona_id,
+                channel_id=req.channel_id,
+                invited_by=req.invited_by or "insult_rest",
+                outcome=outcome,
+            )
+            code = status.HTTP_502_BAD_GATEWAY if outcome == "failed" else status.HTTP_200_OK
+            body = InviteResponse(status=outcome, channel_id=req.channel_id)
+            return JSONResponse(status_code=code, content=body.model_dump())
 
         # Fire-and-forget: the persona responds asynchronously. Keep a reference
         # on app state so the task isn't GC'd mid-flight (RUF006); auto-pruned.

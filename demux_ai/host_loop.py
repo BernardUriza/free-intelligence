@@ -17,8 +17,9 @@ never routes another bot's output or a `!command`.
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 import structlog
 
@@ -47,6 +48,10 @@ class HostDispatchLoop:
     batcher: MessageBatcher = field(default_factory=MessageBatcher)
     mention_targets: dict[str, str] = field(default_factory=dict)
     role_resolver: Callable[[str], str | None] = persona_id_by_role_name
+    # How a chosen persona is summoned. None = the bare fire-and-forget
+    # `summon_persona`; the live host injects `HostClient.dispatch_with_fallback`,
+    # which waits for the turn in the background and owns its failure.
+    dispatcher: Callable[..., Awaitable[Any]] | None = None
     _names: dict[str, str] = field(default_factory=dict)
     _forced_targets: dict[str, list[str]] = field(default_factory=dict)
     _context: dict[str, deque[str]] = field(default_factory=dict)
@@ -189,6 +194,7 @@ class HostDispatchLoop:
                 forced_targets=self._forced_targets.pop(key, None),
                 voice_transcript=voice_transcript,
                 prev_target=self._last_target.get(channel_id),
+                dispatcher=self.dispatcher,
             )
             decisions.append(decision)
             landed = getattr(decision, "target", None)
