@@ -13,7 +13,7 @@ from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
 from .contract import CostSink, TurnSpec
-from .credentials import Rotor
+from .credentials import Rotor, is_metered
 from .detach import Detached, drain_detached
 from .ledger import Ledger
 from .options import build_options
@@ -59,10 +59,10 @@ class Engine:
                 await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
                 self.ledger.adopt(key)  # its predecessor's total counts for nothing
                 resuming = await self.has_session(project, session)
-                options = build_options(self.session_store, project,
-                                        str(self._cwd(project)),
+                options = build_options(self.session_store, project, str(self._cwd(project)),
                                         sdk_session_uuid(session), spec, resuming,
-                                        credential_env=slot.env if slot else None)
+                                        credential_env=slot.env if slot else None,
+                                        metered=slot is None or is_metered(slot.name))
                 client = ClaudeSDKClient(options=options)
                 await client.__aenter__()
                 self.pool.clients[key] = client

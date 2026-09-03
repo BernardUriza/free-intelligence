@@ -7,7 +7,10 @@ concept and not a stray field:
   2026-07-20: it caps the pooled CLIENT's cumulative spend, not a turn — and a
   client that reaches it is POISONED, answering every later turn with an empty
   result and NO error (#23). So the same number is kept here to RECOGNISE the
-  cut and retire the client, because the SDK will not say it.
+  cut and retire the client, because the SDK will not say it. Since 2026-09-03
+  only a METERED client carries the cap (`options.build_options`): an OAuth
+  client's dollars are nominal, and cutting it every ~3 crisis turns only bought
+  a fresh cache-creation per rebirth — so the recognition is metered-only too.
 - `AIRE_MAX_SPEND_USD` is this process's own backstop: turns refused BEFORE the
   API is called. It resets on restart, which is a known limit — a ledger that
   survives restarts is Bernard's open decision (#25). Since 2026-08-26 it counts
@@ -43,14 +46,15 @@ class Ledger:
 
     def account(self, key: str, cost: float, metered: bool = True) -> tuple[float, bool]:
         """Bank this turn's spend; return (its delta, whether the client hit its
-        ceiling). Only metered spend moves the process ceiling; the delta is
-        returned either way so the caller can still record nominal spend in
-        `aire_spend` — the monthly ledger keeps the whole story."""
+        ceiling). Only metered spend moves the process ceiling, and only a
+        metered client HAS a ceiling to hit; the delta is returned either way so
+        the caller can still record nominal spend in `aire_spend` — the monthly
+        ledger keeps the whole story."""
         delta = max(0.0, cost - self._seen.get(key, 0.0))
         if metered:
             self.spend_usd += delta
         self._seen[key] = cost
-        return delta, TURN_CAP_USD is not None and cost >= TURN_CAP_USD
+        return delta, metered and TURN_CAP_USD is not None and cost >= TURN_CAP_USD
 
     def forget(self, key: str) -> None:
         """Its spend is banked; a reborn client starts counting from zero."""

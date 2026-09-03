@@ -10,6 +10,9 @@ droplet, invisible until the door was finally exercised for real). acceptEdits
 auto-approves the file edits an agent needs AND honours `allowed_tools`, which
 bypass left decorative. `Bash` stays out; the real filesystem confinement is
 `SandboxSettings`, not yet in place — `cwd` is NOT a cage.
+
+`max_budget_usd` guards the CARD (#23): only a METERED client is born with the
+cap. An OAuth client's dollars are nominal, so it runs uncapped (2026-09-03).
 """
 
 import os
@@ -117,7 +120,7 @@ def _mount_all(kwargs: dict[str, Any], cwd: str, spec: TurnSpec) -> None:
 
 def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
                   spec: TurnSpec, resuming: bool,
-                  credential_env: dict[str, str] | None = None) -> Any:
+                  credential_env: dict[str, str] | None = None, metered: bool = True) -> Any:
     from claude_agent_sdk import ClaudeAgentOptions
     policy = MODES.get(spec.mode, MODES[DEFAULT_MODE])
     casita = _casita_prompt(cwd)
@@ -137,7 +140,7 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
     _mount_all(kwargs, cwd, spec)
     if spec.model:
         kwargs["model"] = spec.model  # → the CLI's `--model`, verbatim (#29 gap 3)
-    if budget := os.environ.get("AIRE_MAX_BUDGET_USD"):
+    if metered and (budget := os.environ.get("AIRE_MAX_BUDGET_USD")):
         kwargs["max_budget_usd"] = float(budget)
     # session_id=<uuid> SETS the id of a session being BORN; resume=<uuid>
     # RECOVERS an existing one. Mutually exclusive: session_id on a continuation

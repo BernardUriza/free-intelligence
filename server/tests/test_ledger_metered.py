@@ -41,6 +41,15 @@ def test_oauth_spend_returns_its_delta_but_never_moves_the_ceiling() -> None:
     assert ledger.spend_usd == pytest.approx(0.25), "real dollars must still count"
 
 
+def test_the_client_cap_is_recognised_only_for_a_metered_client(monkeypatch) -> None:
+    monkeypatch.setattr(ledger_mod, "TURN_CAP_USD", 1.0)
+    ledger = Ledger()
+    _, cut = ledger.account("canary/oauth", 1.20, metered=False)
+    assert cut is False, "an OAuth client has no cap to hit — retiring it only buys a cache rebuild"
+    _, cut = ledger.account("canary/card", 1.20, metered=True)
+    assert cut is True, "the metered client must still be retired at its ceiling"
+
+
 class TextBlock:
     def __init__(self, text: str) -> None:
         self.text = text
@@ -62,6 +71,9 @@ class ResultMessage:
 
 
 class _FakeClient:
+    def __init__(self, cumulative: float = 0.028) -> None:
+        self.cumulative = cumulative
+
     async def __aenter__(self) -> "_FakeClient":
         return self
 
@@ -73,7 +85,7 @@ class _FakeClient:
 
     async def receive_response(self) -> Any:
         yield AssistantMessage("PONG")
-        yield ResultMessage(0.028)
+        yield ResultMessage(self.cumulative)
 
 
 class _Slot:
@@ -99,13 +111,13 @@ class _NoMemory:
         return []
 
 
-async def _wired(monkeypatch, tmp_path, slot_name: str) -> Engine:
+async def _wired(monkeypatch, tmp_path, slot_name: str, cumulative: float = 0.028) -> Engine:
     import aire.engine.core as core
     import aire.engine.turn as turn_mod
 
     monkeypatch.setattr(core, "WORKSPACES", tmp_path)
     monkeypatch.setattr(core, "build_options", lambda *a, **k: None)
-    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: _FakeClient())
+    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: _FakeClient(cumulative))
 
     async def _no_bank(*_a: Any, **_k: Any) -> None:
         return None
@@ -137,3 +149,26 @@ async def test_the_same_exhausted_ledger_still_refuses_the_metered_slot(monkeypa
     with pytest.raises(BudgetExceeded):
         async for _ in run_turn(engine, "canary", "s1", "hi", TurnSpec(mode="complete")):
             pass
+
+
+@pytest.mark.asyncio
+async def test_an_oauth_client_past_the_cap_is_neither_cut_nor_retired(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(ledger_mod, "TURN_CAP_USD", 1.0)
+    engine = await _wired(monkeypatch, tmp_path, "oauth-primary", cumulative=1.20)
+
+    events = [ev async for ev in
+              run_turn(engine, "canary", "s1", "hi", TurnSpec(mode="complete"))]
+    assert [e["type"] for e in events] == ["text", "result"], \
+        "nominal dollars cut the client and cost the next turn a cache rebuild"
+    assert "canary/s1" in engine.pool.clients, "the client was retired for money nobody was billed"
+
+
+@pytest.mark.asyncio
+async def test_a_metered_client_past_the_cap_is_still_cut_and_retired(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(ledger_mod, "TURN_CAP_USD", 1.0)
+    engine = await _wired(monkeypatch, tmp_path, "api-key-fallback", cumulative=1.20)
+
+    events = [ev async for ev in
+              run_turn(engine, "canary", "s1", "hi", TurnSpec(mode="complete"))]
+    assert [e.get("error") for e in events][-1] == "budget_exhausted"
+    assert "canary/s1" not in engine.pool.clients, "a poisoned metered client must be retired"

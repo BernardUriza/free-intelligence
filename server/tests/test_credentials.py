@@ -147,5 +147,18 @@ def test_spec_model_reaches_the_sdk_and_absence_leaves_the_engine_deciding(tmp_p
     assert silent.model is None
 
 
+def test_the_client_cap_is_born_only_on_a_metered_slot(tmp_path, monkeypatch):
+    monkeypatch.setenv("AIRE_MAX_BUDGET_USD", "1.0")
+    spec = TurnSpec(mode="complete")
+    card = build_options(object(), "proj", str(tmp_path), "u" * 8, spec, resuming=False,
+                         metered=True)
+    subscription = build_options(object(), "proj", str(tmp_path), "u" * 8, spec,
+                                 resuming=False, metered=False)
+    unknown = build_options(object(), "proj", str(tmp_path), "u" * 8, spec, resuming=False)
+    assert card.max_budget_usd == 1.0
+    assert subscription.max_budget_usd is None, "nominal dollars must not cut the client"
+    assert unknown.max_budget_usd == 1.0, "an unknown slot counts as real money"
+
+
 async def _noop(*args, **kwargs):
     return None

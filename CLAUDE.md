@@ -142,7 +142,10 @@ memory. To contradict anything here, verify it first the same way.
   the ceiling is **poisoned**: every later turn dies instantly with an EMPTY `result`
   (0 output tokens, no tool calls, the same cost echoed back) and **no error event**,
   so a cut turn is indistinguishable from success. Dropping the pool revives it.
-  Backlog #23.
+  Backlog #23. **Since 2026-09-03 only a METERED client is born with the cap**
+  (`is_metered(slot.name)` at `_client_for`): an OAuth client's dollars are nominal,
+  and cutting it at $1 every ~3 crisis turns only bought a cache-creation per
+  rebirth. The ledger's recognition of the cut is metered-only too — both ends.
 - **`permission_mode="bypassPermissions"` is REFUSED when the process runs as root**
   (the same guard as the CLI's `--dangerously-skip-permissions`), and the daemon runs
   as root: it made every `mode=agent` turn die with `ProcessError` exit 1 while
