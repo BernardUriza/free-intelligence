@@ -215,6 +215,20 @@ def _matches(item: str, vocab: frozenset[str]) -> bool:
     return item in folded or any(term in item for term in folded)
 
 
+def find_terms(text: str, vocab: frozenset[str], protected: tuple[str, ...] = ()) -> tuple[str, ...]:
+    """Vocabulary entries present in free text, in their ORIGINAL spelling.
+
+    The consumer-side twin of :func:`_matches`: the classifier scores symptoms
+    someone already identified, this finds them in what a person actually wrote.
+    Same folding (so 'ideacion suicida' finds 'ideación suicida'), same negation
+    stripping with the same shielded phrases (so 'niega ideación suicida' finds
+    nothing and 'mejor sin mi' finds 'mejor sin mí'). Longest entries first,
+    sorted, so the result is stable."""
+    haystack = _strip_negations(_fold(text), protected)
+    hits = [term for term in vocab if _fold(term) in haystack]
+    return tuple(sorted(hits, key=lambda t: (-len(t), t)))
+
+
 def band_for_gravity(gravity: float) -> UrgencyBand:
     """Map a (possibly fractional) gravity to a band.
 
