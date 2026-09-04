@@ -13,9 +13,10 @@ código dentro del texto del error:
 
 | Código | Qué pasó | Desde 2026-08-26 |
 |---|---|---|
-| `budget_exhausted` | el CLIENTE pooled cruzó su techo (`AIRE_MAX_BUDGET_USD=$1` acumulado del cliente, NO por turno) y el turno se cortó | el runner conserva la respuesta si ya llegó (el corte viene DESPUÉS del result) y si no, reenvía UNA vez — AIRE mismo receta "send the turn again to continue" |
+| `budget_exhausted` | el CLIENTE pooled cruzó su techo (`AIRE_MAX_BUDGET_USD=$1` acumulado del cliente, NO por turno) y el turno se cortó. **Desde 2026-09-03 solo el slot METERED nace con el cap** (aire-server `options.build_options` + `ledger.account`): un cliente OAuth corre sin corte, porque cortarlo cada ~3 turnos `crisis` de Alex solo compraba un cache-creation por renacimiento | el runner conserva la respuesta si ya llegó (el corte viene DESPUÉS del result) y si no, reenvía UNA vez — AIRE mismo receta "send the turn again to continue" |
 | `budget_exceeded` | el techo de proceso (`AIRE_MAX_SPEND_USD=$20`) se agotó | solo puede dispararse en el slot METERED (api-key-fallback); un ledger agotado ya NO bloquea turnos OAuth |
 | `credentials_exhausted` | toda la cadena de credenciales enfrió (weekly limits) | sin cambio: terminal, 500, espera el probe horario |
+| *(sin código)* `agent_runner_client_zero_generation` con `text_preview: "You've hit your session limit · resets …"` y `model: <synthetic>` | el slot OAuth pegó con el **límite de sesión de 5 h del Max** y AIRE lo dejó pasar como turno exitoso: el rotor solo reconocía `weekly|usage limit`, así que no giró a `api-key-fallback` | aire-server `LIMIT_PHRASE` reconoce `session` desde 2026-09-03 (medido en vivo 22:47 UTC: dos veces seguidas, el host reintentó sobre el mismo slot y publicó su fallback). Con el fix el slot enfría 1 h y el turno gira a la tarjeta, con su cap de $1 |
 
 ## La ley que salió del incidente (vive en aire-server)
 
