@@ -4,8 +4,9 @@ Este PR corre en **MODO OBSERVACIÓN**, decisión de Álex del 2026-09-01 y
 ratificada el 2026-09-03 ya con fi-core 0.27.0: la banda se calcula y se
 registra, y **no cambia lo que una persona lee**. La razón está medida y vive en
 `test_el_defecto_de_sin_medido_tras_fi_core_0_27_0` — 0.27.0 arregló "mejor sin
-mí" pero no "sin esperanza", así que encender la banda hoy seguiría haciendo
-PERDER detección que hoy funciona.
+mí", pero "sin esperanza" sigue en LOW porque esa frase NO ESTÁ en el
+vocabulario de PSYCHIATRY (issue #64), así que encender la banda hoy seguiría
+haciendo PERDER detección que hoy funciona.
 
 Regla del mutador, la misma del #52: positivo (la tabla del issue da lo que
 promete) + resistencia (los defectos de fi-core declarados uno por uno, no
@@ -146,26 +147,31 @@ def test_la_forma_canonica_es_la_que_se_entrega():
 def test_el_defecto_de_sin_medido_tras_fi_core_0_27_0():
     """Por qué este PR SIGUE siendo observación y no producción.
 
-    `_strip_negations` de fi-core trataba "sin" como cue de negación y se comía
-    la frase: "mejor sin mí" quedaba en "mejor  " antes de que la lista
-    alcanzara a verla. La frase **estaba** en `PSYCHIATRY.high_symptoms` y aun
-    así puntuaba 3, el default para lo desconocido.
+    Las dos frases caen a LOW por razones DISTINTAS, y el #53 las metió en el
+    mismo saco. Medido con fi-core 0.27.0 (issue #64):
 
-    fi-core 0.27.0 lo arregló **a medias**, y este test lo mide:
+      frase                            v4.38.0   con 0.27.0   por qué
+      "el equipo va a estar mejor      LOW (3)   HIGH (7)     el bug de "sin",
+       sin mí"                                                ya arreglado
+      "me siento sin esperanza"        LOW (3)   LOW (0)      la frase NO ESTÁ
+                                                              en el vocabulario
 
-      frase                            v4.38.0   con 0.27.0
-      "el equipo va a estar mejor      LOW (3)   HIGH (7)   ✅ arreglado
-       sin mí"
-      "me siento sin esperanza"        LOW (3)   LOW (0)    ❌ sigue hundida
+    **La segunda nunca fue el bug de negación.** `PSYCHIATRY` trae
+    `"desesperanza"` en una sola palabra y `"siento desesperanza"` sí sube a
+    HIGH; `"sin esperanza"` —la forma coloquial, la que la gente escribe en
+    Discord— simplemente no existe en la lista. Es una entrada faltante, no un
+    `_strip_negations` comiéndose la frase. Que la causa vieja hiciera juego con
+    la nueva es coincidencia: `"sin"` sí niega (`"me siento sin desesperanza"`
+    → sin match), sólo que aquí no había nada que negar.
 
     La primera es de las cuatro que Álex adoptó una por una el 2026-08-27, y ya
-    sale bien. La segunda sigue cayendo a LOW, y por eso la banda se queda en
-    observación (decidido el 2026-09-03).
+    sale bien. La segunda no, y por eso la banda se queda en observación
+    (decidido el 2026-09-03).
 
-    Este test NO pide que lo que falta se arregle aquí: es de fi-core, y está
-    reportado. Pide dos cosas — que lo ya arreglado **no se vuelva a romper**, y
-    que si alguien arregla "sin esperanza" río arriba, **este test truene** y
-    obligue a revisar si ya se puede encender la banda.
+    Este test NO pide que lo que falta se arregle aquí: es de fi-core, y está en
+    el #64. Pide dos cosas — que lo ya arreglado **no se vuelva a romper**, y que
+    si alguien agrega `"sin esperanza"` al vocabulario río arriba, **este test
+    truene** y obligue a revisar si ya se puede encender la banda.
     """
     assert crisis_band("el equipo va a estar mejor sin mí").level.value == "HIGH", (
         "'mejor sin mí' volvió a hundirse — fi-core 0.27.0 la había arreglado. "
