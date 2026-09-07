@@ -1,8 +1,10 @@
 # Cadenas cortadas por la purga de `personas/` — triage revivir/congelar
 
 Status: Triaged (2026-07-15) · auditoría de código muerto 2026-07-20 ·
-**re-verificado sin cambios 2026-08-06** (los 3 congelados siguen congelados y
-sin dueño asignado; ver el bloque final)
+**#5 RESUELTO 2026-08-06** (consolidador + job borrados) ·
+**re-verificado 2026-09-07**: de los 3 cero-callers queda UNO
+(`class LLMShadowRouter`); `RouterBudget` revivió como cap del router vivo.
+Ver el bloque final.
 Proposed: 2026-07-14 by la autopsia 10-agentes; decidido 2026-07-15 by Bernard+Claude
 
 La purga de `personas/` (2f8d9ad) mató el `debug_server` y varios scripts de tooling
@@ -149,3 +151,24 @@ Bonus del barrido: `scripts/dr_inventory.sh` listaba `discord-bot` (retirado a
 cero) y **omitía `khimeras-host`** (la app viva). Un runbook de recuperación ante
 desastres que enumera mal las apps es peligroso justo cuando se necesita.
 Corregido a `(persona-gateway persona-runner khimeras-host)`.
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+El índice `README.md` seguía diciendo *"el job `fact-consolidation` sigue en
+cron 31-feb"* un mes después del bloque de arriba — la fila se quedó rancia
+aunque este archivo ya decía RESUELTO. Estado real hoy:
+
+| Cosa | Estado 2026-09-07 | Cómo se verificó |
+|---|---|---|
+| #5 job `fact-consolidation` | **no existe** | `az containerapp job list -g insult-rg` → vacío |
+| `khimeras_shared/consolidation/` | **no existe en git** (queda un `__pycache__` huérfano en disco) | `git ls-files khimeras_shared/consolidation \| wc -l` → `0` |
+| `demux_ai/router_budget.py` (`RouterBudget`) | **YA NO es cero-callers**: `72d5175` (2026-08-06, v4.32.36, *"el cap de $5/semana que autorizaste llevaba un mes sin cumplirse"*) lo instancia en `DirectAzureLLMRouter.__init__` (`llm_shadow_router.py:186`) y `route()` consulta `can_spend()` antes de gastar | `grep -rn "RouterBudget" --include='*.py' demux_ai` → import en `llm_shadow_router.py:33`, uso en `:186`/`:229` |
+| `class LLMShadowRouter` | sigue construida SÓLO en `tests/test_llm_shadow_router.py`; ahora envuelve `HostRouterLLM` (AIRE, `2150ca0`), pero el host vivo arranca `DirectAzureLLMRouter` (`demux_ai/__main__.py:25`) | `grep -rn "LLMShadowRouter(" --include='*.py' .` → sólo tests |
+| #1 html_artifacts | sigue vivo | env de `persona-runner`: `ARTIFACT_BASE_URL=https://persona-runner.greendune-53f1f4af.eastus2.azurecontainerapps.io` |
+| #2 dashboard | tiene su propio item ([[dashboard-data-plane-fossil]]) | — |
+| #3 sync SerenityOps | sin movimiento | `git log --since=2026-08-06 -- khimeras_shared/memory/repositories/serenityops.py` → vacío |
+| #4 RAG re-poblado / `khimeras_shared/corpus/` | **NO auditado hoy** — otro agente estaba borrando código muerto en ese paquete durante esta auditoría | — |
+
+Queda un solo cero-caller documentado (`class LLMShadowRouter`, ~32 líneas
+dentro de un módulo vivo). La decisión de borrar la clase sigue siendo de
+Bernard; el peso sigue en mantener porque comparte archivo con el router vivo.

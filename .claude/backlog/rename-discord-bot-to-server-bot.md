@@ -1,8 +1,38 @@
 # Rename `discord-bot` → `server-bot`
 
-Status: In progress (ACR hecho 2026-07-25; RG + repo + apps pendientes)
+Status: In progress — la pata de registry cambió de destino: **`serverbotacr` ya
+no existe, las imágenes viven en GHCR desde 2026-08-12**; RG + repo pendientes
 Proposed: 2026-06-18 by Bernard
-Re-verificado: 2026-08-06 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+Re-verificado: 2026-09-07 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+El bloque del 08-06 de abajo quedó rancio en tres afirmaciones. Estado real:
+
+- **`serverbotacr` está BORRADO.** `az acr list -g insult-rg --query "[].name"`
+  → sólo `insultacr`. El 2026-08-12 el registry se movió a GHCR
+  (`cd.yml:69`: *"GHCR replaced serverbotacr on 2026-08-12"*, `REGISTRY:
+  ghcr.io/bernarduriza/discord-bot`); la razón vive en
+  `.claude/rules/architecture.md` § Registry.
+- **Las 3 apps del repo pullean de GHCR**, no de `serverbotacr`
+  (`az containerapp list -g insult-rg` → `ghcr.io/bernarduriza/discord-bot/
+  {persona-gateway,persona-runner,khimeras-host}:798ba774…`). Y
+  **`susurro-gateway` también salió de `insultacr`**: hoy corre
+  `ghcr.io/bernarduriza/susurro/gateway:6c70a25c…` — el CD del repo `susurro`
+  ya migró solo.
+- **`insultacr` sigue vivo con DOS inquilinos**, no con "3 proyectos ajenos + el
+  job": la app retirada `discord-bot` (min 0, `insult-bot:d6fa36c7…`) y
+  `rancho-studio` (`rancho-studio:973daa1`). `aire-front` también se fue a GHCR
+  (`ghcr.io/bernarduriza/aire-server/front`). El job `fact-consolidation` ya no
+  bloquea nada: `az containerapp job list -g insult-rg` → vacío (borrado
+  2026-08-06, ver [[cadenas-cortadas-post-purga]]).
+- Lo que sigue exactamente igual: `insult-rg` → `server-rg` es reconstrucción con
+  downtime y sigue **agendado por Bernard, no ejecutado**; el repo sigue
+  llamándose `discord-bot`.
+
+Borrar `insultacr` hoy requiere: eliminar la app `discord-bot` (retirada, la
+regla de arquitectura ya dice que el fix honesto es borrarla) y migrar o aceptar
+tumbar `rancho-studio` (repo ajeno a éste).
 
 ## Estado real al 2026-08-06 (auditoría — dos cosas cambiaron desde el 07-25)
 

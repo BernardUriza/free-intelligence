@@ -1,10 +1,24 @@
 # Renombrar Frugi → Fruggy
 
-Status: **In progress** (2026-08-10) — slice 1 (alias `fruggy` en el registry)
-abierto como issue #36, el primer issue de Alex. Estado del código sin cambios
-todavía: `shared/personas/registry.py` sigue con `display_name="Frugívoro"` y
-`aliases=["frugivoro", "frugi", "frugívoro"]`.
+Status: **Slice 1 DONE** (alias `fruggy` shipped en `40a4fea`, v4.32.45,
+2026-08-10; issue #36 CERRADO 2026-08-14) — el resto del rename sigue siendo
+decisión de Bernard. Re-verificado 2026-09-07.
 Proposed: 2026-07-05 by Bernard
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+- `gh issue list --state all` → `#36 CLOSED 2026-08-14T22:54:31Z Enséñale a
+  Frugívoro su apodo: alias "fruggy"`.
+- `shared/personas/registry.py:135` → `aliases=["frugivoro", "frugi",
+  "frugívoro", "fruggy"]`, con el comentario del propio commit (*"fruggy" es el
+  apodo real de cariño en #general (issue #36)*). `display_name="Frugívoro"`
+  sigue (`:129`).
+- Lo que sigue FUERA, tal como se decidió al abrir el slice: `display_name`, el
+  username del bot en el Discord Developer Portal, `persona_id`/DNA/`token_env`,
+  y **146** hits de "frugi" (`grep -rni frugi --include='*.py' --include='*.md'
+  . | grep -v .claude/backlog | wc -l`; eran ~129 el 08-10 — creció con la
+  documentación nueva, no con código).
+- `frugi` sigue vivo como alias legacy. No hay issue abierto para el slice 2.
 
 ## What it is
 

@@ -1,8 +1,27 @@
 # Graceful turn drain — deploys must not kill in-flight turns
 
 Status: **In progress** — paso 1 (retry 502/503) HECHO v4.32.1; el drenaje real
-(pasos 2 y 3) sigue SIN construir. Re-verificado 2026-08-06.
+(pasos 2 y 3) sigue SIN construir. Re-verificado 2026-09-07.
 Proposed: 2026-07-06 by Claude (Art. 9, receipt del incidente del mismo día)
+
+Re-chequeo 2026-09-07 (Art. 2, receipts):
+- `az containerapp show -n persona-runner -g insult-rg --query
+  properties.template.terminationGracePeriodSeconds -o tsv` → vacío (**`null`**);
+  lo mismo para `persona-gateway` → **`null`**. Nadie subió el grace period.
+- `grep -rn -i "sigterm\|add_signal_handler" persona_runner/ persona_gateway/
+  --include='*.py'` → el único handler sigue en
+  `persona_runner/workspace_renderer.py:247` (loop aparte). El `_lifespan` de
+  `persona_runner/runner.py:38` sólo cierra clientes (`aire_route.py:330`), no
+  cierra la puerta a turnos nuevos.
+- **El objeto del drain cambió de forma** con el borrado de la etapa 2
+  (`fc0944a`, v4.35.0, 2026-08-28): el runner ya no hosteda un subprocess del
+  SDK — un SIGTERM a media generación hoy corta una request `httpx` a la puerta
+  de AIRE. Los pasos 2-3 siguen siendo los mismos (dejar de aceptar `/v1/turn`,
+  esperar las requests en vuelo, subir el grace period), pero el "esperar
+  sesiones activas" ahora es esperar requests HTTP, no procesos Node.
+- La actualización del 09-03 de abajo (`e09f979`, v4.38.0) sigue vigente y es
+  red, no cura: el host reintenta UNA vez y habla por la casa; un rolling update
+  más largo que ese retry sigue matando el turno.
 
 Verificación 2026-08-06 (Art. 2, receipts):
 - `grep -rn "SIGTERM" persona_runner/ persona_gateway/` → el único handler vivo

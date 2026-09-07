@@ -1,12 +1,40 @@
 # Persona de acompañamiento psicológico — trilogía de issues para Alex
 
-Status: ✅ **CREADOS el 2026-08-12** → [#41](https://github.com/BernardUriza/discord-bot/issues/41)
-(ADN) · [#42](https://github.com/BernardUriza/discord-bot/issues/42) (guidance) ·
-[#43](https://github.com/BernardUriza/discord-bot/issues/43) (registro), los tres
-asignados a `ferux485`. Las referencias cruzadas del cuerpo ya llevan el número real
-en GitHub; este archivo conserva la redacción original con `<id>` sin resolver.
+Status: ✅ **FASE 1 SHIPPED — Valentis existe** (2026-08-25, v4.32.75–4.32.80);
+**fase 2 sin abrir** (sin issue). Los cuatro issues
+[#41](https://github.com/BernardUriza/discord-bot/issues/41) (ADN) ·
+[#42](https://github.com/BernardUriza/discord-bot/issues/42) (guidance) ·
+[#43](https://github.com/BernardUriza/discord-bot/issues/43) (registro) ·
+[#44](https://github.com/BernardUriza/discord-bot/issues/44) (piso de seguridad)
+están CERRADOS. Este archivo conserva la redacción original de los issues con
+`<id>` sin resolver — el `<id>` que Alex escogió fue **`valentis`**.
 Propuesto: 2026-08-12 · Diseño de **Aníbal** (médico, dictado por WhatsApp ese día)
-Contribuidore: **Alex Nava** (`ferux485`, elle) · sesión 3 de capacitación
+Contribuidore: **Alex Nava** (`ferux485`, elle) · sesión 3 de capacitación ·
+Re-verificado: 2026-09-07
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+| Pieza | Recibo |
+|---|---|
+| #41 ADN | `15e1fcc` 2026-08-25 *feat(personas): Valentis — el ADN de la persona que acompaña (#41)* [v4.32.75]; `shared/personas/valentis.md` existe |
+| #44 piso de seguridad para toda la casa | `9d39b81` 2026-08-25 *feat(guidance): el piso de seguridad deja de ser de Insult y pasa a ser de la casa (#44)* [v4.32.76]; arnés `tests/arch/test_vulnerable_overlay_floor_reaches_every_persona.py` |
+| #42 guidance grave | `5545d1d` 2026-08-25 *feat(personas): el guidance de Valentis cuando el turno es grave (#42)* [v4.32.77]; `shared/personas/guidance/valentis/` existe |
+| #43 registro + ruteo | `fe221f3` 2026-08-25 *feat(personas): Valentis existe — registrada, ruteable por su nombre y nada más (#43)* [v4.32.80]; `shared/personas/registry.py:175` `persona_id="valentis"`, `token_env="VALENTIS_DISCORD_TOKEN"` |
+| Host vivo | `az containerapp show -n persona-gateway -g insult-rg --query "...env[].name"` incluye **`VALENTIS_DISCORD_TOKEN`** → la persona tiene token en prod |
+| Issues | `gh issue list --state all` → #41 CLOSED 08-25 15:15Z · #42 CLOSED 08-25 15:15Z · #43 CLOSED 08-25 15:05Z · #44 CLOSED 08-25 14:16Z |
+| Eval de ruteo | `.claude/rules/router-observability.md`: el set congelado corrido el 08-25 con Valentis registrada dio **cero ruteos a valentis** — registrarla no le abrió el desahogo personal, que sigue siendo de Insult |
+
+Lo que Alex hizo después, derivado de esta línea: #52 (la detección de crisis
+pasa a `PSYCHIATRY` de fi-core, cerrado 2026-09-01, `2cdc203` v4.37.0) y #53
+(la crisis deja de ser booleano y pasa a ser banda, cerrado 2026-09-04,
+`f51fa59` v4.38.0). Son motor, no persona — se citan aquí porque nacieron de
+esta trilogía.
+
+**Fase 2 sigue sin abrirse** y no tiene issue: las facetas por tema
+(depresión, ansiedad), los presets propios de Valentis, su
+`preset_vulnerable_overlay.md` propio y el corpus RAG. No se verificó desde
+aquí que Valentis haya contestado en #general (requiere Discord/KQL; el recibo
+de #43 en su PR es el que vale).
 
 > El hallazgo #1 de las notas finales salió como issue propio:
 > [#44](https://github.com/BernardUriza/discord-bot/issues/44) — el overlay de

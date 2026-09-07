@@ -1,8 +1,29 @@
 # Builder de turno unificado — matar la clase "invite path olvidado"
 
-Status: Proposed — **parcialmente adelantado por el destripe del gateway, pero la
-asimetría que lo motiva SIGUE VIVA**. Re-verificado 2026-08-06.
+Status: **In progress** — slice 2 (arnés de paridad mención↔invite) HECHO el
+2026-08-06; slice 1 (`TurnSpec`/`TurnBuilder`) sigue sin existir.
+Re-verificado 2026-09-07.
 Proposed: 2026-07-16 by Claude (meta-hallazgo del /cruel-critic, Art. 9)
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+- **Slice 2 existe**: `tests/arch/test_mention_invite_parity.py`, nacido en
+  `d4fefb9` (2026-08-06, v4.32.37 — el mismo día de la auditoría anterior, que
+  lo reportó ausente) y reforzado en `5319ec2` (2026-08-31, #40/#56). Su
+  docstring nombra literalmente la clase de bug de este item (*"el invite path
+  olvidado"*) y lo cierra de dos formas: **estructural** (AST: las dos puertas
+  invocan el mismo conjunto de servicios de `self`) y **de comportamiento** (el
+  mismo mensaje por las dos puertas, capacidad por capacidad). Las asimetrías
+  reales quedan como `xfail(strict=True)`; las deliberadas (STT del host,
+  recepción) como excepciones explícitas.
+- **Slice 1 no**: `grep -rn "TurnSpec\|class TurnBuilder" --include='*.py' .`
+  → un solo hit, y es un docstring de `persona_runner/engine/aire_route.py:659`
+  hablando del `TurnSpec` de fi-runner (otro concepto). `_handle` y
+  `respond_to_invite` siguen siendo dos entry points en `persona_gateway/gateway.py`.
+- `ls tests/arch/` hoy: 7 arneses (eran 3 el 08-06).
+
+Con el arnés vivo, el valor restante del slice 1 baja: la paridad ya se
+ejecuta en CI. Si se construye, es por limpieza estructural, no por seguridad.
 
 ## Verificación 2026-08-06 (qué se movió sin cerrar el item)
 

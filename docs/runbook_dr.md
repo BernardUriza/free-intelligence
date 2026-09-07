@@ -55,13 +55,12 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
    Necesita el storage del env `insult-workspace` (→ share `insult-data` de la
    cuenta `insultstorage`, ReadWrite) montado como volumen `workspace` en
    `/data/insult-workspace`, con el `CLAUDE.md` del repo en la raíz del share.
-   Env vars no-secretas que un recreate "de memoria" pierde (gotcha 2 abajo) y
-   que enrutan TODO su tráfico Anthropic:
-   - `ANTHROPIC_BASE_URL=https://gate.bernarduriza.com` — cada turno sale por
-     la puerta gateway de AIRE (espejo en `aire_gateway_log`).
-   - `ANTHROPIC_CUSTOM_HEADERS=x-aire-project: insult` — el runner se nombra
-     ante AIRE; llena la columna app de la vista `/gateway` del front
-     (aire-server backlog #33, 2026-08-12).
+   Las env vars `ANTHROPIC_BASE_URL` / `ANTHROPIC_CUSTOM_HEADERS` de la etapa 1
+   (puerta gateway, relay Anthropic) **ya no existen en la app**: salieron en la
+   revisión 195 (`c972579`, v4.35.2) porque el runner ya no habla con Anthropic
+   directo. Verificado 2026-09-07: `az containerapp show -n persona-runner …
+   env[].name` sólo trae `AIRE_GATE_URL` y `AIRE_AUTH_TOKEN`. Un recreate "de
+   memoria" que las reponga no rompe nada, pero tampoco hace nada.
 
    **La puerta ENGINE — LA ÚNICA RUTA (desde v4.35.0).** La ruta local del SDK
    y el flag `TURN_BACKEND` fueron BORRADOS (etapa 2, paso de borrado): el

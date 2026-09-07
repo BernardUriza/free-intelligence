@@ -1,6 +1,27 @@
 # La proactividad murió en la purga — restaurarla en el host, como banda de agentes
 
-Status: Accepted (dirección dada por Bernard 2026-08-06) · Proposed: 2026-08-06 por Bernard
+Status: Accepted (dirección dada por Bernard 2026-08-06) · **slice 1 HECHO el
+mismo día** (`aae8e2c`, v4.32.33); slices 2–5 sin arrancar · Proposed: 2026-08-06
+por Bernard · Re-verificado: 2026-09-07
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+El índice del 08-06 decía *"item creado por una sesión paralela — su contenido
+no se auditó"*. Auditado hoy:
+
+- **Slice 1 (núcleo puro) está hecho**: `aae8e2c` 2026-08-06 *feat(proactive):
+  resucita el núcleo de la iniciativa — la purga se llevó 1,184 líneas y nadie
+  lo notó en tres semanas* [v4.32.33] creó `khimeras_shared/proactive.py` y
+  `tests/core/test_proactive.py` (`git log -- khimeras_shared/proactive.py` →
+  ese commit, y antes sólo la purga `2f8d9ad`).
+- **Cero consumidores del núcleo**: `grep -rn "khimeras_shared.proactive\b\|
+  ProactiveWorker\|host_proactive" --include='*.py' .` → sólo el propio test.
+  `demux_ai/` no tiene ningún worker proactivo (`git log --since=2026-08-06 --
+  demux_ai/` → ruteo, AIRE, fallback del host; nada de iniciativa).
+- **`world_scans` sigue sin escritores**: el único hit fuera del repositorio es
+  el import en `khimeras_shared/memory/repositories/__init__.py:20`.
+- Slices 2 (worker en el host), 3 (rotación — fork de Bernard), 4 (world scan) y
+  5 (instrumentación) siguen exactamente como se propusieron. Sin issue abierto.
 Reporte: *"ya no es proactivo, antes Insult de vez en cuando saltaba a preguntarnos
 cómo estábamos, y que él de su parte había estado entreteniéndose con
 investigaciones… y eran investigaciones reales, llenaba partes en sus facts e iba

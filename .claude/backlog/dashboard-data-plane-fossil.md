@@ -1,8 +1,25 @@
 # Dashboard: data plane fósil — nadie escribe los blobs desde el retiro del plumbing
 
-Status: In progress — fake-green ELIMINADO (2026-08-06); el fork recablear/congelar sigue siendo de Bernard
+Status: In progress — fake-green ELIMINADO (2026-08-06, `34bf41c`); el fork recablear/congelar sigue siendo de Bernard
 Proposed: 2026-07-20 by Claude (hallazgo del refactor v4.28.1 + /cruel-critic)
 Updated: 2026-08-06 by Claude (verificación con evidencia + fix del indicador, dashboard v2.4.0)
+Re-verificado: 2026-09-07
+
+## Re-chequeo 2026-09-07 (auditoría del backlog)
+
+- El blob sigue fósil: `curl -sI https://insultstorage.blob.core.windows.net/
+  insult-bot/metrics.json` → `HTTP/1.1 200 OK`, `Last-Modified: Thu, 25 Jun 2026
+  04:59:30 GMT` — el mismo segundo que el 08-06, ya 74 días.
+- El fork NO se decidió: `git log --since=2026-08-06 --oneline -- dashboard/`
+  no trae ningún commit sobre el data plane ni sobre el workflow SWA.
+- **Pero la superficie no está congelada**: en ese mismo rango `dashboard/`
+  ganó el portal de nómina de Alex (`dbccf0d` v4.32.48 *"Alex ya puede ver lo
+  que va ganando sin preguntarle a nadie"*) y cinco commits `docs(nomina)`
+  después. O sea que la ruta 2 (congelar el SWA) ya no es gratis: el SWA hoy
+  sirve una página viva junto al fósil. Si Bernard elige congelar, hay que
+  separar `dashboard/nomina/` antes.
+- El pill sigue siendo el de v2.4.0 (`dashboard/py/freshness.py` sin cambios
+  desde `34bf41c`).
 
 ## What it is
 

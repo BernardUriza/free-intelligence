@@ -1,8 +1,24 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
-Status: **In progress — persona LIVE y corpus RAG YA VIVO; lo único pendiente es
-el benchmark ético (§1–§3)**. Actualizado 2026-08-06.
+Status: **In progress — persona LIVE y corpus RAG YA VIVO en repo; lo único
+pendiente es el benchmark ético (§1–§3)**. Actualizado 2026-08-06 ·
+Re-verificado 2026-09-07 (la ingesta en Postgres sigue SIN verificar).
 Proposed: 2026-06-29 by Bernard
+
+### Re-chequeo 2026-09-07 (auditoría del backlog)
+
+- Los 3 pasos verificables en repo siguen ahí: `shared/personas/registry.py:139`
+  `corpus_namespace="__corpus_vegan__"`; `scripts/ingest_corpus.py` existe;
+  `data/corpus/frugivoro/` con `MANIFEST.md` + Williams 1883 + los dos PMC.
+- El 4º paso (chunks de `__corpus_vegan__` en el Postgres de prod) **sigue sin
+  verificar**: esta auditoría no tenía acceso a Postgres. Misma deuda que el
+  08-06, sin recibo nuevo.
+- Único movimiento del ADN: `4ed8825` 2026-08-11 *fix(frugivoro): era vegano
+  por LISTA y recomendó sal de gusano — ahora deduce de dónde sale la comida*
+  [v4.32.47] (#39). `data/corpus/frugivoro/` y `scripts/ingest_corpus.py` sin
+  cambios desde 08-06 (`git log --since=2026-08-06` → sólo `4ed8825`).
+- El alias `fruggy` se cerró en [[rename-frugi-to-fruggy]] (slice 1 Done).
+- Benchmark §1–§3: sin arrancar, sin issue.
 
 ## What it is
 A new Khimeras sibling persona — an **erudite vegan/plant-based gastronomy** voice —
