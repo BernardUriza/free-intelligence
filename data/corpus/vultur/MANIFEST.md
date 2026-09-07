@@ -9,7 +9,10 @@ vive en producción.
   - *The Language and Style of Film Criticism* (Routledge)
 - **PDFs originales:** vivían en `data/film_corpus_sources/` (libros con copyright,
   gitignored; ver `data/corpus/../.gitignore` → `data/film_corpus_sources/`).
-- **Frame conceptual:** `shared/corpus/film_criticism.md`.
+- **Frame conceptual:** vivía en `khimeras_shared/corpus/film_criticism.md`,
+  borrado 2026-09-07 (issue #62, cero llamadores). Recuperable con
+  `git show 798ba77:khimeras_shared/corpus/film_criticism.md` si se quiere
+  ingerir al namespace; el header vivo es `shared/corpus/headers/vultur.md`.
 
 Los libros fuente son de copyright (átomo de Bernard): NO se re-descargan ni se
 versionan; el valor ya está destilado en los embeddings de `__corpus_film__`.
