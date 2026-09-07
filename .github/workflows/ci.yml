@@ -121,13 +121,10 @@ jobs:
       - name: Run pip-audit against the conda env
         shell: bash -leo pipefail {0}
         # pip-audit scans whatever's installed in the active env (conda + pip).
-        # CVE-2026-3219 (GHSA-58qw-9mgm-455v): pip <= 26.0.1 treats concatenated
-        # tar+ZIP archives as ZIP regardless of filename. MEDIUM (CVSS 4.6).
-        # Disclosed 2026-04-20. GitHub Advisory API reports patched_versions=None
-        # as of 2026-04-26 — no upstream fix released. Threat model requires pip
-        # to install a maliciously-crafted ambiguous archive; CI only installs
-        # declared deps from PyPI, so the CVE isn't exploitable here.
-        # TODO: revisit 2026-05-15 — drop --ignore-vuln when pip publishes patch.
+        # CVE-2026-3219 (pip <= 26.0.1, tar+ZIP) was ignored here from
+        # 2026-04-26 while no fix existed; pip 26.1 shipped it and the env
+        # resolves 26.2.1, so the ignore was dropped 2026-09-07 (backlog
+        # cve-exploitability-review: "MITIGADO → DROP").
         #
         # CVE-2026-27205 (flask 2.2.5): pulled in transitively by pip-audit
         # itself for its optional web-UI mode which we do NOT use. flask is
@@ -225,7 +222,6 @@ jobs:
         # fail the build; the --ignore-vuln list above still applies.
         run: |
           pip-audit --format json \
-            --ignore-vuln CVE-2026-3219 \
             --ignore-vuln CVE-2026-27205 \
             --ignore-vuln CVE-2026-45409 \
             --ignore-vuln PYSEC-2024-277 \
