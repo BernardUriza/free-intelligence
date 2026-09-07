@@ -31,6 +31,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
+from typing import Protocol
 
 
 def _fold(text: str) -> str:
@@ -108,6 +109,30 @@ _LOCAL_NEGATION_RE = re.compile(
     r"(?:(?!(?:sin|no|nunca|jamas|ni|without|not|never)\s)[^\s,]+\s+)?"
     r"(?:(?:me|se|te|le|nos)\s+)?$"
 )
+
+
+class NamedPattern(Protocol):
+    """Anything with a ``name`` and a compiled ``pattern`` — :class:`.signals.SignalGroup`
+    satisfies it structurally, so exclusions are declared ONCE as signal groups
+    and honored by both the vocabulary matcher and the weighted axes."""
+
+    name: str
+    pattern: re.Pattern[str]
+
+
+def strip_exclusions(text: str, exclusions: tuple[NamedPattern, ...]) -> tuple[str, tuple[str, ...]]:
+    """Remove every span an exclusion pattern matches; return the text and the
+    names that fired, sorted. Exclusions are text that is NOT about the writer's
+    own state — an idiom ("me muero de risa"), a topic ("vi un documental sobre
+    el suicidio"), someone else's act ("mi hermana intentó suicidarse") — so
+    the vocabularies must not read a crisis into them. Each excluded span is
+    replaced by a space, so a term never forms across the cut."""
+    fired: set[str] = set()
+    for group in exclusions:
+        text, n = group.pattern.subn(" ", text)
+        if n:
+            fired.add(group.name)
+    return text, tuple(sorted(fired))
 
 
 def _term_spans(term: str, haystack: str) -> list[int]:
@@ -246,12 +271,21 @@ class GravityScore:
     reasons: tuple[str, ...] = ()
 
 
-def _normalize(items: list[str], protected: tuple[str, ...] = ()) -> list[str]:
-    # Fold accents and strip negation BEFORE returning so every downstream
-    # substring matcher (base_gravity, critical_pattern, modifiers) sees only
-    # un-negated, diacritic-free text. Centralizing the pass here avoids missing
-    # a site that handles its own normalization in the future.
-    return [_strip_negations(_fold(str(i).strip()), protected) for i in items if str(i).strip()]
+def _normalize(
+    items: list[str],
+    protected: tuple[str, ...] = (),
+    exclusions: tuple[NamedPattern, ...] = (),
+) -> list[str]:
+    # Fold accents, cut exclusion spans and strip negation BEFORE returning so
+    # every downstream substring matcher (base_gravity, critical_pattern,
+    # modifiers) sees only un-negated, diacritic-free text about the writer.
+    # Centralizing the pass here avoids missing a site that handles its own
+    # normalization in the future.
+    return [
+        _strip_negations(strip_exclusions(_fold(str(i).strip()), exclusions)[0], protected)
+        for i in items
+        if str(i).strip()
+    ]
 
 
 def _matches(item: str, vocab: frozenset[str]) -> bool:
@@ -317,6 +351,9 @@ class UrgencyClassifier:
     medium_symptoms: frozenset[str] = DEFAULT_MEDIUM_SYMPTOMS
     critical_patterns: frozenset[str] = DEFAULT_CRITICAL_PATTERNS
     high_risk_conditions: frozenset[str] = DEFAULT_HIGH_RISK_CONDITIONS
+    #: Spans that are not about the writer (idioms, topics, someone else's act).
+    #: A domain passes its own; see :func:`strip_exclusions`.
+    exclusions: tuple[NamedPattern, ...] = ()
 
     @property
     def _protected(self) -> tuple[str, ...]:
@@ -331,7 +368,7 @@ class UrgencyClassifier:
     def base_gravity(self, symptoms: list[str]) -> tuple[int, list[str]]:
         score = 0
         reasons: list[str] = []
-        for s in _normalize(symptoms, self._protected):
+        for s in _normalize(symptoms, self._protected, self.exclusions):
             if _matches(s, self.critical_symptoms):
                 sev = 9
             elif _matches(s, self.high_symptoms):
@@ -355,20 +392,22 @@ class UrgencyClassifier:
             if patient.age < 1:
                 mod += 1.5
                 reasons.append("age < 1 (+1.5)")
-        history = _normalize(patient.medical_history, self._protected)
+        history = _normalize(patient.medical_history, self._protected, self.exclusions)
         for cond in sorted(self.high_risk_conditions):
             if any(_present(_fold(cond), h) for h in history):
                 mod += 0.5
                 reasons.append(f"comorbidity '{cond}' (+0.5)")
         if (patient.gender or "").lower() == "female" and any(
-            "pregnant" in s for s in _normalize(patient.symptoms, self._protected)
+            "pregnant" in s for s in _normalize(patient.symptoms, self._protected, self.exclusions)
         ):
             mod += 1.0
             reasons.append("pregnancy (+1.0)")
         return mod, reasons
 
     def critical_pattern(self, patient: PatientContext) -> str | None:
-        text = " ".join(_normalize(patient.symptoms + patient.medical_history, self._protected))
+        text = " ".join(
+            _normalize(patient.symptoms + patient.medical_history, self._protected, self.exclusions)
+        )
         for pattern in sorted(self.critical_patterns):
             if _present(_fold(pattern), text):
                 return pattern

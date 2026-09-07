@@ -12,6 +12,49 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.29.0] — 2026-09-07
+
+### Added — Alex's H1/H2 for `PSYCHIATRY` (discord-bot #55; fi #461)
+
+Clinical decisions Alex took on 2026-09-04/05, now executable. Every row is
+pinned in `tests/test_psychiatry_h1_h2.py`.
+
+- **`preparatory_acts`** on the acute axis at the highest weight (4): means
+  secured ("tengo las pastillas listas", "compré una cuerda / soga / pistola",
+  "llevo semanas guardando pastillas"), farewell written ("escribí mi carta de
+  despedida", "ya me despedí de todos", "gracias por todo, ya no te preocupes
+  por mí"), place reached ("estoy en el puente / la azotea / las vías"),
+  possessions given away ("regalé mis cosas", "le voy a dar mi perro a mi
+  hermana"), decision taken ("ya decidí cómo lo voy a hacer"), and the English
+  "i have a plan and the pills ready". Tight substrings of the same acts join
+  `PSYCH_CRITICAL_SYMPTOMS` / `PSYCH_CRITICAL_PATTERNS`, so the band is
+  CRITICAL too — all fifteen scored LOW before. Alex: *"esto es lo que la banda
+  CRITICAL necesita para significar algo"*.
+- **`farewell_hint`**, weight 0: "ya no voy a estar el lunes" is reported in
+  `matched` and never crosses alone. "ya arreglé mis papeles" is deliberately out.
+- **Two chronic exposure groups**, same weight (2, proposed like the other
+  four, hers to validate), outside `recent_grief` (PLOS Med 2020,
+  doi 10.1371/journal.pmed.1003074): `exposicion_intento` ("mi hermana intentó
+  suicidarse") and `exposicion_consumado` ("mi compañera se suicidó"). Their
+  categories join `PSYCH_HIGH_RISK_CONDITIONS` so a consumer can map them.
+  The defect they fix: both sentences scored **CRITICAL for the writer** and
+  fired `self_harm_history`; now they score their own group and nothing else.
+  "mi paciente intentó suicidarse" is untouched — the clinician's 3rd person.
+- **Exclusions** — `SignalGroup`s whose span is cut before anything reads a
+  crisis into it, reported as `excluded` on `VocabularyHits` and
+  `ScoredSignals`: `modismo` ("me quiero morir de la risa", "me muero de
+  hambre"), `tema_no_propio` ("vi un documental sobre el suicidio"),
+  `desahogo_laboral` ("ya no puedo más con este proyecto"), and the two
+  exposure groups. Declared once (`PSYCH_EXCLUSIONS`) and honored by
+  `ClinicalDomain.match`, `UrgencyClassifier` (new `exclusions` field, wired by
+  `urgency_classifier()`) and `WeightedSignals` (new `exclusions` field; a
+  group that is also an exclusion scores itself on the span).
+- **Local negation reaches the weighted axes.** `ScoredSignals.denied` lists
+  groups whose every match sat right after a local cue: "no me quiero morir,
+  solo estoy muy cansado" no longer crosses the acute axis and reports
+  `denied=('explicit_ideation',)` — Alex's "señal débil". `fi_core.cognitive.urgency.strip_exclusions`
+  and the `NamedPattern` protocol are the primitives.
+
 ## [0.28.0] — 2026-09-07
 
 ### Fixed — `PSYCHIATRY` learns "sin esperanza" and the first-person proclítico
