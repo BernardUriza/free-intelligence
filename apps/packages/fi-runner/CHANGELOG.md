@@ -22,6 +22,19 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.3] — 2026-09-07
+
+### Changed
+
+- **fi-core cap raised to `<0.29`.** fi-core 0.28.0 changes how negation is read
+  (two tiers by register; a chat "sin" no longer negates the whole sentence) and
+  adds `VocabularyHits.denied` + `scan_terms` (discord-bot #64). The clinical
+  guard (`guards.py`) wraps `UrgencyClassifier` via `DOMAINS`, so the negation
+  change reaches it — intended, and its suite passes against 0.28.0. The bump
+  also lets `fi-core=0.28.0` + `fi-runner` resolve in discord-bot's conda env.
+
+---
+
 ## [0.21.2] — 2026-09-03
 
 ### Changed
