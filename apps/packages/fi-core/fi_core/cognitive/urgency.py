@@ -100,14 +100,18 @@ _NEGATION_RE = re.compile(
 )
 
 #: A vocabulary term is LOCALLY negated when the text right before it ends in
-#: one of these cues, at most one word and one clitic away, with no comma in
-#: between: "no tengo <term>", "no me <term>", "sin <term>", "ni <term>",
-#: "nunca me <term>". "no sé, <term>" and "no sé si <term>" do not qualify.
+#: one of these cues, at most one clitic and one word away, with no comma in
+#: between: "no tengo <term>", "no me <term>", "no me quiero <term>",
+#: "sin <term>", "ni <term>", "nunca me <term>". "no sé, <term>" and
+#: "no sé si <term>" do not qualify. The clitic comes BEFORE the word because
+#: that is where Spanish puts it ("no me quiero suicidar"): a regex group that
+#: matches "suicidar" alone sits clitic + verb after the "no", and it must be
+#: read the same way as the whole vocabulary phrase (0.29.1, found by discord-bot).
 _LOCAL_NEGATION_RE = re.compile(
     r"(?:^|[^\w,])"
     r"(?:sin|no|nunca|jamas|ni|without|not|never)\s+"
-    r"(?:(?!(?:sin|no|nunca|jamas|ni|without|not|never)\s)[^\s,]+\s+)?"
-    r"(?:(?:me|se|te|le|nos)\s+)?$"
+    r"(?:(?:me|se|te|le|nos)\s+)?"
+    r"(?:(?!(?:sin|no|nunca|jamas|ni|without|not|never)\s)[^\s,]+\s+)?$"
 )
 
 
@@ -405,9 +409,14 @@ class UrgencyClassifier:
         return mod, reasons
 
     def critical_pattern(self, patient: PatientContext) -> str | None:
-        text = " ".join(
-            _normalize(patient.symptoms + patient.medical_history, self._protected, self.exclusions)
-        )
+        """A critical pattern in what is happening NOW — the symptoms only.
+
+        History is not scanned: a past event ("intento de suicidio previo",
+        "myocardial infarction 2019") is a comorbidity and adds its +0.5 through
+        :meth:`modifiers`, never a CRITICAL override on every turn regardless of
+        the message (0.29.1; FLOW.md joined both and in a chat that made every
+        person with a self-harm-history fact CRITICAL on "hoy comí rico")."""
+        text = " ".join(_normalize(patient.symptoms, self._protected, self.exclusions))
         for pattern in sorted(self.critical_patterns):
             if _present(_fold(pattern), text):
                 return pattern
