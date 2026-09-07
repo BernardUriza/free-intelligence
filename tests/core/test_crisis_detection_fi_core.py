@@ -95,6 +95,8 @@ FALSOS_POSITIVOS_RESUELTOS_POR_MATCH = (("ya no quiero hacerme daño pensando en
 NEGADAS_QUE_YA_NO_DISPARAN = (
     ("no me quiero morir", "me quiero morir"),
     ("no me quiero morir, solo estoy muy cansado", "me quiero morir"),
+    # Ésta la alcanzó la ventana hasta 0.29.1 (cue → clítico → verbo).
+    ("no me quiero suicidar, es broma", "me quiero suicidar"),
 )
 
 

@@ -217,19 +217,19 @@ def test_la_banda_ya_resuelve_un_falso_positivo_del_52():
     aceptó a propósito en el #52 — hoy recibe el modo completo. La banda lo pone
     en LOW sola, porque `match()` lo devuelve en `denied`, no en `symptoms`.
 
-    Y el booleano sigue disparando aunque desde v4.38.9 también pasa por
-    `match()`: lo que lo dispara aquí es `acute_signals` (los 5 regex bilingües
-    que Álex decidió conservar, "que se queden las dos"), que desde 0.29.0 sí
-    respeta la negación local — "no me quiero morir" ya no cruza — pero en ESTA
-    frase el regex de ideación explícita pega en "suicidar", a dos palabras del
-    "no", fuera de la ventana. Es la única grieta medida entre las dos capas y
-    vive en fi-core, no aquí; se fija para que el día que se cierre, se note.
-    Este es el arreglo que el #53 existe para traer.
+    Y desde v4.38.10 el booleano tampoco dispara. Con 0.29.0 todavía sí: el
+    regex de ideación explícita de `acute_signals` pegaba en "suicidar", a dos
+    palabras del "no", fuera de su ventana — la única grieta medida entre las
+    dos capas, fijada aquí como defecto declarado y cerrada en fi-core 0.29.1
+    (PR #463: la ventana es cue → clítico → verbo, el orden del español). Este
+    test tronó con el bump, que era su trabajo. "no sé si me quiero morir"
+    sigue positiva a propósito: el "no" no niega el "quiero morir".
     """
     assert PSYCHIATRY.match("no me quiero suicidar, es broma").denied == ("me quiero suicidar",)
-    assert PSYCHIATRY.acute_signals.score(["no me quiero suicidar, es broma"]).matched == ("explicit_ideation",)
-    assert is_acute_crisis("no me quiero suicidar, es broma") is True
+    assert PSYCHIATRY.acute_signals.score(["no me quiero suicidar, es broma"]).denied == ("explicit_ideation",)
+    assert is_acute_crisis("no me quiero suicidar, es broma") is False
     assert crisis_band("no me quiero suicidar, es broma").level.value == "LOW"
+    assert is_acute_crisis("no sé si me quiero morir") is True
 
 
 # ---------------------------------------------------------------------------
@@ -260,33 +260,35 @@ def test_la_exposicion_al_suicidio_de_un_tercero_es_historia_no_crisis():
     ]
 
 
-def test_la_historia_sola_dispara_el_override_critical_y_eso_es_de_fi_core():
-    """El defecto que hoy más pesa contra encender la banda — DECLARADO.
+def test_la_historia_sola_ya_no_dispara_el_override_critical():
+    """El defecto que más pesaba contra encender la banda — cerrado el mismo día.
 
-    `UrgencyClassifier.critical_pattern()` (fi-core 0.29.0, `urgency.py`)
-    busca los `critical_patterns` en `symptoms + medical_history` PEGADOS. Como
-    "intento de suicidio" es un patrón crítico, cualquier condición de historia
-    que lo contenga — "intento de suicidio previo", y desde 0.29.0 también
-    "exposición a intento de suicidio" — dispara el override CRITICAL en TODOS
-    los turnos de esa persona, con el mensaje que sea, incluso vacío. En una
-    sala de urgencias eso es triage razonable; en un chat es una banda que no
-    distingue "hoy comí rico" de "tengo un plan suicida" para quien tiene
-    antecedente, que es exactamente la gente para la que la banda existe.
-
-    Este test NO pide arreglarlo aquí (es de fi-core, reportado el 2026-09-07 a
-    la sesión que lo mantiene). Pide que el día que río arriba la historia deje
-    de contar como patrón crítico, esto truene y obligue a revisar si la banda
-    ya puede salir de observación. Misma regla que el sentinel de "sin": el
-    defecto se fija, no se esconde.
+    Hasta fi-core 0.29.0, `UrgencyClassifier.critical_pattern()` buscaba los
+    `critical_patterns` en `symptoms + medical_history` PEGADOS. Como "intento
+    de suicidio" es un patrón crítico, cualquier condición de historia que lo
+    contuviera — "intento de suicidio previo", y desde 0.29.0 también
+    "exposición a intento de suicidio" — disparaba el override CRITICAL en
+    TODOS los turnos de esa persona, con el mensaje que fuera, incluso vacío:
+    para quien tiene antecedente, la banda no distinguía "hoy comí rico" de
+    "tengo un plan suicida" — exactamente la gente para la que existe. Nadie lo
+    vio desde el #53 porque `FACTS_CON_INTENTO` sólo se probaba con "tengo un
+    plan suicida". Salió el 2026-09-07 al probar la exposición; se fijó como
+    defecto declarado; fi-core 0.29.1 (PR #463) lo arregló: el override sólo
+    mira síntomas y la historia se queda con su +0.5. Este test tronó con el
+    bump, que era su trabajo; ahora fija el arreglo.
     """
     con_intento = crisis_band("hoy comí rico y salí a caminar", FACTS_CON_INTENTO)
-    assert con_intento.level.value == "CRITICAL"
-    assert con_intento.critical_override is True
-    assert "intento de suicidio" in con_intento.reasons[0]
+    assert con_intento.level.value == "LOW"
+    assert con_intento.critical_override is False
+    assert con_intento.final_gravity == 0.5
+    assert crisis_band("", FACTS_CON_INTENTO).level.value == "LOW"
 
     exposicion = [{"fact": "su hermana intentó suicidarse"}]
-    assert crisis_band("hoy comí rico y salí a caminar", exposicion).level.value == "CRITICAL"
-    assert crisis_band("", exposicion).level.value == "CRITICAL"
+    assert crisis_band("hoy comí rico y salí a caminar", exposicion).level.value == "LOW"
+    assert crisis_band("", exposicion).final_gravity == 0.5
+
+    assert crisis_band("tengo un plan suicida", FACTS_CON_INTENTO).critical_override is True
+    assert crisis_band("estoy en duelo", FACTS_CON_INTENTO).final_gravity == 5.5
 
 
 @pytest.mark.parametrize(
