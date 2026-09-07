@@ -22,6 +22,19 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.4] — 2026-09-07
+
+### Changed
+
+- **fi-core cap raised to `<0.30`.** fi-core 0.29.0 adds exclusions (idiom,
+  media topic, work venting, third-party exposure), the `preparatory_acts`
+  acute group and the two chronic exposure groups for `PSYCHIATRY` (fi #461,
+  Alex's H1/H2). The clinical guard wraps `UrgencyClassifier` via `DOMAINS`, so
+  `urgency_classifier()` now hands it the domain's exclusions — intended; the
+  suite passes against 0.29.0.
+
+---
+
 ## [0.21.3] — 2026-09-07
 
 ### Changed
