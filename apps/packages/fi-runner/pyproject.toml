@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.21.2"
+version = "0.21.3"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -35,10 +35,12 @@ dependencies = [
     # the next 0.25.x patch does not need a second commit here.
     # Floor 0.25: narrate.py imports fi_core.prompts (load_prompt) at import
     # time — added in fi-core 0.25. A 0.24 install crashes `import fi_runner`.
-    # Cap 0.28: fi-core 0.26 (cognitive.signals + weighted domain axes) and
-    # 0.27 (ClinicalDomain.match, the folded vocabulary matcher) are additive
-    # and touch nothing the runner imports.
-    "fi-core>=0.25,<0.28",
+    # Cap 0.29: fi-core 0.26 (cognitive.signals + weighted domain axes), 0.27
+    # (ClinicalDomain.match, the folded vocabulary matcher) and 0.28 (two-tier
+    # negation + VocabularyHits.denied, discord-bot #64) are additive. The
+    # clinical guard wraps UrgencyClassifier via DOMAINS, so 0.28's negation
+    # change reaches it — intended: a chat "sin" stops eating the sentence.
+    "fi-core>=0.25,<0.29",
 ]
 
 [project.optional-dependencies]
