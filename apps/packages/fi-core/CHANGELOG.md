@@ -12,6 +12,61 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.28.0] — 2026-09-07
+
+### Fixed — `PSYCHIATRY` learns "sin esperanza" and the first-person proclítico
+
+From discord-bot #64 (Alex, measured against 0.27.0) and what surfaced while
+closing it.
+
+- **"sin esperanza" and "no tengo esperanza"** join `PSYCH_HIGH_SYMPTOMS` (gravity
+  7, the tier of `"desesperanza"`). The clinical noun only fired on itself, so
+  `"me siento sin esperanza"` — the form a person writes in a chat — scored LOW.
+  The `_negation_shaped_terms` docstring had cited `"sin esperanza"` as a shielded
+  phrase since 0.26.1 while the entry did not exist; now it does.
+- **First-person proclítico crisis phrasing** joins `PSYCH_CRITICAL_SYMPTOMS` and
+  `PSYCH_CRITICAL_PATTERNS`: `me quiero matar / ahorcar / suicidar / quitar la vida`
+  and `me voy a matar / ahorcar / suicidar / quitar la vida`. The 3rd-person
+  proclítico (`se quiere matar`) had been listed since the t15 eval case, the
+  1st-person never was, so the most common way a person phrases a crisis in a
+  chat scored LOW. `me quiero morir` already fired via `quiero morir`.
+
+### Changed — negation is two-tier, by register; a chat "sin" no longer eats the sentence
+
+Alex asked why `"sin"` negated and `"no"` did not. Accident of a cue list written
+for clinical notes, and a lethal one: `"sin"` had clause scope, so
+`"estoy sin dormir y me quiero matar"`, `"llevo días sin comer y quiero quitarme la
+vida"` and `"sin ganas de nada, tengo un plan suicida"` all scored **LOW** (measured
+by the discord-bot session against 0.27.x). Now:
+
+1. **Clause cues** are the clinician's register only (`niega`, `no presenta`,
+   `no tiene`, `no refiere`, `descarta`, `ausencia de`, `denies`, `no history of`…):
+   they announce a denied list and strip to the sentence end, as before.
+2. **Local cues** are what a person writes — `sin`, `no`, `nunca`, `jamás`, `ni`,
+   `without`, `not`, `never` — and negate only the vocabulary term right after
+   them (at most one word plus a clitic in between, never across a comma).
+   `"no me quiero morir"`, `"no tengo ideación suicida"` and `"sin ideación
+   suicida ni plan"` are negated; `"no sé, me quiero morir"`, `"no sé si me quiero
+   morir"` and the three sentences above are positive. A term spelled with a cue
+   (`"no quiero vivir"`, `"sin esperanza"`) is matched whole and never negates
+   itself. The same rule runs inside `UrgencyClassifier`, so a symptom string and
+   free text are read identically.
+
+Measured before → after: the three lethal sentences LOW → **CRITICAL**;
+`"no me quiero morir, solo estoy muy cansado"` CRITICAL → LOW + denied;
+`"no tengo ideación suicida"` HIGH → LOW + denied. Every existing negation test
+still passes, including the t13 clinical list. The real fix remains a negation
+parser (free-intelligence #171).
+
+### Added — `VocabularyHits.denied`, `scan_terms`
+
+- `ClinicalDomain.match` now reports **`denied`**: entries that appeared only
+  under a local negation. Not a hit (excluded from `bool(hits)`), but a
+  consumer can log `"sigue hablando de morirse"` as a weak signal instead of
+  losing it — Alex's ask for `"no me quiero morir, solo estoy muy cansado"`.
+- `fi_core.cognitive.urgency.scan_terms(text, vocab, protected) -> (found, denied)`
+  is the primitive; `find_terms` is its `found` half, unchanged.
+
 ## [0.27.0] — 2026-09-03
 
 ### Added — `ClinicalDomain.match(text)`: from what a person wrote to what the classifier scores

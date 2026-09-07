@@ -13,8 +13,16 @@ picks a domain instead of hand-wiring five frozensets. One core, many domains.
 Vocabularies are NON-EXHAUSTIVE starting points, tuned to the language the runner
 speaks: cardiology terms are English (the original Redux-Claude flow); psychiatry
 terms are Spanish, matching ALICE's clinical reflection layer. Substring matching
-is case-insensitive, so feed the LLM-extracted clinical indicators (e.g.
-"ideación suicida pasiva"), not raw colloquial text. Override per deployment.
+is case-insensitive and accent-insensitive. Feed the classifier LLM-extracted
+indicators, or go from raw text with :meth:`ClinicalDomain.match`. Override per
+deployment.
+
+Negation is two-tier, by register (declared in :mod:`.urgency`): a clinician's
+denial ("niega X", "no presenta X", "ausencia de X") strips its whole clause; a
+person's "sin X" / "no X" / "no me X" / "nunca X" negates only the term right
+after it, and that term comes back in :attr:`VocabularyHits.denied` instead of
+vanishing. So "no tengo ideación suicida" is denied, "no sé, me quiero morir"
+is positive, and "estoy sin dormir y me quiero matar" is CRITICAL.
 """
 
 from __future__ import annotations
@@ -31,7 +39,7 @@ from .urgency import (
     DEFAULT_MEDIUM_SYMPTOMS,
     UrgencyClassifier,
     _negation_shaped_terms,
-    find_terms,
+    scan_terms,
 )
 
 # --- Psychiatry / mental-health vocabularies (Spanish, NON-EXHAUSTIVE) -------
@@ -72,6 +80,14 @@ PSYCH_CRITICAL_SYMPTOMS: frozenset[str] = frozenset({
     "se va a quitar la vida",
     "va a matarse", "va a ahorcarse", "va a suicidarse",
     "intenta matarse", "intenta ahorcarse", "intenta suicidarse",
+    # first-person proclítico — the patient's most common crisis phrasing in a
+    # chat ("me quiero matar"). Only the 3rd-person proclítico was listed, so
+    # these scored LOW while "se quiere matar" scored CRITICAL (measured while
+    # closing discord-bot #64). "me quiero morir" already fires via "quiero morir".
+    "me quiero matar", "me quiero ahorcar", "me quiero suicidar",
+    "me quiero quitar la vida",
+    "me voy a matar", "me voy a ahorcar", "me voy a suicidar",
+    "me voy a quitar la vida",
 })
 #: Serious but not imminent → gravity 7.
 PSYCH_HIGH_SYMPTOMS: frozenset[str] = frozenset({
@@ -82,6 +98,12 @@ PSYCH_HIGH_SYMPTOMS: frozenset[str] = frozenset({
     "abstinencia", "alucinaciones", "delirio",
     # colloquial passive-ideation markers (patient's own words)
     "mejor sin mí", "no le veo sentido", "para qué seguir", "ya no quiero estar",
+    # how a person says "desesperanza" in a chat — the clinical noun above only
+    # fires on itself, so "me siento sin esperanza" scored LOW (discord-bot #64).
+    # "sin esperanza" carries a negation cue and is shielded by
+    # _negation_shaped_terms; "no tengo esperanza" carries none (first-person
+    # "no" is never a cue — see the register rule in .urgency).
+    "sin esperanza", "no tengo esperanza",
 })
 #: Distress warranting attention → gravity 5.
 PSYCH_MEDIUM_SYMPTOMS: frozenset[str] = frozenset({
@@ -116,6 +138,11 @@ PSYCH_CRITICAL_PATTERNS: frozenset[str] = frozenset({
     "se va a quitar la vida",
     "va a matarse", "va a ahorcarse", "va a suicidarse",
     "intenta matarse", "intenta ahorcarse", "intenta suicidarse",
+    # first-person proclítico (mirrors PSYCH_CRITICAL_SYMPTOMS).
+    "me quiero matar", "me quiero ahorcar", "me quiero suicidar",
+    "me quiero quitar la vida",
+    "me voy a matar", "me voy a ahorcar", "me voy a suicidar",
+    "me voy a quitar la vida",
 })
 #: Comorbidities / history that add gravity (+0.5 each).
 PSYCH_HIGH_RISK_CONDITIONS: frozenset[str] = frozenset({
@@ -136,6 +163,11 @@ class VocabularyHits:
     symptoms: tuple[str, ...] = ()
     critical_patterns: tuple[str, ...] = ()
     high_risk_conditions: tuple[str, ...] = ()
+    #: Entries that appeared ONLY under a local negation ("no me quiero morir",
+    #: "sin ideación suicida"). Not a hit — the person is denying it — but not
+    #: nothing either: a consumer can log it as a weak signal ("sigue hablando
+    #: de morirse"). Excluded from ``__bool__``.
+    denied: tuple[str, ...] = ()
 
     def __bool__(self) -> bool:
         return bool(self.symptoms or self.critical_patterns or self.high_risk_conditions)
@@ -196,12 +228,16 @@ class ClinicalDomain:
             | self.critical_patterns
             | self.high_risk_conditions
         )
+        symptoms, denied_symptoms = scan_terms(
+            text, self.critical_symptoms | self.high_symptoms | self.medium_symptoms, protected
+        )
+        patterns, denied_patterns = scan_terms(text, self.critical_patterns, protected)
+        conditions, denied_conditions = scan_terms(text, self.high_risk_conditions, protected)
         return VocabularyHits(
-            symptoms=find_terms(
-                text, self.critical_symptoms | self.high_symptoms | self.medium_symptoms, protected
-            ),
-            critical_patterns=find_terms(text, self.critical_patterns, protected),
-            high_risk_conditions=find_terms(text, self.high_risk_conditions, protected),
+            symptoms=symptoms,
+            critical_patterns=patterns,
+            high_risk_conditions=conditions,
+            denied=tuple(sorted(set(denied_symptoms + denied_patterns + denied_conditions))),
         )
 
 

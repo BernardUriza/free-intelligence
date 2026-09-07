@@ -53,27 +53,41 @@ def _fold_vocab(vocab: frozenset[str]) -> frozenset[str]:
 # Substring matching alone over-counts symptoms in negated phrasing — the t13
 # eval trap ("el paciente niega ideación suicida, plan suicida o autolesión
 # activa") fires CRITICAL because "plan suicida" matches verbatim, even though
-# the patient EXPLICITLY DENIES it. Before matching, we strip clauses scoped
-# to a negation cue so the denied items don't reach the vocabularies.
+# the patient EXPLICITLY DENIES it. Two tiers of negation, by REGISTER:
 #
-# Scope rule: cue → next sentence terminator (.;!?) OR opposing conjunction
-# (pero, sin embargo, mas, aunque). Comma is intentionally NOT a clause break,
-# so a single cue covering a comma-separated list of denied items
-# ("niega A, B o C") strips all three. Tradeoff: phrasings like "no refiere
-# mejoría, presenta X" lose the un-negated tail unless the writer separates
-# with a period or `pero`. Acceptable for clinical notes — perfect coverage
-# needs a real negation parser (NegEx / spaCy negspaCy), out of scope for
-# fi-core's zero-dep promise.
+# 1. CLAUSE cues — the clinician's register. "niega", "no presenta",
+#    "no refiere", "descarta", "ausencia de", "denies", "no history of"…
+#    announce a denied LIST, so their scope runs to the next sentence
+#    terminator (.;!?) or opposing conjunction (pero, sin embargo, mas,
+#    aunque). Comma is intentionally NOT a break: "niega A, B o C" strips all
+#    three. Tradeoff: "no refiere mejoría, presenta X" loses X unless the
+#    writer separates with a period or `pero`. Acceptable for notes.
+#
+# 2. LOCAL cues — the words a PERSON uses: "sin", "no", "nunca", "ni",
+#    "without", "not", "never". These negate only the vocabulary term that
+#    immediately follows them (at most one word plus a clitic in between,
+#    never across a comma). They used to be clause cues too, and in a chat
+#    that was lethal: "estoy sin dormir y me quiero matar" lost "me quiero
+#    matar" to the "sin" three words earlier and scored LOW (discord-bot #64,
+#    measured by the discord-bot session, fi-core 0.27.x). Local scope keeps
+#    "no me quiero morir" and "sin ideación suicida" negated while "no sé, me
+#    quiero morir" and "sin ganas de nada, tengo un plan suicida" stay
+#    positive. A locally negated term is not dropped: it is reported as
+#    `denied` so a consumer can log "sigue hablando de morirse" as a weak
+#    signal (VocabularyHits.denied).
+#
+# Perfect coverage needs a real negation parser (NegEx / negspaCy), out of
+# scope for fi-core's zero-dep promise (free-intelligence #171).
 
 _NEGATION_CUES: tuple[str, ...] = (
     # Spanish — clinical phrasing
     r"niega", r"niegan", r"neg[oó]",
     r"no\s+presenta", r"no\s+tiene", r"no\s+refiere", r"no\s+manifiesta",
     r"descarta", r"descartan", r"descart[oó]",
-    r"ausencia\s+de", r"sin\s+(?!embargo)",
+    r"ausencia\s+de",
     # English
     r"denies", r"no\s+history\s+of", r"no\s+signs?\s+of",
-    r"no\s+evidence\s+of", r"rules?\s+out", r"without",
+    r"no\s+evidence\s+of", r"rules?\s+out",
     r"absence\s+of",
 )
 
@@ -84,16 +98,46 @@ _NEGATION_RE = re.compile(
     re.IGNORECASE,
 )
 
+#: A vocabulary term is LOCALLY negated when the text right before it ends in
+#: one of these cues, at most one word and one clitic away, with no comma in
+#: between: "no tengo <term>", "no me <term>", "sin <term>", "ni <term>",
+#: "nunca me <term>". "no sé, <term>" and "no sé si <term>" do not qualify.
+_LOCAL_NEGATION_RE = re.compile(
+    r"(?:^|[^\w,])"
+    r"(?:sin|no|nunca|jamas|ni|without|not|never)\s+"
+    r"(?:(?!(?:sin|no|nunca|jamas|ni|without|not|never)\s)[^\s,]+\s+)?"
+    r"(?:(?:me|se|te|le|nos)\s+)?$"
+)
+
+
+def _term_spans(term: str, haystack: str) -> list[int]:
+    return [m.start() for m in re.finditer(re.escape(term), haystack)]
+
+
+def _present(term: str, haystack: str) -> bool:
+    """``term`` occurs in ``haystack`` at least once WITHOUT a local negation
+    right before it. A term that is itself the negation cue plus its object
+    ("no quiero vivir", "sin esperanza") is matched whole, so the cue inside it
+    is never read as negating it."""
+    return any(not _LOCAL_NEGATION_RE.search(haystack[:i]) for i in _term_spans(term, haystack))
+
+
+def _denied(term: str, haystack: str) -> bool:
+    """``term`` occurs in ``haystack`` and EVERY occurrence is locally negated."""
+    spans = _term_spans(term, haystack)
+    return bool(spans) and all(_LOCAL_NEGATION_RE.search(haystack[:i]) for i in spans)
+
 
 @lru_cache(maxsize=64)
 def _negation_shaped_terms(vocab: frozenset[str]) -> tuple[str, ...]:
     """Vocabulary phrases that carry a negation cue INSIDE them.
 
-    'mejor sin mí' and 'sin esperanza' are symptoms, not denials — the 'sin' is
-    the symptom's own grammar. Left unprotected, the cue stripper ate exactly
-    the phrases the vocabulary existed to catch (0.26.0 regression, found by a
-    consumer measuring PSYCHIATRY). Longest first, so a longer phrase is shielded
-    before any shorter phrase it contains."""
+    A phrase spelled with a CLAUSE cue is a symptom, not a denial — the cue is
+    the symptom's own grammar. Left unprotected, the stripper ate exactly the
+    phrases the vocabulary existed to catch (0.26.0 regression: 'mejor sin mí',
+    found by a consumer measuring PSYCHIATRY, back when "sin" was a clause cue).
+    Longest first, so a longer phrase is shielded before any shorter phrase it
+    contains. Local cues need no shield: :func:`_present` matches a term whole."""
     folded = _fold_vocab(vocab)
     return tuple(sorted((t for t in folded if _NEGATION_RE.search(t)), key=len, reverse=True))
 
@@ -212,7 +256,27 @@ def _normalize(items: list[str], protected: tuple[str, ...] = ()) -> list[str]:
 
 def _matches(item: str, vocab: frozenset[str]) -> bool:
     folded = _fold_vocab(vocab)
-    return item in folded or any(term in item for term in folded)
+    return item in folded or any(_present(term, item) for term in folded)
+
+
+def _stable(terms: list[str]) -> tuple[str, ...]:
+    return tuple(sorted(terms, key=lambda t: (-len(t), t)))
+
+
+def scan_terms(
+    text: str, vocab: frozenset[str], protected: tuple[str, ...] = ()
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """``(found, denied)`` — vocabulary entries in free text, in ORIGINAL spelling.
+
+    ``found`` are the entries present at least once without a local negation;
+    ``denied`` are the entries that appear ONLY right after a local cue ("no me
+    quiero morir", "sin ideación suicida"). Clause-level denials ("niega X") are
+    stripped before scanning and appear in neither. Both halves longest-first,
+    sorted, so the result is stable."""
+    haystack = _strip_negations(_fold(text), protected)
+    found = [term for term in vocab if _present(_fold(term), haystack)]
+    denied = [term for term in vocab if _denied(_fold(term), haystack)]
+    return _stable(found), _stable(denied)
 
 
 def find_terms(text: str, vocab: frozenset[str], protected: tuple[str, ...] = ()) -> tuple[str, ...]:
@@ -220,13 +284,11 @@ def find_terms(text: str, vocab: frozenset[str], protected: tuple[str, ...] = ()
 
     The consumer-side twin of :func:`_matches`: the classifier scores symptoms
     someone already identified, this finds them in what a person actually wrote.
-    Same folding (so 'ideacion suicida' finds 'ideación suicida'), same negation
-    stripping with the same shielded phrases (so 'niega ideación suicida' finds
-    nothing and 'mejor sin mi' finds 'mejor sin mí'). Longest entries first,
-    sorted, so the result is stable."""
-    haystack = _strip_negations(_fold(text), protected)
-    hits = [term for term in vocab if _fold(term) in haystack]
-    return tuple(sorted(hits, key=lambda t: (-len(t), t)))
+    Same folding (so 'ideacion suicida' finds 'ideación suicida'), same two-tier
+    negation (so 'niega ideación suicida' and 'no tengo ideación suicida' find
+    nothing, 'mejor sin mi' finds 'mejor sin mí'). The ``found`` half of
+    :func:`scan_terms`."""
+    return scan_terms(text, vocab, protected)[0]
 
 
 def band_for_gravity(gravity: float) -> UrgencyBand:
@@ -295,7 +357,7 @@ class UrgencyClassifier:
                 reasons.append("age < 1 (+1.5)")
         history = _normalize(patient.medical_history, self._protected)
         for cond in sorted(self.high_risk_conditions):
-            if any(_fold(cond) in h for h in history):
+            if any(_present(_fold(cond), h) for h in history):
                 mod += 0.5
                 reasons.append(f"comorbidity '{cond}' (+0.5)")
         if (patient.gender or "").lower() == "female" and any(
@@ -308,7 +370,7 @@ class UrgencyClassifier:
     def critical_pattern(self, patient: PatientContext) -> str | None:
         text = " ".join(_normalize(patient.symptoms + patient.medical_history, self._protected))
         for pattern in sorted(self.critical_patterns):
-            if _fold(pattern) in text:
+            if _present(_fold(pattern), text):
                 return pattern
         return None
 
