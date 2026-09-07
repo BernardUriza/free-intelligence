@@ -70,7 +70,7 @@ FALSOS_POSITIVOS_LIMPIOS = (
     "me he estado matando en la chamba",
 )
 
-# Y estas seis son el precio, medido y aceptado a propósito el 2026-08-31.
+# Y estas cinco son el precio, medido y aceptado a propósito el 2026-08-31.
 # Cada una trae adentro una frase adoptada. NO se esconden: si algún día el
 # #53 las gradúa con bandas, este test es el que se pone rojo y avisa.
 FALSOS_POSITIVOS_ACEPTADOS = (
@@ -78,8 +78,23 @@ FALSOS_POSITIVOS_ACEPTADOS = (
     ("ya no quiero estar en una relación", "ya no quiero estar"),
     ("no le veo sentido a seguir en ese trabajo", "no le veo sentido"),
     ("quiero morir de vergüenza", "quiero morir"),
-    ("ya no quiero hacerme daño pensando en mi ex", "hacerme daño"),
     ("no quiero seguir viviendo una vida recordando a mi ex por siempre", "no quiero seguir viviendo"),
+)
+
+# Eran seis. Ésta salió sola el 2026-09-07 (v4.38.9) cuando el booleano dejó
+# de buscar subcadenas plegadas y pasó a `PSYCHIATRY.match()`: fi-core 0.28.0
+# lee el "no" a una palabra de "hacerme daño" y la devuelve en `denied`. Fue
+# la ÚNICA frase de los corpus de Álex que cambió con la migración — medido
+# antes de borrar la copia local del plegado. (Fuera de sus corpus cambiaron
+# tres más, todas negadas o de exposición: ver NEGADAS_QUE_YA_NO_DISPARAN.)
+FALSOS_POSITIVOS_RESUELTOS_POR_MATCH = (("ya no quiero hacerme daño pensando en mi ex", "hacerme daño"),)
+
+# Lo que el booleano dejó de disparar con fi-core 0.29.0 sin que nadie lo
+# graduara: la negación local llegó a `acute_signals` (fi #461, H1/H2). Cada
+# fila trae la señal que SÍ dispara sola, para que el test no pase de a gratis.
+NEGADAS_QUE_YA_NO_DISPARAN = (
+    ("no me quiero morir", "me quiero morir"),
+    ("no me quiero morir, solo estoy muy cansado", "me quiero morir"),
 )
 
 
@@ -188,6 +203,33 @@ def test_the_accepted_false_positives_are_declared_not_hidden(frase: str, señal
     """
     assert is_acute_crisis(frase)
     assert is_acute_crisis(señal), f"la señal '{señal}' es la que lo dispara"
+
+
+@pytest.mark.parametrize(("frase", "señal"), FALSOS_POSITIVOS_RESUELTOS_POR_MATCH)
+def test_a_negated_signal_no_longer_routes_to_crisis(frase: str, señal: str):
+    """El primer falso positivo aceptado que se resuelve sin graduar nada.
+
+    La señal sigue disparando sola; negada a una palabra de distancia, ya no.
+    Es exactamente lo que `denied` existe para decir: la persona lo está
+    negando. Si `match()` deja de ver la negación, esto vuelve a disparar y el
+    test lo dice.
+    """
+    assert is_acute_crisis(señal), f"la señal '{señal}' dejó de disparar sola"
+    assert PSYCHIATRY.match(frase).denied == (señal,)
+    assert not is_acute_crisis(frase), f"'{frase}' está negada y volvió a disparar"
+
+
+@pytest.mark.parametrize(("frase", "señal"), NEGADAS_QUE_YA_NO_DISPARAN)
+def test_a_negated_regex_signal_no_longer_routes_to_crisis(frase: str, señal: str):
+    """Los 5 regex también leen el "no" desde fi-core 0.29.0.
+
+    Antes "no me quiero morir" disparaba el modo completo por el regex de
+    ideación explícita, ciego a la negación. Ahora queda en `denied` del eje
+    agudo. Si río arriba el regex vuelve a ignorar el "no", esto avisa.
+    """
+    assert is_acute_crisis(señal), f"la señal '{señal}' dejó de disparar sola"
+    assert "explicit_ideation" in PSYCHIATRY.acute_signals.score([frase]).denied
+    assert not is_acute_crisis(frase), f"'{frase}' está negada y volvió a disparar"
 
 
 # --- El eje crónico: mismos pesos, mismo umbral -------------------------------

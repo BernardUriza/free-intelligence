@@ -61,7 +61,21 @@ dependencies:
   # oficial que pliega acentos y respeta negaciones igual que el clasificador
   # (free-intelligence #458 / PR #459). Es el paso previo del #53: nadie en este
   # repo vuelve a plegar ni a grepear las listas de PSYCHIATRY por su cuenta.
-  - fi-core=0.27.0
+  # SUBIDO a 0.28.0 (2026-09-07): cierra el #64 — "sin esperanza" / "no tengo
+  # esperanza" entran al vocabulario, y la negación pasa a ser LOCAL por
+  # registro (free-intelligence PR #460): "no"/"sin"/"nunca" niegan a una
+  # palabra y nunca cruzan una coma, así que "el equipo va a estar mejor sin
+  # mí" ya no se la come el "sin". `PSYCHIATRY.match()` devuelve además el
+  # bucket `denied` ("no me quiero morir" → denied=('quiero morir',)), que es
+  # lo que dejó a `is_acute_crisis` soltar su última subcadena plegada local.
+  # Y a 0.29.0 el mismo día (free-intelligence #461 / PR #462, las H1/H2 de
+  # Álex): `acute_signals` también respeta la negación local, `match()` suma
+  # el bucket `excluded` (modismo "de la risa", tema ajeno "documental",
+  # desahogo laboral "no puedo más con este proyecto") y llegan los dos grupos
+  # crónicos de exposición (`exposicion_intento` / `exposicion_consumado`):
+  # "mi hermana intentó suicidarse" deja de ser crisis del hablante y pasa a
+  # ser historia — se mapea a `high_risk_conditions` en vulnerability.py.
+  - fi-core=0.29.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
@@ -98,7 +112,9 @@ dependencies:
   # 2026-08-29; los backends borrados sólo sobreviven en docstrings), y 0.21.2
   # es la primera fi-runner cuyo cap de fi-core (<0.28) admite la 0.27.0 de
   # arriba — con 0.21.0/0.21.1 (cap <0.27) el par no resuelve.
-  - fi-runner=0.21.2
+  # SUBIDO a 0.21.4 (2026-09-07): cap de fi-core <0.30, el que admite la 0.29.0
+  # de arriba (0.21.3 capaba <0.29).
+  - fi-runner=0.21.4
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0
