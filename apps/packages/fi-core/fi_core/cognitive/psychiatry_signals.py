@@ -18,16 +18,96 @@ a person in crisis meets presence or meets a joke:
   ``PSYCH_HIGH_RISK_CONDITIONS`` but nothing could ever match. Their weights
   are PROPOSED (Alex's #52 close-out: "sumarlas con peso propio sí") and are
   hers to validate — change them with her, not casually.
+- 0.29.0 (Alex's decisions in discord-bot #55, 2026-09-04/05; fi #461):
+  ``preparatory_acts`` on the acute axis at the highest weight — "this is what
+  the CRITICAL band needs to mean something"; ``farewell_hint`` as a WEAK
+  signal that never fires alone; two chronic EXPOSURE groups (a relative's
+  attempt, a relative's death by suicide — PLOS Med 2020,
+  doi 10.1371/journal.pmed.1003074) with the same weight and outside
+  ``recent_grief``; and the EXCLUSIONS — idiom, media topic, work venting and
+  those same two exposure groups — which cut text that is not about the
+  writer before anything can read a crisis into it.
 """
 
 from __future__ import annotations
 
 from .signals import SignalGroup, WeightedSignals
 
+# --- Exclusions: text that is NOT about the writer's own state ---------------
+#: Third-party exposure. Excluded from the writer's crisis AND scored as its own
+#: chronic group — one definition, two roles. "mi paciente …" is left alone: a
+#: clinician describing the patient is the 3rd-person case the flat vocabulary
+#: exists for.
+EXPOSURE_ATTEMPT = SignalGroup.make(
+    "exposicion_intento", 2,
+    r"\b(?:"
+    r"(?:mi|su|tu|nuestr[oa]|un[a]?\s+(?:amig[oa]|compañer[oa]|companer[oa]|conocid[oa]))\s+"
+    r"(?!paciente\b)(?:\w+\s+){0,2}?(?:intent[oó]|trat[oó]\s+de|quiso)\s+"
+    r"(?:suicidarse|matarse|quitarse\s+la\s+vida|ahorcarse|cortarse\s+las\s+venas)|"
+    r"intento\s+de\s+suicidio\s+de\s+(?:mi|su)\s+\w+|"
+    r"(?:my|his|her|their)\s+(?!patient\b)\w+\s+(?:tried|attempted)\s+to\s+(?:kill|hang)\s+"
+    r"(?:him|her|them)self|"
+    r"(?:my|his|her|their)\s+(?!patient\b)\w+\s+attempted\s+suicide"
+    r")",
+    category="exposición a intento de suicidio",
+)
+EXPOSURE_COMPLETED = SignalGroup.make(
+    "exposicion_consumado", 2,
+    r"\b(?:"
+    r"(?:mi|su|tu|nuestr[oa])\s+(?!paciente\b)(?:\w+\s+){1,2}?se\s+"
+    r"(?:suicid[oó]|mat[oó]|ahorc[oó]|quit[oó]\s+la\s+vida|peg[oó]\s+un\s+tiro)|"
+    r"perd[ií]\s+a\s+(?:mi|un[a]?)\s+\w+\s+por\s+suicidio|"
+    r"suicidio\s+de\s+(?:mi|su)\s+\w+|"
+    r"(?:my|his|her|their)\s+(?!patient\b)\w+\s+"
+    r"(?:killed\s+(?:him|her|them)self|committed\s+suicide|died\s+by\s+suicide|"
+    r"took\s+(?:his|her|their)\s+(?:own\s+)?life)"
+    r")",
+    category="exposición a suicidio consumado",
+)
+#: "me muero de risa" is not ideation. Weight 0: an exclusion, never a score.
+IDIOM = SignalGroup.make(
+    "modismo", 0,
+    r"\b(?:"
+    r"me\s+(?:quiero|voy\s+a)\s+morir\s+de\s+(?:la\s+)?(?:risa|verg[üu]enza|pena)|"
+    r"(?:me\s+)?muero\s+de\s+(?:la\s+)?(?:risa|hambre|sue[ñn]o|fr[ií]o|calor|ganas|verg[üu]enza|aburrimiento)|"
+    r"(?:para|de)\s+morirse\s+de\s+risa|matarme\s+de\s+risa|"
+    r"dying\s+of\s+laughter|(?:could|gonna|going\s+to)\s+die\s+laughing"
+    r")",
+    category="modismo",
+)
+#: A documentary, a book, a class ABOUT suicide is a topic, not the writer.
+TOPIC_NOT_SELF = SignalGroup.make(
+    "tema_no_propio", 0,
+    r"\b(?:"
+    r"(?:documental|pel[ií]cula|serie|libro|art[ií]culo|noticia|podcast|video|reportaje|"
+    r"charla|clase|tesis|ensayo|novela|canci[oó]n|cap[ií]tulo|episodio)\b[^.;!?]*?\b(?:suicid\w*|autolesi\w*)|"
+    r"(?:documentary|movie|film|book|article|podcast|episode|class)\b[^.;!?]*?\bsuicid\w*|"
+    r"(?:tasas?|cifras|estad[ií]sticas|prevenci[oó]n|d[ií]a\s+mundial)\s+(?:de\s+|del\s+)?(?:la\s+)?"
+    r"(?:prevenci[oó]n\s+del\s+)?suicidio"
+    r")",
+    category="tema, no sobre quien escribe",
+)
+#: "ya no puedo más con este proyecto" is venting about work, not a limit.
+WORK_VENTING = SignalGroup.make(
+    "desahogo_laboral", 0,
+    r"\b(?:ya\s+)?no\s+puedo\s+m[aá]s\s+con\s+(?:este|esta|estos|estas|el|la|los|las|mi|mis|tanto|tanta|tantos|tantas)\s+"
+    r"(?:\w+\s+)?(?:proyecto|trabajo|chamba|deploy|c[oó]digo|tarea|tareas|examen|ex[aá]menes|escuela|"
+    r"semestre|jefe|jefa|cliente|clientes|bug|bugs|servidor|tesis|entrega|entregas|junta|juntas|pendientes|"
+    r"materia|clase|migraci[oó]n|sprint|release)\b",
+    category="desahogo laboral",
+)
+#: What ClinicalDomain.match and the ACUTE axis cut before reading the writer.
+PSYCH_EXCLUSIONS: tuple[SignalGroup, ...] = (
+    IDIOM, TOPIC_NOT_SELF, WORK_VENTING, EXPOSURE_ATTEMPT, EXPOSURE_COMPLETED,
+)
+
 #: Chronic vulnerability over accumulated facts. Threshold 4 = a cluster, not
-#: a mention (migrated verbatim; see module docstring).
+#: a mention (migrated verbatim; see module docstring). The exposure groups are
+#: BOTH groups and exclusions here: "mi hermana intentó suicidarse" scores
+#: exposicion_intento and never self_harm_history.
 PSYCH_CHRONIC_SIGNALS = WeightedSignals(
     threshold=4,
+    exclusions=(IDIOM, TOPIC_NOT_SELF, EXPOSURE_ATTEMPT, EXPOSURE_COMPLETED),
     groups=(
         SignalGroup.make(
             "named_diagnosis", 3,
@@ -107,6 +187,10 @@ PSYCH_CHRONIC_SIGNALS = WeightedSignals(
             r"consumo\s+problem[aá]tico)",
             category="trastorno por uso de sustancias",
         ),
+        # --- Exposure to a relative's suicide attempt / death (Alex, #55 H2).
+        # --- Same weight as each other, deliberately NOT inside recent_grief.
+        EXPOSURE_ATTEMPT,
+        EXPOSURE_COMPLETED,
     ),
 )
 
@@ -114,7 +198,40 @@ PSYCH_CHRONIC_SIGNALS = WeightedSignals(
 #: consumer semantics; the graded weights are for a banded classifier (#53).
 PSYCH_ACUTE_SIGNALS = WeightedSignals(
     threshold=1,
+    exclusions=PSYCH_EXCLUSIONS,
     groups=(
+        # Preparatory acts — means secured, farewell written, place reached,
+        # possessions given away. Alex (#55 H1): "esto es lo que la banda
+        # CRITICAL necesita para significar algo". Highest acute weight.
+        SignalGroup.make(
+            "preparatory_acts", 4,
+            r"\b(?:"
+            r"(?:tengo|ten[ií]a|guard[eé]|junt[eé]|compr[eé]|consegu[ií])\s+(?:las\s+|unas\s+|mis\s+)?pastillas|"
+            r"pastillas\s+listas|(?:llevo\s+\w+\s+)?(?:guardando|juntando)\s+pastillas|"
+            r"(?:escrib[ií]|dej[eé]|tengo)\s+(?:mi\s+|una\s+|la\s+)?(?:carta|nota)\s+de\s+despedida|"
+            r"(?:carta|nota)\s+de\s+despedida|"
+            r"ya\s+(?:decid[ií]|s[eé])\s+c[oó]mo\s+(?:lo\s+voy\s+a\s+hacer|hacerlo|me\s+voy\s+a\s+(?:matar|ir))|"
+            r"estoy\s+en\s+(?:el\s+puente|la\s+azotea|las\s+v[ií]as|el\s+techo|el\s+balc[oó]n|la\s+orilla)|"
+            r"(?:compr[eé]|consegu[ií])\s+(?:una\s+|la\s+|un\s+)?(?:cuerda|soga|pistola|arma|navaja)|"
+            r"regal[eé]\s+(?:todas\s+)?mis\s+cosas|regalando\s+mis\s+cosas|"
+            r"ya\s+me\s+desped[ií]\s+de\s+todos|me\s+estoy\s+despidiendo|"
+            r"voy\s+a\s+dar(?:le)?\s+mi\s+(?:perr[oa]|gat[oa]|mascota|cosas)\s+a\s+|"
+            r"ya\s+no\s+te\s+preocupes\s+por\s+m[ií]|"
+            r"(?:i\s+)?have\s+(?:a\s+plan\s+and\s+)?the\s+pills\s+ready|pills\s+ready|"
+            r"wrote\s+(?:my\s+)?(?:goodbye|suicide)\s+(?:note|letter)|"
+            r"gave\s+away\s+my\s+(?:things|stuff|belongings)|"
+            r"bought\s+(?:a\s+)?(?:rope|gun)|i'?m\s+on\s+the\s+(?:bridge|roof|tracks|ledge)"
+            r")",
+            category="riesgo inminente",
+        ),
+        # Weak signal (Alex): reported in `matched`, weight 0 so it never
+        # crosses alone. "ya arreglé mis papeles" is deliberately OUT.
+        SignalGroup.make(
+            "farewell_hint", 0,
+            r"\b(?:ya\s+no\s+voy\s+a\s+estar\s+(?:el|la|para|este|esta|ma[ñn]ana|aqu[ií])\b|"
+            r"i\s+won'?t\s+be\s+(?:here|around)\s+(?:on|by|next|tomorrow))",
+            category="riesgo suicida",
+        ),
         SignalGroup.make(
             "explicit_ideation", 4,
             r"\b(suicid\w*|matarme|kill myself|me quiero morir|i want to die|"

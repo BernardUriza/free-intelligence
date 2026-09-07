@@ -29,8 +29,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS
-from .signals import WeightedSignals
+from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS, PSYCH_EXCLUSIONS
+from .signals import SignalGroup, WeightedSignals
 from .urgency import (
     DEFAULT_CRITICAL_PATTERNS,
     DEFAULT_CRITICAL_SYMPTOMS,
@@ -38,8 +38,10 @@ from .urgency import (
     DEFAULT_HIGH_SYMPTOMS,
     DEFAULT_MEDIUM_SYMPTOMS,
     UrgencyClassifier,
+    _fold,
     _negation_shaped_terms,
     scan_terms,
+    strip_exclusions,
 )
 
 # --- Psychiatry / mental-health vocabularies (Spanish, NON-EXHAUSTIVE) -------
@@ -88,6 +90,17 @@ PSYCH_CRITICAL_SYMPTOMS: frozenset[str] = frozenset({
     "me quiero quitar la vida",
     "me voy a matar", "me voy a ahorcar", "me voy a suicidar",
     "me voy a quitar la vida",
+    # preparatory acts (Alex, discord-bot #55 H1) — tight substrings so the
+    # band goes CRITICAL; the looser regex lives in PSYCH_ACUTE_SIGNALS.
+    "pastillas listas", "guardando pastillas", "juntando pastillas",
+    "carta de despedida", "nota de despedida",
+    "ya decidí cómo lo voy a hacer", "ya decidí cómo hacerlo",
+    "estoy en el puente", "estoy en la azotea", "estoy en las vías",
+    "compré una cuerda", "compré una soga", "compré una pistola",
+    "regalé mis cosas", "ya me despedí de todos",
+    "dar mi perro a", "dar mi gato a", "dar mi mascota a",
+    "ya no te preocupes por mí",
+    "the pills ready", "pills ready",
 })
 #: Serious but not imminent → gravity 7.
 PSYCH_HIGH_SYMPTOMS: frozenset[str] = frozenset({
@@ -143,12 +156,25 @@ PSYCH_CRITICAL_PATTERNS: frozenset[str] = frozenset({
     "me quiero quitar la vida",
     "me voy a matar", "me voy a ahorcar", "me voy a suicidar",
     "me voy a quitar la vida",
+    # preparatory acts (mirrors PSYCH_CRITICAL_SYMPTOMS).
+    "pastillas listas", "guardando pastillas", "juntando pastillas",
+    "carta de despedida", "nota de despedida",
+    "ya decidí cómo lo voy a hacer", "ya decidí cómo hacerlo",
+    "estoy en el puente", "estoy en la azotea", "estoy en las vías",
+    "compré una cuerda", "compré una soga", "compré una pistola",
+    "regalé mis cosas", "ya me despedí de todos",
+    "dar mi perro a", "dar mi gato a", "dar mi mascota a",
+    "ya no te preocupes por mí",
+    "the pills ready", "pills ready",
 })
 #: Comorbidities / history that add gravity (+0.5 each).
 PSYCH_HIGH_RISK_CONDITIONS: frozenset[str] = frozenset({
     "intento de suicidio previo", "trastorno por uso de sustancias",
     "aislamiento social", "duelo reciente", "hospitalización psiquiátrica previa",
     "trauma", "abuso",
+    # exposure to a relative's suicide attempt / death (Alex, #55 H2) — the
+    # chronic groups exposicion_intento / exposicion_consumado map here.
+    "exposición a intento de suicidio", "exposición a suicidio consumado",
 })
 
 
@@ -168,6 +194,10 @@ class VocabularyHits:
     #: nothing either: a consumer can log it as a weak signal ("sigue hablando
     #: de morirse"). Excluded from ``__bool__``.
     denied: tuple[str, ...] = ()
+    #: Exclusion groups that cut a span before matching — an idiom, a media
+    #: topic, someone else's act ("mi hermana intentó suicidarse"). Explains
+    #: why a message that looks like a crisis produced no hit.
+    excluded: tuple[str, ...] = ()
 
     def __bool__(self) -> bool:
         return bool(self.symptoms or self.critical_patterns or self.high_risk_conditions)
@@ -195,6 +225,10 @@ class ClinicalDomain:
     high_risk_conditions: frozenset[str]
     chronic_signals: WeightedSignals | None = None
     acute_signals: WeightedSignals | None = None
+    #: Spans that are not about the writer (idiom, topic, someone else's act),
+    #: cut before the vocabularies read the text. Declared once as signal
+    #: groups; the classifier, ``match`` and the axes all honor them.
+    exclusions: tuple[SignalGroup, ...] = ()
 
     def urgency_classifier(self) -> UrgencyClassifier:
         """An :class:`UrgencyClassifier` wired with this domain's vocabularies."""
@@ -204,6 +238,7 @@ class ClinicalDomain:
             medium_symptoms=self.medium_symptoms,
             critical_patterns=self.critical_patterns,
             high_risk_conditions=self.high_risk_conditions,
+            exclusions=self.exclusions,
         )
 
     def match(self, text: str) -> VocabularyHits:
@@ -228,6 +263,7 @@ class ClinicalDomain:
             | self.critical_patterns
             | self.high_risk_conditions
         )
+        text, excluded = strip_exclusions(_fold(text), self.exclusions)
         symptoms, denied_symptoms = scan_terms(
             text, self.critical_symptoms | self.high_symptoms | self.medium_symptoms, protected
         )
@@ -238,6 +274,7 @@ class ClinicalDomain:
             critical_patterns=patterns,
             high_risk_conditions=conditions,
             denied=tuple(sorted(set(denied_symptoms + denied_patterns + denied_conditions))),
+            excluded=excluded,
         )
 
 
@@ -262,6 +299,7 @@ PSYCHIATRY = ClinicalDomain(
     high_risk_conditions=PSYCH_HIGH_RISK_CONDITIONS,
     chronic_signals=PSYCH_CHRONIC_SIGNALS,
     acute_signals=PSYCH_ACUTE_SIGNALS,
+    exclusions=PSYCH_EXCLUSIONS,
 )
 
 #: Registry — look a domain up by name.
