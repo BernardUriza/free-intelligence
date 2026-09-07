@@ -193,3 +193,57 @@ def test_first_person_proclitico_is_critical_like_third_person(text: str):
 
 def test_first_person_proclitico_denied_by_a_clinician_still_strips():
     assert not PSYCHIATRY.match("niega que se quiera matar; no refiere que me quiero matar")
+
+
+# --- 0.29.1: the two layers read one sentence the same way; history never overrides
+
+
+def test_vocabulary_and_acute_axis_agree_on_a_local_negation():
+    """discord-bot found match() denying "me quiero suicidar" while the acute
+    regex, matching "suicidar" clitic + verb after the "no", still fired."""
+    text = "no me quiero suicidar, es broma"
+    hits = PSYCHIATRY.match(text)
+    scored = PSYCHIATRY.acute_signals.score([text])
+    assert not hits and "me quiero suicidar" in hits.denied
+    assert not scored.matched and scored.denied == ("explicit_ideation",)
+
+
+@pytest.mark.parametrize(
+    "text", ["no me quiero suicidar", "no me voy a matar", "nunca me he querido matar"]
+)
+def test_clitic_then_verb_after_the_cue_is_negated(text: str):
+    assert not PSYCHIATRY.match(text)
+    assert not PSYCHIATRY.acute_signals.score([text]).crosses
+
+
+@pytest.mark.parametrize(
+    ("history", "message", "expected"),
+    [
+        (["intento de suicidio previo"], "hoy comí rico y salí a caminar", "LOW"),
+        (["tuvo un intento de suicidio el año pasado"], "", "LOW"),
+        (["exposición a intento de suicidio"], "hoy comí rico", "LOW"),
+        (["intento de suicidio previo"], "tengo un plan suicida", "CRITICAL"),
+    ],
+)
+def test_history_never_fires_the_critical_override(history: list[str], message: str, expected: str):
+    """The override reads what is happening NOW. A past attempt is history: it
+    adds +0.5 via modifiers and never makes a quiet message CRITICAL."""
+    hits = PSYCHIATRY.match(message)
+    score = clf.classify(PatientContext(symptoms=list(hits.symptoms), medical_history=history))
+    assert score.level.value == expected
+    assert score.critical_override == (expected == "CRITICAL")
+
+
+def test_history_still_adds_its_comorbidity_modifier():
+    score = clf.classify(PatientContext(symptoms=["insomnio"], medical_history=["intento de suicidio previo"]))
+    assert score.modifiers == 0.5
+    assert "comorbidity 'intento de suicidio previo' (+0.5)" in score.reasons
+
+
+def test_cardiology_history_is_not_a_present_pattern_either():
+    from fi_core.cognitive import CARDIOLOGY
+
+    score = CARDIOLOGY.urgency_classifier().classify(
+        PatientContext(symptoms=["fever"], medical_history=["myocardial infarction 2019"])
+    )
+    assert score.level.value == "MEDIUM" and not score.critical_override

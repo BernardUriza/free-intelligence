@@ -12,6 +12,33 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.29.1] — 2026-09-07
+
+### Fixed — history never fires the CRITICAL override; both layers read one negation the same way
+
+Both found by the discord-bot session while pinning 0.29.0 (their
+`test_crisis_band_observacion.py`).
+
+- **`UrgencyClassifier.critical_pattern` scans the symptoms only.** It used to
+  join `symptoms + medical_history`, so any history condition containing a
+  critical pattern — `"intento de suicidio previo"`, and since 0.29.0
+  `"exposición a intento de suicidio"` — forced `critical_override=True` on
+  every turn of that person, message irrelevant:
+  `crisis_band("hoy comí rico y salí a caminar", history=[intento previo])` →
+  **CRITICAL 10**. ER semantics ported from FLOW.md; in a chat it meant every
+  person with a self-harm-history fact was CRITICAL on "hoy comí rico", which
+  is the single strongest reason the band could never be enabled. History
+  keeps its +0.5 comorbidity modifier. Cardiology too: a past
+  `"myocardial infarction 2019"` no longer overrides `"fever"`.
+- **Local negation reads the clitic BEFORE the word**, where Spanish puts it.
+  `"no me quiero suicidar, es broma"`: `match()` denied the vocabulary phrase
+  `"me quiero suicidar"` (it starts right after the "no") while the acute
+  regex, matching `"suicidar"` clitic + verb after the "no", still fired
+  `explicit_ideation`. Same sentence, two verdicts. `_LOCAL_NEGATION_RE` is now
+  cue → optional clitic → optional word; both layers deny.
+
+No API change.
+
 ## [0.29.0] — 2026-09-07
 
 ### Added — Alex's H1/H2 for `PSYCHIATRY` (discord-bot #55; fi #461)
