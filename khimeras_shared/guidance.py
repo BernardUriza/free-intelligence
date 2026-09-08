@@ -63,6 +63,58 @@ async def load_user_facts(memory: Any, user_id: str) -> list[dict]:
         return []
 
 
+def _registrar_veredicto(
+    *,
+    current_message: str,
+    user_facts: list[dict] | None,
+    persona_id: str,
+    user_id: str,
+) -> None:
+    """Calcula la banda del turno y la registra. NUNCA levanta.
+
+    Issue #53 — MODO OBSERVACIÓN: la banda se calcula y se registra; NO entra
+    al guidance ni cambia lo que una persona lee.
+
+    Issue #54 — el veredicto deja de vivir escondido dentro de `guidance_built`
+    y sale con nombre propio, con su denominador y sin una palabra de quien
+    escribió. El recorte de `reasons` a 3 y el seudónimo viven en
+    `khimeras_shared.audit`, no aquí: son la decisión de Álex y tienen que ser
+    imposibles de olvidar en el siguiente llamador.
+
+    POR QUÉ ES UNA FUNCIÓN Y NO UN BLOQUE INLINE. La regla dura del #54 es que
+    una falla del registro no puede costar el turno. Inline, dentro del try
+    grande de `build_turn_guidance`, una excepción al REGISTRAR caía al
+    `except` general y el turno se iba sin guidance — o sea, una persona
+    vulnerable perdía su overlay porque un log se atragantó. Aquí la garantía
+    es estructural: esta función se traga todo y el guidance sigue su camino.
+
+    Los dos `reason` distinguen fallas que NO son la misma cosa:
+    `crisis_band_failed` (fi-core no pudo clasificar) contra
+    `crisis_band_log_failed` (hubo veredicto y lo que se cayó fue el registro).
+    Un denominador que las mezcla miente justo donde existe para no mentir.
+    """
+    try:
+        band = crisis_band(current_message, user_facts)
+        signals = matched_acute_groups(current_message)
+    except Exception:
+        log.warning("crisis_band_failed", persona_id=persona_id)
+        log_crisis_band_absent(persona_id=persona_id, reason="crisis_band_failed")
+        return
+    try:
+        log_crisis_band_classified(
+            band=band.level.value,
+            gravity=band.final_gravity,
+            reasons=list(band.reasons),
+            critical_override=band.critical_override,
+            signals=signals,
+            persona_id=persona_id,
+            user_id=user_id,
+        )
+    except Exception:
+        log.exception("crisis_band_log_failed", persona_id=persona_id)
+        log_crisis_band_absent(persona_id=persona_id, reason="crisis_band_log_failed")
+
+
 def build_turn_guidance(
     *,
     current_message: str,
@@ -115,31 +167,12 @@ def build_turn_guidance(
                 cap=MAX_GUIDANCE_CHARS,
             )
             guidance = guidance[:MAX_GUIDANCE_CHARS]
-        # Issue #53 — MODO OBSERVACIÓN. La banda se calcula y se registra; NO
-        # entra al guidance ni cambia lo que la persona lee. Va en su propio
-        # try porque observar nunca puede tumbar producción: si fi-core truena,
-        # se pierde la métrica, no el turno.
-        #
-        # Issue #54 — el veredicto deja de vivir escondido dentro de
-        # `guidance_built` y sale con nombre propio, con su denominador y sin
-        # una palabra de quien escribió. El recorte de `reasons` a 3 y el
-        # seudónimo viven en `khimeras_shared.audit`, no aquí: son la decisión
-        # de Álex y tienen que ser imposibles de olvidar en el siguiente
-        # llamador.
-        try:
-            band = crisis_band(current_message, user_facts)
-            log_crisis_band_classified(
-                band=band.level.value,
-                gravity=band.final_gravity,
-                reasons=list(band.reasons),
-                critical_override=band.critical_override,
-                signals=matched_acute_groups(current_message),
-                persona_id=persona_id,
-                user_id=user_id,
-            )
-        except Exception:
-            log.warning("crisis_band_failed", persona_id=persona_id)
-            log_crisis_band_absent(persona_id=persona_id, reason="crisis_band_failed")
+        _registrar_veredicto(
+            current_message=current_message,
+            user_facts=user_facts,
+            persona_id=persona_id,
+            user_id=user_id,
+        )
         registrado = True
         log.info(
             "guidance_built",
