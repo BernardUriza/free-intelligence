@@ -28,6 +28,7 @@ RUN apt-get update \
 # the server so this layer caches across server-only edits.
 COPY apps/packages/fi-core   /opt/fi/packages/fi-core
 COPY apps/packages/fi-runner /opt/fi/packages/fi-runner
+COPY apps/packages/fi-personas/personas /opt/fi/packages/fi-personas/personas
 # stores-hdf5 (h5py+numpy) is REQUIRED by the rag_store capability's default
 # HDF5 backend — without it the MCP 500s at the first ingest/search (the
 # lazily-imported-dep deploy trap). pgvector is the persistent prod alternative
@@ -38,6 +39,7 @@ RUN pip install --no-cache-dir \
 
 # The FastAPI app itself.
 COPY apps/og118/server /opt/fi/server
+ENV FI_PERSONAS_DIR=/opt/fi/packages/fi-personas/personas
 RUN pip install --no-cache-dir -r /opt/fi/server/requirements.txt
 
 # Run unprivileged; the Claude CLI needs a writable HOME for its config dir.
