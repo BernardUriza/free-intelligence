@@ -109,7 +109,11 @@ Y `claude setup-token` **revoca** el token anterior de esa cuenta (SSOT
 **Las dos cuentas de Bernard (2026-09-08):**
 - `bernarduriza@gmail.com` (org `d1c8c86b`) — Max **$100**, es el `oauth-primary` del
   bot (token `0bb5…` compartido por discord-bot/aire/og118).
-- `vegdevide` (org `8e661957`) — Max **$200**, la logueada en el Chrome de debug.
+- `vegdevida@gmail.com` (org `8e661957`) — Max **$200 (20x)**, verificado 2026-09-08
+  vía `claude.ai/api/organizations` (tier `default_claude_max_20x`); es la cuenta
+  logueada en el Chrome de debug. **No hay token suyo guardado** en `~/.secrets/` —
+  se genera con `claude setup-token` logueado en vegdevida (login/2FA = átomo de
+  Bernard) cuando toque el escalonamiento.
 
 **El plan de Bernard:** tener las DOS en Max $200, con los ciclos DESFASADOS (que no
 "inicien el mismo día"). Para escalonarlas quiere dejar topar AMBAS alrededor de un
