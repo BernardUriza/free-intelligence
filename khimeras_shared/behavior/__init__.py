@@ -25,6 +25,7 @@ from khimeras_shared.behavior.vulnerability import (
     compute_vulnerability_score,
     crisis_band,
     is_vulnerable_user,
+    matched_acute_groups,
 )
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     "crisis_band",
     "is_vulnerable_overlay_selection",
     "is_vulnerable_user",
+    "matched_acute_groups",
 ]

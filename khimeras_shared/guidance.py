@@ -26,6 +26,7 @@ from typing import Any
 
 import structlog
 
+from khimeras_shared.audit import log_crisis_band_absent, log_crisis_band_classified
 from khimeras_shared.behavior import (
     build_preset_prompt,
     build_vulnerable_overlay_prompt,
@@ -33,6 +34,7 @@ from khimeras_shared.behavior import (
     compute_vulnerability_score,
     crisis_band,
     is_vulnerable_overlay_selection,
+    matched_acute_groups,
 )
 from khimeras_shared.constraints import build_constraints_block
 from khimeras_shared.gifs import catalog_block
@@ -67,6 +69,7 @@ def build_turn_guidance(
     recent_messages: list[dict] | None,
     user_facts: list[dict] | None,
     persona_id: str,
+    user_id: str = "",
 ) -> str | None:
     """Classify this turn and render the persona's guidance for it.
 
@@ -76,7 +79,12 @@ def build_turn_guidance(
     matters MOST (a vulnerable user asking about their own medication).
     """
     if not current_message.strip():
+        log_crisis_band_absent(persona_id=persona_id, reason="mensaje_vacio")
         return None
+    # Issue #54: el par classified/absent se emite UNA vez por turno. Sin esta
+    # bandera, una falla posterior al veredicto lo contaría en los dos lados y
+    # el denominador mentiría justo donde existe para no mentir.
+    registrado = False
     try:
         selection = classify_preset(current_message, recent_messages, user_facts)
         # Invariants go FIRST: the 16k truncation below must eat preset prose
@@ -96,6 +104,8 @@ def build_turn_guidance(
             parts.append(gif_block)
         guidance = "\n\n".join(p for p in parts if p and p.strip()).strip()
         if not guidance:
+            log_crisis_band_absent(persona_id=persona_id, reason="sin_guidance")
+            registrado = True
             return None
         if len(guidance) > MAX_GUIDANCE_CHARS:
             log.warning(
@@ -109,20 +119,32 @@ def build_turn_guidance(
         # entra al guidance ni cambia lo que la persona lee. Va en su propio
         # try porque observar nunca puede tumbar producción: si fi-core truena,
         # se pierde la métrica, no el turno.
+        #
+        # Issue #54 — el veredicto deja de vivir escondido dentro de
+        # `guidance_built` y sale con nombre propio, con su denominador y sin
+        # una palabra de quien escribió. El recorte de `reasons` a 3 y el
+        # seudónimo viven en `khimeras_shared.audit`, no aquí: son la decisión
+        # de Álex y tienen que ser imposibles de olvidar en el siguiente
+        # llamador.
         try:
             band = crisis_band(current_message, user_facts)
-            band_level, band_gravity = band.level.value, band.final_gravity
-            band_reasons = list(band.reasons[:3])
+            log_crisis_band_classified(
+                band=band.level.value,
+                gravity=band.final_gravity,
+                reasons=list(band.reasons),
+                critical_override=band.critical_override,
+                signals=matched_acute_groups(current_message),
+                persona_id=persona_id,
+                user_id=user_id,
+            )
         except Exception:
             log.warning("crisis_band_failed", persona_id=persona_id)
-            band_level, band_gravity, band_reasons = None, None, []
+            log_crisis_band_absent(persona_id=persona_id, reason="crisis_band_failed")
+        registrado = True
         log.info(
             "guidance_built",
             persona_id=persona_id,
             preset=selection.mode.value,
-            crisis_band=band_level,
-            crisis_gravity=band_gravity,
-            crisis_band_reasons=band_reasons,
             modifiers=[m.value for m in selection.modifiers],
             reason=selection.reason[:80],
             constraints=constraints.count("\n- ") if constraints else 0,
@@ -133,6 +155,8 @@ def build_turn_guidance(
         return guidance
     except Exception:
         log.exception("guidance_build_failed", persona_id=persona_id)
+        if not registrado:
+            log_crisis_band_absent(persona_id=persona_id, reason="guidance_build_failed")
         return None
 
 
@@ -151,4 +175,5 @@ async def guidance_for_turn(
         recent_messages=recent_messages,
         user_facts=facts,
         persona_id=persona_id,
+        user_id=user_id,
     )
