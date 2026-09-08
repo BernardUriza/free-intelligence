@@ -198,8 +198,8 @@ jobs:
           PR_NUM: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        # Exit code IS the gate. BLOCK or UNAVAILABLE → exit 1 → step
-        # RED → ai-gatekeep job RED → gate-status RED → PR cannot merge.
+        # Exit code IS the gate. Only BLOCK → exit 1 → RED → PR cannot merge.
+        # No LLM provider (quota/dead key) → BAIR abstains: loud comment, exit 0.
         run: python -m bair gatekeep
       - name: Summarize verdict
         if: always()
@@ -213,6 +213,7 @@ jobs:
             echo "| severity | ${{ steps.gatekeep.outputs.severity || '?' }} |"
             echo "| provider | ${{ steps.gatekeep.outputs.provider || 'none' }} |"
             echo "| executed | ${{ steps.gatekeep.outputs.executed || 'false' }} |"
+            echo "| abstained | ${{ steps.gatekeep.outputs.abstained || 'false' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # SUMMARY: Final gate status
