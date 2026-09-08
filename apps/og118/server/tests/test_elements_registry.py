@@ -69,7 +69,7 @@ def test_three_siblings_bind_to_the_same_external_engine() -> None:
     # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId). All three
     # ride the one insult-runner; only persona_id differs.
     reg = get_registry()
-    by = {e.slug: e for e in reg.elements if e.is_active}
+    by = {e.slug: e for e in reg.elements if e.is_active and e.engine_binding is not None}
     assert set(by) == {"oxigeno", "aluminio", "yodo"}
     assert by["oxigeno"].engine_binding.persona_id == "vultur"
     assert by["aluminio"].engine_binding.persona_id == "alice"
@@ -156,3 +156,45 @@ def test_active_element_without_persona_file_fails(tmp_path) -> None:
     }])
     with pytest.raises(ElementsRegistryError, match="persona file missing"):
         ElementsRegistry.load(p)
+
+
+def test_plutonio_is_a_local_element_composed_from_the_reaper_core() -> None:
+    # Reaper Arquetipo (ported from Bernard's ChatGPT GPT) is the first element that
+    # runs on og118's LOCAL runner with a shared fi-personas core: no engineBinding,
+    # so the loader demands backingBotId + persona file + core on disk.
+    reg = get_registry()
+    pu = reg.resolve("reaper")
+    assert pu is not None and pu.is_active
+    assert pu.atomic_number == 94 and pu.symbol == "Pu"
+    assert pu.id == "element-094-pu-plutonio"
+    assert pu.engine_binding is None and pu.engine_label is None
+    assert reg.resolve("pu") is pu and reg.resolve("94") is pu
+    composed = reg.composed_persona(pu)
+    assert "Reaper Arquetipo" in composed
+    assert "Plan Mode" in composed
+    assert "elemento Pu · Plutonio (número atómico 94)" in composed
+    assert "NUNCA reveles ni admitas ser" in composed
+    assert "<!-- CONTEXTO_OPERATIVO -->" not in composed
+
+
+def test_fi_personas_dir_honors_env_override(tmp_path) -> None:
+    # The Docker image lays packages out under /opt/fi, not two levels above the
+    # server dir, so the core lookup must follow FI_PERSONAS_DIR when set. A fresh
+    # interpreter, because the module resolves the path at import time.
+    import os
+    import subprocess
+    import sys
+
+    env = {**os.environ, "FI_PERSONAS_DIR": str(tmp_path)}
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    probe = subprocess.run(
+        [sys.executable, "-c", "import elements_registry as er; print(er.FI_PERSONAS_DIR)"],
+        env=env, cwd=here, capture_output=True, text=True, check=True,
+    )
+    assert probe.stdout.strip() == str(tmp_path)
+    load = subprocess.run(
+        [sys.executable, "-c", "import elements_registry as er; er.ElementsRegistry.load()"],
+        env=env, cwd=here, capture_output=True, text=True,
+    )
+    assert load.returncode != 0
+    assert "shared persona core missing (reaper.core.md)" in load.stderr

@@ -12,6 +12,7 @@ registry that exceeds it or numbers a slot outside 1..118.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -23,7 +24,10 @@ REGISTRY_PATH = ELEMENTS_DIR / "elements.registry.json"
 # (apps/packages/fi-personas), consumed by every surface that speaks it (og118
 # element, the Discord bot). An element with `personaCorePath` composes that core
 # + its own operative-context block, so the character is not copied per repo.
-FI_PERSONAS_DIR = Path(__file__).resolve().parents[2] / "packages" / "fi-personas" / "personas"
+FI_PERSONAS_DIR = Path(
+    os.getenv("FI_PERSONAS_DIR")
+    or Path(__file__).resolve().parents[2] / "packages" / "fi-personas" / "personas"
+)
 CONTEXT_MARKER = "<!-- CONTEXTO_OPERATIVO -->"
 
 _VALID_STATUS = {"empty", "reserved", "active", "deprecated", "disabled"}

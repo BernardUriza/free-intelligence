@@ -25,6 +25,9 @@ core.replace('<!-- CONTEXTO_OPERATIVO -->', <consumer operative-context block>)
 
 - **og118** — element `O · Oxígeno` composes `vultur.core.md` + its own
   `008-o-oxigeno.context.md` (the first consumer / canary).
+- **og118** — element `Pu · Plutonio` composes `reaper.core.md` (ported from the
+  Reaper Arquetipo GPT) + `094-pu-plutonio.context.md`; the first element that
+  runs on og118's LOCAL runner with a shared core.
 - **discord-bot** — `vultur` persona (separate repo) adopts the same
   `vultur.core.md` + its Khimeras context block. Cross-repo consumption (publish /
   submodule) is decided in ENGINE-BINDING-ADR-1; until then og118 is the canary

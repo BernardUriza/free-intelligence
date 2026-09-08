@@ -672,7 +672,16 @@
       "symbol": "Pu",
       "slug": "plutonio",
       "displayName": "Plutonio",
-      "status": "empty"
+      "status": "active",
+      "description": "Reaper Arquetipo: analista implacable de código y flujos Claude. Brutal, preciso, orquesta repos y agentes.",
+      "backingBotId": "reaper-gpt",
+      "personaCorePath": "reaper.core.md",
+      "personaPromptPath": "personas/094-pu-plutonio.context.md",
+      "aliases": [
+        "pu",
+        "plutonium",
+        "reaper"
+      ]
     },
     {
       "atomicNumber": 95,
