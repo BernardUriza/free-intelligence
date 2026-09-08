@@ -92,6 +92,14 @@ el OAuth token directo contra `api.anthropic.com/v1/messages` devuelve
 `rate_limit_error` → el tope es de la CUENTA, no del token; un restart limpia el
 cooldown en RAM pero el Max se re-exhausta al siguiente turno.
 
+**Desde aire-server `33b8f26` (2026-09-08) ese texto ya no sale como prosa:** el
+rotor reconoce `credit balance is too low` y `rate_limit_error` como slot quemado
+(igual que `hit your … limit`), y el cooldown lee el reset que trae el aviso
+(*"resets 11:20pm (UTC)"* / *"resets Sep 10, 8pm (UTC)"*) en vez de la hora plana.
+Con todos los slots secos el turno muere con `credentials_exhausted` real y el host
+habla por la casa. Lo que sigue viéndose como `zero_generation` con ese texto en
+KQL es una revisión anterior al deploy de ese commit, o un gateway sin el fix.
+
 **El rotor** (`aire-server` `server/aire/engine/credentials.py`, `CHAIN`) tiene tres
 slots en orden fijo, y arma solo los que tengan su env presente:
 
