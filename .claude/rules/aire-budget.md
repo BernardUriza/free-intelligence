@@ -82,3 +82,45 @@ no se toca: acusar por un cero explícito sigue siendo correcto.
 **Lección:** "la respuesta se entrega" se verifica donde la lee el humano
 (#general), no en el test unitario del cliente que la conserva. Un fix de
 entrega sin probe en Discord es un fix sin verificar.
+
+## El rotor de credenciales y el plan de las DOS cuentas Max $200 (2026-09-08)
+
+Cuando "todas las personas mudas" y KQL muestra `agent_runner_client_zero_generation`
+con `text_preview: "Credit balance is too low"` — el Max topó su rate limit y el
+rotor cayó al slot de tarjeta, que está en cero. Verificado el 2026-09-08: probar
+el OAuth token directo contra `api.anthropic.com/v1/messages` devuelve
+`rate_limit_error` → el tope es de la CUENTA, no del token; un restart limpia el
+cooldown en RAM pero el Max se re-exhausta al siguiente turno.
+
+**El rotor** (`aire-server` `server/aire/engine/credentials.py`, `CHAIN`) tiene tres
+slots en orden fijo, y arma solo los que tengan su env presente:
+
+| Slot | Env que lee | Es metered |
+|---|---|---|
+| `oauth-primary` | `CLAUDE_CODE_OAUTH_TOKEN` | no (Max, costo nominal) |
+| `oauth-backup` | `CLAUDE_CODE_OAUTH_TOKEN_BACKUP` | no (Max) |
+| `api-key-fallback` | `ANTHROPIC_API_KEY_FALLBACK` | **sí (tarjeta real)** |
+
+Un `oauth-backup` con un token de la MISMA cuenta que el primary NO compra nada: el
+rate limit es de la cuenta, así que topan juntos. Solo sirve un token de OTRA cuenta.
+Y `claude setup-token` **revoca** el token anterior de esa cuenta (SSOT
+`~/.secrets/claude-max-oauth.txt`: "un solo token activo por cuenta").
+
+**Las dos cuentas de Bernard (2026-09-08):**
+- `bernarduriza@gmail.com` (org `d1c8c86b`) — Max **$100**, es el `oauth-primary` del
+  bot (token `0bb5…` compartido por discord-bot/aire/og118).
+- `vegdevide` (org `8e661957`) — Max **$200**, la logueada en el Chrome de debug.
+
+**El plan de Bernard:** tener las DOS en Max $200, con los ciclos DESFASADOS (que no
+"inicien el mismo día"). Para escalonarlas quiere dejar topar AMBAS alrededor de un
+miércoles/jueves y ahí pagar el upgrade a $200 en fechas distintas. Por eso el bot
+mudo ahorita es PARTE del plan — NO meter el `oauth-backup` ni revivir el bot antes
+de tiempo, porque eso arruina el escalonamiento (dont-override-his-architecture).
+
+**Cuando toque ejecutar (el mié/jue):** sacar el OAuth token de la segunda cuenta
+$200, meterlo como `CLAUDE_CODE_OAUTH_TOKEN_BACKUP` en `/etc/aire/env` (consumir a
+variable, nunca `cat` — es secret-bearing), `systemctl restart aire-server`, y
+verificar con un turno real en #general que el rotor cae al backup cuando el primary
+topa. Ojo con la distinción que NO está verificada: el ciclo de BILLING (mensual) y
+las ventanas de RATE LIMIT (5h de sesión + semanal, que resetean por USO) son relojes
+distintos — escalonar el billing no desfasa por sí solo cuándo topan los límites.
