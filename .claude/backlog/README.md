@@ -41,7 +41,7 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 | [B3-FIGLASS-CONVERSATION-RENAME-1 — nombres de chat editables en fi-glass](b3-figlass-conversation-rename.md) | **Done** — con tests y consumido por og118 (verificado 2026-08-22) | 2026-06-24 |
 | [PROJ-SYNC-1 — hidratación de proyectos desde el servidor](proj-sync-1-backend-owned-projects.md) | **Done** — falta sólo el flag de staleness (verificado 2026-08-22) | 2026-06-21 |
 | [FI-RUNNER-TOOLPOLICY-1 — perfil "companion" de herramientas](fi-runner-toolpolicy-1-companion-profile.md) | **Done** — `ToolPolicy.companion()`; residual: subir `tools=` al framework (verificado 2026-08-22) | 2026-06-21 |
-| [OG118-ELEMENTOS — 118 personas nombradas (tabla periódica, tope duro)](og118-elementos-118-gpt-personas.md) | **Done** (estructura) — 3 activos de 118; falta curación (verificado 2026-08-22) | 2026-06-24 |
+| [OG118-ELEMENTOS — 118 personas nombradas (tabla periódica, tope duro)](og118-elementos-118-gpt-personas.md) | **Done** (estructura) — 4 activos de 118 (Pu·Reaper local, 2026-09-08); falta curación | 2026-06-24 |
 | [B3-FIGLASS-SHELL-PRIMITIVES-AUDIT-1 — auditoría read-only de `globals.css`](b3-figlass-shell-primitives-audit.md) | Done (2026-06-24, auditoría; hija de B3-FIGLASS-SHELL-PRIMITIVES-1) | 2026-06-24 |
 | [B3-OG118-MOBILE-1 — shell responsive / drawer móvil](b3-og118-mobile-responsive-shell.md) | Done (2026-06-30) | 2026-06-19 |
 | [B3-FIGLASS-UX-DISTRIBUTION-1 — contratos de distribución](b3-figlass-ux-distribution.md) | Done — 6/6 (#306-312) | 2026-06-30 |
