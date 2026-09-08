@@ -1,4 +1,32 @@
 # Credential failover — the engine survives a burned weekly pool
+## 2026-09-08 — the dead card was invisible, and the cooldown now reads the notice
+
+Two live `CREDENTIAL-EXHAUSTED oauth-primary` lines today (17:37 and 17:53 UTC,
+the second nine minutes after a restart) and every persona mute anyway. The
+chain had two slots — primary and `api-key-fallback` — and the card behind the
+fallback sits at $0. The CLI answers that as *"Credit balance is too low"*, prose
+with zero usage: `LIMIT_PHRASE` did not know it, so the metered slot never
+cooled, stayed `active()`, and every turn for the next hour rode a dead slot
+while the gateway logged `zero_generation` (discord-bot `aire-budget.md`).
+
+Both open items of 2026-09-03 close in one change to `credentials.py`:
+
+1. **`credit balance is too low` and `rate_limit_error` join the burn phrases.**
+   A dead card burns the metered slot like a dry pool burns an OAuth one; with
+   nothing left the turn dies with a REAL `credentials_exhausted` (the host then
+   speaks for the house) instead of a lie the gateway has to refuse.
+2. **The cooldown reads the reset the notice carries** (`reset_delay_s`): the
+   weekly form *"resets Sep 10, 8pm (UTC)"* and the session form *"resets
+   11:20pm (UTC)"* both parse; a passed time means tomorrow; anything beyond
+   eight days or unparseable falls back to `AIRE_CREDENTIAL_COOLDOWN_S`. The
+   log line now says how long and why: `CREDENTIAL-EXHAUSTED oauth-primary
+   cools 19620s (notice)`.
+
+What code cannot fix: with one Max account the primary burns its 5-hour window
+and the only other slot is a card at $0. The backup slot needs a token from a
+DIFFERENT account — Bernard mints and installs it (`CLAUDE_CODE_OAUTH_TOKEN_BACKUP`
+in `/etc/aire/env`), the chain arms it on the next restart, no code change.
+
 ## Rotated for real 2026-09-03 — and the founding signature had a sibling
 
 The first live rotation, and it happened because the detector missed it once.
