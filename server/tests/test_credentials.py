@@ -3,12 +3,13 @@ and cooldown, the lying-green detection predicate, and the rotate-and-retry
 flow over a faked drain — no real API calls, no real CLI subprocesses."""
 
 import asyncio
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from aire.engine import credentials
 from aire.engine.contract import TurnResult, TurnSpec
 from aire.engine.core import Engine
-from aire.engine.credentials import Rotor, limit_hit
+from aire.engine.credentials import Rotor, limit_hit, reset_delay_s
 from aire.engine.options import build_options
 
 LIMIT_TEXT = "You've hit your weekly limit · resets Aug 10, 8pm (UTC)"
@@ -66,6 +67,53 @@ def test_limit_hit_needs_both_the_phrase_and_zero_usage():
     assert not limit_hit("Here is your poem about limits", ZERO_USAGE)
     assert not limit_hit("", ZERO_USAGE)
     assert not limit_hit(None, ZERO_USAGE)
+
+
+def test_a_dead_card_burns_the_metered_slot_too():
+    # The live text of 2026-09-08 (discord-bot KQL `text_preview`): the card at
+    # $0 answered as prose with zero usage, and the slot never cooled.
+    assert limit_hit("Credit balance is too low", ZERO_USAGE)
+    assert limit_hit("Your credit balance is too low to access the Anthropic API.", None)
+    assert limit_hit('{"type":"error","error":{"type":"rate_limit_error"}}', ZERO_USAGE)
+    assert not limit_hit("Credit balance is too low", {**ZERO_USAGE, "output_tokens": 9})
+
+
+NOW = datetime(2026, 9, 8, 17, 53, tzinfo=timezone.utc)
+
+
+def test_reset_delay_reads_the_clock_the_notice_carries():
+    weekly = reset_delay_s("You've hit your weekly limit · resets Sep 10, 8pm (UTC)", NOW)
+    assert weekly == (datetime(2026, 9, 10, 20, tzinfo=timezone.utc) - NOW).total_seconds() + 60
+    later_today = reset_delay_s("You've hit your session limit · resets 11:20pm (UTC)", NOW)
+    assert later_today == (5 * 3600 + 27 * 60) + 60
+    already_passed = reset_delay_s("You've hit your session limit · resets 9am (UTC)", NOW)
+    assert already_passed == (15 * 3600 + 7 * 60) + 60, "a passed time means tomorrow"
+    assert reset_delay_s("Credit balance is too low", NOW) is None
+    assert reset_delay_s(None, NOW) is None
+    assert reset_delay_s("resets Sep 30, 8pm (UTC)", NOW) is None, "beyond the horizon"
+    assert reset_delay_s("resets Jan 2, 1am (UTC)",
+                         datetime(2026, 12, 30, tzinfo=timezone.utc)) is not None
+
+
+def test_burn_cools_until_the_reset_not_the_flat_hour(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(credentials, "reset_delay_s", lambda text, now=None: 7200.0)
+    rotor = Rotor({"CLAUDE_CODE_OAUTH_TOKEN": "tok-a"})
+    rotor.burn("oauth-primary", "You've hit your session limit · resets 11:20pm (UTC)")
+    assert rotor.retry_after_s() == 7200
+    clock[0] += credentials.COOLDOWN_S + 1
+    assert rotor.active() is None, "the flat hour must not re-probe a slot still burned"
+    clock[0] += 7200
+    assert rotor.active().name == "oauth-primary"
+
+
+def test_burn_without_a_notice_keeps_the_default_cooldown(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    rotor = Rotor({"ANTHROPIC_API_KEY_FALLBACK": "key-c"})
+    rotor.burn("api-key-fallback", "Credit balance is too low")
+    assert rotor.retry_after_s() == round(credentials.COOLDOWN_S)
 
 
 def _engine_with(rotor: Rotor, results: list[TurnResult]) -> tuple[Engine, dict]:

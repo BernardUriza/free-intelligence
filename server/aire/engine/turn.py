@@ -81,7 +81,8 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
     await engine._rebind(project, session, spec)
     client, lock = await engine._client_for(project, session, spec, slot)
     born_with = engine.slot_of.get(key, slot.name)
-    spent = burned = False
+    spent = False
+    notice: str | None = None
     try:
         async with lock:
             await send_turn(client, prompt, images)
@@ -90,14 +91,14 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
                     spent = await _account(engine, project, session, event, born_with)
                     result = event["result"]
                     if limit_hit(result.text, result.usage):
-                        burned = True
+                        notice = result.text
                         continue
                 yield event
             if spent:
                 yield engine.ledger.cut_event()
     finally:
-        if spent or burned:
+        if spent or notice is not None:
             await engine._retire(project, session)
-    if burned:
-        engine.rotor.burn(born_with)
+    if notice is not None:
+        engine.rotor.burn(born_with, notice)
         yield _ROTATE
