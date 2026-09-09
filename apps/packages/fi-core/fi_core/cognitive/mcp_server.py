@@ -187,7 +187,7 @@ async def classify_urgency(
         "final_gravity": score.final_gravity,
         "time_to_action": score.time_to_action,
         "critical_override": score.critical_override,
-        "reasons": list(score.reasons),
+        "reasons": list(score.explain()),
     }
 
 

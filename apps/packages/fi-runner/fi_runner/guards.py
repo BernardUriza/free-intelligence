@@ -103,7 +103,7 @@ class TriageGuard:
                 "level": score.level.value,
                 "gravity": score.final_gravity,
                 "critical": score.critical_override,
-                "reasons": list(score.reasons),
+                "reasons": list(score.explain()),
             }
         )
 

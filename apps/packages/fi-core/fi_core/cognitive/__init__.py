@@ -25,6 +25,7 @@ from .domains import (
     DOMAINS,
     PSYCHIATRY,
     ClinicalDomain,
+    ClinicalVerdict,
     VocabularyHits,
 )
 from .events import (
@@ -80,6 +81,7 @@ from .urgency import (
     UrgencyBand,
     UrgencyClassifier,
     UrgencyLevel,
+    UrgencyReason,
     band_for_gravity,
 )
 
@@ -111,6 +113,7 @@ __all__ = [
     "Assessment",
     # clinical domains (specialty vocabularies for triage)
     "ClinicalDomain",
+    "ClinicalVerdict",
     "VocabularyHits",
     # presets
     "CognitivePreset",
@@ -140,6 +143,7 @@ __all__ = [
     "UrgencyClassifier",
     # urgency / triage
     "UrgencyLevel",
+    "UrgencyReason",
     "action_to_event_type",
     "available_presets",
     "band_for_gravity",

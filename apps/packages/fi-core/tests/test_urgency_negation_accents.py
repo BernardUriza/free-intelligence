@@ -37,7 +37,7 @@ def test_mejor_sin_mi_is_seen_by_the_vocabulary_that_lists_it(clf):
     assert "mejor sin mí" in PSYCHIATRY.high_symptoms
     score = clf.classify(PatientContext(symptoms=["mejor sin mí"]))
     assert score.level is UrgencyLevel.HIGH
-    assert score.reasons == ("symptom 'mejor sin mi' → gravity 7",)
+    assert score.explain() == ("symptom 'mejor sin mi' → gravity 7",)
 
 
 def test_a_symptom_spelled_with_a_cue_survives_the_stripper_verbatim():
@@ -96,16 +96,16 @@ def test_every_accented_vocabulary_entry_scores_the_same_without_accents(clf):
 def test_accentless_history_still_adds_the_comorbidity(clf):
     score = clf.classify(PatientContext(symptoms=["duelo"], medical_history=["hospitalizacion psiquiatrica previa"]))
     assert score.modifiers == 0.5
-    assert "comorbidity 'hospitalización psiquiátrica previa' (+0.5)" in score.reasons
+    assert "comorbidity 'hospitalización psiquiátrica previa' (+0.5)" in score.explain()
 
 
 def test_accentless_critical_pattern_still_overrides(clf):
     score = clf.classify(PatientContext(symptoms=["planea ahorcarse esta noche"]))
     assert score.critical_override is True
-    assert score.reasons == ("critical pattern 'ahorcarse' detected → override CRITICAL",)
+    assert score.explain() == ("critical pattern 'ahorcarse' detected → override CRITICAL",)
     score = clf.classify(PatientContext(symptoms=["autolesion activa"]))
     assert score.critical_override is True
-    assert score.reasons == ("critical pattern 'autolesión activa' detected → override CRITICAL",)
+    assert score.explain() == ("critical pattern 'autolesión activa' detected → override CRITICAL",)
 
 
 def test_a_non_low_band_always_carries_a_reason(clf):

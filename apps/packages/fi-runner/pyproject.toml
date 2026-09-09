@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.21.4"
+version = "0.21.5"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -40,7 +40,9 @@ dependencies = [
     # discord-bot #64) and 0.29 (exclusions + preparatory acts + exposure
     # groups, fi #461) are additive. The clinical guard wraps UrgencyClassifier
     # via DOMAINS, so the negation and exclusion changes reach it — intended.
-    "fi-core>=0.25,<0.30",
+    # Cap 0.31: fi-core 0.30 types GravityScore.reasons (UrgencyReason); the
+    # guard's metadata keeps its string contract through score.explain().
+    "fi-core>=0.25,<0.31",
 ]
 
 [project.optional-dependencies]

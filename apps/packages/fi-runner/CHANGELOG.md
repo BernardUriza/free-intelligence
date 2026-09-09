@@ -22,6 +22,19 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.5] — 2026-09-08
+
+### Changed
+
+- **fi-core cap raised to `<0.31`.** fi-core 0.30.0 types
+  `GravityScore.reasons` (`UrgencyReason`, log-safe `kind`/`key`/`weight`,
+  prose via `render()`), adds `ClinicalDomain.assess()` and `fi_core.audit`.
+  The clinical guard's `metadata["reasons"]` keeps its string contract through
+  `score.explain()`; the typed `score` was already in the metadata for callers
+  that want the structure. Suite passes against 0.30.0.
+
+---
+
 ## [0.21.4] — 2026-09-07
 
 ### Changed
