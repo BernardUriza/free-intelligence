@@ -27,7 +27,9 @@ function adapters(over: Partial<ResonanceCallAdapters> = {}): ResonanceCallAdapt
 }
 
 async function startWith(a: ResonanceCallAdapters) {
-  const hook = renderHook(() => useResonanceCallLoop({ enabled: true, adapters: a }));
+  const hook = renderHook(() =>
+    useResonanceCallLoop({ enabled: true, adapters: a, getAudioLevel: () => 0 }),
+  );
   await act(async () => { await hook.result.current.startCall(); });
   return hook;
 }
