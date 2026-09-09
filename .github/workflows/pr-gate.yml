@@ -132,10 +132,14 @@ jobs:
       - name: Install (frozen)
         run: pnpm install --frozen-lockfile
 
-      - name: Type-check the published packages
+      - name: Type-check the published packages AND the app that ships
+        # og118-web faltaba, y por eso un error de tipos suyo llegó a `main` el
+        # 2026-09-09: sólo lo cachó el deploy, que es el paso más caro y el más
+        # tarde. La app que sirve app.og118.ai se comprueba aquí.
         run: |
           pnpm --filter @free-intelligence/core type-check
           pnpm --filter fi-glass type-check
+          pnpm --filter og118-web type-check
 
   # ============================================================
   # AI GATEKEEPER: BAIR inline runner. The reusable-workflow approach
