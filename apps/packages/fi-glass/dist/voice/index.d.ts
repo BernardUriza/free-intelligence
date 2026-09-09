@@ -1031,7 +1031,7 @@ interface ResonanceCallAdapters {
     onError?: (phase: ResonanceErrorPhase, error: unknown, fatal: boolean) => void;
 }
 /** The phase a {@link ResonanceCallAdapters.onError} report comes from. */
-type ResonanceErrorPhase = 'mic' | 'stt' | 'agent' | 'tts';
+type ResonanceErrorPhase = 'mic' | 'stt' | 'agent' | 'tts' | 'duration';
 interface ResonanceSilencePolicy {
     endOfSpeechMs: number;
     autoResumeMs: number;
@@ -1039,6 +1039,15 @@ interface ResonanceSilencePolicy {
 interface ResonanceSleepPolicy {
     enabled: boolean;
     idleHangupMs: number;
+    /**
+     * Wall-clock ceiling for ONE call, armed at `startCall` and independent of
+     * state. `idleHangupMs` is not a ceiling: it only arms in `silence_hold`, so a
+     * caller who keeps talking is never hung up. A hands-free call is orders of
+     * magnitude more STT/TTS volume than a one-shot turn, and voice upstreams are
+     * provisioned in requests-per-minute — one unbounded call can starve every
+     * other consumer sharing them. 0 disables the ceiling.
+     */
+    maxCallMs: number;
 }
 interface ResonanceBargeInPolicy {
     enabled: boolean;

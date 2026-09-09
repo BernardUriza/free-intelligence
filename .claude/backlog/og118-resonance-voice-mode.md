@@ -157,7 +157,70 @@ stress-test del Art. 7 que la tarjeta se pidió a sí misma y sigue sin correrse
 llamada contra el gateway y poner un tope explícito (duración o gasto). Con eso,
 quitar el flag es borrar `readResonanceFlag` y sus dos usos.
 
+> Esa medición se corrió el mismo día y **contestó otra cosa**. Ver la sección
+> siguiente: el bloqueo no es el costo, es la capacidad upstream.
+
 Segundo detalle menor para ese día: `debug: resonanceEnabled`
 (`Og118AgentChat.tsx:157`) expondría `window.__RESONANCE_EVENTS__` a todo el
 mundo — hoy sólo lo ve quien opta por el flag.
+
+## El stress-test del Art. 7, corrido — y salió ROJO (2026-09-09)
+
+La decisión #4 llevaba desde junio pidiendo *"confirmar cost/rate limits del
+gateway susurro antes de abrirlo a sesiones largas"*. Se corrió contra el gateway
+y contra Azure. **No se pudo quitar el flag, y la razón es mejor que un costo.**
+
+### Medido contra el gateway real (`sus.bernarduriza.com`)
+
+| | |
+|---|---|
+| TTS, 129 chars | **2.8 / 3.1 s** en caliente → **8.0 s** de audio (≈16 chars/s) |
+| TTS, primera llamada tras reposo | **34 s** — cold start; es el primer turno de toda llamada |
+| STT, 8.0 s de audio | **1.4 / 1.5 s** |
+| Turno modelado (habla 6s + 0.9 endOfSpeech + 1.5 STT + ~4 agente + 2.9 TTS + 18.6 playback + 1.2 autoResume) | **≈35 s → ~1.7 turnos/min** |
+
+### El techo, verificado contra Azure (no contra el doc)
+
+```
+whisper: capacity 3 → 3 RPM        OpenAI.Standard.whisper  used 3.0 / limit 3.0
+tts:     capacity 3 → 3 RPM        OpenAI.Standard.tts      used 3.0 / limit 3.0
+```
+
+La cuota de la suscripción en northcentralus está **agotada**: subirla exige una
+solicitud a Azure (https://aka.ms/oai/quotaincrease). Y el gateway es
+**compartido** — discord-bot, inkbook, picturelock, visalaw-videopipe y el
+dictado de un tiro de og118 beben del mismo techo.
+
+**Un solo llamante a 1.7 turnos/min consume ~57% del RPM de whisper y de tts.**
+Dos llamadas concurrentes, o una de turnos cortos, lo revientan — y se llevan por
+delante el dictado de todos los demás consumidores. **Prender RESONANCE por
+default hoy no es caro: es una negación de servicio a la flota.**
+
+### Lo que sí se shipeó, porque el daño ya existe con el flag puesto
+
+Cualquiera con `?resonance=1` puede hoy abrir una llamada sin tope alguno:
+
+- **fi-glass `ResonanceSleepPolicy.maxCallMs`** (default 10 min) — techo de RELOJ
+  para la llamada entera, armado en `startCall` e independiente del estado.
+  `idleHangupMs` **no era un techo**: sólo se arma en `silence_hold`, así que a
+  quien no deja de hablar nunca se le colgaba. Se reporta por `onError` con fase
+  `'duration'`, o sea llega al banner: una llamada que se corta sin explicación se
+  lee como un crash. 2 tests (ambas ramas, incluido `maxCallMs: 0`).
+- **`server/voice_quota.py`** — ventana deslizante por principal sobre
+  `/stt/transcribe` y `/tts/synthesize`, 429 con `Retry-After`. El default
+  (`OG118_VOICE_RPM=3`) **iguala el techo upstream a propósito**: no inventa una
+  restricción que Azure no impondría ya —eso habría roto el dictado de un tiro,
+  que funciona hoy— pero convierte un 429 remoto y caro en uno local y honesto.
+  6 tests + aislamiento del contador en `conftest.py` (es estado de proceso: sin
+  reset, un test hereda el 429 del anterior y acusa al código equivocado).
+
+### Lo que falta ahora para el default-on, y ya no es de og118
+
+**Una solicitud de aumento de cuota a Azure** para `whisper`/`tts` en
+northcentralus. Sin más RPM no hay tope del lado de og118 que haga viable una
+llamada manos libres abierta a todos. Es tuya, y es un trámite con Microsoft, no
+una línea de código.
+
+Segundo detalle para ese día, ya anotado arriba: `debug: resonanceEnabled`
+expondría `window.__RESONANCE_EVENTS__` a todo el mundo.
 

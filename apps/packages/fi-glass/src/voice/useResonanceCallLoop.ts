@@ -54,7 +54,7 @@ export interface ResonanceCallAdapters {
 }
 
 /** The phase a {@link ResonanceCallAdapters.onError} report comes from. */
-export type ResonanceErrorPhase = 'mic' | 'stt' | 'agent' | 'tts';
+export type ResonanceErrorPhase = 'mic' | 'stt' | 'agent' | 'tts' | 'duration';
 
 export interface ResonanceSilencePolicy {
   endOfSpeechMs: number;
@@ -64,6 +64,15 @@ export interface ResonanceSilencePolicy {
 export interface ResonanceSleepPolicy {
   enabled: boolean;
   idleHangupMs: number;
+  /**
+   * Wall-clock ceiling for ONE call, armed at `startCall` and independent of
+   * state. `idleHangupMs` is not a ceiling: it only arms in `silence_hold`, so a
+   * caller who keeps talking is never hung up. A hands-free call is orders of
+   * magnitude more STT/TTS volume than a one-shot turn, and voice upstreams are
+   * provisioned in requests-per-minute — one unbounded call can starve every
+   * other consumer sharing them. 0 disables the ceiling.
+   */
+  maxCallMs: number;
 }
 
 export interface ResonanceBargeInPolicy {
@@ -105,7 +114,11 @@ export interface UseResonanceCallLoopReturn {
 }
 
 const DEFAULT_SILENCE: ResonanceSilencePolicy = { endOfSpeechMs: 900, autoResumeMs: 1200 };
-const DEFAULT_SLEEP: ResonanceSleepPolicy = { enabled: true, idleHangupMs: 300_000 };
+const DEFAULT_SLEEP: ResonanceSleepPolicy = {
+  enabled: true,
+  idleHangupMs: 300_000,
+  maxCallMs: 600_000,
+};
 const DEFAULT_BARGE_IN: ResonanceBargeInPolicy = { enabled: true };
 
 interface ResonanceEventRecord {
@@ -263,6 +276,7 @@ export function useResonanceCallLoop(
   // --- Auto-resume + sleep timers ------------------------------------------
   const autoResumeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const callTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const clearTimer = (t: React.MutableRefObject<ReturnType<typeof setTimeout> | undefined>) => {
     if (t.current) { clearTimeout(t.current); t.current = undefined; }
   };
@@ -293,6 +307,7 @@ export function useResonanceCallLoop(
   useEffect(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
+    clearTimer(callTimer);
   }, []);
 
   const startCall = useCallback(async () => {
@@ -301,10 +316,24 @@ export function useResonanceCallLoop(
     gate.reset();
     cueController?.reset();
     void cuePlayer?.resume(); // startCall is a user gesture -> unsuspend the cue AudioContext
+    // Armed here, not in an effect: the ceiling is wall-clock for the WHOLE call,
+    // so it must survive every state the loop passes through. Reported through
+    // onError because the consumer already routes that to the user — a call that
+    // vanishes without a reason reads as a crash.
+    clearTimer(callTimer);
+    if (sleepPolicy.maxCallMs > 0) {
+      callTimer.current = setTimeout(() => {
+        callTimer.current = undefined;
+        adaptersRef.current.onError?.('duration', new Error(
+          `La llamada alcanzó su límite de ${Math.round(sleepPolicy.maxCallMs / 60000)} minutos.`,
+        ), true);
+        controller.endCall();
+      }, sleepPolicy.maxCallMs);
+    }
     controller.startCall();
-  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
+  }, [enabled, debug, controller, gate, cueController, cuePlayer, sleepPolicy]);
 
-  const endCall = useCallback(() => { controller.endCall(); }, [controller]);
+  const endCall = useCallback(() => { clearTimer(callTimer); controller.endCall(); }, [controller]);
   const interrupt = useCallback(() => { controller.interrupt(); }, [controller]);
 
   return {

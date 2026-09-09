@@ -15,6 +15,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 @pytest.fixture(autouse=True)
+def cuota_de_voz_limpia():
+    """La ventana deslizante de `voice_quota` es estado de PROCESO, compartido por
+    toda la suite: sin este reset, el noveno test que toca /tts o /stt recibe un
+    429 heredado del anterior y falla acusando al código equivocado. Se aísla por
+    test, igual que el store."""
+    import voice_quota
+
+    voice_quota._contador = voice_quota.ContadorDeVoz()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def rag_store():
     """Override get_rag_store with an in-memory double for every test.
 
