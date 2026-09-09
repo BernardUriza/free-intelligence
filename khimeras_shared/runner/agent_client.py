@@ -186,8 +186,10 @@ class AgentRunnerClient:
         *,
         timeout_s: float = 120.0,
         connect_timeout_s: float = 10.0,
-        connect_max_retries: int = 2,
+        connect_max_retries: int = 8,
         connect_retry_base_s: float = 0.25,
+        connect_retry_cap_s: float = 8.0,
+        connect_budget_s: float = 45.0,
         transient_max_retries: int = 2,
         transient_retry_base_s: float = 0.75,
         transient_retry_cap_s: float = 3.0,
@@ -202,6 +204,8 @@ class AgentRunnerClient:
         self._connect_timeout_s = connect_timeout_s
         self._connect_max_retries = connect_max_retries
         self._connect_retry_base_s = connect_retry_base_s
+        self._connect_retry_cap_s = connect_retry_cap_s
+        self._connect_budget_s = connect_budget_s
         self._transient_max_retries = transient_max_retries
         self._transient_retry_base_s = transient_retry_base_s
         self._transient_retry_cap_s = transient_retry_cap_s
@@ -355,35 +359,57 @@ class AgentRunnerClient:
             # answers blind). Retry the connect a few times before declaring the
             # brain down. ReadTimeout is NOT retried: the request may have landed
             # and be processing, so a re-POST would double-spend the turn.
+            #
+            # The budget is a CLOCK, not a count. A rolling update takes tens of
+            # seconds (new revision boots, passes health, old one drains) and the
+            # runner scales to zero, so the socket is refused for a whole window,
+            # not for one blip. A count-based budget of 0.75s declared the brain
+            # dead while the deploy was still in flight; the clock is what the
+            # window is actually measured in. Retries stop at whichever comes
+            # first — the budget or the hard attempt cap — so an instantly-failing
+            # connect can't spin, and a slow one can't outlive the budget.
             connect_attempts = self._connect_max_retries + 1
             resp = None
+            connect_deadline = time.monotonic() + self._connect_budget_s
             for attempt in range(connect_attempts):
                 try:
                     async with httpx.AsyncClient(timeout=timeout) as client:
                         resp = await client.post(url, json=payload, headers=headers)
                     break
                 except (httpx.ConnectTimeout, httpx.ConnectError) as e:
-                    if attempt + 1 < connect_attempts:
+                    backoff = min(self._connect_retry_base_s * (2**attempt), self._connect_retry_cap_s)
+                    budget_left = connect_deadline - time.monotonic()
+                    if attempt + 1 < connect_attempts and budget_left > backoff:
                         log.warning(
                             "agent_runner_client_connect_retry",
                             attempt=attempt + 1,
                             of=connect_attempts,
                             error_type=type(e).__name__,
+                            budget_left_ms=int(budget_left * 1000),
                             elapsed_ms=int((time.monotonic() - start) * 1000),
                         )
-                        await asyncio.sleep(self._connect_retry_base_s * (2**attempt))
+                        await asyncio.sleep(backoff)
                         continue
+                    # WHICH limit ran out is the diagnosis, not a detail: out of
+                    # attempts means the connect failed instantly over and over
+                    # (nothing listening), out of budget means it hung — a
+                    # saturated runner reads differently from an absent one.
+                    gave_up_on = "budget" if attempt + 1 < connect_attempts else "attempts"
                     log.error(
                         "agent_runner_client_connect_exhausted",
-                        attempts=connect_attempts,
+                        attempts=attempt + 1,
+                        of=connect_attempts,
+                        gave_up_on=gave_up_on,
+                        budget_s=self._connect_budget_s,
                         error_type=type(e).__name__,
                         elapsed_ms=int((time.monotonic() - start) * 1000),
                     )
-                    # Unreachable across every connect attempt → the runner
-                    # process is genuinely down. RunnerDownError so failover is
-                    # allowed.
+                    # Unreachable for the whole budget → the runner process is
+                    # genuinely down, not mid-deploy. RunnerDownError so failover
+                    # is allowed.
                     raise RunnerDownError(
-                        f"runner unreachable after {connect_attempts} connect attempts: {type(e).__name__}"
+                        f"runner unreachable after {attempt + 1} connect attempts "
+                        f"({gave_up_on} exhausted): {type(e).__name__}"
                     ) from e
                 except httpx.ReadTimeout as e:
                     if on_timeout and not timed_out_once:

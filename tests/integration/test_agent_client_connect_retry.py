@@ -107,11 +107,68 @@ async def test_connect_error_retries_then_succeeds(client):
 
 @pytest.mark.asyncio
 async def test_connect_timeout_exhausts_then_runner_down(client):
-    """A genuinely unreachable runner still fails over after the retries are spent."""
+    """A genuinely unreachable runner still fails over after the budget is spent.
+
+    Here every connect fails INSTANTLY, so the clock barely moves and the hard
+    attempt cap is what ends it — that is the branch this asserts.
+    """
     _ScriptedClient.script = [httpx.ConnectTimeout("down")]  # always raises
-    with pytest.raises(RunnerDownError):
+    with pytest.raises(RunnerDownError) as err:
         await client.chat("sys", _messages())
-    assert _ScriptedClient.calls == 3  # 1 + 2 retries
+    assert _ScriptedClient.calls == 9  # 1 + 8 retries
+    assert "attempts exhausted" in str(err.value)
+
+
+@pytest.mark.asyncio
+async def test_connect_budget_covers_a_rolling_update(client):
+    """El caso que motivó el presupuesto: el runner rota y el socket se rechaza
+    durante decenas de segundos.
+
+    La política vieja (2 reintentos, base 0.25s) gastaba 0.75s y declaraba el
+    cerebro muerto mientras el deploy seguía en vuelo, así que un turno normal
+    moría por un despliegue. Ocho reintentos con backoff topado cubren ~32s de
+    ventana, que es la escala real de un rolling update de Container Apps más el
+    arranque en frío del runner (min=0).
+    """
+    _ScriptedClient.script = [httpx.ConnectError("refused")] * 6 + [_Resp(200)]
+    out = await client.chat("sys", _messages())
+    assert out.text == "ok"
+    assert _ScriptedClient.calls == 7  # sobrevivió al swap, turno TARDÍO no perdido
+
+
+@pytest.mark.asyncio
+async def test_el_presupuesto_de_reloj_corta_antes_que_los_intentos(monkeypatch):
+    """RESISTENCIA: un connect que CUELGA no puede vivir más que el presupuesto.
+
+    Sin corte por reloj, ocho reintentos de un connect que tarda su timeout
+    completo (10s) tendrían al usuario esperando minutos por un cerebro que ya
+    está muerto. El tope de intentos no protege de eso — sólo el reloj. Aquí cada
+    intento consume 20s de reloj simulado, así que el presupuesto de 45s se acaba
+    en el tercero y el error lo dice.
+    """
+    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
+
+    async def _no_sleep(_s):
+        return None
+
+    monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
+
+    reloj = {"t": 0.0}
+
+    def _monotonic():
+        reloj["t"] += 20.0  # cada lectura avanza el reloj: un connect que cuelga
+        return reloj["t"]
+
+    monkeypatch.setattr("khimeras_shared.runner.agent_client.time.monotonic", _monotonic)
+    _ScriptedClient.script = [httpx.ConnectTimeout("hangs")]
+    _ScriptedClient.calls = 0
+
+    cliente = AgentRunnerClient("http://runner", "tok")
+    with pytest.raises(RunnerDownError) as err:
+        await cliente.chat("sys", _messages())
+
+    assert _ScriptedClient.calls < 9, "el reloj tenía que cortar antes que el tope de intentos"
+    assert "budget exhausted" in str(err.value)
 
 
 @pytest.mark.asyncio
