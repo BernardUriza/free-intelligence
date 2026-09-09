@@ -77,7 +77,16 @@ async def _lifespan(app: FastAPI):
     log.info("agent_runner_stopped")
 
 
-app = FastAPI(title="Khimeras Persona Runner", version="1.0.0", lifespan=_lifespan)
+app = FastAPI(
+    title="Khimeras Persona Runner",
+    version="1.0.0",
+    lifespan=_lifespan,
+    # See config.DOCS_ENABLED: this is the only app with external ingress, so the
+    # default-on interactive docs were serving the API map to the open internet.
+    docs_url="/docs" if config.DOCS_ENABLED else None,
+    redoc_url="/redoc" if config.DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if config.DOCS_ENABLED else None,
+)
 
 app.include_router(ops.router)
 app.include_router(turn.router)

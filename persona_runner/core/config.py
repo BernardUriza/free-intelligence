@@ -23,6 +23,17 @@ PERSONAS_DIR = Path(os.environ.get("PERSONAS_DIR", "/app/personas"))
 PERSONA_ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
 
 RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("INSULT_AGENT_RUNNER_TOKEN", "")
+
+# FastAPI publishes /docs, /redoc and /openapi.json with no auth by default, and
+# this runner is the one app in the environment with EXTERNAL ingress — it has to
+# be, because a human opens `/a/{id}` artifacts in a browser and AIRE calls
+# `/mcp/{casita}` from the droplet. Verified 2026-09-09: both /docs and
+# /openapi.json answered 200 from the open internet, handing anyone who finds the
+# FQDN the full map of the turn, judge, workspace and MCP endpoints with their
+# schemas. Every endpoint does authenticate (core/auth.py is fail-closed and
+# timing-safe), so this is reconnaissance, not a breach — and reconnaissance the
+# service gains nothing by giving away. Off by default, opt-in for local work.
+DOCS_ENABLED = os.environ.get("RUNNER_DOCS_ENABLED", "").strip().lower() in ("1", "true", "yes")
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 
