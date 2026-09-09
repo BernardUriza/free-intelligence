@@ -607,3 +607,34 @@ def test_http_spec_excludes_other_transports_and_redacts_headers() -> None:
     spec = MCPServerSpec(name="x", url="https://a/b", headers={"Authorization": "Bearer sekret"})
     assert spec.is_http and not spec.is_in_process
     assert "sekret" not in repr(spec)
+
+
+# --- tool_policy is NOT forwarded: every shape of it must say so out loud ------
+#
+# The door owns tool config server-side, so ANY policy a caller builds is inert.
+# The denylist shape is the one that used to pass silently — and it is exactly
+# the shape `ToolPolicy.companion()` produces, so a companion profile could be
+# handed over believing it fenced something. Warned, never silently honoured.
+
+
+def _warns(policy: ToolPolicy, caplog: pytest.LogCaptureFixture) -> bool:
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="fi_runner.backends.aire"):
+        _backend()._warn_unenforceable(policy)
+    return any("tool_policy is not forwarded" in r.message for r in caplog.records)
+
+
+def test_default_policy_is_silent(caplog: pytest.LogCaptureFixture) -> None:
+    assert not _warns(ToolPolicy(), caplog)
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        pytest.param(ToolPolicy(builtin_allowed=["Read"]), id="allowlist"),
+        pytest.param(ToolPolicy(builtin_disallowed=["Bash"]), id="denylist"),
+        pytest.param(ToolPolicy.companion(), id="companion"),
+    ],
+)
+def test_every_non_default_policy_warns(policy: ToolPolicy, caplog: pytest.LogCaptureFixture) -> None:
+    assert _warns(policy, caplog)

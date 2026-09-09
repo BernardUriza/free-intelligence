@@ -4670,12 +4670,14 @@ function useResonanceCallLoop(params) {
     const recover = (phase, e) => {
       pushDebug({ type: `error.${phase}`, state: "idle", timestamp: Date.now() });
       console.warn(`[resonance] ${phase} failed, recovering`, e);
+      adaptersRef.current.onError?.(phase, e, false);
       ctrl.failRecoverable();
     };
     const driver = {
       openMic: () => {
         void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
           console.warn("[resonance] mic failed, hanging up", e);
+          adaptersRef.current.onError?.("mic", e, true);
           ctrl.failFatal();
         });
       },

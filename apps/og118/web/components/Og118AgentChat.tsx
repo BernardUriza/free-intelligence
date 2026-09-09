@@ -155,6 +155,7 @@ export function Og118AgentChat() {
     enabled: resonanceEnabled,
     appendUserMessage: () => {}, // sendAndAwait owns the user capsule — keep this a no-op
     requestAssistantTurn,
+    onVoiceError: (message) => composer.setVoiceError(message),
     debug: resonanceEnabled,
   });
 

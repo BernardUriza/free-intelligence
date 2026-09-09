@@ -43,8 +43,11 @@ forward clauses:
   still rejected HARD — by the door's 422, surfaced as ``BackendError``.
   Forward does not mean silent: arbitrary MCP specs remain RCE by design.
 - ``tool_policy`` → still NOT forwarded (the one remaining gap): AIRE owns the
-  tool config server-side, so a caller's permission_mode/allowlist is warned
-  about, never silently honoured.
+  tool config server-side, so a caller's permission_mode/allowlist/DENYlist is
+  warned about, never silently honoured. The denylist counts: a policy that only
+  names blocked builtins (``ToolPolicy.companion()`` is exactly that) crosses no
+  wire, so it is a guarantee written and never exercised — the warning is what
+  keeps that visible. aire-server #37 is where it stops being a gap.
 
 THIRD CUT (2026-08-21, OG118-LIVING-CLAUDE). The casita may now vary PER TURN:
 ``project_for_turn`` is an optional zero-arg resolver consulted at the top of
@@ -330,11 +333,15 @@ class AIREBackend:
         """The one remaining unforwardable input: AIRE configures the tool
         policy server-side. Warn when a caller set one, so a silent divergence
         never masquerades as an honoured request."""
-        if tool_policy.builtin_allowed or tool_policy.permission_mode is not PermissionMode.DEFAULT:
+        if (
+            tool_policy.builtin_allowed
+            or tool_policy.builtin_disallowed
+            or tool_policy.permission_mode is not PermissionMode.DEFAULT
+        ):
             _logger.warning(
                 "AIREBackend: tool_policy is not forwarded — AIRE configures tools "
-                "server-side (mode=%r). The caller's permission_mode/allowlist has "
-                "no effect until the door grows per-turn tools.",
+                "server-side (mode=%r). The caller's permission_mode/allowlist/"
+                "denylist has no effect until the door grows per-turn tools.",
                 self.default_mode,
             )
 

@@ -1,6 +1,6 @@
 # B3-FIGLASS-SHELL-PRIMITIVES-1 — extract sidebar/resource/composer layout primitives to fi-glass
 
-Status: **Done 2026-09-09** — 1A, 1C y 1D entregados y consumidos por og118. `ComposerActionSlot` cierra los slots del composer; `globals.css` 820 → 771. Lo que queda de `og-*` no es anatomía del shell: es la página de Proyectos, que es su propia tarjeta
+Status: **Done 2026-09-09** — 1A, 1C y 1D entregados y consumidos por og118. `ComposerActionSlot` cierra los slots del composer; `globals.css` 820 → 771. Lo que queda de `og-*` no es anatomía del shell: es la página de Proyectos, que ya tiene su tarjeta: [[b3-figlass-resource-adoption]]
 Proposed: 2026-06-23 by Bernard (via coagent review of og118 globals.css size)
 
 ## What it is
@@ -139,6 +139,12 @@ que manda la regla móvil. Construirlo sería framework especulativo, justo lo
 contrario de [[framework-first-canary]] — se abre el día que un shell lo pida.
 
 **Y lo que queda de `globals.css` no es esta tarjeta.** De las +429 líneas que
-creció desde el corte 1A, ~229 son `og-projects-*` como PÁGINA contra
+creció desde el corte 1A, **273** son `og-projects-*` como PÁGINA contra
 `fi-glass/resource`: otro arco, otra tarjeta. Decirlo aquí es más honesto que
 prometer que 1D devolvía el archivo a 391.
+
+La tarjeta prometida se escribió el 2026-09-09 y es
+[[b3-figlass-resource-adoption]]. Al medirla cambió de forma: `fi-glass/resource`
+YA existe con nueve componentes y og118 YA lo consume en dos archivos, así que el
+arco no es una extracción sino una **adopción a medias** — y el 58% del residuo
+vive en `Og118ProjectWorkspace.tsx`.
