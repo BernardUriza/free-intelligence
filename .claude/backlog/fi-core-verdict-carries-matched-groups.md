@@ -1,6 +1,6 @@
 # fi-core: el veredicto de banda carga sus grupos disparados — una llamada, un veredicto, una explicación
 
-Status: Proposed
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); discord-bot collapses to `assess()` pending
 Proposed: 2026-09-08 by Bernard (revisión del PR #68 de discord-bot, issue #54)
 
 ## What it is
@@ -67,8 +67,29 @@ import; ésta es el último tramo de ese colapso.
 
 ## Status / next step
 
-No construido. Next: `ClinicalDomain.assess()` que corra los dos ejes y el
-clasificador de una vez y devuelva `ClinicalVerdict`; discord-bot
-`crisis_band` + `matched_acute_groups` + `history_conditions` colapsan a esa
-llamada (tres funciones menos, cero lecturas paralelas), con
-[[migrations-end-with-deletion]] como definición de hecho.
+**Hecho en fi-core 0.30.0** (free-intelligence PR #465, commit `40cd322a`,
+2026-09-08). `ClinicalDomain.assess(message, history=()) → ClinicalVerdict(score,
+hits, acute, chronic, conditions)` — una lectura, un veredicto, una explicación.
+Las dos decisiones que la tarjeta dejaba al dueño, resueltas:
+
+- **Vive en `ClinicalDomain`**, no sólo en PSYCHIATRY: un dominio sin ejes
+  (CARDIOLOGY) devuelve `acute=None` / `chronic=None`, honesto en vez de un
+  `ScoredSignals` vacío cuyo `crosses` mentiría.
+- **`_GROUP_TO_CONDITION` no subió como dict: ya estaba en fi-core como
+  `SignalGroup.category`.** Los 8 grupos crónicos con contraparte llevan como
+  `category` exactamente la entrada de `high_risk_conditions`; los 4 sin
+  contraparte (`named_diagnosis`, `psychiatric_medication`,
+  `mental_health_clinician`, `chronic_comorbidity`) llevan una etiqueta que no
+  lo es. `ClinicalDomain.chronic_conditions` lo lee de ahí y
+  `tests/test_domain_assess.py` lo pinea igual al dict de discord-bot
+  v4.38.15, entrada por entrada.
+
+Paridad con el canary, deliberada: el mensaje alimenta síntomas + eje agudo;
+la historia alimenta el eje crónico y, vía el mapa, `medical_history`. Una
+condición que el mensaje mismo nombra se reporta en `hits.high_risk_conditions`
+y no suma. `denied` y `excluded` viajan en los dos ejes sin tercera lectura
+(H2 de Alex, #55). 9 tests nuevos.
+
+**Lo que falta:** discord-bot colapsa `crisis_band` + `matched_acute_groups` +
+`history_conditions` + `_GROUP_TO_CONDITION` a `PSYCHIATRY.assess()`, con
+[[migrations-end-with-deletion]] como definición de hecho (grep → 0).

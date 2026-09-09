@@ -1,6 +1,6 @@
 # fi-core: primitivas de auditoría — seudónimo con llave que rota y evento con hash, para que el segundo consumidor no las reescriba
 
-Status: Proposed
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); discord-bot `audit.py` repoint pending
 Proposed: 2026-09-08 by Bernard (merge del PR #68 de discord-bot, issue #54)
 
 ## What it is
@@ -62,8 +62,27 @@ consumidor, que es quien sabe qué es fail-safe en su camino de turno.
 
 ## Status / next step
 
-No construido. Next: las tres funciones + tests portados de
-`tests/core/test_audit_pseudonym.py` y `test_audit_hash.py` de discord-bot
-(el que reprueba el sha256 pelón es obligatorio); fi-core MINOR; discord-bot
-`khimeras_shared/audit.py` se queda sólo con los dos emisores y el fail-safe,
-y el resto muere con grep.
+**Hecho en fi-core 0.30.0** (free-intelligence PR #465, commit `40cd322a`,
+2026-09-08). `fi_core/audit.py`, stdlib puro: `pseudonym(subject, *, key,
+period, digest_chars=16)`, `audit_period(now=None)`, `audited(event,
+**fields)`. Las dos decisiones que la tarjeta dejaba al dueño:
+
+- **Vive en `fi_core.audit`, no en `fi_core.cognitive`**: la primitiva no sabe
+  de medicina. `sha256_payload` se mudó ahí (una sola definición);
+  `fi_core.cognitive.events` lo importa y `fi_core.cognitive.sha256_payload`
+  sigue resolviendo a la misma función.
+- **El largo del digest es parámetro con default 16** (el del canary).
+
+Sin structlog y sin leer el entorno: el consumidor lee la llave, decide el
+fail-safe y hace `log.info(**audited("crisis_band_classified", ...))`.
+`audited` rechaza un `audit_hash` pasado desde afuera. **Byte-compatible con
+`pseudonymous_user` de discord-bot**: el vector `2026-09:df068944ec77436d`
+(llave de prueba, sujeto de prueba, septiembre) se calculó con la
+implementación de discord-bot v4.38.15 y está pineado, así los códigos de
+septiembre que ya están en Log Analytics siguen siendo comparables tras el
+cambio. 17 tests en `tests/test_audit.py`, incluido el que un sha256 pelón
+reprueba.
+
+**Lo que falta:** discord-bot `khimeras_shared/audit.py` se queda con los dos
+emisores, la lectura de `CRISIS_AUDIT_KEY` y el trágate-todo; `pseudonymous_user`,
+`audit_period` y `_audit_hash` mueren con grep.

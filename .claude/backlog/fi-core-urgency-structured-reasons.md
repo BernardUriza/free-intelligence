@@ -1,6 +1,6 @@
 # fi-core: `GravityScore.reasons` estructurados — el veredicto explica con NOMBRES de grupo, nunca con la frase
 
-Status: Proposed
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); consumer half in discord-bot pending
 Proposed: 2026-09-08 by Bernard (sesión discord-bot, verificando el deploy del
 PR #68 de Alex — el registro auditable del veredicto de banda, issue #54)
 
@@ -73,7 +73,27 @@ local a `urgency.py` + los tests que leen `reasons` como string.
 
 ## Status / next step
 
-No construido. Next: `UrgencyReason` en `fi_core.cognitive.urgency`, `classify`
-lo emite, `render()` conserva la prosa; CHANGELOG MINOR; discord-bot #54 sube el
-pin y `audit.py` loguea `key`/`weight`. Recibo de cierre: el evento en KQL sin
-una sola frase del vocabulario.
+**Hecho en fi-core 0.30.0** (free-intelligence PR #465, commit `40cd322a`,
+2026-09-08). `UrgencyReason(kind, key, weight, term)` en
+`fi_core.cognitive.urgency`; `GravityScore.reasons` es `tuple[UrgencyReason, ...]`
+y `GravityScore.explain()` devuelve la prosa de antes. Dos decisiones que la
+tarjeta dejaba abiertas y se tomaron así:
+
+- **`key` para un síntoma es el NOMBRE DEL VOCABULARIO que disparó**
+  (`critical_symptoms` / `high_symptoms` / `medium_symptoms` / `unlisted`,
+  `critical_patterns` para el override), no la frase: en los sets planos no
+  hay grupo con nombre, y el peso ya dice la banda. Para una comorbilidad,
+  `key` es la entrada de `high_risk_conditions` — el mismo nivel de
+  granularidad que los nombres de grupo que `signals` ya loguea.
+- **La frase sobrevive como `term`, con `repr=False`**: un serializador que
+  cae a `repr` (el JSON renderer de structlog) no la filtra por accidente.
+  `render()` es el único que la habla. Test: `"quiero morir" not in repr(score)`.
+
+`classify_urgency` (MCP) y el `triage_guard` de fi-runner (0.21.5, mismo PR)
+siguen contestando strings vía `explain()`. 7 tests nuevos en
+`tests/test_urgency_reasons.py`.
+
+**Lo que falta — el recibo de cierre es del consumidor:** discord-bot sube el
+pin a `fi-core=0.30.0` y `audit.py` loguea `kind`/`key`/`weight` en vez de
+`reasons` como prosa. Recibo: el evento `crisis_band_classified` en KQL sin una
+sola frase del vocabulario.
