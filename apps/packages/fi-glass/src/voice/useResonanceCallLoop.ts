@@ -44,7 +44,17 @@ export interface ResonanceCallAdapters {
   stopSpeaking: () => void;
   /** Append the user transcript to the client-sent history before invokeAgent. */
   appendUserMessage: (text: string) => void;
+  /**
+   * A phase failed. Without this the loop's only output was a `console.warn`, so
+   * an unreachable STT/TTS looked exactly like a silent model — the consumer had
+   * no way to tell the caller anything. `fatal` distinguishes a hangup (mic) from
+   * a turn the loop retries.
+   */
+  onError?: (phase: ResonanceErrorPhase, error: unknown, fatal: boolean) => void;
 }
+
+/** The phase a {@link ResonanceCallAdapters.onError} report comes from. */
+export type ResonanceErrorPhase = 'mic' | 'stt' | 'agent' | 'tts';
 
 export interface ResonanceSilencePolicy {
   endOfSpeechMs: number;
@@ -168,15 +178,17 @@ export function useResonanceCallLoop(
   const controller = useMemo(() => {
     // Every async effect ends in success OR recovery — a rejected adapter promise
     // must never leave the loop frozen (the old bug: void p.then() with no catch).
-    const recover = (phase: string, e: unknown) => {
+    const recover = (phase: ResonanceErrorPhase, e: unknown) => {
       pushDebug({ type: `error.${phase}` as ResonanceCallEvent, state: 'idle', timestamp: Date.now() });
       console.warn(`[resonance] ${phase} failed, recovering`, e);
+      adaptersRef.current.onError?.(phase, e, false);
       ctrl.failRecoverable();
     };
     const driver: ResonanceDriver = {
       openMic: () => {
         void Promise.resolve(adaptersRef.current.openMic()).catch((e) => {
           console.warn('[resonance] mic failed, hanging up', e);
+          adaptersRef.current.onError?.('mic', e, true);
           ctrl.failFatal();
         });
       },

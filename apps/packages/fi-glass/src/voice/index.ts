@@ -150,6 +150,7 @@ export {
   type UseResonanceCallLoopParams,
   type UseResonanceCallLoopReturn,
   type ResonanceCallAdapters,
+  type ResonanceErrorPhase,
   type ResonanceSilencePolicy,
   type ResonanceSleepPolicy,
   type ResonanceBargeInPolicy,
