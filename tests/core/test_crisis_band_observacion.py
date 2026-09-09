@@ -25,9 +25,8 @@ from fi_core.cognitive import PSYCHIATRY, URGENCY_BANDS
 
 from khimeras_shared.behavior.vulnerability import (
     crisis_band,
-    history_conditions,
+    crisis_verdict,
     is_acute_crisis,
-    symptoms_in_message,
 )
 from khimeras_shared.guidance import build_turn_guidance
 
@@ -141,7 +140,7 @@ def test_escribir_sin_acentos_no_baja_la_banda(con, sin, banda):
 
 def test_la_forma_canonica_es_la_que_se_entrega():
     """Se detecta sin acento pero se pasa con acento — es lo que lo arregla."""
-    assert symptoms_in_message("ando con ideacion suicida") == ["ideación suicida"]
+    assert crisis_verdict("ando con ideacion suicida").hits.symptoms == ("ideación suicida",)
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +197,10 @@ def test_la_negacion_local_no_cruza_una_coma():
     """
     assert crisis_band("no me quiero morir, pero ya no puedo más").level.value == "LOW"
     assert is_acute_crisis("no me quiero morir, pero ya no puedo más") is True
-    assert symptoms_in_message("no tengo esperanza, tengo un plan suicida") == ["no tengo esperanza", "plan suicida"]
+    assert crisis_verdict("no tengo esperanza, tengo un plan suicida").hits.symptoms == (
+        "no tengo esperanza",
+        "plan suicida",
+    )
 
 
 def test_mejor_sin_mi_sigue_disparando_la_ruta_de_hoy():
@@ -242,8 +244,9 @@ def test_la_exposicion_al_suicidio_de_un_tercero_es_historia_no_crisis():
 
     Hasta v4.38.8 disparaba el booleano por subcadena. 0.29.0 lo aparta en
     `excluded` (grupo `exposicion_intento`) y ese mismo grupo cuenta en el
-    eje CRÓNICO: como fact, entra a `medical_history` por `_GROUP_TO_CONDITION`
-    y suma +0.5 a la banda, no la cruza sola. Y "mi paciente intentó
+    eje CRÓNICO: como fact, entra a `medical_history` por
+    `PSYCHIATRY.chronic_conditions` (fi-core 0.30.0; hasta v4.38.17 era el
+    `_GROUP_TO_CONDITION` de este módulo) y suma +0.5 a la banda, no la cruza sola. Y "mi paciente intentó
     suicidarse" sigue CRITICAL a propósito (decisión de Álex, pinneada en
     fi-core `tests/test_psychiatry_h1_h2.py`).
     """
@@ -254,10 +257,12 @@ def test_la_exposicion_al_suicidio_de_un_tercero_es_historia_no_crisis():
     assert crisis_band("mi paciente intentó suicidarse").level.value == "CRITICAL"
 
     facts = [{"fact": "su hermana intentó suicidarse"}, {"fact": "su tío se suicidó el año pasado"}]
-    assert history_conditions(facts) == [
+    veredicto = crisis_verdict("hoy comí rico", facts)
+    assert veredicto.chronic.matched == ("exposicion_consumado", "exposicion_intento")
+    assert veredicto.conditions == (
         "exposición a intento de suicidio",
         "exposición a suicidio consumado",
-    ]
+    )
 
 
 def test_la_historia_sola_ya_no_dispara_el_override_critical():
@@ -312,16 +317,54 @@ def test_las_exclusiones_de_alex_no_suben_la_banda(frase, excluido):
 
 
 def test_la_historia_se_traduce_a_condiciones_de_riesgo():
-    assert history_conditions(FACTS_CON_INTENTO) == ["intento de suicidio previo"]
+    veredicto = crisis_verdict("hoy comí rico", FACTS_CON_INTENTO)
+    assert veredicto.chronic.matched == ("self_harm_history",)
+    assert veredicto.conditions == ("intento de suicidio previo",)
 
 
 def test_sin_facts_no_hay_condiciones():
-    assert history_conditions(None) == []
-    assert history_conditions([]) == []
+    assert crisis_verdict("hoy comí rico", None).conditions == ()
+    assert crisis_verdict("hoy comí rico", []).conditions == ()
 
 
 def test_un_mensaje_vacio_no_truena_ni_inventa_banda():
     r = crisis_band("", None)
     assert r.level.value == "LOW"
     assert r.final_gravity == 0.0
-    assert symptoms_in_message("") == []
+    assert crisis_verdict("").hits.symptoms == ()
+
+
+# ---------------------------------------------------------------------------
+# Una lectura, no dos (fi-core 0.30.0, issue #54)
+# ---------------------------------------------------------------------------
+
+
+def test_la_banda_y_su_explicacion_salen_de_la_misma_lectura():
+    """Hasta v4.38.17 `matched_acute_groups` era una lectura PARALELA que
+    "explicaba el veredicto sin SER el veredicto". Ahora los grupos vienen en
+    el mismo `ClinicalVerdict` que la banda, y las razones son tipadas: lo que
+    se loguea es `kind`/`key`/`weight`, nunca la frase."""
+    v = crisis_verdict("me quiero morir, ya no puedo más", FACTS_CON_INTENTO)
+    assert v.level.value == "CRITICAL"
+    assert v.score == crisis_band("me quiero morir, ya no puedo más", FACTS_CON_INTENTO)
+    assert v.acute.matched == ("at_the_limit", "explicit_ideation")
+    assert v.chronic.matched == ("self_harm_history",)
+    (razon,) = v.score.reasons
+    assert (razon.kind, razon.key, razon.weight) == ("critical_pattern", "critical_patterns", 10)
+    assert "quiero morir" not in repr(razon)
+    assert razon.render() == "critical pattern 'quiero morir' detected → override CRITICAL"
+
+
+def test_el_mapa_de_grupo_a_condicion_vive_en_fi_core():
+    """El `_GROUP_TO_CONDITION` que vivía aquí es hoy `PSYCHIATRY.chronic_conditions`.
+    Se fija desde el consumidor que las ocho entradas siguen siendo las mismas."""
+    assert PSYCHIATRY.chronic_conditions == {
+        "self_harm_history": "intento de suicidio previo",
+        "recent_grief": "duelo reciente",
+        "abuse": "abuso",
+        "hospitalization": "hospitalización psiquiátrica previa",
+        "social_isolation": "aislamiento social",
+        "substance_use": "trastorno por uso de sustancias",
+        "exposicion_intento": "exposición a intento de suicidio",
+        "exposicion_consumado": "exposición a suicidio consumado",
+    }

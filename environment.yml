@@ -81,7 +81,14 @@ dependencies:
   # intento salía CRITICAL en cada turno, mensaje vacío inclusive) y la
   # ventana de negación de `acute_signals` no alcanzaba "no me quiero
   # suicidar" (cue → clítico → verbo). Sin cambio de API.
-  - fi-core=0.29.1
+  # SUBIDO a 0.30.0 (2026-09-08, free-intelligence PR #465, issue #54): las
+  # `reasons` de `GravityScore` son tipadas (`UrgencyReason` — kind/key/peso
+  # para el log, la frase sólo en `render()`), `PSYCHIATRY.assess()` devuelve
+  # banda + grupos de los dos ejes en UNA lectura (aquí colapsaron
+  # `matched_acute_groups`, `history_conditions`, `symptoms_in_message` y
+  # `_GROUP_TO_CONDITION`), y `fi_core.audit` trae el seudónimo HMAC y el
+  # evento con hash que `khimeras_shared/audit.py` escribió primero.
+  - fi-core=0.30.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
@@ -120,7 +127,8 @@ dependencies:
   # arriba — con 0.21.0/0.21.1 (cap <0.27) el par no resuelve.
   # SUBIDO a 0.21.4 (2026-09-07): cap de fi-core <0.30, el que admite la 0.29.0
   # de arriba (0.21.3 capaba <0.29).
-  - fi-runner=0.21.4
+  # SUBIDO a 0.21.5 (2026-09-08): cap de fi-core <0.31, el que admite la 0.30.0.
+  - fi-runner=0.21.5
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

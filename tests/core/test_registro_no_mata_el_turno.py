@@ -2,9 +2,10 @@
 
 El criterio de aceptación no se conforma con "el registro está en un try": pide
 un test que **rompa el registro a propósito y verifique que el turno se
-completa**. Eso es lo que hace este archivo, por cada una de las tres cosas que
-pueden caerse — el clasificador de fi-core, la lectura de señales, y el
-registro mismo.
+completa**. Eso es lo que hace este archivo, por cada una de las dos cosas que
+pueden caerse — el veredicto de fi-core y el registro mismo. (Hasta v4.38.17
+eran tres: la lectura de señales era una llamada aparte; desde fi-core 0.30.0
+viaja dentro del mismo `ClinicalVerdict` que la banda.)
 
 Por qué importa más de lo que parece: el turno que se pierde aquí no es un
 turno cualquiera. `build_turn_guidance` es la costura por donde viaja el
@@ -70,18 +71,23 @@ def test_sin_romper_nada_hay_guidance_y_hay_veredicto():
 
 def test_si_el_clasificador_truena_el_turno_se_completa(monkeypatch):
     """fi-core caído: se pierde la banda, no la respuesta que alguien espera."""
-    monkeypatch.setattr("khimeras_shared.guidance.crisis_band", truena)
+    monkeypatch.setattr("khimeras_shared.guidance.crisis_verdict", truena)
     guidance, capturado = construir()
     assert guidance, "el turno se perdió por una falla del clasificador"
     assert not eventos(capturado, "crisis_band_classified")
     assert eventos(capturado, "crisis_band_absent")[0]["reason"] == "crisis_band_failed"
 
 
-def test_si_las_senales_truenan_el_turno_se_completa(monkeypatch):
-    monkeypatch.setattr("khimeras_shared.guidance.matched_acute_groups", truena)
-    guidance, capturado = construir()
-    assert guidance, "el turno se perdió por una falla al leer las señales"
-    assert eventos(capturado, "crisis_band_absent")[0]["reason"] == "crisis_band_failed"
+def test_el_veredicto_registrado_no_lleva_una_frase_del_vocabulario():
+    """La decisión 1 de Álex, cerrada río arriba (fi-core 0.30.0): `reasons` va
+    como `kind:key:peso`, y `signals` como nombres de grupo. Ni una palabra del
+    mensaje ni una frase de PSYCHIATRY en el renglón."""
+    _, capturado = construir()
+    (evento,) = eventos(capturado, "crisis_band_classified")
+    assert evento["reasons"] == ["critical_pattern:critical_patterns:+10"]
+    assert evento["signals"] == ["explicit_ideation"]
+    assert MENSAJE_GRAVE not in str(evento)
+    assert "plan suicida" not in str(evento)
 
 
 def test_si_el_registro_truena_el_turno_se_completa(monkeypatch):

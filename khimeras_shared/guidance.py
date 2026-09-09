@@ -32,9 +32,8 @@ from khimeras_shared.behavior import (
     build_vulnerable_overlay_prompt,
     classify_preset,
     compute_vulnerability_score,
-    crisis_band,
+    crisis_verdict,
     is_vulnerable_overlay_selection,
-    matched_acute_groups,
 )
 from khimeras_shared.constraints import build_constraints_block
 from khimeras_shared.gifs import catalog_block
@@ -94,19 +93,18 @@ def _registrar_veredicto(
     Un denominador que las mezcla miente justo donde existe para no mentir.
     """
     try:
-        band = crisis_band(current_message, user_facts)
-        signals = matched_acute_groups(current_message)
+        verdict = crisis_verdict(current_message, user_facts)
     except Exception:
         log.warning("crisis_band_failed", persona_id=persona_id)
         log_crisis_band_absent(persona_id=persona_id, reason="crisis_band_failed")
         return
     try:
         log_crisis_band_classified(
-            band=band.level.value,
-            gravity=band.final_gravity,
-            reasons=list(band.reasons),
-            critical_override=band.critical_override,
-            signals=signals,
+            band=verdict.level.value,
+            gravity=verdict.score.final_gravity,
+            reasons=[f"{r.kind}:{r.key}:{r.weight:+g}" for r in verdict.score.reasons],
+            critical_override=verdict.score.critical_override,
+            signals=list(verdict.acute.matched) if verdict.acute is not None else [],
             persona_id=persona_id,
             user_id=user_id,
         )
