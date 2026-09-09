@@ -1,6 +1,6 @@
 # fi-core: el veredicto de banda carga sus grupos disparados — una llamada, un veredicto, una explicación
 
-Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); discord-bot collapses to `assess()` pending
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08) + discord-bot v4.38.18 (`1078ea1`) — colapsado a `crisis_verdict()`, grep → 0
 Proposed: 2026-09-08 by Bernard (revisión del PR #68 de discord-bot, issue #54)
 
 ## What it is
@@ -93,3 +93,9 @@ y no suma. `denied` y `excluded` viajan en los dos ejes sin tercera lectura
 **Lo que falta:** discord-bot colapsa `crisis_band` + `matched_acute_groups` +
 `history_conditions` + `_GROUP_TO_CONDITION` a `PSYCHIATRY.assess()`, con
 [[migrations-end-with-deletion]] como definición de hecho (grep → 0).
+
+**Consumidor cerrado el mismo día:** discord-bot `1078ea1` (v4.38.18) — pin
+`fi-core=0.30.0` + `fi-runner=0.21.5`, CI verde, persona-gateway rev
+`--0000203` sirviendo. Lo que falta de recibo es sólo el primer turno real por
+esa revisión en KQL (`reasons` como `comorbidity:abuso:+0.5`, sin frase);
+al cerrar esta tarjeta no había pasado ninguno todavía.
