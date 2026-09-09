@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: In progress — Apple gate LEVANTADO 2026-08-22; falta la primera vuelta de chat real
+Status: **In progress** (re-verificado EN VIVO 2026-09-09) — compila, instala, arranca y pinta el login en un simulador recién creado. Sigue faltando la vuelta completa del tracer; el átomo es la contraseña de Auth0
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -57,3 +57,33 @@ nada: Xcode se instaló con `xcodes`, sin la Store.
 Si la app pasa de tracer bullet a algo que se usa, hay que decidir la cuenta de
 Apple Developer ($99/año): sin ella la app recaduca cada 7 días en el teléfono.
 No bloquea nada para empezar.
+
+## Verificación en vivo — 2026-09-09
+
+No una relectura del archivo: se corrió. `xcodegen generate` → `xcodebuild
+-scheme OG118 -destination "id=<sim>" build` → **BUILD SUCCEEDED** → `simctl
+install` → `simctl launch` → screenshot: la pantalla de login de og118.ai con su
+botón "Iniciar sesión". Xcode 26.6 en `/Applications/Xcode-26.6.0.app`.
+
+**La trampa de entorno, que es el hallazgo de hoy y no estaba escrita en ningún
+lado:** esta Mac tiene el runtime de iOS 26.5 instalado pero **cero dispositivos
+de simulador creados** — `xcrun simctl list devices available | grep iPhone` no
+devuelve NADA. Un `xcodebuild -destination 'platform=iOS Simulator,name=iPhone
+15'` falla ahí con un error de destino que se lee como toolchain rota, y no lo
+es. Se crea uno y ya:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer
+xcrun simctl create "og118-verify" \
+  com.apple.CoreSimulator.SimDeviceType.iPhone-17 \
+  com.apple.CoreSimulator.SimRuntime.iOS-26-5
+xcrun simctl boot <UDID>
+```
+
+`xcode-select` apunta a las CommandLineTools, así que **`DEVELOPER_DIR` no es
+opcional** en ninguno de los comandos de arriba.
+
+**Dónde se detuvo, y por qué ahí:** la app está corriendo en el simulador con el
+login en pantalla. Tocar "Iniciar sesión" abre la hoja de Auth0 y pide la
+contraseña de Bernard — ése es el átomo, y es suyo. Todo lo anterior se manejó
+desde la sesión.

@@ -20,7 +20,7 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado 2026-08-23) — compila, arranca y pinta el login en simulador. Falta la primera vuelta de chat real. README corregido 2026-09-09 | 2026-08-12 |
+| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado EN VIVO 2026-09-09) — build + install + launch + login en pantalla, corridos hoy. Falta la vuelta de chat real; el átomo es la contraseña de Auth0. Ojo: la Mac no tiene dispositivos de simulador creados, hay que crear uno | 2026-08-12 |
 
 ## Entregadas
 
