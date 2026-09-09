@@ -4621,7 +4621,11 @@ function createAudioCuePlayer(assets, options = {}) {
 
 // src/voice/useResonanceCallLoop.ts
 var DEFAULT_SILENCE = { endOfSpeechMs: 900, autoResumeMs: 1200 };
-var DEFAULT_SLEEP = { enabled: true, idleHangupMs: 3e5 };
+var DEFAULT_SLEEP = {
+  enabled: true,
+  idleHangupMs: 3e5,
+  maxCallMs: 6e5
+};
 var DEFAULT_BARGE_IN = { enabled: true };
 function useResonanceCallLoop(params) {
   const {
@@ -4755,6 +4759,7 @@ function useResonanceCallLoop(params) {
   }, [enabled, gate, controller, bargeInPolicy]);
   const autoResumeTimer = useRef12(void 0);
   const sleepTimer = useRef12(void 0);
+  const callTimer = useRef12(void 0);
   const clearTimer = (t) => {
     if (t.current) {
       clearTimeout(t.current);
@@ -4786,6 +4791,7 @@ function useResonanceCallLoop(params) {
   useEffect18(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
+    clearTimer(callTimer);
   }, []);
   const startCall = useCallback9(async () => {
     if (!enabled) return;
@@ -4793,9 +4799,20 @@ function useResonanceCallLoop(params) {
     gate.reset();
     cueController?.reset();
     void cuePlayer?.resume();
+    clearTimer(callTimer);
+    if (sleepPolicy.maxCallMs > 0) {
+      callTimer.current = setTimeout(() => {
+        callTimer.current = void 0;
+        adaptersRef.current.onError?.("duration", new Error(
+          `La llamada alcanz\xF3 su l\xEDmite de ${Math.round(sleepPolicy.maxCallMs / 6e4)} minutos.`
+        ), true);
+        controller.endCall();
+      }, sleepPolicy.maxCallMs);
+    }
     controller.startCall();
-  }, [enabled, debug, controller, gate, cueController, cuePlayer]);
+  }, [enabled, debug, controller, gate, cueController, cuePlayer, sleepPolicy]);
   const endCall = useCallback9(() => {
+    clearTimer(callTimer);
     controller.endCall();
   }, [controller]);
   const interrupt = useCallback9(() => {
