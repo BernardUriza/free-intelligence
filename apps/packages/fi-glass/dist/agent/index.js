@@ -565,7 +565,7 @@ function useAgentConversation(agent, options) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect14, useState as useState13 } from "react";
+import { useEffect as useEffect15, useState as useState13 } from "react";
 
 // src/shell/touchTarget.ts
 import { useEffect as useEffect3 } from "react";
@@ -2406,14 +2406,96 @@ function Composer({
   );
 }
 
+// src/composer/composerActionStyle.ts
+import { useEffect as useEffect11 } from "react";
+var FI_COMPOSER_ACTION_CLASS = "fi-composer-action";
+var FI_COMPOSER_ACTION_VARIANT_CLASS = {
+  primary: "fi-composer-action--primary",
+  secondary: "fi-composer-action--secondary"
+};
+var FI_COMPOSER_ACTION_LABEL_CLASS = "fi-composer-action-label";
+var COMPOSER_ACTION_STYLE_ID = "fi-composer-action-style";
+var CSS2 = `
+:where(.${FI_COMPOSER_ACTION_CLASS}) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, opacity 0.15s ease;
+}
+/* Unavailable, not absent: a disabled control keeps its box so the composer does
+ * not reflow between empty and typed \u2014 the state a user sees most. */
+:where(.${FI_COMPOSER_ACTION_CLASS}:disabled) {
+  cursor: not-allowed;
+}
+:where(.${FI_COMPOSER_ACTION_CLASS}) svg {
+  width: var(--fi-composer-action-icon-size, 1rem);
+  height: var(--fi-composer-action-icon-size, 1rem);
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.primary}) {
+  padding: var(--fi-composer-action-padding, 0.5rem);
+  border-radius: var(--fi-composer-action-radius, 10px);
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+  gap: var(--fi-composer-action-gap, 0.35rem);
+  padding: var(--fi-composer-action-pill-padding, 0.3rem 0.65rem);
+  border-radius: var(--fi-composer-action-pill-radius, 999px);
+  font-size: var(--fi-composer-action-font-size, 0.8rem);
+  font-weight: 600;
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) svg {
+  width: var(--fi-composer-action-icon-size, 0.9rem);
+  height: var(--fi-composer-action-icon-size, 0.9rem);
+}
+@container fi-composer (max-width: 420px) {
+  /* Icon-only on a narrow composer, and icon-only still means a full touch
+     target \u2014 never a chip shrunk to fit, which is how a control ends up
+     orphaned on its own wrap line. Keyed off the CONTAINER because
+     shell/touchTarget is viewport-gated and cannot see a narrow composer on a
+     wide screen: there, send measured 34\xD734 against a 44 minimum. */
+  .${FI_COMPOSER_ACTION_CLASS} {
+    min-width: var(--fi-touch-target, 44px);
+    min-height: var(--fi-touch-target, 44px);
+  }
+  :where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+    justify-content: center;
+    padding: 0;
+  }
+  .${FI_COMPOSER_ACTION_LABEL_CLASS}[data-fi-compact-hide] {
+    display: none;
+  }
+}
+`;
+function ensureComposerActionStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = COMPOSER_ACTION_STYLE_ID;
+  el.textContent = CSS2;
+  document.head.appendChild(el);
+}
+function useComposerActionStyle() {
+  useEffect11(() => {
+    ensureComposerActionStyle();
+  }, []);
+}
+function withComposerAction(variant, className) {
+  return [FI_COMPOSER_ACTION_CLASS, FI_COMPOSER_ACTION_VARIANT_CLASS[variant], className].filter(Boolean).join(" ");
+}
+
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect12, useId as useId3, useState as useState11 } from "react";
+import { useEffect as useEffect13, useId as useId3, useState as useState11 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect11 } from "react";
+import { useEffect as useEffect12 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
-var CSS2 = `
+var CSS3 = `
 /* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
  * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
  * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
@@ -2475,11 +2557,11 @@ function ensureDensityStyle() {
   if (document.getElementById(DENSITY_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = DENSITY_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect11(() => {
+  useEffect12(() => {
     ensureDensityStyle();
   }, []);
 }
@@ -2487,7 +2569,7 @@ function useDensityStyle() {
 // src/composer/ComposerFrame.tsx
 import { Fragment as Fragment4, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS3 = `
+var CSS4 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -2591,11 +2673,11 @@ function ensureComposerFrameStyle() {
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS3;
+  el.textContent = CSS4;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect12(() => {
+  useEffect13(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -2755,7 +2837,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment5, useEffect as useEffect13, useRef as useRef11, useState as useState12 } from "react";
+import { Fragment as Fragment5, useEffect as useEffect14, useRef as useRef11, useState as useState12 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment6, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
 function ActionMenu({
@@ -2773,13 +2855,13 @@ function ActionMenu({
   const [open, setOpen] = useState12(false);
   const triggerRef = useRef11(null);
   const [position, setPosition] = useState12({ top: 0, left: 0 });
-  useEffect13(() => {
+  useEffect14(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect13(() => {
+  useEffect14(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -2956,6 +3038,7 @@ function ComposerControls({
   sendButtonIconClassName,
   stopButtonClassName
 }) {
+  useComposerActionStyle();
   const stopping = isStreaming && onStop != null;
   return /* @__PURE__ */ jsxs17(Fragment7, { children: [
     micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx24(
@@ -2998,6 +3081,7 @@ function ComposerControls({
         "data-fi-composer-send-state": stopping ? "stop" : isStreaming ? "busy" : "send",
         className: [
           FI_TOUCH_TARGET_CLASS,
+          withComposerAction("primary"),
           sendButtonClassName,
           stopping ? stopButtonClassName : void 0
         ].filter(Boolean).join(" "),
@@ -3245,7 +3329,7 @@ function AgentConversationSurface(props) {
     onError: onImageAttachmentError
   });
   const restoreImages = images.restore;
-  useEffect14(() => {
+  useEffect15(() => {
     if (!unsentText && !unsentImages) return;
     if (unsentText) setInput((current) => current.trim() ? current : unsentText);
     if (imageAttachments && unsentImages && unsentImages.length > 0) {
@@ -3307,7 +3391,7 @@ function AgentConversationSurface(props) {
 // src/agent/AgentWorkspaceShell.tsx
 import {
   useCallback as useCallback7,
-  useEffect as useEffect16,
+  useEffect as useEffect17,
   useMemo,
   useRef as useRef13,
   useState as useState15
@@ -3315,7 +3399,7 @@ import {
 import { Menu } from "lucide-react";
 
 // src/shell/useEdgeSwipe.ts
-import { useEffect as useEffect15, useRef as useRef12, useState as useState14 } from "react";
+import { useEffect as useEffect16, useRef as useRef12, useState as useState14 } from "react";
 var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
 function useEdgeSwipe({
   enabled,
@@ -3332,7 +3416,7 @@ function useEdgeSwipe({
 }) {
   const [progress, setProgress] = useState14(null);
   const gestureRef = useRef12(null);
-  useEffect15(() => {
+  useEffect16(() => {
     if (!enabled) {
       gestureRef.current = null;
       setProgress(null);
@@ -3488,10 +3572,10 @@ function AgentWorkspaceShell({
     fallbackWidth: numericSidebarWidth
   });
   const dragging = dragProgress !== null;
-  useEffect16(() => {
+  useEffect17(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3504,7 +3588,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect16(() => {
+  useEffect17(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const api = useMemo(
@@ -3677,7 +3761,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect17 } from "react";
+import { useEffect as useEffect18 } from "react";
 
 // src/theme/glass-tokens.generated.ts
 var glassTokens = {
@@ -3807,7 +3891,7 @@ var FI_ITEM_ACTION_CLASS = "fi-item-action";
 var FI_ITEM_ACTION_DANGER_CLASS = "fi-item-action--danger";
 var FI_RESOURCE_RENAME_INPUT_CLASS = "fi-resource-rename-input";
 var SIDEBAR_ITEM_STYLE_ID = "fi-sidebar-item-style";
-var CSS4 = `
+var CSS5 = `
 .${FI_SIDEBAR_ITEM_CLASS} {
   display: flex;
   align-items: flex-start;
@@ -3922,11 +4006,11 @@ function ensureSidebarItemStyle() {
   if (document.getElementById(SIDEBAR_ITEM_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_ITEM_STYLE_ID;
-  el.textContent = CSS4;
+  el.textContent = CSS5;
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect17(() => {
+  useEffect18(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -4116,7 +4200,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect18 } from "react";
+import { useEffect as useEffect19 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -4124,7 +4208,7 @@ var FI_SECTION_CARD_CLASS = "fi-sidebar-section--card";
 var FI_SECTION_FOOTER_CLASS = "fi-sidebar-section-footer";
 var FI_SECTION_SCROLL_CLASS = "fi-sidebar-section-scroll";
 var SIDEBAR_SECTION_STYLE_ID = "fi-sidebar-section-style";
-var CSS5 = `
+var CSS6 = `
 .${FI_SIDEBAR_SECTION_CLASS} {
   display: flex;
   flex-direction: column;
@@ -4172,11 +4256,11 @@ function ensureSidebarSectionStyle() {
   if (document.getElementById(SIDEBAR_SECTION_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = SIDEBAR_SECTION_STYLE_ID;
-  el.textContent = CSS5;
+  el.textContent = CSS6;
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect18(() => {
+  useEffect19(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

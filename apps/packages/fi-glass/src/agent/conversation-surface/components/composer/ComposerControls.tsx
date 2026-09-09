@@ -16,6 +16,10 @@ import type { ReactNode } from 'react';
 import { Send, Loader2, Square } from 'lucide-react';
 import { ComposerMicSlot, AudioVisualizer } from '../../../../voice';
 import { FI_TOUCH_TARGET_CLASS } from '../../../../shell/touchTarget';
+import {
+  useComposerActionStyle,
+  withComposerAction,
+} from '../../../../composer/composerActionStyle';
 import type { SurfaceDictation } from '../../hooks';
 
 export interface ComposerControlsProps {
@@ -63,6 +67,7 @@ export function ComposerControls({
   sendButtonIconClassName,
   stopButtonClassName,
 }: ComposerControlsProps) {
+  useComposerActionStyle();
   const stopping = isStreaming && onStop != null;
   return (
     <>
@@ -110,6 +115,7 @@ export function ComposerControls({
           data-fi-composer-send-state={stopping ? 'stop' : isStreaming ? 'busy' : 'send'}
           className={[
             FI_TOUCH_TARGET_CLASS,
+            withComposerAction('primary'),
             sendButtonClassName,
             stopping ? stopButtonClassName : undefined,
           ]

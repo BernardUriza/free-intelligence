@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { ClipboardEventHandler, CSSProperties, Ref, TextareaHTMLAttributes, ReactNode } from 'react';
+import { ClipboardEventHandler, CSSProperties, Ref, TextareaHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
 import { MessageImage } from '@free-intelligence/core';
 export { b as ComposerAction, C as ComposerActions, c as ComposerActionsProps } from '../ComposerActions-HOiu1DmD.js';
 
@@ -79,6 +79,39 @@ interface AutoResizeTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaEle
  * reaching into this component's internal DOM.
  */
 declare const AutoResizeTextarea: react.ForwardRefExoticComponent<AutoResizeTextareaProps & react.RefAttributes<HTMLTextAreaElement>>;
+
+/** Base class for a composer control — compose it, never replace the consumer's class. */
+declare const FI_COMPOSER_ACTION_CLASS = "fi-composer-action";
+/** Variant classes: `primary` is the send-shaped square, `secondary` the pill chip. */
+declare const FI_COMPOSER_ACTION_VARIANT_CLASS: {
+    readonly primary: "fi-composer-action--primary";
+    readonly secondary: "fi-composer-action--secondary";
+};
+type ComposerActionVariant = keyof typeof FI_COMPOSER_ACTION_VARIANT_CLASS;
+/** Class for the text beside a control's icon; hidden when the composer is compact. */
+declare const FI_COMPOSER_ACTION_LABEL_CLASS = "fi-composer-action-label";
+/** Inject the idempotent composer-action stylesheet (no-op on the server / if already present). */
+declare function ensureComposerActionStyle(): void;
+/** Ensure the composer-action stylesheet is present for the lifetime of a control. */
+declare function useComposerActionStyle(): void;
+/** Compose the action classes with an optional consumer class (additive, order-stable). */
+declare function withComposerAction(variant: ComposerActionVariant, className?: string): string;
+
+interface ComposerActionSlotProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
+    /** `primary` is the send-shaped square; `secondary` the outlined pill chip. */
+    variant?: ComposerActionVariant;
+    icon: ReactNode;
+    /** Text beside the icon. Hidden on a compact composer unless the flag says otherwise. */
+    label?: ReactNode;
+    hideLabelWhenCompact?: boolean;
+    /**
+     * Keep this control reachable when the compact rail collapses — the contract
+     * for something live the user must be able to stop (a call in progress).
+     */
+    keepWhenRailCollapses?: boolean;
+    labelClassName?: string;
+}
+declare function ComposerActionSlot({ variant, icon, label, hideLabelWhenCompact, keepWhenRailCollapses, className, labelClassName, type, ...rest }: ComposerActionSlotProps): react.JSX.Element;
 
 /** Inject the idempotent composer-frame stylesheet (no-op on the server / if already present). */
 declare function ensureComposerFrameStyle(): void;
@@ -179,4 +212,4 @@ interface ImagePicker {
  */
 declare function useImagePicker(onFiles: (files: File[]) => void): ImagePicker;
 
-export { AutoResizeTextarea, type AutoResizeTextareaProps, COMPOSER_IMAGE_ACCEPT, COMPOSER_IMAGE_MEDIA_TYPES, Composer, ComposerFrame, type ComposerFrameProps, ComposerImageChips, type ComposerImageChipsProps, type ComposerImageDraft, type ComposerImages, type ComposerProps, DEFAULT_MAX_IMAGES, type ImagePicker, type UseComposerImagesOptions, ensureComposerFrameStyle, useComposerFrameStyle, useComposerImages, useImagePicker };
+export { AutoResizeTextarea, type AutoResizeTextareaProps, COMPOSER_IMAGE_ACCEPT, COMPOSER_IMAGE_MEDIA_TYPES, Composer, ComposerActionSlot, type ComposerActionSlotProps, type ComposerActionVariant, ComposerFrame, type ComposerFrameProps, ComposerImageChips, type ComposerImageChipsProps, type ComposerImageDraft, type ComposerImages, type ComposerProps, DEFAULT_MAX_IMAGES, FI_COMPOSER_ACTION_CLASS, FI_COMPOSER_ACTION_LABEL_CLASS, FI_COMPOSER_ACTION_VARIANT_CLASS, type ImagePicker, type UseComposerImagesOptions, ensureComposerActionStyle, ensureComposerFrameStyle, useComposerActionStyle, useComposerFrameStyle, useComposerImages, useImagePicker, withComposerAction };
