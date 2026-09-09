@@ -3,7 +3,15 @@
 Status: In progress — la pata de registry cambió de destino: **`serverbotacr` ya
 no existe, las imágenes viven en GHCR desde 2026-08-12**; RG + repo pendientes
 Proposed: 2026-06-18 by Bernard
-Re-verificado: 2026-09-07 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+Re-verificado: 2026-09-09 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+
+## Re-chequeo 2026-09-09 — sin cambios
+
+`az acr list` → sólo `insultacr`, con los dos inquilinos de siempre: la app
+retirada `discord-bot` (Running, min=0, `insult-bot:d6fa36c`) y `rancho-studio`.
+Las tres apps del repo, más `susurro-gateway` y `aire-front`, pullean de GHCR.
+`az containerapp job list -g insult-rg` → vacío. RG→`server-rg` sigue agendado.
+
 
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 

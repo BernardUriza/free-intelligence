@@ -10,7 +10,25 @@ están CERRADOS. Este archivo conserva la redacción original de los issues con
 `<id>` sin resolver — el `<id>` que Alex escogió fue **`valentis`**.
 Propuesto: 2026-08-12 · Diseño de **Aníbal** (médico, dictado por WhatsApp ese día)
 Contribuidore: **Alex Nava** (`ferux485`, elle) · sesión 3 de capacitación ·
-Re-verificado: 2026-09-07
+Re-verificado: 2026-09-09
+
+## Re-chequeo 2026-09-09 — la fase 2 dejó de estar entera sin issue
+
+La fase 1 sigue verificada sin cambios: `VALENTIS_DISCORD_TOKEN` en el env vivo
+de `persona-gateway` (secretRef `valentis-discord-token`), `shared/personas/valentis.md`
+y su `preset_guidance_respectful_serious.md` existen, y #41–#44 siguen cerrados.
+
+**El matiz nuevo:** el issue **#61 (OPEN, 2026-09-07)** — *"Poblar el corpus:
+cada persona sube su ética"* — cubre **una** de las cuatro piezas de la fase 2,
+el corpus, y ahí Valentis aparece con `corpus_namespace=None` y **0 chunks**.
+O sea que "fase 2 sin issue" ya no es exacto: una cuarta parte sí lo tiene, y
+las otras tres —facetas por tema, presets propios, `preset_vulnerable_overlay.md`
+propio— siguen sin ninguno.
+
+**No verificado, y es la misma deuda que el 09-07:** que Valentis conteste en
+vivo en #general. Todo lo de arriba prueba que está registrada y desplegada, no
+que hable. Para una persona cuyo trabajo es acompañar a alguien en crisis, esa
+distinción es la que importa, y el arnés no la puede cubrir.
 
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 

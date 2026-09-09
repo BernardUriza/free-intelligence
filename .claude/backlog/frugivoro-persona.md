@@ -1,9 +1,43 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
-Status: **In progress — persona LIVE y corpus RAG YA VIVO en repo; lo único
-pendiente es el benchmark ético (§1–§3)**. Actualizado 2026-08-06 ·
-Re-verificado 2026-09-07 (la ingesta en Postgres sigue SIN verificar).
+Status: **In progress — los CUATRO pasos verificados desde el 2026-09-09
+(la ingesta en Postgres incluida); lo único pendiente es el benchmark ético
+(§1–§3)**. Actualizado 2026-08-06.
 Proposed: 2026-06-29 by Bernard
+
+## Re-chequeo 2026-09-09 — el 4º paso queda verificado, por primera vez
+
+La deuda más vieja del folder. Desde el 2026-08-06 este item arrastraba *"la
+ingesta en Postgres sigue SIN verificar — sin acceso"*, y **sí había acceso**:
+la credencial vive en `~/.secrets/discord-bot-postgres-url.txt` (consumida a
+variable, nunca impresa; sólo `SELECT`/`COUNT`, sin tocar el firewall). El
+09-07 repitió la frase sin intentarlo — la misma forma que la contradicción del
+item de AIRE etapa 1, ya retirado.
+
+La columna del namespace no se llama `namespace` sino `user_id`, que es parte de
+por qué nadie daba con ella:
+
+    user_id            chunks  fuentes  ingesta
+    __corpus_vegan__      858        3  2026-07-16
+    __corpus_film__      2390        2  2026-06-03
+    __corpus_unborn__    1935      383  2026-07-28
+    __corpus_insult__     550        3  2026-07-16
+    __corpus_alice__      363        2  2026-07-16
+
+    __corpus_vegan__ por fuente:
+      frugivoro:williams-ethics-of-diet                              749
+      frugivoro:plant-based-diets-cardiometabolic-review-pmc13163209   60
+      frugivoro:plant-based-diet-pregnancy-review-pmc13086723          49
+
+Las tres fuentes son exactamente las del MANIFEST. Cadena completa: repo →
+ingesta → Postgres.
+
+**Y el item quedó rancio el mismo 09-07:** cita `khimeras_shared/corpus/vegan_gastronomy.md`
+como vivo dos veces —una como "contenido propio que creció", otra como destino
+del siguiente volcado de Bernard— y `6ba7a61` (issue #62) lo borró junto con el
+resto de los "valores universales". Recuperable en
+`git show 798ba77:khimeras_shared/corpus/vegan_gastronomy.md`. El destino de un
+volcado nuevo, si lo hay, es el corpus RAG por namespace, no ese archivo.
 
 ### Re-chequeo 2026-09-07 (auditoría del backlog)
 

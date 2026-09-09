@@ -5,6 +5,20 @@ Status: **Slice 1 DONE** (alias `fruggy` shipped en `40a4fea`, v4.32.45,
 decisión de Bernard. Re-verificado 2026-09-07.
 Proposed: 2026-07-05 by Bernard
 
+## Re-chequeo 2026-09-09 — el conteo bajó y NO es progreso
+
+    $ grep -rni frugi --include='*.py' --include='*.md' . | grep -v .claude/backlog | wc -l
+    125          # este item decía 146
+
+Tentador leerlo como avance. No lo es: `6ba7a61` (issue #62, 2026-09-07) borró
+`khimeras_shared/corpus/vegan_gastronomy.md`, que traía **21** de esos hits.
+146 − 21 = 125, cuadra exacto. Ni una sola ocurrencia se renombró.
+
+Se anota porque un número que baja solo es la manera más barata de creer que un
+rename avanza. El registry sigue igual: `aliases=["frugivoro","frugi","frugívoro","fruggy"]`,
+`display_name="Frugívoro"`. Fuera siguen el `display_name`, el username del bot
+en Discord y el `persona_id`/DNA/`token_env`. Sin issue para el slice 2.
+
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 
 - `gh issue list --state all` → `#36 CLOSED 2026-08-14T22:54:31Z Enséñale a

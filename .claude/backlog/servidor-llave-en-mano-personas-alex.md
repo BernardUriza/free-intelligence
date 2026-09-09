@@ -1,7 +1,9 @@
 # Servidor llave en mano: tu propio Discord con bots hechos por nosotros
 
 Status: **Congelado hasta el inicio de 2027** (candado puesto el 2026-08-17 por Bernard,
-`84cfe15`) · Re-verificado 2026-09-07: sin movimiento desde el candado
+`84cfe15`) · Re-verificado 2026-09-09: sin movimiento desde el candado — el
+único commit al item desde entonces es la auditoría del 09-07 (`1af6718`), y su
+diff son 4 líneas de status. Documentar está permitido por el propio candado
 (`git log --since=2026-08-18 -- .claude/backlog/servidor-llave-en-mano-personas-alex.md`
 → vacío); el índice `README.md` decía "Proposed" — corregido hoy.
 Proposed: 2026-08-15 por Bernard

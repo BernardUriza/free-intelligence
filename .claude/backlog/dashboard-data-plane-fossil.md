@@ -3,7 +3,17 @@
 Status: In progress — fake-green ELIMINADO (2026-08-06, `34bf41c`); el fork recablear/congelar sigue siendo de Bernard
 Proposed: 2026-07-20 by Claude (hallazgo del refactor v4.28.1 + /cruel-critic)
 Updated: 2026-08-06 by Claude (verificación con evidencia + fix del indicador, dashboard v2.4.0)
-Re-verificado: 2026-09-07
+Re-verificado: 2026-09-09
+
+## Re-chequeo 2026-09-09 — sin cambios, el fósil cumple 76 días
+
+`curl -sI` al blob de `metrics.json` → `200 OK`, `Last-Modified: Thu, 25 Jun
+2026 04:59:30 GMT`; el de `alice-bot` sigue en 404. El pill honesto sigue
+puesto (`dashboard/py/freshness.py:5` lo deriva del timestamp del productor,
+estados FRESH/STALE/UNDATED). `git log --since=2026-09-07 -- dashboard/` →
+vacío, ni siquiera commits de nómina. El fork —recablear el emisor en
+`persona_gateway` o congelar la superficie— sigue sin decidir, y es de Bernard.
+
 
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 

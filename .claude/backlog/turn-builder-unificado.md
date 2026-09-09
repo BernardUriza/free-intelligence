@@ -5,6 +5,35 @@ Status: **In progress** — slice 2 (arnés de paridad mención↔invite) HECHO 
 Re-verificado 2026-09-07.
 Proposed: 2026-07-16 by Claude (meta-hallazgo del /cruel-critic, Art. 9)
 
+## Re-chequeo 2026-09-09 — el item vale, pero no por el slice que le da nombre
+
+El estado es el que decía: `TurnSpec`/`TurnBuilder` no existen (el único hit de
+`grep` es un docstring de `aire_route.py:659`, y encima nombra otro concepto), y
+`_handle` (`gateway.py:248`) y `respond_to_invite` (`:401`, el item dice 383 —
+la línea corrió) siguen siendo dos entry points.
+
+**Lo que cambia es la lectura del valor.** El slice 2 ya impone paridad desde el
+CI, así que el refactor del slice 1 rinde poco por sí mismo. Lo que rinde son
+las asimetrías que el arnés lleva marcadas y que nadie ha ido a cerrar: hoy
+`pytest tests/arch/test_mention_invite_parity.py -q` da **48 passed, 5 xfailed**,
+y esos cinco `xfail(strict=True)` son defectos abiertos, no deuda abstracta:
+
+1. **El `memory.store` del turno humano está desnudo en `_handle`** y guardado en
+   invite. Un parpadeo de Postgres en una @mención mata el turno con un "…".
+2. **`attachment_blocks`, igual**: invite degrada a texto, `_handle` revienta. Un
+   adjunto corrupto se come la respuesta.
+3. **Invite consulta el corpus con el `reason` del router, no con lo que dijo el
+   humano.** Fix de una línea (`corpus_query=subject_ask or reason`) — y es el
+   camino por donde pasa TODO el tráfico desde el cutover del host.
+4. **Invite sin sujeto humano escribe facts bajo el id del propio bot.**
+5. El summon-por-edición murió en el cutover: el gateway se auto-suprime y el
+   host no escucha ediciones.
+
+Dos de los cinco (1 y 2) pierden la respuesta delante del humano, y el 3 es una
+línea. Ninguno tiene issue. Si este item se ejecuta algún día, el orden honesto
+es cerrar esos cinco primero y decidir después si el builder sigue haciendo
+falta — puede que no.
+
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 
 - **Slice 2 existe**: `tests/arch/test_mention_invite_parity.py`, nacido en

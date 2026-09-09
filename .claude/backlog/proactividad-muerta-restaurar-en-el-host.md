@@ -2,7 +2,28 @@
 
 Status: Accepted (dirección dada por Bernard 2026-08-06) · **slice 1 HECHO el
 mismo día** (`aae8e2c`, v4.32.33); slices 2–5 sin arrancar · Proposed: 2026-08-06
-por Bernard · Re-verificado: 2026-09-07
+por Bernard · Re-verificado: 2026-09-09
+
+## Re-chequeo 2026-09-09 — intacto, y una trampa de grep que anotar
+
+Las cuatro afirmaciones se sostienen sin un cambio: `khimeras_shared/proactive.py`
+y `tests/core/test_proactive.py` viven (mismo mtime del 6-ago), el ÚNICO import
+del módulo es su propio test, no hay `ProactiveWorker` en `demux_ai/`, y
+`store_world_scan` sólo lo llama `tests/core/test_world_scans.py` — cero
+escritores en producción, aunque la tabla (`postgres_schema.sql:121-132`), su
+repositorio y su fachada (`store/knowledge.py:67`) estén todos vivos.
+
+**La trampa:** `khimeras_shared/proactive_agenda.py` SÍ tiene consumidor vivo
+(`persona_gateway/workers/agenda.py:11`). Un `grep proactive` da ese hit y
+parece que el núcleo está cableado. No lo está: ése es el worker reactivo del
+marcador `[AGENDA:]`, otro archivo y otro propósito.
+
+**No verificado:** el contenido de la tabla `world_scans` en Postgres. Se
+verificó quién escribe en ella desde el código, no cuántas filas tiene.
+
+Un mes sin que nada se mueva, y mientras tanto el host ganó la infraestructura
+donde el slice 2 se colgaría (`wait:true`, `fallback.py`, el ring buffer) sin
+que nadie la use para iniciativa. El item no envejeció: se puso más fácil.
 
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 

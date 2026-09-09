@@ -7,6 +7,34 @@ Status: Triaged (2026-07-15) · auditoría de código muerto 2026-07-20 ·
 Ver el bloque final.
 Proposed: 2026-07-14 by la autopsia 10-agentes; decidido 2026-07-15 by Bernard+Claude
 
+## Re-chequeo 2026-09-09 — al item le queda UNA acción
+
+**El #4 (corpus) quedó rancio el mismo 09-07, y esa auditoría no lo pudo
+recoger porque el borrado ocurría mientras se auditaba** (su índice lo declara:
+*"otro agente lo estaba podando en el mismo momento"*). Ese agente fue
+`6ba7a61` (v4.38.6, issue #62, 2026-09-07 11:09):
+
+    khimeras_shared/corpus/__init__.py   217 --   corpus/rag.py            235 --
+    animal_liberation.md 82 --  animal_liberation_tactics.md 54 --
+    film_criticism.md   104 --  vegan_gastronomy.md         251 --
+    tests/core/test_animal_tactics.py 87 --        → 1,017 líneas borradas
+
+Hoy `ls khimeras_shared/corpus/` → `__init__.py`, `pg_rag.py`, `references.py`.
+Así que la entrada #4 describe un repo que ya no existe.
+
+**Segundo dato rancio, más viejo:** este item da por muertos los `ingest_*`,
+pero `scripts/ingest_corpus.py` vive y está trackeado desde `d6b1297`
+(2026-07-16). El camino vivo del corpus es RAG por namespace (`registry.py`
+declara cinco `corpus_namespace`, y `turn_context.py:220` los inyecta con
+`append_corpus_block`); el re-poblado migró al **issue #61, abierto**.
+
+**Lo único que le queda a este item:** `class LLMShadowRouter`
+(`demux_ai/llm_shadow_router.py:129`) — 9 construcciones, **todas** en
+`tests/test_llm_shadow_router.py`, cero en producción desde el cutover a
+gpt-4.1. Borrarla y borrar su test cierra el item entero; hasta entonces es un
+módulo que sólo existe para que su propia prueba lo construya
+([[migrations-end-with-deletion]]: la definición de done es el grep vacío).
+
 La purga de `personas/` (2f8d9ad) mató el `debug_server` y varios scripts de tooling
 que eran el DISPARADOR de superficies auxiliares. En cada caso la capa de DATOS
 sobrevivió en `khimeras_shared`; lo que murió fue el trigger/HTTP/tooling. Decisión
