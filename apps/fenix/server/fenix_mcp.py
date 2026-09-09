@@ -6,8 +6,8 @@ pasarlos a mano por API para poder generar el Excel. El círculo quedaba abierto
 justo antes del entregable.
 
 POR QUÉ UNA HERRAMIENTA Y NO DARLE `Bash`. Con Bash el modelo podría escribir el
-archivo… y también cualquier otro. `ToolPolicy.companion()` se lo bloquea a
-propósito (og118 #277). Una herramienta acotada le deja hacer EXACTAMENTE una
+archivo… y también cualquier otro. La puerta de AIRE se lo niega en todos sus
+modos, a propósito. Una herramienta acotada le deja hacer EXACTAMENTE una
 cosa — guardar el desglose en su expediente — y nada más. El Excel lo sigue
 generando el servidor con el formato aprobado.
 

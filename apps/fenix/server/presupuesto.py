@@ -1,8 +1,9 @@
 """Generador del presupuesto en Excel — el entregable real de la papelería.
 
-QUÉ PROBLEMA RESUELVE. El modelo NO puede generar este archivo: `ToolPolicy.
-companion()` le bloquea `Bash`, `Write` y `Edit` (og118 #277 — un companion no
-debe poder tocar el filesystem del host). Verificado en runtime el 27-jul: ante
+QUÉ PROBLEMA RESUELVE. El modelo NO puede generar este archivo: la puerta de
+AIRE no le concede `Bash` en NINGÚN modo, y sus tools de archivo quedan
+confinados a la casita del chat por un hook `PreToolUse` (aire-server
+`engine/cage.py`). Verificado en runtime el 27-jul: ante
 "genera el Excel" el modelo intenta `Bash`, falla, y termina entregando una
 tabla markdown en el chat. Parece útil y no lo es: lo que se manda por WhatsApp
 a la mamá del alumno es un .xlsx, no un mensaje.

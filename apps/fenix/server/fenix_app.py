@@ -333,9 +333,9 @@ async def excel(
 ) -> Response:
     """El presupuesto en .xlsx — el entregable que se manda por WhatsApp.
 
-    Lo genera el SERVIDOR, no el modelo: `ToolPolicy.companion()` le bloquea
-    Bash/Write al agente (y debe seguir así), y además el formato es el aprobado
-    por la dirección — si lo ejecutara el modelo, podría improvisarlo.
+    Lo genera el SERVIDOR, no el modelo: la puerta de AIRE le niega `Bash` en
+    todo modo (y debe seguir así), y además el formato es el aprobado por la
+    dirección — si lo ejecutara el modelo, podría improvisarlo.
     """
     if not req.items and not req.forrado:
         raise HTTPException(status_code=422, detail="un presupuesto sin renglones no es un presupuesto")

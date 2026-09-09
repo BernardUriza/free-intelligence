@@ -13,8 +13,8 @@ final de respuestas para quien revisa. Ese último detalle es el que convierte
 esto en regularización de verdad: la mamá puede corregirle sin saber el tema.
 
 MISMO PATRÓN QUE `presupuesto.py`, y por la misma razón. El modelo produce los
-DATOS y el servidor aplica el FORMATO. `ToolPolicy.companion()` le bloquea
-`Bash`/`Write` al agente —y debe seguir así—, de modo que un modelo al que se le
+DATOS y el servidor aplica el FORMATO. La puerta de AIRE le niega `Bash` en todo
+modo —y debe seguir así—, de modo que un modelo al que se le
 pide "haz un PDF" termina entregando texto en el chat: se ve útil y no lo es,
 porque lo que el niño se lleva a su casa es una hoja impresa. Además, con el
 formato aquí no hay nada que improvisar entre un cuadernillo y el siguiente.
