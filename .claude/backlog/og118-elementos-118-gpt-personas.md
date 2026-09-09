@@ -144,3 +144,12 @@ capas intacto.
 **Poblado hoy: 3 activos de 118** — O/oxígeno (`vultur-bot`), Al/aluminio
 (`alice`), I/yodo (engine externo sin personaId); Og/oganesón queda reservado.
 Lo que falta no es código: es **curación** de los 114 slots vacíos.
+
+**2026-09-08 — cuarto activo, y el primero LOCAL:** Pu/plutonio ← *Reaper
+Arquetipo*, el GPT de ChatGPT de Bernard (`g-685301d472188191b49626605246b776`),
+portado a `fi-personas/personas/reaper.core.md` + `094-pu-plutonio.context.md`,
+sin `engineBinding` (corre en el fi-runner de og118). Destapó que la imagen del
+servidor nunca copiaba `fi-personas` — corregido en el mismo PR. El slot 94
+(Plutón, señor de los muertos) es propuesta de Claude bajo D1: se mueve con un
+campo. La base de conocimiento del GPT (15 PDFs + `modulo_brevedad_afilada.txt`)
+NO se portó — en og118 eso es un Project con documentos, no parte de la persona.
