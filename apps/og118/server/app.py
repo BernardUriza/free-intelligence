@@ -63,6 +63,7 @@ from tts import (
     validate_request,
 )
 from tts import build_provider as build_tts_provider
+from voice_quota import verificar_cuota_de_voz
 
 logger = logging.getLogger("og118")
 
@@ -676,7 +677,7 @@ async def chat_stream(
 @router.post("/tts/synthesize")
 async def tts_synthesize(
     req: TTSRequest,
-    _: Principal = Depends(get_principal),
+    principal: Principal = Depends(get_principal),
     provider: TTSProvider | None = Depends(get_tts_provider),
 ) -> Response:
     """Synthesize speech for `text` and return the raw audio blob.
@@ -702,6 +703,10 @@ async def tts_synthesize(
                 ),
             },
         )
+
+    # El upstream de voz se aprovisiona por RPM y es compartido con toda la
+    # flota; sin este tope un solo llamante lo consume entero. Ver voice_quota.
+    verificar_cuota_de_voz(principal.sub)
 
     try:
         validate_request(req.text, req.response_format, req.speed)
@@ -744,7 +749,7 @@ class TranscriptResponse(BaseModel):
 @router.post("/stt/transcribe")
 async def stt_transcribe(
     audio: UploadFile = File(...),
-    _: Principal = Depends(get_principal),
+    principal: Principal = Depends(get_principal),
     provider: STTProvider | None = Depends(get_stt_provider),
 ) -> TranscriptResponse:
     """Transcribe one recorded audio chunk and return its text.
@@ -771,6 +776,10 @@ async def stt_transcribe(
                 ),
             },
         )
+
+    # El upstream de voz se aprovisiona por RPM y es compartido con toda la
+    # flota; sin este tope un solo llamante lo consume entero. Ver voice_quota.
+    verificar_cuota_de_voz(principal.sub)
 
     # Cap the in-memory read at the audio limit + 1 (don't materialize an
     # arbitrarily large body before the size check ran post-read).
