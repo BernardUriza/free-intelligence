@@ -218,8 +218,47 @@ Cualquiera con `?resonance=1` puede hoy abrir una llamada sin tope alguno:
 
 **Una solicitud de aumento de cuota a Azure** para `whisper`/`tts` en
 northcentralus. Sin más RPM no hay tope del lado de og118 que haga viable una
-llamada manos libres abierta a todos. Es tuya, y es un trámite con Microsoft, no
-una línea de código.
+llamada manos libres abierta a todos.
+
+### Las dos solicitudes YA SE ENVIARON — 2026-09-09
+
+Se llenó y envió el formulario de Microsoft (`aka.ms/oai/quotaincrease` →
+*Microsoft Foundry Service: Request for Quota Increase*, Dynamics 365 Customer
+Voice, anónimo, sin login). **Una solicitud por modelo**, porque el formulario
+sólo acepta un modelo por envío:
+
+| Campo | whisper | tts |
+|---|---|---|
+| Suscripción | `d61ba6bc-eda9-4327-a264-5cfddef30bc8` | igual |
+| Quota Type | Model Deployment (PTU/RPM/TPM) | igual |
+| Model Type / Deployment | Azure OpenAI · Standard | igual |
+| Región preferida | North Central US | igual |
+| Si no hay cupo ahí | *Grant me quota in an alternate region* → **Anywhere in the USA** | igual |
+| Total pedido | **30 RPM** (de 3) | **30 RPM** (de 3) |
+
+Las dos confirmaron con *"Thanks! You've completed the request! / Your response
+was submitted."*
+
+**No hay número de caso: el formulario no emite folio.** El único acuse es esa
+pantalla. Microsoft dice que se procesa *"the next business day after
+submission, sometimes up to two business days"* y advierte explícitamente que
+**enviar la solicitud no garantiza que se cumpla**.
+
+La justificación que se mandó apoya el criterio que el propio formulario dice
+priorizar —*"customers who generate traffic that consumes the existing quota
+allocation"*—: se citó el 3.0/3.0 de la suscripción, los tiempos medidos contra
+el gateway, el ~57% que consume un solo llamante, y que el flag existe
+únicamente por el techo de RPM.
+
+**Cómo verificar si la concedieron** (no hay correo de aviso garantizado):
+
+```bash
+az cognitiveservices usage list -l northcentralus \
+  --query "[?contains(name.value,'whisper')||contains(name.value,'tts')].{n:name.value,used:currentValue,limit:limit}" -o table
+```
+
+Un `limit` mayor a 3.0 es la concesión. Si a los tres días hábiles sigue en 3.0,
+la vía es `csgate@microsoft.com`, que es el contacto que el formulario publica.
 
 Segundo detalle para ese día, ya anotado arriba: `debug: resonanceEnabled`
 expondría `window.__RESONANCE_EVENTS__` a todo el mundo.
