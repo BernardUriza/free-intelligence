@@ -1,6 +1,6 @@
 # fi-core: ClinicalDomain con señales PESADAS y bilingües — discord-bot consume SOLO el clinical domain
 
-Status: In progress — fase fi-core SHIPPEADA (0.26.0: SignalGroup/WeightedSignals + PSYCHIATRY con ambos ejes, 32 tests); falta la fase de consumo en discord-bot (trilogía de Alex) y su validación de los pesos propuestos
+Status: **Done con residuales** (re-verificado 2026-09-08) — fase fi-core shippeada 0.26.0 → 0.29.1 (SignalGroup/WeightedSignals, `ClinicalDomain.match()` 0.27, `denied`/`excluded` + negación local 0.28, actos preparatorios y `exposicion_*` 0.29, override sólo por síntomas 0.29.1); fase de consumo SHIPPEADA en discord-bot (#52 → v4.37.0 el 09-01, #53 → v4.38.0 el 09-04, #54 → v4.38.15 el 09-08): `vulnerability.py` ya no tiene ni un `re.compile` ni `_SIGNAL_GROUPS` (`grep` 2026-09-08 → 0), todo pasa por `PSYCHIATRY`. Residuales: H3/H4 del #55 de Alex (pendientes de su decisión), la banda sigue en MODO OBSERVACIÓN (decisión de Alex con una semana de log), y `_GROUP_TO_CONDITION` + las dos lecturas paralelas siguen en el consumidor → [[fi-core-verdict-carries-matched-groups]]
 Proposed: 2026-08-28 by Bernard (Discord: *"creo que deberíamos mejorar free
 intelligence para que discordbot solo use el clinical domain"*, sobre el cierre
 del #52 de Alex — mensaje 1542680953602707526 en Khimeras #general)
