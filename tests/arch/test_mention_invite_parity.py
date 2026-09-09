@@ -526,20 +526,7 @@ async def test_both_doors_stamp_that_a_message_was_seen(path: str):
 @pytest.mark.parametrize(
     "path",
     [
-        pytest.param(
-            MENTION,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "El `memory.store` del turno del humano está envuelto en try/except en el "
-                    "path de invite y DESNUDO en `_handle`. Un parpadeo de Postgres en el path "
-                    "de @mención mata el turno entero y el humano recibe '…' en vez de su "
-                    "respuesta — contra `robustness.md` ('DB write failures are logged but "
-                    "don't kill the turn'). Hoy pega sobre todo en DMs, que son el único "
-                    "tráfico de @mención con el host dueño de la recepción."
-                ),
-            ),
-        ),
+        MENTION,
         INVITE,
     ],
 )
@@ -551,19 +538,7 @@ async def test_a_failed_user_store_never_costs_the_reply(path: str):
 @pytest.mark.parametrize(
     "path",
     [
-        pytest.param(
-            MENTION,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "Misma asimetría de resiliencia que el store: el path de invite envuelve "
-                    "`attachment_blocks` en try/except y degrada a un turno de puro texto "
-                    "(comentario 'best-effort' en respond_to_invite); `_handle` lo llama "
-                    "desnudo, así que un adjunto que reviente el procesador convierte el turno "
-                    "en '…'. El humano pierde la respuesta por culpa de un archivo."
-                ),
-            ),
-        ),
+        MENTION,
         INVITE,
     ],
 )
@@ -576,21 +551,7 @@ async def test_a_broken_attachment_degrades_to_text_never_to_silence(path: str):
     "path",
     [
         MENTION,
-        pytest.param(
-            INVITE,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason=(
-                    "El corpus del path de invite se consulta con el `reason` del router, no "
-                    "con lo que el humano dijo. Es residuo: cuando b9f8de4 le devolvió el "
-                    "guardián y el relevant al invite los cableó a `subject_ask or reason`, "
-                    "pero dejó `corpus_query=reason` como estaba desde que el corpus era lo "
-                    "ÚNICO que viajaba. Resultado: la biblioteca de Vultur se recupera contra "
-                    "el resumen del router en vez de contra la pregunta real, en el path con "
-                    "todo el tráfico. Fix de una línea: corpus_query=subject_ask or reason."
-                ),
-            ),
-        ),
+        INVITE,
     ],
 )
 async def test_the_corpus_is_queried_with_what_the_human_said(path: str):
@@ -601,17 +562,19 @@ async def test_the_corpus_is_queried_with_what_the_human_said(path: str):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Un invite SIN sujeto humano (trigger de bot, trigger no fetchable, o el `[INVITE:]` "
-        "de una hermana, que no manda trigger alguno) pasa el id del PROPIO BOT como user_id "
-        "al runner y a los marcadores durables. Así, un `[REMEMBER:]` en ese turno escribe "
-        "facts en la cuenta de la persona-bot y el runner reconstruye 'los facts del autor' "
-        "de un autor que no existe. `_handle` no puede caer aquí: siempre tiene humano."
-    ),
-)
 async def test_no_turn_ever_writes_facts_under_the_bots_own_id():
+    """Un invite SIN sujeto humano —trigger de bot, trigger no fetchable, o el
+    `[INVITE:]` de una hermana— llega con el id del PROPIO BOT como `user_id`.
+    Hasta el 2026-09-09 un `[REMEMBER:]` en ese turno escribía facts en la cuenta
+    de la persona-bot, y la persona los releía después como si fueran de alguien.
+
+    Cerrado descartándolos: `bot_user_id` ya viajaba hasta `TurnRunner`, así que
+    el router de marcadores puede reconocer el caso y tirar el fact con un log
+    (`remember_discarded_no_human_subject`). Un fact sin dueño no se reubica —
+    no hay a quién pertenecer.
+
+    `_handle` no puede caer aquí: siempre tiene humano.
+    """
     outcome = await _run(
         INVITE,
         author_is_bot=True,
@@ -619,6 +582,27 @@ async def test_no_turn_ever_writes_facts_under_the_bots_own_id():
     )
     ids_written = {call.args[1] for call in outcome.persist_remembers.await_args_list}
     assert str(BOT_ID) not in ids_written, "un turno sin sujeto humano escribió facts bajo el id del propio bot"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "La OTRA mitad del mismo turno sin sujeto humano, y ésta sigue abierta: al runner se "
+        "le sigue mandando el id del bot como `user_id`, así que reconstruye 'los facts del "
+        "autor' de un autor que no existe. La mitad de los facts durables ya se cerró "
+        "(2026-09-09) porque `bot_user_id` viajaba por separado y bastaba con descartar. "
+        "Ésta no se cierra igual: el runner NECESITA un id para armar el turno y elegir qué "
+        "mandarle en vez del bot es una decisión de contrato, no un guard — un centinela, un "
+        "id nulo que el runner sepa leer, o el propio channel_id. Se deja roja hasta que esa "
+        "decisión se tome, en vez de taparla con un valor inventado."
+    ),
+)
+async def test_the_runner_never_receives_the_bot_as_the_turns_subject():
+    outcome = await _run(
+        INVITE,
+        author_is_bot=True,
+        reply_text="Anotado.",
+    )
     assert _chat_kwargs(outcome)["user_id"] != str(BOT_ID), (
         "el runner reconstruyó los facts del bot como si fuera un usuario"
     )

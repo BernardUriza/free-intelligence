@@ -34,6 +34,46 @@ línea. Ninguno tiene issue. Si este item se ejecuta algún día, el orden hones
 es cerrar esos cinco primero y decidir después si el builder sigue haciendo
 falta — puede que no.
 
+## Cerradas el 2026-09-09 (v4.38.26): 1, 2, 3 y media de la 4
+
+El arnés pasó de **5 `xfail` a 2**. Las cuatro se verificaron en rojo revirtiendo
+cada fix antes de darlas por buenas.
+
+- **1 y 2** — el `memory.store` y `attachment_blocks` de `_handle` quedaron
+  envueltos, copiando el patrón que el camino de invite ya tenía. Un parpadeo de
+  Postgres o un adjunto corrupto degradan; ya no se comen la respuesta.
+- **3** — `corpus_query=subject_ask or reason`. **Y destapó una contradicción
+  entre dos arneses del mismo repo:** `tests/core/test_gateway_corpus_wiring.py`
+  fijaba `query == reason` como el comportamiento correcto —consagrando el
+  defecto— mientras el arnés de paridad lo marcaba `xfail`. Ganó el que medía el
+  daño; el otro se corrigió y ganó su resistencia (sin texto humano, el `reason`
+  sigue siendo la query).
+- **4, la mitad que corrompe datos** — un `[REMEMBER:]` en un turno sin sujeto
+  humano ya no escribe facts bajo el id del bot: se descartan con
+  `remember_discarded_no_human_subject`. Salió barato porque `bot_user_id` ya
+  viajaba hasta `TurnRunner`; sólo había que mirarlo. Un fact sin dueño no se
+  reubica.
+
+**Las dos que quedan, y por qué no se cerraron:**
+
+- **4, la mitad del runner.** Se le sigue mandando el id del bot como `user_id`,
+  así que reconstruye "los facts del autor" de un autor que no existe. No se
+  cierra con un guard: el runner NECESITA un id para armar el turno, y elegir qué
+  mandarle es una decisión de contrato —un centinela, un id nulo que sepa leer, o
+  el `channel_id`—. Se deja roja en vez de taparla con un valor inventado.
+- **5, el summon por edición.** No es un fix sino una capacidad que hay que
+  construir en el host: hoy el gateway se auto-suprime en ediciones y el host no
+  tiene listener.
+
+**Hallazgo lateral, sin cerrar:** `subject_ask` se calcula del contenido del
+trigger **aunque su autor sea un bot** (`gateway.py`, la línea es
+`subject_ask = (react_to.content or "").strip()`, sin mirar `subject`). O sea que
+`relevant_query`, `guidance_message` y ahora `corpus_query` pueden ir keyed por
+el texto de un bot. Es viejo —viene de `b9f8de4`, no de este cambio— y
+consistente entre los tres, así que no se tocó hoy; pero si el trigger de un bot
+alguna vez trae texto largo, la memoria relevante y el corpus se recuperan contra
+lo que dijo una máquina.
+
 ## Re-chequeo 2026-09-07 (auditoría del backlog)
 
 - **Slice 2 existe**: `tests/arch/test_mention_invite_parity.py`, nacido en

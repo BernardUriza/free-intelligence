@@ -45,12 +45,26 @@ def _client(reply_text: str = "Dictamen.") -> PersonaClient:
     return PersonaClient(persona, memory, agent_client, intents=discord.Intents.none())
 
 
-def _invite_channel():
+def _invite_channel(trigger_content: str | None = None):
+    """`trigger_content` es lo que el HUMANO escribió en el mensaje que disparó
+    el invite.
+
+    Por default NO hay sujeto humano (autor bot), que es el escenario en el que
+    el `reason` del router es lo único que queda y el que el resto de este
+    archivo asume. Pasar un texto convierte al autor en humano — el caso normal
+    post-cutover, y el único donde la query del corpus cambia.
+    """
     channel = MagicMock(spec=discord.TextChannel)
     channel.send = AsyncMock()
     channel.typing = MagicMock(return_value=_Typing())
     trigger = MagicMock()
     trigger.attachments = []
+    if trigger_content is None:
+        trigger.author.bot = True
+        trigger.content = ""  # un trigger sin texto usable: sólo queda el reason
+    else:
+        trigger.content = trigger_content
+        trigger.author.bot = False
     channel.fetch_message = AsyncMock(return_value=trigger)
     return channel
 
@@ -72,18 +86,40 @@ async def _invite(client: PersonaClient, channel, reason: str) -> None:
 
 
 async def test_invite_turn_carries_the_persona_corpus():
-    """#1 positivo: el invite recupera corpus con el reason como query y lo
-    manda como behavioral_guidance al runner."""
+    """#1 positivo: el invite lleva el corpus al runner como behavioral_guidance,
+    recuperado con LO QUE EL HUMANO DIJO.
+
+    Corregido el 2026-09-09. Este test fijaba `query == reason` —el resumen del
+    router— y así consagraba como correcto justo el defecto que
+    `tests/arch/test_mention_invite_parity.py` llevaba marcado como
+    `xfail(strict)`: la biblioteca de Vultur se recuperaba contra el resumen en
+    vez de contra la pregunta, en el camino que lleva todo el tráfico. Dos
+    arneses del mismo repo afirmando lo contrario; ganó el que medía el daño.
+    """
     client = _client()
-    channel = _invite_channel()
+    channel = _invite_channel(trigger_content="que opinas de Mulholland Drive")
     with patch(
         "persona_gateway.turn_context.build_persona_corpus_block",
         new=AsyncMock(return_value=_CORPUS_BLOCK),
     ) as mock_corpus:
-        await _invite(client, channel, reason="bernard2389: «que opinas de Mulholland Drive»")
-    assert mock_corpus.await_args.kwargs["query"] == "bernard2389: «que opinas de Mulholland Drive»"
+        await _invite(client, channel, reason="bernard2389 pregunta por una peli")
+    assert mock_corpus.await_args.kwargs["query"] == "que opinas de Mulholland Drive"
     guidance = client.agent_client.chat.await_args.kwargs["behavioral_guidance"]
-    assert guidance == _CORPUS_BLOCK
+    assert guidance.startswith(_CORPUS_BLOCK), "el corpus dejó de encabezar la guidance del turno"
+
+
+async def test_invite_falls_back_to_the_reason_when_there_is_no_human_text():
+    """#1 resistencia: sin texto humano usable —trigger de bot, o no fetchable—
+    el `reason` del router sigue siendo la query. El fix prioriza al humano; no
+    lo vuelve un requisito."""
+    client = _client()
+    channel = _invite_channel()  # sin sujeto humano
+    with patch(
+        "persona_gateway.turn_context.build_persona_corpus_block",
+        new=AsyncMock(return_value=_CORPUS_BLOCK),
+    ) as mock_corpus:
+        await _invite(client, channel, reason="bernard2389 pregunta por una peli")
+    assert mock_corpus.await_args.kwargs["query"] == "bernard2389 pregunta por una peli"
 
 
 async def test_invite_corpus_fault_ships_turn_without_block():

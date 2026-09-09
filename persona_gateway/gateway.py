@@ -252,7 +252,22 @@ class PersonaClient(discord.Client):
         channel_name = getattr(message.channel, "name", None)
         bot_id = self.user.id if self.user else 0
         ask = clean_mention(message.content, bot_id)
-        attachment_blocks = await self._ingest.attachment_blocks(message)
+        # Best-effort, igual que el camino de invite: un adjunto que reviente el
+        # procesador degrada a un turno de puro texto, nunca a un "…". Aquí
+        # estaba DESNUDO, así que un archivo corrupto le costaba la respuesta al
+        # humano — y en DM, que es el único tráfico de @mención con el host
+        # dueño de la recepción, ése es todo el tráfico que hay.
+        try:
+            attachment_blocks = await self._ingest.attachment_blocks(message)
+        except Exception:
+            attachment_blocks = []
+            log.warning(
+                "persona_gateway_attachments_failed",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+                discord_message_id=str(message.id),
+                exc_info=True,
+            )
         # A DM voice note carries NO text and no readable attachment, so it used
         # to hit the return below and die in total silence — and the host that
         # owns transcription cannot see a DM at all (Discord isolates DM channels
@@ -272,16 +287,27 @@ class PersonaClient(discord.Client):
         recent = await self.memory.get_recent(channel_id, CONFIG.recent_limit)
 
         # Persist the user's turn (shared Postgres → every persona sees it).
-        await self.memory.store(
-            channel_id,
-            user_id,
-            message.author.display_name,
-            "user",
-            ask,
-            guild_id=guild_id,
-            channel_name=channel_name,
-            discord_message_id=str(message.id),
-        )
+        # Guardado, como en el camino de invite: `robustness.md` dice que un
+        # fallo de escritura se loguea y NO mata el turno, y aquí la llamada
+        # estaba desnuda — un parpadeo de Postgres se comía la respuesta del
+        # humano y le dejaba un "…" en su lugar.
+        try:
+            await self.memory.store(
+                channel_id,
+                user_id,
+                message.author.display_name,
+                "user",
+                ask,
+                guild_id=guild_id,
+                channel_name=channel_name,
+                discord_message_id=str(message.id),
+            )
+        except Exception:
+            log.exception(
+                "persona_gateway_user_store_failed",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+            )
 
         user_content: str | list[dict] = ask
         if attachment_blocks:
@@ -531,7 +557,13 @@ class PersonaClient(discord.Client):
             relevant_query=subject_ask or reason,
             guidance_user_id=subject_user_id,
             guidance_message=subject_ask or reason,
-            corpus_query=reason,
+            # Con lo que el HUMANO dijo, no con el resumen del router. Era
+            # residuo: cuando b9f8de4 le devolvió guardián y relevant a este
+            # camino los cableó a `subject_ask or reason` y dejó el corpus como
+            # estaba de cuando era lo único que viajaba. La biblioteca de Vultur
+            # se recuperaba contra el resumen del router, en el camino que lleva
+            # todo el tráfico post-cutover.
+            corpus_query=subject_ask or reason,
             exclude_user_id=subject_user_id or (str(self.user.id) if self.user else ""),
         )
         messages = [*turn.context, {"role": "user", "content": instruction_content}]

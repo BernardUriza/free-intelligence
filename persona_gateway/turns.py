@@ -139,7 +139,9 @@ class TurnRunner:
 
         # Durable markers (research/agenda/remind/remember): persist the side
         # effects and strip them so only the in-character ack reaches Discord.
-        text = await self._markers.route(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
+        text = await self._markers.route(
+            text, channel_id=channel_id, guild_id=guild_id, user_id=user_id, bot_user_id=bot_user_id
+        )
         # `[GIF: tag]` resolves against the persona's OWN catalog. Parsed BEFORE
         # the empty-text return so a reply that is only a GIF still posts it.
         gif_urls = resolve_gifs(self.persona.persona_id, text)

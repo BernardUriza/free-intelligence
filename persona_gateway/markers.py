@@ -55,6 +55,7 @@ class MarkerRouter:
         channel_id: str,
         guild_id: str | None,
         user_id: str,
+        bot_user_id: str = "",
     ) -> str:
         """Parse → persist → strip every durable marker; return cleaned text."""
         text = await self._route_research(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
@@ -64,7 +65,7 @@ class MarkerRouter:
         # turn — the cancel only sees rows that existed before the turn.
         text = await self._route_remind_cancel(text, channel_id=channel_id, user_id=user_id)
         text = await self._route_remind(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
-        text = await self._route_remember(text, channel_id=channel_id, user_id=user_id)
+        text = await self._route_remember(text, channel_id=channel_id, user_id=user_id, bot_user_id=bot_user_id)
         # LAST and unconditional: whatever happens above, `[INVITE:]` must not
         # survive into Discord. See `_route_invite`.
         text = await self._route_invite(text, channel_id=channel_id, guild_id=guild_id, user_id=user_id)
@@ -232,11 +233,25 @@ class MarkerRouter:
                 )
         return text
 
-    async def _route_remember(self, text: str, *, channel_id: str, user_id: str) -> str:
+    async def _route_remember(self, text: str, *, channel_id: str, user_id: str, bot_user_id: str = "") -> str:
         facts = parse_remembers(text)
         if not facts:
             return text
         text = strip_remembers(text)
+        # Un turno SIN sujeto humano —trigger de bot, trigger no fetchable, o el
+        # `[INVITE:]` de una hermana— llega con el id del propio bot como
+        # `user_id`. Escribir ahí no guarda el fact "en otro lado": lo guarda en
+        # una cuenta que no es de nadie, y la persona lo relee mañana como si
+        # fuera de un usuario. Se tira, y se dice en el log — un fact sin dueño
+        # no tiene a quién pertenecer.
+        if bot_user_id and user_id == bot_user_id:
+            log.warning(
+                "remember_discarded_no_human_subject",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+                count=len(facts),
+            )
+            return text
         try:
             saved = await persist_remembers(self.memory, user_id, facts)
             log.info(
