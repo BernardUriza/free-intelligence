@@ -32,6 +32,7 @@ import {
   AgentWorkspaceShell,
   useAgentConversation,
 } from 'fi-glass/agent';
+import { ComposerActionSlot } from 'fi-glass/composer';
 import { useConversationLibrary } from 'fi-glass/conversation';
 import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
@@ -315,22 +316,18 @@ export function Og118AgentChat() {
                 />
               </div>
               {resonanceEnabled && (
-                <button
-                  type="button"
+                // The chip's shape, its 44px minimum and its label collapse are
+                // fi-glass's; og118 supplies only the emerald/danger tint.
+                <ComposerActionSlot
                   className={`og-resonance-call-btn${resonance.isActive ? ' og-resonance-call-btn-active' : ''}`}
-                  // A LIVE call must keep its hang-up reachable even when the
-                  // compact composer collapses the rail (fi-glass rail-keep contract).
-                  {...(resonance.isActive ? { 'data-fi-rail-keep': '' } : {})}
+                  keepWhenRailCollapses={resonance.isActive}
                   data-ref="og118-resonance-call"
                   aria-pressed={resonance.isActive}
                   aria-label={resonance.isActive ? 'Colgar la llamada' : 'Llamar por voz (Resonance)'}
                   onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
-                >
-                  {resonance.isActive ? <PhoneOff aria-hidden /> : <Phone aria-hidden />}
-                  <span className="og-resonance-call-label">
-                    {resonance.isActive ? 'Colgar' : 'Llamar'}
-                  </span>
-                </button>
+                  icon={resonance.isActive ? <PhoneOff aria-hidden /> : <Phone aria-hidden />}
+                  label={resonance.isActive ? 'Colgar' : 'Llamar'}
+                />
               )}
             </>
           }

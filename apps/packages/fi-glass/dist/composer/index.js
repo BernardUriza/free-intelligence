@@ -125,10 +125,6 @@ function Composer({
   );
 }
 
-// src/composer/ComposerFrame.tsx
-import { useEffect as useEffect4, useId as useId2, useState as useState2 } from "react";
-import { SlidersHorizontal } from "lucide-react";
-
 // src/shell/touchTarget.ts
 import { useEffect as useEffect2 } from "react";
 
@@ -143,10 +139,132 @@ function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
 
-// src/agent/densityStyle.ts
+// src/composer/composerActionStyle.ts
 import { useEffect as useEffect3 } from "react";
-var DENSITY_STYLE_ID = "fi-density-style";
+var FI_COMPOSER_ACTION_CLASS = "fi-composer-action";
+var FI_COMPOSER_ACTION_VARIANT_CLASS = {
+  primary: "fi-composer-action--primary",
+  secondary: "fi-composer-action--secondary"
+};
+var FI_COMPOSER_ACTION_LABEL_CLASS = "fi-composer-action-label";
+var COMPOSER_ACTION_STYLE_ID = "fi-composer-action-style";
 var CSS = `
+:where(.${FI_COMPOSER_ACTION_CLASS}) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.15s ease, opacity 0.15s ease;
+}
+/* Unavailable, not absent: a disabled control keeps its box so the composer does
+ * not reflow between empty and typed \u2014 the state a user sees most. */
+:where(.${FI_COMPOSER_ACTION_CLASS}:disabled) {
+  cursor: not-allowed;
+}
+:where(.${FI_COMPOSER_ACTION_CLASS}) svg {
+  width: var(--fi-composer-action-icon-size, 1rem);
+  height: var(--fi-composer-action-icon-size, 1rem);
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.primary}) {
+  padding: var(--fi-composer-action-padding, 0.5rem);
+  border-radius: var(--fi-composer-action-radius, 10px);
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+  gap: var(--fi-composer-action-gap, 0.35rem);
+  padding: var(--fi-composer-action-pill-padding, 0.3rem 0.65rem);
+  border-radius: var(--fi-composer-action-pill-radius, 999px);
+  font-size: var(--fi-composer-action-font-size, 0.8rem);
+  font-weight: 600;
+}
+:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) svg {
+  width: var(--fi-composer-action-icon-size, 0.9rem);
+  height: var(--fi-composer-action-icon-size, 0.9rem);
+}
+@container fi-composer (max-width: 420px) {
+  /* Icon-only on a narrow composer, and icon-only still means a full touch
+     target \u2014 never a chip shrunk to fit, which is how a control ends up
+     orphaned on its own wrap line. Keyed off the CONTAINER because
+     shell/touchTarget is viewport-gated and cannot see a narrow composer on a
+     wide screen: there, send measured 34\xD734 against a 44 minimum. */
+  .${FI_COMPOSER_ACTION_CLASS} {
+    min-width: var(--fi-touch-target, 44px);
+    min-height: var(--fi-touch-target, 44px);
+  }
+  :where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+    justify-content: center;
+    padding: 0;
+  }
+  .${FI_COMPOSER_ACTION_LABEL_CLASS}[data-fi-compact-hide] {
+    display: none;
+  }
+}
+`;
+function ensureComposerActionStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = COMPOSER_ACTION_STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+function useComposerActionStyle() {
+  useEffect3(() => {
+    ensureComposerActionStyle();
+  }, []);
+}
+function withComposerAction(variant, className) {
+  return [FI_COMPOSER_ACTION_CLASS, FI_COMPOSER_ACTION_VARIANT_CLASS[variant], className].filter(Boolean).join(" ");
+}
+
+// src/composer/ComposerActionSlot.tsx
+import { jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+function ComposerActionSlot({
+  variant = "secondary",
+  icon,
+  label,
+  hideLabelWhenCompact = true,
+  keepWhenRailCollapses = false,
+  className,
+  labelClassName,
+  type = "button",
+  ...rest
+}) {
+  useComposerActionStyle();
+  return /* @__PURE__ */ jsxs2(
+    "button",
+    {
+      type,
+      className: withTouchTarget(withComposerAction(variant, className)),
+      ...keepWhenRailCollapses ? { "data-fi-rail-keep": "" } : {},
+      ...rest,
+      children: [
+        icon,
+        label != null && label !== false && /* @__PURE__ */ jsx3(
+          "span",
+          {
+            className: labelClassName ? `${FI_COMPOSER_ACTION_LABEL_CLASS} ${labelClassName}` : FI_COMPOSER_ACTION_LABEL_CLASS,
+            ...hideLabelWhenCompact ? { "data-fi-compact-hide": "" } : {},
+            children: label
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/composer/ComposerFrame.tsx
+import { useEffect as useEffect5, useId as useId2, useState as useState2 } from "react";
+import { SlidersHorizontal } from "lucide-react";
+
+// src/agent/densityStyle.ts
+import { useEffect as useEffect4 } from "react";
+var DENSITY_STYLE_ID = "fi-density-style";
+var CSS2 = `
 /* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
  * .fi-agent-workspace. Scoping it to the workspace meant a primitive used
  * OUTSIDE the shell (a bare ComposerFrame, a standalone AgentSidebarSection)
@@ -208,14 +326,14 @@ function ensureDensityStyle() {
   if (document.getElementById(DENSITY_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = DENSITY_STYLE_ID;
-  el.textContent = CSS;
+  el.textContent = CSS2;
   document.head.appendChild(el);
 }
 
 // src/composer/ComposerFrame.tsx
-import { Fragment, jsx as jsx3, jsxs as jsxs2 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
-var CSS2 = `
+var CSS3 = `
 [data-fi-composer-slot="header"] {
   margin-bottom: var(--fi-space-2, 0.5rem);
 }
@@ -319,11 +437,11 @@ function ensureComposerFrameStyle() {
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = COMPOSER_FRAME_STYLE_ID;
-  el.textContent = CSS2;
+  el.textContent = CSS3;
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect4(() => {
+  useEffect5(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -345,7 +463,7 @@ function ComposerFrame({
   const [railOpen, setRailOpen] = useState2(false);
   const railId = useId2();
   const hasRail = filled(footerStart);
-  return /* @__PURE__ */ jsxs2(
+  return /* @__PURE__ */ jsxs3(
     "div",
     {
       className,
@@ -353,17 +471,17 @@ function ComposerFrame({
       "data-fi-composer-frame": "",
       "data-fi-rail": hasRail ? railOpen ? "open" : "closed" : void 0,
       children: [
-        filled(header) && /* @__PURE__ */ jsx3("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+        filled(header) && /* @__PURE__ */ jsx4("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
         children,
-        (filled(footer) || hasRail) && /* @__PURE__ */ jsxs2(
+        (filled(footer) || hasRail) && /* @__PURE__ */ jsxs3(
           "div",
           {
             className: footerClassName,
             style: footerStyle,
             "data-fi-composer-slot": "footer",
             children: [
-              hasRail && /* @__PURE__ */ jsxs2(Fragment, { children: [
-                /* @__PURE__ */ jsx3(
+              hasRail && /* @__PURE__ */ jsxs3(Fragment, { children: [
+                /* @__PURE__ */ jsx4(
                   "button",
                   {
                     type: "button",
@@ -372,10 +490,10 @@ function ComposerFrame({
                     "aria-expanded": railOpen,
                     "aria-controls": railId,
                     onClick: () => setRailOpen((v) => !v),
-                    children: /* @__PURE__ */ jsx3(SlidersHorizontal, { size: 18, "aria-hidden": true })
+                    children: /* @__PURE__ */ jsx4(SlidersHorizontal, { size: 18, "aria-hidden": true })
                   }
                 ),
-                /* @__PURE__ */ jsx3(
+                /* @__PURE__ */ jsx4(
                   "div",
                   {
                     id: railId,
@@ -548,7 +666,7 @@ function useComposerImages(options = {}) {
 // src/composer/ComposerImageAttachments.tsx
 import { useRef as useRef3 } from "react";
 import { X } from "lucide-react";
-import { jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function ComposerImageChips({
   drafts,
   onRemove,
@@ -557,14 +675,14 @@ function ComposerImageChips({
   removeLabel = "Quitar imagen"
 }) {
   if (drafts.length === 0) return null;
-  return /* @__PURE__ */ jsx4(
+  return /* @__PURE__ */ jsx5(
     "div",
     {
       className,
       "data-fi-image-chips": "",
       style: { display: "flex", flexWrap: "wrap", gap: "0.5rem" },
-      children: drafts.map((draft) => /* @__PURE__ */ jsxs3("div", { style: { position: "relative" }, children: [
-        /* @__PURE__ */ jsx4(
+      children: drafts.map((draft) => /* @__PURE__ */ jsxs4("div", { style: { position: "relative" }, children: [
+        /* @__PURE__ */ jsx5(
           "img",
           {
             src: draft.dataUrl,
@@ -579,7 +697,7 @@ function ComposerImageChips({
             }
           }
         ),
-        /* @__PURE__ */ jsx4(
+        /* @__PURE__ */ jsx5(
           "button",
           {
             type: "button",
@@ -602,7 +720,7 @@ function ComposerImageChips({
               color: "#fff",
               padding: 0
             },
-            children: /* @__PURE__ */ jsx4(X, { size: 12, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx5(X, { size: 12, "aria-hidden": true })
           }
         )
       ] }, draft.id))
@@ -611,7 +729,7 @@ function ComposerImageChips({
 }
 function useImagePicker(onFiles) {
   const inputRef = useRef3(null);
-  const input = /* @__PURE__ */ jsx4(
+  const input = /* @__PURE__ */ jsx5(
     "input",
     {
       ref: inputRef,
@@ -634,9 +752,9 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect5, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect6, useRef as useRef4, useState as useState4 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment3, jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -652,13 +770,13 @@ function ActionMenu({
   const [open, setOpen] = useState4(false);
   const triggerRef = useRef4(null);
   const [position, setPosition] = useState4({ top: 0, left: 0 });
-  useEffect5(() => {
+  useEffect6(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect5(() => {
+  useEffect6(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -668,8 +786,8 @@ function ActionMenu({
   }, [open]);
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
-  return /* @__PURE__ */ jsxs4(Fragment3, { children: [
-    /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsxs5(Fragment3, { children: [
+    /* @__PURE__ */ jsx6(
       "button",
       {
         ref: triggerRef,
@@ -687,8 +805,8 @@ function ActionMenu({
       }
     ),
     open && typeof document !== "undefined" && createPortal(
-      /* @__PURE__ */ jsxs4(Fragment3, { children: [
-        /* @__PURE__ */ jsx5(
+      /* @__PURE__ */ jsxs5(Fragment3, { children: [
+        /* @__PURE__ */ jsx6(
           "div",
           {
             className: "fixed inset-0 z-[9998]",
@@ -696,7 +814,7 @@ function ActionMenu({
             "aria-hidden": "true"
           }
         ),
-        /* @__PURE__ */ jsx5(
+        /* @__PURE__ */ jsx6(
           "div",
           {
             role: "menu",
@@ -719,7 +837,7 @@ function ActionMenu({
               }
             },
             children: actions.map((action) => {
-              const item = /* @__PURE__ */ jsxs4(
+              const item = /* @__PURE__ */ jsxs5(
                 "button",
                 {
                   type: "button",
@@ -746,22 +864,22 @@ function ActionMenu({
                   },
                   children: [
                     action.icon,
-                    /* @__PURE__ */ jsx5("span", { children: action.label })
+                    /* @__PURE__ */ jsx6("span", { children: action.label })
                   ]
                 },
                 action.id
               );
-              const divider = action.dividerBefore ? /* @__PURE__ */ jsx5(
+              const divider = action.dividerBefore ? /* @__PURE__ */ jsx6(
                 "div",
                 {
                   className: dividerClassName,
                   style: dividerClassName ? void 0 : { height: 1, margin: "0.25rem 0", background: "rgba(255,255,255,0.08)" }
                 }
               ) : null;
-              return action.wrapperClassName ? /* @__PURE__ */ jsxs4("div", { className: action.wrapperClassName, children: [
+              return action.wrapperClassName ? /* @__PURE__ */ jsxs5("div", { className: action.wrapperClassName, children: [
                 divider,
                 item
-              ] }, action.id) : /* @__PURE__ */ jsxs4(Fragment2, { children: [
+              ] }, action.id) : /* @__PURE__ */ jsxs5(Fragment2, { children: [
                 divider,
                 item
               ] }, action.id);
@@ -775,7 +893,7 @@ function ActionMenu({
 }
 
 // src/composer/ComposerActions.tsx
-import { jsx as jsx6 } from "react/jsx-runtime";
+import { jsx as jsx7 } from "react/jsx-runtime";
 function ComposerActions({
   actions,
   disabled = false,
@@ -785,11 +903,11 @@ function ComposerActions({
   menuClassName,
   itemClassName
 }) {
-  return /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsx7(
     ActionMenu,
     {
       actions,
-      trigger: /* @__PURE__ */ jsx6(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
+      trigger: /* @__PURE__ */ jsx7(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
       triggerLabel: label,
       triggerClassName: `fi-touch-target ${className ?? ""}`.trim(),
       triggerStyle: {
@@ -815,13 +933,20 @@ export {
   COMPOSER_IMAGE_ACCEPT,
   COMPOSER_IMAGE_MEDIA_TYPES,
   Composer,
+  ComposerActionSlot,
   ComposerActions,
   ComposerFrame,
   ComposerImageChips,
   DEFAULT_MAX_IMAGES,
+  FI_COMPOSER_ACTION_CLASS,
+  FI_COMPOSER_ACTION_LABEL_CLASS,
+  FI_COMPOSER_ACTION_VARIANT_CLASS,
+  ensureComposerActionStyle,
   ensureComposerFrameStyle,
+  useComposerActionStyle,
   useComposerFrameStyle,
   useComposerImages,
-  useImagePicker
+  useImagePicker,
+  withComposerAction
 };
 //# sourceMappingURL=index.js.map

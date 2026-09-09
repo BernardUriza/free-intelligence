@@ -4,6 +4,21 @@ export {
   AutoResizeTextarea,
   type AutoResizeTextareaProps,
 } from './AutoResizeTextarea';
+// 1D — one control on the composer rail: the framework owns the shape and the
+// touch minimum, the consumer owns the colour.
+export {
+  ComposerActionSlot,
+  type ComposerActionSlotProps,
+} from './ComposerActionSlot';
+export {
+  FI_COMPOSER_ACTION_CLASS,
+  FI_COMPOSER_ACTION_LABEL_CLASS,
+  FI_COMPOSER_ACTION_VARIANT_CLASS,
+  ensureComposerActionStyle,
+  useComposerActionStyle,
+  withComposerAction,
+  type ComposerActionVariant,
+} from './composerActionStyle';
 export {
   ComposerFrame,
   ensureComposerFrameStyle,

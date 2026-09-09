@@ -1,6 +1,6 @@
 # B3-FIGLASS-SHELL-PRIMITIVES-1 — extract sidebar/resource/composer layout primitives to fi-glass
 
-Status: **Parcial** (verificado 2026-08-23) — 1A (AgentSidebarItem/EditableResourceItem/slots) y 1C (AgentSidebarSection) entregados y consumidos por og118. Faltan los slots del composer (el rail salió como ComposerFrame footerStart) y el borrado de CSS: globals.css subió de 391 a 820 LOC
+Status: **Done 2026-09-09** — 1A, 1C y 1D entregados y consumidos por og118. `ComposerActionSlot` cierra los slots del composer; `globals.css` 820 → 771. Lo que queda de `og-*` no es anatomía del shell: es la página de Proyectos, que es su propia tarjeta
 Proposed: 2026-06-23 by Bernard (via coagent review of og118 globals.css size)
 
 ## What it is
@@ -99,3 +99,46 @@ about lifting the *structure* into fi-glass.
 
 Related: [[framework-first-canary]], [[b3-og118-mobile-responsive-shell]],
 [[proj-sync-1-backend-owned-projects]].
+
+## Cierre 1D — 2026-09-09
+
+**`ComposerActionSlot`** (`apps/packages/fi-glass/src/composer/`,
+`composerActionStyle.ts` + el componente): un control del composer con su caja,
+su mínimo táctil y su etiqueta que cede al ícono. Dos variantes — `primary` (el
+cuadrado de enviar) y `secondary` (el chip pastilla). El botón de enviar de
+`ComposerControls` lo compone, así que la forma llega también a lo que fi-glass
+mismo pinta. Consumido por og118 en el chip de Resonance y en los controles de
+grabación (pausa/detener).
+
+**El mínimo táctil se ata al CONTENEDOR, no al viewport.** `shell/touchTarget`
+está gateado por media query y no puede ver un composer angosto en una pantalla
+ancha: ahí el botón de enviar medía **34×34** contra un mínimo de 44. La regla
+nueva vive en `@container fi-composer (max-width: 420px)`, el mismo contenedor
+donde `ComposerFrame` colapsa su rail.
+
+**El defecto que sólo se vio MIRANDO** (Rule 17: la métrica es proxy, el ojo es
+la verdad). La hoja del primitivo se inyecta en runtime, así que aterriza en
+`<head>` DESPUÉS del stylesheet de la app: a igual especificidad el framework
+ganaba todos los empates, y su `background: transparent` borró el degradado
+esmeralda del botón de enviar y el contorno del chip de llamada. Los números
+—44×44, cero overflow— salían perfectos con la marca ya rota. El screenshot lo
+cachó. La corrección es la que faltaba en el diseño: **los DEFAULTS del framework
+van en `:where()` (especificidad 0) y las GARANTÍAS no.** Una clase del consumidor
+le gana siempre a un default; nadie le gana al mínimo táctil.
+
+**Medido en Chrome real a 374px** (protocolo de [[mobile-viewport-ux]]), con el
+rail cerrado y abierto: enviar 44×44, chip 44×44, etiqueta oculta,
+`rowScrollOverflowPx` 0, todo dentro de la columna; caja idle 46px (presupuesto
+≤64) y 96px con el rail expandido, que la regla permite. Recibo visual tomado y
+el harness efímero borrado, sin commitear.
+
+**Lo que NO se hizo, y por qué.** El plan proponía un slot `footerEnd` en
+`ComposerFrame`. No tiene consumidor: og118 pone su control secundario en
+`footerStart` y Send sigue siendo la única primaria siempre visible, que es lo
+que manda la regla móvil. Construirlo sería framework especulativo, justo lo
+contrario de [[framework-first-canary]] — se abre el día que un shell lo pida.
+
+**Y lo que queda de `globals.css` no es esta tarjeta.** De las +429 líneas que
+creció desde el corte 1A, ~229 son `og-projects-*` como PÁGINA contra
+`fi-glass/resource`: otro arco, otra tarjeta. Decirlo aquí es más honesto que
+prometer que 1D devolvía el archivo a 391.

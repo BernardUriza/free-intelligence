@@ -14,7 +14,6 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 | Item | Status | Propuesta |
 |---|---|---|
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Not built** — esperando una decisión de arquitectura de Bernard | 2026-07-05 |
-| [B3-FIGLASS-SHELL-PRIMITIVES-1 — extraer sidebar/resource/composer a fi-glass](b3-figlass-shell-primitives.md) | **Parcial** (verificado 2026-08-23) — 1A y 1C entregados y consumidos por og118; faltan los slots del composer. El criterio de aceptación se movió al revés: `globals.css` pasó de 391 a 820 LOC | 2026-06-23 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (verificado 2026-08-23) — `SWIFT_VERSION` sigue en 5.9, sin strict-concurrency ni `@concurrent`. Es la vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso
@@ -52,3 +51,4 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 | [Gate 3 — Auth0 (+ Google social) para cuentas de og118](gate3-auth0-google.md) | **Done** (verificado 2026-09-09) — shipped 2026-06-21 (`fd964ff6` backend, `3a823449` web) y 2026-07-08 (cuentas cloud); app.og118.ai corre en `auth0` sobre el tenant dev compartido, principals `google-oauth2\|…`. La tarjeta llevaba desde junio diciendo *Not built* | 2026-06-20 |
 | [B3-AURITY-REACT19-REFS-1 — errores latentes de ref-type de React 19 en aurity](b3-aurity-react19-refs.md) | **Done 2026-09-09** — los 8 muertos (`NeuralNetworkCanvas.tsx:20` hoy); quedan 24 errores de dominio fuera de alcance y `ignoreBuildErrors: true` | 2026-06-19 |
 | [AIREBACKEND-1 — el backend propio siempre-arriba y observable](fi-runner-aire-backend.md) | **Done** (cerrada 2026-09-09) — tres cortes shipped; `tool_policy` no se forwardea porque la puerta no tiene campo: es aire-server #37, decisión de Bernard | 2026-07-13 |
+| [B3-FIGLASS-SHELL-PRIMITIVES-1 — extraer sidebar/resource/composer a fi-glass](b3-figlass-shell-primitives.md) | **Done 2026-09-09** — 1A/1C/1D entregados; `ComposerActionSlot` cierra los slots del composer, `globals.css` 820 → 771, medido a 374px en Chrome. Lo que queda de `og-*` es la página de Proyectos, otra tarjeta | 2026-06-23 |
