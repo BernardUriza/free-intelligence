@@ -45,7 +45,12 @@ async def workspace_list(authorization: str | None = Header(default=None)) -> di
                 st = p.stat()
             except OSError:
                 continue
-            entries.append({"path": str(rel), "bytes": st.st_size, "mtime": st.st_mtime})
+            # `as_posix()` y no `str()`: este `path` viaja en un JSON y el cliente lo
+            # manda de vuelta a `/v1/workspace/file?path=`. Con `str()` el separador
+            # sale el del SO del servidor, así que la MISMA API contestaría
+            # `sub/data.txt` en el contenedor y `sub\data.txt` en una máquina
+            # Windows — un contrato que cambia según dónde se hospeda.
+            entries.append({"path": rel.as_posix(), "bytes": st.st_size, "mtime": st.st_mtime})
             if len(entries) >= config.WORKSPACE_MAX_ENTRIES:
                 truncated = True
                 break
