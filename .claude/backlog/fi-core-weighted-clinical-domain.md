@@ -52,7 +52,11 @@ framework.
 
 ## Status / next step
 
-No construido. Next: diseñar `SignalGroup` + el clasificador pesado en
-`fi_core.cognitive`, migrar el corpus de discord-bot con pesos, publicar
-fi-core 0.26.x, y abrir la fase de consumo como continuación de la trilogía de
-Alex.
+**Construido y consumido** (2026-09-08). Lo que salió de verificar el consumo en
+producción son tres tarjetas hijas, no un reabrir de ésta:
+[[fi-core-urgency-structured-reasons]] (los `reasons` llevan la frase del
+vocabulario al log de auditoría), [[fi-core-verdict-carries-matched-groups]]
+(la explicación del veredicto se calcula en un motor y la banda en otro) y
+[[fi-core-audit-primitives]] (seudónimo con llave + evento con hash suben al
+framework). Lo que queda de ésta es de Alex: H3/H4 del discord-bot #55 y
+encender la banda.
