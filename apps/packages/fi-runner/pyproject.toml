@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.21.5"
+version = "0.21.6"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -42,7 +42,9 @@ dependencies = [
     # via DOMAINS, so the negation and exclusion changes reach it — intended.
     # Cap 0.31: fi-core 0.30 types GravityScore.reasons (UrgencyReason); the
     # guard's metadata keeps its string contract through score.explain().
-    "fi-core>=0.25,<0.31",
+    # Cap 0.32: fi-core 0.31 makes a retriever re-ingest REPLACE a source_ref's
+    # chunks and reaches the contextualizer from RagStore.from_components — additive.
+    "fi-core>=0.25,<0.32",
 ]
 
 [project.optional-dependencies]
