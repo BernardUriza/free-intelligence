@@ -1,6 +1,6 @@
 # fi-core: `GravityScore.reasons` estructurados — el veredicto explica con NOMBRES de grupo, nunca con la frase
 
-Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); consumer half in discord-bot pending
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08) + discord-bot v4.38.18 (`1078ea1`)
 Proposed: 2026-09-08 by Bernard (sesión discord-bot, verificando el deploy del
 PR #68 de Alex — el registro auditable del veredicto de banda, issue #54)
 
@@ -97,3 +97,9 @@ siguen contestando strings vía `explain()`. 7 tests nuevos en
 pin a `fi-core=0.30.0` y `audit.py` loguea `kind`/`key`/`weight` en vez de
 `reasons` como prosa. Recibo: el evento `crisis_band_classified` en KQL sin una
 sola frase del vocabulario.
+
+**Consumidor cerrado el mismo día:** discord-bot `1078ea1` (v4.38.18) — pin
+`fi-core=0.30.0` + `fi-runner=0.21.5`, CI verde, persona-gateway rev
+`--0000203` sirviendo. Lo que falta de recibo es sólo el primer turno real por
+esa revisión en KQL (`reasons` como `comorbidity:abuso:+0.5`, sin frase);
+al cerrar esta tarjeta no había pasado ninguno todavía.

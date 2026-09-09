@@ -1,6 +1,6 @@
 # fi-core: primitivas de auditoría — seudónimo con llave que rota y evento con hash, para que el segundo consumidor no las reescriba
 
-Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); discord-bot `audit.py` repoint pending
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08); el repoint de discord-bot `audit.py` es de Alex (issue #54)
 Proposed: 2026-09-08 by Bernard (merge del PR #68 de discord-bot, issue #54)
 
 ## What it is
@@ -86,3 +86,8 @@ reprueba.
 **Lo que falta:** discord-bot `khimeras_shared/audit.py` se queda con los dos
 emisores, la lectura de `CRISIS_AUDIT_KEY` y el trágate-todo; `pseudonymous_user`,
 `audit_period` y `_audit_hash` mueren con grep.
+
+**Estado del consumidor (2026-09-08):** discord-bot subió el pin a 0.30.0
+(`1078ea1`) sin tocar `khimeras_shared/audit.py` — Bernard se lo dejó a Alex
+en el issue #54 ("yo no toco `audit.py`"). El repoint a `fi_core.audit` queda
+como su decisión; mientras, las dos implementaciones son byte-compatibles.
