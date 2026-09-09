@@ -89,7 +89,17 @@ jobs:
         run: |
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update -qq
+          # SÓLO el repo de PostgreSQL, no los del runner. Un `apt-get update`
+          # global falla entero si CUALQUIER repo preinstalado está roto, y el
+          # 2026-09-09 el de Google Chrome devolvió `Hash Sum mismatch` dos veces
+          # seguidas: la suite completa se puso roja sin que nadie tocara el
+          # código, en un paso al que Chrome no le importa. Acotar la lista es
+          # mejor que un `|| true`, que también escondería un fallo del repo que
+          # sí necesitamos.
+          sudo apt-get update -qq \
+            -o Dir::Etc::sourcelist="sources.list.d/pgdg.list" \
+            -o Dir::Etc::sourceparts="-" \
+            -o APT::Get::List-Cleanup="0"
           sudo apt-get install -y -qq postgresql-17 postgresql-17-pgvector
           sudo systemctl stop postgresql || true
 
