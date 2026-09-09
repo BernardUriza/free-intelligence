@@ -162,7 +162,7 @@ def test_classifier_path_applies_the_same_local_negation():
     assert band("no tengo ideación suicida") == "LOW"
     assert band("estoy sin dormir y me quiero matar") == "CRITICAL"
     score = clf.classify(PatientContext(symptoms=["ansiedad"], medical_history=["sin trauma previo"]))
-    assert "comorbidity 'trauma' (+0.5)" not in score.reasons
+    assert "comorbidity 'trauma' (+0.5)" not in score.explain()
 
 
 # --- First-person proclítico crisis phrasing (found while closing #64) -------
@@ -237,7 +237,7 @@ def test_history_never_fires_the_critical_override(history: list[str], message: 
 def test_history_still_adds_its_comorbidity_modifier():
     score = clf.classify(PatientContext(symptoms=["insomnio"], medical_history=["intento de suicidio previo"]))
     assert score.modifiers == 0.5
-    assert "comorbidity 'intento de suicidio previo' (+0.5)" in score.reasons
+    assert "comorbidity 'intento de suicidio previo' (+0.5)" in score.explain()
 
 
 def test_cardiology_history_is_not_a_present_pattern_either():

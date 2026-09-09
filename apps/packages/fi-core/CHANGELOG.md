@@ -12,6 +12,95 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.30.0] — 2026-09-08
+
+Three additions with one origin: discord-bot #54 (Alex's decisions for the
+auditable band verdict, PR #68) shipped as the canary what og118 and AIRE will
+need the day they log a verdict about a real person. Each is the framework
+half of something the consumer had to write for itself.
+
+### Changed — `GravityScore.reasons` are typed, never prose with the phrase inside
+
+`reasons` was `tuple[str, ...]` of `symptom 'me quiero morir' → gravity 9` /
+`comorbidity 'abuso' (+0.5)`. Right for FLOW.md's clinician reading a screen;
+wrong for a log kept for years — the first real `crisis_band_classified` event
+(persona-gateway rev 201) carried `"comorbidity 'abuso' (+0.5)"` verbatim, and
+a grave turn would have carried the vocabulary phrase. The consumer could not
+fix it without parsing prose.
+
+- **`UrgencyReason(kind, key, weight, term)`**, frozen. `kind` ∈ `symptom` /
+  `critical_pattern` / `comorbidity` / `age` / `pregnancy`; `key` names the
+  vocabulary or rule that fired (`critical_symptoms`, `high_symptoms`,
+  `medium_symptoms`, `unlisted`, `critical_patterns`, a `high_risk_conditions`
+  entry, `over_65` / `under_1`, `pregnant`); `weight` is the contribution.
+  Those three are what a log keeps. `term` — the normalized symptom or the
+  matched pattern — exists for `render()` and is `repr=False`, so a serializer
+  that falls back to `repr` (structlog's JSON renderer) never leaks a person's
+  words by accident.
+- **`UrgencyReason.render()`** returns the pre-0.30 string exactly;
+  **`GravityScore.explain()`** returns all of them. The MCP `classify_urgency`
+  tool still answers prose (`explain()`), as does fi-runner's `triage_guard`
+  metadata.
+- **Migration** (pre-1.0, no shim): a caller that read `score.reasons` as
+  strings reads `score.explain()`; a caller that logs them logs
+  `(r.kind, r.key, r.weight)` and stops logging phrases. discord-bot #54 is the
+  first: `audit.py` logs `key`/`weight`, and the closing receipt is a KQL row
+  with no vocabulary phrase in it.
+
+### Added — `ClinicalDomain.assess()` → `ClinicalVerdict`: one call, one verdict, one explanation
+
+A consumer that wanted the band AND the reason made two readings of the same
+message with two engines — `urgency_classifier().classify(...)` for the band,
+`acute_signals.matched(...)` for the explanation — and stapled them together
+hoping they agreed (discord-bot's `matched_acute_groups`: *"lectura PARALELA…
+si algún día divergen, el que manda es el de `crisis_band`"*). They diverged
+once (0.29.1).
+
+- **`assess(message, history=())`** runs the vocabulary match, both weighted
+  axes and the classifier over the SAME text and returns
+  `ClinicalVerdict(score, hits, acute, chronic, conditions)`. The group names
+  in `acute.matched` / `chronic.matched` are, by construction, the ones behind
+  the band; `denied` and `excluded` — which the consumer never logged because
+  it would have cost a third reading — travel free (Alex's #55 H2 "señal
+  débil que vale la pena registrar algún día"). `acute` / `chronic` are `None`
+  on a domain without that axis (`CARDIOLOGY`).
+- **`ClinicalDomain.chronic_conditions`** — chronic group name →
+  `high_risk_conditions` entry — read off `SignalGroup.category`, where the
+  groups already declared it. It equals discord-bot's `_GROUP_TO_CONDITION`
+  verbatim (pinned in `tests/test_domain_assess.py`); the four groups with no
+  counterpart score the axis and never reach the band, which is why the map is
+  the domain's and not a consumer's dict. **`conditions_for(groups)`** applies it.
+- `history` feeds the chronic axis and, through the map, the classifier's
+  `medical_history`; a condition the message itself names is reported in
+  `hits.high_risk_conditions` and does not add gravity (parity with the
+  canary's `crisis_band`: the message is now, the history is the record).
+- discord-bot's `crisis_band` + `matched_acute_groups` + `history_conditions` +
+  `_GROUP_TO_CONDITION` collapse to this call.
+
+### Added — `fi_core.audit`: a pseudonym that groups without identifying, and an event that carries its hash
+
+discord-bot #68 wrote `pseudonymous_user` and `_emit` in
+`khimeras_shared/audit.py`; neither is about Discord. Promoted, without
+structlog and without reading the environment (the consumer owns its logger,
+its key lookup and its fail-safe):
+
+- **`pseudonym(subject, *, key, period, digest_chars=16)`** — HMAC-SHA256 with
+  the period in front (`2026-09:df06…`); **`None` without a key, never a bare
+  hash** (Discord ids and patient folios are small enumerable spaces; a keyless
+  sha256 is reversible by anyone holding the member list). The key rotates by
+  period, so a leak opens a month, not a life. Byte-compatible with the canary:
+  September's codes stay comparable after the switch. The test a bare sha256
+  cannot pass (two keys → two codes) is ported and mandatory.
+- **`audit_period(now=None)`** — the UTC month; an aware local time is
+  converted first.
+- **`audited(event, **fields)`** — `fields` + `event` + `audit_hash =
+  sha256_payload(...)` over both, so an `absent` row cannot be relabeled a
+  verdict without moving the hash. Spreads into a structlog call:
+  `log.info(**audited("crisis_band_classified", band=...))`.
+- **`sha256_payload` moved here from `fi_core.cognitive.events`**, which now
+  imports it; `fi_core.cognitive.sha256_payload` still resolves to the same
+  function.
+
 ## [0.29.1] — 2026-09-07
 
 ### Fixed — history never fires the CRITICAL override; both layers read one negation the same way

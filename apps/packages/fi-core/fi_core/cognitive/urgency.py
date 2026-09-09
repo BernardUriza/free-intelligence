@@ -4,7 +4,9 @@ Ported faithfully from FLOW.md §4 (Urgency Classification Workflow) of the
 Redux-Claude medical flow. Pure, zero-dep, and **explainable**: given a
 patient's symptoms + context, it computes a 1-10 gravity score and an
 :class:`UrgencyLevel` (LOW/MEDIUM/HIGH/CRITICAL) with the time-to-action band,
-and returns the reasons behind the score.
+and returns the reasons behind the score as typed :class:`UrgencyReason`
+values — a stable ``kind`` + ``key`` + ``weight`` a log can keep for years,
+and a ``render()`` for the screen a clinician reads.
 
 This is decision SUPPORT, not diagnosis. The default symptom/pattern
 vocabularies lean cardiology and are a NON-EXHAUSTIVE starting point — pass
@@ -21,7 +23,7 @@ In the consultation state machine this is what the ``TRIAGE`` state runs
     ))
     print(score.level, score.final_gravity, score.time_to_action)
     for r in score.reasons:
-        print(" -", r)
+        print(" -", r.render())
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
-from typing import Protocol
+from typing import Literal, Protocol
 
 
 def _fold(text: str) -> str:
@@ -262,6 +264,48 @@ class PatientContext:
     medical_history: list[str] = field(default_factory=list)
 
 
+ReasonKind = Literal["symptom", "critical_pattern", "comorbidity", "age", "pregnancy"]
+
+_AGE_RULES: dict[str, str] = {"over_65": "age > 65", "under_1": "age < 1"}
+
+
+@dataclass(frozen=True)
+class UrgencyReason:
+    """One typed reason behind a :class:`GravityScore`.
+
+    ``key`` names the vocabulary or rule that fired — ``critical_symptoms``,
+    ``high_symptoms``, ``medium_symptoms``, ``unlisted``, ``critical_patterns``,
+    a ``high_risk_conditions`` entry, ``over_65`` / ``under_1``, ``pregnant`` —
+    and ``weight`` is what it contributed. Those three are what a consumer
+    LOGS: stable names, never a person's words (discord-bot #54, Alex's
+    decision 1: an audit row explains a verdict with group names, "las frases
+    se parecen demasiado al texto original para un log que se guarda años").
+
+    ``term`` is the text that fired the vocabulary — the normalized symptom,
+    the matched pattern. It exists for :meth:`render` and a screen, is kept
+    out of ``repr`` on purpose so a serializer that falls back to ``repr``
+    (structlog's JSON renderer does) never leaks it by accident, and must not
+    be logged on its own.
+    """
+
+    kind: ReasonKind
+    key: str
+    weight: float
+    term: str = field(default="", repr=False)
+
+    def render(self) -> str:
+        """The prose FLOW.md's clinician reads on screen (the pre-0.30 string)."""
+        if self.kind == "symptom":
+            return f"symptom '{self.term}' → gravity {self.weight:.0f}"
+        if self.kind == "critical_pattern":
+            return f"critical pattern '{self.term}' detected → override CRITICAL"
+        if self.kind == "comorbidity":
+            return f"comorbidity '{self.key}' (+{self.weight:.1f})"
+        if self.kind == "age":
+            return f"{_AGE_RULES[self.key]} (+{self.weight:.1f})"
+        return f"pregnancy (+{self.weight:.1f})"
+
+
 @dataclass(frozen=True)
 class GravityScore:
     """Result of triage — the score, the tier, and *why*."""
@@ -272,7 +316,11 @@ class GravityScore:
     level: UrgencyLevel
     time_to_action: str
     critical_override: bool = False
-    reasons: tuple[str, ...] = ()
+    reasons: tuple[UrgencyReason, ...] = ()
+
+    def explain(self) -> tuple[str, ...]:
+        """``reasons`` rendered as prose, for a screen or a test that reads text."""
+        return tuple(r.render() for r in self.reasons)
 
 
 def _normalize(
@@ -369,43 +417,43 @@ class UrgencyClassifier:
             | self.high_risk_conditions
         )
 
-    def base_gravity(self, symptoms: list[str]) -> tuple[int, list[str]]:
+    def base_gravity(self, symptoms: list[str]) -> tuple[int, list[UrgencyReason]]:
         score = 0
-        reasons: list[str] = []
+        reasons: list[UrgencyReason] = []
         for s in _normalize(symptoms, self._protected, self.exclusions):
             if _matches(s, self.critical_symptoms):
-                sev = 9
+                key, sev = "critical_symptoms", 9
             elif _matches(s, self.high_symptoms):
-                sev = 7
+                key, sev = "high_symptoms", 7
             elif _matches(s, self.medium_symptoms):
-                sev = 5
+                key, sev = "medium_symptoms", 5
             else:
-                sev = 3
+                key, sev = "unlisted", 3
             if sev > score:
                 score = sev
-            reasons.append(f"symptom '{s}' → gravity {sev}")
+            reasons.append(UrgencyReason("symptom", key, sev, term=s))
         return score, reasons
 
-    def modifiers(self, patient: PatientContext) -> tuple[float, list[str]]:
+    def modifiers(self, patient: PatientContext) -> tuple[float, list[UrgencyReason]]:
         mod = 0.0
-        reasons: list[str] = []
+        reasons: list[UrgencyReason] = []
         if patient.age is not None:
             if patient.age > 65:
                 mod += 1.0
-                reasons.append("age > 65 (+1.0)")
+                reasons.append(UrgencyReason("age", "over_65", 1.0))
             if patient.age < 1:
                 mod += 1.5
-                reasons.append("age < 1 (+1.5)")
+                reasons.append(UrgencyReason("age", "under_1", 1.5))
         history = _normalize(patient.medical_history, self._protected, self.exclusions)
         for cond in sorted(self.high_risk_conditions):
             if any(_present(_fold(cond), h) for h in history):
                 mod += 0.5
-                reasons.append(f"comorbidity '{cond}' (+0.5)")
+                reasons.append(UrgencyReason("comorbidity", cond, 0.5))
         if (patient.gender or "").lower() == "female" and any(
             "pregnant" in s for s in _normalize(patient.symptoms, self._protected, self.exclusions)
         ):
             mod += 1.0
-            reasons.append("pregnancy (+1.0)")
+            reasons.append(UrgencyReason("pregnancy", "pregnant", 1.0))
         return mod, reasons
 
     def critical_pattern(self, patient: PatientContext) -> str | None:
@@ -434,7 +482,7 @@ class UrgencyClassifier:
                 level=band.level,
                 time_to_action=band.time_to_action,
                 critical_override=True,
-                reasons=(f"critical pattern '{pattern}' detected → override CRITICAL",),
+                reasons=(UrgencyReason("critical_pattern", "critical_patterns", 10, term=pattern),),
             )
         base, base_reasons = self.base_gravity(patient.symptoms)
         mod, mod_reasons = self.modifiers(patient)

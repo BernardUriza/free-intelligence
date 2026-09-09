@@ -5,10 +5,18 @@ specialty-agnostic; the *vocabularies* are what make it cardiology, psychiatry,
 etc. A :class:`ClinicalDomain` bundles one specialty's vocabularies so a runner
 picks a domain instead of hand-wiring five frozensets. One core, many domains.
 
-    from fi_core.cognitive import PSYCHIATRY, PatientContext
-    clf = PSYCHIATRY.urgency_classifier()
-    score = clf.classify(PatientContext(symptoms=["ideación suicida", "plan suicida"]))
-    print(score.level)  # UrgencyLevel.CRITICAL
+    from fi_core.cognitive import PSYCHIATRY
+    verdict = PSYCHIATRY.assess("ideación suicida, tengo un plan", history=["toma sertralina"])
+    print(verdict.level)          # UrgencyLevel.CRITICAL
+    print(verdict.acute.matched)  # ('explicit_ideation',) — the groups that explain it
+    print(verdict.chronic.matched)  # ('psychiatric_medication',)
+
+One call, one verdict, one explanation: :meth:`ClinicalDomain.assess` runs the
+vocabulary match, the two weighted axes and the classifier over the SAME text,
+so the group names a consumer logs are, by construction, the ones behind the
+band — not a parallel reading that happens to agree (discord-bot #54; the two
+readings diverged once, 0.29.1). The pieces stay public for a consumer that
+only needs one of them.
 
 Vocabularies are NON-EXHAUSTIVE starting points, tuned to the language the runner
 speaks: cardiology terms are English (the original Redux-Claude flow); psychiatry
@@ -27,17 +35,21 @@ is positive, and "estoy sin dormir y me quiero matar" is CRITICAL.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS, PSYCH_EXCLUSIONS
-from .signals import SignalGroup, WeightedSignals
+from .signals import ScoredSignals, SignalGroup, WeightedSignals
 from .urgency import (
     DEFAULT_CRITICAL_PATTERNS,
     DEFAULT_CRITICAL_SYMPTOMS,
     DEFAULT_HIGH_RISK_CONDITIONS,
     DEFAULT_HIGH_SYMPTOMS,
     DEFAULT_MEDIUM_SYMPTOMS,
+    GravityScore,
+    PatientContext,
     UrgencyClassifier,
+    UrgencyLevel,
     _fold,
     _negation_shaped_terms,
     scan_terms,
@@ -204,6 +216,33 @@ class VocabularyHits:
 
 
 @dataclass(frozen=True)
+class ClinicalVerdict:
+    """What :meth:`ClinicalDomain.assess` decided about one message, and every
+    reading that decision was built from.
+
+    ``score`` is the band; ``acute`` and ``chronic`` are the weighted axes over
+    the message and over the history (``None`` on a domain without that axis —
+    cardiology has neither); ``hits`` is the vocabulary match that fed the
+    classifier; ``conditions`` are the ``high_risk_conditions`` the history
+    contributed, i.e. what ``score.reasons`` of kind ``comorbidity`` came from.
+
+    For a log: ``score.level``, ``score.final_gravity``, the ``kind``/``key``/
+    ``weight`` of each reason, and the group NAMES in ``acute.matched`` /
+    ``chronic.matched`` / ``denied`` / ``excluded``. ``hits`` and each reason's
+    ``term`` carry vocabulary spelling — for a screen, not a log."""
+
+    score: GravityScore
+    hits: VocabularyHits
+    acute: ScoredSignals | None = None
+    chronic: ScoredSignals | None = None
+    conditions: tuple[str, ...] = ()
+
+    @property
+    def level(self) -> UrgencyLevel:
+        return self.score.level
+
+
+@dataclass(frozen=True)
 class ClinicalDomain:
     """A specialty's urgency vocabularies, ready to build a classifier.
 
@@ -229,6 +268,52 @@ class ClinicalDomain:
     #: cut before the vocabularies read the text. Declared once as signal
     #: groups; the classifier, ``match`` and the axes all honor them.
     exclusions: tuple[SignalGroup, ...] = ()
+
+    @property
+    def chronic_conditions(self) -> dict[str, str]:
+        """Chronic group name → the ``high_risk_conditions`` entry it stands for.
+
+        Read off each group's ``category``: a chronic group whose category IS
+        one of this domain's conditions is that condition's detector. The
+        groups with no counterpart (a named diagnosis, a medication, a
+        clinician, a somatic comorbidity) score the chronic axis but never
+        reach the band — which is why the map belongs here and not in a
+        consumer's dict (discord-bot's ``_GROUP_TO_CONDITION`` until 0.30)."""
+        if self.chronic_signals is None:
+            return {}
+        return {
+            g.name: g.category
+            for g in self.chronic_signals.groups
+            if g.category in self.high_risk_conditions
+        }
+
+    def conditions_for(self, groups: Iterable[str]) -> tuple[str, ...]:
+        """The ``high_risk_conditions`` a set of chronic group names stands for, sorted."""
+        mapping = self.chronic_conditions
+        return tuple(sorted({mapping[g] for g in groups if g in mapping}))
+
+    def assess(self, message: str, history: Iterable[str] = ()) -> ClinicalVerdict:
+        """One call: the band for ``message`` given ``history``, with every
+        reading that produced it.
+
+        ``message`` feeds the vocabulary match (→ ``PatientContext.symptoms``)
+        and the acute axis; ``history`` — the subject's accumulated facts, as
+        plain texts — feeds the chronic axis, whose matched groups become the
+        ``medical_history`` conditions through :attr:`chronic_conditions`.
+        Conditions the message itself names are reported in
+        ``hits.high_risk_conditions`` and do not add gravity: the message is
+        what is happening now, the history is the record (parity with the
+        canary's ``crisis_band``; a condition becomes history once it is a
+        fact)."""
+        texts = [t for t in history if t]
+        hits = self.match(message)
+        acute = self.acute_signals.score([message]) if self.acute_signals is not None else None
+        chronic = self.chronic_signals.score(texts) if self.chronic_signals is not None else None
+        conditions = self.conditions_for(chronic.matched) if chronic is not None else ()
+        score = self.urgency_classifier().classify(
+            PatientContext(symptoms=list(hits.symptoms), medical_history=list(conditions))
+        )
+        return ClinicalVerdict(score=score, hits=hits, acute=acute, chronic=chronic, conditions=conditions)
 
     def urgency_classifier(self) -> UrgencyClassifier:
         """An :class:`UrgencyClassifier` wired with this domain's vocabularies."""

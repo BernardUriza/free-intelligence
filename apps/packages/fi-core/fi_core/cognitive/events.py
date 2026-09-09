@@ -5,7 +5,7 @@ Ported faithfully from the Redux-Claude flow (`backend/providers/adapters.py`
 dispatched by a UI into immutable domain events suitable for an event store.
 
 Zero-dep: the backend originals used Pydantic + a project SHA helper; here the
-event envelope is plain `dataclasses` and the audit hash uses stdlib `hashlib`.
+event envelope is plain `dataclasses` and the audit hash is :func:`fi_core.audit.sha256_payload`.
 
     adapter = ReduxEventAdapter()
     event = adapter.translate_action(
@@ -18,13 +18,13 @@ event envelope is plain `dataclasses` and the audit hash uses stdlib `hashlib`.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable
 from uuid import uuid4
+
+from ..audit import sha256_payload
 
 
 class EventType(str, Enum):
@@ -107,12 +107,6 @@ ACTION_TO_EVENT_MAP: dict[str, EventType] = {
     "medicalChat/setCoreLoading": EventType.CORE_STATE_CHANGED,
     "medicalChat/setCoreError": EventType.CORE_ERROR_OCCURRED,
 }
-
-
-def sha256_payload(data: Any) -> str:
-    """Stable SHA256 of a JSON-serializable payload (for audit non-repudiation)."""
-    encoded = json.dumps(data, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 @dataclass
