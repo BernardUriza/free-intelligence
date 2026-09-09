@@ -27,6 +27,7 @@ import {
   AudioVisualizer,
   type AudioQueueStore,
 } from 'fi-glass/voice';
+import { ComposerActionSlot } from 'fi-glass/composer';
 import { og118VoiceAdapter } from './og118VoiceAdapter';
 
 export interface Og118VoiceComposer {
@@ -170,6 +171,7 @@ export function useOg118VoiceComposer(audioQueueStore: AudioQueueStore): Og118Vo
           onStart={() => { void recording.startRecording(); }}
           onStop={() => {}}
           className="og-mic-slot"
+          buttonClassName="og-mic-idle"
         />
       )}
       {isStopping && (
@@ -180,24 +182,22 @@ export function useOg118VoiceComposer(audioQueueStore: AudioQueueStore): Og118Vo
       )}
       {isActivelyRecording && (
         <>
-          <button
-            type="button"
+          <ComposerActionSlot
+            variant="primary"
             onClick={recording.pauseRecording}
             aria-label="Pausar grabación"
-            className="og-mic-pause og-mic-btn"
+            className="og-mic-btn"
             data-ref="og118-mic-pause"
-          >
-            <Pause size={18} />
-          </button>
-          <button
-            type="button"
+            icon={<Pause size={18} />}
+          />
+          <ComposerActionSlot
+            variant="primary"
             onClick={() => { void recording.stopRecording().then(() => queue.reload()); }}
             aria-label="Detener y guardar grabación"
-            className="og-mic-stop og-mic-btn"
+            className="og-mic-btn"
             data-ref="og118-mic-stop"
-          >
-            <Square size={18} />
-          </button>
+            icon={<Square size={18} />}
+          />
         </>
       )}
       {/* When paused, AudioDraftPlayer (above composer) owns the Resume/Stop
