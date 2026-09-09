@@ -15,16 +15,13 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 |---|---|---|
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Not built** — esperando una decisión de arquitectura de Bernard | 2026-07-05 |
 | [B3-FIGLASS-SHELL-PRIMITIVES-1 — extraer sidebar/resource/composer a fi-glass](b3-figlass-shell-primitives.md) | **Parcial** (verificado 2026-08-23) — 1A y 1C entregados y consumidos por og118; faltan los slots del composer. El criterio de aceptación se movió al revés: `globals.css` pasó de 391 a 820 LOC | 2026-06-23 |
-| [B3-AURITY-REACT19-REFS-1 — errores latentes de ref-type de React 19 en aurity](b3-aurity-react19-refs.md) | **Casi cerrada** (verificado 2026-08-23) — 7 de los 8 murieron solos al subir `@types/react` a 19.2.16; queda `NeuralNetworkCanvas.tsx:20`. aurity sigue sin gate de tipos (`ignoreBuildErrors: true`) | 2026-06-19 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (verificado 2026-08-23) — `SWIFT_VERSION` sigue en 5.9, sin strict-concurrency ni `@concurrent`. Es la vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
-| [Gate 3 — Auth0 (+ Google social) para cuentas de og118](gate3-auth0-google.md) | Accepted | 2026-06-20 |
 
 ## En curso
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado 2026-08-23) — compila, arranca y pinta el login en simulador. Falta la primera vuelta de chat real. ⚠️ `apps/og118-ios/README.md:131-136` sigue diciendo "bloqueado: falta Xcode", que su propia tabla desmiente | 2026-08-12 |
-| [AIREBACKEND-1 — el backend propio siempre-arriba y observable](fi-runner-aire-backend.md) | **In progress** (re-verificado 2026-08-23) — sólo queda que `tool_policy` viaje al backend; el propio `aire.py:45` lo declara como el único hueco | 2026-07-13 |
+| [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado 2026-08-23) — compila, arranca y pinta el login en simulador. Falta la primera vuelta de chat real. README corregido 2026-09-09 | 2026-08-12 |
 
 ## Entregadas
 
@@ -52,3 +49,6 @@ sin tocarlo, así que **cerrar una tarjeta incluye editar este archivo**.
 | [fi-core: `GravityScore.reasons` estructurados — el veredicto explica con nombres de grupo, nunca con la frase](fi-core-urgency-structured-reasons.md) | **Done 2026-09-08** — fi-core 0.30.0 (PR #465): `UrgencyReason(kind, key, weight, term)`, `term` fuera del `repr`, `explain()` conserva la prosa. Consumidor: discord-bot v4.38.18 loguea `kind:key:peso` | 2026-09-08 |
 | [fi-core: el veredicto de banda carga sus grupos disparados — `ClinicalDomain.assess()` → `ClinicalVerdict`](fi-core-verdict-carries-matched-groups.md) | **Done 2026-09-08** — fi-core 0.30.0 (PR #465): una lectura, un veredicto; `_GROUP_TO_CONDITION` ya vivía en fi-core como `SignalGroup.category`. Consumidor: discord-bot v4.38.18 colapsó a `crisis_verdict()` | 2026-09-08 |
 | [fi-core: primitivas de auditoría — seudónimo HMAC con llave que rota por mes + evento con `audit_hash`](fi-core-audit-primitives.md) | **Done 2026-09-08** — fi-core 0.30.0 (PR #465): `fi_core.audit` (`pseudonym` / `audit_period` / `audited`), byte-compatible con el canary. El repoint de discord-bot `audit.py` es de Alex (#54) | 2026-09-08 |
+| [Gate 3 — Auth0 (+ Google social) para cuentas de og118](gate3-auth0-google.md) | **Done** (verificado 2026-09-09) — shipped 2026-06-21 (`fd964ff6` backend, `3a823449` web) y 2026-07-08 (cuentas cloud); app.og118.ai corre en `auth0` sobre el tenant dev compartido, principals `google-oauth2\|…`. La tarjeta llevaba desde junio diciendo *Not built* | 2026-06-20 |
+| [B3-AURITY-REACT19-REFS-1 — errores latentes de ref-type de React 19 en aurity](b3-aurity-react19-refs.md) | **Done 2026-09-09** — los 8 muertos (`NeuralNetworkCanvas.tsx:20` hoy); quedan 24 errores de dominio fuera de alcance y `ignoreBuildErrors: true` | 2026-06-19 |
+| [AIREBACKEND-1 — el backend propio siempre-arriba y observable](fi-runner-aire-backend.md) | **Done** (cerrada 2026-09-09) — tres cortes shipped; `tool_policy` no se forwardea porque la puerta no tiene campo: es aire-server #37, decisión de Bernard | 2026-07-13 |

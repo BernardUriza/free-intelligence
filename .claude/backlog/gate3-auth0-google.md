@@ -1,6 +1,6 @@
 # Gate 3 — Auth0 (with Google social connection) for og118 accounts
 
-Status: Accepted
+Status: Done (verificado contra el código 2026-09-09) — shipped 2026-06-21 (web + backend) y 2026-07-08 (cuentas cloud)
 Proposed: 2026-06-20 by Bernard
 
 ## What it is
@@ -40,3 +40,28 @@ Not built. Sequenced as Gate 3 — AFTER the Projects feature works end-to-end
 (the demo-URL-before-auth doctrine). Build the Projects feature agnostic now
 (`project_id = corpus_id`, unauthenticated), then bolt Auth0 on at Gate 3 to make
 corpora private-per-user.
+
+## Verificación 2026-09-09 — estaba construido desde junio
+
+La tarjeta decía *Accepted / Not built* desde el 2026-06-20. El código dice otra
+cosa:
+
+- **Backend:** `apps/og118/server/app.py` — `OG118_AUTH_MODE = bearer | dual |
+  auth0`, `get_principal` (commit `fd964ff6`, 2026-06-21, "Gate 3 backend").
+- **Web:** `Auth0Wrapper.tsx` + `AuthGate.tsx` (commit `3a823449`, 2026-06-21).
+- **Desplegado en `auth0`:** `og118-web-staging.yml` hornea
+  `NEXT_PUBLIC_OG118_AUTH_MODE=auth0` y `NEXT_PUBLIC_AUTH0_DOMAIN=dev-1r4daup7ofj7q6gn.us.auth0.com`
+  — app.og118.ai corre con login real desde entonces; la regla
+  [[local-dev-auth-mode-parity]] (2026-07-08) existe porque el shell auth0 ES el
+  que se sirve.
+- **Google social:** los principals llegan como `google-oauth2|<sub>`
+  (`useOg118Projects.test.ts`), o sea, la conexión social está activa en el
+  tenant.
+- **Cuentas + corpus por usuario:** CONV-CLOUD-1 (`5370ec28`, 2026-07-08) —
+  `/conversations` y `/projects` keyed por principal; ver
+  [[convo-sync-serverside-conversations]] y [[og118-cloud-conversations]].
+
+**La decisión del dueño quedó tomada por reuso:** og118 vive como cliente SPA
+`og118-spa` en el tenant dev compartido con aurity (`dev-1r4daup7ofj7q6gn`), no
+en un tenant propio. Un tenant de producción separado sigue siendo una decisión
+suya, no deuda de esta tarjeta.

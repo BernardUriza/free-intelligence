@@ -1,6 +1,6 @@
 # AIREBackend — el backend propio de Bernard, siempre-arriba y observable
 
-Status: In progress — first cut shipped 2026-07-27 (the companion/complete turn)
+Status: Done (cerrada 2026-09-09) — los tres cortes shipped; el único input sin forward, `tool_policy`, es una decisión de la puerta (aire-server #37, de Bernard), no un hueco de fi-runner
 Proposed: 2026-07-13 by Bernard (dictado en sesión; visión, palabras suyas)
 
 ## What it is
@@ -121,3 +121,16 @@ escribió una sesión anterior sin abrir el archivo. Los hechos:
 O sea que no hay nada que rerutear a AIRE ahí. Si algo queda es una tarjeta
 aparte de higiene (*"borrar o poner en cuarentena el `backend/` legacy"*), no
 trabajo de AIRE.
+
+## Cierre 2026-09-09
+
+`aire.py` declara un solo hueco: `tool_policy` no viaja. Verificado en
+aire-server: la puerta no tiene campo para una política del caller — las
+políticas viven server-side en `server/aire/engine/options.py` por MODO
+(`complete` / `agent`, con `allowed_tools` / `disallowed_tools` /
+`permission_mode` fijos), y aire-server #29 ("grow the door") cerró DONE el
+2026-08-20 sin él. Que el dial de modo sea grueso y si conviene un campo
+por turno es **aire-server #37**, decisión de Bernard; mientras no exista en la
+puerta, fi-runner no tiene nada que forwardear y avisa con warning, que es lo
+correcto. Del lado de fi-runner no queda trabajo: la tarjeta cierra y el
+residual vive donde se decide.
