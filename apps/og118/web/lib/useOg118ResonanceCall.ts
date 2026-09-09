@@ -40,6 +40,7 @@ function audioSourceToUrl(src: Blob | { url: string }): string {
 
 const FALLO_POR_FASE: Record<ResonanceErrorPhase, string> = {
   mic: 'No se pudo abrir el micrófono — la llamada se colgó.',
+  duration: 'La llamada alcanzó su límite de duración.',
   stt: 'No se pudo transcribir tu voz.',
   agent: 'El agente no pudo responder este turno.',
   tts: 'No se pudo sintetizar la respuesta en voz.',

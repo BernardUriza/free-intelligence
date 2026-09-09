@@ -24,7 +24,7 @@ describe('mensajeDeFalloDeVoz', () => {
   });
 
   it('sin mensaje utilizable cae a la fase — ningún fallo llega mudo', () => {
-    for (const phase of ['mic', 'stt', 'agent', 'tts'] as const) {
+    for (const phase of ['mic', 'stt', 'agent', 'tts', 'duration'] as const) {
       expect(mensajeDeFalloDeVoz(phase, undefined, true)).not.toBe('');
     }
     expect(mensajeDeFalloDeVoz('agent', new Error('   '), true))

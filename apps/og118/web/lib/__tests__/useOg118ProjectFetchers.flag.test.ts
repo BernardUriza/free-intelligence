@@ -28,7 +28,9 @@ afterEach(() => {
 });
 
 function espiarFetch(payload: unknown) {
-  const spy = vi.fn(async () => ({
+  // Tipar los argumentos importa: sin ellos `calls[0]` es la tupla vacía y
+  // `calls[0][0]` no compila — que es justo lo que asserta la URL pedida.
+  const spy = vi.fn(async (_input?: unknown, _init?: unknown) => ({
     ok: true,
     status: 200,
     json: async () => payload,
