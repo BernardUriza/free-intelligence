@@ -11,6 +11,11 @@ It glues an :class:`~fi_core.rag.protocols.Embedder` + a
 or any Protocol implementation) into one object. fi-core stays backend-agnostic:
 you pass the embedder and the store — this module imports neither a model nor a
 database, so it carries no optional deps of its own.
+
+This is also the ONE write path: :class:`~fi_core.rag.store_service.RagStore`
+embeds through :meth:`StoreBackedRetriever.embed_chunks` and persists through
+:meth:`StoreBackedRetriever.replace_document`, so a contextualizer wired here
+reaches every ingest and a re-ingest replaces on every face.
 """
 
 from __future__ import annotations
@@ -21,8 +26,8 @@ from typing import Any
 
 from fi_core.rag.chunking import ChunkConfig, ChunkingStrategy, chunk_document
 from fi_core.rag.contextual import Contextualizer
-from fi_core.rag.protocols import ChunkStore, Embedder
-from fi_core.rag.types import Chunk, RetrievedChunk
+from fi_core.rag.protocols import ChunkStore, DocumentChunkStore, Embedder
+from fi_core.rag.types import Chunk, ChunkWithEmbedding, DocumentMetadata, RetrievedChunk
 
 
 @dataclass
@@ -32,15 +37,15 @@ class StoreBackedRetriever:
     ``min_similarity`` is a default floor applied to retrieval results (0.0 = no
     floor; let the store's ``top_k`` decide). Per-call ``min_similarity`` on
     :meth:`retrieve` overrides it.
+
+    ``contextualizer`` enables Contextual Retrieval: each chunk is embedded with
+    an LLM-generated situating context prepended, while the ORIGINAL chunk text
+    is what gets stored — so recall improves and citations stay faithful.
     """
 
     embedder: Embedder
     store: ChunkStore
     min_similarity: float = 0.0
-    # Optional Contextual Retrieval: when set, ingest embeds each chunk with an
-    # LLM-generated situating context prepended (Anthropic's technique, ~-35%
-    # retrieval failures). The ORIGINAL chunk is stored; only the EMBEDDING sees
-    # the context — so citations stay faithful. None = plain embedding.
     contextualizer: Contextualizer | None = None
 
     async def retrieve(
@@ -69,6 +74,62 @@ class StoreBackedRetriever:
             return [h for h in hits if h.similarity >= floor]
         return list(hits)
 
+    async def embed_chunks(
+        self,
+        pieces: list[str],
+        *,
+        document: str,
+        source_ref: str,
+        source_type: str = "document",
+        created_at: datetime | None = None,
+    ) -> list[ChunkWithEmbedding]:
+        """Embed each piece of ``document`` and pair it with its :class:`Chunk`.
+
+        With a contextualizer set, the EMBEDDING is computed over
+        ``"<context>\\n\\n<chunk>"`` while the returned Chunk keeps the plain
+        piece — the store never sees the context, so a citation quotes the
+        source verbatim. An empty context leaves that chunk plain."""
+        out: list[ChunkWithEmbedding] = []
+        for piece in pieces:
+            to_embed = piece
+            if self.contextualizer is not None:
+                context = await self.contextualizer.contextualize(document=document, chunk=piece)
+                if context:
+                    to_embed = f"{context}\n\n{piece}"
+            embedding = await self.embedder.embed(to_embed)
+            chunk = Chunk(text=piece, source_type=source_type, source_ref=source_ref, created_at=created_at)
+            out.append(ChunkWithEmbedding(chunk, embedding))
+        return out
+
+    async def replace_document(
+        self,
+        *,
+        namespace: str,
+        document_id: str,
+        content: str,
+        chunks: list[ChunkWithEmbedding],
+        attributes: dict[str, Any] | None = None,
+    ) -> int:
+        """Persist ``chunks`` as THE chunks of ``document_id`` on a DocumentChunkStore.
+
+        An existing document has its chunks deleted and its content updated
+        before the new chunks are saved; a new one is created. ``attributes=None``
+        keeps the attributes an existing document already carries; a dict
+        replaces them. Returns the number of chunks saved."""
+        store = self._document_store()
+        existing = await store.get_document(namespace=namespace, document_id=document_id)
+        if existing is not None:
+            keep = getattr(getattr(existing, "metadata", None), "attributes", None) or {}
+            md = DocumentMetadata(attributes=attributes if attributes is not None else keep)
+            await store.delete_chunks_by_document(namespace=namespace, document_id=document_id)
+            await store.update_document(namespace=namespace, document_id=document_id, content=content, metadata=md)
+        else:
+            await store.create_document(
+                namespace=namespace, document_id=document_id, content=content,
+                metadata=DocumentMetadata(attributes=attributes or {}),
+            )
+        return await store.save_chunks(namespace=namespace, document_id=document_id, chunks=chunks) if chunks else 0
+
     async def ingest(
         self,
         text: str,
@@ -81,30 +142,42 @@ class StoreBackedRetriever:
     ) -> int:
         """Chunk ``text``, embed each chunk, and persist them under ``namespace``.
 
-        Returns the number of chunks stored. ``source_ref`` traces a recalled
-        chunk back to its origin (filename, url, ...). Idempotency is the store's
-        responsibility (re-ingesting the same source must not duplicate)."""
+        Returns the number of chunks stored; blank text (or text that chunks to
+        nothing) returns 0 without touching the store. ``source_ref`` traces a
+        recalled chunk back to its origin (filename, url, ...).
+
+        On a :class:`~fi_core.rag.protocols.DocumentChunkStore`, ``source_ref``
+        IS the document id: re-ingesting a corrected text under the same
+        ``source_ref`` REPLACES its chunks (content updated, attributes kept),
+        so the previous version stops being retrievable.
+
+        A plain :class:`~fi_core.rag.protocols.ChunkStore` has no document
+        concept, so it CANNOT replace a source_ref's chunks: ``add`` only dedupes
+        identical text, and an edited text lands beside the old one. Use a
+        DocumentChunkStore when documents get corrected."""
         if not text or not text.strip():
             return 0
         pieces = chunk_document(text, strategy or ChunkingStrategy("paragraph_aware"), config or ChunkConfig())
-        now = datetime.now(tz=UTC)
-        count = 0
-        for piece in pieces:
-            # Contextual Retrieval: embed the chunk WITH its situating context,
-            # but store the ORIGINAL chunk text (faithful citations).
-            to_embed = piece
-            if self.contextualizer is not None:
-                context = await self.contextualizer.contextualize(document=text, chunk=piece)
-                if context:
-                    to_embed = f"{context}\n\n{piece}"
-            embedding = await self.embedder.embed(to_embed)
-            await self.store.add(
-                namespace=namespace,
-                chunk=Chunk(text=piece, source_type=source_type, source_ref=source_ref, created_at=now),
-                embedding=embedding,
+        if not pieces:
+            return 0
+        chunks = await self.embed_chunks(
+            pieces, document=text, source_ref=source_ref, source_type=source_type, created_at=datetime.now(tz=UTC)
+        )
+        if isinstance(self.store, DocumentChunkStore):
+            return await self.replace_document(
+                namespace=namespace, document_id=source_ref, content=text, chunks=chunks
             )
-            count += 1
-        return count
+        for ce in chunks:
+            await self.store.add(namespace=namespace, chunk=ce.chunk, embedding=ce.embedding)
+        return len(chunks)
+
+    def _document_store(self) -> DocumentChunkStore:
+        if not isinstance(self.store, DocumentChunkStore):
+            raise TypeError(
+                f"{type(self.store).__name__} is a plain ChunkStore (add/query); "
+                "replacing a document's chunks needs a DocumentChunkStore"
+            )
+        return self.store
 
 
 __all__ = ["StoreBackedRetriever"]
