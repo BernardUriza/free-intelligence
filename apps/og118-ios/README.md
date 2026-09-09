@@ -130,10 +130,16 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 
 ## Lo que falta para la primera corrida
 
-1. **Xcode instalado.** Bloqueado el 2026-08-12 por la cuenta de Apple en
-   recuperación — ver `.claude/backlog/og118-ios-tracer.md`.
-2. **Firma con Apple ID gratis.** La app dura 7 días en el teléfono antes de
-   recaducar; reinstalar es darle Run otra vez. El año completo son los $99.
+Xcode 26.6 está instalado (vía `xcodes`, sin la App Store) y el proyecto
+**compila, arranca y pinta el login en el simulador** — verificado el
+2026-08-23. Lo que falta es la vuelta completa del tracer bullet, y se presume
+rota hasta que ocurra: login de Auth0 contra el tenant → `POST /chat/stream` →
+SSE → respuesta pintada. El único átomo humano es la contraseña de Auth0 en el
+simulador; build, install, launch y screenshot se manejan desde la sesión.
+
+El teléfono físico es un paso aparte: firma con Apple ID gratis (la app dura 7
+días antes de recaducar; reinstalar es darle Run otra vez) o los $99 del año
+completo. El simulador no necesita cuenta de desarrollador ni firma.
 
 ## Anatomía
 

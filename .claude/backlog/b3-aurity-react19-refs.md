@@ -1,6 +1,6 @@
 # B3-AURITY-REACT19-REFS-1 — Fix latent React-19 ref-type errors in aurity
 
-Status: **Casi cerrada** (verificado 2026-08-23) — 7 de los 8 errores murieron al subir @types/react a 19.2.16, sin tocar el código. Queda NeuralNetworkCanvas.tsx:20 (useRef sin valor inicial) y aurity sigue con ignoreBuildErrors: true
+Status: Done 2026-09-09 — los 8 errores de la tarjeta murieron (7 con `@types/react` 19.2.16; el último, `NeuralNetworkCanvas.tsx:20`, corregido hoy). `tsc --noEmit` de aurity queda en 24 errores de dominio fuera de alcance y `ignoreBuildErrors: true` sigue
 Proposed: 2026-06-19 by Claude (surfaced during B3-REPO-TYPES-1)
 
 ## What it is
@@ -43,3 +43,17 @@ change. Verify with `pnpm --filter aurity type-check` dropping these 8 errors
 
 Not started. Registered as AURITY tech-debt. Pick up only after #249 merges, or
 sooner if #249 is blocked by Gatekeeper/CI. Related: [[react-type-resolution]].
+
+## Cierre 2026-09-09
+
+`useRef<number>()` → `useRef<number | undefined>(undefined)` en
+`components/background/NeuralNetworkCanvas.tsx`. `pnpm --filter aurity
+type-check`: 25 → 24 errores, y ninguno de los 8 de esta tarjeta sigue vivo.
+
+Lo que queda NO es de esta tarjeta y se nombra para que no se herede como
+suyo: 24 errores de dominio (`CalendarStyles`, `useDoctorAppointments`,
+`glass-shell/types`, `MarkdownRenderer`, `AnimatedMessage`, `ErrorDeduplicator`,
+`useSessionManagement`…) y `next.config.js` con `ignoreBuildErrors: true`, que
+hace que el build de aurity salga verde con esos 24 adentro. aurity no se
+despliega ([[aurity-infra-muerta]]); quitarle el `ignoreBuildErrors` es una
+tarjeta de higiene aparte si algún día vuelve a construirse para algo.
