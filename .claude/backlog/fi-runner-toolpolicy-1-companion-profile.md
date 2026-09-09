@@ -1,6 +1,6 @@
 # FI-RUNNER-TOOLPOLICY-1 — safe non-coding "companion" tool profile (allowlist by default)
 
-Status: **Done** — `ToolPolicy.companion()` vive en fi-runner y og118 lo usa (verificado 2026-08-22)
+Status: **Done, y su residual quedó SIN OBJETO** (re-verificado 2026-09-09) — `ToolPolicy.companion()` sigue vivo en fi-runner pero **ya no tiene consumidores**: la consolidación a AIRE borró el backend que lo honraba. Lo que acota los tools hoy es el dial de modos de AIRE, server-side. Ver la última sección; las de 2026-08-22 son históricas
 Proposed: 2026-06-21 by Bernard (via coagent adversarial review of the og118 filesystem-exposure fix)
 
 ## What it is
@@ -59,7 +59,7 @@ companion is insecure by default.**
 
 Related: PR #277 (the hotfix this supersedes), [[og118-identity-scoping-leak]].
 
-## Cierre verificado (2026-08-22)
+## Cierre verificado (2026-08-22) — HISTÓRICO, superado por la sección final
 
 - El perfil es real: `apps/packages/fi-runner/fi_runner/backend.py:156`
   `COMPANION_BLOCKED_BUILTINS` (Bash, Write, Edit, NotebookEdit, Read, Grep,
@@ -79,8 +79,42 @@ builtin bloqueado). Su propio docstring nombra el hueco: *"fi_runner nunca setea
 `ClaudeAgentOptions.tools`, así que cualquier consumidor suyo hereda el preset
 completo por default."*
 
-**Residual (merece su propia tarjeta):** subir la disponibilidad de `tools=` a
-`ToolPolicy` (un `builtin_available`) dentro de `ClaudeCodeBackend.build_options`,
-para poder **borrar** `BackendAcotado` y que los demás companions hereden la
-postura fail-safe en vez de la denylist. Hoy el único consumidor de
-`companion()` fuera de tests es og118 (y fenix, que monta su runtime).
+## El residual quedó SIN OBJETO — y lo que destapó (2026-09-09)
+
+El residual pedía subir `tools=` a `ToolPolicy` dentro de
+`ClaudeCodeBackend.build_options` para poder borrar `BackendAcotado`. **Las dos
+piezas que nombra están muertas**, ambas en el commit `23019587` (2026-08-29, la
+consolidación a AIRE): `ClaudeCodeBackend` se borró junto con `CodexBackend` y
+`SubprocessCLIBackend` (`fi_runner/backends/__init__.py` lo documenta), y con él
+se fue `BackendAcotado` de og118 — hoy sólo sobrevive como prosa en el nombre de
+`server/tests/test_capability_surface_is_bounded.py`. No hay dónde poner un
+`builtin_available`: no queda backend que construya `ClaudeAgentOptions`.
+
+**Lo que sí es cierto hoy, verificado:**
+
+- `ToolPolicy.companion()` **no tiene un solo consumidor vivo** — sólo
+  `tests/test_backend.py`. og118 manda `ToolPolicy()` pelado
+  (`server/runner.py:328`) y explica por qué en el mismo sitio.
+- `AIREBackend` **no reenvía `tool_policy`** (`backends/aire.py:45`). Quien acota
+  de verdad es el dial de modos de AIRE, server-side: `complete` no concede
+  ningún builtin, `agent` concede `Read/Write/Glob/Grep/WebSearch/WebFetch`, y
+  **`Bash` está prohibido en los dos** (`aire-server
+  server/aire/engine/options.py:63-74`), más la jaula `PreToolUse` que niega todo
+  tool de archivo fuera de la casita (`aire-server server/aire/engine/cage.py`).
+- **El hueco que esto destapó, ya cerrado:** `_warn_unenforceable` avisaba por
+  `builtin_allowed` y por un `permission_mode` no-default, **pero no por
+  `builtin_disallowed`** — o sea, la forma exacta que produce `companion()` con
+  modo default cruzaba en SILENCIO. Corregido + 4 tests (`tests/test_aire_backend.py`).
+- **Cuatro archivos de fenix afirmaban una garantía que nadie ejercía:**
+  presupuesto.py, fenix_mcp.py, regularizacion.py y fenix_app.py decían
+  *"`ToolPolicy.companion()` le bloquea `Bash`, `Write` y `Edit`"*. Falso dos
+  veces: la llamada no ocurre, y el runner del tutor corre en `aire_mode="agent"`
+  (`fenix_app.py:651`), donde **`Write` SÍ está concedido** (confinado a la
+  casita). El diseño —el servidor genera el .xlsx, no el modelo— sigue siendo el
+  correcto; la razón escrita era falsa y se corrigió a la real. Importa porque
+  fenix tiene usuarios reales.
+
+**Lo único que queda es de otro repo y es decisión de Bernard: aire-server #37**
+(que la puerta acepte una postura de tools por turno). Hasta entonces, una
+denylist de fi-runner es documentación, no un candado — y el warning es lo que
+mantiene esa diferencia visible. Ver [[fi-runner-aire-backend]].
