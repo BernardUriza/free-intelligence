@@ -14,7 +14,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAudioAnalysis, useResonanceCallLoop, type ResonanceCallAdapters } from 'fi-glass/voice';
+import {
+  useAudioAnalysis,
+  useResonanceCallLoop,
+  type ResonanceCallAdapters,
+  type ResonanceErrorPhase,
+} from 'fi-glass/voice';
 
 import { og118VoiceAdapter, OG118_DEFAULT_VOICE } from './og118VoiceAdapter';
 
@@ -24,6 +29,8 @@ export interface Og118ResonanceCallParams {
   appendUserMessage: (text: string) => void;
   /** Send a turn through the streaming agent and resolve with the final assistant text. */
   requestAssistantTurn: (userText: string) => Promise<string>;
+  /** Un fallo de voz que el usuario debe ver — se pinta en `Og118VoiceErrorBanner`. */
+  onVoiceError?: (message: string) => void;
   debug?: boolean;
 }
 
@@ -31,8 +38,32 @@ function audioSourceToUrl(src: Blob | { url: string }): string {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
 
+const FALLO_POR_FASE: Record<ResonanceErrorPhase, string> = {
+  mic: 'No se pudo abrir el micrófono — la llamada se colgó.',
+  stt: 'No se pudo transcribir tu voz.',
+  agent: 'El agente no pudo responder este turno.',
+  tts: 'No se pudo sintetizar la respuesta en voz.',
+};
+
+/**
+ * El texto que el usuario lee cuando un turno de llamada falla. `Og118STTError`
+ * y `Og118TTSError` ya cargan un mensaje en español por status (401 sin token,
+ * 503 sin configurar), así que ése gana; el resto cae a la fase para que ningún
+ * fallo llegue mudo. Un fallo recuperable dice que se reintenta — un fatal no,
+ * porque la llamada ya se colgó.
+ */
+export function mensajeDeFalloDeVoz(
+  phase: ResonanceErrorPhase,
+  error: unknown,
+  fatal: boolean,
+): string {
+  const conocido = error instanceof Error ? error.message.trim() : '';
+  if (conocido) return conocido;
+  return fatal ? FALLO_POR_FASE[phase] : `${FALLO_POR_FASE[phase]} Reintentando.`;
+}
+
 export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
-  const { enabled, appendUserMessage, requestAssistantTurn, debug = false } = params;
+  const { enabled, appendUserMessage, requestAssistantTurn, onVoiceError, debug = false } = params;
 
   const [streamActive, setStreamActive] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
@@ -96,7 +127,11 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
       return requestAssistantTurn(lastTranscriptRef.current);
     },
     speak: (text: string) => {
-      return new Promise<void>((resolve) => {
+      // Una SÍNTESIS que falla se propaga: el loop la enruta a `recover('tts')`,
+      // que ahora sí llega al usuario. Tragársela hacía que un /tts 503 se viera
+      // idéntico a un modelo callado. La falla de REPRODUCCIÓN sí resuelve —
+      // el audio existió y cortarlo es semántica de barge-in, no un error.
+      return new Promise<void>((resolve, reject) => {
         if (!text || !og118VoiceAdapter.synthesize) { resolve(); return; }
         void og118VoiceAdapter.synthesize(text, OG118_DEFAULT_VOICE).then((src) => {
           const audio = new Audio(audioSourceToUrl(src as Blob | { url: string }));
@@ -104,7 +139,7 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
           audio.onended = () => resolve();
           audio.onerror = () => resolve();
           void audio.play().catch(() => resolve());
-        }).catch(() => resolve());
+        }).catch(reject);
       });
     },
     stopSpeaking: () => {
@@ -112,6 +147,7 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
       if (a) { a.pause(); a.currentTime = 0; }
     },
     appendUserMessage,
+    onError: (phase, error, fatal) => onVoiceError?.(mensajeDeFalloDeVoz(phase, error, fatal)),
   };
 
   const loop = useResonanceCallLoop({
