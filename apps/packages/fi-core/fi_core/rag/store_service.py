@@ -22,9 +22,10 @@ import os
 from dataclasses import dataclass
 
 from fi_core.rag.chunking import ChunkConfig, ChunkingStrategy, chunk_document
+from fi_core.rag.contextual import Contextualizer
 from fi_core.rag.protocols import DocumentChunkStore, Embedder
 from fi_core.rag.store_retrieval import StoreBackedRetriever
-from fi_core.rag.types import Chunk, ChunkWithEmbedding, DocumentMetadata, DocumentRecord, RetrievedChunk
+from fi_core.rag.types import DocumentRecord, RetrievedChunk
 
 
 def build_store_from_env() -> DocumentChunkStore:
@@ -111,12 +112,18 @@ class RagStore:
         embedder: Embedder,
         max_docs: int | None = None,
         max_bytes: int | None = None,
+        contextualizer: Contextualizer | None = None,
     ) -> RagStore:
-        """Build a RagStore from a store + embedder (wires the retriever)."""
+        """Build a RagStore from a store + embedder (wires the retriever).
+
+        ``contextualizer`` turns on Contextual Retrieval for every ingest: the
+        embedding sees an LLM-written situating context, the stored chunk stays
+        the source text. fi-core is LLM-agnostic, so ``from_env`` cannot build
+        one — the consumer passes its own (see :mod:`fi_core.rag.contextual`)."""
         return cls(
             store=store,
             embedder=embedder,
-            retriever=StoreBackedRetriever(embedder=embedder, store=store),
+            retriever=StoreBackedRetriever(embedder=embedder, store=store, contextualizer=contextualizer),
             max_docs=max_docs,
             max_bytes=max_bytes,
         )
@@ -154,7 +161,12 @@ class RagStore:
         alone rather than clearing them — passing a dict is how a caller says
         "these are the attributes now", and passing nothing used to mean "wipe
         them", which silently removed documents from every filtered query their
-        tenant ran."""
+        tenant ran.
+
+        Embedding and the document write both go through the retriever
+        (:meth:`StoreBackedRetriever.embed_chunks` /
+        :meth:`StoreBackedRetriever.replace_document`) — the one write path, so
+        a contextualizer wired into ``from_components`` applies here too."""
         strat = ChunkingStrategy(strategy) if isinstance(strategy, str) else strategy
         pieces = chunk_document(text, strat, ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=min_chunk_size))
         if not pieces:
@@ -163,20 +175,10 @@ class RagStore:
                 "nothing was stored and nothing was removed"
             )
         await self._enforce_quota(corpus_id, doc_id, new_bytes=sum(len(p.encode("utf-8")) for p in pieces))
-        existing = await self.store.get_document(namespace=corpus_id, document_id=doc_id)
-        if existing is not None:
-            keep = getattr(getattr(existing, "metadata", None), "attributes", None) or {}
-            md = DocumentMetadata(attributes=metadata if metadata is not None else keep)
-            await self.store.delete_chunks_by_document(namespace=corpus_id, document_id=doc_id)
-            await self.store.update_document(namespace=corpus_id, document_id=doc_id, content=text, metadata=md)
-        else:
-            await self.store.create_document(namespace=corpus_id, document_id=doc_id, content=text,
-                                             metadata=DocumentMetadata(attributes=metadata or {}))
-        chunks: list[ChunkWithEmbedding] = []
-        for piece in pieces:
-            embedding = await self.embedder.embed(piece)
-            chunks.append(ChunkWithEmbedding(Chunk(text=piece, source_type="document", source_ref=doc_id), embedding))
-        return await self.store.save_chunks(namespace=corpus_id, document_id=doc_id, chunks=chunks) if chunks else 0
+        chunks = await self.retriever.embed_chunks(pieces, document=text, source_ref=doc_id)
+        return await self.retriever.replace_document(
+            namespace=corpus_id, document_id=doc_id, content=text, chunks=chunks, attributes=metadata
+        )
 
     async def _enforce_quota(self, corpus_id: str, doc_id: str, *, new_bytes: int) -> None:
         """Raise :class:`QuotaExceeded` if ingesting ``new_bytes`` under ``doc_id``

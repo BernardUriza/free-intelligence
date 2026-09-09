@@ -1,6 +1,6 @@
 # `StoreBackedRetriever.ingest` leaves the OLD chunks retrievable after a correction
 
-Status: Proposed — reproduced, and the obvious fix is a silent no-op
+Status: Done 2026-09-09 — fi-core 0.31.0: route 1 ("give add a document"), one write path; the contextualizer is reachable through `RagStore.from_components`
 Proposed: 2026-08-24 by Claude, during the fi-core audit pass
 
 ## What it is
@@ -55,3 +55,29 @@ Two coherent routes, and they are not equivalent:
 and the only face that applies a contextualizer is the retriever nobody constructs
 directly. A grep for `contextualizer` outside `fi_core/rag/` hits only fi-core's
 own tests. Either wire it or freeze it — see [[migrations-end-with-deletion]].
+
+## Cierre 2026-09-09 (fi-core 0.31.0)
+
+Se tomó la ruta 1 — la más correcta — y un poco más: no sólo `add` gana un
+documento, sino que **hay un solo camino de escritura**. `StoreBackedRetriever`
+expone `embed_chunks()` (el único lugar donde el contextualizer aplica) y
+`replace_document()` (get → delete_chunks + update, o create; luego
+`save_chunks`), y `RagStore.ingest` los llama en vez de repetir la secuencia.
+Sobre un `DocumentChunkStore`, `source_ref` ES el `document_id`; sobre un
+`ChunkStore` plano se conserva `add` y el docstring dice sin rodeos que ahí no
+se puede reemplazar. Se embebe ANTES de borrar: un embedder caído deja la
+versión anterior intacta.
+
+Recibo rojo→verde sobre HDF5 real: con el código de HEAD, el caso fundador
+devolvía los dos chunks y `get_document("aviso.md")` era `None`; con el nuevo,
+sólo el martes, `content` actualizado, `chunk_count == 1`. 12 tests en
+`tests/test_rag_reingest_replaces.py` (fi-core 554 → 566).
+
+**`contextual.py` ya es alcanzable:** `RagStore.from_components(contextualizer=…)`.
+`from_env` no puede construirlo — un `Contextualizer` necesita la llamada LLM del
+consumidor y fi-core es agnóstico — y así queda dicho en el docstring.
+
+**Nota de migración (en el CHANGELOG):** el `add` de HDF5 sintetizaba un
+documento `_auto_<source_ref>`; una re-ingesta por `source_ref` escribe ahora al
+documento `source_ref` y no borra esas filas `_auto_*`. Un corpus viejo converge
+borrándolas una vez o re-ingiriendo por `RagStore`; uno nuevo no las tiene.

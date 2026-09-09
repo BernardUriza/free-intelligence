@@ -12,6 +12,58 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.31.0] — 2026-09-09
+
+One defect and one dead feature, with one cause: the RAG store had two write
+paths. `RagStore.ingest` replaced a document's chunks; `StoreBackedRetriever.ingest`
+appended through `store.add` and applied the only contextualizer in the code base,
+which no production face ever constructed. Now there is one path — the retriever
+embeds and writes, `RagStore` calls it — so the fix and the feature arrive together.
+
+### Fixed — re-ingesting a corrected document through `StoreBackedRetriever` leaves no stale chunks (one write path with `RagStore`)
+
+`ingest("...el lunes en la sala azul.", source_ref="aviso.md")` followed by
+`ingest("...el martes en la sala roja.", source_ref="aviso.md")` left BOTH
+sentences retrievable (backlog `b3-fi-core-retriever-reingest-stale`, reproduced
+on HDF5). `store.add` has no document concept, so the store's idempotency key —
+`(namespace, source_ref, text)` — treats an edited text as a new chunk, and the
+obvious patch (`delete_chunks_by_document` first) deleted zero rows because
+`add`ed chunks belong to no document.
+
+- On a `DocumentChunkStore`, **`source_ref` IS the document id**:
+  `StoreBackedRetriever.ingest` now runs `get_document` → `delete_chunks_by_document`
+  + `update_document(content=text)` (attributes kept) or `create_document`, then
+  `save_chunks(document_id=source_ref, ...)` — the sequence `RagStore.ingest`
+  already ran. A search after the correction returns only the corrected chunk;
+  `get_document` shows the new content with `chunk_count == 1`.
+- **`StoreBackedRetriever.replace_document(namespace, document_id, content,
+  chunks, attributes=None)`** is that sequence as a method; **`RagStore.ingest`
+  calls it** (its quota, `NothingToIndex` and `metadata=None`-keeps-attributes
+  semantics are unchanged and pinned in `tests/test_rag_reingest_replaces.py`).
+- A plain `ChunkStore` (add/query only) keeps the `add` path, and the docstring
+  now says plainly that it cannot replace a `source_ref`'s chunks. Blank text, or
+  text that chunks to nothing, still returns 0 without touching the store.
+- Migration note: chunks the HDF5 store wrote through `add` live under a
+  synthesized `_auto_<source_ref>` document; a re-ingest under `source_ref`
+  writes to `source_ref` and does not remove them. Delete `_auto_*` documents
+  once, or re-ingest through `RagStore`, to converge an existing corpus.
+
+### Added — Contextual Retrieval reachable: `RagStore.from_components(contextualizer=...)`
+
+`fi_core.rag.contextual` was unreachable from both production faces:
+`from_components` hard-wired `StoreBackedRetriever(contextualizer=None)` and
+`RagStore.ingest` embedded chunks itself, bypassing the retriever.
+
+- **`StoreBackedRetriever.embed_chunks(pieces, *, document, source_ref,
+  source_type="document", created_at=None) -> list[ChunkWithEmbedding]`** is the
+  one embedding step: with a contextualizer set it embeds
+  `"<context>\n\n<chunk>"` and returns the plain chunk for storage, so the
+  citation stays verbatim. `RagStore.ingest` embeds through it.
+- **`RagStore.from_components(..., contextualizer=)`** passes it into the
+  retriever. `from_env` is unchanged: fi-core is LLM-agnostic and a
+  `Contextualizer` needs the consumer's model call
+  (`CallableContextualizer(call=...)`), so there is no env var that could build one.
+
 ## [0.30.0] — 2026-09-08
 
 Three additions with one origin: discord-bot #54 (Alex's decisions for the

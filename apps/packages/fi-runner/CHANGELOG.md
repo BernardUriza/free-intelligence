@@ -22,6 +22,20 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.6] — 2026-09-09
+
+### Changed
+
+- **fi-core cap raised to `<0.32`.** fi-core 0.31.0 makes
+  `StoreBackedRetriever.ingest` REPLACE a `source_ref`'s chunks on a
+  `DocumentChunkStore` (re-ingesting a corrected document no longer leaves the
+  old version retrievable) and makes Contextual Retrieval reachable through
+  `RagStore.from_components(contextualizer=...)`. `RagStore.ingest`, which
+  `fi_runner.rag_store` fronts, keeps its quota / `NothingToIndex` / metadata
+  contract; the change is additive. Suite passes against 0.31.0.
+
+---
+
 ## [0.21.5] — 2026-09-08
 
 ### Changed
