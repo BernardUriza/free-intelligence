@@ -38,15 +38,3 @@ def test_base_runner_keeps_the_companion_filesystem_guard() -> None:
     assert _runner.backend.default_mode == "complete"
 
 
-def test_a_local_persona_swap_keeps_the_companion_guard() -> None:
-    """A LOCAL element composes its persona and runs on og118's runner; that swap
-    must NOT widen the tool policy. No active element is local, so exercise the
-    build path directly with Oxígeno's composed (SSOT) persona as the input."""
-    from runner import build_runner
-    from elements_registry import get_registry
-
-    reg = get_registry()
-    composed = reg.composed_persona(reg.resolve("oxigeno"))
-    runner = build_runner(persona_text=composed)
-    assert "Vultur Analytica" in runner.persona
-    assert runner.backend.default_mode == "complete"

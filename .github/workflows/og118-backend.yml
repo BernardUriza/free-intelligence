@@ -20,7 +20,6 @@ on:
       - 'apps/og118/server/**'
       - 'apps/packages/fi-core/**'
       - 'apps/packages/fi-runner/**'
-      - 'apps/packages/fi-personas/**'
       - '.github/workflows/og118-backend.yml'
   workflow_dispatch:
 
