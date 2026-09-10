@@ -14,15 +14,13 @@ from .contract import ToolCall, TurnResult
 
 
 def turn_cost(event: dict[str, Any]) -> float:
-    """The dollars a `result` event reports (0.0 when absent) — the engine's
-    per-turn accounting reads it off the drained stream, not the SDK directly.
-
-    The result reaches this in TWO shapes: the SDK's dataclass, straight from the
-    turn loop, and a plain dict once the HTTP surface has flattened it for the
-    wire. Reading only the first answered 0.0 to the second, so an invited key
-    (#32d) billed nothing on every turn and its ceiling could never bite — a
-    money function that silently returns 0 for a shape it does not know is
-    indistinguishable from a free turn. Both shapes are read here."""
+    """The dollars a `result` event reports (0.0 when absent) — per-turn
+    accounting reads it off the drained stream, not the SDK directly. The result
+    arrives in TWO shapes: the SDK dataclass straight from the turn loop, and a
+    plain dict once the HTTP surface flattened it for the wire. Reading only the
+    first answered 0.0 to the second, so an invited key (#32d) billed nothing and
+    its ceiling could never bite — a money function that silently returns 0 for a
+    shape it does not know is indistinguishable from a free turn. Both are read."""
     result = event.get("result")
     usage = getattr(result, "usage", None)
     if usage is None and isinstance(result, dict):
@@ -43,10 +41,7 @@ class _State:
     tools: list[ToolCall] = field(default_factory=list)
     by_id: dict[str, int] = field(default_factory=dict)
     start_ts: dict[str, float] = field(default_factory=dict)
-    #: Where the ANSWER starts in `parts` — the index just past the last tool
-    #: call. Text before a tool call is the model reasoning out loud on its way
-    #: to using one; text after the last one is what it decided to say.
-    answer_from: int = 0
+    answer_from: int = 0  #: índice en `parts` donde empieza la respuesta (ver contract.TurnResult)
 
 
 def _tokens_spent(usage: dict[str, Any] | None) -> bool:
@@ -81,9 +76,7 @@ def _on_assistant(content: list, st: _State) -> list[dict[str, Any]]:
                 st.parts.append(text)
                 events.append({"type": "text", "text": text})
         elif btype == "ToolUseBlock":
-            # Everything written so far was on the way to this call, not an
-            # answer to the caller. The answer, if any, comes after the LAST one.
-            st.answer_from = len(st.parts)
+            st.answer_from = len(st.parts)  # lo dicho hasta aquí fue camino, no respuesta
             tc = ToolCall(name=getattr(block, "name", "") or "",
                           input=getattr(block, "input", None),
                           id=getattr(block, "id", None))
