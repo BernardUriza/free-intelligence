@@ -61,6 +61,31 @@ def test_maps_result_event() -> None:
     assert tr.tool_calls[0].server == "rag"  # ToolCall.make parsed the mcp server
 
 
+def test_the_answer_survives_the_translation() -> None:
+    """AIRE parte la prosa del turno en dos: todo lo que dijo (`text`) y lo que
+    dijo DESPUÉS de su última tool call (`answer`). Tirar la mitad útil puso
+    plomería del harness —"Task tracking not needed — single-turn action."—
+    delante de humanos reales en Discord seis veces, pegada a la respuesta
+    porque el join de AIRE no lleva separador."""
+    tr = _backend()._to_result(
+        {
+            "text": "Task tracking not needed.Hecho, amix.",
+            "answer": "Hecho, amix.",
+        },
+        session="s",
+    )
+    assert tr.answer == "Hecho, amix."
+    assert tr.text == "Task tracking not needed.Hecho, amix."
+
+
+def test_an_aire_without_the_field_leaves_the_answer_empty() -> None:
+    """RESISTENCIA: un AIRE viejo no manda `answer`. Queda "" y el consumidor
+    cae a `text` — nunca mudo por evitar una fuga."""
+    tr = _backend()._to_result({"text": "sólo texto"}, session="s")
+    assert tr.answer == ""
+    assert tr.text == "sólo texto"
+
+
 def test_result_without_model_stays_none() -> None:
     tr = _backend()._to_result({"text": "x"}, session="s")
     assert tr.model is None
