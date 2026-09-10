@@ -1,6 +1,20 @@
 # OG118-ELEMENTS-ADR-1 — Finite 118-slot persona registry (the "elementos")
 
-**Status:** Proposed — decisión de Bernard (ratificar las 4 decisiones de §4)
+**Status:** **Aceptado por implementación** (verificado contra el código 2026-09-09).
+Las 4 decisiones de §4 se construyeron tal como se recomendaron, sin que nadie
+firmara la ratificación — así que la ratificación la dio el código:
+
+| | Recomendado | En el código |
+|---|---|---|
+| D1 | `vultur-bot → O`, resto curación manual | `elements[O].backingBotId = "vultur-bot"`; 4 activos de 118 |
+| D2 | PK = número atómico | cada slot trae `atomicNumber`+`symbol`+`slug`; personas `008-o-oxigeno.context.md`, `094-pu-plutonio.context.md` |
+| D3 | 118 cap DURO, estados `empty/reserved/active/…` | `cap: 118`, 118 slots, estados `empty`/`active`/`reserved` en uso |
+| D4 | registry estructural + persona `.md` por elemento | `server/elements/elements.registry.json` + `server/elements/personas/*.md` |
+
+Lo único que queda es **curación slot por slot**, que es trabajo de Bernard por
+definición (D1) y no un gate de arquitectura. Esta cabecera decía *"awaiting
+Bernard's ratification"* durante dos meses y medio mientras el código ya la
+cumplía entera.
 **Fecha:** 2026-06-27
 **Autor:** Claude Code (vía /work; visión de Bernard + arquitectura del coagent AURITY, destiladas del backlog `og118-elementos-118-gpt-personas`)
 **Scope:** ADR. Define el modelo; NO construye el registry todavía (el primer slice se abre al ratificar). Cero cambios de auth/endpoints/voz/Gate 4.

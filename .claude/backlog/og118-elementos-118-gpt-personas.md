@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)
 
-Status: ADR open — `apps/og118/OG118-ELEMENTS-ADR-1.md` (2026-06-27), awaiting Bernard's ratification of the 4 decisions
+Status: **Done en estructura** (verificado contra el código 2026-09-09) — el registry de 118 slots existe con `cap: 118` y las 4 decisiones del ADR se implementaron tal como se recomendaron, así que `OG118-ELEMENTS-ADR-1` pasó a **Aceptado por implementación**. Curados: **4 activos** (O·vultur, Al, I, Pu·Reaper) + 1 reservado (Og), de 118. Lo que falta es curación slot por slot, que es trabajo de Bernard por definición (D1) — NO un gate de arquitectura. Esta línea decía *"ADR open, awaiting ratification"* dos meses y medio mientras el código ya lo cumplía
 Proposed: 2026-06-24 by Bernard
 
 > 2026-06-27: the security gate that blocked this CLEARED (#277 root-fixed + raised

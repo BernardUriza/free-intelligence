@@ -134,3 +134,26 @@ por turno es **aire-server #37**, decisión de Bernard; mientras no exista en la
 puerta, fi-runner no tiene nada que forwardear y avisa con warning, que es lo
 correcto. Del lado de fi-runner no queda trabajo: la tarjeta cierra y el
 residual vive donde se decide.
+
+## Lo que el hueco de `tool_policy` resultó costar — 2026-09-09
+
+El único input no reenviable de la puerta dejó de ser un detalle contable:
+
+- **`ToolPolicy.companion()` no tiene un solo consumidor vivo.** Sólo lo llaman
+  sus tests. og118 manda `ToolPolicy()` pelado y lo explica en `runner.py:328`.
+  El perfil existe, está probado, y no gobierna nada — porque no hay campo en la
+  puerta que lo transporte.
+- **Cuatro archivos de fenix afirmaban por escrito una garantía que ese perfil
+  no daba** (*"`ToolPolicy.companion()` le bloquea Bash, Write y Edit"*), en un
+  repo con usuarios reales. Corregidos el mismo día → ver
+  [[fi-runner-toolpolicy-1-companion-profile]].
+- **`_warn_unenforceable` no avisaba por `builtin_disallowed`**, que es
+  justamente la forma que produce `companion()`: una denylist con modo default
+  cruzaba en silencio. Arreglado + 4 tests.
+
+Quien acota de verdad hoy es el dial de modos de AIRE (`complete` no concede
+ningún builtin; `agent` concede Read/Write/Glob/Grep/WebSearch/WebFetch; **Bash
+está prohibido en los dos**) más la jaula `PreToolUse` de
+`aire-server engine/cage.py`. Y el dial es de dos muescas cerradas, que es
+exactamente el problema que **aire-server #37** nombra — sigue `Proposed` allá
+(verificado hoy en su backlog).
