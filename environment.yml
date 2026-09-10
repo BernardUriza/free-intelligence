@@ -128,7 +128,7 @@ dependencies:
   # SUBIDO a 0.21.4 (2026-09-07): cap de fi-core <0.30, el que admite la 0.29.0
   # de arriba (0.21.3 capaba <0.29).
   # SUBIDO a 0.21.5 (2026-09-08): cap de fi-core <0.31, el que admite la 0.30.0.
-  - fi-runner=0.21.5
+  - fi-runner=0.21.7
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

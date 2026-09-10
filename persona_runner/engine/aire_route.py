@@ -628,7 +628,17 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         **route_meta,
     )
     return TurnResponse(
-        text=result.text,
+        # `answer or text`, nunca `answer` a secas. AIRE parte la prosa del turno
+        # en dos: todo lo que el modelo dijo, y lo que dijo DESPUÉS de su última
+        # tool call. Lo primero incluye su razonamiento en voz alta camino a la
+        # herramienta, pegado a la respuesta porque el join de AIRE no lleva
+        # separador — así llegó "Task tracking not needed — single-turn action.
+        # Proceeding to soft-delete fact 73.Hecho, amix" a #general delante de
+        # dos personas (2026-09-09; seis casos en toda la historia del canal).
+        # El fallback es obligatorio: un turno puede terminar EN una tool call
+        # sin decir nada después, y ahí `answer` viene vacío. Nadie se queda
+        # mudo por evitar una fuga.
+        text=(getattr(result, "answer", "") or result.text),
         session_uuid=result.session_id,
         input_tokens=reported_tokens(usage, "input_tokens"),
         output_tokens=reported_tokens(usage, "output_tokens"),
