@@ -39,13 +39,13 @@ Lo que estaba mintiendo:
 | Item | Status | Propuesta |
 |---|---|---|
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Not built** (verificado por grep 2026-09-09: cero cola, cero worker, cero `BackgroundTasks`) — no la bloquea trabajo sino una decisión de arquitectura de Bernard: romper el invariante "backend stateless / transcript del cliente" o quedarse con el honesty guard | 2026-07-05 |
-| [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **Proposed** (medido 2026-09-09) — 273 de las 771 líneas de `globals.css` son `og-project*`; `fi-glass/resource` ya existe y og118 ya lo consume a medias. El 58% del residuo está en `Og118ProjectWorkspace.tsx`. Es la tarjeta que B3-FIGLASS-SHELL-PRIMITIVES-1 prometió al cerrar | 2026-09-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **En curso** — corte 1 entregado 2026-09-10: `EditableSection` + `ResourceListSection` en fi-glass, `globals.css` **771 → 664**, 15 clases → 5 en el detalle. La medición destapó tres defectos preexistentes (un min-height táctil prometido y nunca escrito, selectores muertos, y fi-glass sin auto-cleanup de tests). Siguen Section/Index/UploadPanel | 2026-09-09 |
 | [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado EN VIVO 2026-09-09) — build + install + launch + login en pantalla, corridos hoy. Falta la vuelta de chat real; el átomo es la contraseña de Auth0. Ojo: la Mac no tiene dispositivos de simulador creados, hay que crear uno | 2026-08-12 |
 
 ## Entregadas

@@ -623,92 +623,7 @@ body {
   font-size: 0.875rem;
   color: var(--glass-chat-text-muted, #94a3b8);
 }
-.og-projects-heading--editing {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.6rem;
-}
-.og-projects-heading--editing label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--glass-chat-text-muted, #94a3b8);
-}
-.og-projects-heading--editing input,
-.og-projects-heading--editing textarea {
-  /* 16px: por debajo de eso iOS hace auto-zoom al enfocar y descuadra la página. */
-  font-size: 16px;
-  color: var(--glass-chat-text, #e2e8f0);
-  background: var(--glass-chat-bg-mid, #0f172a);
-  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
-  resize: vertical;
-}
-.og-projects-heading-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-.og-projects-recents {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.og-projects-recents-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.og-projects-recents-head h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--glass-chat-text, #e2e8f0);
-}
-.og-projects-recent-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-.og-projects-recent-list li + li {
-  border-top: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
-}
-.og-projects-recent-list button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 44px;
-  padding: 0.5rem 0.25rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-}
-.og-projects-recent-list button:hover {
-  background: var(--glass-chat-item-hover, rgba(255, 255, 255, 0.04));
-}
-.og-projects-recent-title {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.875rem;
-  color: var(--glass-chat-text, #e2e8f0);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.og-projects-recent-time {
-  flex: 0 0 auto;
-  font-size: 0.75rem;
-  color: var(--glass-chat-text-muted, #94a3b8);
-}
+.og-projects-page .fi-editable input,
 .og-projects-nav {
   display: block;
   width: 100%;
@@ -734,38 +649,16 @@ body {
   .og-projects-cta,
   .og-projects-edit,
   .og-projects-sort select,
-  .og-projects-heading--editing input,
-  .og-projects-heading--editing textarea,
-  .og-projects-instructions-form textarea {
+  .og-projects-page .fi-editable input,
+  .og-projects-page .fi-editable textarea {
     min-height: 44px;
   }
-  .og-projects-heading {
+
+  /* El contenedor envuelve para que el target crezca sin empujar a nadie fuera:
+     la regla dice recolocar, no encoger. */
+  .og-projects-heading,
+  .og-projects-page .fi-editable-actions {
     flex-wrap: wrap;
   }
 }
 
-.og-projects-instructions-preview {
-  white-space: pre-wrap;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.og-projects-instructions-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.og-projects-instructions-form textarea {
-  /* 16px: por debajo, iOS hace auto-zoom al enfocar. */
-  font-size: 16px;
-  color: var(--glass-chat-text, #e2e8f0);
-  background: var(--glass-chat-bg-mid, #0f172a);
-  border: 1px solid var(--glass-chat-surface-border, rgba(255, 255, 255, 0.12));
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
-  resize: vertical;
-}
-.og-projects-error {
-  color: var(--og-danger-text, #fca5a5);
-}

@@ -41,6 +41,20 @@ export {
 export { CapacityMeter, type CapacityMeterProps } from './CapacityMeter';
 
 export {
+  EditableSection,
+  type EditableSectionProps,
+} from './EditableSection';
+
+export {
+  ResourceListSection,
+  ResourceListItems,
+  ResourceListRow,
+  type ResourceListSectionProps,
+  type ResourceListItemsProps,
+  type ResourceListRowProps,
+} from './ResourceListSection';
+
+export {
   DocCard,
   DocCardGrid,
   type DocCardProps,
@@ -70,6 +84,15 @@ export {
   FI_RAIL_PANEL_CLASS,
   FI_RAIL_PANEL_HEAD_CLASS,
   FI_RAIL_PANEL_TITLE_CLASS,
+  FI_EDITABLE_CLASS,
+  FI_EDITABLE_ACTIONS_CLASS,
+  FI_EDITABLE_ERROR_CLASS,
+  FI_LIST_CLASS,
+  FI_LIST_HEAD_CLASS,
+  FI_LIST_ITEMS_CLASS,
+  FI_LIST_ROW_CLASS,
+  FI_LIST_ROW_TITLE_CLASS,
+  FI_LIST_ROW_META_CLASS,
   FI_METER_CLASS,
   FI_METER_TRACK_CLASS,
   FI_METER_FILL_CLASS,

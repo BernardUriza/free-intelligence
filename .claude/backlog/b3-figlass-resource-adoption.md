@@ -1,6 +1,6 @@
 # B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos todavía es CSS de og118, no anatomía de fi-glass
 
-Status: **Proposed** (medido 2026-09-09)
+Status: **En curso** — primer corte entregado 2026-09-10: `globals.css` **771 → 664** medido
 Proposed: 2026-09-09 by Claude — es la tarjeta que [[b3-figlass-shell-primitives]] prometía al cerrar 1D y que nunca existió
 
 ## Qué es
@@ -80,3 +80,49 @@ está el 58% del residuo.
 Ver [[b3-figlass-shell-primitives]] (el arco hermano, cerrado; esta tarjeta es la
 que prometió), [[figlass-projects-page]] (la FUNCIÓN de la misma página, con su
 Fase 2 abierta), [[framework-first-canary]] y [[mobile-viewport-ux]].
+
+## Corte 1 — `Og118ProjectWorkspace.tsx`, 2026-09-10
+
+**Dos primitivos nuevos en `fi-glass/resource`**, los dos por evidencia y no por
+diseño especulativo:
+
+- **`EditableSection`** — og118 escribía la misma forma de vista⇄edición DOS
+  VECES en el mismo archivo. Sube el MARCO (el `<form>`, la fila de acciones, la
+  línea de error), no la máquina: cuál campo, guardado async y validación son
+  producto. `useInlineRename` de `fi-glass/agent` se dejó en paz — es de un solo
+  valor con commit al blur y no encajaba; construir una segunda máquina habría
+  sido el olor.
+- **`ResourceListSection` / `Items` / `Row`** — cabecera con acción y filas de
+  (título, meta). Estado vacío y de carga quedan como `children` del consumidor:
+  un componente con su propio *"no hay nada todavía"* ya eligió un idioma.
+
+**Resultado medido:** de 15 clases `og-project*` en ese archivo a **5**, y las 5
+que quedan son marca real (`cta`, `edit`, `note`, `page`, `heading`). 18 bloques
+de CSS quedaron sin un solo consumidor —verificado por grep— y se borraron.
+
+### Lo que la medición obligatoria destapó, y es lo más valioso del corte
+
+1. **El bloque táctil prometía lo que no hacía.** Su comentario cita los números
+   exactos (*"el CTA quedaba en 37px, Editar en 34 y el select en 30 — todos por
+   debajo del mínimo de 44"*) y la regla dentro era **sólo `flex-wrap: wrap`**.
+   Nunca hubo `min-height`. Mi medición independiente dio esos MISMOS números, lo
+   que prueba que el arreglo se escribió, se documentó y no se aplicó. Ahora el
+   `min-height: 44px` existe y el `wrap` se movió al contenedor.
+2. **Selectores muertos:** `.og-projects-heading--editing input/textarea` seguían
+   citados en dos bloques después de que la clase dejó de existir.
+3. **fi-glass no tenía auto-cleanup de Testing Library.** Sin `globals: true` ni
+   un `afterEach` registrado, cada `render` se quedaba pegado en el `body` y el
+   caso siguiente lo veía; un `screen.*` global podía leer el DOM del test
+   ANTERIOR. Lo descubrió un rojo mío. Registrado: 627 verdes, ninguno dependía
+   de la fuga.
+
+**Recibos:** contenedor de 374px en Chrome real, media táctil activa, overflow 0
+en documento/arnés/head/detalle/rail, los cuatro botones a **44px** (antes
+44/34/37/34), screenshot tomado y arnés efímero borrado sin commitear. fi-glass
+**627** verdes (9 nuevos), og118-web **116**, cero errores de tipos.
+
+### Lo que sigue
+
+`Og118ProjectsSection` (5 clases), `Og118ProjectsIndex` (5), `Og118ProjectUploadPanel`
+(3) y las de página. Ninguna concentra como concentraba el detalle, así que el
+resto es un arco más plano.
