@@ -38,7 +38,6 @@ Lo que estaba mintiendo:
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [PERSONA-SSOT-2 — el personaje vive DOS veces, y el elemento que lo cita no lo lee](persona-ssot-el-personaje-vive-dos-veces.md) | **Proposed** (medido 2026-09-09) — `vultur.core.md` de fi-personas tiene 96 líneas y la copia viva de discord-bot 205, con 87 exclusivas; discord-bot no importa fi-personas. Y el esquema deja que un elemento declare motor externo Y persona local a la vez (Oxígeno), quedando el archivo local sin ejecutar y sin validar | 2026-09-09 |
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Not built** (verificado por grep 2026-09-09: cero cola, cero worker, cero `BackgroundTasks`) — no la bloquea trabajo sino una decisión de arquitectura de Bernard: romper el invariante "backend stateless / transcript del cliente" o quedarse con el honesty guard | 2026-07-05 |
 | [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **Proposed** (medido 2026-09-09) — 273 de las 771 líneas de `globals.css` son `og-project*`; `fi-glass/resource` ya existe y og118 ya lo consume a medias. El 58% del residuo está en `Og118ProjectWorkspace.tsx`. Es la tarjeta que B3-FIGLASS-SHELL-PRIMITIVES-1 prometió al cerrar | 2026-09-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
@@ -53,6 +52,7 @@ Lo que estaba mintiendo:
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [PERSONA-SSOT-2 — el personaje vive DOS veces, y el elemento que lo cita no lo lee](persona-ssot-el-personaje-vive-dos-veces.md) | **Done 2026-09-10** — el prompt de un elemento vive en discord-bot y punto. Vultur borrado, Reaper migrado (`e7e196b`), `fi-personas` eliminado y la capacidad local arrancada del código: el campo ya no existe, que es mejor candado que un validador. Verificado en vivo contra el persona-runner | 2026-09-09 |
 | [CONV-CONCURRENCY-1 — pin/título se perdían en last-write-wins entre dispositivos](og118-conv-concurrency.md) | **Done 2026-08-23** — `PUT` deja de opinar sobre las banderas y `PATCH` manda el delta; la ruta del 409 sobre `updatedAt` resultó incorrecta y la tarjeta explica por qué | 2026-07-13 |
 | [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai)](figlass-projects-page.md) | **Done 2026-08-22** — los 3 PRs + `instructions` cableadas al prompt. Fase 2 abierta: composer en la página, pin/archive. La ANATOMÍA de la misma página es [[b3-figlass-resource-adoption]]; si sólo hay presupuesto para una, la función gana | 2026-07-14 |
 | [OG118-SESSION-DELETE-CASCADE-1 — borrar conversación borra su sesión nativa](og118-session-store-delete-cascade.md) | **Done 2026-08-22** — cascada en las dos superficies de borrado. Queda el TTL de los huérfanos que el bug ya dejó | 2026-07-13 |

@@ -1,6 +1,6 @@
 # PERSONA-SSOT-2 — el personaje vive DOS veces, y el elemento que lo cita no lo lee
 
-Status: **Proposed** (medido 2026-09-09)
+Status: **Done 2026-09-10** — Bernard decidió: el prompt de un elemento vive en discord-bot y en ningún otro lado. Vultur borrado de aquí, Reaper migrado allá, `fi-personas` eliminado y la capacidad local arrancada del código. Ver el cierre al final
 Proposed: 2026-09-09 by Bernard (preguntó dónde debe vivir el prompt de un elemento: en el bot o en og118)
 
 ## El estado real, medido
@@ -81,3 +81,38 @@ Ver [[og118-elementos-118-gpt-personas]], [[prompts-as-content-not-code]] (el
 prompt es contenido, y un contenido duplicado tiene el mismo olor que un
 constante inline), [[00-constitution]] Art. 6 (una fuente de verdad por
 superficie) y [[backlog-cross-repo-closure]].
+
+## Cierre — 2026-09-10
+
+Bernard, textual: *"mata vultur aquí, y todos los prompts de FI que den vida a
+elementos, es el lugar incorrecto, deben estar en discord-bot y responder desde el
+server como lo hace Yodo/Insult."*
+
+**Los dos casos, resueltos en direcciones opuestas:**
+
+- **Vultur** — la copia de og118 (`vultur.core.md`, 96 líneas) se borró. Nunca se
+  ejecutó: Oxígeno es externo y `app.py` retornaba antes de componer el prompt. La
+  viva sigue siendo `discord-bot/shared/personas/vultur.md`.
+- **Reaper** — era el ÚNICO elemento local. Su personaje vivía partido en dos
+  archivos de este repo; se empalmaron en el marcador y viajaron a
+  `discord-bot/shared/personas/reaper.md` (commit `e7e196b`, v4.38.29). Plutonio
+  pasó a `engineBinding: external_http_engine / personaId: reaper`.
+
+**Verificado en vivo**, no por lectura: `POST /v1/turn` contra el persona-runner
+real con `persona_id=reaper` contestó *"Reaper Arquetipo: analista implacable de
+código, refactor brutal, ejecución sin titubeos"* — no la persona por default.
+
+**El candado que se pedía en el paso 1 quedó mejor que un validador:** el campo ya
+no existe. `personaCorePath`, `personaPromptPath`, `composed_persona()`,
+`persona_path()`, `core_path()`, `FI_PERSONAS_DIR`, el marcador de empalme y los
+kinds `local_runner_persona` / `shared_persona_prompt` se borraron. Un elemento
+activo sin motor externo **no carga** — falla al arrancar en vez de contestar con
+la persona base haciéndose pasar por Plutonio.
+
+**El orden importó y se respetó:** el CD de discord-bot subió `reaper.md` ANTES de
+que og118 tocara el registry. Al revés, Plutonio habría caído a la persona default
+en silencio.
+
+Coordinado con la sesión de discord-bot, que trabajaba lo mismo en paralelo: paró
+sin commitear y su trabajo va doblado en este PR (el borrado de Vultur y la
+doctrina invertida del README fueron suyos).
