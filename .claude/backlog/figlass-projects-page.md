@@ -4,6 +4,12 @@ Status: **Done** (fase 1 + instructions cableadas) — 2026-08-22; queda el comp
 Proposed: 2026-07-14 by Bernard ("quiero que sea una página, muy parecido a como
 sucede en claude.ai, que se ven recuadros con contenido y todo ese spa")
 
+
+> **La ANATOMÍA de esta misma página es otra tarjeta** (2026-09-09): 273 de las 771 líneas de
+> `globals.css` siguen siendo `og-project*` pese a que `fi-glass/resource` ya existe →
+> [[b3-figlass-resource-adoption]]. Ésta gobierna la FUNCIÓN (fase 2: composer en la página,
+> pin/archive); aquélla, la forma. Si sólo hay presupuesto para una, la función gana.
+
 ## What it is
 
 La sección Projects de og118 deja de ser una lista en el sidebar y se convierte

@@ -1,6 +1,6 @@
 # OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)
 
-Status: Proposed
+Status: **Proposed** — sigue Not built, verificado 2026-09-09: cero cola durable, cero worker, cero `BackgroundTasks` en `apps/og118/server` y en `backend/`. No está bloqueada por trabajo sino por la decisión de arquitectura de abajo, que es de Bernard
 Proposed: 2026-07-05 by Bernard (dogfood: og118 promised a background investigation, then had no access half an hour later)
 
 ## What it is
