@@ -19,8 +19,12 @@ import {
   CapacityMeter,
   DocCard,
   DocCardGrid,
+  EditableSection,
   RailPanel,
   RailPanelStack,
+  ResourceListItems,
+  ResourceListRow,
+  ResourceListSection,
   WorkspaceBreadcrumb,
   WorkspaceDetailLayout,
 } from 'fi-glass/resource';
@@ -116,13 +120,15 @@ export function Og118ProjectWorkspace({
           </RailPanelStack>
         }
       >
-        <section className="og-projects-recents" aria-label="Conversaciones del proyecto">
-          <div className="og-projects-recents-head">
-            <h2>Conversaciones</h2>
+        <ResourceListSection
+          title="Conversaciones"
+          ariaLabel="Conversaciones del proyecto"
+          actionSlot={
             <button type="button" className="og-projects-cta" onClick={onStartConversation}>
               Nueva conversación
             </button>
-          </div>
+          }
+        >
           {!recents.ready ? (
             <p className="og-projects-note">Cargando…</p>
           ) : recents.conversations.length === 0 ? (
@@ -131,20 +137,18 @@ export function Og118ProjectWorkspace({
               queda ligada a él.
             </p>
           ) : (
-            <ul className="og-projects-recent-list">
+            <ResourceListItems>
               {recents.conversations.map((c) => (
-                <li key={c.id}>
-                  <button type="button" onClick={() => onOpenConversation(c.id)}>
-                    <span className="og-projects-recent-title">{c.title}</span>
-                    <span className="og-projects-recent-time">
-                      {relativeTime(c.updatedAt, now) ?? ''}
-                    </span>
-                  </button>
-                </li>
+                <ResourceListRow
+                  key={c.id}
+                  title={c.title}
+                  meta={relativeTime(c.updatedAt, now) ?? ''}
+                  onSelect={() => onOpenConversation(c.id)}
+                />
               ))}
-            </ul>
+            </ResourceListItems>
           )}
-        </section>
+        </ResourceListSection>
       </WorkspaceDetailLayout>
     </div>
   );
@@ -171,23 +175,20 @@ function ProjectHeading({
     setDescription(project.description);
   }, [project.name, project.description, editing]);
 
-  if (!editing) {
-    return (
-      <header className="og-projects-heading">
-        <div>
-          <h1>{project.name}</h1>
-          {project.description ? <p>{project.description}</p> : null}
-        </div>
-        <button type="button" className="og-projects-edit" onClick={() => setEditing(true)}>
-          Editar
-        </button>
-      </header>
-    );
-  }
-
   return (
-    <form
-      className="og-projects-heading og-projects-heading--editing"
+    <EditableSection
+      editing={editing}
+      view={
+        <header className="og-projects-heading">
+          <div>
+            <h1>{project.name}</h1>
+            {project.description ? <p>{project.description}</p> : null}
+          </div>
+          <button type="button" className="og-projects-edit" onClick={() => setEditing(true)}>
+            Editar
+          </button>
+        </header>
+      }
       onSubmit={async (e) => {
         e.preventDefault();
         // Two PATCHes only where something actually changed: sending an
@@ -197,6 +198,24 @@ function ProjectHeading({
         if (description !== project.description) await onDescribe(description);
         setEditing(false);
       }}
+      submitSlot={
+        <button type="submit" className="og-projects-cta">
+          Guardar
+        </button>
+      }
+      cancelSlot={
+        <button
+          type="button"
+          className="og-projects-edit"
+          onClick={() => {
+            setName(project.name);
+            setDescription(project.description);
+            setEditing(false);
+          }}
+        >
+          Cancelar
+        </button>
+      }
     >
       <label>
         <span>Nombre</span>
@@ -211,23 +230,7 @@ function ProjectHeading({
           maxLength={500}
         />
       </label>
-      <div className="og-projects-heading-actions">
-        <button type="submit" className="og-projects-cta">
-          Guardar
-        </button>
-        <button
-          type="button"
-          className="og-projects-edit"
-          onClick={() => {
-            setName(project.name);
-            setDescription(project.description);
-            setEditing(false);
-          }}
-        >
-          Cancelar
-        </button>
-      </div>
-    </form>
+    </EditableSection>
   );
 }
 
@@ -251,28 +254,26 @@ function InstructionsPanel({
     if (!editing) setDraft(project.instructions);
   }, [project.instructions, editing]);
 
-  if (!editing) {
-    return (
-      <RailPanel
-        title="Instrucciones"
-        actionSlot={
+  return (
+    <RailPanel
+      title="Instrucciones"
+      actionSlot={
+        editing ? null : (
           <button type="button" className="og-projects-edit" onClick={() => setEditing(true)}>
             {project.instructions ? 'Editar' : 'Añadir'}
           </button>
+        )
+      }
+    >
+      <EditableSection
+        editing={editing}
+        view={
+          <p className="og-projects-note">
+            {project.instructions ||
+              'Sin instrucciones. Lo que escribas aquí viaja en cada turno de este proyecto.'}
+          </p>
         }
-      >
-        <p className="og-projects-note og-projects-instructions-preview">
-          {project.instructions ||
-            'Sin instrucciones. Lo que escribas aquí viaja en cada turno de este proyecto.'}
-        </p>
-      </RailPanel>
-    );
-  }
-
-  return (
-    <RailPanel title="Instrucciones">
-      <form
-        className="og-projects-instructions-form"
+        error={error}
         onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
@@ -285,6 +286,24 @@ function InstructionsPanel({
             setError('No se pudo guardar. Revisa que no pase de 4000 caracteres.');
           }
         }}
+        submitSlot={
+          <button type="submit" className="og-projects-cta">
+            Guardar
+          </button>
+        }
+        cancelSlot={
+          <button
+            type="button"
+            className="og-projects-edit"
+            onClick={() => {
+              setDraft(project.instructions);
+              setError(null);
+              setEditing(false);
+            }}
+          >
+            Cancelar
+          </button>
+        }
       >
         <textarea
           value={draft}
@@ -297,24 +316,7 @@ function InstructionsPanel({
         <p className="og-projects-note">
           {draft.length}/{MAX_INSTRUCTIONS} · viajan en el prompt de cada turno de este proyecto
         </p>
-        {error ? <p className="og-projects-note og-projects-error">{error}</p> : null}
-        <div className="og-projects-heading-actions">
-          <button type="submit" className="og-projects-cta">
-            Guardar
-          </button>
-          <button
-            type="button"
-            className="og-projects-edit"
-            onClick={() => {
-              setDraft(project.instructions);
-              setError(null);
-              setEditing(false);
-            }}
-          >
-            Cancelar
-          </button>
-        </div>
-      </form>
+      </EditableSection>
     </RailPanel>
   );
 }
