@@ -104,3 +104,37 @@ See also [#24](24-the-casita-is-not-a-cage.md) (the cage that makes the coarse
 grant survivable), [#29](29-grow-the-door-per-turn.md) (the per-turn fields the
 door already grew, and the pattern to copy) and
 [#35](35-the-consumer-map.md) (the fleet migration that keeps meeting this dial).
+
+## What the coarse dial costs the CALLER — measured 2026-09-09 (free-intelligence)
+
+The founding cost was Fénix's tutor losing web search. Two more landed, and both
+are downstream of this same item — the door has no field for a per-turn tool
+posture, so a caller cannot express one:
+
+- **fi-runner's `ToolPolicy.companion()` now has ZERO live consumers.** It ships,
+  it is tested, and nothing calls it outside its own tests: og118 sends a bare
+  `ToolPolicy()` because `companion()` would cross no wire. A framework profile
+  that cannot reach the runtime is documentation, not a lock.
+- **That gap became a false written guarantee in a repo with real users.** Four
+  files in `apps/fenix` stated *"`ToolPolicy.companion()` blocks Bash, Write and
+  Edit"* as the reason the server — not the model — generates the .xlsx and the
+  tutoring PDF. Wrong twice: the call never happens, and Fénix's tutor runs
+  `aire_mode="agent"`, where `Write` IS granted (confined by `engine/cage.py`,
+  not by any caller policy). Corrected the same day; the design was right, the
+  stated reason was false.
+- **The honest stopgap shipped on the fi-runner side:** `_warn_unenforceable` now
+  also fires on `builtin_disallowed`, which is exactly the shape `companion()`
+  produces — a denylist under the default permission mode used to cross in
+  silence. Warned, never silently honoured, until this item lands.
+
+So #37 is not only "a coarse dial": it is the reason a caller's security posture
+is unrepresentable. When the door grows per-turn tools, `ToolPolicy` is the
+caller-side contract already waiting for it — see free-intelligence
+`.claude/backlog/fi-runner-toolpolicy-1-companion-profile.md` and
+`fi-runner-aire-backend.md`.
+
+**Second, unrelated finding from the same session, worth a look:**
+`engine/options.py:11` still says the real filesystem confinement *"is
+`SandboxSettings`, not yet in place — `cwd` is NOT a cage."* That line predates
+`engine/cage.py`, which IS the cage (a `PreToolUse` hook denying any file tool
+outside the casita). Backlog #24 is the item; the comment is stale either way.
