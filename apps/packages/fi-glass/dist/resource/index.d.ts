@@ -1,5 +1,5 @@
 import * as react from 'react';
-import { ReactNode } from 'react';
+import { ReactNode, FormEvent } from 'react';
 
 interface ResourceIndexHeaderProps {
     /** A string is wrapped in the title slot; a node is used as-is (branded markup). */
@@ -94,6 +94,48 @@ interface CapacityMeterProps {
 }
 declare function CapacityMeter({ used, max, label, className }: CapacityMeterProps): react.JSX.Element;
 
+interface EditableSectionProps {
+    editing: boolean;
+    /** Lo que se ve cuando NO se está editando (incluido su disparador de edición). */
+    view: ReactNode;
+    /** Los campos del formulario. Sólo se montan en modo edición. */
+    children?: ReactNode;
+    onSubmit?: (e: FormEvent<HTMLFormElement>) => void;
+    /** El control primario (enviar). Del consumidor: su etiqueta y su estilo. */
+    submitSlot?: ReactNode;
+    /** El control secundario (cancelar). */
+    cancelSlot?: ReactNode;
+    /** Mensaje de error del último intento de guardado, si lo hubo. */
+    error?: ReactNode;
+    className?: string;
+}
+declare function EditableSection({ editing, view, children, onSubmit, submitSlot, cancelSlot, error, className, }: EditableSectionProps): react.JSX.Element;
+
+interface ResourceListSectionProps {
+    /** Un string se envuelve en `<h2>`; un nodo se usa tal cual. */
+    title: ReactNode;
+    /** Control al final de la fila de cabecera (p. ej. "nuevo"). */
+    actionSlot?: ReactNode;
+    children: ReactNode;
+    /** Etiqueta accesible de la sección. */
+    ariaLabel?: string;
+    className?: string;
+}
+declare function ResourceListSection({ title, actionSlot, children, ariaLabel, className, }: ResourceListSectionProps): react.JSX.Element;
+interface ResourceListItemsProps {
+    children: ReactNode;
+    className?: string;
+}
+declare function ResourceListItems({ children, className }: ResourceListItemsProps): react.JSX.Element;
+interface ResourceListRowProps {
+    title: ReactNode;
+    /** Columna derecha: fecha relativa, conteo, estado. Ya formateada por el consumidor. */
+    meta?: ReactNode;
+    onSelect?: () => void;
+    className?: string;
+}
+declare function ResourceListRow({ title, meta, onSelect, className }: ResourceListRowProps): react.JSX.Element;
+
 interface DocCardProps {
     title: string;
     /** Already formatted, e.g. "67 lines" / "4 chunks". */
@@ -143,6 +185,15 @@ declare const FI_RAIL_STACK_CLASS = "fi-rail-stack";
 declare const FI_RAIL_PANEL_CLASS = "fi-rail-panel";
 declare const FI_RAIL_PANEL_HEAD_CLASS = "fi-rail-panel-head";
 declare const FI_RAIL_PANEL_TITLE_CLASS = "fi-rail-panel-title";
+declare const FI_EDITABLE_CLASS = "fi-editable";
+declare const FI_EDITABLE_ACTIONS_CLASS = "fi-editable-actions";
+declare const FI_EDITABLE_ERROR_CLASS = "fi-editable-error";
+declare const FI_LIST_CLASS = "fi-resource-list";
+declare const FI_LIST_HEAD_CLASS = "fi-resource-list-head";
+declare const FI_LIST_ITEMS_CLASS = "fi-resource-list-items";
+declare const FI_LIST_ROW_CLASS = "fi-resource-list-row";
+declare const FI_LIST_ROW_TITLE_CLASS = "fi-resource-list-row-title";
+declare const FI_LIST_ROW_META_CLASS = "fi-resource-list-row-meta";
 declare const FI_METER_CLASS = "fi-capacity-meter";
 declare const FI_METER_TRACK_CLASS = "fi-capacity-meter-track";
 declare const FI_METER_FILL_CLASS = "fi-capacity-meter-fill";
@@ -158,4 +209,4 @@ declare function ensureResourceStyle(): void;
 /** Ensure the resource-workspace stylesheet is present for the lifetime of the component. */
 declare function useResourceStyle(): void;
 
-export { type BreadcrumbCrumb, CapacityMeter, type CapacityMeterProps, DocCard, DocCardGrid, type DocCardGridProps, type DocCardProps, FI_BREADCRUMB_CLASS, FI_CARD_CLASS, FI_CARD_DESC_CLASS, FI_CARD_GRID_CLASS, FI_CARD_META_CLASS, FI_CARD_TITLE_CLASS, FI_DETAIL_CLASS, FI_DETAIL_MAIN_CLASS, FI_DETAIL_RAIL_CLASS, FI_DOC_CARD_BADGE_CLASS, FI_DOC_CARD_CLASS, FI_DOC_CARD_META_CLASS, FI_DOC_CARD_TITLE_CLASS, FI_DOC_GRID_CLASS, FI_INDEX_ACTIONS_CLASS, FI_INDEX_HEADER_CLASS, FI_INDEX_TITLE_CLASS, FI_METER_CLASS, FI_METER_FILL_CLASS, FI_METER_LABEL_CLASS, FI_METER_TRACK_CLASS, FI_RAIL_PANEL_CLASS, FI_RAIL_PANEL_HEAD_CLASS, FI_RAIL_PANEL_TITLE_CLASS, FI_RAIL_STACK_CLASS, FI_SEARCH_CLASS, RailPanel, type RailPanelProps, RailPanelStack, type RailPanelStackProps, ResourceCard, ResourceCardGrid, type ResourceCardGridProps, type ResourceCardProps, ResourceIndexHeader, type ResourceIndexHeaderProps, ResourceSearchInput, type ResourceSearchInputProps, WorkspaceBreadcrumb, type WorkspaceBreadcrumbProps, WorkspaceDetailLayout, type WorkspaceDetailLayoutProps, ensureResourceStyle, filterByQuery, useResourceStyle };
+export { type BreadcrumbCrumb, CapacityMeter, type CapacityMeterProps, DocCard, DocCardGrid, type DocCardGridProps, type DocCardProps, EditableSection, type EditableSectionProps, FI_BREADCRUMB_CLASS, FI_CARD_CLASS, FI_CARD_DESC_CLASS, FI_CARD_GRID_CLASS, FI_CARD_META_CLASS, FI_CARD_TITLE_CLASS, FI_DETAIL_CLASS, FI_DETAIL_MAIN_CLASS, FI_DETAIL_RAIL_CLASS, FI_DOC_CARD_BADGE_CLASS, FI_DOC_CARD_CLASS, FI_DOC_CARD_META_CLASS, FI_DOC_CARD_TITLE_CLASS, FI_DOC_GRID_CLASS, FI_EDITABLE_ACTIONS_CLASS, FI_EDITABLE_CLASS, FI_EDITABLE_ERROR_CLASS, FI_INDEX_ACTIONS_CLASS, FI_INDEX_HEADER_CLASS, FI_INDEX_TITLE_CLASS, FI_LIST_CLASS, FI_LIST_HEAD_CLASS, FI_LIST_ITEMS_CLASS, FI_LIST_ROW_CLASS, FI_LIST_ROW_META_CLASS, FI_LIST_ROW_TITLE_CLASS, FI_METER_CLASS, FI_METER_FILL_CLASS, FI_METER_LABEL_CLASS, FI_METER_TRACK_CLASS, FI_RAIL_PANEL_CLASS, FI_RAIL_PANEL_HEAD_CLASS, FI_RAIL_PANEL_TITLE_CLASS, FI_RAIL_STACK_CLASS, FI_SEARCH_CLASS, RailPanel, type RailPanelProps, RailPanelStack, type RailPanelStackProps, ResourceCard, ResourceCardGrid, type ResourceCardGridProps, type ResourceCardProps, ResourceIndexHeader, type ResourceIndexHeaderProps, ResourceListItems, type ResourceListItemsProps, ResourceListRow, type ResourceListRowProps, ResourceListSection, type ResourceListSectionProps, ResourceSearchInput, type ResourceSearchInputProps, WorkspaceBreadcrumb, type WorkspaceBreadcrumbProps, WorkspaceDetailLayout, type WorkspaceDetailLayoutProps, ensureResourceStyle, filterByQuery, useResourceStyle };

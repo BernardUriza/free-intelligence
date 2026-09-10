@@ -37,6 +37,15 @@ export const FI_RAIL_STACK_CLASS = 'fi-rail-stack';
 export const FI_RAIL_PANEL_CLASS = 'fi-rail-panel';
 export const FI_RAIL_PANEL_HEAD_CLASS = 'fi-rail-panel-head';
 export const FI_RAIL_PANEL_TITLE_CLASS = 'fi-rail-panel-title';
+export const FI_EDITABLE_CLASS = 'fi-editable';
+export const FI_EDITABLE_ACTIONS_CLASS = 'fi-editable-actions';
+export const FI_EDITABLE_ERROR_CLASS = 'fi-editable-error';
+export const FI_LIST_CLASS = 'fi-resource-list';
+export const FI_LIST_HEAD_CLASS = 'fi-resource-list-head';
+export const FI_LIST_ITEMS_CLASS = 'fi-resource-list-items';
+export const FI_LIST_ROW_CLASS = 'fi-resource-list-row';
+export const FI_LIST_ROW_TITLE_CLASS = 'fi-resource-list-row-title';
+export const FI_LIST_ROW_META_CLASS = 'fi-resource-list-row-meta';
 export const FI_METER_CLASS = 'fi-capacity-meter';
 export const FI_METER_TRACK_CLASS = 'fi-capacity-meter-track';
 export const FI_METER_FILL_CLASS = 'fi-capacity-meter-fill';
@@ -187,6 +196,82 @@ const CSS = `
 .${FI_RAIL_PANEL_CLASS} + .${FI_RAIL_PANEL_CLASS} {
   border-top: 1px solid var(--fi-resource-rail-divider, ${glassTokens.sidebarDivider});
 }
+/* Un bloque que alterna vista y edición. La MÁQUINA es del consumidor (qué campo,
+   guardado async, validación); esto es sólo el marco: la fila de acciones y la
+   línea de error, que en og118 se escribían a mano dos veces en el mismo archivo. */
+.${FI_EDITABLE_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fi-resource-editable-gap, 0.5rem);
+}
+
+.${FI_EDITABLE_ACTIONS_CLASS} {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-resource-editable-actions-gap, 0.5rem);
+}
+
+.${FI_EDITABLE_ERROR_CLASS} {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--fi-resource-error-color, ${glassTokens.danger});
+}
+
+/* Una sección de lista dentro del workspace: cabecera con título y acción, y
+   filas de (título, meta). No sabe qué se lista. */
+.${FI_LIST_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fi-resource-list-gap, 0.75rem);
+}
+
+.${FI_LIST_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.${FI_LIST_ITEMS_CLASS} {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.${FI_LIST_ROW_CLASS} {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--fi-resource-list-row-pad, 0.5rem 0.25rem);
+  border-radius: var(--fi-resource-list-row-radius, 8px);
+  color: inherit;
+  font: inherit;
+}
+
+.${FI_LIST_ROW_CLASS}:hover {
+  background: var(--fi-resource-list-row-hover, ${glassTokens.itemHover});
+}
+
+.${FI_LIST_ROW_TITLE_CLASS} {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.${FI_LIST_ROW_META_CLASS} {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  color: var(--fi-resource-card-meta-color, ${glassTokens.itemMeta});
+}
+
 .${FI_RAIL_PANEL_HEAD_CLASS} {
   display: flex;
   align-items: center;

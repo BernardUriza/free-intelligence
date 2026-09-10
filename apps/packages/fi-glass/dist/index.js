@@ -7493,6 +7493,15 @@ var FI_RAIL_STACK_CLASS = "fi-rail-stack";
 var FI_RAIL_PANEL_CLASS = "fi-rail-panel";
 var FI_RAIL_PANEL_HEAD_CLASS = "fi-rail-panel-head";
 var FI_RAIL_PANEL_TITLE_CLASS = "fi-rail-panel-title";
+var FI_EDITABLE_CLASS = "fi-editable";
+var FI_EDITABLE_ACTIONS_CLASS = "fi-editable-actions";
+var FI_EDITABLE_ERROR_CLASS = "fi-editable-error";
+var FI_LIST_CLASS = "fi-resource-list";
+var FI_LIST_HEAD_CLASS = "fi-resource-list-head";
+var FI_LIST_ITEMS_CLASS = "fi-resource-list-items";
+var FI_LIST_ROW_CLASS = "fi-resource-list-row";
+var FI_LIST_ROW_TITLE_CLASS = "fi-resource-list-row-title";
+var FI_LIST_ROW_META_CLASS = "fi-resource-list-row-meta";
 var FI_METER_CLASS = "fi-capacity-meter";
 var FI_METER_TRACK_CLASS = "fi-capacity-meter-track";
 var FI_METER_FILL_CLASS = "fi-capacity-meter-fill";
@@ -7638,6 +7647,82 @@ var CSS7 = `
 .${FI_RAIL_PANEL_CLASS} + .${FI_RAIL_PANEL_CLASS} {
   border-top: 1px solid var(--fi-resource-rail-divider, ${glassTokens.sidebarDivider});
 }
+/* Un bloque que alterna vista y edici\xF3n. La M\xC1QUINA es del consumidor (qu\xE9 campo,
+   guardado async, validaci\xF3n); esto es s\xF3lo el marco: la fila de acciones y la
+   l\xEDnea de error, que en og118 se escrib\xEDan a mano dos veces en el mismo archivo. */
+.${FI_EDITABLE_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fi-resource-editable-gap, 0.5rem);
+}
+
+.${FI_EDITABLE_ACTIONS_CLASS} {
+  display: flex;
+  align-items: center;
+  gap: var(--fi-resource-editable-actions-gap, 0.5rem);
+}
+
+.${FI_EDITABLE_ERROR_CLASS} {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--fi-resource-error-color, ${glassTokens.danger});
+}
+
+/* Una secci\xF3n de lista dentro del workspace: cabecera con t\xEDtulo y acci\xF3n, y
+   filas de (t\xEDtulo, meta). No sabe qu\xE9 se lista. */
+.${FI_LIST_CLASS} {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fi-resource-list-gap, 0.75rem);
+}
+
+.${FI_LIST_HEAD_CLASS} {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.${FI_LIST_ITEMS_CLASS} {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.${FI_LIST_ROW_CLASS} {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--fi-resource-list-row-pad, 0.5rem 0.25rem);
+  border-radius: var(--fi-resource-list-row-radius, 8px);
+  color: inherit;
+  font: inherit;
+}
+
+.${FI_LIST_ROW_CLASS}:hover {
+  background: var(--fi-resource-list-row-hover, ${glassTokens.itemHover});
+}
+
+.${FI_LIST_ROW_TITLE_CLASS} {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.${FI_LIST_ROW_META_CLASS} {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  color: var(--fi-resource-card-meta-color, ${glassTokens.itemMeta});
+}
+
 .${FI_RAIL_PANEL_HEAD_CLASS} {
   display: flex;
   align-items: center;
@@ -7926,11 +8011,81 @@ function clamp(value) {
   return value > 100 ? 100 : value;
 }
 
+// src/resource/EditableSection.tsx
+import { jsx as jsx52, jsxs as jsxs41 } from "react/jsx-runtime";
+function EditableSection({
+  editing,
+  view,
+  children,
+  onSubmit,
+  submitSlot,
+  cancelSlot,
+  error,
+  className
+}) {
+  useResourceStyle();
+  const cls = className ? `${FI_EDITABLE_CLASS} ${className}` : FI_EDITABLE_CLASS;
+  if (!editing) return /* @__PURE__ */ jsx52("div", { className: cls, children: view });
+  return /* @__PURE__ */ jsxs41("form", { className: cls, onSubmit, children: [
+    children,
+    error ? /* @__PURE__ */ jsx52("p", { className: FI_EDITABLE_ERROR_CLASS, children: error }) : null,
+    submitSlot || cancelSlot ? /* @__PURE__ */ jsxs41("div", { className: FI_EDITABLE_ACTIONS_CLASS, children: [
+      submitSlot,
+      cancelSlot
+    ] }) : null
+  ] });
+}
+
+// src/resource/ResourceListSection.tsx
+import { jsx as jsx53, jsxs as jsxs42 } from "react/jsx-runtime";
+function ResourceListSection({
+  title,
+  actionSlot,
+  children,
+  ariaLabel,
+  className
+}) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsxs42(
+    "section",
+    {
+      className: className ? `${FI_LIST_CLASS} ${className}` : FI_LIST_CLASS,
+      "aria-label": ariaLabel,
+      children: [
+        /* @__PURE__ */ jsxs42("div", { className: FI_LIST_HEAD_CLASS, children: [
+          typeof title === "string" ? /* @__PURE__ */ jsx53("h2", { children: title }) : title,
+          actionSlot
+        ] }),
+        children
+      ]
+    }
+  );
+}
+function ResourceListItems({ children, className }) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsx53("ul", { className: className ? `${FI_LIST_ITEMS_CLASS} ${className}` : FI_LIST_ITEMS_CLASS, children });
+}
+function ResourceListRow({ title, meta, onSelect, className }) {
+  useResourceStyle();
+  return /* @__PURE__ */ jsx53("li", { children: /* @__PURE__ */ jsxs42(
+    "button",
+    {
+      type: "button",
+      className: className ? `${FI_LIST_ROW_CLASS} ${className}` : FI_LIST_ROW_CLASS,
+      onClick: onSelect,
+      children: [
+        /* @__PURE__ */ jsx53("span", { className: FI_LIST_ROW_TITLE_CLASS, children: title }),
+        meta ? /* @__PURE__ */ jsx53("span", { className: FI_LIST_ROW_META_CLASS, children: meta }) : null
+      ]
+    }
+  ) });
+}
+
 // src/resource/DocCard.tsx
-import { Fragment as Fragment14, jsx as jsx52, jsxs as jsxs41 } from "react/jsx-runtime";
+import { Fragment as Fragment14, jsx as jsx54, jsxs as jsxs43 } from "react/jsx-runtime";
 function DocCard({ title, meta, badge, onClick, className }) {
   useResourceStyle();
-  return /* @__PURE__ */ jsxs41(
+  return /* @__PURE__ */ jsxs43(
     "button",
     {
       type: "button",
@@ -7940,9 +8095,9 @@ function DocCard({ title, meta, badge, onClick, className }) {
       onClick,
       title,
       children: [
-        badge ? /* @__PURE__ */ jsx52("span", { className: FI_DOC_CARD_BADGE_CLASS, children: badge }) : null,
-        /* @__PURE__ */ jsx52("span", { className: FI_DOC_CARD_TITLE_CLASS, children: title }),
-        meta != null ? /* @__PURE__ */ jsx52("span", { className: FI_DOC_CARD_META_CLASS, children: meta }) : null
+        badge ? /* @__PURE__ */ jsx54("span", { className: FI_DOC_CARD_BADGE_CLASS, children: badge }) : null,
+        /* @__PURE__ */ jsx54("span", { className: FI_DOC_CARD_TITLE_CLASS, children: title }),
+        meta != null ? /* @__PURE__ */ jsx54("span", { className: FI_DOC_CARD_META_CLASS, children: meta }) : null
       ]
     }
   );
@@ -7950,20 +8105,20 @@ function DocCard({ title, meta, badge, onClick, className }) {
 function DocCardGrid({ children, emptyState, ariaLabel, className }) {
   useResourceStyle();
   const items = children.filter(Boolean);
-  if (items.length === 0 && emptyState != null) return /* @__PURE__ */ jsx52(Fragment14, { children: emptyState });
-  return /* @__PURE__ */ jsx52(
+  if (items.length === 0 && emptyState != null) return /* @__PURE__ */ jsx54(Fragment14, { children: emptyState });
+  return /* @__PURE__ */ jsx54(
     "ul",
     {
       className: className ? `${FI_DOC_GRID_CLASS} ${className}` : FI_DOC_GRID_CLASS,
       "aria-label": ariaLabel,
-      children: items.map((child, i) => /* @__PURE__ */ jsx52("li", { children: child }, i))
+      children: items.map((child, i) => /* @__PURE__ */ jsx54("li", { children: child }, i))
     }
   );
 }
 
 // src/resource/WorkspaceBreadcrumb.tsx
 import { Fragment as Fragment15, useEffect as useEffect30 } from "react";
-import { jsx as jsx53, jsxs as jsxs42 } from "react/jsx-runtime";
+import { jsx as jsx55, jsxs as jsxs44 } from "react/jsx-runtime";
 function WorkspaceBreadcrumb({
   crumbs,
   separator = "/",
@@ -7972,16 +8127,16 @@ function WorkspaceBreadcrumb({
 }) {
   useResourceStyle();
   useEffect30(() => ensureTouchTargetStyle(), []);
-  return /* @__PURE__ */ jsx53(
+  return /* @__PURE__ */ jsx55(
     "nav",
     {
       className: className ? `${FI_BREADCRUMB_CLASS} ${className}` : FI_BREADCRUMB_CLASS,
       "aria-label": ariaLabel,
       children: crumbs.map((crumb, i) => {
         const last = i === crumbs.length - 1;
-        return /* @__PURE__ */ jsxs42(Fragment15, { children: [
-          i > 0 && /* @__PURE__ */ jsx53("span", { "aria-hidden": "true", children: separator }),
-          crumb.href ? /* @__PURE__ */ jsx53(
+        return /* @__PURE__ */ jsxs44(Fragment15, { children: [
+          i > 0 && /* @__PURE__ */ jsx55("span", { "aria-hidden": "true", children: separator }),
+          crumb.href ? /* @__PURE__ */ jsx55(
             "a",
             {
               className: withTouchTarget(),
@@ -7990,7 +8145,7 @@ function WorkspaceBreadcrumb({
               "aria-current": last ? "page" : void 0,
               children: crumb.label
             }
-          ) : crumb.onClick ? /* @__PURE__ */ jsx53(
+          ) : crumb.onClick ? /* @__PURE__ */ jsx55(
             "button",
             {
               type: "button",
@@ -7999,7 +8154,7 @@ function WorkspaceBreadcrumb({
               "aria-current": last ? "page" : void 0,
               children: crumb.label
             }
-          ) : /* @__PURE__ */ jsx53("span", { "aria-current": last ? "page" : void 0, children: crumb.label })
+          ) : /* @__PURE__ */ jsx55("span", { "aria-current": last ? "page" : void 0, children: crumb.label })
         ] }, i);
       })
     }
@@ -8104,38 +8259,38 @@ function useSurfaceStyle() {
 }
 
 // src/surface/Surface.tsx
-import { jsx as jsx54, jsxs as jsxs43 } from "react/jsx-runtime";
+import { jsx as jsx56, jsxs as jsxs45 } from "react/jsx-runtime";
 function join(base, extra) {
   return extra ? `${base} ${extra}` : base;
 }
 function Panel({ children, title, className }) {
   useSurfaceStyle();
-  return /* @__PURE__ */ jsxs43("section", { className: join(FI_PANEL_CLASS, className), children: [
-    title ? /* @__PURE__ */ jsx54("h2", { className: FI_PANEL_TITLE_CLASS, children: title }) : null,
+  return /* @__PURE__ */ jsxs45("section", { className: join(FI_PANEL_CLASS, className), children: [
+    title ? /* @__PURE__ */ jsx56("h2", { className: FI_PANEL_TITLE_CLASS, children: title }) : null,
     children
   ] });
 }
 function Note({ children, inline = false, className }) {
   useSurfaceStyle();
   if (inline) {
-    return /* @__PURE__ */ jsx54("span", { className: join(FI_NOTE_INLINE_CLASS, className), children });
+    return /* @__PURE__ */ jsx56("span", { className: join(FI_NOTE_INLINE_CLASS, className), children });
   }
-  return /* @__PURE__ */ jsx54("p", { className: join(FI_NOTE_CLASS, className), children });
+  return /* @__PURE__ */ jsx56("p", { className: join(FI_NOTE_CLASS, className), children });
 }
 function Literal({ children, live = false, inline = false, className }) {
   useSurfaceStyle();
   if (inline) {
-    return /* @__PURE__ */ jsx54("span", { className: join(FI_LITERAL_INLINE_CLASS, className), children });
+    return /* @__PURE__ */ jsx56("span", { className: join(FI_LITERAL_INLINE_CLASS, className), children });
   }
-  return /* @__PURE__ */ jsx54("pre", { className: join(FI_LITERAL_CLASS, className), "aria-live": live ? "polite" : void 0, children });
+  return /* @__PURE__ */ jsx56("pre", { className: join(FI_LITERAL_CLASS, className), "aria-live": live ? "polite" : void 0, children });
 }
 function DataTable({ head, rows, rowHeader = false, className }) {
   useSurfaceStyle();
   if (!rows.length) return null;
-  return /* @__PURE__ */ jsxs43("table", { className: join(FI_DATA_TABLE_CLASS, className), children: [
-    head ? /* @__PURE__ */ jsx54("thead", { children: /* @__PURE__ */ jsx54("tr", { children: head.map((celda, i) => /* @__PURE__ */ jsx54("th", { children: celda }, i)) }) }) : null,
-    /* @__PURE__ */ jsx54("tbody", { children: rows.map((fila) => /* @__PURE__ */ jsx54("tr", { children: fila.cells.map(
-      (celda, i) => rowHeader && i === 0 ? /* @__PURE__ */ jsx54("th", { scope: "row", children: celda }, i) : /* @__PURE__ */ jsx54("td", { children: celda }, i)
+  return /* @__PURE__ */ jsxs45("table", { className: join(FI_DATA_TABLE_CLASS, className), children: [
+    head ? /* @__PURE__ */ jsx56("thead", { children: /* @__PURE__ */ jsx56("tr", { children: head.map((celda, i) => /* @__PURE__ */ jsx56("th", { children: celda }, i)) }) }) : null,
+    /* @__PURE__ */ jsx56("tbody", { children: rows.map((fila) => /* @__PURE__ */ jsx56("tr", { children: fila.cells.map(
+      (celda, i) => rowHeader && i === 0 ? /* @__PURE__ */ jsx56("th", { scope: "row", children: celda }, i) : /* @__PURE__ */ jsx56("td", { children: celda }, i)
     ) }, fila.key)) })
   ] });
 }
@@ -8176,6 +8331,7 @@ export {
   DocCard,
   DocCardGrid,
   EditableResourceItem,
+  EditableSection,
   FI_BREADCRUMB_CLASS,
   FI_CARD_CLASS,
   FI_CARD_DESC_CLASS,
@@ -8194,6 +8350,9 @@ export {
   FI_DOC_CARD_META_CLASS,
   FI_DOC_CARD_TITLE_CLASS,
   FI_DOC_GRID_CLASS,
+  FI_EDITABLE_ACTIONS_CLASS,
+  FI_EDITABLE_CLASS,
+  FI_EDITABLE_ERROR_CLASS,
   FI_INDEX_ACTIONS_CLASS,
   FI_INDEX_HEADER_CLASS,
   FI_INDEX_TITLE_CLASS,
@@ -8201,6 +8360,12 @@ export {
   FI_ITEM_META_CLASS,
   FI_ITEM_SUBTITLE_CLASS,
   FI_ITEM_TITLE_CLASS,
+  FI_LIST_CLASS,
+  FI_LIST_HEAD_CLASS,
+  FI_LIST_ITEMS_CLASS,
+  FI_LIST_ROW_CLASS,
+  FI_LIST_ROW_META_CLASS,
+  FI_LIST_ROW_TITLE_CLASS,
   FI_LITERAL_CLASS,
   FI_LITERAL_INLINE_CLASS,
   FI_METER_CLASS,
@@ -8247,6 +8412,9 @@ export {
   ResourceCard,
   ResourceCardGrid,
   ResourceIndexHeader,
+  ResourceListItems,
+  ResourceListRow,
+  ResourceListSection,
   ResourceSearchInput,
   RichAudioPlayer,
   STATUS_TEXT_EN,
