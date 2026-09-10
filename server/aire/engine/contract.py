@@ -67,6 +67,23 @@ class ToolCall:
 @dataclass(frozen=True)
 class TurnResult:
     text: str
+    answer: str = ""
+    """What the model said AFTER its last tool call — the half meant for the
+    caller.
+
+    `text` is every text block joined, so it also carries the model reasoning out
+    loud on its way to a tool ("Task tracking not needed — single-turn action.",
+    "Antes de contestar, ejecuto el fix que enuncié"), and the join has no
+    separator, so that reasoning arrives WELDED to the reply:
+    `…soft-delete fact 73.Hecho, amix`. Six such messages reached real humans in
+    Discord between 2026-05-22 and 2026-09-09 — rare only because a turn needs a
+    tool call to produce one, and the personas got their memory tools back on
+    2026-08-28.
+
+    A consumer that shows text to a PERSON wants this field, falling back to
+    `text` when it is empty (a turn can end on a tool call with nothing said
+    after it, and a caller must never be left mute). `text` is unchanged for
+    everyone accounting or auditing the whole turn."""
     usage: dict[str, Any] | None = None
     session_id: str | None = None
     tool_calls: tuple[ToolCall, ...] = ()
