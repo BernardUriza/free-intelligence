@@ -1,8 +1,7 @@
 # Graceful turn drain — deploys must not kill in-flight turns
 
-Status: **In progress** — paso 1 ampliado 2026-09-09 (presupuesto de reconexión);
-el paso 2 resultó **ya resuelto por uvicorn** y el paso 3 esconde un bug de
-duplicados. Re-verificado 2026-09-09.
+Status: **In progress** — pasos 1 y 3 HECHOS; queda el paso 2 (medir y subir el
+grace period), que recién ahora es seguro considerar.
 Proposed: 2026-07-06 by Claude (Art. 9, receipt del incidente del mismo día)
 
 ## Corrección 2026-09-09 — dos cosas que este documento decía mal
@@ -125,13 +124,22 @@ lo que le falta es tiempo) y en el gateway es lo que NO se puede tocar antes del
 gate, porque produce dos réplicas sobre el mismo token de Discord. La frase
 original invitaba a hacerlo suelto y por eso se corrige aquí.
 
+**Actualización 2026-09-10 (v4.38.30):** el gate ya está construido
+(`persona_gateway/drain.py` + `ShutdownController`), así que la condición que
+bloqueaba el grace period del gateway está cumplida. Ver el paso 3 abajo.
+
 ## The decision that's the owner's
 Si además se quiere re-encolar el turno matado (releer el mensaje al arrancar
 la rev nueva y responderlo tarde) o solo drenar limpio. Drenar limpio es el 90%
 del valor con 10% del riesgo; el replay cruza con dedup (`_processed`).
 
 ## Status / next step
-Parcial: el retry ya está en prod, el DRENAJE no. `personas/insult/bot.py` murió
+**Lo único abierto es el paso 2' (medir + subir el grace period).** El retry (1)
+y el gate de recepción (3) están hechos; el gate está en `main` pero **sin
+desplegar** — toca la recepción de todas las personas, así que el merge es
+decisión de Bernard.
+
+Historial: el retry ya está en prod, el DRENAJE no lo estaba. `personas/insult/bot.py` murió
 en la purga — los hosts vivos son `persona_gateway/boot.py`, el `persona_runner`
 y (desde el cutover) `khimeras-host`.
 
@@ -175,7 +183,72 @@ Orden sugerido (el retry primero: es 20 líneas y cubre el caso real de hoy):
    indefinidamente. Lo que falta es que la plataforma le dé tiempo. Primer paso
    real: **medir** el default de `terminationGracePeriodSeconds` en Container
    Apps y confirmar qué manda al vencer, en vez de inferirlo.
-3. **Gate de recepción en el gateway, ANTES de cualquier grace period**
-   (PENDIENTE). Sin el gate, subir el grace period da respuestas dobles (ver la
-   corrección). El gate cierra `on_message` y los `wait:false` al recibir
-   SIGTERM; recién con eso puesto el grace period es seguro.
+3. ✅ **HECHO (2026-09-10, v4.38.30) — Gate de recepción en el gateway.**
+   `persona_gateway/drain.py::TurnGate` es un ledger de turnos en vuelo con una
+   puerta que se cierra una sola vez. Los DOS puntos de entrada guardados piden
+   ficha antes de trabajar y la devuelven en un `finally`:
+   `PersonaClient._dispatch` (la @mención y el edit-summon) y
+   `PersonaClient.dispatch_invite` (el camino del host, con y sin `wait`, y el
+   `[INVITE:]` de un hermano). El gate es UNO por proceso — `_main` lo construye
+   y lo inyecta en las N personas, porque el SIGTERM llega una sola vez.
+
+   `persona_gateway/app.py::ShutdownController` es el dueño de SIGTERM/SIGINT
+   (`loop.add_signal_handler`): cierra la puerta, marca `boot.stopping`, espera a
+   los vivos con tope duro `CONFIG.drain_timeout_s` (**25s**, env
+   `DRAIN_TIMEOUT_S`), y recién entonces baja uvicorn (`should_exit`) y cierra
+   cada sesión de Discord. Un turno rechazado **no manda "…"**: no falló, esta
+   réplica ya no recibe; el host lee `failed`, reintenta una vez
+   (`demux_ai/fallback.py`) y ese retry aterriza en la réplica nueva.
+
+   Tres detalles que son parte del entregable, no adorno:
+   - **A uvicorn se le quita su handler** (`install_signal_handlers=False`) sólo
+     cuando el gateway logró instalar el suyo — los dos usan `signal.signal` y el
+     último gana, así que dos dueños de la misma señal es un dueño indefinido. Si
+     la instalación falla, uvicorn conserva los suyos y el cierre es el de hoy.
+   - **El abandono se cuenta**: vencido el tope, `drain` devuelve QUIÉNES quedaron
+     vivos y el controller emite `persona_gateway_drain_abandoned`
+     (`abandoned=N, turns=[...], timeout_s`). Un abandono silencioso es peor que
+     uno contado. KQL: ese evento + `persona_gateway_turn_refused_draining`.
+   - **Fail-safe en las dos direcciones**: un drenaje que revienta se loguea y se
+     sigue al cierre; una segunda señal restaura el handler por default y mata sin
+     preguntar. La falla que esto previene (turnos cortados) es más barata que la
+     que podría introducir (un proceso que no cierra).
+
+   `/health` ahora reporta `stopping`, y la salida ordenada de cada persona deja
+   de loguearse con los mismos eventos de error que su muerte imprevista
+   (`persona_gateway_persona_drained` / `persona_gateway_stopped`).
+
+   Arnés: `tests/core/test_gateway_turn_gate.py` (15 casos). Los tres que
+   importan, **verificados en rojo saboteando el fix** antes de darlos por buenos:
+   (a) `admit` sin mirar `_accepting` → rojo en los 3 tests de "no entra trabajo
+   nuevo"; (b) `drain` que no espera → rojo en resistencia, exactamente en
+   `closed.assert_not_awaited()` (la sesión del turno vivo se cerraba debajo);
+   (c) el abandono tragado en silencio, y un `drain` que miente y devuelve `[]`
+   al vencer → rojo en los dos tests del tope duro.
+
+2'. **Medir el grace period y subirlo — el ÚNICO paso que queda (PENDIENTE).**
+   Con el gate puesto, subirlo ya no produce respuestas dobles: la réplica vieja
+   conserva su websocket pero **no recibe**, así que los eventos que le llegan los
+   ignora. Sigue sin medirse lo que decide el número: el default real de
+   `terminationGracePeriodSeconds` en Container Apps y qué manda la plataforma al
+   vencerlo (hoy es `null` en las tres apps, verificado con `az`; el campo SÍ
+   existe en el schema del template).
+
+   **Número propuesto: `terminationGracePeriodSeconds: 45` en `persona-gateway`.**
+   El razonamiento, para que se pueda discutir en vez de creerse: 25s de drenaje
+   (el tope duro) + ~20s de margen para el cierre del websocket de Discord, la
+   salida de uvicorn y el cierre del pool de Postgres. La invariante que hay que
+   preservar si alguno de los dos se toca es **grace ≥ drain + 20s**; si el grace
+   queda por debajo del drenaje, la plataforma manda SIGKILL a media espera y el
+   gate no compra nada.
+
+   Lo que sí falta medir antes de fijarlo: **el p95 de duración de turno** (el
+   `elapsed_ms` de los turnos en KQL). 25s es un techo conservador elegido para
+   que el cierre completo quepa cómodo bajo 45s, no un número medido. Si el p95
+   resulta mayor, los dos suben juntos manteniendo la invariante — nunca el grace
+   solo, nunca el drenaje solo.
+
+   En el **runner** el trabajo es distinto y más simple: su drain ya existe
+   (uvicorn espera indefinidamente), así que ahí subir el grace period es TODO el
+   trabajo. No necesita gate: no sostiene ningún websocket de Discord, así que
+   una réplica vieja viva no puede contestar dos veces.
