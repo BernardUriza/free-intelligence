@@ -382,6 +382,14 @@ class TurnResult:
     """The result of one turn."""
 
     text: str
+    # What the agent said AFTER its last tool call — the half addressed to the
+    # caller. `text` is every text block joined, so it also carries the model
+    # reasoning out loud on its way to a tool, welded to the reply because the
+    # join has no separator. A consumer that shows text to a PERSON wants this,
+    # falling back to `text` when empty: a turn can end on a tool call with
+    # nothing said after it, and a caller must never be left mute to avoid a
+    # leak. Empty when the backend does not report it.
+    answer: str = ""
     raw: Any = None
     # Token usage when the backend reports it (e.g. Codex turn.completed.usage).
     usage: dict[str, Any] | None = None

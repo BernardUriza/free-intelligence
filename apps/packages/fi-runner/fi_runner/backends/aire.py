@@ -287,6 +287,12 @@ class AIREBackend:
         tools = [self._to_toolcall(t) for t in (d.get("tool_calls") or [])]
         return TurnResult(
             text=d.get("text", "") or "",
+            # AIRE splits the turn's prose in two: everything it said, and the
+            # part after its last tool call. Discarding the split put plumbing
+            # ("Task tracking not needed — single-turn action.") in front of real
+            # humans in Discord six times. Older AIRE builds omit it; then it is
+            # "" and the consumer falls back to `text`.
+            answer=d.get("answer", "") or "",
             usage=d.get("usage"),
             session_id=d.get("session_id") or session,
             tool_calls=tools,
