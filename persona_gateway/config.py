@@ -96,6 +96,14 @@ class GatewayConfig(BaseSettings):
     # time the host goes live (HOST_DISCORD_TOKEN set). Default False = pre-cutover.
     host_owns_reception: bool = False
 
+    # Drenaje al recibir SIGTERM: cuánto se le da a los turnos EN VUELO para
+    # aterrizar antes de cerrar igual. Tiene que ser MENOR que el
+    # `terminationGracePeriodSeconds` del Container App — si no, la plataforma
+    # manda SIGKILL a media espera y el drenaje no compra nada. Hoy el grace es
+    # `null` en las tres apps (el default de la plataforma), así que 25s es un
+    # techo conservador; subirlo va junto con el grace, nunca antes.
+    drain_timeout_s: float = 25.0
+
     # Voice (susurro TTS). Auto-speak replies at/above N chars (0 = manual 🔊 only).
     auto_tts_min_chars: int = 0
     susurro_url: str = DEFAULT_SUSURRO_URL

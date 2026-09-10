@@ -46,6 +46,7 @@ from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
+from persona_gateway.drain import TurnGate
 from persona_gateway.facts import FactExtractor
 from persona_gateway.ingest import MessageIngest
 from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
@@ -91,9 +92,15 @@ class PersonaClient(discord.Client):
         stt_client=None,
         auto_tts_min_chars: int = 0,
         judge_client: RunnerJudgeClient | None = None,
+        gate: TurnGate | None = None,
     ) -> None:
         super().__init__(intents=intents)
         self.persona = persona
+        # La puerta de recepción es DEL PROCESO: `_main` construye una y se la
+        # pasa a las N personas, porque el SIGTERM llega una vez para todas. El
+        # default propio existe para los tests y para cualquier construcción
+        # suelta — una persona sin gate inyectado nunca queda sin puerta.
+        self._gate = gate if gate is not None else TurnGate()
         self.memory = memory
         self.agent_client = agent_client
         # Exposed so tests/ops can inspect or toggle it; the None-check reads it
@@ -231,6 +238,19 @@ class PersonaClient(discord.Client):
 
     async def _dispatch(self, message: discord.Message) -> None:
         """Shared guarded entry for message + edit summons."""
+        ticket = self._gate.admit(f"{self.persona.persona_id}:mention")
+        if ticket is None:
+            # La réplica está drenando: NO se arranca trabajo nuevo y NO se manda
+            # el "…" — el turno no falló, esta réplica simplemente ya no recibe.
+            # La nueva ya está conectada; contestar aquí es la respuesta doble
+            # que el gate existe para evitar.
+            log.warning(
+                "persona_gateway_turn_refused_draining",
+                persona_id=self.persona.persona_id,
+                turn_kind="mention",
+                channel_id=str(message.channel.id),
+            )
+            return
         try:
             await self._handle(message)
         except Exception:
@@ -242,6 +262,8 @@ class PersonaClient(discord.Client):
             except discord.HTTPException:
                 with contextlib.suppress(discord.HTTPException):
                     await message.add_reaction("🦅")
+        finally:
+            self._gate.release(ticket)
 
     # --- turn entry points ----------------------------------------------------
 
@@ -395,6 +417,19 @@ class PersonaClient(discord.Client):
         the outcome over ``/invite?wait``, retries once and posts a fallback in
         its OWN voice instead of making the persona mumble an ellipsis.
         """
+        ticket = self._gate.admit(f"{self.persona.persona_id}:invite")
+        if ticket is None:
+            # Drenando: se rechaza sin trabajar y sin "…" en ningún caso. El
+            # host lee "failed", reintenta una vez (`demux_ai/fallback.py`) y
+            # esa segunda llamada aterriza en la réplica nueva.
+            log.warning(
+                "persona_gateway_turn_refused_draining",
+                persona_id=self.persona.persona_id,
+                turn_kind="invite",
+                channel_id=channel_id,
+                invited_by=invited_by,
+            )
+            return "failed"
         try:
             delivered = await self.respond_to_invite(
                 channel_id=channel_id,
@@ -420,6 +455,8 @@ class PersonaClient(discord.Client):
                     with contextlib.suppress(discord.HTTPException):
                         await channel.send("…")
             return "failed"
+        finally:
+            self._gate.release(ticket)
         if delivered is None:
             return "failed"
         return "delivered" if delivered else "empty"

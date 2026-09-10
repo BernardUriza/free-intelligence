@@ -26,9 +26,17 @@ class GatewayBootState:
 
     db_connected: bool = False
     personas_down: set[str] = field(default_factory=set)
+    # SIGTERM recibido: la puerta de recepción está cerrada y los turnos vivos
+    # están aterrizando. Sin esto, la salida ordenada de cada persona se loguea
+    # con los MISMOS eventos de error que su muerte imprevista — y un deploy
+    # normal deja rastro de incidente.
+    stopping: bool = False
 
     def mark_db_connected(self) -> None:
         self.db_connected = True
+
+    def mark_stopping(self) -> None:
+        self.stopping = True
 
     def mark_persona_down(self, persona_id: str) -> None:
         self.personas_down.add(persona_id)

@@ -13,7 +13,9 @@ monkeypatches these names on THIS module and drives `_main` directly.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
+import signal
 import time
 
 import discord
@@ -27,6 +29,7 @@ from khimeras_shared.stt import build_susurro_stt_client
 from khimeras_shared.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
+from persona_gateway.drain import TurnGate
 from persona_gateway.gateway import PersonaClient
 from shared.personas import gateway_personas
 
@@ -85,21 +88,146 @@ def _build_shared() -> tuple[
     return memory, agent_client, tts_client, stt_client, CONFIG.auto_tts_min_chars, invite_token, judge_client
 
 
-def _serve_invite_api(personas: dict[str, PersonaClient], invite_token: str, boot: GatewayBootState):
+def _serve_invite_api(
+    personas: dict[str, PersonaClient],
+    invite_token: str,
+    boot: GatewayBootState,
+    *,
+    capture_signals: bool = True,
+):
     """Return `(server, serve_coro)` for the ported /invite endpoint.
 
     Port 8788 mirrors the legacy alice-bot so the Container App ingress targetPort
     is unchanged. Always served (even with no token) so the /health probe answers;
     /invite itself fail-closes (503) when the token is unset.
+
+    `capture_signals=False` le quita a uvicorn su handler de SIGTERM porque el
+    proceso ya instaló el suyo: uvicorn usa `signal.signal`, así que el último en
+    instalarse gana y dos dueños de la misma señal es un dueño indefinido. Cuando
+    el gateway toma la señal, apaga el turno de uvicorn y le pide salir con
+    `should_exit` DESPUÉS del drenaje — que es cuando ya no le queda ningún
+    `/invite?wait` en vuelo. Si el gateway NO logra instalar el suyo, esto queda
+    en True y el comportamiento es exactamente el de hoy.
     """
     import uvicorn
 
     from persona_gateway.invite_server import build_invite_app
 
     app = build_invite_app(personas, invite_token, boot)
-    server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8788, log_level="warning"))  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
+    server = uvicorn.Server(
+        uvicorn.Config(
+            app,
+            host="0.0.0.0",  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
+            port=8788,
+            log_level="warning",
+            install_signal_handlers=capture_signals,
+        )
+    )
     log.info("persona_gateway_invite_api_starting", port=8788, token_configured=bool(invite_token))
     return server, server.serve()
+
+
+class ShutdownController:
+    """SIGTERM → cerrar la puerta, dejar aterrizar lo vivo, y recién ahí morir.
+
+    Es el dueño de la señal cuando logra instalarse. Todo lo que hace está
+    envuelto en fail-safe por una razón concreta: la falla que este objeto
+    previene (turnos cortados a media pipeline) es MUCHO más barata que la que
+    podría introducir (un proceso que no cierra). Por eso cualquier excepción del
+    drenaje se loguea y se sigue al cierre, y una segunda señal devuelve el
+    handler por default y mata sin preguntar.
+    """
+
+    def __init__(
+        self,
+        gate: TurnGate,
+        personas: dict[str, PersonaClient],
+        timeout_s: float,
+        boot: GatewayBootState | None = None,
+    ) -> None:
+        self.gate = gate
+        self.personas = personas
+        self.timeout_s = timeout_s
+        self.boot = boot
+        self.server = None  # el servidor uvicorn, cableado después de construirlo
+        self.started = False
+        self._task: asyncio.Task[None] | None = None
+
+    def __call__(self, sig: signal.Signals) -> None:
+        """Handler síncrono del loop: agenda el drenaje, no lo corre aquí."""
+        if self.started:
+            # Segunda señal = "ya, mátalo". Se restaura el handler por default y
+            # se re-lanza, que es la ÚNICA garantía de que un drenaje colgado no
+            # deja un proceso inmortal.
+            log.warning("persona_gateway_shutdown_forced", signal=sig.name)
+            with contextlib.suppress(Exception):
+                signal.signal(sig, signal.SIG_DFL)
+                signal.raise_signal(sig)
+            return
+        self.started = True
+        log.info("persona_gateway_shutdown_signal", signal=sig.name, inflight=self.gate.inflight)
+        self._task = asyncio.create_task(self.run(), name="gateway-drain")
+
+    async def run(self) -> None:
+        try:
+            self.gate.close()
+            if self.boot is not None:
+                self.boot.mark_stopping()
+            log.info(
+                "persona_gateway_drain_started",
+                inflight=self.gate.inflight,
+                turns=self.gate.inflight_labels,
+                timeout_s=self.timeout_s,
+            )
+            abandoned = await self.gate.drain(self.timeout_s)
+            if abandoned:
+                # El tope venció con gente adentro. Se cierra igual — pero
+                # contado: un abandono silencioso es peor que uno contado.
+                log.error(
+                    "persona_gateway_drain_abandoned",
+                    abandoned=len(abandoned),
+                    turns=abandoned,
+                    timeout_s=self.timeout_s,
+                )
+            else:
+                log.info("persona_gateway_drain_complete", timeout_s=self.timeout_s)
+        except Exception:
+            log.exception("persona_gateway_drain_crashed")
+        finally:
+            await self._close_everything()
+
+    async def _close_everything(self) -> None:
+        """Cierre real. Uvicorn primero (ya no le queda nada en vuelo tras el
+        drenaje), y después cada sesión de Discord, aisladas entre sí."""
+        if self.server is not None:
+            with contextlib.suppress(Exception):
+                self.server.should_exit = True
+        for persona_id, client in self.personas.items():
+            try:
+                await client.close()
+            except Exception:
+                log.warning(
+                    "persona_gateway_close_failed",
+                    persona_id=persona_id,
+                    exc_info=True,
+                )
+
+
+def install_shutdown_handler(controller: ShutdownController) -> bool:
+    """Instala el handler en el loop. Devuelve si se pudo (fail-safe: si no, el
+    llamador deja que uvicorn conserve los suyos y todo queda como hoy)."""
+    try:
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, controller, sig)
+    except Exception:
+        # A propósito ancho: NotImplementedError, RuntimeError, ValueError y lo
+        # que traiga la plataforma. No poder tomar la señal es exactamente el
+        # caso en que hay que devolvérsela a uvicorn, no morirse.
+        log.warning("persona_gateway_signal_handler_unavailable", exc_info=True)
+        return False
+    log.info("persona_gateway_shutdown_handler_installed", drain_timeout_s=controller.timeout_s)
+    return True
 
 
 async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bool:
@@ -184,7 +312,11 @@ async def _supervise_persona(persona_id: str, coro, boot: GatewayBootState) -> N
     except Exception as exc:
         log.exception("persona_gateway_persona_failed", persona_id=persona_id, error=type(exc).__name__)
     else:
-        log.error("persona_gateway_persona_exited", persona_id=persona_id)
+        # Una salida DURANTE el drenaje es la salida esperada, no una pérdida.
+        if boot.stopping:
+            log.info("persona_gateway_persona_drained", persona_id=persona_id)
+        else:
+            log.error("persona_gateway_persona_exited", persona_id=persona_id)
     boot.mark_persona_down(persona_id)
 
 
@@ -193,6 +325,9 @@ async def _main() -> None:
 
     intents = discord.Intents.default()
     intents.message_content = True
+
+    # Una sola puerta para las N personas: el SIGTERM llega una vez al proceso.
+    gate = TurnGate()
 
     personas: dict[str, PersonaClient] = {}
     tokens: dict[str, str] = {}
@@ -210,6 +345,7 @@ async def _main() -> None:
             stt_client=stt_client,
             auto_tts_min_chars=auto_tts_min_chars,
             judge_client=judge_client,
+            gate=gate,
         )
         tokens[persona.persona_id] = token
 
@@ -226,10 +362,18 @@ async def _main() -> None:
 
     boot = GatewayBootState()
 
+    # El handler se instala ANTES de construir el servidor porque decide quién
+    # es dueño de SIGTERM: si el gateway lo toma, uvicorn no debe tomarlo (los
+    # dos usan `signal.signal` y el último gana). Si no se pudo instalar, uvicorn
+    # conserva los suyos y el cierre es el de siempre.
+    shutdown = ShutdownController(gate, personas, CONFIG.drain_timeout_s, boot)
+    owns_signals = install_shutdown_handler(shutdown)
+
     # The HTTP server binds BEFORE Postgres and before any Discord login, so the
     # StartUp probe answers as soon as the process is alive. Until a persona
     # finishes on_ready, /health reports serving=false — honestly.
-    server, serve_coro = _serve_invite_api(personas, invite_token, boot)
+    server, serve_coro = _serve_invite_api(personas, invite_token, boot, capture_signals=not owns_signals)
+    shutdown.server = server
     api_task = asyncio.create_task(serve_coro, name="invite-api")
     if await _wait_until_bound(server):
         log.info("persona_gateway_api_bound", port=8788)
@@ -249,7 +393,10 @@ async def _main() -> None:
 
     try:
         await asyncio.gather(*persona_tasks)
-        log.error("persona_gateway_all_personas_down", personas=sorted(personas))
+        if boot.stopping:
+            log.info("persona_gateway_stopped", personas=sorted(personas))
+        else:
+            log.error("persona_gateway_all_personas_down", personas=sorted(personas))
     finally:
         api_task.cancel()
         await asyncio.gather(api_task, return_exceptions=True)

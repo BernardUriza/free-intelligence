@@ -179,6 +179,10 @@ def build_invite_app(
             "personas_expected": sorted(personas),
             "personas_down": sorted(state.personas_down),
             "db_connected": state.db_connected,
+            # SIGTERM recibido: esta réplica ya NO acepta turnos nuevos y está
+            # esperando a los vivos. `serving` sigue diciendo la verdad sobre
+            # quién puede contestar; esto dice si va a seguir aceptando.
+            "stopping": state.stopping,
             # The anti-boot-zombie signal: serving:true is NOT proof of answering.
             "liveness": liveness,
             "mute_suspected": sorted(mute_suspected),
