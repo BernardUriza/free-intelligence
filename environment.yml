@@ -88,7 +88,18 @@ dependencies:
   # `matched_acute_groups`, `history_conditions`, `symptoms_in_message` y
   # `_GROUP_TO_CONDITION`), y `fi_core.audit` trae el seudónimo HMAC y el
   # evento con hash que `khimeras_shared/audit.py` escribió primero.
-  - fi-core=0.30.0
+  # SUBIDO a 0.32.0 (2026-09-10): trae el EJE DE RECUPERACIÓN que Álex decidió
+  # el 09-09 (hallazgo 4 del #55). El corpus sólo sabía subir la escalera — 145
+  # turnos vivían en `stability` sin una sola señal de recuperación, que no es
+  # estabilidad sino que nadie miraba el otro lado. `PSYCHIATRY.recovery_signals`
+  # llega con umbral 4 contra pesos de 3, así que ninguna señal prende sola, y
+  # con `silenced_by`, la capacidad nueva del motor: en sustancias el eje se
+  # apaga ENTERO (ahí no hay intervención, hay contención). Se salta la 0.31.0
+  # —el re-ingest del retriever, ajeno a este repo— porque el H4 no entró en
+  # ningún tag anterior: 0.30.0 y 0.31.0 NO lo contienen (verificado con
+  # `git merge-base --is-ancestor`), y sin este bump el trabajo clínico de Álex
+  # no llega a producción por más que esté mergeado.
+  - fi-core=0.32.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
