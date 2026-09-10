@@ -216,7 +216,7 @@ async def test_http_server_binds_before_postgres_and_before_discord_login(monkey
         server.started = True
         await asyncio.Event().wait()
 
-    monkeypatch.setattr(app_mod, "_serve_invite_api", lambda *a: (server, fake_serve()))
+    monkeypatch.setattr(app_mod, "_serve_invite_api", lambda *a, **kw: (server, fake_serve()))
 
     await asyncio.wait_for(app_mod._main(), timeout=5)
 
