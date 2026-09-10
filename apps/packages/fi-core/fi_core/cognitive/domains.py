@@ -38,7 +38,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from .psychiatry_signals import PSYCH_ACUTE_SIGNALS, PSYCH_CHRONIC_SIGNALS, PSYCH_EXCLUSIONS
+from .psychiatry_signals import (
+    PSYCH_ACUTE_SIGNALS,
+    PSYCH_CHRONIC_SIGNALS,
+    PSYCH_EXCLUSIONS,
+    PSYCH_RECOVERY_SIGNALS,
+)
 from .signals import ScoredSignals, SignalGroup, WeightedSignals
 from .urgency import (
     DEFAULT_CRITICAL_PATTERNS,
@@ -248,12 +253,18 @@ class ClinicalDomain:
 
     Adding a domain = one ClinicalDomain instance; the triage algorithm is shared.
 
-    The two optional WEIGHTED axes (see :mod:`.signals`) exist because flat
-    sets can only count, never accumulate: ``chronic_signals`` evaluates the
-    subject's long-term record (facts) for a vulnerability CLUSTER, and
-    ``acute_signals`` evaluates the current message for distress NOW. A domain
-    that ships them lets a consumer retire its own parallel corpus — one
-    clinical source of truth instead of a union.
+    The optional WEIGHTED axes (see :mod:`.signals`) exist because flat sets can
+    only count, never accumulate: ``chronic_signals`` evaluates the subject's
+    long-term record (facts) for a vulnerability CLUSTER, ``acute_signals``
+    evaluates the current message for distress NOW, and ``recovery_signals``
+    reads the SAME message for the way back. A domain that ships them lets a
+    consumer retire its own parallel corpus — one clinical source of truth
+    instead of a union.
+
+    The recovery axis is not the acute one inverted. It landed last (Álex,
+    discord-bot #55 H4) because the corpus only knew how to climb the ladder:
+    145 turns sat in `stability` without a single recovery signal, which is not
+    stability but nobody watching the other side.
     """
 
     name: str
@@ -264,6 +275,9 @@ class ClinicalDomain:
     high_risk_conditions: frozenset[str]
     chronic_signals: WeightedSignals | None = None
     acute_signals: WeightedSignals | None = None
+    #: The way BACK, read off the current message. Optional like the others: a
+    #: domain without one simply has nothing to say about improvement.
+    recovery_signals: WeightedSignals | None = None
     #: Spans that are not about the writer (idiom, topic, someone else's act),
     #: cut before the vocabularies read the text. Declared once as signal
     #: groups; the classifier, ``match`` and the axes all honor them.
@@ -384,6 +398,7 @@ PSYCHIATRY = ClinicalDomain(
     high_risk_conditions=PSYCH_HIGH_RISK_CONDITIONS,
     chronic_signals=PSYCH_CHRONIC_SIGNALS,
     acute_signals=PSYCH_ACUTE_SIGNALS,
+    recovery_signals=PSYCH_RECOVERY_SIGNALS,
     exclusions=PSYCH_EXCLUSIONS,
 )
 

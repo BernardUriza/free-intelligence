@@ -97,6 +97,45 @@ WORK_VENTING = SignalGroup.make(
     category="desahogo laboral",
 )
 #: What ClinicalDomain.match and the ACUTE axis cut before reading the writer.
+#: Substance use. A GROUP on the chronic axis (weight 2, a comorbidity) and a
+#: SILENCER on the recovery axis (Alex, #55 H4): with someone on substances
+#: there is no intervention, only containment, so what they say is not a
+#: reliable signal of improvement in either direction. Extracted to a constant
+#: the day it got its second reader — one pattern, two roles, never two copies.
+SUBSTANCE_USE = SignalGroup.make(
+    "substance_use", 2,
+    r"\b(alcoholismo|alcoh[oó]lic\w*|adicci[oó]n\w*|adict[oa]\b|"
+    r"drogadic\w*|sobredosis|overdose|reca[ií]\w*\s+en\s+"
+    r"(?:el\s+alcohol|las\s+drogas)|substance\s+(?:ab)?use|"
+    r"consumo\s+problem[aá]tico)",
+    category="trastorno por uso de sustancias",
+)
+
+#: Substance use AS SOMEONE SAYS IT IN A CHAT, not as a clinical record states
+#: it. `SUBSTANCE_USE` above is written for extracted FACTS —"alcoholismo",
+#: "adicción", "consumo problemático"— and silently missed every way a person
+#: actually reports it mid-conversation: "volví a recaer", "ando en una
+#: recaída", "me puse hasta atrás". Discovered on the recovery axis (#55 H4),
+#: where the same concept had to be read off a live message instead of a
+#: dossier: one concept, two registers, and reusing only the clinical one left
+#: the silencer dead for the exact texts it exists to catch.
+#:
+#: Deliberately broad. On this axis a false silence only keeps the care a while
+#: longer, which Álex named as the cheap error; a missed one withdraws care from
+#: someone in a relapse.
+SUBSTANCE_USE_SPOKEN = SignalGroup.make(
+    "substance_use", 2,
+    r"\b(?:"
+    r"reca[eií]\w*|volv[ií]\s+a\s+(?:tomar|beber|consumir|usar|reca[eií]\w*)|"
+    r"(?:ando|estoy|andaba|estaba)\s+(?:en\s+)?(?:una\s+)?(?:reca[ií]da|peda|borrach\w+|crud[oa])|"
+    r"me\s+(?:puse|ped[ií])\s+(?:hasta\s+atr[aá]s|una\s+peda)|"
+    r"(?:me\s+)?(?:met[ií]|drogu[eé]|emborrach[eé])\b|"
+    r"consum(?:o|iendo|[ií])\s+(?:drogas|coca|crist|mota|alcohol)|"
+    r"relapse[dn]?\b|got\s+(?:drunk|high)|i'?m\s+(?:drunk|high)"
+    r")",
+    category="trastorno por uso de sustancias",
+)
+
 PSYCH_EXCLUSIONS: tuple[SignalGroup, ...] = (
     IDIOM, TOPIC_NOT_SELF, WORK_VENTING, EXPOSURE_ATTEMPT, EXPOSURE_COMPLETED,
 )
@@ -179,14 +218,7 @@ PSYCH_CHRONIC_SIGNALS = WeightedSignals(
             r"(?:mi|su)\s+\w+\s+muri[oó]|grieving|in\s+mourning)",
             category="duelo reciente",
         ),
-        SignalGroup.make(
-            "substance_use", 2,
-            r"\b(alcoholismo|alcoh[oó]lic\w*|adicci[oó]n\w*|adict[oa]\b|"
-            r"drogadic\w*|sobredosis|overdose|reca[ií]\w*\s+en\s+"
-            r"(?:el\s+alcohol|las\s+drogas)|substance\s+(?:ab)?use|"
-            r"consumo\s+problem[aá]tico)",
-            category="trastorno por uso de sustancias",
-        ),
+        SUBSTANCE_USE,
         # --- Exposure to a relative's suicide attempt / death (Alex, #55 H2).
         # --- Same weight as each other, deliberately NOT inside recent_grief.
         EXPOSURE_ATTEMPT,
@@ -264,6 +296,102 @@ PSYCH_ACUTE_SIGNALS = WeightedSignals(
             r"\b(no tengo a nadie|me siento (muy )?solo de verdad|"
             r"i feel (so |really )?alone right now)\b",
             category="aislamiento social",
+        ),
+    ),
+)
+
+
+#: Recovery in the CURRENT message — the axis nobody was reading. Threshold 4
+#: against groups of 3 means NOTHING fires alone, deliberately: the corpus only
+#: knew how to climb the ladder, and 145 turns sat in `stability` without a
+#: single recovery signal, which is not stability but nobody watching the other
+#: side (Alex, discord-bot #55 H4, 2026-09-09).
+#:
+#: THE RULE UNDERNEATH, in her words: *the generic weighs little, the specific
+#: weighs*. Saying you are better does not count; saying what you DID does.
+#:
+#: Everything else follows from that:
+#:
+#: - **Only the past counts.** "mañana voy a ir a la cita" scores nothing. A
+#:   promise is the easiest thing to say to be left alone, and nothing that
+#:   happens after is verifiable. What was already done already happened.
+#: - **Closing the conversation SUBTRACTS.** "ya estoy bien, ya no quiero hablar
+#:   de eso" is +3 self-report and −3 closure: zero, does not fire. That person
+#:   is not improving, they are shutting down — and they look more like someone
+#:   improving than anyone else does.
+#: - **Integration is what unlocked this hallazgo.** Rumination is detected by
+#:   what a person STOPS saying, which needs turn history. But someone who
+#:   connects today to their own pattern ("siempre me pasa cuando siento que no
+#:   me creen") and then moves to the present is visibly on the way out — and
+#:   that is legible in a SINGLE message.
+#: - **Everything weighs 3, nothing weighs 4**, because the two errors do not
+#:   cost the same: firing too easily withdraws care from someone still unwell;
+#:   firing too rarely just keeps the care a while longer. Even integration —
+#:   the hardest to fake — stays at 3, because a person can produce a real
+#:   insight and remain exactly as bad.
+PSYCH_RECOVERY_SIGNALS = WeightedSignals(
+    threshold=4,
+    exclusions=PSYCH_EXCLUSIONS,
+    # Substance use turns this axis off entirely — see `silenced_by`. There is
+    # no intervention there, only containment.
+    silenced_by=(SUBSTANCE_USE, SUBSTANCE_USE_SPOKEN),
+    groups=(
+        # Self-report. NOT split into strong and weak, for two reasons Alex
+        # gave: deciding which phrasing counts less is a judgement that ages
+        # badly once written into code, and since none of them crosses alone,
+        # splitting them would almost never change the outcome anyway. A group
+        # scores at most once per evaluation, so three of these are worth one.
+        SignalGroup.make(
+            "self_report_better", 3,
+            r"\b(?:"
+            r"ya\s+(?:me\s+siento|estoy)\s+(?:mejor|bien|m[aá]s\s+tranquil[oae])|"
+            r"ya\s+se\s+me\s+pas[oó]|ya\s+me\s+calm[eé]|ya\s+la\s+libr[eé]|"
+            r"creo\s+que\s+ya\s+estoy\s+(?:mejor|bien|m[aá]s\s+tranquil[oae])|"
+            r"ya\s+no\s+me\s+siento\s+tan\s+mal|"
+            r"i\s+feel\s+better\s+now|i'?m\s+okay\s+now"
+            r")",
+            category="autorreporte de mejoría",
+        ),
+        # Something ALREADY DONE — past only. The "ya" is load-bearing: it is
+        # what separates "ya le hablé a mi hermana" from "voy a hablarle".
+        SignalGroup.make(
+            "action_taken", 3,
+            r"\b(?:"
+            r"ya\s+(?:le\s+)?habl[eé]\s+(?:con|a)\s+|"
+            r"ya\s+me\s+tom[eé]\s+(?:la|las|mi|mis)\s+(?:pastilla|medicin|medicament)|"
+            r"ya\s+com[ií]\b|ya\s+desayun[eé]|ya\s+cen[eé]|"
+            r"ya\s+sal[ií]\s+a\s+(?:caminar|correr|dar\s+una\s+vuelta)|"
+            r"ya\s+(?:fui|estuve)\s+(?:a|con)\s+(?:mi\s+)?(?:terapia|terapeut|psic[oó]log|psiquiatr)|"
+            r"i\s+already\s+(?:called|talked\s+to|ate|took\s+my\s+med)"
+            r")",
+            category="acción ya realizada",
+        ),
+        # Integration — the person explains their own reaction, connecting today
+        # to a pattern of theirs. The hardest of the three to fake, and still 3.
+        SignalGroup.make(
+            "integration", 3,
+            r"\b(?:"
+            r"creo\s+que\s+ya\s+entend[ií]|me\s+di\s+cuenta\s+de\s+que|"
+            r"siempre\s+me\s+pasa\s+cuando|"
+            r"(?:es\s+que\s+)?en\s+realidad\s+lo\s+que\s+me\s+(?:doli[oó]|peg[oó]|dio)|"
+            r"i\s+think\s+i\s+get\s+it\s+now|i\s+reali[sz]ed\s+that"
+            r")",
+            category="integración",
+        ),
+        # Closing the conversation SUBTRACTS. The only negative weight in the
+        # corpus, and the reason the axis needs one: this phrasing rides ON TOP
+        # of a self-report ("ya estoy bien, ya no quiero hablar de eso") and
+        # cancels it to exactly zero.
+        SignalGroup.make(
+            "conversation_closure", -3,
+            r"\b(?:"
+            r"ya\s+no\s+quiero\s+hablar\s+(?:de\s+eso|del\s+tema|de\s+esto)|"
+            r"no\s+te\s+preocupes\s+por\s+m[ií]|ya\s+d[eé]jalo|"
+            r"olv[ií]dalo|da\s+igual\b|ya\s+ni\s+s[eé]\b|"
+            r"mejor\s+(?:ya\s+)?ni\s+hablemos|cambiemos\s+de\s+tema|"
+            r"i\s+don'?t\s+want\s+to\s+talk\s+about\s+(?:it|this)\s+anymore"
+            r")",
+            category="cierre de conversación",
         ),
     ),
 )
