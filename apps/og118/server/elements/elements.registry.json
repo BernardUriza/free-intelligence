@@ -58,7 +58,6 @@
       "displayName": "Oxígeno",
       "description": "Vultur Analytica: crítica cultural forense que disecciona cine y cultura como un cadáver en la plancha.",
       "status": "active",
-      "backingBotId": "vultur-bot",
       "engineBinding": {
         "kind": "external_http_engine",
         "personaId": "vultur"
@@ -680,7 +679,6 @@
       "displayName": "Plutonio",
       "status": "active",
       "description": "Reaper Arquetipo: analista implacable de código y flujos Claude. Brutal, preciso, orquesta repos y agentes.",
-      "backingBotId": "reaper-gpt",
       "aliases": [
         "pu",
         "plutonium",

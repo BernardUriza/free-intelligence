@@ -26,7 +26,7 @@ def test_shipped_registry_has_exactly_118_and_oxygen_active() -> None:
     o = reg.resolve("oxigeno")
     assert o is not None and o.is_active
     assert o.atomic_number == 8 and o.symbol == "O"
-    assert o.backing_bot_id == "vultur-bot"
+    assert o.engine_binding.persona_id == "vultur"
 
 
 def test_canonical_id_and_label_use_atomic_number_pk() -> None:
@@ -61,8 +61,9 @@ def test_every_active_element_rides_the_external_engine() -> None:
 
 
 def test_external_active_element_needs_no_local_persona(tmp_path) -> None:
-    # An external element is valid with ONLY a binding — no backingBotId/personaPromptPath
-    # (the remote engine owns the persona). This is what lets Yodo/Aluminio exist.
+    # Un elemento externo es válido con SÓLO su binding: el motor remoto es dueño
+    # del personaje y og118 no guarda nada suyo. Esto es lo que deja existir a
+    # Yodo y a Aluminio, que ni personaId traen.
     p = _write(tmp_path, [{
         "atomicNumber": 53, "symbol": "I", "slug": "yodo", "displayName": "Yodo",
         "status": "active", "engineBinding": {"kind": "external_http_engine"},
@@ -138,7 +139,7 @@ def test_active_element_without_an_external_binding_refuses_to_load(tmp_path) ->
     con su nombre puesto, que es la falla silenciosa que esto existe para matar."""
     p = _write(tmp_path, [{
         "atomicNumber": 94, "symbol": "Pu", "slug": "plutonio", "displayName": "Plutonio",
-        "status": "active", "backingBotId": "reaper-gpt",
+        "status": "active",
     }])
     with pytest.raises(ElementsRegistryError, match="must declare an external engineBinding"):
         ElementsRegistry.load(p)

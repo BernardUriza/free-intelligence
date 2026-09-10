@@ -71,7 +71,6 @@ class Element:
     slug: str
     display_name: str
     status: str
-    backing_bot_id: str | None = None
     # Cómo corre este elemento. Siempre un motor externo si está activo
     # (PERSONA-SSOT-2); `persona_id` ausente = la persona por default del motor,
     # que es Insult.
@@ -125,7 +124,6 @@ def _to_element(raw: dict) -> Element:
         slug=raw["slug"],
         display_name=raw["displayName"],
         status=raw["status"],
-        backing_bot_id=raw.get("backingBotId"),
         engine_binding=_to_engine_binding(raw.get("engineBinding")),
         aliases=tuple(raw.get("aliases", ())),
         description=raw.get("description"),
