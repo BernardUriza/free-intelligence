@@ -1,8 +1,17 @@
 # ENGINE-BINDING-ADR-1 — how an elemento binds to an engine
 
-Status: Accepted — Phase 1 + Phase 3 (Oxígeno) shipped; Phase 2 deferred
+Status: **Fase 1 SUPERADA por PERSONA-SSOT-2 (2026-09-10)**; el binding externo
+(fase 3) es ahora el único camino.
 Decided: 2026-06-28 by Bernard (with the AURITY coagent's stress-test)
 Supersedes nothing. Extends OG118-ELEMENTS-ADR-1.
+
+> **Lo que cambió, 2026-09-10 (decisión de Bernard).** El prompt de un elemento
+> vive en **discord-bot** y en ningún otro lado; og118 elige el elemento y el
+> runner de allá pone la voz, como Yodo con `insult.md`. Con eso murieron la fase 1
+> entera (`personaCorePath` + `composed_persona()` + el paquete `fi-personas`) y
+> los kinds `local_runner_persona` / `shared_persona_prompt`. Un elemento activo
+> sin `engineBinding` externo ya **no carga**. Lo que sigue abajo se conserva como
+> registro de cómo se llegó aquí, no como el diseño vigente.
 
 ## Context
 

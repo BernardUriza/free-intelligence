@@ -225,11 +225,6 @@ _runner = build_runner()
 # The wired session store (lifespan-owned). Module-level because the element
 # runners are built lazily at request time and must inherit it.
 
-# Elemento runners (OG118-ELEMENTS-ADR-1): an active element swaps ONLY the
-# persona. The base runner serves "no element". Per-element runners are built
-# lazily from the registry and cached by canonical id.
-_element_runners: dict[str, Runner] = {}
-
 
 def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | None]:
     """Resolve (Runner, Element) for this turn. Unknown/blank/non-active → the base
@@ -237,15 +232,11 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
     el = get_registry().resolve(element_token)
     if el is None or not el.is_active:
         return _runner, None
-    # External elements run on a remote engine (the chat_stream external branch),
-    # so no local runner is built — return the base runner as an unused placeholder.
-    if el.engine_binding is not None and el.engine_binding.is_external:
-        return _runner, el
-    cached = _element_runners.get(el.id)
-    if cached is None:
-        cached = build_runner(persona_text=get_registry().composed_persona(el))
-        _element_runners[el.id] = cached
-    return cached, el
+    # Todo elemento activo corre en el motor remoto (la rama externa de
+    # chat_stream), así que aquí nunca se construye un runner por elemento: se
+    # devuelve el base como placeholder sin uso. El catálogo garantiza el
+    # binding — un elemento activo sin él no carga (PERSONA-SSOT-2).
+    return _runner, el
 
 
 RunnerSelector = Callable[[str | None], tuple[Runner, Element | None]]

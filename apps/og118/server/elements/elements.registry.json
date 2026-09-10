@@ -59,9 +59,10 @@
       "description": "Vultur Analytica: crítica cultural forense que disecciona cine y cultura como un cadáver en la plancha.",
       "status": "active",
       "backingBotId": "vultur-bot",
-      "personaCorePath": "vultur.core.md",
-      "personaPromptPath": "personas/008-o-oxigeno.context.md",
-      "engineBinding": { "kind": "external_http_engine", "personaId": "vultur" },
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "vultur"
+      },
       "aliases": [
         "o1",
         "oxygen",
@@ -103,7 +104,10 @@
       "displayName": "Aluminio",
       "description": "ALICE: la voz clínica que cruzó el espejo para ayudarte a ver lo que está debajo.",
       "status": "active",
-      "engineBinding": { "kind": "external_http_engine", "personaId": "alice" }
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "alice"
+      }
     },
     {
       "atomicNumber": 14,
@@ -385,7 +389,9 @@
       "displayName": "Yodo",
       "description": "Insult: el bot que te dice la verdad aunque no la quieras, sin filtro.",
       "status": "active",
-      "engineBinding": { "kind": "external_http_engine" }
+      "engineBinding": {
+        "kind": "external_http_engine"
+      }
     },
     {
       "atomicNumber": 54,
@@ -675,13 +681,15 @@
       "status": "active",
       "description": "Reaper Arquetipo: analista implacable de código y flujos Claude. Brutal, preciso, orquesta repos y agentes.",
       "backingBotId": "reaper-gpt",
-      "personaCorePath": "reaper.core.md",
-      "personaPromptPath": "personas/094-pu-plutonio.context.md",
       "aliases": [
         "pu",
         "plutonium",
         "reaper"
-      ]
+      ],
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "reaper"
+      }
     },
     {
       "atomicNumber": 95,

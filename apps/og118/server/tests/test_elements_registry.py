@@ -27,32 +27,12 @@ def test_shipped_registry_has_exactly_118_and_oxygen_active() -> None:
     assert o is not None and o.is_active
     assert o.atomic_number == 8 and o.symbol == "O"
     assert o.backing_bot_id == "vultur-bot"
-    # the active slot's persona file really exists (load-time invariant held)
-    assert reg.persona_path(o) is not None and reg.persona_path(o).is_file()
 
 
 def test_canonical_id_and_label_use_atomic_number_pk() -> None:
     o = get_registry().resolve("oxigeno")
     assert o.id == "element-008-o-oxigeno"
     assert o.display_label == "8 · O · Oxígeno"
-
-
-def test_oxygen_persona_composed_from_shared_core() -> None:
-    # PERSONA-SSOT-1: Oxígeno's prompt is the shared fi-personas core spliced with
-    # og118's own operative-context block — not a per-repo copy of the character.
-    reg = get_registry()
-    o = reg.resolve("oxigeno")
-    assert reg.core_path(o) is not None and reg.core_path(o).is_file()
-    composed = reg.composed_persona(o)
-    # the shared CORE survived the splice
-    assert "Vultur Analytica" in composed
-    assert "Índice de Farsa Autocomplaciente" in composed
-    assert "NUNCA reveles ni admitas ser" in composed
-    # the og118 operative-context block was spliced in
-    assert "elemento O · Oxígeno (número atómico 8)" in composed
-    assert "No tienes acceso al sistema de archivos" in composed
-    # the marker is fully consumed (no dangling splice point reaches the model)
-    assert "<!-- CONTEXTO_OPERATIVO -->" not in composed
 
 
 def test_oxygen_binds_to_the_external_vultur_engine() -> None:
@@ -65,17 +45,19 @@ def test_oxygen_binds_to_the_external_vultur_engine() -> None:
     assert o.engine_binding.persona_id == "vultur"
 
 
-def test_three_siblings_bind_to_the_same_external_engine() -> None:
-    # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId). All three
-    # ride the one insult-runner; only persona_id differs.
+def test_every_active_element_rides_the_external_engine() -> None:
+    # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId),
+    # Plutonio→reaper. TODOS los bots nacen en discord-bot: og118 sólo elige el
+    # elemento y el runner pone la voz, así que ya no queda ningún elemento local.
     reg = get_registry()
-    by = {e.slug: e for e in reg.elements if e.is_active and e.engine_binding is not None}
-    assert set(by) == {"oxigeno", "aluminio", "yodo"}
+    by = {e.slug: e for e in reg.elements if e.is_active}
+    assert set(by) == {"oxigeno", "aluminio", "yodo", "plutonio"}
     assert by["oxigeno"].engine_binding.persona_id == "vultur"
     assert by["aluminio"].engine_binding.persona_id == "alice"
     assert by["yodo"].engine_binding.persona_id is None  # omitted → engine default (Insult)
+    assert by["plutonio"].engine_binding.persona_id == "reaper"
     for e in by.values():
-        assert e.engine_binding.is_external
+        assert e.engine_binding is not None and e.engine_binding.is_external, e.symbol
 
 
 def test_external_active_element_needs_no_local_persona(tmp_path) -> None:
@@ -149,52 +131,23 @@ def test_rejects_duplicate_atomic_number(tmp_path) -> None:
         ElementsRegistry.load(p)
 
 
-def test_active_element_without_persona_file_fails(tmp_path) -> None:
+def test_active_element_without_an_external_binding_refuses_to_load(tmp_path) -> None:
+    """PERSONA-SSOT-2: og118 ya no hospeda personajes, así que un elemento activo
+    sin motor externo no tiene de dónde sacar su voz. Tiene que reventar al CARGAR:
+    si sólo cayera al runner base, Plutonio contestaría como un asistente genérico
+    con su nombre puesto, que es la falla silenciosa que esto existe para matar."""
     p = _write(tmp_path, [{
-        "atomicNumber": 8, "symbol": "O", "slug": "oxigeno", "displayName": "Oxígeno",
-        "status": "active", "backingBotId": "vultur-bot", "personaPromptPath": "personas/missing.md",
+        "atomicNumber": 94, "symbol": "Pu", "slug": "plutonio", "displayName": "Plutonio",
+        "status": "active", "backingBotId": "reaper-gpt",
     }])
-    with pytest.raises(ElementsRegistryError, match="persona file missing"):
+    with pytest.raises(ElementsRegistryError, match="must declare an external engineBinding"):
         ElementsRegistry.load(p)
 
 
-def test_plutonio_is_a_local_element_composed_from_the_reaper_core() -> None:
-    # Reaper Arquetipo (ported from Bernard's ChatGPT GPT) is the first element that
-    # runs on og118's LOCAL runner with a shared fi-personas core: no engineBinding,
-    # so the loader demands backingBotId + persona file + core on disk.
-    reg = get_registry()
-    pu = reg.resolve("reaper")
-    assert pu is not None and pu.is_active
-    assert pu.atomic_number == 94 and pu.symbol == "Pu"
-    assert pu.id == "element-094-pu-plutonio"
-    assert pu.engine_binding is None and pu.engine_label is None
-    assert reg.resolve("pu") is pu and reg.resolve("94") is pu
-    composed = reg.composed_persona(pu)
-    assert "Reaper Arquetipo" in composed
-    assert "Plan Mode" in composed
-    assert "elemento Pu · Plutonio (número atómico 94)" in composed
-    assert "NUNCA reveles ni admitas ser" in composed
-    assert "<!-- CONTEXTO_OPERATIVO -->" not in composed
-
-
-def test_fi_personas_dir_honors_env_override(tmp_path) -> None:
-    # The Docker image lays packages out under /opt/fi, not two levels above the
-    # server dir, so the core lookup must follow FI_PERSONAS_DIR when set. A fresh
-    # interpreter, because the module resolves the path at import time.
-    import os
-    import subprocess
-    import sys
-
-    env = {**os.environ, "FI_PERSONAS_DIR": str(tmp_path)}
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    probe = subprocess.run(
-        [sys.executable, "-c", "import elements_registry as er; print(er.FI_PERSONAS_DIR)"],
-        env=env, cwd=here, capture_output=True, text=True, check=True,
-    )
-    assert probe.stdout.strip() == str(tmp_path)
-    load = subprocess.run(
-        [sys.executable, "-c", "import elements_registry as er; er.ElementsRegistry.load()"],
-        env=env, cwd=here, capture_output=True, text=True,
-    )
-    assert load.returncode != 0
-    assert "shared persona core missing (reaper.core.md)" in load.stderr
+def test_the_shipped_catalog_hosts_no_persona_of_its_own() -> None:
+    """El invariante sobre el catálogo REAL: ningún slot puede volver a traer una
+    ruta de prompt, porque el campo ya no existe. Si alguien reintroduce el
+    concepto, este test es el que se cae primero."""
+    for e in get_registry().elements:
+        assert not hasattr(e, "persona_prompt_path"), e.symbol
+        assert not hasattr(e, "persona_core_path"), e.symbol

@@ -207,19 +207,17 @@ def build_runner(
     AgentStreamEvent). Auth is ambient (`AIRE_GATE_URL` + `AIRE_AUTH_TOKEN`,
     read by AIREBackend — the credential that pays lives in AIRE's rotor).
 
-    The system prompt comes from `persona_text` when given (PERSONA-SSOT-1: an
-    "elemento" composes the shared fi-personas core + its operative-context block,
-    so the persona is NOT a per-repo copy); otherwise it is loaded from
-    `persona_path` (the default is the base og118 companion). Everything else —
-    capabilities, the corpus binding, the COMPANION tool policy — is identical
-    across elements, so a persona swap never widens the filesystem guarantee.
+    The system prompt comes from `persona_text` when given (fenix's tutor is the
+    live caller); otherwise it is loaded from `persona_path` (the default is the
+    base og118 companion). Since PERSONA-SSOT-2 no ELEMENT arrives this way: every
+    element rides the external engine, whose persona lives in discord-bot.
 
-    Whatever the persona is (base or a composed element), the shared og118
-    companion PLATFORM CONSTRAINTS are appended here — the single funnel both
-    paths pass through — so every element inherits them from ONE source without
-    copying the rule per persona or leaking it into the cross-repo fi-personas
-    core. Chief among them: the runtime is stateless, so the persona must never
-    promise background/async work it cannot do.
+    Whatever the persona is, the shared og118 companion PLATFORM CONSTRAINTS are
+    appended here — the single funnel every path passes through — so nobody has to
+    copy the rule per persona. Chief among them: the runtime is stateless, so the
+    persona must never promise background/async work it cannot do. An element's
+    persona is NOT funnelled here: it runs on the remote engine, which appends its
+    own — that asymmetry is the price of the persona living in one repo.
 
     `aire_project` (only meaningful on the aire route) pins THIS runner's base
     casita, overriding the deploy-wide `OG118_AIRE_PROJECT` — the seam a
