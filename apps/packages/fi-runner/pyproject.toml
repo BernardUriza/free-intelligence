@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.21.7"
+version = "0.21.8"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -44,7 +44,11 @@ dependencies = [
     # guard's metadata keeps its string contract through score.explain().
     # Cap 0.32: fi-core 0.31 makes a retriever re-ingest REPLACE a source_ref's
     # chunks and reaches the contextualizer from RagStore.from_components — additive.
-    "fi-core>=0.25,<0.32",
+    # Cap 0.33: fi-core 0.32 adds PSYCHIATRY.recovery_signals (the H4 axis) and
+    # `silenced_by`, which can switch a whole axis off instead of cutting a span.
+    # Additive: no existing axis declares a silencer, so every current score is
+    # unchanged, and WeightedSignals.score now materializes its input.
+    "fi-core>=0.25,<0.33",
 ]
 
 [project.optional-dependencies]
