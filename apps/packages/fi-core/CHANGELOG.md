@@ -12,6 +12,40 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.32.0] — 2026-09-10
+
+Publica el eje de recuperación que ya vivía en `main` desde el 2026-09-09
+(`22693292`) y que ningún tag alcanzó: `fi-core-v0.30.0` y `fi-core-v0.31.0`
+salieron sin él, así que el consumidor —que instala el PAQUETE, no el repo—
+seguía sin poder leer el otro lado de la escalera.
+
+### Added — `PSYCHIATRY.recovery_signals`: el corpus aprende a bajar la escalera
+
+Los 145 turnos que vivían en `stability` sin una sola señal de recuperación no
+eran estabilidad: eran que nadie estaba mirando el otro lado. Cuatro grupos con
+peso 3 contra umbral 4, así que ninguna señal prende sola: autorreporte, algo ya
+hecho, integración, y el cierre de conversación en −3. Las promesas a futuro no
+suman: una promesa es lo más fácil de decir para que te dejen en paz y nada de lo
+que pase después es verificable. El cierre resta porque *"ya estoy bien, ya no
+quiero hablar de eso"* da exactamente cero — esa persona no mejora, se está
+cerrando, y es la que más se parece a alguien que mejora.
+
+### Added — `silenced_by`: un contexto puede apagar un eje ENTERO
+
+Distinto de una exclusión, que corta un span y deja al resto puntuar. En
+sustancias el eje de recuperación se apaga completo, ni para bien ni para mal:
+ahí no hay intervención, hay contención. Un eje silenciado nunca es un cero
+pelón — `ScoredSignals.silenced` dice qué lo apagó, porque un cero por silencio y
+un cero por ausencia de señal significan cosas opuestas para quien lee el log.
+El eje lleva dos patrones de sustancias, el clínico y el hablado: el que ya
+existía está escrito para FACTS ("alcoholismo", "consumo problemático") y no
+reconoce ninguna de las formas en que una persona lo dice en un chat.
+
+### Fixed — `WeightedSignals.score` materializa su entrada
+
+Ahora se lee dos veces; un generador habría llegado vacío a la segunda pasada y
+todo eje con silenciador habría puntuado cero en silencio.
+
 ## [0.31.0] — 2026-09-09
 
 One defect and one dead feature, with one cause: the RAG store had two write
