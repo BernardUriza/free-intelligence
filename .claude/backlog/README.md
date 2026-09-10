@@ -45,13 +45,13 @@ Lo que estaba mintiendo:
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **En curso** — corte 1 entregado 2026-09-10: `EditableSection` + `ResourceListSection` en fi-glass, `globals.css` **771 → 664**, 15 clases → 5 en el detalle. La medición destapó tres defectos preexistentes (un min-height táctil prometido y nunca escrito, selectores muertos, y fi-glass sin auto-cleanup de tests). Siguen Section/Index/UploadPanel | 2026-09-09 |
 | [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado EN VIVO 2026-09-09) — build + install + launch + login en pantalla, corridos hoy. Falta la vuelta de chat real; el átomo es la contraseña de Auth0. Ojo: la Mac no tiene dispositivos de simulador creados, hay que crear uno | 2026-08-12 |
 
 ## Entregadas
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **Done 2026-09-10** — corte 1: `EditableSection` + `ResourceListSection` en fi-glass, `globals.css` **771 → 664**. Corte 2: **no quedaba anatomía por subir** — los otros tres consumidores ya componían fi-glass. La tarjeta se planteó mal el 09-09 (contó CSS que menciona `og-*` como si fuera anatomía); de las 163 líneas restantes, 57 propiedades son marca y las 41 de anatomía son envoltorios de un solo consumidor | 2026-09-09 |
 | [PERSONA-SSOT-2 — el personaje vive DOS veces, y el elemento que lo cita no lo lee](persona-ssot-el-personaje-vive-dos-veces.md) | **Done 2026-09-10** — el prompt de un elemento vive en discord-bot y punto. Vultur borrado, Reaper migrado (`e7e196b`), `fi-personas` eliminado y la capacidad local arrancada del código: el campo ya no existe, que es mejor candado que un validador. Verificado en vivo contra el persona-runner | 2026-09-09 |
 | [CONV-CONCURRENCY-1 — pin/título se perdían en last-write-wins entre dispositivos](og118-conv-concurrency.md) | **Done 2026-08-23** — `PUT` deja de opinar sobre las banderas y `PATCH` manda el delta; la ruta del 409 sobre `updatedAt` resultó incorrecta y la tarjeta explica por qué | 2026-07-13 |
 | [FIGLASS-PROJECTS-PAGE-1 — Projects como página (paridad claude.ai)](figlass-projects-page.md) | **Done 2026-08-22** — los 3 PRs + `instructions` cableadas al prompt. Fase 2 abierta: composer en la página, pin/archive. La ANATOMÍA de la misma página es [[b3-figlass-resource-adoption]]; si sólo hay presupuesto para una, la función gana | 2026-07-14 |

@@ -1,6 +1,6 @@
 # B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos todavía es CSS de og118, no anatomía de fi-glass
 
-Status: **En curso** — primer corte entregado 2026-09-10: `globals.css` **771 → 664** medido
+Status: **Done 2026-09-10** — el corte 1 entregó `globals.css` **771 → 664** medido, y el corte 2 encontró que **no quedaba anatomía por subir**: los otros tres consumidores ya componían fi-glass correctamente. Ver el cierre
 Proposed: 2026-09-09 by Claude — es la tarjeta que [[b3-figlass-shell-primitives]] prometía al cerrar 1D y que nunca existió
 
 ## Qué es
@@ -126,3 +126,42 @@ en documento/arnés/head/detalle/rail, los cuatro botones a **44px** (antes
 `Og118ProjectsSection` (5 clases), `Og118ProjectsIndex` (5), `Og118ProjectUploadPanel`
 (3) y las de página. Ninguna concentra como concentraba el detalle, así que el
 resto es un arco más plano.
+
+## Corte 2 — y la corrección a esta misma tarjeta, 2026-09-10
+
+Se abrió un worktree para atacar `Og118ProjectsSection`, `Og118ProjectsIndex` y
+`Og118ProjectUploadPanel`. **No había nada que subir.** Los tres ya componen
+fi-glass, y sus propios docstrings lo dicen desde antes:
+
+| Componente | Qué compone ya | Sus clases `og-*` |
+|---|---|---|
+| `Og118ProjectUploadPanel` | `ChatFilePreview` + `FI_TOUCH_TARGET_CLASS` | wrapper, botón, texto de confirmación |
+| `Og118ProjectsIndex` | `ResourceIndexHeader`, `ResourceSearchInput`, `ResourceCard(Grid)` | select de orden con su copy, CTA, layout de página |
+| `Og118ProjectsSection` | `AgentSidebarSection` (de SHELL-PRIMITIVES-1C) | className de marca, empty-state, nav, lista |
+
+**El error estaba en el planteamiento de esta tarjeta, y es mío.** Al medirla el
+2026-09-09 conté *"273 de 771 líneas son `og-project*`"* y llamé residuo a todas.
+Eso confunde **CSS que menciona una clase og-** con **anatomía que fi-glass
+debería tener**. Sólo el detalle (`Og118ProjectWorkspace`) tenía anatomía sin
+subir de verdad — y ésa se subió en el corte 1.
+
+**La medición que lo demuestra**, sobre las 163 líneas `og-project*` que quedan:
+
+```
+propiedades de ANATOMÍA (display/flex/gap/padding/width…):  41
+propiedades de MARCA (color/background/border/font…):       57
+```
+
+Y las 41 de anatomía son envoltorios flex de 3–4 propiedades con **un solo
+consumidor cada uno** (`og-projects-list`, `og-project-upload`, `og-projects-page`,
+`og-projects-shell`, `og-projects-heading`). Subir eso sería exactamente el
+primitivo especulativo que [[b3-figlass-shell-primitives]] rechazó al cerrar 1D:
+*"no tiene consumidor: construirlo sería framework especulativo, justo lo
+contrario de framework-first-canary"*.
+
+Además, **ninguna clase quedó sin consumidor** (grep sobre las 26 restantes,
+cero huérfanas), así que tampoco hay CSS muerto que borrar.
+
+**Cierre honesto: el arco terminó en el corte 1.** Bajar más el número de líneas
+exigiría mover marca a fi-glass, que es justo lo que la doctrina del módulo
+prohíbe — *"fi-glass no conoce esa palabra y no debe aprenderla"*.
