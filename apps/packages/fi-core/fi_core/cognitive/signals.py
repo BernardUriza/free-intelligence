@@ -80,6 +80,10 @@ class ScoredSignals:
     #: Exclusion groups that cut a span before matching (idiom, topic, someone
     #: else's act). Explains why a phrase that looks like a crisis did not score.
     excluded: tuple[str, ...] = ()
+    #: Groups that SILENCED the whole axis (see ``WeightedSignals.silenced_by``).
+    #: When this is non-empty the score is 0 by construction, and this names the
+    #: context that turned the axis off — a silenced axis is never a bare zero.
+    silenced: tuple[str, ...] = ()
 
     @property
     def crosses(self) -> bool:
@@ -105,10 +109,30 @@ class WeightedSignals:
     #: Spans cut out before matching (see module docstring). A group listed
     #: here AND in ``groups`` scores itself on the span, and nothing else does.
     exclusions: tuple[SignalGroup, ...] = ()
+    #: Contexts that turn this axis OFF ENTIRELY — score 0, nothing scored for
+    #: or against. Different from an exclusion, which cuts one span and lets the
+    #: rest of the text score: this says the axis cannot be read at all here.
+    #:
+    #: Alex, discord-bot #55 H4: on the RECOVERY axis, substance use silences
+    #: everything. "With someone on substances you don't do intervention, you do
+    #: containment — what they say is not a reliable signal of anything." An
+    #: axis that scores improvement there would withdraw care from the person
+    #: least able to ask for it back.
+    silenced_by: tuple[SignalGroup, ...] = ()
 
     def score(self, texts: Iterable[str]) -> ScoredSignals:
         """Evaluate ``texts`` as one body of evidence. Each group contributes
         its weight at most once, no matter how many texts match it."""
+        # Materialised: `texts` is an Iterable and the silence check reads it
+        # before the group loop does. A generator would arrive empty to the
+        # second pass and every axis with a silencer would score 0 in silence.
+        texts = list(texts)
+        silenced = tuple(sorted(
+            g.name for g in self.silenced_by
+            if any(text and g.pattern.search(text) for text in texts)
+        ))
+        if silenced:
+            return ScoredSignals(score=0, matched=(), threshold=self.threshold, silenced=silenced)
         matched: dict[str, int] = {}
         denied: set[str] = set()
         excluded: set[str] = set()
