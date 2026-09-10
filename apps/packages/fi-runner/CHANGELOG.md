@@ -22,6 +22,22 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.8] — 2026-09-10
+
+### Changed — cap de `fi-core` subido a `<0.33`
+
+fi-core 0.32 publica el eje de recuperación (`PSYCHIATRY.recovery_signals`, H4 del
+issue #55 de discord-bot) y `silenced_by`, que apaga un eje ENTERO en vez de cortar
+un span. Es aditivo para el runner: `silenced_by` se declara en exactamente un eje
+—el nuevo— así que ningún score existente cambia. El guard clínico envuelve
+`UrgencyClassifier` vía `DOMAINS` y hereda el eje nuevo, que es lo que se quiere.
+
+El cap vive sólo en la metadata pip; la receta conda declara `fi-core >=0.25` sin
+tope, así que la fi-runner publicada nunca bloqueó a fi-core 0.32. El bump existe
+para que `0.21.7` no signifique dos listas de dependencias distintas.
+
+---
+
 ## [0.21.6] — 2026-09-09
 
 ### Changed
