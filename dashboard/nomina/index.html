@@ -224,7 +224,40 @@
       <thead><tr><th>Sesión</th><th>Fecha</th><th>Horas</th><th>Qué salió</th></tr></thead>
       <tbody>
         <tr>
+          <td colspan="4" style="background:var(--accent-soft);font-weight:600">Semana 5 · lun 7 — dom 13 sep · <span style="font-weight:500;opacity:.8">reconstruida desde tu git, no reportada por ti — corrígela cuando quieras</span></td>
+        </tr>
+        <tr>
+          <td>13</td>
+          <td>jue 10-sep · desde 15:00</td>
+          <td><span style="opacity:.65">en curso</span></td>
+          <td>Llegaste y Claude Code te pidió <code>/login</code>: 12 minutos de arranque que no eran tuyos. Preguntaste lo correcto sole —si la cuenta es de Bern, ¿sólo él puede autenticar?— y así era; salió por OAuth y a las 15:12 quedó. Tu turno seguía abierto al cierre de este corte (18:10).</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td>mar 8-sep · 17:23–19:47</td>
+          <td>≥ 2 h 24 min</td>
+          <td><b>Cuatro PRs en una sesión</b>, ~1,300 líneas. <a href="https://github.com/BernardUriza/discord-bot/pull/68">#68</a>: el veredicto de banda se registra con seudónimo de llave secreta que rota cada mes, los <code>reasons</code> recortados a 3 <b>en la capa correcta</b> para que el siguiente que emita no pueda olvidarlo, y nombres de grupo en vez de las frases —porque se parecen demasiado al texto original para un log que se guarda años—. <a href="https://github.com/BernardUriza/discord-bot/pull/69">#69</a>: tus once frases de plan y medios, fijadas desde este lado porque acá nadie las verificaba. <a href="https://github.com/BernardUriza/discord-bot/pull/70">#70</a>: el probe de Bern tumbó tu propia regla en un día y la reescribiste incondicional, además de decirle por qué su parche no servía. <a href="https://github.com/BernardUriza/discord-bot/pull/71">#71</a>: corriendo la suite en tu Windows destapaste que la API devuelve el path con el separador del sistema donde corre — un test que llevaba meses verde pasando por el SO y no por el código.</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td>lun 7-sep · 17:32</td>
+          <td><span style="opacity:.65">no medible</span></td>
+          <td><a href="https://github.com/BernardUriza/discord-bot/pull/67">#67</a> — la regla de versión entra al ADN de Insult: documentaste las dos veces que inventó <i>"v4.32.80"</i> esa mañana con dos deploys reales de por medio, y lo arreglaste con <b>contenido, no código</b>.</td>
+        </tr>
+        <tr>
           <td colspan="4" style="background:var(--accent-soft);font-weight:600">Semana 4 · lun 31 ago — dom 6 sep · primera de 4 h</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>mié 2-sep · ~16:30–19:40</td>
+          <td>4 h</td>
+          <td>Abriste <a href="https://github.com/BernardUriza/discord-bot/issues/59">#59</a> y <a href="https://github.com/BernardUriza/discord-bot/issues/60">#60</a> con números, scripts y repro — los dos viajaron a fi-core. Y contestaste completa la filosofía de <code>secure_remaining_hazards()</code>: las tres categorías, el criterio de apagado, estados finales medibles escritos por humanos, y <i>"la duda se resuelve quedándose"</i>.</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>mar 1-sep · ~14:50–18:10</td>
+          <td>4 h</td>
+          <td>Reportaste el gatekeeper muerto con request id y fecha del último verde. Y corriste la composición del <a href="https://github.com/BernardUriza/discord-bot/issues/53">#53</a> <b>antes de escribir código</b>: ahí salieron dos bugs de fi-core —<code>sin</code> tratado como negación se comía <i>"mejor sin mí"</i>, y sin acentos 16 frases bajaban de banda, 5 de CRITICAL a LOW—. Los dos arreglados al día siguiente.</td>
         </tr>
         <tr>
           <td>8</td>
