@@ -293,6 +293,57 @@ jobs:
               "OG118_EXTERNAL_RUNNER_URL=$RUNNER_URL" \
               "OG118_EXTERNAL_RUNNER_TOKEN=secretref:og118-external-runner-token"
 
+      - name: Ensure background worker job (OG118-BACKGROUND-1, idempotent)
+        # "Te aviso cuando termine" is only true if something runs after the
+        # reply. The app scales to zero, so the worker is a Container Apps JOB:
+        # same image, same share, manual trigger, billed per execution. The app
+        # starts it through its system-assigned identity (Jobs Operator on the
+        # job, nothing wider). Everything is ensure-or-create; without the MCP
+        # bearer the whole feature stays off and the persona keeps the honesty
+        # guard — it never promises what nothing runs.
+        env:
+          IMG: ghcr.io/bernarduriza/free-intelligence/og118-server:${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          AIRE_TOKEN: ${{ secrets.AIRE_AUTH_TOKEN }}
+          MCP_TOKEN: ${{ secrets.OG118_MCP_TOKEN }}
+          MODEL: ${{ vars.OG118_MODEL }}
+          JOB: og118-worker
+        run: |
+          if [ -z "$MCP_TOKEN" ]; then
+            echo "OG118_MCP_TOKEN unset — background execution stays OFF (honesty guard governs)."
+            exit 0
+          fi
+          if az containerapp job show -n "$JOB" -g "$RG" >/dev/null 2>&1; then
+            az containerapp job secret set -n "$JOB" -g "$RG" --secrets "aire-auth-token=$AIRE_TOKEN"
+            az containerapp job update -n "$JOB" -g "$RG" --image "$IMG" \
+              --set-env-vars "OG118_MODEL=$MODEL" "AIRE_GATE_URL=https://gate.bernarduriza.com" \
+                "AIRE_AUTH_TOKEN=secretref:aire-auth-token" "HDF5_USE_FILE_LOCKING=FALSE"
+          else
+            export LOCATION IMG GHCR_TOKEN AIRE_TOKEN MODEL
+            export ENV_ID=$(az containerapp env show -n "$ACA_ENV" -g "$RG" --query id -o tsv)
+            envsubst < apps/og118/server/scripts/aca_job.yaml > /tmp/aca_job.yaml
+            az containerapp job create -n "$JOB" -g "$RG" --yaml /tmp/aca_job.yaml
+            rm -f /tmp/aca_job.yaml
+          fi
+          JOB_ID=$(az containerapp job show -n "$JOB" -g "$RG" --query id -o tsv)
+          MI=$(az containerapp show -n "$APP" -g "$RG" --query identity.principalId -o tsv)
+          if [ -z "$MI" ] || [ "$MI" = "None" ]; then
+            MI=$(az containerapp identity assign -n "$APP" -g "$RG" --system-assigned --query principalId -o tsv)
+          fi
+          if [ -z "$(az role assignment list --assignee "$MI" --scope "$JOB_ID" --role "Container Apps Jobs Operator" --query "[0].id" -o tsv)" ]; then
+            az role assignment create --assignee-object-id "$MI" --assignee-principal-type ServicePrincipal \
+              --role "Container Apps Jobs Operator" --scope "$JOB_ID" >/dev/null
+            echo "role assigned: app identity → Jobs Operator on $JOB"
+          fi
+          FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
+          az containerapp secret set -n "$APP" -g "$RG" --secrets "og118-mcp-token=$MCP_TOKEN"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_MCP_TOKEN=secretref:og118-mcp-token" \
+              "OG118_JOB_RESOURCE_ID=$JOB_ID" \
+              "OG118_PUBLIC_URL=https://$FQDN"
+          echo "background worker wired: job=$JOB public=https://$FQDN"
+
       - name: Health check
         run: |
           FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)
