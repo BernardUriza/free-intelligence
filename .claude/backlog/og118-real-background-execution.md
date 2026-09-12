@@ -33,14 +33,36 @@ a durable backend for the *execution* (the open question). Whatever runs the job
 must respect the same COMPANION `ToolPolicy` and corpus binding as a live turn —
 the background worker is not a wider-privilege path.
 
-## The decision that's the owner's
+## The decision that's the owner's — reframed with the live infra (2026-09-12)
 
-Whether og118 should have real background execution at all, and the architecture:
-it breaks the current "stateless backend, client-owned transcript" invariant that
-makes og118 survive redeploys with zero server state. A durable job store is new
-server-side state (cost, ops, the ACA-recycle-safety it currently gets for free).
-Bernard's call: is a genuinely-async companion worth trading away statelessness,
-or is the honesty guard (never promise what you can't do) the right final answer?
+La premisa original ("rompe el invariante de cero estado en el servidor") ya no
+aplica: las conversaciones viven como JSON en un Azure Files montado en
+`og118-api` (`ragstore-vol`), cloud-autoritativas desde julio. Un registro de job
+al lado es la misma categoría de estado, no una nueva.
+
+La restricción real es **scale-to-zero**: `og118-api` corre con `minReplicas: 0`,
+`maxReplicas: 1`. Un worker dentro de ese contenedor muere en cuanto se va el
+tráfico; correrlo ahí exige una réplica caliente permanente (costo 24/7).
+
+Las dos preguntas, en orden:
+
+1. **¿"Te aviso" debe ser verdad, o el honesty guard es la respuesta final?**
+2. **Si sí, dónde corre el worker.** La primitiva canónica es un **Azure
+   Container Apps Job**: misma imagen, entrypoint `worker`, disparado por la API
+   cuando el modelo se compromete a una tarea, cobrado por ejecución, sin réplica
+   caliente. Estado del job como archivo en el share que ya existe; modelo del
+   job = fi-core `task_tracker` v2 (ya es capability de og118); el worker corre
+   bajo la misma `ToolPolicy` COMPANION y el mismo corpus binding que un turno en
+   vivo. Al terminar, appendea un mensaje de asistente al record de la
+   conversación, y el cliente lo levanta por la librería cloud que ya pollea. La
+   notificación es en el transcript, no push.
+
+**Recomendación de Claude:** sí, y el ACA Job. Reusa todo lo que ya existe, agrega
+un solo recurso en `og118-rg` y sólo cobra por corrida. La réplica caliente no
+compra nada que el Job no dé y factura las 24 horas.
+
+Lo que se acepta al decir que sí: un recurso ACA nuevo, costo por ejecución, y que
+la primera versión avisa dentro del chat y no en el teléfono.
 
 ## Status / next step
 
