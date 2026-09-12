@@ -56,15 +56,6 @@ import { OG118_AUTHOR } from './Og118MessageMeta';
 import { Og118AuthBanner } from './Og118AuthBanner';
 import { Og118VoiceErrorBanner } from './Og118VoiceErrorBanner';
 
-// RESONANCE_CALL_LOOP feature flag: ?resonance=1 query param or localStorage.
-// Off by default so the one-shot composer stays the only voice path until opted in.
-function readResonanceFlag(): boolean {
-  if (typeof window === 'undefined') return false;
-  const p = new URLSearchParams(window.location.search);
-  if (p.get('resonance') === '1' || p.get('RESONANCE_CALL_LOOP') === '1') return true;
-  return window.localStorage.getItem('RESONANCE_CALL_LOOP') === '1';
-}
-
 // Per-state copy + whether the equalizer shows live mic input. Live in
 // listening/speaking/silence_hold (mic open); dimmed while we process so Bernard
 // never mistakes "processing" for "still hearing you".
@@ -140,10 +131,8 @@ export function Og118AgentChat() {
   // in one consumer hook; it returns the render slots the surface distributes.
   const composer = useOg118VoiceComposer(audioQueueStore);
 
-  // RESONANCE: hands-free continuous voice call, behind the RESONANCE_CALL_LOOP
-  // flag (off by default — the one-shot composer above stays the fallback). A
-  // turn-text ref lets requestAssistantTurn resolve with the streamed answer.
-  const [resonanceEnabled] = useState(readResonanceFlag);
+  // RESONANCE: hands-free continuous voice call, always mounted since the
+  // upstream quota rose to 30 RPM (2026-09-12); the one-shot composer stays the fallback.
   // Resonance speaks the SAME turn the transcript persists: sendAndAwait is the
   // single writer of the user + assistant capsules and resolves with the text to
   // speak. No raw agent.send, no transcript bypass (the capsule-less bug).
@@ -152,11 +141,9 @@ export function Og118AgentChat() {
     [conversation],
   );
   const resonance = useOg118ResonanceCall({
-    enabled: resonanceEnabled,
     appendUserMessage: () => {}, // sendAndAwait owns the user capsule — keep this a no-op
     requestAssistantTurn,
     onVoiceError: (message) => composer.setVoiceError(message),
-    debug: resonanceEnabled,
   });
 
   // The backend returned 401 (gated cloud, no/invalid token). Surface a usable
@@ -316,20 +303,18 @@ export function Og118AgentChat() {
                   loading={elements.loading}
                 />
               </div>
-              {resonanceEnabled && (
-                // The chip's shape, its 44px minimum and its label collapse are
-                // fi-glass's; og118 supplies only the emerald/danger tint.
-                <ComposerActionSlot
-                  className={`og-resonance-call-btn${resonance.isActive ? ' og-resonance-call-btn-active' : ''}`}
-                  keepWhenRailCollapses={resonance.isActive}
-                  data-ref="og118-resonance-call"
-                  aria-pressed={resonance.isActive}
-                  aria-label={resonance.isActive ? 'Colgar la llamada' : 'Llamar por voz (Resonance)'}
-                  onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
-                  icon={resonance.isActive ? <PhoneOff aria-hidden /> : <Phone aria-hidden />}
-                  label={resonance.isActive ? 'Colgar' : 'Llamar'}
-                />
-              )}
+              {/* The chip's shape, its 44px minimum and its label collapse are
+                  fi-glass's; og118 supplies only the emerald/danger tint. */}
+              <ComposerActionSlot
+                className={`og-resonance-call-btn${resonance.isActive ? ' og-resonance-call-btn-active' : ''}`}
+                keepWhenRailCollapses={resonance.isActive}
+                data-ref="og118-resonance-call"
+                aria-pressed={resonance.isActive}
+                aria-label={resonance.isActive ? 'Colgar la llamada' : 'Llamar por voz (Resonance)'}
+                onClick={() => (resonance.isActive ? resonance.endCall() : void resonance.startCall())}
+                icon={resonance.isActive ? <PhoneOff aria-hidden /> : <Phone aria-hidden />}
+                label={resonance.isActive ? 'Colgar' : 'Llamar'}
+              />
             </>
           }
           // The "+" already carries "Adjuntar imagen" (contributed by fi-glass).

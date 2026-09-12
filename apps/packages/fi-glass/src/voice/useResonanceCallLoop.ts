@@ -11,8 +11,8 @@
  * speech/silence from the live VAD levels, debouncing end-of-speech, arming the
  * auto-resume and sleep timers, and exposing window.__RESONANCE_EVENTS__ for the
  * screenless E2E harness. RESONANCE is the voice channel an elemento speaks
- * through; og118 mounts this behind the RESONANCE_CALL_LOOP flag with a one-shot
- * composer fallback. See .claude/backlog/og118-resonance-voice-mode.md.
+ * through; og118 mounts it always-on with a one-shot composer fallback.
+ * See .claude/backlog/og118-resonance-voice-mode.md.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
