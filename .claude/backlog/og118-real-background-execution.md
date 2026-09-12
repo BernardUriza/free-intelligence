@@ -98,3 +98,22 @@ Decisión tomada por `/ultra-lord`: sí, y el ACA Job. Lo que existe en la rama:
 Lo que NO está hasta que haya recibo: la vuelta completa en app.og118.ai — el
 modelo llama la tool, la ejecución del Job sale `Succeeded`, y el mensaje aparece
 en el chat sin recargar.
+
+### Intento E2E #1 — 2026-09-12 22:33 UTC: bloqueado por las credenciales de AIRE, no por el código
+
+Deploy `a9862fdf` verificado en Azure: Job `og118-worker` Succeeded (comando
+`python background_worker.py`, `ragstore` en `/opt/fi/data`), *Container Apps
+Jobs Operator* asignado a la identidad `98a6f32f…` sobre el Job, el trío de env
+en `og118-api`. La puerta MCP en producción: 404 sin bearer, `tools/list` con
+bearer, cápsula falsa → error. AIRE: allowlist con el origen de og118 (sonda: el
+origen pasa, `attacker.example.com` sigue 422).
+
+El turno real en app.og118.ai murió antes de llegar al modelo:
+`AIRE turn error [credentials_exhausted]`. Journal de la puerta:
+`oauth-primary cools 232022s` (≈2.7 días: tope semanal del OAuth) y
+`api-key-fallback cools 3600s (default)` a las 22:34:11 UTC. Cero ejecuciones del
+Job, como corresponde: la tool nunca se llamó.
+
+Siguiente: reintentar el mismo turno (botón *Reintentar*) cuando el fallback
+salga del enfriamiento (~23:35 UTC). Si el fallback vuelve a caer, la causa está
+en esa llave (facturación/429), no en og118.
