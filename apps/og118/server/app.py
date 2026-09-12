@@ -39,7 +39,8 @@ from fi_runner.aire_corpus import AireCorpusError
 from fi_runner.rag_store import RagStoreClient
 from conversations import ConversationStore, valid_conversation_id
 from projects import ProjectRegistry
-from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, build_runner
+from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, build_runner
+from mcp_background import router as mcp_background_router
 from external_engine import stream_external_turn
 from fi_runner import Runner
 from elements_registry import Element, get_registry
@@ -643,8 +644,16 @@ async def chat_stream(
         try:
             context = _turn_context(corpus_id, registry)
             images = [i.model_dump() for i in req.images] if req.images else None
+            # OG118-BACKGROUND-1: el MCP remoto de ESTE turno lleva en su URL la
+            # cápsula firmada con la identidad, así que la tool sabe a quién entregar.
+            remotos = background_tool_spec(principal.sub, req.session_id, corpus_id)
+            runner_turno = (
+                dataclasses.replace(runner, extra_mcp_servers=[*runner.extra_mcp_servers, *remotos])
+                if remotos
+                else runner
+            )
             async for event in _with_heartbeat(
-                runner.run_stream(
+                runner_turno.run_stream(
                     req.message,
                     session_id=req.session_id,
                     request_id=request_id,
@@ -1325,6 +1334,7 @@ def create_app(dependencies: list | None = None) -> FastAPI:
     )
     application.middleware("http")(cap_request_body)
     application.include_router(router)
+    application.include_router(mcp_background_router)
     if proyectos_activos():
         application.include_router(projects_router)
     return application

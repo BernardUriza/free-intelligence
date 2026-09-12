@@ -144,8 +144,53 @@ class ConversationStore:
                 if stored.get("titleCustom"):
                     merged["title"] = stored["title"]
                     merged["titleCustom"] = True
+                merged["messages"] = self._keep_background_messages(
+                    stored.get("messages") or [], list(merged.get("messages") or [])
+                )
             self._write(path, merged)
         return merged
+
+    BACKGROUND_ORIGIN = "background"
+
+    @classmethod
+    def _keep_background_messages(cls, stored: list[dict], incoming: list[dict]) -> list[dict]:
+        """Los mensajes que el WORKER dejó en el record y que el ``PUT`` del
+        cliente no trae — porque el cliente aún no recargó — se reinsertan en su
+        lugar por timestamp. Sin esto, el siguiente turno del usuario borra en
+        silencio el resultado que el worker acaba de entregar."""
+        presentes = {(m.get("role"), m.get("timestamp")) for m in incoming}
+        for bg in stored:
+            if bg.get("origin") != cls.BACKGROUND_ORIGIN:
+                continue
+            if (bg.get("role"), bg.get("timestamp")) in presentes:
+                continue
+            idx = next(
+                (i for i, m in enumerate(incoming) if (m.get("timestamp") or "") > (bg.get("timestamp") or "")),
+                len(incoming),
+            )
+            incoming.insert(idx, bg)
+        return incoming
+
+    def append_message(self, owner: str, conversation_id: str, message: dict) -> dict | None:
+        """El verbo del worker: agrega UN mensaje al record y mueve ``updatedAt``
+        y ``preview`` con él. ``None`` si la conversación ya no existe (el dueño
+        la borró mientras el job corría — el resultado se descarta, no se
+        resucita una conversación)."""
+        try:
+            path = self._record_path(owner, conversation_id)
+        except ValueError:
+            return None
+        marcado = {**message, "origin": self.BACKGROUND_ORIGIN}
+        with self._lock:
+            stored = self._read(path)
+            if stored is None:
+                return None
+            merged = dict(stored)
+            merged["messages"] = [*(stored.get("messages") or []), marcado]
+            merged["updatedAt"] = marcado.get("timestamp") or merged.get("updatedAt")
+            merged["preview"] = (marcado.get("content") or "")[:160]
+            self._write(path, merged)
+            return merged
 
     def patch_metadata(self, owner: str, conversation_id: str, patch: dict) -> dict | None:
         """Merge a metadata delta into a stored record. ``None`` if absent.

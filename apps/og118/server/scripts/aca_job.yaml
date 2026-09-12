@@ -1,0 +1,48 @@
+# The og118 background worker as an Azure Container Apps JOB (OG118-BACKGROUND-1).
+# Rendered with envsubst by og118-backend.yml on first create; later deploys only
+# move the image + env with `az containerapp job update` (volumes/registries kept).
+# YAML on purpose: `az containerapp job create --command python -m x` parses `-m`
+# as its own flag (discord-bot runbook_dr.md), so the command lives here as a list.
+location: ${LOCATION}
+properties:
+  environmentId: ${ENV_ID}
+  configuration:
+    triggerType: Manual
+    replicaTimeout: 1800
+    replicaRetryLimit: 0
+    manualTriggerConfig:
+      parallelism: 1
+      replicaCompletionCount: 1
+    registries:
+      - server: ghcr.io
+        username: BernardUriza
+        passwordSecretRef: ghcrio-bernarduriza
+    secrets:
+      - name: ghcrio-bernarduriza
+        value: ${GHCR_TOKEN}
+      - name: aire-auth-token
+        value: ${AIRE_TOKEN}
+  template:
+    containers:
+      - name: og118-worker
+        image: ${IMG}
+        command: ["python", "background_worker.py"]
+        env:
+          - name: AIRE_GATE_URL
+            value: https://gate.bernarduriza.com
+          - name: AIRE_AUTH_TOKEN
+            secretRef: aire-auth-token
+          - name: OG118_MODEL
+            value: ${MODEL}
+          - name: HDF5_USE_FILE_LOCKING
+            value: "FALSE"
+        resources:
+          cpu: 1.0
+          memory: 2Gi
+        volumeMounts:
+          - volumeName: ragstore-vol
+            mountPath: /opt/fi/data
+    volumes:
+      - name: ragstore-vol
+        storageType: AzureFile
+        storageName: ragstore

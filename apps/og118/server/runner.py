@@ -30,6 +30,7 @@ from fi_runner import (
     owner_instructions_binding,
     load_prompt,
 )
+from fi_runner.backend import MCPServerSpec
 
 # La persona base es CONFIGURABLE por entorno para que un segundo consumer
 # (apps/fenix) corra este mismo runtime con su propia voz, sin duplicar el
@@ -38,6 +39,12 @@ from fi_runner import (
 # que se lee en runtime (P0 prompts-as-content), nunca inline en el código.
 PERSONA_PATH = Path(os.environ.get("FI_PERSONA_PATH") or (Path(__file__).parent / "prompts" / "persona.md"))
 COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_constraints.md"
+# OG118-BACKGROUND-1: dos párrafos mutuamente excluyentes. Con el ACA Job
+# configurado, el modelo aprende la ÚNICA vía legítima de prometer trabajo
+# posterior (la tool); sin él, el honesty guard de siempre.
+BACKGROUND_TASK_PATH = Path(__file__).parent / "prompts" / "background_task.md"
+NO_BACKGROUND_PATH = Path(__file__).parent / "prompts" / "no_background.md"
+BACKGROUND_MCP_NAME = "background"
 # OG118-LIVING-CLAUDE: el párrafo que le cuenta al agente que su casita tiene un
 # CLAUDE.md vivo por chat y cómo evolucionarlo (persona read/update). Se anexa
 # SÓLO si el turno pide la tool `persona` — prometer una herramienta que su
@@ -102,6 +109,37 @@ def proyectos_activos() -> bool:
 def capacidades_por_defecto() -> list[str]:
     """Las tools del registry de un turno normal, según el flag."""
     return ["persona", "task_tracker", "rag_store"] if proyectos_activos() else ["persona", "task_tracker"]
+
+
+def background_disponible() -> bool:
+    """El trío que hace real el "te aviso": el bearer del MCP propio, la URL
+    pública que AIRE tiene en su allowlist, y el ACA Job que corre el worker.
+    Falta uno → la feature no existe y el prompt no la promete."""
+    return all(
+        os.getenv(v, "").strip()
+        for v in ("OG118_MCP_TOKEN", "OG118_PUBLIC_URL", "OG118_JOB_RESOURCE_ID")
+    )
+
+
+def background_tool_spec(sub: str, conversation_id: str | None, corpus_id: str | None) -> list[MCPServerSpec]:
+    """El spec `remote_tools` de ESTE turno: la URL lleva la cápsula firmada con
+    la identidad (sub + conversación + corpus), así que la tool sabe a quién
+    entregarle el resultado sin que el modelo lo diga. Sin conversación no hay
+    a dónde entregar → sin spec."""
+    if not conversation_id or not background_disponible():
+        return []
+    from background_jobs import sign_capsule
+
+    capsule = sign_capsule(os.environ["OG118_MCP_TOKEN"].strip(), sub=sub,
+                           conversation_id=conversation_id, corpus_id=corpus_id)
+    base = os.environ["OG118_PUBLIC_URL"].strip().rstrip("/")
+    return [
+        MCPServerSpec(
+            name=BACKGROUND_MCP_NAME,
+            url=f"{base}/mcp/background/{capsule}",
+            headers={"Authorization": f"Bearer {os.environ['OG118_MCP_TOKEN'].strip()}"},
+        )
+    ]
 
 # El MODO de la puerta que monta cada turno de la ruta aire. El dial de AIRE
 # tiene exactamente dos muescas (aire-server `server/aire/engine/options.py`,
@@ -200,6 +238,9 @@ def build_runner(
     capabilities: list[str] | None = None,
     aire_project: str | None = None,
     aire_mode: str = MODO_AIRE_POR_DEFECTO,
+    # None → según el entorno (`background_disponible`). El worker pasa False:
+    # un job que encola jobs es la recursión que nadie pidió.
+    background: bool | None = None,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -237,6 +278,8 @@ def build_runner(
     # que pide MENOS (el tutor del cibercafé) ahora recibe menos de verdad.
     registry_tools = tuple(capacidades_por_defecto() if capabilities is None else capabilities)
     persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
+    con_background = background_disponible() if background is None else background
+    persona_parts.append(load_prompt(BACKGROUND_TASK_PATH if con_background else NO_BACKGROUND_PATH))
     # El párrafo de identidad viva le enseña al modelo a llamar
     # `mcp__persona__read/update`, así que va SÓLO si el turno pide esa tool.
     # Anexarlo siempre le prometía al tutor del cibercafé —que pide únicamente
