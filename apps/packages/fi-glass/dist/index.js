@@ -5489,6 +5489,13 @@ import {
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
+function sameThread(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) => {
+    const o = b[i];
+    return m.role === o.role && m.content === o.content && m.timestamp === o.timestamp;
+  });
+}
 function useAgentConversation(agent, options) {
   const {
     author,
@@ -5496,6 +5503,7 @@ function useAgentConversation(agent, options) {
     externalMessages,
     conversationId,
     initialMessages,
+    seedVersion,
     onMessagesChange,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError
@@ -5552,6 +5560,7 @@ function useAgentConversation(agent, options) {
   const initialRef = useRef14(initialMessages);
   initialRef.current = initialMessages;
   const mounted = useRef14(false);
+  const hydratedFor = useRef14(conversationId);
   const awaitResolver = useRef14(null);
   const send = useCallback10(
     (text, images) => {
@@ -5633,9 +5642,16 @@ function useAgentConversation(agent, options) {
       return;
     }
     if (controlledRef.current) return;
-    dispatch({ type: "hydrate", messages: initialRef.current ?? [] });
-    agent.reset?.();
-  }, [conversationId]);
+    const switched = hydratedFor.current !== conversationId;
+    hydratedFor.current = conversationId;
+    const seed = initialRef.current ?? [];
+    if (!switched) {
+      if (convoRef.current.pending) return;
+      if (sameThread(seed, convoRef.current.messages)) return;
+    }
+    dispatch({ type: "hydrate", messages: seed });
+    if (switched) agent.reset?.();
+  }, [conversationId, seedVersion]);
   useEffect21(() => {
     if (controlledRef.current) return;
     if (convoRef.current.skipPersist) {

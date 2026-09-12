@@ -114,6 +114,15 @@ const DEFAULT_PERSIST_ERROR =
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
 
+/** Same visible thread by (role, content, timestamp) — cheaper than a deep equal, and what a reload would show. */
+function sameThread(a: ChatMessage[], b: ChatMessage[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((m, i) => {
+    const o = b[i];
+    return m.role === o.role && m.content === o.content && m.timestamp === o.timestamp;
+  });
+}
+
 export interface UseAgentConversationOptions {
   /**
    * WHO the agent is — REQUIRED. Every message this hook folds is stamped with an
@@ -144,6 +153,14 @@ export interface UseAgentConversationOptions {
   conversationId?: string | null;
   /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
   initialMessages?: ChatMessage[];
+  /**
+   * Version of the seed (e.g. the stored record's `updatedAt`). When it changes
+   * for the SAME `conversationId`, the thread re-hydrates from `initialMessages`
+   * — how a message appended server-side by another writer reaches the visible
+   * transcript without a reload. Skipped while a turn is streaming, and never
+   * persisted back (a re-hydrate is not activity). (Ignored in controlled mode.)
+   */
+  seedVersion?: number | string;
   /**
    * Called when the thread changes from real activity (fold/revert) — a persist
    * hook. (Not called in controlled mode.)
@@ -257,6 +274,7 @@ export function useAgentConversation(
     externalMessages,
     conversationId,
     initialMessages,
+    seedVersion,
     onMessagesChange,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError,
@@ -350,6 +368,9 @@ export function useAgentConversation(
   initialRef.current = initialMessages;
   // Skip the conversationId effect on mount (useState already seeded the thread).
   const mounted = useRef(false);
+  // Tells an identity switch apart from a seed-version bump on the same thread:
+  // only the former resets the live turn.
+  const hydratedFor = useRef(conversationId);
 
   // RESONANCE: the voice loop submits a transcript and awaits the assistant's
   // final text (to speak). This hook stays the SOLE writer of the visible
@@ -474,11 +495,21 @@ export function useAgentConversation(
     // Controlled mode: the consumer owns the thread + persistence, so a
     // conversationId change never re-hydrates an internal array.
     if (controlledRef.current) return;
-    dispatch({ type: 'hydrate', messages: initialRef.current ?? [] });
-    agent.reset?.();
-    // Re-hydrate strictly on identity change, not on every seed-array change.
+    const switched = hydratedFor.current !== conversationId;
+    hydratedFor.current = conversationId;
+    const seed = initialRef.current ?? [];
+    if (!switched) {
+      // A seed bump mid-turn would drop the optimistic message under the fold;
+      // the next poll picks the change up once the turn settles.
+      if (convoRef.current.pending) return;
+      // The consumer's own persist echoes back as a bump; same thread, no work.
+      if (sameThread(seed, convoRef.current.messages)) return;
+    }
+    dispatch({ type: 'hydrate', messages: seed });
+    if (switched) agent.reset?.();
+    // Re-hydrate on identity change or seed version, not on every seed-array change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [conversationId, seedVersion]);
 
   // Notify on confirmed message changes; skip the seed/hydration/optimistic emits.
   // Controlled mode never persists via this hook — the consumer owns persistence.

@@ -21,7 +21,7 @@
  * or glass-box state.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type ChatMessage,
   type ConversationLibrary,
@@ -84,6 +84,13 @@ export interface ConversationLibraryState {
   persist: (messages: ChatMessage[]) => Promise<void>;
   /** Re-read the summary list from storage. */
   refresh: () => Promise<void>;
+  /**
+   * Re-read the ACTIVE record from storage and adopt it if another writer (a
+   * background worker, the same account on another device) bumped `updatedAt`.
+   * A no-op when nothing changed, so polling it costs no re-render. Throws
+   * like `switchConversation` when a previously stored record is gone.
+   */
+  reloadActive: () => Promise<void>;
 }
 
 export function useConversationLibrary(
@@ -99,6 +106,8 @@ export function useConversationLibrary(
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeMessages, setActiveMessages] = useState<ChatMessage[]>([]);
   const [activeRecord, setActiveRecord] = useState<ConversationRecord | null>(null);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const refresh = useCallback(async () => {
     setConversations(await library.list());
@@ -157,6 +166,27 @@ export function useConversationLibrary(
     },
     [library, refresh],
   );
+
+  const reloadActive = useCallback(async () => {
+    const id = activeId;
+    if (!id) return;
+    const record = await library.get(id);
+    // The user may have switched while the read was in flight: never adopt a
+    // record for a conversation that is no longer the active one.
+    if (activeIdRef.current !== id) return;
+    if (!record) {
+      // A never-persisted conversation has no record yet — nothing to reload.
+      if (!activeRecord) return;
+      await refresh();
+      throw new Error(
+        `useConversationLibrary: conversation "${id}" not found`,
+      );
+    }
+    if (record.updatedAt === activeRecord?.updatedAt) return;
+    setActiveRecord(record);
+    setActiveMessages(record.messages);
+    await refresh();
+  }, [library, activeId, activeRecord, refresh]);
 
   const persist = useCallback(
     async (messages: ChatMessage[]) => {
@@ -301,5 +331,6 @@ export function useConversationLibrary(
     archiveConversation,
     persist,
     refresh,
+    reloadActive,
   };
 }

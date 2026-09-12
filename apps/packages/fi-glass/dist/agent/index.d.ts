@@ -212,6 +212,14 @@ interface UseAgentConversationOptions {
     /** Messages to seed the thread with (the active conversation's stored transcript). (Ignored in controlled mode.) */
     initialMessages?: ChatMessage[];
     /**
+     * Version of the seed (e.g. the stored record's `updatedAt`). When it changes
+     * for the SAME `conversationId`, the thread re-hydrates from `initialMessages`
+     * — how a message appended server-side by another writer reaches the visible
+     * transcript without a reload. Skipped while a turn is streaming, and never
+     * persisted back (a re-hydrate is not activity). (Ignored in controlled mode.)
+     */
+    seedVersion?: number | string;
+    /**
      * Called when the thread changes from real activity (fold/revert) — a persist
      * hook. (Not called in controlled mode.)
      *
