@@ -1,6 +1,6 @@
 # RESONANCE — hands-free, screenless voice-call mode for og118
 
-Status: **Done** (verificado contra el código 2026-08-23) — resonanceCallMachine/Controller/VadGate/CuePolicy + useResonanceCallLoop en fi-glass, consumidos por og118 vía useOg118ResonanceCall. Residual: sigue tras el flag `?resonance=1`. **El default-on se estudió el 2026-09-09 y NO se hizo**, con una razón medida — ver la última sección
+Status: **Done — default-on desde 2026-09-12** — resonanceCallMachine/Controller/VadGate/CuePolicy + useResonanceCallLoop en fi-glass, consumidos por og118 vía useOg118ResonanceCall. El flag `?resonance=1` se borró el 2026-09-12, el día que Azure concedió la cuota (whisper/tts 3 → 30 RPM) — ver la última sección
 Proposed: 2026-06-29 by Bernard
 
 > Naming taxonomy locked: the **elementos** are the 118 named personas (atoms,
@@ -263,3 +263,33 @@ la vía es `csgate@microsoft.com`, que es el contacto que el formulario publica.
 Segundo detalle para ese día, ya anotado arriba: `debug: resonanceEnabled`
 expondría `window.__RESONANCE_EVENTS__` a todo el mundo.
 
+## La cuota se concedió y el flag se borró — 2026-09-12
+
+Tres días después de las solicitudes, sin correo de aviso, el poll dio verde:
+
+```
+OpenAI.Standard.whisper  3.0 / 30.0
+OpenAI.Standard.tts      3.0 / 30.0
+```
+
+El `limit` subió; el `used` seguía en 3.0 porque la cuota de la suscripción no
+escala los deployments sola. Se escalaron los dos (`susurro-openai`, susurro-rg,
+`capacity: 3 → 30`, `Succeeded`) y el poll quedó en **30.0 / 30.0** para ambos.
+
+Con el techo diez veces más alto, se cumplió la condición de la sección anterior:
+
+- **og118 web:** `readResonanceFlag` y sus dos usos borrados; el botón de
+  llamada se monta siempre. `useOg118ResonanceCall` perdió `enabled` y `debug`
+  (el segundo era el que habría expuesto `window.__RESONANCE_EVENTS__` a todos).
+  grep de `RESONANCE_CALL_LOOP|readResonanceFlag|resonanceEnabled` en fuentes → 0.
+- **og118 server:** `OG118_VOICE_RPM` pasa de 3 a **10** por default. Ya no
+  iguala el upstream —eso dejó de tener sentido con 30— sino que cabe una llamada
+  de turnos cortos (~2 RPM por endpoint al ritmo medido) y le deja dos tercios
+  del techo al resto de la flota aunque un sujeto lo agote. Test renombrado con
+  la nueva razón.
+- **fi-glass:** sólo el header de `useResonanceCallLoop.ts`, que decía que og118
+  lo montaba tras el flag; el `dist/` rebuild cambió únicamente source maps.
+
+Lo que NO cambió: `maxCallMs` (10 min) sigue armado. Y el arnés de un render
+completo de `Og118AgentChat` no existe (jsdom sin IndexedDB), así que el
+"siempre montado" se verifica en la superficie real, no con un test unitario.
