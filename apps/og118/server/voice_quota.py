@@ -1,19 +1,19 @@
 """Per-principal rate limit for the voice endpoints.
 
-POR QUÉ EXISTE, con el número medido (2026-09-09). `/stt/transcribe` y
-`/tts/synthesize` proxean el gateway susurro, cuyo upstream de Azure aprovisiona
-por REQUESTS POR MINUTO: los deployments `whisper` y `tts` están en `capacity: 3`
-—3 RPM cada uno— y ése es el techo duro de la suscripción en northcentralus
-(`az cognitiveservices usage list` → whisper 3.0/3.0, tts 3.0/3.0; subirlo exige
-una solicitud de cuota a Azure). Ese gateway es COMPARTIDO: discord-bot, inkbook,
-picturelock, visalaw-videopipe y el dictado de un tiro de og118 beben del mismo
-techo.
+POR QUÉ EXISTE, con el número medido. `/stt/transcribe` y `/tts/synthesize`
+proxean el gateway susurro, cuyo upstream de Azure aprovisiona por REQUESTS POR
+MINUTO: los deployments `whisper` y `tts` están en `capacity: 30` —30 RPM cada
+uno, concedidos el 2026-09-12 tras la solicitud de cuota (antes 3)— y ése es el
+techo de la suscripción en northcentralus (`az cognitiveservices usage list` →
+whisper 30.0/30.0, tts 30.0/30.0). Ese gateway es COMPARTIDO: discord-bot,
+inkbook, picturelock, visalaw-videopipe y el dictado de un tiro de og118 beben
+del mismo techo.
 
 Sin este tope, un solo llamante puede consumirlo entero y dejar sin voz a toda la
-flota. El límite por default IGUALA el techo upstream (3/min) a propósito: no
-inventa una restricción que el upstream no impondría ya —eso rompería el dictado
-de un tiro, que funciona hoy— pero convierte un 429 caro y remoto en uno local,
-honesto y con `Retry-After`.
+flota. Una llamada RESONANCE al ritmo medido (~1.7 turnos/min) gasta ~2 RPM por
+endpoint; el default de 10 cabe dos llamadas de turnos cortos de un mismo sujeto
+y le deja dos tercios del techo al resto de la flota aunque ese sujeto lo agote.
+Convierte además un 429 caro y remoto en uno local, honesto y con `Retry-After`.
 
 El contador es POR RÉPLICA (en proceso). Con más de una réplica el techo efectivo
 se multiplica; decirlo aquí es más honesto que fingir un límite global que este
@@ -32,11 +32,11 @@ VENTANA_SEGUNDOS = 60.0
 
 
 def limite_por_minuto() -> int:
-    """`OG118_VOICE_RPM`, o el techo upstream. 0 desactiva el tope."""
+    """`OG118_VOICE_RPM`, o un tercio del techo upstream. 0 desactiva el tope."""
     try:
-        return max(0, int(os.getenv("OG118_VOICE_RPM", "3")))
+        return max(0, int(os.getenv("OG118_VOICE_RPM", "10")))
     except ValueError:
-        return 3
+        return 10
 
 
 class ContadorDeVoz:

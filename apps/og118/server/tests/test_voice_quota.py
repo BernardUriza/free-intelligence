@@ -1,10 +1,10 @@
 """El tope por principal de las rutas de voz.
 
-POR QUÉ EXISTE (medido 2026-09-09). El gateway susurro proxea deployments de
-Azure aprovisionados por RPM: `whisper` y `tts` están en `capacity: 3` y ése es
-el techo DURO de la suscripción (usage 3.0/3.0). El gateway lo comparten
-discord-bot, inkbook, picturelock, visalaw-videopipe y el dictado de og118, así
-que una llamada manos libres sin tope deja sin voz a toda la flota.
+POR QUÉ EXISTE (medido 2026-09-09, cuota subida 2026-09-12). El gateway susurro
+proxea deployments de Azure aprovisionados por RPM: `whisper` y `tts` están en
+`capacity: 30` y ése es el techo de la suscripción (usage 30.0/30.0). El gateway
+lo comparten discord-bot, inkbook, picturelock, visalaw-videopipe y el dictado de
+og118, así que una llamada manos libres sin tope deja sin voz a toda la flota.
 
 Se prueban las DOS ramas: que el tope corta, y que por debajo del tope no estorba
 —una rama apagada sin test se pudre, y aquí la que se pudriría en silencio es la
@@ -61,8 +61,8 @@ def test_cero_desactiva_el_tope(monkeypatch: pytest.MonkeyPatch) -> None:
         voice_quota.verificar_cuota_de_voz("auth0|ana")
 
 
-def test_el_default_iguala_el_techo_upstream(monkeypatch: pytest.MonkeyPatch) -> None:
-    """3 = el `capacity` de whisper/tts. No inventa una restricción que el
-    upstream no impondría ya; convierte su 429 remoto en uno local y honesto."""
+def test_el_default_deja_dos_tercios_del_techo_a_la_flota(monkeypatch: pytest.MonkeyPatch) -> None:
+    """10 = un tercio del `capacity: 30` de whisper/tts: cabe una llamada de
+    turnos cortos, y un sujeto que lo agote no deja sin voz al resto."""
     monkeypatch.delenv("OG118_VOICE_RPM", raising=False)
-    assert voice_quota.limite_por_minuto() == 3
+    assert voice_quota.limite_por_minuto() == 10

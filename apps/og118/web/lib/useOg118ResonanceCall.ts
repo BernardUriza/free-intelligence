@@ -9,8 +9,8 @@
  *
  * All turn-taking lives in the framework (resonanceCallController, vitest-green);
  * this hook only owns the og118-specific I/O wiring. RESONANCE is the channel an
- * elemento speaks through. Mounted behind the RESONANCE_CALL_LOOP flag with the
- * one-shot composer as the fallback. See .claude/backlog/og118-resonance-voice-mode.md.
+ * elemento speaks through; the one-shot composer stays the fallback.
+ * See .claude/backlog/og118-resonance-voice-mode.md.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,14 +24,12 @@ import {
 import { og118VoiceAdapter, OG118_DEFAULT_VOICE } from './og118VoiceAdapter';
 
 export interface Og118ResonanceCallParams {
-  enabled: boolean;
   /** Append the recognized user turn to the client-sent history before the agent runs. */
   appendUserMessage: (text: string) => void;
   /** Send a turn through the streaming agent and resolve with the final assistant text. */
   requestAssistantTurn: (userText: string) => Promise<string>;
   /** Un fallo de voz que el usuario debe ver — se pinta en `Og118VoiceErrorBanner`. */
   onVoiceError?: (message: string) => void;
-  debug?: boolean;
 }
 
 function audioSourceToUrl(src: Blob | { url: string }): string {
@@ -64,7 +62,7 @@ export function mensajeDeFalloDeVoz(
 }
 
 export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
-  const { enabled, appendUserMessage, requestAssistantTurn, onVoiceError, debug = false } = params;
+  const { appendUserMessage, requestAssistantTurn, onVoiceError } = params;
 
   const [streamActive, setStreamActive] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
@@ -152,7 +150,7 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
   };
 
   const loop = useResonanceCallLoop({
-    enabled,
+    enabled: true,
     adapters,
     getAudioLevel: () => audioLevelRef.current,
     audioCues: {
@@ -163,7 +161,6 @@ export function useOg118ResonanceCall(params: Og118ResonanceCallParams) {
         ready: '/sounds/ready.mp3',
       },
     },
-    debug,
   });
 
   useEffect(() => () => {
