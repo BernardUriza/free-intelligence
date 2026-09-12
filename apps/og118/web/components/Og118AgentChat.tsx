@@ -48,6 +48,7 @@ import { SessionExpiredBanner, SignOutButton } from './AuthGate';
 import { Og118ProjectsSection } from './projects';
 import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
 import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
+import { useOg118ConversationSync } from '@/lib/useOg118ConversationSync';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
@@ -113,12 +114,20 @@ export function Og118AgentChat() {
     author: OG118_AUTHOR,
     conversationId: lib.activeId,
     initialMessages: lib.activeMessages,
+    // A server-side append (background worker) bumps updatedAt; the thread
+    // re-seeds from lib.activeMessages instead of waiting for a reload.
+    seedVersion: lib.activeRecord?.updatedAt,
     onMessagesChange: lib.persist,
     // 401 is og118's own error class — the token-gate banner (needsAuth) handles
     // it, and a blind retry would just 401 again. Claim it so the framework's
     // generic recoverable banner does not double up. Everything else (timeouts,
     // stream death) still surfaces generically.
     isAppHandledError: (t) => (t.errorMessage ?? '').startsWith(AUTH401),
+  });
+  useOg118ConversationSync({
+    enabled: conversationsCloud,
+    streaming: conversation.isStreaming,
+    reloadActive: lib.reloadActive,
   });
   const [tokenInput, setTokenInput] = useState(() => getToken() ?? '');
   // OG118-IMAGE-UPLOAD-1: a rejected attachment (wrong type / too big) surfaces

@@ -1,6 +1,6 @@
 # OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)
 
-Status: **Proposed** — sigue Not built, verificado 2026-09-09: cero cola durable, cero worker, cero `BackgroundTasks` en `apps/og118/server` y en `backend/`. No está bloqueada por trabajo sino por la decisión de arquitectura de abajo, que es de Bernard
+Status: **In progress** — 2026-09-12: decidido (ACA Job) y construido en la rama `bernarduriza/og118-background-job`; falta el recibo E2E en app.og118.ai tras el deploy
 Proposed: 2026-07-05 by Bernard (dogfood: og118 promised a background investigation, then had no access half an hour later)
 
 ## What it is
@@ -69,3 +69,32 @@ la primera versión avisa dentro del chat y no en el teléfono.
 Not built. Blocked on the architecture decision above. The honesty guard ships
 now as the correct interim behavior (no lying about async); this item captures the
 real-async feature so the roadmap doesn't lose it. See [[framework-first-canary]].
+
+## Construido — 2026-09-12
+
+Decisión tomada por `/ultra-lord`: sí, y el ACA Job. Lo que existe en la rama:
+
+- **Servidor**: `background_jobs.py` (JobStore por directorio-estado en el share,
+  cápsula HMAC con vencimiento, arranque del Job por identidad administrada vía
+  IMDS + ARM), `mcp_background.py` (la puerta MCP-sobre-HTTP con la única tool
+  `start_background_task`, clon del `mcp_http.py` de discord-bot),
+  `background_worker.py` (`python background_worker.py` dentro del Job: reclama,
+  corre `Runner.run`, entrega con `ConversationStore.append_message`).
+- **Anti-clobber**: `put_content` reinserta los mensajes `origin: background` que
+  el PUT del cliente no traiga. Sin eso el siguiente turno del usuario borraba el
+  resultado del worker — el hallazgo que decidió el diseño.
+- **Prompt**: `companion_constraints.md` quedó en el párrafo general; el
+  honesty guard vive en `no_background.md` y se anexa sólo cuando la infra NO
+  está; con ella se anexa `background_task.md`, que enseña la tool y prohíbe
+  prometer sin llamarla.
+- **Cliente**: fi-glass `reloadActive()` + `seedVersion` en `useAgentConversation`;
+  og118 `useOg118ConversationSync` (focus/visibility + poll de 15 s, sólo en
+  cloud y nunca mientras streamea).
+- **Infra**: step del workflow que crea el Job desde `scripts/aca_job.yaml`,
+  asigna *Container Apps Jobs Operator* a la identidad del app y cablea el trío
+  de env. Origen de og118 agregado a `AIRE_REMOTE_TOOL_ORIGINS` (local y droplet).
+- **Tests**: servidor 221 → 236; fi-glass 627 → 636; og118 web 116 → 122.
+
+Lo que NO está hasta que haya recibo: la vuelta completa en app.og118.ai — el
+modelo llama la tool, la ejecución del Job sale `Succeeded`, y el mensaje aparece
+en el chat sin recargar.

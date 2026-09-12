@@ -51,6 +51,7 @@ Grant the federated identity, **scoped to `og118-rg` only**:
 | `AZURE_SWA_TOKEN_OG118_STAGING` | deploy token of the NEW staging SWA (step 5) |
 | `OG118_TTS_API_KEY` | Azure OpenAI key for TTS (B3-VOICE-BACKEND-1). **Optional** — unset → `/tts/synthesize` returns 503, deploy stays green |
 | `OG118_STT_API_KEY` | Azure OpenAI key for STT/Whisper (B3-VOICE-BACKEND-2 / -STT-CONFIG-1). **Optional** — unset → `/stt/transcribe` returns 503, deploy stays green |
+| `OG118_MCP_TOKEN` | bearer of og118's own remote MCP (`/mcp/background/…`), the door the AIRE agent calls to queue a background job (OG118-BACKGROUND-1). Lives in `~/.secrets/og118-mcp-token.txt`. **Optional** — unset → no worker job is provisioned and the persona keeps the honesty guard (never promises later work) |
 
 ### 4. GitHub variables (Settings → Variables → Actions)
 
@@ -163,6 +164,45 @@ re-upload returns the stored value → corpus persisted on the volume.
 Follow-up (not blocking): codify these steps in `og118-backend.yml` as idempotent
 ensure-volume steps so a from-scratch ACA recreate is reproducible without manual
 `az`.
+
+## Background worker — the ACA Job behind "te aviso cuando termine" (OG118-BACKGROUND-1)
+
+`og118-api` scales to zero, so nothing inside it survives the reply. Real
+background work is a **Container Apps Job** named `og118-worker` in `og118-rg`:
+the same image, the same `ragstore` share mounted at `/opt/fi/data`, manual
+trigger, billed per execution. The workflow step *Ensure background worker job*
+provisions it from `apps/og118/server/scripts/aca_job.yaml` (YAML on purpose:
+`job create --command python -m x` parses `-m` as a CLI flag), then on every
+deploy moves its image with `job update`.
+
+The chain, end to end:
+
+1. The turn mounts a **remote MCP** (`remote_tools`, fi-runner R6) whose URL is
+   `${OG118_PUBLIC_URL}/mcp/background/<capsule>`; the capsule is the turn's
+   identity (sub + conversation + corpus) signed with `OG118_MCP_TOKEN` and
+   valid 30 min. The model never chooses it.
+2. The persona learns `mcp__background__start_background_task` **only when the
+   trio is set** (`OG118_MCP_TOKEN`, `OG118_PUBLIC_URL`, `OG118_JOB_RESOURCE_ID`,
+   `runner.background_disponible`); otherwise it gets the NO BACKGROUND guard.
+3. The tool writes `jobs/pending/<id>.json` on the share and **starts the Job
+   through the app's system-assigned identity** (ARM `POST …/jobs/og118-worker/start`,
+   token from the Container Apps IMDS). The identity holds *Container Apps Jobs
+   Operator* on the job and nothing else — the workflow assigns it.
+4. `background_worker.py` claims the oldest pending job (`os.replace` into
+   `running/`, atomic on the share), runs ONE `Runner.run` with the conversation
+   as history and the goal as the turn, and **appends the answer to the
+   conversation record** (`ConversationStore.append_message`, `origin: background`).
+5. The client polls the active conversation (15 s, visible tab, not streaming)
+   and re-hydrates the thread; `put_content` re-inserts any background message a
+   stale client PUT omits, so the next user turn cannot clobber it.
+
+AIRE's side: og118's public origin must sit in the door's
+`AIRE_REMOTE_TOOL_ORIGINS` (`~/.secrets/aire-remote-tools.txt`, provisioned to
+`/etc/aire/env`); added 2026-09-12.
+
+Verify a deploy: `az containerapp job execution list -n og118-worker -g og118-rg -o table`
+shows one `Succeeded` execution per queued task, and the conversation's JSON on
+the share ends with a message whose `origin` is `background`.
 
 ## Auth0 (Gate 3) — tenant + app config
 

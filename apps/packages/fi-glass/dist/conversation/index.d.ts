@@ -199,6 +199,13 @@ interface ConversationLibraryState {
     persist: (messages: ChatMessage[]) => Promise<void>;
     /** Re-read the summary list from storage. */
     refresh: () => Promise<void>;
+    /**
+     * Re-read the ACTIVE record from storage and adopt it if another writer (a
+     * background worker, the same account on another device) bumped `updatedAt`.
+     * A no-op when nothing changed, so polling it costs no re-render. Throws
+     * like `switchConversation` when a previously stored record is gone.
+     */
+    reloadActive: () => Promise<void>;
 }
 declare function useConversationLibrary(library: ConversationLibrary, options?: UseConversationLibraryOptions): ConversationLibraryState;
 

@@ -204,7 +204,7 @@ async function migrateConversationLibrary(source, target) {
 }
 
 // src/conversation/useConversationLibrary.ts
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   applyConversationMetadataPatch,
   conversationArchivePatch,
@@ -224,6 +224,8 @@ function useConversationLibrary(library, options = {}) {
   const [activeId, setActiveId] = useState(null);
   const [activeMessages, setActiveMessages] = useState([]);
   const [activeRecord, setActiveRecord] = useState(null);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const refresh = useCallback(async () => {
     setConversations(await library.list());
   }, [library]);
@@ -273,6 +275,23 @@ function useConversationLibrary(library, options = {}) {
     },
     [library, refresh]
   );
+  const reloadActive = useCallback(async () => {
+    const id = activeId;
+    if (!id) return;
+    const record = await library.get(id);
+    if (activeIdRef.current !== id) return;
+    if (!record) {
+      if (!activeRecord) return;
+      await refresh();
+      throw new Error(
+        `useConversationLibrary: conversation "${id}" not found`
+      );
+    }
+    if (record.updatedAt === activeRecord?.updatedAt) return;
+    setActiveRecord(record);
+    setActiveMessages(record.messages);
+    await refresh();
+  }, [library, activeId, activeRecord, refresh]);
   const persist = useCallback(
     async (messages) => {
       if (messages.length === 0) return;
@@ -382,7 +401,8 @@ function useConversationLibrary(library, options = {}) {
     pinConversation,
     archiveConversation,
     persist,
-    refresh
+    refresh,
+    reloadActive
   };
 }
 
