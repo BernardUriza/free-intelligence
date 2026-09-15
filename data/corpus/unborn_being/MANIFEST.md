@@ -12,6 +12,7 @@ repo aunque el texto no.
 | The gamma-band activity model of the near-death experience: a critique and a reinterpretation (v2) | Nigel A. Shaw | 2024 | https://f1000research.com/articles/13-674 (v2, PMC PMC11375408) | Open access — F1000Research, CC BY | shaw_2024_gamma_band_nde_critique_v2.pdf |
 | Dialogues Concerning Natural Religion | David Hume | 1779 | https://www.gutenberg.org/ebooks/4583 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | hume_dialogues_natural_religion.txt |
 | Mistakes of Moses | Robert G. Ingersoll | 1879 | https://www.gutenberg.org/ebooks/38099 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | ingersoll_mistakes_of_moses.txt |
+| Khimeras — `secure_remaining_hazards()`: el hilo del 2026-09-02 | Álex (síntesis con citas), a partir de mensajes de Bernard, Álex e Insult | 2026 | `#general` de Discord (hilo del 2026-09-02 y 2026-09-03), registrado por Álex el 2026-09-15 | Texto propio de esta casa — se versiona en el repo (excepción `!data/corpus/unborn_being/khimeras_*.md` en `.gitignore`) | khimeras_2026-09-02_secure_remaining_hazards.md |
 
 ## contraelamor.com — cómo se extrajo y qué falta (2026-07-27)
 
