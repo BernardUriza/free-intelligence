@@ -1,18 +1,14 @@
 """The credential rotor (#31): an ordered chain of Anthropic credentials for
-the engine's spawned CLIs. When the active slot burns its pool — the
-lying-green signature below, measured live 2026-08-07 — the engine rotates to
-the next slot and retries the turn. A burned slot COOLS instead of dying: the
-pool refills on a clock, so a probe heals the chain without a redeploy.
+the engine's spawned CLIs. When the active slot burns its pool (the lying-green
+signature below), the engine rotates to the next slot and retries. A burned
+slot COOLS instead of dying: the pool refills on a clock, so a probe heals the
+chain without a redeploy.
 
 Chain order is fixed (subscription pools before metered), slots build from env
-at startup and unset slots are skipped — the mechanism ships working with only
-the primary present. Rotation state is in-memory only: it re-derives from the
-first failed turn after a restart. The gateway door (#30) never uses this
-chain — its auth is the caller's own, passed through.
-
-The API-key slot works headless (verified 2026-08-07 with a bogus key): with
-ANTHROPIC_API_KEY set and CLAUDE_CODE_OAUTH_TOKEN blanked, the CLI dispatches
-straight to /v1/messages — no interactive approval prompt."""
+at startup and unset slots are skipped — it ships working with only the primary
+present. Rotation state is in-memory, re-derived from the first failed turn
+after a restart. The gateway door (#30) never uses this chain — its auth is the
+caller's own. The API-key slot works headless (backlog #31 has the why)."""
 
 import os
 import re
@@ -25,10 +21,9 @@ from ..listen.applog import _now, append
 COOLDOWN_S = float(os.environ.get("AIRE_CREDENTIAL_COOLDOWN_S", "3600"))
 RESET_MARGIN_S = 60.0
 RESET_HORIZON_S = 8 * 86400.0
-# Every phrase here arrived as the TEXT of a "successful" turn with zero usage.
-# `session` (2026-09-03): the Max plan's 5-hour window. `credit balance`
-# (2026-09-08): the card at $0 answered as prose — the metered slot never
-# cooled and every persona stayed mute on it while a live slot sat next in line.
+# Each phrase arrived as the TEXT of a "successful" turn with zero usage:
+# `session` (2026-09-03) is the Max 5h window; `credit balance` (2026-09-08)
+# is the card at $0 answering as prose, which kept a dead slot active.
 LIMIT_PHRASE = re.compile(
     r"hit your (weekly|usage|session) limit|usage limit.*resets"
     r"|credit balance is too low|rate_limit_error",
@@ -142,15 +137,11 @@ class Rotor:
             pass
 
     def cooling_names(self) -> list[str]:
-        now = time.monotonic()
-        return sorted(n for n, until in self.cooling.items() if now < until)
+        return sorted(n for n, u in self.cooling.items() if time.monotonic() < u)
 
     def all_dry(self) -> bool:
-        """True when every armed slot is currently cooling — the engine can
-        serve NOTHING. This is the runtime state the config report cannot see:
-        a fully-armed chain whose slots have all burned reads `all_dry` while
-        `arming.report()` still says the slots exist. Silent for 2.5 days on
-        2026-09-15 (primary on its weekly reset, the metered card at $0)."""
+        """Every armed slot cooling — the engine serves nothing (silent 2.5
+        days on 2026-09-15: primary on its weekly reset, the card at $0)."""
         return self.active() is None
 
     def retry_after_s(self) -> int:
