@@ -232,6 +232,31 @@ jobs:
             echo "::error::undeclared guards are disarmed: ${UNDECLARED} — a safety went off with nobody deciding it"
             FAIL=1
           fi
+
+          # The credential chain (#31), both halves — config and live. The count
+          # hid which slot was empty: primary + api-key reads "failover armed"
+          # while the free second-Max oauth-backup is empty, so a burned weekly
+          # pool rotates only to the metered card. On 2026-09-15 that card sat
+          # at $0 and the primary was on its weekly reset — every slot dry, the
+          # engine served NOTHING, and nothing said so for 2.5 days.
+          HEALTH="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" http://127.0.0.1:8088/health)"
+          SLOTS="$(echo "$HEALTH" | jq -c '.credential_slots_armed // "unreadable"')"
+          echo "credential slots armed: ${SLOTS}"
+          # oauth-backup empty is a WARNING, not a failure: leaving it empty is
+          # sometimes Bernard's deliberate account-staggering (aire-budget.md),
+          # so this must stay VISIBLE without crying wolf every night.
+          if ! echo "$SLOTS" | jq -e 'index("oauth-backup")' >/dev/null 2>&1; then
+            echo "::warning::credential chain is missing oauth-backup — the free second-Max failover slot is empty; a burned primary falls straight to the metered card"
+          fi
+          # All slots dry is a hard failure: the engine cannot serve a single turn.
+          ALL_DRY="$(echo "$HEALTH" | jq -r '.credentials_all_dry // "unreadable"')"
+          COOLING="$(echo "$HEALTH" | jq -c '.credentials_cooling // "unreadable"')"
+          echo "credentials cooling: ${COOLING}  (all dry: ${ALL_DRY})"
+          if [[ "$ALL_DRY" == "true" ]]; then
+            echo "::error::every credential slot is dry (${COOLING}) — the engine can serve NO turns until a slot reopens or a real key is installed"
+            FAIL=1
+          fi
+
           exit "$FAIL"
           REMOTE
 

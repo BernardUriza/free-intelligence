@@ -40,13 +40,17 @@ _GUARDS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _credential_slots() -> int:
-    """How many slots the rotor (#31) can actually walk. One means the failover
-    machine is built but carries no fuel: a burned weekly pool has nowhere to
-    rotate to, and the turn dies with `credentials_exhausted`."""
+def _credential_slots_armed() -> list[str]:
+    """The rotor slots (#31) that actually carry fuel, by NAME and in chain
+    order. A COUNT hid which slot was missing: primary + api-key-fallback is
+    two slots, reads as "failover armed", yet the free second-Max `oauth-backup`
+    can be empty — so a burned weekly pool rotates only to the metered card, and
+    if that card is dry the turn dies with `credentials_exhausted`. Naming the
+    armed slots makes an empty `oauth-backup` visible instead of masked by the
+    count (2026-09-15)."""
     from .engine.credentials import CHAIN
 
-    return sum(1 for _, source, _, _ in CHAIN if os.environ.get(source))
+    return [name for name, source, _, _ in CHAIN if os.environ.get(source)]
 
 
 def _lending() -> bool:
@@ -62,10 +66,12 @@ def report() -> dict[str, object]:
     armed["lending"] = _lending()
     armed["whitelist_enforce"] = os.environ.get("AIRE_WHITELIST_ENFORCE") == "1"
     armed["door_tokens"] = bool(ACCEPTED_TOKENS)
-    armed["credential_failover"] = _credential_slots() > 1
+    slots = _credential_slots_armed()
+    armed["credential_failover"] = len(slots) > 1
     return {
         "armed": armed,
         "disarmed": sorted(name for name, ok in armed.items() if not ok),
         "door_tokens": len(ACCEPTED_TOKENS),
-        "credential_slots": _credential_slots(),
+        "credential_slots": len(slots),
+        "credential_slots_armed": slots,
     }

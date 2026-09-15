@@ -44,6 +44,22 @@ def test_the_owner_sees_every_guard_and_which_are_off(client):
     assert body["door_tokens"] == 1
 
 
+def test_the_owner_sees_the_credential_chain_by_slot_not_just_a_count(client):
+    """The count hid which slot was empty. The armed slots are named so an
+    empty `oauth-backup` is visible, and the live rotor state rides beside the
+    config so costwatch can alarm when every slot is dry (2026-09-15)."""
+    body = client.get("/health", headers={"authorization": f"Bearer {TOKEN}"}).json()
+    assert isinstance(body["credential_slots_armed"], list)
+    assert "credentials_all_dry" in body
+    assert "credentials_cooling" in body
+
+
+def test_the_credential_chain_is_never_readable_anonymously(client):
+    body = client.get("/health").json()
+    assert "credential_slots_armed" not in body
+    assert "credentials_all_dry" not in body
+
+
 def test_a_wrong_token_is_treated_as_anonymous_not_as_an_error(client):
     body = client.get("/health", headers={"authorization": "Bearer nope"}).json()
     assert body["status"] in ("ok", "degraded")

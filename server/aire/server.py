@@ -79,6 +79,12 @@ async def _alive(detail: dict) -> dict:
     await engine.session_store.list_sessions("__health__")
     if detail:
         detail["spend_month_usd"] = await spend.month_to_date()
+        # The LIVE rotor state, which the config report (arming.py) cannot see:
+        # arming says which slots are ARMED, this says which are burned right
+        # now. `credentials_all_dry` is the state that served nothing in silence
+        # for 2.5 days on 2026-09-15 — costwatch alarms on it.
+        detail["credentials_cooling"] = engine.rotor.cooling_names()
+        detail["credentials_all_dry"] = engine.rotor.all_dry()
     return {"status": "ok", "memory": "postgres", "modes": list(MODES), **detail}
 
 

@@ -142,7 +142,16 @@ class Rotor:
             pass
 
     def cooling_names(self) -> list[str]:
-        return sorted(self.cooling)
+        now = time.monotonic()
+        return sorted(n for n, until in self.cooling.items() if now < until)
+
+    def all_dry(self) -> bool:
+        """True when every armed slot is currently cooling — the engine can
+        serve NOTHING. This is the runtime state the config report cannot see:
+        a fully-armed chain whose slots have all burned reads `all_dry` while
+        `arming.report()` still says the slots exist. Silent for 2.5 days on
+        2026-09-15 (primary on its weekly reset, the metered card at $0)."""
+        return self.active() is None
 
     def retry_after_s(self) -> int:
         now = time.monotonic()

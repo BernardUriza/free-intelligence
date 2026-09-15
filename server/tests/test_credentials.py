@@ -46,6 +46,19 @@ def test_burn_rotates_and_all_dry_returns_none():
     assert 0 < rotor.retry_after_s() <= credentials.COOLDOWN_S
 
 
+def test_all_dry_tracks_the_live_rotor_not_the_config(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    rotor = Rotor(FULL_ENV)
+    assert rotor.all_dry() is False, "a fresh chain has a live slot"
+    for name in ("oauth-primary", "oauth-backup", "api-key-fallback"):
+        rotor.burn(name)
+    assert rotor.all_dry() is True, "every armed slot burned — the engine serves nothing"
+    clock[0] += credentials.COOLDOWN_S + 1
+    assert rotor.all_dry() is False, "a reopened slot heals the chain"
+    assert rotor.cooling_names() == [], "cooling_names is time-aware, not the stale set"
+
+
 def test_cooldown_expiry_requalifies_the_slot(monkeypatch):
     clock = [1000.0]
     monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
