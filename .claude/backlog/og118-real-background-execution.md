@@ -117,3 +117,39 @@ Job, como corresponde: la tool nunca se llamó.
 Siguiente: reintentar el mismo turno (botón *Reintentar*) cuando el fallback
 salga del enfriamiento (~23:35 UTC). Si el fallback vuelve a caer, la causa está
 en esa llave (facturación/429), no en og118.
+
+### Re-verificación 2026-09-15 04:22 UTC (reloj del droplet) — el fallback SÍ volvió a caer, y por la razón anticipada
+
+El fallback no salió del enfriamiento una sola vez: `journalctl -u aire-server`
+en `root@159.203.84.13` muestra `CREDENTIAL-EXHAUSTED api-key-fallback cools
+3600s (default)` repitiéndose cada pocas horas desde el 2026-09-11, incluida la
+línea de las 04:11:37 UTC de hoy — 20 segundos después de un turno real
+(`POST .../insult-1489180895264116736/sessions/.../messages` → 200 OK).
+
+**Causa confirmada contra el servicio real, no contra el log** (`curl` directo a
+`api.anthropic.com/v1/messages` con esa key, sin pasar por AIRE):
+
+```
+HTTP 400 invalid_request_error
+"Your credit balance is too low to access the Anthropic API."
+```
+
+No es un rate limit que se cure solo. Es la tarjeta de esa cuenta de Anthropic
+Console sin saldo — recarga manual, átomo de Bernard (dinero).
+
+`oauth-primary` sigue en su cooldown real de tope semanal (`notice`, 232022s
+desde 2026-09-12T22:33:58Z) → libera **2026-09-15T15:01:00Z** (≈10h38m desde el
+snapshot de arriba).
+
+**O sea: desde el 2026-09-12 22:33 UTC (>2.5 días) el pool completo de AIRE está
+seco** — no sólo bloqueando este E2E, sino cortando con `credentials_exhausted`
+cualquier turno real que le llegue (se ve en el mismo journal: Insult e
+Insult-judge de discord-bot recibiendo turnos y saliendo mudos, el mismo patrón
+del P1 de 2026-08-25/26 documentado en `discord-bot/.claude/rules/aire-budget.md`,
+pero esta vez la causa es saldo agotado, no un budget ceiling nominal).
+
+**Siguiente real:** recargar la tarjeta de la cuenta Anthropic Console detrás de
+`ANTHROPIC_API_KEY_FALLBACK` (decisión/pago de Bernard), o esperar a las
+15:01 UTC de hoy a que libere `oauth-primary` y reintentar el turno E2E desde ahí
+— lo segundo no arregla el fallback, sólo restaura un slot temporalmente hasta
+que vuelva a topar el límite semanal.
