@@ -1,9 +1,6 @@
-"""The turn-loop event drainer — copied from fi-runner's proven loop.
-
-Types are identified via `type(m).__name__` (defensive across SDK versions),
-and a tool's RESULT does not come back as an assistant message but as a
-`ToolResultBlock` inside a USER message — paired by `tool_use_id`.
-"""
+"""The turn-loop event drainer (copied from fi-runner). Types via
+`type(m).__name__` (defensive across SDK versions); a tool's RESULT returns as a
+`ToolResultBlock` inside a USER message, paired by `tool_use_id`."""
 
 import time
 from collections.abc import AsyncIterator
@@ -13,20 +10,30 @@ from typing import Any
 from .contract import ToolCall, TurnResult
 
 
-def turn_cost(event: dict[str, Any]) -> float:
-    """The dollars a `result` event reports (0.0 when absent) — per-turn
-    accounting reads it off the drained stream, not the SDK directly. The result
-    arrives in TWO shapes: the SDK dataclass straight from the turn loop, and a
-    plain dict once the HTTP surface flattened it for the wire. Reading only the
-    first answered 0.0 to the second, so an invited key (#32d) billed nothing and
-    its ceiling could never bite — a money function that silently returns 0 for a
-    shape it does not know is indistinguishable from a free turn. Both are read."""
+def _usage(event: dict[str, Any]) -> dict[str, Any] | None:
+    """A `result` comes in TWO shapes — SDK dataclass and flattened dict; reading
+    only the first billed an invited key (#32d) nothing (silent $0). Both here."""
     result = event.get("result")
-    usage = getattr(result, "usage", None)
-    if usage is None and isinstance(result, dict):
-        usage = result.get("usage")
-    cost = usage.get("total_cost_usd") if isinstance(usage, dict) else None
+    usage = getattr(result, "usage", None) or (result.get("usage") if isinstance(result, dict) else None)
+    return usage if isinstance(usage, dict) else None
+
+
+def turn_cost(event: dict[str, Any]) -> float:
+    """The dollars a `result` reports (0.0 when absent), off the drained stream."""
+    usage = _usage(event)
+    cost = usage.get("total_cost_usd") if usage else None
     return float(cost) if cost else 0.0
+
+
+def turn_tokens(event: dict[str, Any]) -> dict[str, int]:
+    """The cache breakdown for aire_spend: cache_read ≫ cache_creation is warm,
+    the inverse a cold re-cache; empty (→ null) when the turn reports no usage."""
+    usage = _usage(event)
+    if not usage:
+        return {}
+    return {"cache_read": int(usage.get("cache_read_input_tokens") or 0),
+            "cache_creation": int(usage.get("cache_creation_input_tokens") or 0),
+            "input_tokens": int(usage.get("input_tokens") or 0)}
 
 
 @dataclass
@@ -49,11 +56,10 @@ def _tokens_spent(usage: dict[str, Any] | None) -> bool:
 
 
 def _bank_streamed(message: Any, st: _State) -> None:
-    """Sum the INPUT-side usage the SDK stamps on every AssistantMessage. It
-    yields one message per CONTENT BLOCK of an API call (thinking, then text),
-    all carrying that call's usage, so an API call counts once — by message id.
-    `output_tokens` is NOT banked: on the stream it is the `message_start`
-    placeholder (measured 1 against a result of 233), not a count."""
+    """Sum the INPUT-side usage the SDK stamps on every AssistantMessage — one
+    per content block, all carrying that call's usage, so it counts once by
+    message id. `output_tokens` is the stream's `message_start` placeholder
+    (measured 1 against a result of 233), not a count, so it is NOT banked."""
     raw = getattr(message, "usage", None)
     if not isinstance(raw, dict):
         return
@@ -106,15 +112,9 @@ def _on_user(content: list, st: _State) -> None:
 
 
 def _on_result(message: Any, st: _State) -> None:
-    """The result's usage, unless the CLI zeroed it under an answer it DID stream.
-
-    `error_max_budget_usd` (SDK 0.2.123, measured 2026-09-03): the call completes,
-    the text streams, and the result arrives with every token count at 0 — the
-    shape consumers rightly read as "text no model generated" (discord-bot's
-    gateway refused eight of Insult's answers in two days on it). When the result
-    denies any spend, the streamed INPUT usage leaves here and the output count
-    leaves ABSENT — unknown, never a zero, never the stream's placeholder. A
-    burned credential (`limit_hit`) streams nothing, so it stays all-zero."""
+    """The result's usage, unless the CLI zeroed it under an answer it DID stream
+    (`error_max_budget_usd`, 2026-09-03: text streams but counts return 0). Then
+    the streamed INPUT usage leaves here, output ABSENT — never a zero."""
     raw = getattr(message, "usage", None)
     if raw is not None:
         st.usage = dict(raw) if isinstance(raw, dict) else dict(getattr(raw, "__dict__", {}) or {})

@@ -13,7 +13,7 @@ from typing import Any
 from .. import spend
 from .contract import BudgetExceeded, TurnSpec
 from .credentials import is_metered, limit_hit
-from .drain import drain, turn_cost
+from .drain import drain, turn_cost, turn_tokens
 from .vision import send_turn
 
 _ROTATE: dict[str, Any] = {"type": "_rotate"}
@@ -68,7 +68,7 @@ async def _account(engine: Any, project: str, session: str,
     client that spent is the one that pays."""
     metered = is_metered(slot_name)
     delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event), metered)
-    await spend.bank("engine", project, session, None, delta, metered)
+    await spend.bank("engine", project, session, None, delta, metered, turn_tokens(event))
     return spent
 
 

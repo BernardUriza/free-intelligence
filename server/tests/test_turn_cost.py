@@ -10,7 +10,7 @@ from "a shape I do not know" fails as free money, so both shapes are pinned here
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import Any
 
-from aire.engine.drain import turn_cost
+from aire.engine.drain import turn_cost, turn_tokens
 
 
 @dataclass
@@ -43,3 +43,20 @@ def test_a_turn_without_a_result_is_free() -> None:
 
 def test_a_result_without_usage_is_free() -> None:
     assert turn_cost({"type": "result", "result": _Result("hi")}) == 0.0
+
+
+def _usage_event() -> dict[str, Any]:
+    return {"type": "result", "result": _Result("hi", {
+        "cache_read_input_tokens": 90000, "cache_creation_input_tokens": 1200,
+        "input_tokens": 40, "total_cost_usd": 0.01})}
+
+
+def test_turn_tokens_reads_the_cache_breakdown_from_both_shapes() -> None:
+    want = {"cache_read": 90000, "cache_creation": 1200, "input_tokens": 40}
+    assert turn_tokens(_usage_event()) == want
+    assert turn_tokens(_flattened(_usage_event())) == want
+
+
+def test_turn_tokens_is_empty_without_usage() -> None:
+    assert turn_tokens({"type": "result", "result": _Result("hi")}) == {}
+    assert turn_tokens({"type": "text", "text": "thinking"}) == {}

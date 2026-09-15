@@ -145,3 +145,39 @@ async def test_the_metered_column_migrates_onto_a_pre_existing_table() -> None:
 
     assert await spend.month_to_date() == pytest.approx(0.09), \
         "the pre-migration row lost its default-metered dollars"
+
+
+@pytest.mark.asyncio
+async def test_a_turn_persists_its_cache_breakdown() -> None:
+    """The efficiency columns (2026-09-15): a banked turn stores cache_read /
+    cache_creation / input_tokens so the cache ratio is queryable over time."""
+    await _clean()
+    await spend.bank("engine", "canary", "s1", None, 0.01,
+                     tokens={"cache_read": 90000, "cache_creation": 1200, "input_tokens": 40})
+    conn = await asyncpg.connect(DSN, timeout=10)
+    row = await conn.fetchrow(
+        "SELECT cache_read, cache_creation, input_tokens FROM aire_spend LIMIT 1")
+    await conn.close()
+    assert (row["cache_read"], row["cache_creation"], row["input_tokens"]) == (90000, 1200, 40)
+
+
+@pytest.mark.asyncio
+async def test_the_token_columns_migrate_onto_a_pre_existing_table() -> None:
+    """The prod table predates the token columns: `ensure` ALTERs them in and a
+    turn with no breakdown leaves them null, never a fake zero."""
+    spend._ready = False
+    conn = await asyncpg.connect(DSN, timeout=10)
+    await conn.execute("DROP TABLE IF EXISTS aire_spend")
+    await conn.execute(
+        "CREATE TABLE aire_spend ("
+        " seq bigserial PRIMARY KEY, at timestamptz NOT NULL DEFAULT now(),"
+        " door text NOT NULL, project text, session text, holder text,"
+        " usd double precision NOT NULL, metered boolean NOT NULL DEFAULT true)")
+    await conn.close()
+
+    await spend.bank("gateway", None, None, "someone", 0.02)  # no tokens
+
+    conn = await asyncpg.connect(DSN, timeout=10)
+    row = await conn.fetchrow("SELECT cache_read FROM aire_spend LIMIT 1")
+    await conn.close()
+    assert row["cache_read"] is None, "a turn with no breakdown leaves the column null"
