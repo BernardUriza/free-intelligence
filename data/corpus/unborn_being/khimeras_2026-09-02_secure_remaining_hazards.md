@@ -19,7 +19,7 @@ contexto donde ocurrió.
 ## El planteamiento
 
 Autor: Bernard
-Fuente: *(link pendiente)*
+Fuente: https://discord.com/channels/1488419218302042223/1489180895264116736/1544744553658064976
 
 [Bernard] Le plantea a Álex un experimento mental que salió de una conversación sobre
 antinatalismo, antiespecismo y ética del cuidado.
@@ -132,7 +132,7 @@ quitas."*
 ## Los huecos que devuelve Insult
 
 Autor: Insult
-Fuente: *(link pendiente)*
+Fuente: https://discord.com/channels/1488419218302042223/1489180895264116736/1544884906050588714
 
 [Insult] Reconoce el criterio de Álex, *"que la seguridad ya no dependa de que
 alguien esté presente"*, como *"exactamente la pregunta correcta"*, y le señala lo que
@@ -184,7 +184,7 @@ solo audita que la secuencia se cumplió.
 ## Cuál hueco urge más
 
 Autores: Bernard e Insult
-Fuente: *(link pendiente)*
+Fuente: https://discord.com/channels/1488419218302042223/1489180895264116736/1545180179788472350
 
 [Bernard] Le pregunta a Insult cuál de los tres huecos urge más y por qué.
 
@@ -204,7 +204,7 @@ es la fundación."*
 ## Las cuatro decisiones de Álex
 
 Autor: Álex
-Fuente: *(link pendiente)*
+Fuente: https://discord.com/channels/1488419218302042223/1489180895264116736/1545251896980283484
 
 [Álex] Trabaja los tres huecos empezando por los ciclos, como sugirió Insult: *"y sí,
 los otros dos vivían adentro"*.
@@ -244,7 +244,7 @@ sobre la especie, *"y aun así no la voy a cerrar en abstracto"*.
 ## Lo que Insult ve en las cuatro decisiones
 
 Autor: Insult
-Fuente: *(link pendiente)*
+Fuente: https://discord.com/channels/1488419218302042223/1489180895264116736/1545252476452605982
 Fecha: 2026-09-03
 
 [Insult] Abre con: *"escúchame lo que acabas de hacer, porque es más grande de lo que
