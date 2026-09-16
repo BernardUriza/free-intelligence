@@ -62,6 +62,23 @@ repo aunque el texto no.
   2026-09-02.
 
 ## Pendientes de copyright (átomo de Bernard — libros de paga, NO descargados)
+
+**Antinatalismo y pesimismo** (agregados el 2026-09-15 con el eje nuevo; el issue
+#61 pide nombrarlos aunque no se descarguen):
+- David Benatar — *Better Never to Have Been: The Harm of Coming into Existence*,
+  Oxford University Press, 2006 (ISBN 978-0-19-929642-2). El libro que arma el
+  antinatalismo contemporáneo; es la referencia obligada del eje. **Copyright.**
+- Peter Wessel Zapffe — *Den sidste Messias* (1933), en inglés *The Last Messiah*,
+  trad. Gisle R. Tangenes, *Philosophy Now* #45, 2004. **Doble copyright**: el
+  original noruego (Zapffe murió en 1999) y la traducción de 2004. Circulan copias
+  sueltas en la web; ninguna es una edición con licencia, así que no entran.
+- Julio Cabrera — *Crítica de la moral afirmativa: una reflexión sobre nacimiento,
+  muerte y valor de la vida*, Gedisa, 1996 (2ª ed. 2014). Ética negativa en
+  español, la única fuente del eje que no viene traducida. Tiene además un libro
+  en inglés de 2019 sobre incomodidad e impedimento moral (editorial no
+  verificada). **Copyright.**
+
+**Experiencias cercanas a la muerte** (los que ya estaban):
 - Susan Blackmore — *Dying to Live: Near-Death Experiences* (copyright)
 - Rick Strassman — *DMT: The Spirit Molecule* (copyright)
 - Bruce Greyson — *After* (copyright)
