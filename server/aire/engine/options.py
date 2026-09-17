@@ -104,8 +104,7 @@ def _mount_tools(kwargs: dict[str, Any], cwd: str, tools: tuple[str, ...]) -> No
     turn asked for no tools, so the tool-free path is byte-identical to before."""
     if not tools:
         return
-    from claude_agent_sdk import project_key_for_directory
-
+    from ..agent_sdk import project_key_for_directory
     from .tools import resolve
     servers, allowed = resolve(list(tools), project_key_for_directory(cwd), cwd)
     kwargs["mcp_servers"] = servers
@@ -121,7 +120,7 @@ def _mount_all(kwargs: dict[str, Any], cwd: str, spec: TurnSpec) -> None:
 def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
                   spec: TurnSpec, resuming: bool,
                   credential_env: dict[str, str] | None = None, metered: bool = True) -> Any:
-    from claude_agent_sdk import ClaudeAgentOptions
+    from ..agent_sdk import Options
     policy = MODES.get(spec.mode, MODES[DEFAULT_MODE])
     casita = _casita_prompt(cwd)
     kwargs: dict[str, Any] = {
@@ -147,4 +146,4 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
     # starts a NEW session, clobbering the id and losing the memory — which is
     # why the caller asks the store, not the pool.
     kwargs["resume" if resuming else "session_id"] = session_uuid
-    return ClaudeAgentOptions(**kwargs)
+    return Options(**kwargs)

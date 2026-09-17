@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from claude_agent_sdk import HookMatcher
+from ..agent_sdk import HookMatcher
 
 FILE_TOOLS = "Read|Write|Edit|MultiEdit|NotebookEdit|Glob|Grep"
 PATH_KEYS = ("file_path", "path", "notebook_path")

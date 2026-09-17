@@ -19,7 +19,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from claude_agent_sdk import create_sdk_mcp_server, tool
+from ..agent_sdk import mcp_server as create_sdk_mcp_server
+from ..agent_sdk import tool
 
 MARKER = "<!-- AIRE:LIVING — everything below is the living persona; the base above is protected -->"
 MAX_LIVING = 8_000

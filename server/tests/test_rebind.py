@@ -33,7 +33,7 @@ class FakeClient:
 @pytest.fixture
 def engine(monkeypatch, tmp_path):
     monkeypatch.setattr("aire.engine.core.WORKSPACES", tmp_path)
-    monkeypatch.setattr("aire.engine.core.ClaudeSDKClient", lambda options: FakeClient())
+    monkeypatch.setattr("aire.engine.core.SDKClient", lambda provider="claude", *, options=None: FakeClient())
     monkeypatch.setattr("aire.engine.core.build_options", lambda *a, **k: object())
     eng = Engine(session_store=None)
     monkeypatch.setattr(eng, "has_session", _false)

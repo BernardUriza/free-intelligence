@@ -58,7 +58,7 @@ async def test_building_a_client_clears_the_ledgers_memory(monkeypatch, tmp_path
     import aire.engine.core as core
 
     monkeypatch.setattr(core, "WORKSPACES", tmp_path)
-    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: _Stub())
+    monkeypatch.setattr(core, "SDKClient", lambda provider="claude", *, options=None: _Stub())
     monkeypatch.setattr(core, "build_options", lambda *a, **k: None)
 
     engine = Engine(_NoMemory())

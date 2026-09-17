@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
-from claude_agent_sdk import ClaudeSDKClient, project_key_for_directory
+from ..agent_sdk import SDKClient, project_key_for_directory
 
 from ..keys import sdk_session_uuid
 from .contract import CostSink, TurnSpec
@@ -63,7 +63,7 @@ class Engine:
                                         sdk_session_uuid(session), spec, resuming,
                                         credential_env=slot.env if slot else None,
                                         metered=slot is None or is_metered(slot.name))
-                client = ClaudeSDKClient(options=options)
+                client = SDKClient("claude", options=options)
                 await client.__aenter__()
                 self.pool.clients[key] = client
                 self.spec_of[key] = spec  # the shape it was born with (#38)

@@ -111,7 +111,7 @@ async def _wired(monkeypatch, tmp_path, costs: list[float]) -> Engine:
     monkeypatch.setattr(core, "WORKSPACES", tmp_path)
     monkeypatch.setattr(core, "build_options", lambda *a, **k: None)
     client = FakeClient(costs)
-    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: client)
+    monkeypatch.setattr(core, "SDKClient", lambda provider="claude", *, options=None: client)
     engine = Engine(NoMemory())
     engine.rotor = Rotor()
     return engine
@@ -158,7 +158,7 @@ async def test_an_evicted_session_still_banks_its_next_turn(monkeypatch, tmp_pat
     await engine.pool.close_one("canary/s1")  # LRU/idle eviction — NOT _retire
 
     import aire.engine.core as core
-    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: FakeClient([0.025]))
+    monkeypatch.setattr(core, "SDKClient", lambda provider="claude", *, options=None: FakeClient([0.025]))
     await _run(engine, "after the eviction")
 
     rows = await _rows()

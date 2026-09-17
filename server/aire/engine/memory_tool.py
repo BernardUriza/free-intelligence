@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from claude_agent_sdk import create_sdk_mcp_server, tool
+from ..agent_sdk import mcp_server as create_sdk_mcp_server
+from ..agent_sdk import tool
 
 from .. import db
 

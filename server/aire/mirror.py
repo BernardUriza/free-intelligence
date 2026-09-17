@@ -20,7 +20,7 @@ import json
 import os
 from pathlib import Path
 
-from claude_agent_sdk import project_key_for_directory
+from .agent_sdk import project_key_for_directory
 
 from .listen.applog import _now, append_file
 from .store import create_postgres_session_store

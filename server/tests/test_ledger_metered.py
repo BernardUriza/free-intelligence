@@ -117,7 +117,7 @@ async def _wired(monkeypatch, tmp_path, slot_name: str, cumulative: float = 0.02
 
     monkeypatch.setattr(core, "WORKSPACES", tmp_path)
     monkeypatch.setattr(core, "build_options", lambda *a, **k: None)
-    monkeypatch.setattr(core, "ClaudeSDKClient", lambda options=None: _FakeClient(cumulative))
+    monkeypatch.setattr(core, "SDKClient", lambda provider="claude", *, options=None: _FakeClient(cumulative))
 
     async def _no_bank(*_a: Any, **_k: Any) -> None:
         return None

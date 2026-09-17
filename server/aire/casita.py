@@ -35,7 +35,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from claude_agent_sdk import project_key_for_directory
+from .agent_sdk import project_key_for_directory
 
 from .engine.core import WORKSPACES
 
