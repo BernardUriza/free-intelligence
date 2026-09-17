@@ -51,6 +51,7 @@ kept honest, a status flipped the day it changes.
 | [46](46-the-corpus-lives-in-the-owners-database.md) | `rag_store` joins the registry — the corpus lives in the owner's database | Done 2026-08-24 |
 | [47](47-only-the-model-can-write-a-corpus.md) | Only the model could write a corpus — the door the upload was missing | Done 2026-08-24 |
 | [48](48-remote-tools.md) | Remote tools — the caller's own HTTP MCP | Done 2026-08-28 (E2E receipt: Insult via mcp_http); file corrected 2026-09-01 |
+| [49](49-a-second-provider-behind-the-frontier.md) | A second provider behind the frontier (Qwen Code), chosen per turn | Proposed 2026-09-17 — researched with receipts; no $0 provider reachable from the droplet |
 
 ## Before #19
 
