@@ -1,6 +1,6 @@
 # fi-core: el veredicto de banda carga sus grupos disparados — una llamada, un veredicto, una explicación
 
-Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08) + discord-bot v4.38.18 (`1078ea1`) — colapsado a `crisis_verdict()`, grep → 0
+Status: Done — fi-core 0.30.0 (free-intelligence PR #465, 2026-09-08) + discord-bot v4.38.18 (`1078ea1`) — colapsado a `crisis_verdict()`, grep → 0. **discord-bot issue #54 CERRADO 2026-09-17** con recibo (audit.py consume `fi_core.cognitive.sha256_payload`, loguea `audit_hash`, sólo nombres de grupo al log) — drift cross-repo cerrado
 Proposed: 2026-09-08 by Bernard (revisión del PR #68 de discord-bot, issue #54)
 
 ## What it is
