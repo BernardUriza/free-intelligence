@@ -121,8 +121,17 @@ def test_evidence_is_not_doubted_and_the_question_carries_no_blame():
 
 
 def test_calming_down_is_credited_to_whoever_writes():
-    """RESISTENCIA: en la dependencia, el mérito es de quien escribe."""
-    assert "quien se calma eres tú" in _texto()
+    """RESISTENCIA: en la dependencia, el mérito es de quien escribe.
+
+    Y se devuelve preguntando, no señalando. El molde decía "Y ojo: quien se calma
+    eres tú", y el "ojo" podía leerse como corrección para alguien ya sensible a lo
+    correctivo (lo notó Insult en #general el 2026-09-18); Álex eligió quitar sólo
+    el "ojo" y dejar la frase del mérito.
+    """
+    texto = _texto()
+    assert "calmarse es algo que sabe hacer, no algo que le das tú" in texto
+    assert "Y quien se calma eres tú." in texto
+    assert "Y ojo:" not in texto
 
 
 def test_the_molds_are_not_recited():
