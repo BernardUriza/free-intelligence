@@ -1,7 +1,45 @@
 # 49 — A second provider behind the frontier (Qwen Code), chosen per turn
 
-Status: **Proposed** — researched with receipts 2026-09-17; not built. The decision that is Bernard's is at the bottom.
-Proposed: 2026-09-17 by Bernard (*"¿se puede poner qwen code como otro agent sin romper nada, y que el consumer elija?"*)
+Status: **In progress** — the ACP backend shipped 2026-09-17 (code, tests, docs; verified end to end on the Mac); the founding consumer waits for the NUC.
+Proposed: 2026-09-17 by Bernard (*"¿se puede poner qwen code como otro agent sin romper nada, y que el consumer elija?"*); greenlit the same day as ONE adapter, not one per vendor: *"un solo adaptador `agent_sdk/acp.py`… y en el futuro compraré una NUC buena para tener en casa y ya"*.
+
+## What shipped (2026-09-17)
+
+- `agent_sdk/acp.py` + `acp_bridge.py` + `acp_messages.py` + `acp_roster.py`: one
+  backend for every agent in the ACP registry (40+: Claude, Codex, Gemini, Qwen,
+  Kimi, Mistral, Grok, MiniMax, GLM, opencode, goose, …). `TurnSpec.provider`
+  names it; `AIRE_ACP_AGENTS` (operator env, JSON) says what a name runs; the
+  door validates and 422s the rest. `backend_for(provider).build_options(Birth)`
+  is the seam — `core.py` never learned a vendor's name.
+- `aire/acp_mirror.py`: the pen for ACP turns — `aire_agent_log`, every
+  `session/update`, prompt and stop reason appended eagerly, plus the
+  AIRE-session → agent-session mapping that makes `session/load` possible.
+- `drain.py` unchanged: the backend yields classes with the SDK's names.
+- Tests: a real ACP agent over real stdio inside pytest (`tests/fake_acp_agent.py`,
+  memory on disk) covering text, tools allowed/rejected by mode, warm resume
+  without replay, cold resume LOUD, cost from `usage_update`, the roster.
+- E2E on the Mac through `POST …/messages` with `provider: "claude-acp"`
+  (`claude-code-acp` 0.16.2): SSE `text` → `result` (`model: "claude-acp"`), and
+  after a forced rebind the new client loaded the same agent session and answered
+  "pong" to *what did you reply before* — one `session` row in the mirror.
+
+## What stays open
+
+1. **Cold resume re-priming**: on a fresh box the agent cannot `session/load`; the
+   mirror holds the transcript but ACP has no import. Render the mirrored turns
+   into the first prompt of the fresh session (bounded), or accept per-session
+   provider binding as final. Bernard's call.
+2. **The droplet cannot host `claude-code-acp`**: no node installed, 162 MB free,
+   and the adapter adds ~90 MB of node beside the `claude` it spawns (measured
+   2026-09-17). The backend deploys without a roster (zero behaviour change).
+3. **The NUC is the founding consumer's home** — but ACP is stdio, so AIRE must
+   spawn the agent on the same box: either AIRE runs on the NUC, or the backend
+   grows the SDK's HTTP/WebSocket transport (`connect_to_agent(client, transport)`)
+   to reach an agent served from the NUC. Pick when the NUC exists.
+4. `usage`/cost: `claude-code-acp` reports none; other agents may. `prices.json`
+   stays Anthropic-only until a provider reports tokens without dollars.
+5. The vetted in-process tool registry does not mount on an ACP turn (ACP agents
+   bring their own tools); only HTTP remote tools (#48) could.
 
 ## What it is
 

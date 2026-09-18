@@ -192,6 +192,23 @@ memory. To contradict anything here, verify it first the same way.
   the droplet must not depend on a repo another agent edits. Their patterns live
   in `prompts/drift-patterns.json` as content, hot-reloaded by mtime.
 
+- **A second backend rides the `agent_sdk` frontier without the engine learning
+  its name** (2026-09-17, backlog #49). `TurnSpec.provider` is `"claude"` or a
+  name from `AIRE_ACP_AGENTS`; `backend_for(provider).build_options(Birth)` and
+  `SDKClient(provider, …)` are the whole seam. The ACP backend (`agent_sdk/acp.py`)
+  speaks Agent Client Protocol over stdio to any registered agent and feeds
+  `drain.py` classes with the SDK's names — drain never changed. Three facts
+  measured against the real thing: ACP has NO session store (AIRE mirrors every
+  update itself, `acp_mirror.py`, and maps AIRE's `uuid5` session to the id the
+  agent minted — the one mapping table the native path never needed); ACP has NO
+  system prompt (the agent reads its own context files from the casita `cwd`);
+  and `claude-code-acp` reports `usage: None`, so an ACP turn banks $0 unless the
+  agent sends a `usage_update` with a cost. Memory survives a rebind on a warm box
+  (`session/load`, verified); on a cold box the agent has nothing to load and a
+  fresh session opens LOUDLY (`ACP-RESUME-LOST`) — re-priming from the mirror is
+  #49's next step. Not deployed as a consumer: the droplet has no node and 162 MB
+  free; `claude-code-acp` costs ~90 MB of node beside the `claude` it spawns.
+
 ## Discarded routes (don't re-propose them)
 
 - **Ephemeral VM with SSH** (the original `air-lite`): the Agent SDK reinvented with
