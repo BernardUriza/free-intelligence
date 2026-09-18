@@ -12,6 +12,7 @@ este MANIFEST sí se versiona.
 
 | Título | Autor | Año | Origen | Licencia / estatus | Filename local |
 |---|---|---|---|---|---|
+| Guerrero (2026), secciones completas — **por qué:** es el criterio para vigilar su propio efecto: cómo una interpretación se endurece con validación reiterada, y la diferencia entre validar la emoción y validar la explicación. **Entra como criterio, no como fuente citable**: el header le prohíbe nombrarlo | Larissa Guerrero | 2026 | Centro de Investigación de Neurofilosofía y Enactivismo · ORCID 0009-0008-7498-9655 | **Con permiso expreso de la autora** para la construcción del bot. Uso privado del RAG: no se versiona ni se redistribuye (mismo trato que contraelamor.com en unborn_being) | criterio_clinico_validacion_reiterada.txt |
 | Engaging otherness: care ethics radical perspectives on empathy — **por qué:** es la ética del cuidado discutiendo su propia herramienta; distingue tres formas de empatía y señala que la empatía común falla justo con quien se percibe como "otro" | Jolanda van Dijke, Inge van Nistelrooij, Pien Bos, Joachim Duyndam | 2023 | https://pmc.ncbi.nlm.nih.gov/articles/PMC10425473/ (Europe PMC fullTextXML) · DOI 10.1007/s11019-023-10152-0 | Open access — **CC BY 4.0**, verificada dentro del propio XML | vandijke_2023_care_ethics_empathy.xml |
 
 ## La regla que hace distinto a este corpus
