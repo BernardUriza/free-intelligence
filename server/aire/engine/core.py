@@ -1,6 +1,6 @@
-"""The Engine facade: owner of the SDK, the modes and the memory. One live
-`ClaudeSDKClient` per session (pool = hot cache); a miss is rebuilt from the
-store with `resume=`, which is what makes the memory survive a restart."""
+"""The Engine facade: owner of the backends, the modes and the memory. One live
+client per session (pool = hot cache); a miss is rebuilt from the store with
+`resume=`, which is what makes the memory survive a restart."""
 
 import asyncio
 import os
@@ -9,14 +9,13 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
-from ..agent_sdk import SDKClient, project_key_for_directory
-
+from .. import acp_mirror
+from ..agent_sdk import Birth, SDKClient, build_options, project_key_for_directory
 from ..keys import sdk_session_uuid
 from .contract import CostSink, TurnSpec
 from .credentials import Rotor, is_metered
 from .detach import Detached, drain_detached
 from .ledger import Ledger
-from .options import build_options
 from .pool import Pool
 from .turn import run_turn
 
@@ -45,8 +44,11 @@ class Engine:
         return {"project_key": project_key_for_directory(str(self._cwd(project))),
                 "session_id": sdk_session_uuid(session)}
 
-    async def has_session(self, project: str, session: str) -> bool:
-        return bool(await self.session_store.load(self.session_key(project, session)))
+    async def has_session(self, project: str, session: str, provider: str = "claude") -> bool:
+        key = self.session_key(project, session)  # the SDK's store natively; AIRE's mirror for ACP (#49)
+        if provider != "claude":
+            return await acp_mirror.agent_session(key["project_key"], key["session_id"], provider) is not None
+        return bool(await self.session_store.load(key))
 
     async def _client_for(self, project: str, session: str, spec: TurnSpec,
                           slot: Any = None) -> tuple[Any, asyncio.Lock]:
@@ -58,12 +60,11 @@ class Engine:
             if client is None:
                 await self.pool.make_space()  # close LRU idle so we stay <= POOL_MAX
                 self.ledger.adopt(key)  # its predecessor's total counts for nothing
-                resuming = await self.has_session(project, session)
-                options = build_options(self.session_store, project, str(self._cwd(project)),
-                                        sdk_session_uuid(session), spec, resuming,
-                                        credential_env=slot.env if slot else None,
-                                        metered=slot is None or is_metered(slot.name))
-                client = SDKClient("claude", options=options)
+                birth = Birth(self.session_store, project, str(self._cwd(project)),
+                              sdk_session_uuid(session), spec,
+                              await self.has_session(project, session, spec.provider),
+                              slot.env if slot else None, slot is None or is_metered(slot.name))
+                client = SDKClient(spec.provider, options=build_options(birth))
                 await client.__aenter__()
                 self.pool.clients[key] = client
                 self.spec_of[key] = spec  # the shape it was born with (#38)
@@ -108,11 +109,10 @@ class Engine:
         await self._drop(f"{project}/{session}")
 
     async def _drop(self, key: str) -> None:
-        """Let go of a pooled client deliberately — a retire (#23) or a rebind
-        (#38). It is NOT the only exit, and claiming it was is what hid a ledger
-        bug for a month: `evict`/`make_space` call `close_one` directly, on the
-        common path. So every exit is repaired at the next BIRTH instead
-        (`_client_for`: slot_of, spec_of, and the ledger's `adopt`)."""
+        """Let go of a pooled client deliberately — a retire (#23) or a rebind (#38).
+        NOT the only exit (claiming so hid a ledger bug for a month: `evict` and
+        `make_space` call `close_one` directly), so every exit is repaired at the
+        next BIRTH instead (`_client_for`: slot_of, spec_of, the ledger's `adopt`)."""
         self.slot_of.pop(key, None)
         self.spec_of.pop(key, None)
         async with self.pool.guard:

@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from .agent_sdk import DEFAULT_PROVIDER, providers
 from .engine import DEFAULT_MODE, MODES
 from .engine.contract import Guard, RemoteTool
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
@@ -46,6 +47,18 @@ def safe_tools(raw: Any, _mode: str) -> tuple[str, ...]:
     except UnknownTool as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return tuple(names)
+
+
+def safe_provider(raw: Any) -> str:
+    """The `provider` field (#49): the native backend by default, or an ACP
+    agent the OPERATOR named in `AIRE_ACP_AGENTS`. The wire picks from the
+    roster; it never defines what runs."""
+    if raw is None or raw == "":
+        return DEFAULT_PROVIDER
+    if isinstance(raw, str) and raw in providers():
+        return raw
+    raise HTTPException(status_code=422,
+                        detail=f"unknown provider; available: {list(providers())}")
 
 
 def safe_model(raw: Any) -> str | None:

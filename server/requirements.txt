@@ -4,3 +4,4 @@ uvicorn[standard]
 sse-starlette
 claude-agent-sdk
 asyncpg
+agent-client-protocol

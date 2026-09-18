@@ -53,6 +53,11 @@ class TurnSpec:
     tools: tuple[str, ...] = ()
     model: str | None = None
     remote_tools: tuple[RemoteTool, ...] = ()
+    provider: str = "claude"
+    """Which backend answers (#49): the native SDK, or an ACP agent named in the
+    operator's roster. Bound at birth like the rest, so a turn that switches
+    provider drops the warm client — and, until the mirror is re-primed into the
+    new agent, its memory: one session, one provider, is the honest shape."""
 
 
 @dataclass(frozen=True)

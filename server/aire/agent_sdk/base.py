@@ -7,7 +7,25 @@ enters it as a context manager, vision drives `query`, drain reads
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
+
+
+@dataclass(frozen=True)
+class Birth:
+    """Everything a backend needs to build the options a client is BORN with —
+    the engine hands this over and never learns what the backend makes of it.
+    `spec` is the turn's `TurnSpec`; `resuming` says the memory already holds
+    this session; `credential_env` is the rotor's active slot (#31)."""
+
+    session_store: Any
+    project: str
+    cwd: str
+    session_uuid: str
+    spec: Any
+    resuming: bool
+    credential_env: dict[str, str] | None = None
+    metered: bool = True
 
 
 @runtime_checkable
@@ -32,14 +50,11 @@ class AgentClient(Protocol):
 
 
 class AgentBackend(Protocol):
-    """A provider's whole surface: the client factory plus the option/tool/hook
-    primitives its clients understand. Everything the repo used to import from a
-    vendor SDK lives behind ONE of these."""
-
-    Options: Any
-    HookMatcher: Any
-    mcp_server: Any
-    tool: Any
-    project_key_for_directory: Any
+    """A provider's whole surface: the client factory, the options it is born
+    with, plus the option/tool/hook primitives its clients understand.
+    Everything the repo used to import from a vendor SDK lives behind ONE of
+    these."""
 
     def client(self, options: Any) -> AgentClient: ...
+
+    def build_options(self, birth: Birth) -> Any: ...
