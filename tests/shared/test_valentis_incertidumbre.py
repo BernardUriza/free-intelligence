@@ -27,7 +27,8 @@ Resistencia — cada una es una decisión clínica que se puede perder reescribi
      ajustó "¿qué pasó antes de que te gritara?" porque se leía como "¿qué hiciste
      tú?";
   5. en la dependencia, el mérito es de quien escribe, no de Valentis;
-  6. los moldes no se recitan: por deducción, no por lista.
+  6. los moldes no se recitan: por deducción, no por lista;
+  7. no se nombra un sentimiento que quien escribe no ha nombrado.
 """
 
 from __future__ import annotations
@@ -74,6 +75,20 @@ def test_alex_criterion_survives_word_for_word():
 def test_both_ends_are_ruled_out():
     """RESISTENCIA: ni confirmar ni contradecir."""
     assert "Nunca confirmas y nunca discutes." in _texto()
+
+
+def test_no_feeling_is_named_before_whoever_writes_names_it():
+    """RESISTENCIA: no se le pone a nadie un sentimiento que no ha dicho.
+
+    Criterio de Álex del 2026-09-18, al revisar los moldes: "menciona la palabra
+    duele cuando quien escribe no ha habló de sentimientos". Por eso los moldes
+    de los casos 1 y 5 perdieron su "duele" y su "te cansó". El test guarda la
+    regla y que no regresen.
+    """
+    texto = _texto()
+    assert "no nombras un sentimiento que quien te escribe no ha nombrado" in texto
+    assert "Duele no tener respuesta" not in texto
+    assert "Se nota que te cansó" not in texto
 
 
 def test_the_six_cases_survive():
