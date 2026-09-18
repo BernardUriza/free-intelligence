@@ -71,6 +71,9 @@ compose_env() {
   append_secret "$OAUTH_BACKUP_FILE"     "CLAUDE_CODE_OAUTH_TOKEN_BACKUP=" "the failover backup OAuth (#31)"
   append_secret "$API_KEY_FALLBACK_FILE" "ANTHROPIC_API_KEY_FALLBACK="     "the failover metered API key (#31)"
   append_secret "$WHITELIST_FILE"  "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
+  # Which ACP agents the box may spawn, by name (#49). Config, not a secret —
+  # but it lives here so a re-provision restores the roster, not just the code.
+  append_secret "$ACP_AGENTS_FILE" "AIRE_ACP_AGENTS=" "the ACP agent roster (#49)"
   # The invitation flow (#32). Without these the request-access button answers
   # 503 and says so — it never silently posts a stranger into a void.
   append_secret "$ACCESS_FILE" "AIRE_ACCESS_SECRET="    "the approve link's signature (#32)"
