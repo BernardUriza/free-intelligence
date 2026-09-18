@@ -26,7 +26,7 @@ class FakeEngine:
         self.known = set(known)
         self.detached = self
 
-    async def has_session(self, project, session):
+    async def has_session(self, project, session, provider="claude"):  # the engine's signature (#49)
         return (project, session) in self.known
 
     def running(self, _key):

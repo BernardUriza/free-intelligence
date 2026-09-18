@@ -27,16 +27,21 @@ class Bridge:
         self.queue: asyncio.Queue[Any] = asyncio.Queue()
         self.armed = False
         self.cost: float | None = None
+        self._order = asyncio.Lock()  # FIFO: mirror rows land in arrival order
 
     async def session_update(self, session_id: str, update: Any, **_: Any) -> None:
+        """Enqueue BEFORE the first await. The connection dispatches
+        notifications concurrently, so an update that waited on its mirror
+        write would overtake the next one — CI saw `two` before `pong: `."""
         if not self.armed:
             return
         kind = type(update).__name__
-        await self.mirror(kind, update.model_dump(mode="json", exclude_none=True))
         if kind == "UsageUpdate" and getattr(update, "cost", None) is not None:
             self.cost = float(update.cost.amount)
         for message in translate(update, self.agent):
-            await self.queue.put(message)
+            self.queue.put_nowait(message)
+        async with self._order:
+            await self.mirror(kind, update.model_dump(mode="json", exclude_none=True))
 
     async def request_permission(self, session_id: str, tool_call: Any,
                                  options: list[Any], **_: Any) -> schema.RequestPermissionResponse:

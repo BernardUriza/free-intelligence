@@ -113,6 +113,8 @@ class AcpClient:
                 yield take.result()
                 continue
             take.cancel()
+            if not take.cancelled() and take.done() and not take.exception():
+                yield take.result()  # it had already taken an item: never drop it
             while not queue.empty():
                 yield queue.get_nowait()
             break
