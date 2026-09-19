@@ -113,14 +113,20 @@ def _serve_invite_api(
 
     from persona_gateway.invite_server import build_invite_app
 
+    class _SignallessServer(uvicorn.Server):
+        # uvicorn.Config has no signal switch; Server.serve() wraps _serve in this.
+        @contextlib.contextmanager
+        def capture_signals(self):
+            yield
+
     app = build_invite_app(personas, invite_token, boot)
-    server = uvicorn.Server(
+    server_cls = uvicorn.Server if capture_signals else _SignallessServer
+    server = server_cls(
         uvicorn.Config(
             app,
             host="0.0.0.0",  # noqa: S104  # nosec B104 — Container App ingress requires bind-all; restrict via firewall/CIDR upstream
             port=8788,
             log_level="warning",
-            install_signal_handlers=capture_signals,
         )
     )
     log.info("persona_gateway_invite_api_starting", port=8788, token_configured=bool(invite_token))
