@@ -28,12 +28,34 @@ def test_valentis_is_a_registered_persona():
     assert v.gateway_enabled is True
 
 
-def test_valentis_arrives_mention_only_and_without_corpus():
+def test_valentis_stays_mention_only():
     """El issue #43 lo pide explícito: una palabra suelta que la despierte en una
     conversación que no era para ella es, EN ESTE TEMA, peor que no estar."""
     v = get_persona("valentis")
     assert v.aliases == []
-    assert v.corpus_namespace is None
+
+
+def test_valentis_has_her_corpus_and_it_tells_her_when_not_to_cite():
+    """Fase 2 abierta el 2026-09-16 (#61 B, decisión de Álex): era la única de las
+    seis sin corpus, y entra con ética del cuidado.
+
+    La resistencia de ESTE test es el header: en las demás personas citar la
+    procedencia es siempre lo correcto; aquí no. A alguien que está mal no se le
+    cita literatura, y su ADN nace justo de la referencia sin tacto que "se siente
+    como una puerta cerrándose". Si un futuro editor le quita esa cláusula para
+    homogeneizar los headers, esto se pone rojo.
+    """
+    v = get_persona("valentis")
+    assert v.corpus_namespace == "__corpus_valentis__"
+
+    header = ROOT / "shared" / "corpus" / "headers" / "valentis.md"
+    assert header.is_file()
+    texto = header.read_text(encoding="utf-8").lower()
+    assert "antes de citar, decide si citar viene al caso" in texto
+    assert "no se le cita literatura" in texto
+
+    manifest = ROOT / "data" / "corpus" / "valentis" / "MANIFEST.md"
+    assert manifest.is_file(), "el MANIFEST viaja con el repo aunque las fuentes no"
 
 
 def test_valentis_dna_and_guidance_are_in_place():
