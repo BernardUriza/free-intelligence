@@ -136,3 +136,28 @@ verificar con un turno real en #general que el rotor cae al backup cuando el pri
 topa. Ojo con la distinción que NO está verificada: el ciclo de BILLING (mensual) y
 las ventanas de RATE LIMIT (5h de sesión + semanal, que resetean por USO) son relojes
 distintos — escalonar el billing no desfasa por sí solo cuándo topan los límites.
+
+---
+
+**Actualización 2026-09-17 (sesión aire-server):** el `oauth-backup` de AIRE quedó
+ARMADO, pero con una TERCERA cuenta, no con vegdevida. Bernard entregó un token de
+`bernardurizadev@gmail.com` (org `7b946828`) — cuenta distinta del primary, pool
+separado, probado vivo (`200`/PONG contra `api.anthropic.com/v1/messages`). Guardado
+etiquetado en `~/.secrets/aire-claude-oauth-backup.txt`, metido a `/etc/aire/env` del
+droplet, `aire-server` reiniciado, y verificado en `/health` con door token: **3 slots
+armados** (`oauth-primary`, `oauth-backup`, `api-key-fallback`), `credential_failover:
+true`.
+
+Esto SUPERSEDE el "NO meter el oauth-backup antes de tiempo" de arriba: esa regla era
+para el escalonamiento bernarduriza↔vegdevida del BOT de discord; AIRE es otro servicio
+y Bernard lo ordenó hoy explícitamente. **El plan de escalonamiento vegdevida/$200 sigue
+vigente y separado** — bernardurizadev es una 3a cuenta que no lo toca. (Tier de
+bernardurizadev no verificado: el token dispatcha, pero si es Pro y no Max su pool es
+menor que un Max — pendiente menor.)
+
+**La card (`api-key-fallback`) SIGUE a $0** — probado el 17-sep contra la API:
+`400 "Your credit balance is too low"`, idéntico al 8-sep. Es el 3er slot (solo se usa
+si caen los DOS OAuth, pools separados → improbable a la vez), así que hoy es red
+terciaria; pero `credential_failover: true` la cuenta como slot válido. Para cerrarlo
+del todo: recargar créditos en la cuenta de la card, o borrar
+`~/.secrets/aire-api-key-fallback.txt` para que el rotor no cuente una red falsa.

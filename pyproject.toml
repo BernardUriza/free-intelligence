@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.38.36"
+version = "4.38.37"
 requires-python = ">=3.14"
 
 [tool.ruff]

@@ -1,8 +1,10 @@
 """Shared susurro-gateway STT — Discord audio bytes → transcript text.
 
-The susurro gateway exposes ``POST /v1/stt?language=es`` with bearer auth and a
-raw audio body (not multipart). Discord voice messages are OGG/opus, so callers
-default to ``Content-Type: audio/ogg``. The response JSON is
+The susurro gateway exposes ``POST /v1/stt`` with bearer auth and a raw audio
+body (not multipart). ``language`` is OPTIONAL and travels only when a caller
+asks for it: without it susurro lets Whisper autodetect (``lang=auto``), which
+is what a channel with audio in more than one language needs. Discord voice
+messages are OGG/opus, so callers default to ``Content-Type: audio/ogg``. The response JSON is
 ``{"success", "transcript", "engine"}``: the text lives in ``transcript``, not
 ``text``.
 """
@@ -166,15 +168,26 @@ async def transcribe_voice_message(
     *,
     base_url: str,
     api_key: str,
-    language: str = "es",
+    language: str | None = None,
     content_type: str = DEFAULT_AUDIO_CONTENT_TYPE,
 ) -> str | None:
     """Transcribe audio bytes via susurro STT.
 
-    Contract: ``POST {base_url}/v1/stt?language=es`` with bearer auth,
+    Contract: ``POST {base_url}/v1/stt`` with bearer auth,
     ``Content-Type`` for the raw audio bytes, and JSON response text read from
     ``transcript`` (not ``text``). Returns ``None`` when unconfigured, when the
     transcript is empty, or on any exception so a Discord turn never crashes.
+
+    **No language is forced.** The default used to be ``language="es"``, carried
+    over verbatim from ``personas/insult/core/transcribe.py`` (pre-purga) when STT
+    was revived in v4.22.72 — never a decision of this architecture. No caller ever
+    overrode it, so EVERY audio was decoded as Spanish and an English voice note
+    came back translated: the transcript rides the wire as ``trigger_transcript``
+    and the host PUBLISHES it in the channel between quotes, so words nobody said
+    were attributed to a person, and the router picked who answers by reading that
+    translation. Probed live against susurro (Bernard, 2026-09-17): without the
+    param the same English audio comes back in English. A caller that needs a fixed
+    language passes it explicitly (#74).
 
     Susurro runs scale-to-zero (``minReplicas=0``) and cold-started 19 times in
     one day, so a voice note is routinely the request that WAKES it: the first
@@ -194,12 +207,13 @@ async def transcribe_voice_message(
         "Content-Type": content_type or DEFAULT_AUDIO_CONTENT_TYPE,
     }
     url = f"{base_url.rstrip('/')}/v1/stt"
+    params = {"language": language} if language else {}
     for attempt in range(1, STT_COLD_START_ATTEMPTS + 1):
         try:
             async with httpx.AsyncClient(timeout=STT_TIMEOUT_S) as http:
                 response = await http.post(
                     url,
-                    params={"language": language},
+                    params=params,
                     headers=headers,
                     content=audio_data,
                 )
