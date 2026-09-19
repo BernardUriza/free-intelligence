@@ -123,3 +123,4 @@ de `--ignore-vuln` y los pisos de versión, no el análisis de cada CVE.
 - addressed_to_sibling over-suppression — Done v4.21.113 `783b00d`; cross-talk @frugi E2E-verificado (`7a1f6d2`).
 - runner no dispara invoke_alice → marcador `[INVITE:]` — Done v4.21.114 `3f871a5`, E2E verificado.
 - mover runner a `persona_runner/` top-level — Done v4.21.118 `19db105`.
+- [cd-gateway-health-fake-green](cd-gateway-health-fake-green.md) — Proposed — el CD da success con la revisión nueva del gateway en crash loop
