@@ -1,6 +1,7 @@
 """Tests for khimeras_shared.stt — voice-message STT via susurro.
 
-The gateway exposes ``POST /v1/stt?language=es`` (Bearer auth, raw audio body,
+The gateway exposes ``POST /v1/stt`` (Bearer auth, raw audio body, no forced
+language — Whisper autodetects,
 JSON ``{"success", "transcript", "engine"}``). These pin the unconfigured
 posture, request shape, ``transcript`` parsing, and fail-safe error behavior.
 """
@@ -98,8 +99,25 @@ class TestTranscribeVoiceMessage:
         kwargs = post.await_args.kwargs
         assert kwargs["headers"]["Authorization"] == "Bearer sk-secret"
         assert kwargs["headers"]["Content-Type"] == "audio/ogg"
-        assert kwargs["params"] == {"language": "es"}
+        # No forced language: susurro lets Whisper autodetect. Forcing "es" came
+        # back translated for audio in any other language (#74).
+        assert kwargs["params"] == {}
         assert kwargs.get("content") == b"fake-ogg-data"
+
+    @pytest.mark.asyncio
+    async def test_language_travels_only_when_a_caller_asks_for_it(self):
+        """A caller that fixes the language still sends it — what went is the default."""
+        factory, post = _mock_async_client(json_body={"success": True, "transcript": "x"})
+
+        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+            await transcribe_voice_message(
+                b"d",
+                base_url="https://sus.example.com",
+                api_key="k",
+                language="en",
+            )
+
+        assert post.await_args.kwargs["params"] == {"language": "en"}
 
     @pytest.mark.asyncio
     async def test_passes_content_type_through(self):
