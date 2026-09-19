@@ -190,6 +190,25 @@ class TestImageCompression:
         # Compressed images are always returned as JPEG regardless of input
         assert result.content_block["source"]["media_type"] == "image/jpeg"
 
+    async def test_image_under_5mb_but_over_the_base64_budget_is_compressed(self):
+        # 2026-09-18 P0: a ~4.9 MB screenshot passed the raw 5 MiB cap and its
+        # base64 (~6.5M chars) got a 422 from the AIRE door, twice, on every retry.
+        import os
+
+        from PIL import Image
+
+        from khimeras_shared.attachments import MAX_IMAGE_B64_CHARS, MAX_IMAGE_BYTES
+
+        img = Image.frombytes("RGB", (1200, 1200), os.urandom(1200 * 1200 * 3))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        data = buf.getvalue()
+        assert MAX_IMAGE_BYTES < len(data) <= MAX_ATTACHMENT_SIZE
+        att = _mock_attachment("image.png", "image/png", len(data), data)
+        result = await process_attachment(att)
+        assert result.error is None
+        assert len(result.content_block["source"]["data"]) <= MAX_IMAGE_B64_CHARS
+
     async def test_image_under_cap_passes_through_uncompressed(self):
         # Small image — must NOT be re-encoded (no quality loss for users
         # sending normal-sized screenshots/uploads)

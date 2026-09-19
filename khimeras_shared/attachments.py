@@ -30,6 +30,11 @@ log = structlog.get_logger()
 
 MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB — Claude API per-attachment cap
 
+# Images travel base64-encoded and the AIRE door rejects >5,000,000 chars (422),
+# so the image budget is the RAW size whose base64 fits: 3,750,000 bytes.
+MAX_IMAGE_B64_CHARS = 5_000_000
+MAX_IMAGE_BYTES = MAX_IMAGE_B64_CHARS * 3 // 4
+
 # Hard upper bound on what we even download. Beyond this, compression won't
 # salvage the file (and downloading 50 MB just to fail wastes egress).
 HARD_DOWNLOAD_LIMIT = 25 * 1024 * 1024  # 25MB
@@ -263,7 +268,7 @@ def classify_attachment(
 
 
 def _compress_image(data: bytes, filename: str) -> tuple[bytes, str] | None:
-    """Resize + re-encode an oversize image so it fits under ``MAX_ATTACHMENT_SIZE``.
+    """Resize + re-encode an oversize image so it fits under ``MAX_IMAGE_BYTES``.
 
     Returns ``(compressed_bytes, jpeg_media_type)`` on success, or ``None`` if
     even the lowest-quality JPEG pass still exceeds the cap. The resulting
@@ -314,7 +319,7 @@ def _compress_image(data: bytes, filename: str) -> tuple[bytes, str] | None:
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=quality, optimize=True)
         compressed = buf.getvalue()
-        if len(compressed) <= MAX_ATTACHMENT_SIZE:
+        if len(compressed) <= MAX_IMAGE_BYTES:
             log.info(
                 "attachment_compressed",
                 filename=filename,
@@ -407,7 +412,7 @@ async def process_attachment(attachment) -> ProcessedAttachment:
     # Image compression path — only fires when the downloaded bytes exceed
     # the cap. Images already under 5 MB skip this entirely (no quality loss).
     forced_media_type: str | None = None
-    if is_image and len(data) > MAX_ATTACHMENT_SIZE:
+    if is_image and len(data) > MAX_IMAGE_BYTES:
         result = _compress_image(data, filename)
         if result is None:
             msg = f"Imagen no se comprime lo suficiente ({len(data) / 1024 / 1024:.1f}MB). Mandala mas chica."
