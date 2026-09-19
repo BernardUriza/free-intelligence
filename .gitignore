@@ -23,6 +23,9 @@ data/film_corpus_sources/
 data/corpus/**
 !data/corpus/**/
 !data/corpus/**/MANIFEST.md
+# Excepción: los documentos que escribió esta casa (registros de hilos propios de
+# Khimeras) SÍ se versionan — son texto nuestro, no una fuente de terceros.
+!data/corpus/unborn_being/khimeras_*.md
 
 # Claude Code tooling state (local-only, never commit)
 .claude/plans/
