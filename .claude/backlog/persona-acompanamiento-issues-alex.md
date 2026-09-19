@@ -1,4 +1,4 @@
-# Persona de acompañamiento psicológico — trilogía de issues para Alex
+# Valentis, quien se queda — trilogía de issues para Alex
 
 Status: ✅ **FASE 1 SHIPPED — Valentis existe** (2026-08-25, v4.32.75–4.32.80);
 **fase 2 sin abrir** (sin issue). Los cuatro issues
@@ -79,7 +79,7 @@ persona nueva.
 ## Título
 
 ```
-Escribe el ADN de la persona de acompañamiento psicológico (3er issue de Alex 💜)
+Escribe el ADN de Valentis, quien se queda (3er issue de Alex 💜)
 ```
 
 ## Cuerpo

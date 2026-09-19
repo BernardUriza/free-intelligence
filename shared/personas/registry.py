@@ -154,7 +154,7 @@ PERSONAS: dict[str, Persona] = {
         gateway_enabled=True,
         corpus_namespace="__corpus_unborn__",  # NDE/DMT + contra-apologética clásica
     ),
-    # Valentis — la persona de acompañamiento psicológico (2026-08-25). Nace de una
+    # Valentis — quien se queda (2026-08-25). Nace de una
     # propuesta de Aníbal, que sobre su propia app dijo que sacar una beta pública
     # era peligroso "porque si hay algún sesgo, la persona no va a saber cómo
     # manejarlo, no voy a poder estar en primera mano para corregir esos errores".

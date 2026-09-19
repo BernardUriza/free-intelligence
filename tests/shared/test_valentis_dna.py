@@ -1,6 +1,6 @@
 """Valentis acompaña, no trata (issue #41).
 
-Valentis es la persona de acompañamiento psicológico: la amistad con columna.
+Valentis es quien se queda: la amistad con columna.
 Escucha, opina honesto, desdramatiza con humor y sabe cuándo tender el puente
 al profesional — sin soltar la mano. Su ADN lo escribió Álex, que es quien
 tiene el oficio clínico, y varias de sus frases son textuales suyas.
