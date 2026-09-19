@@ -183,7 +183,9 @@ PERSONAS: dict[str, Persona] = {
         avatar=None,
         tts_voice="shimmer",  # la única libre; onyx/nova/fable/alloy/echo ocupadas
         gateway_enabled=True,
-        corpus_namespace=None,  # sin corpus RAG: fase 2, no entra hoy
+        # Fase 2 abierta el 2026-09-16 (issue #61, decisión 3 de Álex): entra con
+        # ética del cuidado. Su header manda NO citar en un turno de acompañamiento.
+        corpus_namespace="__corpus_valentis__",
     ),
 }
 
