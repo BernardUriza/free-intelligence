@@ -35,6 +35,42 @@
   assembly degrades to a normal turn, never a mute bot
   (`khimeras_shared/guidance.py`).
 
+## Un turno NUNCA viaja en una sola request — el ingress corta a los 240 s
+
+El ingress de Azure Container Apps cierra cualquier request HTTP a los **240 s**
+y no se configura (ni `terminationGracePeriodSeconds` ni ningún timeout del app
+lo mueven). Un turno de Opus con caché frío puede tardar más: el **2026-09-19**
+uno de Vultur tardó **326.9 s**, AIRE lo entregó completo (`elapsed_ms=326925`,
+1,787 tokens, $0.33), y no había nadie escuchando — el gateway cortó su request
+al runner a los 240 s (`agent_runner_client_timeout`), el host cortó la suya al
+gateway a los 240 s (`summon_rejected 504 stream timeout`) y **reintentó ENCIMA**
+del turno vivo (segundo Opus en paralelo). La respuesta existió, se pagó y se tiró.
+
+**La ley:** las dos costuras que cruzan el ingress viajan por **boleto**
+(`khimeras_shared/tickets.py`): el trabajo corre en una task del proceso que lo
+recibe y el cliente pregunta por él en requests **cortas** (poll ≤ 50 s).
+
+| Costura | Alta | Poll | Presupuesto del turno |
+|---|---|---|---|
+| gateway → runner | `POST /v1/turn/jobs` → 202 `job_id` | `GET /v1/turn/jobs/{id}?wait_s=` | `first_turn_timeout_s` = 600 s (gateway) |
+| host → gateway | `POST /invite` con `wait+ticket` → 202 `turn_id` | `GET /invite/turns/{id}?wait_s=` | `SUMMON_WAIT_BUDGET_S` = 660 s (host, por encima del gateway para que sea el gateway quien declare el fallo) |
+
+- **Ningún read timeout de request puede acercarse a 240 s.** Un número ≥ 240 en
+  un `httpx.Timeout` de estas costuras es el bug, aunque "se vea generoso": el
+  ingress lo va a cortar antes y el cliente va a leer "unreachable".
+- **Un 404 a media espera es reinicio, no rechazo** → `RunnerDownError` /
+  `"unreachable"`, para que el reintento único del host aterrice en la réplica
+  nueva. Un poll que se cae por red se vuelve a preguntar; el turno sigue vivo.
+- El camino síncrono (`POST /v1/turn`, `wait` sin `ticket`) queda solo para un
+  rolling update a medias (cliente nuevo, servidor viejo). Cuando ya no haya
+  servidores viejos, se borra ([[migrations-end-with-deletion]]).
+- `_MUTE_GRACE_SECONDS` (660 s) del `/health` va por encima del presupuesto: un
+  turno vivo de 5 minutos no es una persona muda.
+
+Tests que fijan la clase: `tests/shared/test_tickets.py`,
+`tests/agent/test_turn_jobs_api.py`, `tests/integration/test_agent_client_turn_jobs.py`,
+`tests/core/test_gateway_invite_ticket.py`, `tests/test_summon.py` (bloque boleto).
+
 ## LLM Resilience (historical lessons — the client died, the doctrine stands)
 
 The tuned retry loop below lived in the deleted `LLMClient`; today the gateway

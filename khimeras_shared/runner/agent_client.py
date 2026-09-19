@@ -65,6 +65,17 @@ from shared.time_context import _get_current_time_context
 
 log = structlog.get_logger()
 
+# El ingress de Container Apps cierra toda request a los 240 s y no se
+# configura. Por eso un turno no viaja en UNA request: se pide un boleto y se
+# pregunta por él en requests cortas. Estos tres números son los de la request,
+# nunca los del turno — el presupuesto del turno es `timeout_s` del llamador.
+JOB_POLL_WAIT_S = 45.0
+JOB_POLL_READ_TIMEOUT_S = 60.0
+
+# El camino síncrono sobrevive solo para un runner que todavía no sabe de
+# boletos (rolling update a medias). Su techo es el del ingress, menos margen.
+SYNC_TURN_READ_TIMEOUT_S = 220.0
+
 
 class AgentRunnerError(Exception):
     """Base — a turn call to the runner failed. Kept as the common base so
@@ -325,12 +336,17 @@ class AgentRunnerClient:
         # task) supersedes the fixed default. The connect timeout stays constant
         # — connecting has nothing to do with how long the task itself may run.
         effective_timeout_s = timeout_s if timeout_s is not None else self._timeout_s
-        timeout = httpx.Timeout(effective_timeout_s, connect=self._connect_timeout_s)
+        # El presupuesto del TURNO ya no es el de una request. Cada request (el
+        # alta del boleto, cada poll) vive muy por debajo de los 240 s que el
+        # ingress de Container Apps concede; el presupuesto total lo lleva el
+        # reloj de `_await_turn_job`. El read timeout de aquí solo cubre un poll.
+        request_read_timeout_s = min(effective_timeout_s, JOB_POLL_READ_TIMEOUT_S)
+        timeout = httpx.Timeout(request_read_timeout_s, connect=self._connect_timeout_s)
         headers = {
             "Authorization": f"Bearer {self._runner_token}",
             "Content-Type": "application/json",
         }
-        url = f"{self._runner_url}/v1/turn"
+        url = f"{self._runner_url}/v1/turn/jobs"
         start = time.monotonic()
         timed_out_once = False
 
@@ -428,7 +444,7 @@ class AgentRunnerClient:
                     )
                     # A read timeout means the runner never answered — treat the
                     # brain as down so a real sibling persona can take the turn.
-                    raise RunnerDownError(f"runner read timeout after {effective_timeout_s}s") from e
+                    raise RunnerDownError(f"runner read timeout after {request_read_timeout_s}s") from e
                 except httpx.HTTPError as e:
                     log.exception(
                         "agent_runner_client_http_error",
@@ -463,7 +479,33 @@ class AgentRunnerClient:
         # Either a non-transient response, or the transient retries were spent.
         assert resp is not None
 
+        # Un runner viejo (rolling update a medias: gateway nuevo, runner aún no)
+        # no conoce el alta de boletos. Se cae al camino síncrono UNA vez, con su
+        # propio presupuesto, y se deja anotado — este brazo se borra cuando el
+        # runner con boletos sea el único que exista.
+        if resp.status_code == 404:
+            log.warning(
+                "agent_runner_client_jobs_unsupported",
+                elapsed_ms=int((time.monotonic() - start) * 1000),
+            )
+            resp = await self._post_turn_sync(payload, headers, start=start)
+
         elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        # 202 = el turno quedó corriendo del otro lado con un boleto. De aquí en
+        # adelante el reloj es del turno, no de la request.
+        if resp.status_code == 202:
+            resp = await self._await_turn_job(
+                resp,
+                headers=headers,
+                start=start,
+                budget_s=effective_timeout_s,
+                on_timeout=on_timeout,
+                timed_out_once=timed_out_once,
+                user_id=user_id,
+                channel_id=channel_id,
+            )
+            elapsed_ms = int((time.monotonic() - start) * 1000)
 
         if resp.status_code >= 500:
             log.error(
@@ -494,6 +536,12 @@ class AgentRunnerClient:
             # broken. Surface it as a persona-turn error so it's NOT masked by
             # a sibling failover; this is a bug to SEE, not to paper over.
             raise PersonaTurnError("runner returned invalid JSON") from e
+
+        # El poll de un boleto terminado envuelve el turno: {job_id, status,
+        # response}. El camino síncrono devuelve el turno pelón. De aquí abajo
+        # solo existe el turno.
+        if isinstance(data.get("response"), dict) and "job_id" in data:
+            data = data["response"]
 
         text = data.get("text", "") or ""
         log.info(
@@ -543,6 +591,122 @@ class AgentRunnerClient:
             model_used=data.get("model", "agent-runner"),
             stop_reason=data.get("stop_reason", ""),
         )
+
+    async def _post_turn_sync(self, payload: dict, headers: dict, *, start: float) -> httpx.Response:
+        """El camino síncrono de siempre, para un runner que no tiene boletos.
+
+        Su techo real no es este número: es el ingress, que corta a los 240 s.
+        Por eso el timeout se queda debajo — pedir más sería pedirle a la nube
+        algo que no da.
+        """
+        timeout = httpx.Timeout(SYNC_TURN_READ_TIMEOUT_S, connect=self._connect_timeout_s)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                return await client.post(f"{self._runner_url}/v1/turn", json=payload, headers=headers)
+        except httpx.ReadTimeout as e:
+            log.warning(
+                "agent_runner_client_timeout",
+                elapsed_ms=int((time.monotonic() - start) * 1000),
+                path="sync",
+            )
+            raise RunnerDownError(f"runner read timeout after {SYNC_TURN_READ_TIMEOUT_S}s") from e
+        except httpx.HTTPError as e:
+            raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
+
+    async def _await_turn_job(
+        self,
+        accepted: httpx.Response,
+        *,
+        headers: dict,
+        start: float,
+        budget_s: float,
+        on_timeout: Callable[[], Any] | None,
+        timed_out_once: bool,
+        user_id: str | None,
+        channel_id: str | None,
+    ) -> httpx.Response:
+        """Pregunta por el boleto hasta que el turno termine o se acabe el reloj.
+
+        Cada poll es una request corta; el presupuesto del turno vive aquí. Un
+        404 a media espera significa que el runner se reinició con el turno
+        adentro — eso es cerebro caído, no turno rechazado, así que sale como
+        `RunnerDownError` para que un hermano pueda tomar el turno.
+        """
+        try:
+            job_id = accepted.json().get("job_id", "")
+        except ValueError as e:
+            raise PersonaTurnError("runner returned invalid JSON accepting the turn") from e
+        if not job_id:
+            raise PersonaTurnError("runner accepted the turn without a job_id")
+
+        url = f"{self._runner_url}/v1/turn/jobs/{job_id}"
+        deadline = start + budget_s
+        timeout = httpx.Timeout(JOB_POLL_READ_TIMEOUT_S, connect=self._connect_timeout_s)
+        polls = 0
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                if on_timeout and not timed_out_once:
+                    timed_out_once = True
+                    try:
+                        maybe = on_timeout()
+                        if hasattr(maybe, "__await__"):
+                            await maybe
+                    except Exception:
+                        log.exception("agent_runner_on_timeout_callback_failed")
+                log.warning(
+                    "agent_runner_client_job_budget_exhausted",
+                    job_id=job_id,
+                    polls=polls,
+                    budget_s=budget_s,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                    user_id=user_id,
+                    channel_id=channel_id,
+                )
+                raise RunnerDownError(f"turn job {job_id} unfinished after {budget_s}s")
+            wait_s = max(1.0, min(JOB_POLL_WAIT_S, left))
+            polls += 1
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    resp = await client.get(f"{url}?wait_s={wait_s:.0f}", headers=headers)
+            except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError) as e:
+                # El poll se cayó, no el turno: el runner sigue generando del
+                # otro lado. Se vuelve a preguntar mientras quede reloj — un
+                # blip de red no debe costar una respuesta ya pagada.
+                log.warning(
+                    "agent_runner_client_job_poll_retry",
+                    job_id=job_id,
+                    polls=polls,
+                    error_type=type(e).__name__,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                )
+                await asyncio.sleep(min(self._transient_retry_cap_s, 1.0))
+                continue
+            except httpx.HTTPError as e:
+                raise RunnerDownError(f"turn job poll failed: {type(e).__name__}: {e}") from e
+
+            if resp.status_code == 404:
+                log.error(
+                    "agent_runner_client_job_vanished",
+                    job_id=job_id,
+                    polls=polls,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                )
+                raise RunnerDownError(f"turn job {job_id} vanished (runner restarted mid-turn)")
+            if resp.status_code != 200:
+                return resp
+            try:
+                body = resp.json()
+            except ValueError as e:
+                raise PersonaTurnError("runner returned invalid JSON polling the turn") from e
+            if body.get("status") == "done":
+                log.info(
+                    "agent_runner_client_job_done",
+                    job_id=job_id,
+                    polls=polls,
+                    elapsed_ms=int((time.monotonic() - start) * 1000),
+                )
+                return resp
 
     async def health(self) -> dict[str, Any]:
         """Probe the runner's /health endpoint."""

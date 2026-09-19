@@ -162,9 +162,16 @@ class ShutdownController:
     def __call__(self, sig: signal.Signals) -> None:
         """Handler síncrono del loop: agenda el drenaje, no lo corre aquí."""
         if self.started:
-            # Segunda señal = "ya, mátalo". Se restaura el handler por default y
-            # se re-lanza, que es la ÚNICA garantía de que un drenaje colgado no
-            # deja un proceso inmortal.
+            # Un SIGTERM repetido NO es "ya, mátalo": es la plataforma mandando
+            # la misma orden otra vez. El 2026-09-19 llegaron DOS a 0.1 ms de
+            # distancia y el segundo mató un turno vivo antes de que el drenaje
+            # corriera. Mismo criterio que uvicorn: solo un SEGUNDO SIGINT
+            # (Ctrl+C dos veces, un humano insistiendo) fuerza. Un drenaje
+            # colgado no queda inmortal — la plataforma manda SIGKILL al vencer
+            # el grace period.
+            if sig is not signal.SIGINT:
+                log.warning("persona_gateway_shutdown_signal_repeat", signal=sig.name, inflight=self.gate.inflight)
+                return
             log.warning("persona_gateway_shutdown_forced", signal=sig.name)
             with contextlib.suppress(Exception):
                 signal.signal(sig, signal.SIG_DFL)

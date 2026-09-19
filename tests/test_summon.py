@@ -154,13 +154,14 @@ async def test_wait_transport_error_is_unreachable_not_failed():
     assert outcome == "unreachable"
 
 
-async def test_wait_read_budget_outlasts_a_whole_turn():
-    """The gateway's runner call is budgeted at 240s; a shorter read here would
-    report a slow-but-alive turn as unreachable and retry ON TOP of it."""
+async def test_wait_read_budget_is_below_the_ingress_cap():
+    """Hasta el 2026-09-19 esto exigía ≥240 s: una request sosteniendo el turno
+    entero. El ingress corta a los 240 s haga lo que haga el número, así que la
+    espera va por boleto y cada request queda por debajo del tope."""
     ctx, _ = _mock_json_client(200, {"status": "delivered"})
     with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx) as cliente:
         await summon_and_wait({"reason": "ven"}, channel_id="123")
-    assert cliente.call_args.kwargs["timeout"].read >= 240.0
+    assert cliente.call_args.kwargs["timeout"].read < 240.0
 
 
 async def test_fire_and_forget_never_sends_wait():
@@ -168,3 +169,102 @@ async def test_fire_and_forget_never_sends_wait():
     with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
         await summon_persona({"reason": "ven"}, channel_id="123")
     assert "wait" not in client.post.call_args.kwargs["json"]
+
+
+# --- boleto (2026-09-19): el turno deja de viajar en UNA request ----------------
+
+
+def _scripted_client(script: list):
+    """POST y GET consumen el mismo guion, en orden."""
+    client = MagicMock()
+    it = iter(script)
+
+    async def _next(*_a, **_k):
+        item = next(it)
+        if isinstance(item, BaseException):
+            raise item
+        return item
+
+    client.post = AsyncMock(side_effect=_next)
+    client.get = AsyncMock(side_effect=_next)
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=client)
+    ctx.__aexit__ = AsyncMock(return_value=False)
+    return ctx, client
+
+
+def _json_resp(status_code: int, body: dict):
+    resp = MagicMock(status_code=status_code, text=str(body))
+    resp.json = MagicMock(return_value=body)
+    return resp
+
+
+async def test_wait_asks_for_a_ticket_and_polls_until_the_outcome(monkeypatch):
+    """El caso del 2026-09-19: un turno de 327 s. Antes el host cortaba a los 240 s
+    y reintentaba ENCIMA; ahora pregunta por el boleto hasta que el gateway diga."""
+    ctx, client = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(200, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(200, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(200, {"status": "delivered", "channel_id": "123", "turn_id": "t1"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        outcome = await summon_and_wait({"reason": "ven"}, channel_id="123", persona_id="vultur")
+    assert outcome == "delivered"
+    assert client.post.call_args.kwargs["json"]["ticket"] is True
+    assert client.get.await_count == 3
+    assert client.get.call_args.args[0].endswith("/invite/turns/t1")
+
+
+async def test_no_single_request_of_the_wait_carries_the_turn_budget():
+    ctx, _ = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(200, {"status": "delivered", "channel_id": "123", "turn_id": "t1"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx) as cliente:
+        await summon_and_wait({"reason": "ven"}, channel_id="123")
+    assert all(c.kwargs["timeout"].read < 240.0 for c in cliente.call_args_list)
+
+
+async def test_an_old_gateway_that_answers_the_wait_inline_still_works():
+    """Un gateway sin boletos ignora `ticket` y contesta el `wait` en la misma
+    request: el host lo lee igual que antes, sin poll."""
+    ctx, client = _scripted_client([_json_resp(200, {"status": "delivered", "channel_id": "123"})])
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        outcome = await summon_and_wait({"reason": "ven"}, channel_id="123")
+    assert outcome == "delivered"
+    client.get.assert_not_awaited()
+
+
+async def test_a_ticket_that_vanishes_is_unreachable_so_the_retry_lands_on_the_new_replica():
+    ctx, _ = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(404, {"detail": "unknown turn 't1'"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        outcome = await summon_and_wait({"reason": "ven"}, channel_id="123")
+    assert outcome == "unreachable"
+
+
+async def test_a_poll_that_drops_on_the_network_is_asked_again(monkeypatch):
+    async def _no_sleep(_s):
+        return None
+
+    monkeypatch.setattr("demux_ai.summon.asyncio.sleep", _no_sleep)
+    ctx, client = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            httpx.ReadTimeout("poll dropped"),
+            _json_resp(200, {"status": "failed", "channel_id": "123", "turn_id": "t1"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        outcome = await summon_and_wait({"reason": "ven"}, channel_id="123")
+    assert outcome == "failed"
+    assert client.get.await_count == 2

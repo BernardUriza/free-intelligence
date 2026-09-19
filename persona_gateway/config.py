@@ -82,11 +82,12 @@ class GatewayConfig(BaseSettings):
     # runner picks its own judge default (Haiku class).
     facts_extraction_model: str | None = None
 
-    # A sibling's FIRST turn (cold session + curated facts + guidance) measured
-    # 134.5s in prod; the 120s default read-timeout hung up 14s early and the user
-    # got the "…" fallback while a complete reply died unread. Siblings are
-    # mention-gated with a typing keepalive, so the longer wait is honest UX.
-    first_turn_timeout_s: float = 240.0
+    # El presupuesto del TURNO, no de una request: el ingress de Container Apps
+    # corta toda request a los 240 s, así que el turno viaja por boleto
+    # (`/v1/turn/jobs` + poll) y este reloj lo lleva el cliente. 600 s con
+    # receipt: 2026-09-19 un turno de Vultur tardó 326.9 s, AIRE lo entregó
+    # completo y el corte a 240 s lo tiró.
+    first_turn_timeout_s: float = 600.0
 
     # Cutover switch (#6): when the omnipresent host (demux_ai) owns reception, the
     # gateway personas go INVITE-ONLY — they stop self-answering their own @mentions

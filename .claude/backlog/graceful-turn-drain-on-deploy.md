@@ -135,9 +135,29 @@ del valor con 10% del riesgo; el replay cruza con dedup (`_processed`).
 
 ## Status / next step
 **Lo único abierto es el paso 2' (medir + subir el grace period).** El retry (1)
-y el gate de recepción (3) están hechos; el gate está en `main` pero **sin
-desplegar** — toca la recepción de todas las personas, así que el merge es
-decisión de Bernard.
+y el gate de recepción (3) están hechos y desplegados (v4.38.46 arregló el
+crash de arranque del gate).
+
+**Actualización 2026-09-19 (v4.39.0) — el gate estaba desplegado y NO corrió.**
+Receipt: msg 1550695386153488405 en #general. El deploy de v4.38.48 mandó **dos
+SIGTERM a 0.1 ms** (`persona_gateway_shutdown_signal inflight=1` y
+`persona_gateway_shutdown_forced` en el mismo milisegundo). El handler leía la
+segunda señal como "ya, mátalo", así que el drenaje jamás arrancó y el turno
+vivo (el reintento del host sobre Vultur) murió en el acto. Arreglado en
+`ShutdownController.__call__`: un SIGTERM repetido se loguea
+(`persona_gateway_shutdown_signal_repeat`) y se ignora; solo un **segundo SIGINT**
+fuerza, como uvicorn. Un drenaje colgado no queda inmortal: SIGKILL al vencer el
+grace period. Test: `test_a_repeated_sigterm_is_ignored_and_the_drain_keeps_running`.
+
+Y lo que ese incidente destapó NO era de este item: el turno ya estaba perdido
+seis minutos antes del SIGTERM, porque **el ingress corta toda request a los
+240 s** y el turno tardó 326.9 s. Eso vive en `robustness.md` § *Un turno NUNCA
+viaja en una sola request* — turnos con boleto en las dos costuras.
+
+**Nota para el paso 2':** el drenaje del gateway (`drain_timeout_s=25`) no cubre
+un turno de 5 minutos, y no debe: el grace period de la plataforma es el techo
+real. Cuando se mida, el número a comparar es `first_turn_timeout_s` (600 s),
+no los 25 s del drain.
 
 Historial: el retry ya está en prod, el DRENAJE no lo estaba. `personas/insult/bot.py` murió
 en la purga — los hosts vivos son `persona_gateway/boot.py`, el `persona_runner`

@@ -29,7 +29,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
-import pytest
 
 from persona_gateway.app import ShutdownController
 from persona_gateway.boot import GatewayBootState
@@ -319,15 +318,13 @@ async def test_draining_an_idle_gateway_returns_immediately():
     assert gate.accepting is False
 
 
-@pytest.mark.parametrize("sig_name", ["SIGTERM", "SIGINT"])
-async def test_the_signal_schedules_the_drain_exactly_once(sig_name):
+async def test_a_second_sigint_forces_the_close_without_a_second_drain():
     import signal
 
     gate = TurnGate()
     controller = ShutdownController(gate, {}, timeout_s=0.01)
-    sig = getattr(signal, sig_name)
 
-    controller(sig)
+    controller(signal.SIGINT)
     assert controller.started is True
     first = controller._task
 
@@ -337,9 +334,34 @@ async def test_the_signal_schedules_the_drain_exactly_once(sig_name):
         patch("persona_gateway.app.signal.signal") as set_handler,
         patch("persona_gateway.app.signal.raise_signal") as raise_signal,
     ):
-        controller(sig)  # una segunda señal fuerza el cierre, no un segundo drenaje
+        controller(signal.SIGINT)  # un humano insistiendo: se fuerza, sin segundo drenaje
     assert controller._task is first
-    set_handler.assert_called_once_with(sig, signal.SIG_DFL)
-    raise_signal.assert_called_once_with(sig)
+    set_handler.assert_called_once_with(signal.SIGINT, signal.SIG_DFL)
+    raise_signal.assert_called_once_with(signal.SIGINT)
+
+    await first
+
+
+async def test_a_repeated_sigterm_is_ignored_and_the_drain_keeps_running():
+    """2026-09-19: la plataforma mandó DOS SIGTERM a 0.1 ms y el segundo se leyó
+    como "mátalo ya" — el drenaje nunca corrió y un turno vivo murió. Un SIGTERM
+    repetido es la misma orden otra vez, no una orden nueva."""
+    import signal
+
+    gate = TurnGate()
+    controller = ShutdownController(gate, {}, timeout_s=0.01)
+
+    controller(signal.SIGTERM)
+    first = controller._task
+
+    with (
+        patch("persona_gateway.app.signal.signal") as set_handler,
+        patch("persona_gateway.app.signal.raise_signal") as raise_signal,
+    ):
+        controller(signal.SIGTERM)
+        controller(signal.SIGTERM)
+    assert controller._task is first
+    set_handler.assert_not_called()
+    raise_signal.assert_not_called()
 
     await first

@@ -36,7 +36,7 @@ def test_invite_happy_path_schedules_with_args():
     with TestClient(app) as http:
         r = http.post("/invite", json=PAYLOAD, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
-    assert r.json() == {"status": "invited", "channel_id": PAYLOAD["channel_id"], "detail": None}
+    assert r.json() == {"status": "invited", "channel_id": PAYLOAD["channel_id"], "detail": None, "turn_id": None}
     client.dispatch_invite.assert_called_once()
     kwargs = client.dispatch_invite.call_args.kwargs
     assert kwargs["channel_id"] == PAYLOAD["channel_id"]

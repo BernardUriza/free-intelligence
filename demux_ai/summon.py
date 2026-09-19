@@ -27,7 +27,9 @@ change tracked separately): ``GATEWAY_INVITE_URL`` points at the gateway's
 
 from __future__ import annotations
 
+import asyncio
 import os
+import time
 
 import httpx
 import structlog
@@ -62,11 +64,17 @@ log = structlog.get_logger()
 SUMMON_CONNECT_TIMEOUT_S = 5.0
 SUMMON_READ_TIMEOUT_S = 90.0
 
-# `summon_and_wait` holds the request open for the WHOLE turn: the gateway's
-# runner call is budgeted at 240s (`first_turn_timeout_s`), plus chunk pacing.
-# Below that, a slow-but-alive turn would be reported "unreachable" and retried
-# on top of itself — the double reply this whole seam exists to avoid.
-SUMMON_WAIT_READ_TIMEOUT_S = 300.0
+# `summon_and_wait` YA NO sostiene una request por todo el turno: el ingress de
+# Container Apps corta a los 240 s, y el 2026-09-19 un turno de Vultur tardó
+# 326.9 s — el host cortó, reintentó ENCIMA (segundo Opus corriendo en paralelo)
+# y la respuesta completa que AIRE entregó se tiró. Hoy pide un boleto
+# (`ticket: true`) y pregunta por él en requests cortas; el presupuesto del
+# turno es `SUMMON_WAIT_BUDGET_S`, un poco por encima del del gateway
+# (`first_turn_timeout_s` = 600) para que sea el gateway quien declare el
+# fallo, nunca el host adivinándolo.
+SUMMON_WAIT_READ_TIMEOUT_S = 60.0
+SUMMON_WAIT_POLL_S = 45.0
+SUMMON_WAIT_BUDGET_S = 660.0
 
 # Outcomes a turn can end in, as the host sees them. The first three mean the
 # persona took the turn (a 202 says nothing more than "scheduled" — that is the
@@ -141,6 +149,15 @@ async def _post_invite(payload: dict, *, read_timeout_s: float) -> str:
                 json=payload,
                 headers={"Authorization": f"Bearer {token}"},
             )
+        if resp.status_code == 202 and payload.get("ticket"):
+            turn_id = _turn_id(resp)
+            if turn_id:
+                return await _poll_turn(url, token, turn_id, channel_id=channel_id, client_timeout=timeout)
+            # Un gateway viejo ignora `ticket` y contesta el `wait` en la misma
+            # request (200/502), así que un 202 pelado aquí es un gateway que no
+            # esperó: se reporta como lo que es, no como un turno entregado.
+            log.warning("summon_ticket_unsupported", channel_id=channel_id)
+            return "invited"
         if resp.status_code == 202:
             log.info("summon_accepted", channel_id=channel_id, reason_preview=reason[:80])
             return "invited"
@@ -167,6 +184,73 @@ def _awaited_outcome(resp: httpx.Response) -> str | None:
     except ValueError:
         return None
     return outcome if outcome in ("delivered", "empty", "failed") else None
+
+
+def _turn_id(resp: httpx.Response) -> str | None:
+    try:
+        turn_id = resp.json().get("turn_id")
+    except ValueError:
+        return None
+    return turn_id or None
+
+
+async def _poll_turn(
+    invite_url: str,
+    token: str,
+    turn_id: str,
+    *,
+    channel_id: str,
+    client_timeout: httpx.Timeout,
+) -> str:
+    """Pregunta por el boleto hasta que el turno termine o se acabe el reloj.
+
+    Un poll que se cae (timeout, conexión) no es el turno cayéndose: el gateway
+    sigue generando. Se vuelve a preguntar mientras quede presupuesto. Un 404 es
+    el gateway reiniciado con el turno adentro → "unreachable", y el reintento
+    único de `fallback.py` aterriza en la réplica nueva. Presupuesto vencido →
+    "failed": el gateway no declaró nada y el host no adivina.
+    """
+    deadline = time.monotonic() + SUMMON_WAIT_BUDGET_S
+    poll_url = f"{invite_url.rstrip('/')}/turns/{turn_id}"
+    polls = 0
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            log.error("summon_ticket_budget_exhausted", channel_id=channel_id, turn_id=turn_id, polls=polls)
+            return "failed"
+        wait_s = max(1.0, min(SUMMON_WAIT_POLL_S, left))
+        polls += 1
+        try:
+            async with httpx.AsyncClient(timeout=client_timeout, follow_redirects=True) as client:
+                resp = await client.get(
+                    poll_url,
+                    params={"wait_s": f"{wait_s:.0f}"},
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError) as e:
+            log.warning("summon_ticket_poll_retry", channel_id=channel_id, turn_id=turn_id, error_type=type(e).__name__)
+            await asyncio.sleep(1.0)
+            continue
+        except httpx.HTTPError as e:
+            log.warning("summon_http_error", error=str(e), error_type=type(e).__name__, turn_id=turn_id)
+            return "unreachable"
+        if resp.status_code == 404:
+            log.error("summon_ticket_vanished", channel_id=channel_id, turn_id=turn_id, polls=polls)
+            return "unreachable"
+        if resp.status_code != 200:
+            log.warning("summon_rejected", status=resp.status_code, body=resp.text[:200], turn_id=turn_id)
+            return "rejected"
+        try:
+            status = resp.json().get("status")
+        except ValueError:
+            return "rejected"
+        if status == "running":
+            continue
+        if status in ("delivered", "empty", "failed"):
+            log.info("summon_outcome", channel_id=channel_id, outcome=status, turn_id=turn_id, polls=polls)
+            return status
+        log.warning("summon_rejected", status=resp.status_code, body=resp.text[:200], turn_id=turn_id)
+        return "rejected"
 
 
 async def summon_persona(
@@ -239,4 +323,5 @@ async def summon_and_wait(
         trigger_transcript=trigger_transcript,
     )
     payload["wait"] = True
+    payload["ticket"] = True
     return await _post_invite(payload, read_timeout_s=SUMMON_WAIT_READ_TIMEOUT_S)
