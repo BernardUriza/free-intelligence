@@ -42,7 +42,7 @@ Add to `.env.local` or export in your shell:
 ```bash
 # Azure OpenAI Credentials (from demo account)
 export AZURE_OPENAI_ENDPOINT="https://csp-eastus2-uat-aoai1.openai.azure.com/"
-export AZURE_OPENAI_KEY="2a48df168ba44526a8f3cf71ae280d3f"
+export AZURE_OPENAI_KEY="<REDACTED>"
 ```
 
 **Security Note:** Store API keys in environment variables, **never** in code or version control.

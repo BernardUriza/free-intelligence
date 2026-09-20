@@ -5,7 +5,7 @@
 ```bash
 # Set environment variables
 export AZURE_ENDPOINT="https://csp-eastus2-uat-aoai1.openai.azure.com/"
-export AZURE_API_KEY="2a48df168ba44526a8f3cf71ae280d3f"
+export AZURE_API_KEY="<REDACTED>"
 export AZURE_API_VERSION="2024-02-15-preview"
 
 # Available Deployments
@@ -219,7 +219,7 @@ print(response["choices"][0]["message"]["content"])
 # Save as: test_azure_openai.sh
 
 AZURE_ENDPOINT="https://csp-eastus2-uat-aoai1.openai.azure.com/"
-API_KEY="2a48df168ba44526a8f3cf71ae280d3f"
+API_KEY="<REDACTED>"
 API_VERSION="2024-02-15-preview"
 
 test_chat() {
