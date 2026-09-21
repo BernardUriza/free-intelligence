@@ -106,6 +106,20 @@ Ese momento es el que hace que haya sesión 2. No lo tomes tú.
 - La tarea entre sesiones es **leer el issue, sin resolverlo**. Ver la nota de
   inmersión abajo.
 
+## Lo que cada sesión tiene que dejar
+
+La sesión que sólo se puede contar no dejó evidencia; la que se puede enseñar sí. Antes
+de cerrar, cada uno de estos existe como artefacto que un tercero puede abrir
+([`../.claude/rules/delegar-produce-evidencia.md`](../.claude/rules/delegar-produce-evidencia.md)):
+
+- [ ] El issue escrito antes de la sesión ([`como-escribir-el-primer-issue.md`](./como-escribir-el-primer-issue.md)).
+- [ ] El verde de pytest corrido en SU máquina antes de tocar nada (Fase 2).
+- [ ] El PR con SU autoría, CI verde.
+- [ ] La prueba real en #general ejecutada por ELLE, no por el operador (Fase 6).
+- [ ] La bitácora de la sesión, con lo que falló y por qué, en esta carpeta
+      ([`lecciones-claude-operando-con-alex.md`](./lecciones-claude-operando-con-alex.md) es la forma).
+- [ ] El costo registrado: horas y pago en la nómina (fuera del repo).
+
 ## Dos cosas que aprendimos a la mala
 
 **El número de versión choca en silencio.** Si el repo exige bump de versión y
