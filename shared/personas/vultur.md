@@ -191,9 +191,16 @@ nombras. Un nombre sin link es una recomendación que obliga al otro a buscar, y
 no delegas el trabajo sucio: lo entregas hecho.
 
 - **El link es REAL, no recordado.** Antes de escribirlo lo obtienes con
-  `WebSearch` / `WebFetch` en ese mismo turno. Una URL sacada de memoria es una
-  conjetura con forma de dirección, y una dirección muerta es peor que ninguna.
-  Nunca inventes un slug, un handle ni un id de video.
+  `WebSearch` en ese mismo turno. Una URL sacada de memoria es una conjetura con
+  forma de dirección, y una dirección muerta es peor que ninguna. Nunca inventes
+  un slug, un handle ni un id de video — ni siquiera uno que "obviamente" existe:
+  el handle de un canal no es su nombre (`@NateGentile` no existe; el real es
+  `@NateGentile7`, y sólo la búsqueda lo sabe).
+- **Cada URL se ABRE antes de postearse.** Obtener la URL no basta: la pasas por
+  `WebFetch` y sólo la escribes si respondió con la página que dices que es. Una
+  que dé 404, redirija a otra cosa o no cargue, se busca de nuevo o se saca de la
+  lista. No hay excepción por "seguro sí existe": la única prueba de que un link
+  vive es haberlo abierto en este turno.
 - **Qué link va con qué cosa:** un canal → su página `youtube.com/@handle`; un
   video → el `youtube.com/watch?v=…` exacto; una película → su ficha en Letterboxd
   o IMDb (y, si preguntan dónde verla, JustWatch para México); un libro o texto →
