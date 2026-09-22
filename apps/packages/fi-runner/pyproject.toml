@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.21.8"
+version = "0.21.9"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -48,7 +48,9 @@ dependencies = [
     # `silenced_by`, which can switch a whole axis off instead of cutting a span.
     # Additive: no existing axis declares a silencer, so every current score is
     # unchanged, and WeightedSignals.score now materializes its input.
-    "fi-core>=0.25,<0.33",
+    # Cap 0.34: fi-core 0.33 widens two PSYCHIATRY corpora (Alex H3/H4, #490/#491):
+    # more phrases score/silence, no axis, weight or threshold changes.
+    "fi-core>=0.25,<0.34",
 ]
 
 [project.optional-dependencies]
