@@ -99,7 +99,16 @@ dependencies:
   # ningún tag anterior: 0.30.0 y 0.31.0 NO lo contienen (verificado con
   # `git merge-base --is-ancestor`), y sin este bump el trabajo clínico de Álex
   # no llega a producción por más que esté mergeado.
-  - fi-core=0.32.0
+  # SUBIDO a 0.33.0 (2026-09-22, free-intelligence #492/#493/#494): las dos
+  # decisiones de Álex del #55 que faltaban. H3 — `named_diagnosis` nombra
+  # depresión, anorexia, bulimia, borderline (en/es) y ansiedad generalizada;
+  # depresión y ansiedad sólo detrás de un marcador de diagnóstico, para que
+  # "tengo ansiedad" siga en cero. H4 follow-up — el silenciador de sustancias
+  # del eje de recuperación aprende sus 26 frases coloquiales con cópula libre
+  # ("ando bien pedo", "me tomé unas chelas", "estoy bien pacheco"); "vape" a
+  # secas no entra. Ningún eje, peso ni umbral cambia: más frases puntúan o
+  # silencian, nada más.
+  - fi-core=0.33.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
