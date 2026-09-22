@@ -12,7 +12,11 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
-## [Unreleased]
+## [0.33.0] — 2026-09-22
+
+Las dos decisiones clínicas de Alex que quedaron en discord-bot #55 sin issue en
+fi-core (H3 y H4 follow-up), relevadas el 2026-09-22 y medidas por ella en 0.32.0.
+Cierra fi #490 y #491; discord-bot sube el pin y cierra sus checkboxes.
 
 ### Fixed — el silenciador de sustancias del eje de recuperación aprende el mexicano hablado (Alex H4, discord-bot #55; fi #491)
 
