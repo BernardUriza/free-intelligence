@@ -123,12 +123,41 @@ SUBSTANCE_USE = SignalGroup.make(
 #: Deliberately broad. On this axis a false silence only keeps the care a while
 #: longer, which Álex named as the cheap error; a missed one withdraws care from
 #: someone in a relapse.
+#:
+#: 0.33.0 (Alex's list, discord-bot #55 / fi #491): the copula is a free slot —
+#: "ando / estoy / andaba / estaba / andamos" before any of the states — so the
+#: pattern does not depend on which one the person used. Social and past-tense
+#: phrasings ("me pasé de copas", "me eché unos tragos") are IN by her call:
+#: better to accompany someone who tells a bad night as a party than to let
+#: them slip. "vape" alone is OUT — nicotine is everyday, and it would switch
+#: the recovery axis off for many people every time they mention it. Only
+#: "wax" / "pluma de wax" count.
 SUBSTANCE_USE_SPOKEN = SignalGroup.make(
     "substance_use", 2,
     r"\b(?:"
     r"reca[eií]\w*|volv[ií]\s+a\s+(?:tomar|beber|consumir|usar|reca[eií]\w*)|"
-    r"(?:ando|estoy|andaba|estaba)\s+(?:en\s+)?(?:una\s+)?(?:reca[ií]da|peda|borrach\w+|crud[oa])|"
+    r"(?:ando|estoy|andaba|estaba|andamos|estamos|and[aá]bamos|est[aá]bamos)\s+"
+    r"(?:bien\s+|muy\s+|re\s+|medio\s+|s[uú]per\s+|un\s+poco\s+|algo\s+)?"
+    r"(?:"
+    r"(?:en\s+|de\s+)?(?:una\s+|la\s+|el\s+)?(?:reca[ií]da|peda|pisto|chupe)|"
+    r"ped[oa]s?|borrach\w+|crud[oa]s?|tomad[oa]s?|cruzad[oa]s?|"
+    r"pachec[oa]s?|fumad[oa]s?|drogad[oa]s?|"
+    r"hasta\s+atr[aá]s|hasta\s+las\s+chanclas|hasta\s+el\s+gorro"
+    r")\b|"
+    r"sal[ií]\s+de\s+peda|"
     r"me\s+(?:puse|ped[ií])\s+(?:hasta\s+atr[aá]s|una\s+peda)|"
+    r"me\s+tom[eé]\s+(?:unas?\s+|unos\s+|varias\s+|muchas\s+|un\s+par\s+de\s+)?"
+    r"(?:chelas?|cervezas?|copas?|tragos?|caguamas?|shots?|tequilas?|mezcales?)|"
+    r"me\s+ech[eé]\s+(?:unos?\s+|unas?\s+)?(?:tragos?|copas?|chelas?|cervezas?)|"
+    r"me\s+pas[eé]\s+de\s+(?:copas|tragos|chelas)|"
+    r"(?:ya\s+)?me\s+acab[eé]\s+la\s+botella|"
+    r"tom[eé]\s+(?:mucho|demasiado|harto|un\s+ching[oó]\s+de|un\s+buen\s+de)\s+"
+    r"(?:alcohol|vino|tequila|cerveza|mezcal|chela|pisto)|"
+    r"llevo\s+(?:\w+\s+)?(?:d[ií]as|semanas|noches)\s+"
+    r"(?:tomando|bebiendo|chupando|fumando|drog[aá]ndome)|"
+    r"soy\s+mala\s?copa|"
+    r"fum[eé]\s+(?:mota|marihuana|mariguana|un\s+churro|un\s+porro|un\s+gallo|cristal|piedra)|"
+    r"(?:pluma\s+de\s+)?wax\b|"
     r"(?:me\s+)?(?:met[ií]|drogu[eé]|emborrach[eé])\b|"
     r"consum(?:o|iendo|[ií])\s+(?:drogas|coca|crist|mota|alcohol)|"
     r"relapse[dn]?\b|got\s+(?:drunk|high)|i'?m\s+(?:drunk|high)"

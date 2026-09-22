@@ -12,6 +12,21 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [Unreleased]
+
+### Fixed — el silenciador de sustancias del eje de recuperación aprende el mexicano hablado (Alex H4, discord-bot #55; fi #491)
+
+Medido por Alex en 0.32.0 con *"ya estoy mejor, ya le hablé a mi hermana"* más
+una cláusula de sustancias: *"estoy borracho"* apagaba el eje; *"ando bien
+pedo"*, *"me tomé unas chelas"*, *"estoy bien pacheco"*, *"estoy drogado"* y
+*"tomé mucho alcohol"* dejaban contar como mejoría a alguien intoxicado.
+`SUBSTANCE_USE_SPOKEN` ahora toma la cópula como hueco libre —*ando / estoy /
+andaba / estaba / andamos*— delante de cualquier estado, y suma las 26 frases
+de su lista (18 de alcohol, 8 de mota y otras), con sus dos decisiones: las
+sociales y en pasado (*"me pasé de copas"*) entran; *"vape"* a secas no, sólo
+*"wax"* y *"pluma de wax"*. Las seis que ya prendían siguen prendiendo. Tabla
+pinneada en `tests/test_psychiatry_h4_substance_silencer.py`.
+
 ## [0.32.0] — 2026-09-10
 
 Publica el eje de recuperación que ya vivía en `main` desde el 2026-09-09
