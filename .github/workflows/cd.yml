@@ -324,8 +324,11 @@ jobs:
         if: ${{ needs.detect.outputs.build_gw == 'true' }}
         continue-on-error: true
         run: |
+          # --termination-grace-period 45: el gate de recepción drena 25s (drain_timeout_s)
+          # y la invariante es grace >= drain + 20s (backlog graceful-turn-drain-on-deploy).
           az containerapp update --name persona-gateway --resource-group "$RG" \
-            --image "$REGISTRY/persona-gateway:${{ env.NEW_SHA }}"
+            --image "$REGISTRY/persona-gateway:${{ env.NEW_SHA }}" \
+            --termination-grace-period 45
 
       - name: Deploy persona-runner
         if: ${{ needs.detect.outputs.build_runner == 'true' }}

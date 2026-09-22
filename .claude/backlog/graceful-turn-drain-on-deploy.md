@@ -1,7 +1,7 @@
 # Graceful turn drain — deploys must not kill in-flight turns
 
-Status: **In progress** — pasos 1 y 3 HECHOS; queda el paso 2 (medir y subir el
-grace period), que recién ahora es seguro considerar.
+Status: **Done** (2026-09-22) — pasos 1, 3 y 2' HECHOS. El grace period del
+gateway está en 45 s (revisión `persona-gateway--0000224`) y declarado en `cd.yml`.
 Proposed: 2026-07-06 by Claude (Art. 9, receipt del incidente del mismo día)
 
 ## Corrección 2026-09-09 — dos cosas que este documento decía mal
@@ -134,9 +134,15 @@ la rev nueva y responderlo tarde) o solo drenar limpio. Drenar limpio es el 90%
 del valor con 10% del riesgo; el replay cruza con dedup (`_processed`).
 
 ## Status / next step
-**Lo único abierto es el paso 2' (medir + subir el grace period).** El retry (1)
-y el gate de recepción (3) están hechos y desplegados (v4.38.46 arregló el
-crash de arranque del gate).
+**Cerrado 2026-09-22.** El retry (1) y el gate de recepción (3) están hechos y
+desplegados (v4.38.46 arregló el crash de arranque del gate), y el paso 2' se
+aplicó: `terminationGracePeriodSeconds` era `null` (default 30) y quedó en **45**
+en `persona-gateway` (`az containerapp update --termination-grace-period 45`,
+revisión resultante `persona-gateway--0000224`, `show` devuelve 45). El CD lo
+repite en cada deploy del gateway (`cd.yml`, paso "Deploy persona-gateway"), así
+un `update --image` nunca lo pisa. Sigue abierto como MEDICIÓN, no como bloqueo:
+el p95 de `elapsed_ms` para confirmar que 25 s de drenaje alcanzan; si sube,
+suben los dos manteniendo grace ≥ drain + 20 s.
 
 **Actualización 2026-09-19 (v4.39.0) — el gate estaba desplegado y NO corrió.**
 Receipt: msg 1550695386153488405 en #general. El deploy de v4.38.48 mandó **dos
@@ -198,7 +204,7 @@ Orden sugerido (el retry primero: es 20 líneas y cubre el caso real de hoy):
    `test_el_presupuesto_de_reloj_corta_antes_que_los_intentos` (resistencia: un
    connect que cuelga no puede vivir más que el presupuesto). Ambos verificados
    en rojo con el corte saboteado antes de darlos por buenos.
-2. **~~Drain en el runner~~ → medir el grace period y subirlo** (PENDIENTE).
+2. **~~Drain en el runner~~ → medir el grace period y subirlo** (HECHO 2026-09-22, ver 2').
    Ver la corrección de arriba: el drain ya lo hace uvicorn y espera
    indefinidamente. Lo que falta es que la plataforma le dé tiempo. Primer paso
    real: **medir** el default de `terminationGracePeriodSeconds` en Container
@@ -246,7 +252,7 @@ Orden sugerido (el retry primero: es 20 líneas y cubre el caso real de hoy):
    (c) el abandono tragado en silencio, y un `drain` que miente y devuelve `[]`
    al vencer → rojo en los dos tests del tope duro.
 
-2'. **Medir el grace period y subirlo — el ÚNICO paso que queda (PENDIENTE).**
+2'. **Medir el grace period y subirlo — APLICADO 2026-09-22: 45 s en `persona-gateway`, revisión `persona-gateway--0000224`; declarado en `cd.yml`.**
    Con el gate puesto, subirlo ya no produce respuestas dobles: la réplica vieja
    conserva su websocket pero **no recibe**, así que los eventos que le llegan los
    ignora. Sigue sin medirse lo que decide el número: el default real de
