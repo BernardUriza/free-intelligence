@@ -177,6 +177,8 @@ PSYCH_CHRONIC_SIGNALS = WeightedSignals(
     threshold=4,
     exclusions=(IDIOM, TOPIC_NOT_SELF, EXPOSURE_ATTEMPT, EXPOSURE_COMPLETED),
     groups=(
+        # 0.33.0 (Alex H3, discord-bot #55; fi #490): eating disorders and
+        # borderline count alone; depression and GAD only behind a diagnosis marker.
         SignalGroup.make(
             "named_diagnosis", 3,
             r"\b("
@@ -184,7 +186,15 @@ PSYCH_CHRONIC_SIGNALS = WeightedSignals(
             r"bipolar\w*|esquizo\w*|schizo\w*|psicosis|psychos\w*|"
             r"trastorno(?:\s+\w+)?|disociaci[oó]n\w*|dissociat\w*|"
             r"trauma\s+complej|postraum\w*|post[- ]traum\w*|"
-            r"trastorno de estr[eé]s|estr[eé]s postraum"
+            r"trastorno de estr[eé]s|estr[eé]s postraum|"
+            r"anorexi\w*|bulimi\w*|tca\b|borderline|l[ií]m[ií]trofe|tlp\b|bpd\b|"
+            r"(?:me\s+diagnosticaron\s+(?:con\s+)?|diagnosticad[oa]\s+(?:con|de)\s+|"
+            r"diagn[oó]stico\s+de\s+|diagnosed\s+with\s+|sufro\s+(?:de\s+)?)"
+            r"(?:\w+\s+){0,2}?"
+            r"(?:depresi[oó]n|depression|depressive\s+disorder|"
+            r"ansiedad\s+generalizada|generali[sz]ed\s+anxiety|gad\b)|"
+            r"(?:depresi[oó]n|depression|ansiedad\s+generalizada|generali[sz]ed\s+anxiety)"
+            r"(?:\s+\w+){0,2}?\s+diagnosticad[oa]\b"
             r")",
             category="diagnosis",
         ),

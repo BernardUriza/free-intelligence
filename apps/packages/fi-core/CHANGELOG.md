@@ -26,6 +26,19 @@ de su lista (18 de alcohol, 8 de mota y otras), con sus dos decisiones: las
 sociales y en pasado (*"me pasé de copas"*) entran; *"vape"* a secas no, sólo
 *"wax"* y *"pluma de wax"*. Las seis que ya prendían siguen prendiendo. Tabla
 pinneada en `tests/test_psychiatry_h4_substance_silencer.py`.
+### Added — `named_diagnosis` nombra los diagnósticos más prevalentes (Alex H3, discord-bot #55; fi #490)
+
+Cubría PTSD, TDAH, TOC, bipolar, esquizofrenia, psicosis y disociación, y daba
+cero a *"me diagnosticaron depresión mayor"*, *"tengo anorexia desde los 15"*,
+*"tengo bulimia"*, *"borderline personality disorder"* y *"sufro ansiedad
+generalizada diagnosticada"*; *"trastorno límite"* pesaba 3 y su nombre en
+inglés 0. Al grupo existente, peso 3, sin partirlo (decisión de Alex: un
+diagnóstico solo nunca llega al umbral y decidir cuál pesa menos envejece mal en
+código). Anorexia, bulimia y borderline (en / es, TLP, BPD, TCA) cuentan solos;
+depresión y ansiedad generalizada / GAD sólo detrás de un marcador de
+diagnóstico —*me diagnosticaron*, *diagnosticada*, *diagnosed with*, *sufro*—
+para que *"tengo ansiedad"* y *"ando bien deprimida"* sigan en cero. Tabla
+pinneada en `tests/test_psychiatry_h3_named_diagnosis.py`.
 
 ## [0.32.0] — 2026-09-10
 
