@@ -22,6 +22,21 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.21.9] — 2026-09-22
+
+### Changed — cap de `fi-core` subido a `<0.34`
+
+fi-core 0.33 amplía dos corpora de PSYCHIATRY con las decisiones de Alex en
+discord-bot #55: `named_diagnosis` nombra depresión, trastornos alimentarios,
+borderline (en/es) y ansiedad generalizada (#490), y el silenciador de sustancias
+del eje de recuperación aprende sus 26 frases coloquiales con cópula libre (#491).
+Más frases puntúan o silencian; ningún eje, peso ni umbral cambia, así que el
+runner no necesita tocarse. El CI lo cachó igual que en 0.21.8: `fenix`, `og118`
+y `fi-runner: tests` instalan fi-core editable y fi-runner declaraba un cap que
+excluía justo la versión que el PR publica.
+
+---
+
 ## [0.21.8] — 2026-09-10
 
 ### Changed — cap de `fi-core` subido a `<0.33`
