@@ -9,8 +9,9 @@ reached the runner: re-POSTing is safe (no duplicate turn) and is the correct
 resilience move.
 
 Resistance case (the one that makes this safe): a ``ReadTimeout`` means the
-request MAY have landed and be processing — re-POSTing it would double-spend the
-turn. ReadTimeout must NOT be retried; it stays a single-shot ``RunnerDownError``.
+request MAY have landed and be processing. Since 2026-09-23 the alta carries a
+client-chosen ``job_id`` the runner deduplicates on, so the re-POST is safe — but
+ONLY with the same id. A fresh id on retry would be the double-spend again.
 """
 
 from __future__ import annotations
@@ -49,6 +50,7 @@ class _ScriptedClient:
 
     script: ClassVar[list] = []
     calls: ClassVar[int] = 0
+    job_ids: ClassVar[list] = []
 
     def __init__(self, *a, **k) -> None:
         pass
@@ -62,6 +64,7 @@ class _ScriptedClient:
     async def post(self, url, json=None, headers=None):
         idx = _ScriptedClient.calls
         _ScriptedClient.calls += 1
+        _ScriptedClient.job_ids.append((json or {}).get("job_id"))
         item = _ScriptedClient.script[min(idx, len(_ScriptedClient.script) - 1)]
         if isinstance(item, BaseException):
             raise item
@@ -79,6 +82,7 @@ def client(monkeypatch):
     monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
     _ScriptedClient.script = []
     _ScriptedClient.calls = 0
+    _ScriptedClient.job_ids = []
     return AgentRunnerClient("http://runner", "tok")
 
 
@@ -172,13 +176,15 @@ async def test_el_presupuesto_de_reloj_corta_antes_que_los_intentos(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_read_timeout_is_not_retried(client):
-    """RESISTANCE: a ReadTimeout means the request may have landed; re-POSTing
-    would double-spend the turn. It must stay single-shot RunnerDownError."""
-    _ScriptedClient.script = [httpx.ReadTimeout("processing")]
-    with pytest.raises(RunnerDownError):
-        await client.chat("sys", _messages())
-    assert _ScriptedClient.calls == 1  # NOT retried
+async def test_read_timeout_is_retried_only_under_the_same_job_id(client):
+    """RESISTANCE: a ReadTimeout means the request may have landed. The re-POST
+    is safe ONLY because it repeats the same job_id the runner deduplicates on —
+    a fresh id per attempt would be the double-spend this test used to forbid."""
+    _ScriptedClient.script = [httpx.ReadTimeout("processing"), _Resp(200)]
+    out = await client.chat("sys", _messages())
+    assert out.text == "ok"
+    assert _ScriptedClient.calls == 2
+    assert _ScriptedClient.job_ids[0] and len(set(_ScriptedClient.job_ids)) == 1
 
 
 @pytest.mark.asyncio

@@ -70,6 +70,31 @@ async def test_a_finished_job_nobody_collected_is_reaped_after_the_ttl(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_the_same_client_ticket_id_submitted_twice_is_one_job():
+    """2026-09-23: el ingress retuvo el alta durante un arranque en frío y la
+    entregó después de que el cliente la repitió — dos turnos para un mensaje."""
+    registry: TicketRegistry[str] = TicketRegistry("t")
+    runs: list[str] = []
+
+    async def _turn(tag: str) -> str:
+        runs.append(tag)
+        await asyncio.sleep(0.05)
+        return tag
+
+    first = registry.submit(_turn("uno"), label="c1", ticket_id="job-abc")
+    again = registry.submit(_turn("dos"), label="c1", ticket_id="job-abc")
+    assert again is first
+    assert registry.open() == 1
+    done, result = await registry.wait(first, wait_s=1.0)
+    assert (done, result) == (True, "uno")
+    assert runs == ["uno"]  # la segunda corrutina se cerró sin correr
+
+    other = registry.submit(_turn("tres"), label="c1", ticket_id="job-xyz")
+    assert other is not first
+    await registry.wait(other, wait_s=1.0)
+
+
+@pytest.mark.asyncio
 async def test_a_single_poll_never_waits_longer_than_the_cap():
     registry: TicketRegistry[str] = TicketRegistry("t")
     ticket = registry.submit(_slow("x", 5.0), label="c1")

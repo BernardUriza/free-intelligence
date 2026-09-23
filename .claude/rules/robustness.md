@@ -66,6 +66,20 @@ recibe y el cliente pregunta por él en requests **cortas** (poll ≤ 50 s).
   servidores viejos, se borra ([[migrations-end-with-deletion]]).
 - `_MUTE_GRACE_SECONDS` (660 s) del `/health` va por encima del presupuesto: un
   turno vivo de 5 minutos no es una persona muda.
+- **El alta es idempotente y sobrevive el arranque en frío (2026-09-23, v4.39.6).**
+  El runner corre en `min=0`; el ingress acepta la conexión con cero réplicas y
+  **retiene el alta durante todo el arranque** (medido: 169 s desde el summon
+  hasta que el runner recibió el POST, con el proceso listo a los 86 s). Con un
+  read timeout de 60 s el gateway leía `ReadTimeout` → `RunnerDownError`, el host
+  reintentaba y se rendía a los ~135 s, y el ingress entregaba DESPUÉS los dos
+  POSTs encolados: dos turnos de Opus en frío que nadie leyó, y el host hablando
+  por la casa. Por eso el gateway manda un `job_id` propio en el alta
+  (`TurnRequest.job_id`) y el runner deduplica por él (`TicketRegistry.submit(…,
+  ticket_id=)` → `ticket_reused`); con eso el `ReadTimeout` del alta **sí** se
+  reintenta — con el MISMO id — mientras quede reloj del turno
+  (`agent_runner_client_submit_retry`), y el read timeout del alta es
+  `JOB_SUBMIT_READ_TIMEOUT_S = 200` (cubre el frío, bajo el techo del ingress).
+  Un `ReadTimeout` con un id NUEVO por intento volvería a ser el turno doble.
 
 Tests que fijan la clase: `tests/shared/test_tickets.py`,
 `tests/agent/test_turn_jobs_api.py`, `tests/integration/test_agent_client_turn_jobs.py`,

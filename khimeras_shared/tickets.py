@@ -9,7 +9,10 @@ en una task del proceso y el cliente pregunta por él en requests acotadas.
 Lo usan las dos costuras que cruzan el ingress — el runner (`/v1/turn/jobs`) y
 el gateway (`/invite` con boleto) — con la misma semántica:
 
-- `submit` arranca la task y devuelve el id.
+- `submit` arranca la task y devuelve el id. Con un `ticket_id` del cliente el
+  alta es idempotente: el mismo id dos veces es UN trabajo (2026-09-23: el
+  ingress retuvo el alta durante un arranque en frío de 169 s, el cliente la
+  dio por perdida a los 60 s, y el runner corrió dos turnos que nadie leyó).
 - `wait` espera hasta `wait_s` (tope `MAX_WAIT_S`, muy por debajo del ingress) y
   devuelve `None` si sigue corriendo; si terminó, devuelve el resultado o
   re-lanza la excepción tal cual, para que la capa HTTP la mapee igual que en el
@@ -61,9 +64,13 @@ class TicketRegistry[T]:
             if ticket.finished_at is not None and now - ticket.finished_at > DONE_TTL_S:
                 del self._tickets[ticket_id]
 
-    def submit(self, coro: Coroutine[Any, Any, T], *, label: str) -> Ticket[T]:
+    def submit(self, coro: Coroutine[Any, Any, T], *, label: str, ticket_id: str | None = None) -> Ticket[T]:
         self._reap()
-        ticket_id = uuid.uuid4().hex
+        if ticket_id is not None and (existing := self._tickets.get(ticket_id)) is not None:
+            coro.close()
+            log.info("ticket_reused", registry=self.name, ticket_id=ticket_id, label=label, done=existing.done)
+            return existing
+        ticket_id = ticket_id or uuid.uuid4().hex
         task: asyncio.Task[T] = asyncio.create_task(coro, name=f"{self.name}:{ticket_id}")
         ticket: Ticket[T] = Ticket(ticket_id=ticket_id, label=label, task=task)
 

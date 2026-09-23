@@ -25,4 +25,4 @@ def submit(req: TurnRequest, *, runner: Callable[[TurnRequest], Awaitable[TurnRe
     inyectada para que las pruebas no tengan que levantar AIRE.
     """
     label = f"{req.persona_id or 'insult'}:{req.channel_id}"
-    return JOBS.submit(runner(req), label=label)
+    return JOBS.submit(runner(req), label=label, ticket_id=req.job_id)

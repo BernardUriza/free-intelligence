@@ -54,6 +54,7 @@ from __future__ import annotations
 import asyncio
 import random
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -71,6 +72,9 @@ log = structlog.get_logger()
 # nunca los del turno — el presupuesto del turno es `timeout_s` del llamador.
 JOB_POLL_WAIT_S = 45.0
 JOB_POLL_READ_TIMEOUT_S = 60.0
+# El alta cruza un runner que escala desde cero: el ingress acepta la conexión
+# con cero réplicas y retiene el request todo el arranque (2026-09-23: 169 s).
+JOB_SUBMIT_READ_TIMEOUT_S = 200.0
 
 # El camino síncrono sobrevive solo para un runner que todavía no sabe de
 # boletos (rolling update a medias). Su techo es el del ingress, menos margen.
@@ -296,10 +300,12 @@ class AgentRunnerClient:
         if prefix_blocks:
             effective_user_text = "\n\n".join([*prefix_blocks, effective_user_text])
 
+        job_id = uuid.uuid4().hex
         payload: dict[str, Any] = {
             "channel_id": channel_id or "0",
             "user_id": user_id or "0",
             "user_text": effective_user_text,
+            "job_id": job_id,
         }
         # Khimeras multi-persona: tell the runner which sibling persona answers.
         # Omitted for Insult (None) so the payload + runner behavior are unchanged.
@@ -339,9 +345,11 @@ class AgentRunnerClient:
         # El presupuesto del TURNO ya no es el de una request. Cada request (el
         # alta del boleto, cada poll) vive muy por debajo de los 240 s que el
         # ingress de Container Apps concede; el presupuesto total lo lleva el
-        # reloj de `_await_turn_job`. El read timeout de aquí solo cubre un poll.
-        request_read_timeout_s = min(effective_timeout_s, JOB_POLL_READ_TIMEOUT_S)
+        # reloj de `_await_turn_job`. El read timeout de aquí solo cubre el alta.
+        request_read_timeout_s = min(effective_timeout_s, JOB_SUBMIT_READ_TIMEOUT_S)
         timeout = httpx.Timeout(request_read_timeout_s, connect=self._connect_timeout_s)
+        submit_deadline = time.monotonic() + effective_timeout_s
+        submit_attempts = 0
         headers = {
             "Authorization": f"Bearer {self._runner_token}",
             "Content-Type": "application/json",
@@ -386,77 +394,98 @@ class AgentRunnerClient:
             # connect can't spin, and a slow one can't outlive the budget.
             connect_attempts = self._connect_max_retries + 1
             resp = None
-            connect_deadline = time.monotonic() + self._connect_budget_s
-            for attempt in range(connect_attempts):
-                try:
-                    async with httpx.AsyncClient(timeout=timeout) as client:
-                        resp = await client.post(url, json=payload, headers=headers)
-                    break
-                except (httpx.ConnectTimeout, httpx.ConnectError) as e:
-                    backoff = min(self._connect_retry_base_s * (2**attempt), self._connect_retry_cap_s)
-                    budget_left = connect_deadline - time.monotonic()
-                    if attempt + 1 < connect_attempts and budget_left > backoff:
-                        log.warning(
-                            "agent_runner_client_connect_retry",
-                            attempt=attempt + 1,
+            # El alta se repite con el MISMO job_id mientras quede reloj del
+            # turno: el runner deduplica por id, así que un alta que el ingress
+            # retuvo durante un arranque en frío ya no cuesta un turno doble ni
+            # un cerebro declarado muerto a los 60 s.
+            while resp is None:
+                submit_attempts += 1
+                connect_deadline = time.monotonic() + self._connect_budget_s
+                for attempt in range(connect_attempts):
+                    try:
+                        async with httpx.AsyncClient(timeout=timeout) as client:
+                            resp = await client.post(url, json=payload, headers=headers)
+                        break
+                    except (httpx.ConnectTimeout, httpx.ConnectError) as e:
+                        backoff = min(self._connect_retry_base_s * (2**attempt), self._connect_retry_cap_s)
+                        budget_left = connect_deadline - time.monotonic()
+                        if attempt + 1 < connect_attempts and budget_left > backoff:
+                            log.warning(
+                                "agent_runner_client_connect_retry",
+                                attempt=attempt + 1,
+                                of=connect_attempts,
+                                error_type=type(e).__name__,
+                                budget_left_ms=int(budget_left * 1000),
+                                elapsed_ms=int((time.monotonic() - start) * 1000),
+                            )
+                            await asyncio.sleep(backoff)
+                            continue
+                        # WHICH limit ran out is the diagnosis, not a detail: out of
+                        # attempts means the connect failed instantly over and over
+                        # (nothing listening), out of budget means it hung — a
+                        # saturated runner reads differently from an absent one.
+                        gave_up_on = "budget" if attempt + 1 < connect_attempts else "attempts"
+                        log.error(
+                            "agent_runner_client_connect_exhausted",
+                            attempts=attempt + 1,
                             of=connect_attempts,
+                            gave_up_on=gave_up_on,
+                            budget_s=self._connect_budget_s,
                             error_type=type(e).__name__,
-                            budget_left_ms=int(budget_left * 1000),
                             elapsed_ms=int((time.monotonic() - start) * 1000),
                         )
-                        await asyncio.sleep(backoff)
-                        continue
-                    # WHICH limit ran out is the diagnosis, not a detail: out of
-                    # attempts means the connect failed instantly over and over
-                    # (nothing listening), out of budget means it hung — a
-                    # saturated runner reads differently from an absent one.
-                    gave_up_on = "budget" if attempt + 1 < connect_attempts else "attempts"
-                    log.error(
-                        "agent_runner_client_connect_exhausted",
-                        attempts=attempt + 1,
-                        of=connect_attempts,
-                        gave_up_on=gave_up_on,
-                        budget_s=self._connect_budget_s,
-                        error_type=type(e).__name__,
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                    )
-                    # Unreachable for the whole budget → the runner process is
-                    # genuinely down, not mid-deploy. RunnerDownError so failover
-                    # is allowed.
-                    raise RunnerDownError(
-                        f"runner unreachable after {attempt + 1} connect attempts "
-                        f"({gave_up_on} exhausted): {type(e).__name__}"
-                    ) from e
-                except httpx.ReadTimeout as e:
-                    if on_timeout and not timed_out_once:
-                        timed_out_once = True
-                        try:
-                            maybe = on_timeout()
-                            if hasattr(maybe, "__await__"):
-                                await maybe
-                        except Exception:
-                            log.exception("agent_runner_on_timeout_callback_failed")
-                    log.warning(
-                        "agent_runner_client_timeout",
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                        user_id=user_id,
-                        channel_id=channel_id,
-                    )
-                    # A read timeout means the runner never answered — treat the
-                    # brain as down so a real sibling persona can take the turn.
-                    raise RunnerDownError(f"runner read timeout after {request_read_timeout_s}s") from e
-                except httpx.HTTPError as e:
-                    log.exception(
-                        "agent_runner_client_http_error",
-                        error_type=type(e).__name__,
-                        elapsed_ms=int((time.monotonic() - start) * 1000),
-                    )
-                    # Other transport error (DNS, protocol) → the runner is
-                    # unreachable. RunnerDownError so failover is allowed.
-                    raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
+                        # Unreachable for the whole budget → the runner process is
+                        # genuinely down, not mid-deploy. RunnerDownError so failover
+                        # is allowed.
+                        raise RunnerDownError(
+                            f"runner unreachable after {attempt + 1} connect attempts "
+                            f"({gave_up_on} exhausted): {type(e).__name__}"
+                        ) from e
+                    except httpx.ReadTimeout as e:
+                        if on_timeout and not timed_out_once:
+                            timed_out_once = True
+                            try:
+                                maybe = on_timeout()
+                                if hasattr(maybe, "__await__"):
+                                    await maybe
+                            except Exception:
+                                log.exception("agent_runner_on_timeout_callback_failed")
+                        budget_left = submit_deadline - time.monotonic()
+                        if budget_left > 0:
+                            log.warning(
+                                "agent_runner_client_submit_retry",
+                                job_id=job_id,
+                                attempt=submit_attempts,
+                                budget_left_ms=int(budget_left * 1000),
+                                elapsed_ms=int((time.monotonic() - start) * 1000),
+                                user_id=user_id,
+                                channel_id=channel_id,
+                            )
+                            timeout = httpx.Timeout(
+                                min(budget_left, JOB_SUBMIT_READ_TIMEOUT_S), connect=self._connect_timeout_s
+                            )
+                            break
+                        log.warning(
+                            "agent_runner_client_timeout",
+                            elapsed_ms=int((time.monotonic() - start) * 1000),
+                            submit_attempts=submit_attempts,
+                            user_id=user_id,
+                            channel_id=channel_id,
+                        )
+                        # El alta nunca contestó en todo el presupuesto del turno:
+                        # cerebro caído, para que un hermano real pueda tomar el turno.
+                        raise RunnerDownError(f"runner read timeout after {effective_timeout_s}s") from e
+                    except httpx.HTTPError as e:
+                        log.exception(
+                            "agent_runner_client_http_error",
+                            error_type=type(e).__name__,
+                            elapsed_ms=int((time.monotonic() - start) * 1000),
+                        )
+                        # Other transport error (DNS, protocol) → the runner is
+                        # unreachable. RunnerDownError so failover is allowed.
+                        raise RunnerDownError(f"runner http error: {type(e).__name__}: {e}") from e
 
-            # The connect loop either breaks with resp assigned or raises;
-            # reaching here without a response is impossible (connect_attempts >= 1).
+            # El loop del alta solo sale con resp asignado o lanzando.
             assert resp is not None
 
             if resp.status_code in (502, 503) and transient_attempt + 1 < transient_attempts:

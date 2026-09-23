@@ -70,6 +70,35 @@ def test_submit_then_poll_delivers_a_turn_longer_than_one_poll(client, monkeypat
     assert client.get(f"/v1/turn/jobs/{job_id}", headers=HEADERS).status_code == 404
 
 
+def test_the_same_job_id_posted_twice_runs_one_turn(client, monkeypatch):
+    """El alta es idempotente por `job_id` del cliente: la repetición que el
+    ingress entrega tarde (arranque en frío, 2026-09-23) no cuesta otro turno."""
+    runs = {"n": 0}
+
+    async def counted_turn(_req: TurnRequest) -> TurnResponse:
+        runs["n"] += 1
+        await asyncio.sleep(0.05)
+        return TurnResponse(text="una sola vez", output_tokens=3, model="m", stop_reason="end_turn")
+
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", counted_turn)
+    req = {**REQ, "job_id": "a3f0c9d1e2b84f7a9c6d5e4f3a2b1c0d"}
+
+    first = client.post("/v1/turn/jobs", json=req, headers=HEADERS)
+    second = client.post("/v1/turn/jobs", json=req, headers=HEADERS)
+    assert (first.status_code, second.status_code) == (202, 202)
+    assert first.json()["job_id"] == second.json()["job_id"] == req["job_id"]
+
+    body = client.get(f"/v1/turn/jobs/{req['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
+    assert body["status"] == "done"
+    assert body["response"]["text"] == "una sola vez"
+    assert runs["n"] == 1
+
+
+def test_a_job_id_that_is_not_a_token_is_rejected_not_run(client):
+    r = client.post("/v1/turn/jobs", json={**REQ, "job_id": "../otro boleto"}, headers=HEADERS)
+    assert r.status_code == 422
+
+
 def test_unknown_job_is_404(client):
     assert client.get("/v1/turn/jobs/deadbeef", headers=HEADERS).status_code == 404
 

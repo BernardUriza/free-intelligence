@@ -49,6 +49,9 @@ class TurnRequest(BaseModel):
     # context every turn. Untrusted conversational context, never authorization;
     # role-allowlisted + capped by `fold_history`. Discord callers never send it.
     history: list[dict] | None = None
+    # Boleto elegido por el cliente para `/v1/turn/jobs`: la misma alta dos veces
+    # es UN turno, así que un alta perdida en un arranque en frío se puede repetir.
+    job_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
 
 
 class TurnResponse(BaseModel):
