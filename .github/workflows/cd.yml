@@ -354,24 +354,24 @@ jobs:
           az containerapp update --name khimeras-host --resource-group "$RG" \
             --image "$REGISTRY/khimeras-host:${{ env.NEW_SHA }}"
 
-      - name: Verify persona-gateway health
+      - name: Verify persona-gateway revision serves
         if: ${{ needs.detect.outputs.build_gw == 'true' }}
         run: |
-          if az containerapp show -n persona-gateway -g "$RG" --query "name" -o tsv 2>/dev/null; then
-            az containerapp show -n persona-gateway -g "$RG" --query "properties.latestRevisionName" -o tsv
-            GW_LOGS=$(az containerapp logs show -n persona-gateway -g "$RG" --tail 30 2>&1 || true)
-            echo "$GW_LOGS" | tail -10
-            if echo "$GW_LOGS" | grep -q "persona_gateway_starting"; then
-              echo "OK persona-gateway: persona_gateway_starting event present"
-            elif echo "$GW_LOGS" | grep -q "critical\|CRITICAL\|Traceback\|persona_gateway_nothing_to_start"; then
-              echo "FAIL persona-gateway: crash or no-token on startup"
-              exit 1
-            else
-              echo "WARN persona-gateway: could not confirm startup, check manually"
-            fi
-          else
-            echo "INFO persona-gateway: not yet provisioned, skipping health check"
-          fi
+          # Until 2026-09-23 this step grepped `persona_gateway_starting` in the last 30
+          # log lines — a line the gateway prints BEFORE it can crash, so the check could
+          # not fail: 14 crash-looping revisions (09-17 → 09-18) got 14 green runs, and the
+          # only detector was a stale version tag in #general. The gate is now the revision
+          # that carries THIS image being Healthy + RunningAtMaxScale with 100% traffic and
+          # no older replica still running beside it (two replicas of a Discord bot post
+          # duplicate replies). Red on Failed/Unhealthy at once, with that revision's logs.
+          python3 scripts/cd_wait_revision.py persona-gateway "$RG" "$REGISTRY/persona-gateway:$NEW_SHA"
+
+      - name: Verify khimeras-host revision serves
+        if: ${{ needs.detect.outputs.build_host == 'true' }}
+        run: |
+          # Same class, same gate: the host has no ingress, so its revision state is the
+          # only thing a crash loop changes that the CD can read. min=1, like the gateway.
+          python3 scripts/cd_wait_revision.py khimeras-host "$RG" "$REGISTRY/khimeras-host:$NEW_SHA"
 
       - name: Verify persona-runner health
         if: ${{ needs.detect.outputs.build_runner == 'true' }}
