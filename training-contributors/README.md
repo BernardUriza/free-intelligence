@@ -46,5 +46,5 @@ de ser un training y se vuelve una demostración.
 Que después de tres o cuatro vueltas del mismo ritual, ya no haga falta el
 ritual: se le pasa el issue y lo resuelve sole.
 
-Ver también: la sesión 2 arranca del [issue #38](https://github.com/BernardUriza/discord-bot/issues/38),
+Ver también: la sesión 2 arranca del [issue #38](https://github.com/BernardUriza/server-bot/issues/38),
 que nació de un bug real que salió en la sesión 1.

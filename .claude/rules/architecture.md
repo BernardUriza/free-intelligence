@@ -101,7 +101,7 @@ the `python-bot` template's `web/`. Publish workflow lands via free-intelligence
 deployed to its own Azure Static Web App via
 `.github/workflows/azure-static-web-apps-brave-ground-0c804e410.yml`
 (`app_location: /dashboard`). It is a legitimate, LIVE ops surface — NOT a
-forbidden parallel/disposable product surface: discord-bot is a backend bot with
+forbidden parallel/disposable product surface: server-bot is a backend bot with
 NO declared Next.js `web/` in this repo (the chat UI is the cross-repo fi-glass
 above), so the "no parallel surfaces" prohibition of `new-project-stack` does not
 bite here. Its deploy is path-scoped (`paths: dashboard/**`) so non-dashboard
@@ -175,7 +175,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   still runs)
 
 ## Prompts
-- **The universal rule lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the discord-bot-specific instantiation; the cross-repo law is the SSOT.
+- **The universal rule lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the server-bot-specific instantiation; the cross-repo law is the SSOT.
 - LLM-facing prompts MUST live in content files — persona DNA in
   `shared/personas/<id>.md`, guidance prose in `shared/personas/guidance/`,
   utility prompts in `khimeras_shared/prompts_md/*.md` loaded via

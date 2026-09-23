@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-commit hook for discord-bot:
+# Pre-commit hook for server-bot:
 # 1. Auto-sync persona.md capabilities from code
 # 2. Ruff lint gate on staged Python files (matches CI)
 # 3. Ruff format check gate on staged Python files (matches CI)

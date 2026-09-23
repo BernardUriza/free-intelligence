@@ -5,12 +5,15 @@ name: CD
 # per-service blast-radius cut: a prompt-only change to Insult no longer rebuilds
 # ALICE/Vultur or restarts bots that didn't change.
 #
-# Surfaces and the image each consumes:
-#   * discord-bot        <- insult-bot image       (Dockerfile)
+# Surfaces and the image each consumes (the three live Container Apps):
 #   * persona-gateway     <- persona-gateway image   (Dockerfile.gateway)
 #       (ALICE runs here as a gateway persona since v4.21.110; the legacy
 #        alice-bot Container App + Dockerfile.alice were retired 2026-07-05)
 #   * persona-runner      <- persona-runner image    (infra/azure/runner.Dockerfile)
+#   * khimeras-host       <- khimeras-host image     (Dockerfile.host)
+#   The retired `discord-bot` plumbing app (ex insult-bot) is scaled to zero and
+#   is NOT built here since the 2026-07-14 purge; the repo itself was renamed
+#   `server-bot` on 2026-09-23 (GHCR namespace kept on purpose, see REGISTRY).
 #
 # Per-image SOURCE deps come from each Dockerfile's COPY lines — the map below is
 # COPY-accurate ON PURPOSE: over-building is wasteful, but UNDER-building ships a

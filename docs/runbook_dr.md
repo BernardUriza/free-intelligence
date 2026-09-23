@@ -104,9 +104,13 @@ en caliente hasta 35. **Decisión de Bernard, no del agente** — es gasto recur
    token el boot truena, en vez de levantar un runner cuyos turnos serían todos
    502. Lo que se pierde por esa ruta y lo que la bloquea está en
    [`.claude/backlog/aire-engine-stage2.md`](../.claude/backlog/aire-engine-stage2.md).
-5. **`discord-bot`** — la plomería. Depende del runner (`PERSONA_RUNNER_URL`).
-6. **`persona-gateway`** — las personas hermanas. Depende del runner y del `.env`
-   completo (un token faltante → esa persona simplemente no arranca).
+5. **`persona-gateway`** — TODAS las personas (Insult incluida desde la purga del
+   2026-07-14). Depende del runner (`PERSONA_RUNNER_URL`) y de su env completo (un
+   token faltante → esa persona simplemente no arranca). Bind :8788 (`/invite`).
+6. **`khimeras-host`** — la recepción (#6): recibe todo en el guild, rutea con
+   gpt-4.1 (`insult-openai`) y summona por el `/invite` del gateway. Depende del
+   gateway y de Azure OpenAI; `HOST_DISCORD_TOKEN` es átomo de Bernard.
+   (`discord-bot`, la plomería vieja, está RETIRADA en min=0 — no se recupera.)
 8. **Alertas + action group** — `docs/runbook_alerts.md`.
 
 ## Los secretos: qué puede el agente y qué te necesita a ti
@@ -162,8 +166,8 @@ Aplicada aquí, servicio por servicio:
 | Servicio | Prueba que NO se puede falsear |
 |---|---|
 | `persona-runner` | `POST /v1/turn` real devuelve texto en la voz correcta (200 + `end_turn`) |
-| `discord-bot` | mandar un mensaje en **#general** y ver a Insult responder con el `VERSION_TAG` esperado |
-| `persona-gateway` | dirigirse a una persona (`frugi, …`) en **#general** y ver que contesta **en su propia voz** |
+| `persona-gateway` | @mencionar a una persona en **#general** y ver que contesta **en su propia voz** con el `VERSION_TAG` esperado |
+| `khimeras-host` | escribir en **#general** SIN @mención y ver que UNA persona contesta (el host ruteó y summonó; `host_dispatched` en KQL) |
 
 Un `/health` 200 y un `serving:true` son **proxies que pueden mentir** — es
 exactamente la clase de fake-green que costó 14 minutos de bot muerto el

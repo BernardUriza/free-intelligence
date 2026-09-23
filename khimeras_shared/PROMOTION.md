@@ -14,7 +14,7 @@ Un módulo solo se promueve a `khimeras_shared/` cuando cumple las **seis**:
 
 1. **Estable** — su API no está en flujo; no se reescribe sprint a sprint.
 2. **Reusable fuera del monorepo** — tendría sentido como dependencia
-   independiente, no solo dentro de discord-bot.
+   independiente, no solo dentro de server-bot.
 3. **Contrato maduro** — la interfaz pública está cerrada y documentada, no es
    un detalle de implementación expuesto por accidente.
 4. **Mínimo 2 consumers reales** — lo usan ≥2 personas/hosts HOY (no "lo usará

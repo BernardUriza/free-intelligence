@@ -5,7 +5,7 @@ is the in-process enforcement of that constraint: a per-ISO-week running USD tot
 that fails the router SAFE (back to the deterministic rule) once the cap is hit,
 instead of trusting "it's cheap" (an honored constraint, not a fake-green).
 
-In-process is correct here: ``discord-bot`` runs single-replica (min=max=1), so one
+In-process is correct here: ``khimeras-host`` runs single-replica (min=max=1), so one
 event-loop owns the counter and there is no cross-replica split. ``record`` is sync
 (no await) so it is atomic within the asyncio loop. The counter resets on container
 restart — acceptable as a RUNAWAY backstop because the only way to reach $5 at the

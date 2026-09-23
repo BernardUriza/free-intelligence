@@ -163,7 +163,7 @@ def extract_fi_core_mcp_tools() -> list[dict]:
        When fi-core>=0.4.1 exports the explicit contract, this is THE source
        of truth. Fi-core controls the public surface; if Bernard renames a
        tool or adds a new one in fi-core, this auto-picks it up on next
-       pre-commit run without discord-bot touching anything.
+       pre-commit run without server-bot touching anything.
 
     2. Fallback path — AST-walk fi-core's installed mcp_server.py for
        `@mcp.tool()` decorators. Used while fi-core 0.4.0 (the release

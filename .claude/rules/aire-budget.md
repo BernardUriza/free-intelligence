@@ -43,7 +43,7 @@ cualquier restart. Desde aire-server `39f9d9e`/`724f961`:
 3. Un `agent_runner_starting` frecuente en KQL NO es un crash loop del runner:
    persona-runner tiene `min=0` y eso son cold starts de scale-to-zero.
 
-Los dos lados del fix: aire-server `39f9d9e` + `724f961`; discord-bot
+Los dos lados del fix: aire-server `39f9d9e` + `724f961`; server-bot
 v4.32.81. Tests que fijan la clase: aire-server `test_ledger_metered.py` +
 `test_spend.py` (metered), acá `test_aire_route.py` (reenvío único) y
 `test_aire_backend.py` (el corte no anula la respuesta entregada).
@@ -116,7 +116,7 @@ Y `claude setup-token` **revoca** el token anterior de esa cuenta (SSOT
 
 **Las dos cuentas de Bernard (2026-09-08):**
 - `bernarduriza@gmail.com` (org `d1c8c86b`) — Max **$100**, es el `oauth-primary` del
-  bot (token `0bb5…` compartido por discord-bot/aire/og118).
+  bot (token `0bb5…` compartido por server-bot/aire/og118).
 - `vegdevida@gmail.com` (org `8e661957`) — Max **$200 (20x)**, verificado 2026-09-08
   vía `claude.ai/api/organizations` (tier `default_claude_max_20x`); es la cuenta
   logueada en el Chrome de debug. **No hay token suyo guardado** en `~/.secrets/` —

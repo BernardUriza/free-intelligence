@@ -1,4 +1,4 @@
-# AGENTS.md — Khimeras (discord-bot)
+# AGENTS.md — Khimeras (server-bot)
 
 Convenciones permanentes para agentes de código (codex-cli y otros). Léelas antes
 de tocar nada; están aquí para no repetirlas en cada prompt. Si algo en un prompt

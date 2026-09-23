@@ -2,10 +2,10 @@
 
 Status: ✅ **FASE 1 SHIPPED — Valentis existe** (2026-08-25, v4.32.75–4.32.80);
 **fase 2 sin abrir** (sin issue). Los cuatro issues
-[#41](https://github.com/BernardUriza/discord-bot/issues/41) (ADN) ·
-[#42](https://github.com/BernardUriza/discord-bot/issues/42) (guidance) ·
-[#43](https://github.com/BernardUriza/discord-bot/issues/43) (registro) ·
-[#44](https://github.com/BernardUriza/discord-bot/issues/44) (piso de seguridad)
+[#41](https://github.com/BernardUriza/server-bot/issues/41) (ADN) ·
+[#42](https://github.com/BernardUriza/server-bot/issues/42) (guidance) ·
+[#43](https://github.com/BernardUriza/server-bot/issues/43) (registro) ·
+[#44](https://github.com/BernardUriza/server-bot/issues/44) (piso de seguridad)
 están CERRADOS. Este archivo conserva la redacción original de los issues con
 `<id>` sin resolver — el `<id>` que Alex escogió fue **`valentis`**.
 Propuesto: 2026-08-12 · Diseño de **Aníbal** (médico, dictado por WhatsApp ese día)
@@ -74,7 +74,7 @@ aquí que Valentis haya contestado en #general (requiere Discord/KQL; el recibo
 de #43 en su PR es el que vale).
 
 > El hallazgo #1 de las notas finales salió como issue propio:
-> [#44](https://github.com/BernardUriza/discord-bot/issues/44) — el overlay de
+> [#44](https://github.com/BernardUriza/server-bot/issues/44) — el overlay de
 > usuario vulnerable sólo existe para Insult. Verificado a mano contra el repo
 > antes de reportarlo, no tomado del borrador.
 

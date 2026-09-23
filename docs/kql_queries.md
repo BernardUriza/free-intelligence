@@ -5,8 +5,10 @@ The old `a07bf4c8-…` workspace is FROZEN at 2026-06-25T05:01 — every query a
 returns stale rows or none.
 
 Table: `ContainerAppConsoleLogs_CL`
-Filter: `ContainerAppName_s in ("discord-bot", "persona-gateway", "persona-runner")`
-(the plumbing container was renamed from `insult-bot` on 2026-05-14)
+Filter: `ContainerAppName_s in ("persona-gateway", "persona-runner", "khimeras-host")`
+(the three LIVE apps since the host cutover of 2026-07-15. `discord-bot` — ex
+`insult-bot`, renamed 2026-05-14 — is the RETIRED plumbing app, scaled to zero: it
+emits nothing, and filtering on it only matters for archaeology before 2026-07-15)
 Log string column: `Log_s`
 
 Run via `scripts/kql.sh 'QUERY'` or paste into Azure Portal → Log Analytics workspace → Logs.

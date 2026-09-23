@@ -56,7 +56,7 @@ class AzureOpenAIEmbedder:
 
     Configuration precedence: explicit constructor args > env vars >
     module defaults. Most consumers just call `AzureOpenAIEmbedder()`
-    and let the env vars do the work — same env vars the discord-bot
+    and let the env vars do the work — same env vars the persona-gateway
     and persona-runner Container Apps already have set.
     """
 

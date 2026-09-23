@@ -1,4 +1,6 @@
-# Conda environment definition for discord-bot, alice-bot, and persona-runner.
+# Conda environment definition for server-bot (persona-gateway, khimeras-host, persona-runner).
+# The env itself is still named `discord-bot` (line 25): renaming it touches every
+# machine (Bernard, Alex, the CI cache) and is a separate, deliberate step.
 #
 # This file replaces requirements.txt as the canonical dependency manifest
 # (see memory: feedback_no_pypi_only_conda + reference_anaconda_channel).

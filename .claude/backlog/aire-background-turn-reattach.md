@@ -37,7 +37,7 @@ réplica nueva se **reenganche** al resultado en vez de re-preguntar.
 2. **fi-runner (`AIREBackend`):** opción `background=True` + `reattach(turn_id)`
    que pollea el status y devuelve el `TurnResult` completo (texto, usage,
    model). Release al canal conda (`bernardurizaorozco`) y bump del pin aquí.
-3. **discord-bot runner:** `turn_jobs` ya guarda `aire_sent_at`; añadir
+3. **server-bot runner:** `turn_jobs` ya guarda `aire_sent_at`; añadir
    `aire_turn_id`. En `_resumer`, si la fila trae `aire_turn_id` → `reattach`
    en vez de `runner(req, resumed=True)`; sólo si el reattach dice "no existe"
    se re-pregunta. Quitar entonces la nota de reintento del camino reattach.
