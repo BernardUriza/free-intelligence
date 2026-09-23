@@ -10,7 +10,26 @@ están CERRADOS. Este archivo conserva la redacción original de los issues con
 `<id>` sin resolver — el `<id>` que Alex escogió fue **`valentis`**.
 Propuesto: 2026-08-12 · Diseño de **Aníbal** (médico, dictado por WhatsApp ese día)
 Contribuidore: **Alex Nava** (`ferux485`, elle) · sesión 3 de capacitación ·
-Re-verificado: 2026-09-09
+Re-verificado: 2026-09-23
+
+## Re-chequeo 2026-09-23 — dos de las cuatro piezas de la fase 2 ya tienen recibo o issue
+
+| Pieza de la fase 2 | Estado 2026-09-23 | Recibo |
+|---|---|---|
+| Corpus RAG | **HECHA** | #61 CLOSED 2026-09-19; `c22b965` (v4.38.37) *las cinco personas estrenan eje ético, y Valentis estrena corpus*; `867f821` (v4.38.40) *Valentis suma el criterio clínico de Guerrero* |
+| `preset_vulnerable_overlay.md` propio | **con issue, OPEN** | #84 (Alex) — *Valentis no tiene su capa de tono para usuario vulnerable — hoy recibe el piso de la casa y nada suyo*. Es el hallazgo #1 de las notas de abajo, tres semanas después convertido en issue |
+| Facetas por tema | sin issue | — |
+| Presets propios (más allá de `respectful_serious`) | sin issue | — |
+
+En vuelo, de Alex: **PR #82** (`docs/valentis-quien-se-queda`) — *"quien se queda"* en
+lugar de *"acompañamiento psicológico"* en el registry, este backlog y
+`test_valentis_dna.py`. CI verde; *changes requested* de Bernard el 22-sep por el bump a
+medias (`pyproject` en 4.38.48, `version.py` sin mover), y desde el 09-23 la rama está
+6 commits detrás de `main` (ella en 4.39.6, `main` en 4.40.5). El cierre es de elle —
+Bernard se lo dijo en la review y `delegar-produce-evidencia.md` lo fija.
+
+**Sigue sin verificar** que Valentis conteste en vivo en #general — la misma deuda del
+09-07 y del 09-09.
 
 ## Re-chequeo 2026-09-09 — la fase 2 dejó de estar entera sin issue
 

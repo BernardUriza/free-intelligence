@@ -21,3 +21,9 @@ Mismo contrato que ya usa el CD: después del deploy, exigir que la revisión NU
 ## Status / next step
 El crash se arregló en 6cc4612, con un test que construye el server con uvicorn de verdad
 (`tests/core/test_gateway_invite_server_signals.py`). Falta endurecer el step del CD.
+
+**Re-chequeo 2026-09-23:** sin cambios. `cd.yml:364` sigue dando OK con sólo encontrar
+`persona_gateway_starting` en los logs. `git log --since=2026-09-18 -- .github/workflows/cd.yml`
+→ dos commits, `380a6c8` (grace 45 en el gateway) y `c74dbf4` (grace 600 en el runner):
+los dos agregan `--termination-grace-period` al deploy, ninguno un check de revisión.
+El detector real sigue siendo humano: un tag de versión viejo en #general.

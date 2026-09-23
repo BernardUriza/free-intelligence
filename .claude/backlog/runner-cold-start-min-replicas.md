@@ -59,3 +59,12 @@ Lo que sigue abierto es **cuánto frío se tolera**, no si se sobrevive.
 Not built. Bernard decide entre 1 y 2 (o ambas). Medición para decidir:
 `router_health.py`-style, contar `host_turn_gave_up` por semana después de
 v4.39.6 — si cae a cero, el probe basta y `min=1` es solo latencia.
+
+**Re-chequeo 2026-09-23 (tarde):** `az containerapp show -n persona-runner` →
+`minReplicas=0`, `terminationGracePeriodSeconds=600` (v4.40.2), revisión
+`--0000245` con `d02ae1d`. El boleto durable (v4.40.0–4.40.4) cierra la otra
+mitad del daño: un restart del runner a media generación ya no pierde la
+respuesta (probado en prod 17:06 UTC, una sola respuesta). Lo que este item
+cobra hoy es **sólo latencia** del primer mensaje tras 5 min de silencio, más
+el cache-creation de cada sesión AIRE fría. La medición de `host_turn_gave_up`
+post-v4.39.6 sigue **sin hacerse** — hacen falta días de ventana, no horas.
