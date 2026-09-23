@@ -14,22 +14,34 @@ naming who could not answer. A retry is safe because a "failed" turn delivered
 nothing: the gateway reports "delivered" the moment the user saw text, and a
 fault after that is logged, never raised (`persona_gateway/turns.py`).
 
+El boleto del host (2026-09-23): cada `deliver_or_fallback` acuña UN `turn_id`.
+El reintento lo REUSA sólo cuando el primer intento fue `unreachable` — el
+gateway se reinició o el poll dio 404, y el host no sabe qué pasó; un gateway
+con ledger contesta entonces lo que de verdad ocurrió (`delivered` incluido)
+en vez de correr el turno otra vez. Tras un `failed` declarado el reintento
+lleva un id NUEVO: ese turno provablemente no entregó nada, y reusar el id sólo
+haría eco del fallo. Un `uncertain` (el gateway murió entre "enviando" y
+"entregado") no se reintenta ni se tapa con el aviso de la casa: se loggea en
+rojo y se para.
+
 Every step is a KQL event that can go red — the whole point of owning it.
 """
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
 
-from demux_ai.summon import TURN_TAKEN, summon_and_wait
+from demux_ai.summon import TURN_TAKEN, TURN_UNCERTAIN, summon_and_wait
 from shared.personas.registry import get_persona
 
 log = structlog.get_logger()
 
 RETRY_INVITED_BY = "host_retry"
+REUSE_TURN_ID_AFTER = frozenset({"unreachable"})
 
 # Neutral, in the house's voice, no internals. Names the persona so the user
 # knows WHO went quiet — an ellipsis under Insult's name told Alex nothing.
@@ -74,15 +86,43 @@ async def deliver_or_fallback(
         "trigger_message_id": trigger_message_id,
         "trigger_transcript": trigger_transcript,
     }
-    outcome = await summon(tool_input, invited_by=invited_by, **common)
+    turn_id = uuid.uuid4().hex
+    outcome = await summon(tool_input, invited_by=invited_by, turn_id=turn_id, **common)
     if outcome in TURN_TAKEN:
-        log.info("host_turn_delivered", channel_id=channel_id, target=persona_id, outcome=outcome, attempt=1)
+        log.info(
+            "host_turn_delivered", channel_id=channel_id, target=persona_id, outcome=outcome, attempt=1, turn_id=turn_id
+        )
         return outcome
-    log.warning("host_turn_failed", channel_id=channel_id, target=persona_id, outcome=outcome, attempt=1)
+    if outcome in TURN_UNCERTAIN:
+        log.error("host_turn_uncertain", channel_id=channel_id, target=persona_id, attempt=1, turn_id=turn_id)
+        return outcome
+    log.warning(
+        "host_turn_failed", channel_id=channel_id, target=persona_id, outcome=outcome, attempt=1, turn_id=turn_id
+    )
 
-    retry = await summon(tool_input, invited_by=RETRY_INVITED_BY, **common)
+    reused = outcome in REUSE_TURN_ID_AFTER
+    retry_id = turn_id if reused else uuid.uuid4().hex
+    retry = await summon(tool_input, invited_by=RETRY_INVITED_BY, turn_id=retry_id, **common)
     if retry in TURN_TAKEN:
-        log.info("host_turn_recovered", channel_id=channel_id, target=persona_id, outcome=retry, attempt=2)
+        log.info(
+            "host_turn_recovered",
+            channel_id=channel_id,
+            target=persona_id,
+            outcome=retry,
+            attempt=2,
+            turn_id=retry_id,
+            reused_turn_id=reused,
+        )
+        return retry
+    if retry in TURN_UNCERTAIN:
+        log.error(
+            "host_turn_uncertain",
+            channel_id=channel_id,
+            target=persona_id,
+            attempt=2,
+            turn_id=retry_id,
+            reused_turn_id=reused,
+        )
         return retry
     log.error(
         "host_turn_gave_up",
@@ -91,6 +131,8 @@ async def deliver_or_fallback(
         outcome=retry,
         first_outcome=outcome,
         attempt=2,
+        turn_id=retry_id,
+        reused_turn_id=reused,
     )
     try:
         await say(channel_id, FALLBACK_TEXT.format(persona=persona_label(persona_id)))

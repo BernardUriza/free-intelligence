@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+import uuid
 
 import httpx
 import structlog
@@ -80,6 +81,11 @@ SUMMON_WAIT_BUDGET_S = 660.0
 # persona took the turn (a 202 says nothing more than "scheduled" — that is the
 # whole reason `summon_and_wait` exists); the rest are the host's to act on.
 TURN_TAKEN = frozenset({"invited", "delivered", "empty"})
+# El gateway murió entre "empecé a enviar" y "quedó entregado": nadie sabe si el
+# primer chunk aterrizó. Ni reintento (podría duplicar) ni aviso de la casa
+# (podría sonar debajo de una respuesta real): se loggea en rojo y se para.
+TURN_UNCERTAIN = frozenset({"uncertain"})
+_TERMINAL_OUTCOMES = frozenset({"delivered", "empty", "failed", "uncertain"})
 
 
 def _build_payload(
@@ -92,6 +98,7 @@ def _build_payload(
     invited_by: str | None,
     trigger_message_id: str | None,
     trigger_transcript: str,
+    turn_id: str | None = None,
 ) -> dict:
     payload: dict = {
         "channel_id": channel_id,
@@ -107,6 +114,8 @@ def _build_payload(
         payload["trigger_message_id"] = trigger_message_id
     if trigger_transcript:
         payload["trigger_transcript"] = trigger_transcript
+    if turn_id:
+        payload["turn_id"] = turn_id
     return payload
 
 
@@ -152,6 +161,11 @@ async def _post_invite(payload: dict, *, read_timeout_s: float) -> str:
         if resp.status_code == 202 and payload.get("ticket"):
             turn_id = _turn_id(resp)
             if turn_id:
+                asked = payload.get("turn_id")
+                if asked and turn_id != asked:
+                    # Un gateway que todavía no acepta el id del cliente acuña el
+                    # suyo: se pollea ése, y el reintento no podrá deduplicar.
+                    log.warning("summon_ticket_id_ignored", channel_id=channel_id, asked=asked, got=turn_id)
                 return await _poll_turn(url, token, turn_id, channel_id=channel_id, client_timeout=timeout)
             # Un gateway viejo ignora `ticket` y contesta el `wait` en la misma
             # request (200/502), así que un 202 pelado aquí es un gateway que no
@@ -183,7 +197,7 @@ def _awaited_outcome(resp: httpx.Response) -> str | None:
         outcome = resp.json().get("status")
     except ValueError:
         return None
-    return outcome if outcome in ("delivered", "empty", "failed") else None
+    return outcome if outcome in _TERMINAL_OUTCOMES else None
 
 
 def _turn_id(resp: httpx.Response) -> str | None:
@@ -246,7 +260,7 @@ async def _poll_turn(
             return "rejected"
         if status == "running":
             continue
-        if status in ("delivered", "empty", "failed"):
+        if status in _TERMINAL_OUTCOMES:
             log.info("summon_outcome", channel_id=channel_id, outcome=status, turn_id=turn_id, polls=polls)
             return status
         log.warning("summon_rejected", status=resp.status_code, body=resp.text[:200], turn_id=turn_id)
@@ -299,6 +313,7 @@ async def summon_and_wait(
     invited_by: str | None = None,
     trigger_message_id: str | None = None,
     trigger_transcript: str = "",
+    turn_id: str | None = None,
 ) -> str:
     """Summon a persona and stay on the line until its turn ends.
 
@@ -307,6 +322,11 @@ async def summon_and_wait(
     with ``wait: true`` and returns the turn's real outcome (see
     `_post_invite`), which `demux_ai.fallback` turns into a retry or a
     host-voiced notice. Same never-raises contract as `summon_persona`.
+
+    ``turn_id`` es el boleto que el HOST acuña: viaja en el alta para que un
+    gateway con ledger deduplique el reintento del host (la misma alta dos veces
+    es UN turno) y conteste lo que ya entregó tras un restart, en vez de dejar
+    que el host provoque una segunda respuesta.
     """
     reason = tool_input.get("reason", "").strip()
     if not reason:
@@ -321,6 +341,7 @@ async def summon_and_wait(
         invited_by=invited_by,
         trigger_message_id=trigger_message_id,
         trigger_transcript=trigger_transcript,
+        turn_id=turn_id or uuid.uuid4().hex,
     )
     payload["wait"] = True
     payload["ticket"] = True

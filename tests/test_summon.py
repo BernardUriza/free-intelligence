@@ -9,6 +9,7 @@ return False without raising.
 
 from __future__ import annotations
 
+import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -268,3 +269,48 @@ async def test_a_poll_that_drops_on_the_network_is_asked_again(monkeypatch):
         outcome = await summon_and_wait({"reason": "ven"}, channel_id="123")
     assert outcome == "failed"
     assert client.get.await_count == 2
+
+
+# --- el boleto del host (2026-09-23): el id nace aquí y viaja en el alta ----------
+
+
+async def test_the_wait_carries_a_host_minted_turn_id():
+    ctx, client = _mock_json_client(200, {"status": "delivered", "channel_id": "123"})
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        await summon_and_wait({"reason": "ven"}, channel_id="123")
+    turn_id = client.post.call_args.kwargs["json"]["turn_id"]
+    assert re.fullmatch(r"[0-9a-f]{32}", turn_id)
+
+
+async def test_a_given_turn_id_travels_verbatim():
+    ctx, client = _mock_json_client(200, {"status": "delivered", "channel_id": "123"})
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        await summon_and_wait({"reason": "ven"}, channel_id="123", turn_id="host-abc")
+    assert client.post.call_args.kwargs["json"]["turn_id"] == "host-abc"
+
+
+async def test_an_old_gateway_that_mints_its_own_id_is_polled_on_its_id():
+    ctx, client = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "gw1"}),
+            _json_resp(200, {"status": "delivered", "channel_id": "123", "turn_id": "gw1"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        outcome = await summon_and_wait({"reason": "ven"}, channel_id="123", turn_id="host-abc")
+    assert outcome == "delivered"
+    assert client.get.call_args.args[0].endswith("/invite/turns/gw1")
+
+
+async def test_uncertain_is_a_terminal_outcome_the_host_reads_as_is():
+    ctx, _ = _scripted_client(
+        [
+            _json_resp(202, {"status": "running", "channel_id": "123", "turn_id": "t1"}),
+            _json_resp(200, {"status": "uncertain", "channel_id": "123", "turn_id": "t1"}),
+        ]
+    )
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        assert await summon_and_wait({"reason": "ven"}, channel_id="123") == "uncertain"
+    ctx, _ = _mock_json_client(200, {"status": "uncertain", "channel_id": "123"})
+    with patch("demux_ai.summon.httpx.AsyncClient", return_value=ctx):
+        assert await summon_and_wait({"reason": "ven"}, channel_id="123") == "uncertain"
