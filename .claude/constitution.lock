@@ -6,7 +6,7 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "9b3e5213a89dd76305ade6973051ac15c9e265b9"
+rev = "3b27c55fd8f04cc991dfa465c2442d114fd26eae"
 tree = "sha256:1e9eba5b6569276506141042501df3ff17db27308a6791c301298d9d5bb33bb1"
 
 [repo]
@@ -30,7 +30,7 @@ policy = ["repo", "bernard", "core"]
 methodology = []
 
 [lock]
-canonical_sha256 = "6d6851acc154079e10b767eed934d97f46c4330e6711d9816a47e21cdbf70a39"
+canonical_sha256 = "b87f533b7002698c4642dfa3bf604eff29cf4541a383806340c9c1c3e928b278"
 
 [[overlay]]
 id = "bernard"

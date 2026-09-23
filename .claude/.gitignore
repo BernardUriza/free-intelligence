@@ -2,6 +2,7 @@ rules/_constitution/
 constitution/
 constitution.state.json
 settings.local.json
+# >>> constitution capabilities (managed: rewritten by `constitution install`, do not edit)
 agents/dhl-expert.md
 agents/legal-advisor.md
 agents/pixel-perfectionist.md
@@ -45,3 +46,4 @@ skills/exchange-coagent/
 skills/new-consumer/
 skills/register-rule/
 constitution.capabilities.json
+# <<< constitution capabilities
