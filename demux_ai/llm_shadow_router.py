@@ -1,18 +1,20 @@
-"""LLM shadow router — the demux host's gpt-4.1 routing decision (HOST 5/6 slice A.2).
+"""LLM router — the demux host's gpt-4.1 routing decision (HOST 5/6 slice A.2).
 
-Slice A shipped a DETERMINISTIC shadow (``shadow_router.py``) that mirrors the
-live ``@vultur``/``~vultur`` rule by construction. Because it is identical to the
-live path, it can never diverge — proven in prod (2026-06-18): every event came
-back ``diverged=false``. A GENUINE divergence — the signal that tells us whether
-an LLM receptionist would route differently than today's prefix rule — needs a
-router that is NOT a copy of the live rule. This is that router: it asks the
-gpt-4.1 host brain to classify the target persona independently, runs in SHADOW
-only (logged next to ``current_target``, never acted on), and is spend-gated by
-``settings.llm_shadow_router_enabled`` (default OFF, unlike the deterministic
-shadow which is free).
+Born as a SHADOW (2026-06-18): a gpt-4.1 classifier logged next to the live
+prefix rule and never acted on, to measure whether an LLM receptionist would
+route differently. The cutover made it THE router on 2026-07-08 (``88481c9``):
+``demux_ai/__main__.py`` hands ``run_host`` a ``DirectAzureLLMRouter`` and the
+decision it emits is where the turn goes. The module keeps its historical name
+so the KQL field names and the routing telemetry stay greppable.
 
-It NEVER serves a persona and NEVER impersonates — it emits a routing label, the
-turn still goes wherever the live rule sent it (no cutover).
+It NEVER serves a persona and NEVER impersonates — it emits a routing label; the
+persona that answers runs on Claude, addressed by that label.
+
+(There was a second class here, ``LLMShadowRouter``, that routed through the
+agentic ``HostRouterLLM`` — ~9.5k tokens of agent harness per one-word
+classification. It lost to the direct transport in v4.21.82 and from then on was
+constructed only by its own test. Deleted 2026-09-23 — a module that exists so
+its test can build it is a cut chain, not a feature in reserve.)
 
 Boundary: ``demux_ai`` must never import ``personas.*`` (host→persona ratchet is
 0). The valid-target set is mirrored as a constant, kept in lockstep with the
@@ -26,15 +28,11 @@ import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import structlog
 
 from demux_ai.router_budget import RouterBudget
 from khimeras_shared.prompts import PromptCache, load_prompt
-
-if TYPE_CHECKING:
-    from demux_ai.host_llm import HostRouterLLM
 
 log = structlog.get_logger()
 
@@ -126,54 +124,18 @@ def _is_content_filter(error: BaseException) -> bool:
     return "content management policy" in message or "'content_filter'" in message
 
 
-class LLMShadowRouter:
-    """Wraps the gpt-4.1 ``HostRouterLLM`` as a shadow-only persona classifier.
-
-    Construct it (which builds ``HostRouterLLM`` → ``AIREBackend``) ONLY behind
-    the ``llm_shadow_router_enabled`` flag — that construction is the spend gate.
-    ``route`` is async (a real Azure call); callers run it OFF the turn's critical
-    path (a background task) so the user's reply is never delayed by routing
-    telemetry."""
-
-    def __init__(self, llm: HostRouterLLM | None = None) -> None:
-        if llm is None:
-            from demux_ai.host_llm import HostRouterLLM  # deferred: keeps fi_runner off the direct path
-
-            llm = HostRouterLLM()
-        self._llm = llm
-
-    async def route(self, text: str, context: str | None = None) -> LLMShadowDecision:
-        """Classify ``text`` to a target persona via gpt-4.1. ``context`` is an
-        optional recent-conversation block (newline-joined ``user: message`` lines)
-        that lets the brain route continuations to the persona already holding the
-        exchange. Returns a decision with the parsed target + reason + token
-        counts. Raises on a hard LLM failure (``HostRouterError``) — the caller
-        wraps it so a shadow fault is invisible to the turn."""
-        result = await self._llm.complete(_routing_instruction(), _compose_route_input(text, context))
-        target, reason = _parse_target(result.text)
-        return LLMShadowDecision(
-            target=target,
-            reason=reason,
-            input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens,
-        )
-
-
 class DirectAzureLLMRouter:
-    """Direct Azure OpenAI chat-completion transport for the shadow router.
+    """The host's router: a direct Azure OpenAI chat completion, one word back.
 
-    The cheap alternative to ``LLMShadowRouter``, which routes through an agentic
-    backend: when it was measured (HOST 5/6 slice A.2 token-bloat fix) that was
-    ``CodexBackend`` → ``codex exec``, paying ~9.5k input tokens of agent harness
-    per call; since 2026-08-29 it is ``AIREBackend`` and the harness cost has NOT
-    been re-measured. This class sends ONLY the routing instruction + the user
-    input over ``openai.AsyncAzureOpenAI`` against the ``insult-openai``
-    deployment — no agent harness, no tool schemas — so a one-word classification
-    costs hundreds of tokens, not thousands. It is also the only brain in this
-    repo that does not depend on AIRE's door: the provider split the host used to
-    get from Codex now lives here alone. Shape-compatible: same
-    ``route(text) -> LLMShadowDecision`` contract, so it drops into
-    ``TurnRuntimeDeps.llm_shadow_route`` behind the same seam."""
+    It sends ONLY the routing instruction + the user input over
+    ``openai.AsyncAzureOpenAI`` against the ``insult-openai`` deployment — no
+    agent harness, no tool schemas — so a one-word classification costs hundreds
+    of tokens, not thousands (the agentic transport it replaced in v4.21.82 paid
+    ~9.5k input tokens of harness per call). It is also the only brain in this
+    repo that does not depend on AIRE's door: the personas speak through AIRE,
+    the receptionist speaks to Azure alone. ``route`` is async (a real Azure
+    call) and the host awaits it on the turn's path — the decision IS where the
+    turn goes."""
 
     def __init__(
         self,
@@ -197,12 +159,13 @@ class DirectAzureLLMRouter:
         return self._client
 
     async def route(self, text: str, context: str | None = None) -> LLMShadowDecision:
-        """Classify ``text`` via a plain Azure chat completion. ``context`` is the
-        same optional recent-conversation block ``LLMShadowRouter.route`` takes
-        (shape-compatible contract). Returns the parsed target + reason + REAL
-        token counts (``usage.prompt_tokens`` is the number the whole exercise is
-        measuring). Raises on a hard API failure — the caller wraps it so a shadow
-        fault stays invisible to the turn.
+        """Classify ``text`` via a plain Azure chat completion. ``context`` is an
+        optional recent-conversation block (newline-joined ``user: message``
+        lines) that lets the brain route continuations to the persona already
+        holding the exchange. Returns the parsed target + reason + REAL token
+        counts (``usage.prompt_tokens`` is what the spend cap charges). Raises on
+        a hard API failure — the caller wraps it so a router fault degrades the
+        turn to the default target instead of muting it.
 
         Azure's content filter is the exception that must NOT raise. It rejects
         the whole prompt with a 400, and the prompt carries the recent channel
@@ -309,4 +272,4 @@ class DirectAzureLLMRouter:
         )
 
 
-__all__ = ["DEFAULT_TARGET", "DirectAzureLLMRouter", "LLMShadowDecision", "LLMShadowRouter"]
+__all__ = ["DEFAULT_TARGET", "DirectAzureLLMRouter", "LLMShadowDecision"]

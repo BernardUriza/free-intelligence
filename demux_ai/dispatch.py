@@ -6,9 +6,8 @@ gateway `/invite` (`demux_ai.summon`). This is the seam that makes Insult stop
 being the structural owner of reception: the HOST receives, the router decides,
 and every persona — Insult included — is just a routing target now.
 
-Reuses what already exists (Art. 6): the router (`LLMShadowRouter` /
-`DirectAzureLLMRouter`, any `.route(text) -> decision` with a `.target`) and
-`summon_persona`. This module only composes them, fail-safe on every edge — a
+Reuses what already exists (Art. 6): the router (`DirectAzureLLMRouter`, or any
+`.route(text) -> decision` with a `.target`) and `summon_persona`. This module only composes them, fail-safe on every edge — a
 routing fault must never wedge the host's loop.
 """
 
