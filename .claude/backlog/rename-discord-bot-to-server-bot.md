@@ -1,9 +1,38 @@
 # Rename `discord-bot` → `server-bot`
 
-Status: In progress — la pata de registry cambió de destino: **`serverbotacr` ya
-no existe, las imágenes viven en GHCR desde 2026-08-12**; RG + repo pendientes
+Status: **REPO RENOMBRADO 2026-09-23** (`gh repo rename server-bot`, go de Bernard
+tras la investigación de /histerical-search) — queda sólo el RG, que no es rename
+sino reconstrucción (abajo). Registry: **`serverbotacr` ya no existe, las
+imágenes viven en GHCR desde 2026-08-12** bajo el path `ghcr.io/bernarduriza/discord-bot/*`,
+que se QUEDA (namespace libre, no ligado al nombre del repo; cero riesgo de deploy).
 Proposed: 2026-06-18 by Bernard
 Re-verificado: 2026-09-09 (`az containerapp list`, `az acr list`, `az containerapp job list`)
+
+## Hecho 2026-09-23 — el repo ya es `server-bot`
+
+Alcance ejecutado (mínimo, decidido por Bernard): el repo en GitHub. NO se tocó:
+el folder local (`~/Documents/discord-bot` — la memoria de Claude Code de este
+proyecto está atada al nombre del folder, `~/.claude/projects/-Users-…-discord-bot`;
+renombrarlo sin mover esa carpeta deja la sesión amnésica), `REGISTRY` en `cd.yml`,
+las Container Apps ni los filtros KQL.
+
+Recibos del mismo día:
+- `gh repo view BernardUriza/server-bot` → `server-bot`, default `main`.
+- `git ls-remote https://github.com/BernardUriza/discord-bot.git main` → resuelve
+  (redirect de git para el nombre viejo, como dice la doc de GitHub).
+- `git remote set-url origin https://github.com/BernardUriza/server-bot.git` aquí;
+  Alex (`ferux485`, única colaboradora) recibe el mismo comando por #general.
+- Referencias literales al slug viejo en código: `REGISTRY` (se queda), un
+  comentario en `ai-gatekeep.yml` (actualizado), dos constantes de test
+  (cosméticas). Ningún Dockerfile lleva `org.opencontainers.image.source`, así que
+  no hay liga paquete↔repo que romper. Las URLs históricas a issues/PRs en
+  backlog, `dashboard/nomina` y `training-contributors/` redirigen solas; no se
+  reescriben.
+- Regla dura de GitHub: **nunca volver a crear un repo llamado `discord-bot`** —
+  mataría los redirects.
+- `.claude/constitution.toml` sigue con `[repo] id = "discord-bot"`: es el id del
+  lock de agent-constitution, no el slug de GitHub; cambiarlo es re-lockear y es
+  decisión aparte.
 
 ## Re-chequeo 2026-09-09 — sin cambios
 
