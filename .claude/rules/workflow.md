@@ -9,8 +9,10 @@
 ## Demux Progress Tracker — keep the HTML checklist in sync
 
 The living roadmap toward the post-demux monorepo is an HTML checklist at
-`~/Desktop/khimeras-demux-checklist.html` (kept on the Desktop on purpose —
-visible to Finder and file pickers per `.claude/rules/artifact_delivery.md`).
+`~/Documents/proyectos-docs/khimeras-demux-checklist.html` (moved there from the
+Desktop by Bernard; still a visible, non-dot folder per
+`.claude/rules/artifact_delivery.md`. Verified 2026-09-23: the Desktop copy no
+longer exists — `mdfind` is how it was found again; do not recreate it there).
 
 **Every time work lands that advances (or changes) any item on that roadmap,
 update the HTML in the same turn.** "Lands" means merged/deployed/validated —
@@ -38,7 +40,10 @@ actualizas ese html") right after the checklist was created.
 ## What to do next — read the checklist, never ask
 
 **NEVER ask Bernard "¿qué sigue?" / "what's next?" / "what do we attack?"**
-The checklist at `~/Desktop/khimeras-demux-checklist.html` IS the answer.
+The checklist at `~/Documents/proyectos-docs/khimeras-demux-checklist.html` IS
+the answer (together with `.claude/backlog/README.md`, which is audited more
+often — when the two disagree, the backlog's dated receipts win and the
+checklist gets refreshed in the same turn).
 
 When a work session ends or the current task completes:
 1. Read the checklist — open it, scan unchecked items top-to-bottom.
