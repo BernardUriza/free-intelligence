@@ -13,6 +13,8 @@ Dos formas de pedir el mismo turno:
 - ``POST /v1/turn/jobs`` + ``GET /v1/turn/jobs/{job_id}`` — con boleto. El turno
   corre en una task del runner y el cliente pregunta en requests cortas, así que
   su duración deja de estar atada al tope del ingress (``engine/turn_jobs.py``).
+  El boleto es durable (2026-09-23): un 404 ya sólo significa "id desconocido"
+  o "Postgres inalcanzable"; un runner reiniciado contesta desde su fila.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
+from khimeras_shared.tickets import LedgerRow
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine import aire_route, turn_jobs
@@ -47,10 +50,19 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
 
 @router.post("/v1/turn/jobs", response_model=TurnJobAccepted, status_code=status.HTTP_202_ACCEPTED)
 async def submit_turn_job(req: TurnRequest, authorization: str | None = Header(default=None)) -> TurnJobAccepted:
-    """Arranca el turno en background y devuelve su boleto."""
+    """Arranca el turno en background y devuelve su boleto. La misma alta dos
+    veces (mismo `job_id`) es UN turno, aunque la segunda llegue a otra réplica."""
     check_auth(authorization)
-    job = turn_jobs.submit(req, runner=aire_route.turn_via_aire)
+    job = await turn_jobs.submit(req, runner=aire_route.turn_via_aire)
     return TurnJobAccepted(job_id=job.ticket_id)
+
+
+def _from_row(job_id: str, row: LedgerRow) -> TurnJobStatus:
+    if row.status == "done":
+        return TurnJobStatus(job_id=job_id, status="done", response=turn_jobs.JOBS.decode_result(row))
+    if row.terminal:
+        raise HTTPException(status_code=502, detail=row.error or row.status)
+    return TurnJobStatus(job_id=job_id, status="running")
 
 
 @router.get("/v1/turn/jobs/{job_id}", response_model=TurnJobStatus)
@@ -61,16 +73,31 @@ async def poll_turn_job(
 ) -> TurnJobStatus:
     """Long-poll acotado del boleto.
 
-    404 = el trabajo no existe (o el runner se reinició con él adentro), que es
-    la misma señal de "el cerebro se cayó" que el cliente ya sabe leer. Un fallo
-    del turno sale con la misma forma que en el camino síncrono, porque la
-    excepción se re-lanza aquí y la mapea el mismo handler.
+    RAM primero; si este proceso no lo tiene, la fila: un resultado ya escrito
+    se sirve tal cual; un job que otra réplica sigue corriendo se espera sobre la
+    fila; uno huérfano se reanuda aquí. 404 = id desconocido (o Postgres
+    inalcanzable tras un reinicio). Un fallo del turno sale con la misma forma
+    que en el camino síncrono: la excepción se re-lanza y la mapea el mismo
+    handler; un fallo registrado por otra réplica es un 502 con su `error`.
     """
     check_auth(authorization)
-    job = turn_jobs.JOBS.get(job_id)
-    if job is None:
+    got = await turn_jobs.lookup(job_id, runner=aire_route.turn_via_aire)
+    if got is None:
         raise HTTPException(status_code=404, detail=f"unknown turn job {job_id!r}")
-    done, response = await turn_jobs.JOBS.wait(job, wait_s)
+    if isinstance(got, LedgerRow):
+        if got.terminal:
+            return _from_row(job_id, got)
+        row = await turn_jobs.JOBS.wait_row(job_id, wait_s)
+        if row is None:
+            return TurnJobStatus(job_id=job_id, status="running")
+        return _from_row(job_id, row)
+    try:
+        done, response = await turn_jobs.JOBS.wait(got, wait_s)
+    except turn_jobs.NotResumableError as exc:
+        # La fila ya quedó `failed`; el gateway lo lee como cerebro caído y el
+        # host reintenta con un id nuevo, re-ingiriendo los adjuntos de Discord.
+        turn_jobs.JOBS.drop(job_id)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     if not done:
         return TurnJobStatus(job_id=job_id, status="running")
     turn_jobs.JOBS.drop(job_id)

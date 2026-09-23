@@ -1,0 +1,37 @@
+schema = 1
+profile = "shared"
+pack = []
+overlay = []
+override = []
+
+[core]
+id = "agent-constitution"
+repo = "https://github.com/BernardUriza/agent-constitution.git"
+rev = "097b1757b334b1479123f7107f0c4ce8c8a4b197"
+tree = "sha256:351eec6faf80c82eccffe7ca9b90ca06e58cedbfc5b215f29a0ac2cea7014388"
+
+[repo]
+id = "discord-bot"
+surfaces = ["CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/**", ".claude/overrides/**"]
+imports = [
+  { from = ".claude/rules/sibling-personas.md", target = "mention-only).", sha256 = "0000000000000000000000000000000000000000000000000000000000000000" },
+  { from = ".claude/rules/testing.md", target = "mention", sha256 = "0000000000000000000000000000000000000000000000000000000000000000" },
+]
+surfaces_tree = "sha256:b8c4e4a64c2ce83fe2a0ac31b993f0b2da425179dce71086ac67bfb6d281bee8"
+
+[hooks]
+entries = [
+  { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
+  { id = "never-print-secret-bearing-file", from = "core", event = "PreToolUse", matcher = "Bash" },
+  { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+]
+tree = "sha256:fc4c4f53208b5f8451ca4317f3539cddcb6940a86cf29280b4cf17689c0a9cb4"
+
+[resolution]
+gates = ["core"]
+policy = ["repo", "core"]
+methodology = []
+
+[lock]
+canonical_sha256 = "7e7d0f438dc146920ca14543a453fd23295dcfab4cd47a0ca65b51e1f8019553"

@@ -39,6 +39,7 @@ class _ScriptedClient:
 
     script: ClassVar[list] = []
     calls: ClassVar[list[tuple[str, str]]] = []
+    bodies: ClassVar[list[dict]] = []
 
     def __init__(self, *a, **k) -> None:
         pass
@@ -57,6 +58,7 @@ class _ScriptedClient:
         return item
 
     async def post(self, url, json=None, headers=None):
+        _ScriptedClient.bodies.append(json or {})
         return await self._next("POST", url)
 
     async def get(self, url, headers=None):
@@ -73,6 +75,7 @@ def client(monkeypatch):
     monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
     _ScriptedClient.script = []
     _ScriptedClient.calls = []
+    _ScriptedClient.bodies = []
     return AgentRunnerClient("http://runner", "tok", timeout_s=600.0)
 
 
@@ -148,6 +151,58 @@ async def test_a_poll_that_drops_on_the_network_is_asked_again(client):
 
 
 @pytest.mark.asyncio
+async def test_a_submit_lost_in_a_cold_start_is_posted_again_with_the_same_job_id(client):
+    """2026-09-23: el runner (min=0) tardó 169 s en aceptar el alta; el cliente la
+    dio por perdida a los 60 s y el host se rindió. El alta se repite con el
+    mismo boleto — el runner deduplica — y el turno llega."""
+    _ScriptedClient.script = [
+        httpx.ReadTimeout("el ingress retiene el alta mientras el runner arranca"),
+        _Resp(202, {"job_id": "j-cliente", "status": "running"}),
+        _Resp(200, {"job_id": "j-cliente", "status": "done", "response": TURN}),
+    ]
+    fired = []
+    out = await client.chat("sys", _msgs(), timeout_s=600.0, on_timeout=lambda: fired.append(1))
+    assert out.text == "Supremme de Luxe…"
+    assert [m for m, _ in _ScriptedClient.calls] == ["POST", "POST", "GET"]
+    ids = {b.get("job_id") for b in _ScriptedClient.bodies}
+    assert len(ids) == 1 and ids != {None}  # las dos altas llevan el MISMO boleto
+    assert fired == [1]
+
+
+@pytest.mark.asyncio
+async def test_the_submit_read_timeout_covers_a_cold_start_but_not_the_ingress_cap(client, monkeypatch):
+    seen: list[httpx.Timeout] = []
+
+    class _Spy(_ScriptedClient):
+        def __init__(self, *a, timeout=None, **k) -> None:
+            seen.append(timeout)
+
+    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _Spy)
+    _ScriptedClient.script = [
+        _Resp(202, {"job_id": "j1"}),
+        _Resp(200, {"job_id": "j1", "status": "done", "response": TURN}),
+    ]
+    await client.chat("sys", _msgs(), timeout_s=600.0)
+    submit_read = seen[0].read
+    assert submit_read is not None and 169.0 < submit_read < 240.0
+
+
+@pytest.mark.asyncio
+async def test_a_submit_that_never_lands_within_the_turn_budget_is_runner_down(client, monkeypatch):
+    ticks = {"n": 0}
+
+    def _clock() -> float:  # start, submit_deadline, connect_deadline; después el reloj ya se pasó
+        ticks["n"] += 1
+        return 0.0 if ticks["n"] <= 3 else 1000.0
+
+    monkeypatch.setattr(mod.time, "monotonic", _clock)
+    _ScriptedClient.script = [httpx.ReadTimeout("nunca contestó")]
+    with pytest.raises(RunnerDownError, match="read timeout"):
+        await client.chat("sys", _msgs(), timeout_s=600.0)
+    assert [m for m, _ in _ScriptedClient.calls] == ["POST"]
+
+
+@pytest.mark.asyncio
 async def test_the_turn_budget_exhausted_fires_on_timeout_once_and_is_runner_down(client, monkeypatch):
     ticks = {"n": 0}
 
@@ -161,3 +216,18 @@ async def test_the_turn_budget_exhausted_fires_on_timeout_once_and_is_runner_dow
     with pytest.raises(RunnerDownError, match="unfinished"):
         await client.chat("sys", _msgs(), timeout_s=600.0, on_timeout=lambda: fired.append(1))
     assert fired == [1]
+
+
+@pytest.mark.asyncio
+async def test_a_given_job_id_travels_in_every_submit_and_names_the_poll(client):
+    """El gateway manda su turn_id como job_id: una reanudación del gateway
+    re-postea el MISMO job y el runner deduplica en vez de re-correr."""
+    _ScriptedClient.script = [
+        httpx.ReadTimeout("frío"),
+        _Resp(202, {"job_id": "j-given", "status": "running"}),
+        _Resp(200, {"job_id": "j-given", "status": "done", "response": TURN}),
+    ]
+    out = await client.chat("sys", _msgs(), job_id="j-given")
+    assert out.text == "Supremme de Luxe…"
+    assert {b.get("job_id") for b in _ScriptedClient.bodies} == {"j-given"}
+    assert "/v1/turn/jobs/j-given?wait_s=" in _ScriptedClient.calls[-1][1]

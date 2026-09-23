@@ -71,3 +71,45 @@ async def test_notice_that_cannot_be_posted_never_raises():
 def test_unknown_persona_still_gets_a_label():
     assert fallback.persona_label("nobody") == "nobody"
     assert fallback.persona_label(None) == "La persona"
+
+
+# --- el boleto del host (2026-09-23) ---------------------------------------------
+
+
+async def test_both_attempts_carry_a_turn_id_and_unreachable_reuses_it():
+    """Un gateway que se reinició no sabe qué pasó: el reintento lleva el MISMO id
+    para que su ledger conteste lo que ya entregó en vez de correr otro turno."""
+    summon = AsyncMock(side_effect=["unreachable", "delivered"])
+    say = AsyncMock()
+    outcome = await deliver_or_fallback({"reason": "r"}, say=say, summon=summon, **KW)
+    assert outcome == "delivered"
+    first, second = summon.await_args_list
+    assert first.kwargs["turn_id"] and first.kwargs["turn_id"] == second.kwargs["turn_id"]
+    say.assert_not_awaited()
+
+
+async def test_a_declared_failure_retries_under_a_fresh_turn_id():
+    summon = AsyncMock(side_effect=["failed", "delivered"])
+    say = AsyncMock()
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon, **KW)
+    first, second = summon.await_args_list
+    assert first.kwargs["turn_id"] and second.kwargs["turn_id"]
+    assert first.kwargs["turn_id"] != second.kwargs["turn_id"]
+
+
+async def test_uncertain_is_neither_retried_nor_covered_by_the_house():
+    summon = AsyncMock(return_value="uncertain")
+    say = AsyncMock()
+    outcome = await deliver_or_fallback({"reason": "r"}, say=say, summon=summon, **KW)
+    assert outcome == "uncertain"
+    summon.assert_awaited_once()
+    say.assert_not_awaited()
+
+
+async def test_uncertain_on_the_retry_stops_without_the_notice():
+    summon = AsyncMock(side_effect=["failed", "uncertain"])
+    say = AsyncMock()
+    outcome = await deliver_or_fallback({"reason": "r"}, say=say, summon=summon, **KW)
+    assert outcome == "uncertain"
+    assert summon.await_count == 2
+    say.assert_not_awaited()

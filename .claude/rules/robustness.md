@@ -66,10 +66,65 @@ recibe y el cliente pregunta por él en requests **cortas** (poll ≤ 50 s).
   servidores viejos, se borra ([[migrations-end-with-deletion]]).
 - `_MUTE_GRACE_SECONDS` (660 s) del `/health` va por encima del presupuesto: un
   turno vivo de 5 minutos no es una persona muda.
+- **El alta es idempotente y sobrevive el arranque en frío (2026-09-23, v4.39.6).**
+  El runner corre en `min=0`; el ingress acepta la conexión con cero réplicas y
+  **retiene el alta durante todo el arranque** (medido: 169 s desde el summon
+  hasta que el runner recibió el POST, con el proceso listo a los 86 s). Con un
+  read timeout de 60 s el gateway leía `ReadTimeout` → `RunnerDownError`, el host
+  reintentaba y se rendía a los ~135 s, y el ingress entregaba DESPUÉS los dos
+  POSTs encolados: dos turnos de Opus en frío que nadie leyó, y el host hablando
+  por la casa. Por eso el gateway manda un `job_id` propio en el alta
+  (`TurnRequest.job_id`) y el runner deduplica por él (`TicketRegistry.submit(…,
+  ticket_id=)` → `ticket_reused`); con eso el `ReadTimeout` del alta **sí** se
+  reintenta — con el MISMO id — mientras quede reloj del turno
+  (`agent_runner_client_submit_retry`), y el read timeout del alta es
+  `JOB_SUBMIT_READ_TIMEOUT_S = 200` (cubre el frío, bajo el techo del ingress).
+  Un `ReadTimeout` con un id NUEVO por intento volvería a ser el turno doble.
+
+### El boleto es DURABLE en las dos costuras (2026-09-23, v4.40.x)
+
+Un boleto que sólo vive en RAM convierte cada restart a media generación en un
+404 y un reintento ciego río arriba: se re-pregunta a AIRE, o —si el gateway ya
+había hecho `send_chunked`— sale una **segunda respuesta**. Por eso la misma
+clave viaja host→gateway→runner y aterriza en Postgres en los dos saltos que ya
+lo tienen (`khimeras_shared/tickets.py` + `invite_turns` en el gateway,
+`turn_jobs` en el runner):
+
+- **RAM es la dueña; la fila es el handoff entre procesos.** `TicketRegistry`
+  consulta la fila sólo cuando RAM no tiene el boleto: terminada → su resultado;
+  viva en otra réplica (latido fresco) → `running`; huérfana → **claim por
+  compare-and-swap** (exactamente un ganador) y reanudación bajo el mismo id.
+  Lease: latido cada 10 s, vencido a los 60, `MAX_ATTEMPTS=2`, `deadline_at` =
+  presupuesto del turno (600 s). Reloj de la base, nunca `time.time()`.
+- **El host acuña el `turn_id`** y lo reusa en su reintento SÓLO tras
+  `unreachable` (no sabe qué pasó); tras un `failed` declarado acuña otro.
+  Outcome `uncertain` = el gateway murió entre `sending` y `delivered`: ni
+  reintento ni aviso de la casa — `host_turn_uncertain` en rojo y se para.
+- **El gateway reanuda por ETAPA, nunca re-corre el turno:** `accepted →
+  runner_done → markers_done → sending → delivered`. Desde `runner_done` no
+  vuelve a llamar al runner; desde `markers_done` no repite marcadores; desde
+  `sending` NUNCA reenvía. `send_chunked` ya no levanta tras el primer chunk
+  enviado (devuelve los que salieron, `partial=true`), y el assistant se guarda
+  con `discord_message_id` del primer chunk (idempotente por el índice parcial).
+- **El runner reanuda re-preguntando** (fase A): `TurnRequest.resumed` no
+  re-pliega la historia y lleva la nota de `prompts_md/turn_resume_note.md`. Un
+  job con adjuntos es no-reanudable (no se persisten) → 502 `not_resumable` →
+  el host reintenta con id nuevo. Grace del runner: **600 s**
+  (`RUNNER_SHUTDOWN_DRAIN_S=570`, luego suelta las filas para la sucesora).
+  Fase B (AIRE `background:true` + reattach) en
+  `.claude/backlog/aire-background-turn-reattach.md`.
+- **Fail-soft:** cualquier fallo de Postgres degrada al contrato sólo-RAM (404 →
+  `unreachable` → reintento del host). Un 404 ya sólo significa "id desconocido
+  o Postgres inalcanzable".
 
 Tests que fijan la clase: `tests/shared/test_tickets.py`,
 `tests/agent/test_turn_jobs_api.py`, `tests/integration/test_agent_client_turn_jobs.py`,
-`tests/core/test_gateway_invite_ticket.py`, `tests/test_summon.py` (bloque boleto).
+`tests/core/test_gateway_invite_ticket.py`, `tests/test_summon.py` (bloque boleto);
+y para el ledger: `tests/agent/test_turn_ledger_pg.py`, `tests/core/test_invite_turns_pg.py`
+(Postgres real: CAS con un solo ganador, cierre/latido sólo del dueño),
+`tests/agent/test_runner_shutdown.py`, `tests/core/test_turn_delivery_ledger.py`
+(etapas, sin reenvío desde `sending`, envío parcial), `tests/test_invite_turns_repo.py`,
+`tests/agent/test_host_fallback.py` (turn_id reusado sólo tras `unreachable`, `uncertain`).
 
 ## LLM Resilience (historical lessons — the client died, the doctrine stands)
 

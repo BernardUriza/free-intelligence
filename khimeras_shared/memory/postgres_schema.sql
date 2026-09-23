@@ -458,3 +458,37 @@ CREATE INDEX IF NOT EXISTS idx_af_deleted_at ON agent_facts(deleted_at) WHERE de
 -- self-reflection survives deploys (an in-process timestamp resets on every
 -- revision — with daily deploys the "weekly" pass would fire daily).
 ALTER TABLE agents ADD COLUMN IF NOT EXISTS last_reflected_at DOUBLE PRECISION;
+
+-- ─── invite_turns ────────────────────────────────────────────────────────────
+-- MIGRATION v4.40.3 (2026-09-23): el boleto del gateway es DURABLE. La fila es el
+-- handoff entre réplicas (`khimeras_shared.tickets`): un gateway que muere a media
+-- entrega deja `running` con el latido viejo, la sucesora la reclama por CAS y
+-- entra en la ETAPA registrada (`stage`), nunca antes — un turno que ya envió no
+-- se vuelve a enviar. `stage_text` guarda el texto de la etapa (la respuesta del
+-- runner, o el texto tras los marcadores) para no volver a llamar al runner ni a
+-- los marcadores; `delivered_message_ids` son los mensajes de Discord que sí
+-- salieron, y con ellos la fila `assistant` de `messages` se vuelve idempotente.
+CREATE TABLE IF NOT EXISTS invite_turns (
+    turn_id               TEXT PRIMARY KEY,
+    label                 TEXT NOT NULL,
+    status                TEXT NOT NULL CHECK (status IN ('queued', 'running', 'done', 'failed', 'abandoned')),
+    attempts              INTEGER NOT NULL DEFAULT 1,
+    claimed_by            TEXT,
+    request               JSONB NOT NULL,
+    result                JSONB,
+    error                 TEXT,
+    stage                 TEXT NOT NULL DEFAULT 'accepted'
+                          CHECK (stage IN ('accepted', 'runner_done', 'markers_done', 'sending',
+                                           'delivered', 'empty', 'failed', 'uncertain', 'abandoned')),
+    stage_text            TEXT,
+    tail                  JSONB,
+    delivered_message_ids BIGINT[] NOT NULL DEFAULT '{}',
+    partial               BOOLEAN NOT NULL DEFAULT false,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    claimed_at            TIMESTAMPTZ,
+    heartbeat_at          TIMESTAMPTZ,
+    finished_at           TIMESTAMPTZ,
+    deadline_at           TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invite_turns_open
+    ON invite_turns (status, heartbeat_at) WHERE status IN ('queued', 'running');

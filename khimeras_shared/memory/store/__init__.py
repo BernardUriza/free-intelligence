@@ -31,6 +31,7 @@ from khimeras_shared.memory.repositories import (
     DisclosureRepository,
     FactsRepository,
     GuildConfigRepository,
+    InviteTurnsRepository,
     MessagesRepository,
     ProfilesRepository,
     RelationalStateRepository,
@@ -43,9 +44,10 @@ from khimeras_shared.memory.store.conversation import ConversationFacade
 from khimeras_shared.memory.store.governance import GovernanceFacade
 from khimeras_shared.memory.store.knowledge import KnowledgeFacade
 from khimeras_shared.memory.store.scheduling import SchedulingFacade
+from khimeras_shared.memory.store.turns import InviteTurnsFacade
 
 
-class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, GovernanceFacade):
+class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, GovernanceFacade, InviteTurnsFacade):
     """Facade over the domain repositories. Preserves the legacy API.
 
     Post-PG migration: takes a Postgres DSN. The container is stateless;
@@ -72,6 +74,7 @@ class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, Governa
         self._disclosure = DisclosureRepository(self._manager)
         self._guild_config = GuildConfigRepository(self._manager)
         self._serenityops = SerenityOpsRepository(self._manager)
+        self._invite_turns = InviteTurnsRepository(self._manager)
 
     # -- Lifecycle --
 

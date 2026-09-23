@@ -37,6 +37,14 @@ DOCS_ENABLED = os.environ.get("RUNNER_DOCS_ENABLED", "").strip().lower() in ("1"
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 
+# Boletos durables (engine/turn_jobs, 2026-09-23). `deadline` es el presupuesto
+# del turno del gateway (first_turn_timeout_s = 600): pasado eso nadie está
+# escuchando y una reanudación sólo quemaría tokens. `drain` es la espera de
+# shutdown por los jobs abiertos: grace de ACA (600) menos 30 s para cerrar
+# clientes y pool; al vencer, las filas se sueltan para la réplica sucesora.
+RUNNER_JOB_DEADLINE_S = float(os.environ.get("RUNNER_JOB_DEADLINE_S", "600"))
+RUNNER_SHUTDOWN_DRAIN_S = float(os.environ.get("RUNNER_SHUTDOWN_DRAIN_S", "570"))
+
 # The AIRE door mode persona turns ride. Only "agent" carries WebSearch/WebFetch
 # (server-side dial); verify_aire_route crashes the boot on anything else.
 AIRE_TURN_MODE = os.environ.get("AIRE_TURN_MODE", "agent").strip().lower()

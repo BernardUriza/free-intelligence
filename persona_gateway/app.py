@@ -94,6 +94,7 @@ def _serve_invite_api(
     boot: GatewayBootState,
     *,
     capture_signals: bool = True,
+    memory=None,
 ):
     """Return `(server, serve_coro)` for the ported /invite endpoint.
 
@@ -119,7 +120,7 @@ def _serve_invite_api(
         def capture_signals(self):
             yield
 
-    app = build_invite_app(personas, invite_token, boot)
+    app = build_invite_app(personas, invite_token, boot, memory=memory)
     server_cls = uvicorn.Server if capture_signals else _SignallessServer
     server = server_cls(
         uvicorn.Config(
@@ -156,6 +157,7 @@ class ShutdownController:
         self.timeout_s = timeout_s
         self.boot = boot
         self.server = None  # el servidor uvicorn, cableado después de construirlo
+        self.turn_tickets = None  # el registro de boletos del /invite, para soltar sus filas
         self.started = False
         self._task: asyncio.Task[None] | None = None
 
@@ -212,6 +214,11 @@ class ShutdownController:
     async def _close_everything(self) -> None:
         """Cierre real. Uvicorn primero (ya no le queda nada en vuelo tras el
         drenaje), y después cada sesión de Discord, aisladas entre sí."""
+        if self.turn_tickets is not None:
+            # Los boletos que el drenaje abandonó se sueltan en su fila para que
+            # la réplica sucesora los reanude sin esperar a que venza el latido.
+            with contextlib.suppress(Exception):
+                await self.turn_tickets.release_open()
         if self.server is not None:
             with contextlib.suppress(Exception):
                 self.server.should_exit = True
@@ -385,14 +392,19 @@ async def _main() -> None:
     # The HTTP server binds BEFORE Postgres and before any Discord login, so the
     # StartUp probe answers as soon as the process is alive. Until a persona
     # finishes on_ready, /health reports serving=false — honestly.
-    server, serve_coro = _serve_invite_api(personas, invite_token, boot, capture_signals=not owns_signals)
+    server, serve_coro = _serve_invite_api(
+        personas, invite_token, boot, capture_signals=not owns_signals, memory=memory
+    )
     shutdown.server = server
+    invite_app = getattr(getattr(server, "config", None), "app", None)
+    shutdown.turn_tickets = getattr(getattr(invite_app, "state", None), "turn_tickets", None)
     api_task = asyncio.create_task(serve_coro, name="invite-api")
     if await _wait_until_bound(server):
         log.info("persona_gateway_api_bound", port=8788)
 
     await _connect_memory(memory, boot)
     await _check_corpus_embed(personas)
+    resume_task = asyncio.create_task(_resume_stale_invites(invite_app, personas), name="invite-resume")
 
     persona_tasks = [
         asyncio.create_task(
@@ -411,9 +423,25 @@ async def _main() -> None:
         else:
             log.error("persona_gateway_all_personas_down", personas=sorted(personas))
     finally:
+        resume_task.cancel()
         api_task.cancel()
-        await asyncio.gather(api_task, return_exceptions=True)
+        await asyncio.gather(api_task, resume_task, return_exceptions=True)
         await memory.close()
+
+
+async def _resume_stale_invites(app, personas: dict[str, PersonaClient], *, ready_wait_s: float = 120.0) -> None:
+    """Boot: en cuanto una persona esté lista, reclama los turnos huérfanos de la
+    réplica anterior. Best-effort — nunca bloquea el boot ni lo tumba."""
+    deadline = time.monotonic() + ready_wait_s
+    while time.monotonic() < deadline and not any(getattr(c, "user", None) is not None for c in personas.values()):
+        await asyncio.sleep(2.0)
+    resume = getattr(getattr(app, "state", None), "resume_stale_turns", None)
+    if resume is None:
+        return
+    try:
+        await resume()
+    except Exception:
+        log.warning("persona_gateway_boot_resume_failed", exc_info=True)
 
 
 def run() -> None:
