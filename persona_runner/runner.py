@@ -22,6 +22,7 @@ infra/azure/entrypoint.sh), so the container never noticed the surgery.
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 import structlog
@@ -54,7 +55,7 @@ async def _lifespan(app: FastAPI):
     # is a fake-green. Assert the route that will ACTUALLY serve turns and crash
     # startup LOUDLY when it is wrong — the container fails to come up instead of
     # silently deflecting every factual question (2026-06-14).
-    from persona_runner.engine import aire_route
+    from persona_runner.engine import aire_route, turn_jobs
 
     aire_route.verify_aire_route()
     log.info(
@@ -63,9 +64,19 @@ async def _lifespan(app: FastAPI):
         required=list(aire_route.AIRE_REQUIRED_TOOLS),
         mode=config.AIRE_TURN_MODE,
     )
+    # Boletos durables: el latido mantiene vivas nuestras filas, y la réplica
+    # anterior pudo dejar jobs huérfanos que se reanudan en background — nunca
+    # bloquea el boot, un ledger caído sólo lo loggea.
+    turn_jobs.JOBS.start_heartbeat()
+    boot_resume = asyncio.create_task(turn_jobs.resume_stale_at_boot(aire_route.turn_via_aire))
 
     yield
 
+    # Drenar ANTES de cerrar los clientes de AIRE y el pool: los jobs abiertos
+    # los usan. Al vencer la espera, sus filas se sueltan para la sucesora.
+    boot_resume.cancel()
+    await turn_jobs.drain_for_shutdown(config.RUNNER_SHUTDOWN_DRAIN_S)
+    await turn_jobs.JOBS.stop_heartbeat()
     # Every AIREBackend holds a pooled httpx.AsyncClient — turn backends and
     # judge backends alike get their connections and TLS sessions closed.
     await aire_route.close_backends()

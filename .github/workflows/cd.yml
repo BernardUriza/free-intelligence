@@ -334,8 +334,15 @@ jobs:
         if: ${{ needs.detect.outputs.build_runner == 'true' }}
         continue-on-error: true
         run: |
+          # --termination-grace-period 600: el lifespan espera los jobs abiertos hasta
+          # RUNNER_SHUTDOWN_DRAIN_S (570) y suelta sus filas al vencer; el ledger
+          # `turn_jobs` hace SEGURO un grace largo (la réplica vieja termina y entrega
+          # por la fila mientras la nueva contesta `running`), y ÚTIL (un turno de
+          # 330 s termina en vez de re-preguntarse a AIRE). Techo = presupuesto del
+          # turno del gateway (first_turn_timeout_s = 600).
           az containerapp update --name persona-runner --resource-group "$RG" \
-            --image "$REGISTRY/persona-runner:${{ env.NEW_SHA }}"
+            --image "$REGISTRY/persona-runner:${{ env.NEW_SHA }}" \
+            --termination-grace-period 600
 
       - name: Deploy khimeras-host
         # Dormant until Bernard provisions the `khimeras-host` Container App + its

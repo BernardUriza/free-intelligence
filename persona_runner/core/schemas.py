@@ -52,6 +52,9 @@ class TurnRequest(BaseModel):
     # Boleto elegido por el cliente para `/v1/turn/jobs`: la misma alta dos veces
     # es UN turno, así que un alta perdida en un arranque en frío se puede repetir.
     job_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    # Sólo lo pone el runner al reanudar un job huérfano (engine/turn_jobs): la
+    # historia ya cruzó a AIRE, no se vuelve a plegar, y va la nota de reintento.
+    resumed: bool = False
 
 
 class TurnResponse(BaseModel):

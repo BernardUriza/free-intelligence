@@ -58,6 +58,7 @@ from fastapi import HTTPException
 from fi_runner import AIREBackend
 from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage
 
+from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
 from persona_runner.engine import aire_principal, aire_topic, auth_failure
@@ -475,6 +476,19 @@ def log_topic_decision(casita: str, claim: aire_topic.TopicClaim) -> None:
         )
 
 
+_RESUME_PROMPT_CACHE: PromptCache = {}
+
+
+def resume_note() -> str:
+    return load_prompt(SHARED_PROMPTS_DIR, "turn_resume_note", _RESUME_PROMPT_CACHE)
+
+
+async def turn_ledger_mark_sent(job_id: str) -> None:
+    from persona_runner.engine import turn_jobs
+
+    await turn_jobs.LEDGER.mark_aire_sent(job_id)
+
+
 async def turn_via_aire(req: TurnRequest) -> TurnResponse:
     """One persona turn through AIRE's engine door.
 
@@ -503,7 +517,15 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     # outlives many sessions.
     claim = await aire_topic.claim(casita, state.topic)
     log_topic_decision(casita, claim)
-    is_first_turn = claim.needs_fold
+    # Un turno REANUDADO (el runner anterior murió a media generación) ya cruzó
+    # a AIRE una vez: la historia no se vuelve a plegar y la guía lleva la nota
+    # de reintento, para que el modelo repita en vez de comentar el corte.
+    is_first_turn = claim.needs_fold and not req.resumed
+    guidance = req.behavioral_guidance
+    if req.resumed:
+        note = resume_note()
+        guidance = f"{guidance}\n\n{note}" if guidance else note
+        log.warning("aire_route_turn_resumed", casita=casita, topic=claim.topic_id, job_id=req.job_id)
 
     model, route_meta = await route_model(req.channel_id, req.user_id, req.user_text)
     memory_block = await fetch_user_facts(req.user_id)
@@ -511,7 +533,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         channel_id=req.channel_id,
         user_id=req.user_id,
         user_text=req.user_text,
-        behavioral_guidance=req.behavioral_guidance,
+        behavioral_guidance=guidance,
         history_block=fold_history(req.history) if is_first_turn else "",
         memory_block=memory_block,
     )
@@ -548,6 +570,10 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
 
     token = _chat_casita.set(casita)
     try:
+        if req.job_id:
+            # La fila sabe desde aquí que el mensaje cruzó (o va a cruzar) a
+            # AIRE: una reanudación posterior no vuelve a plegar la historia.
+            await turn_ledger_mark_sent(req.job_id)
         try:
             result = await send_turn()
         except BackendError as first:
