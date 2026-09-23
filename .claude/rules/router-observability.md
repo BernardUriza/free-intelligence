@@ -101,8 +101,9 @@ fallar no prueba nada*). Tres casos reales, todos el mismo día:
 
 El arnés que cierra la clase es `tests/arch/test_routing_prompt_promises_are_kept.py`:
 si el prompt promete algo (un bloque de contexto, un target válido), el código tiene que proveerlo o consumirlo, demostrable en CI. Es
-primo de `test_every_counted_event_has_a_live_emitter` (contadores oyendo eventos
-sin emisor) y de [[migrations-end-with-deletion]]: **la promesa sobrevive al
+primo de `tests/arch/test_every_counted_event_has_a_live_emitter.py` (contadores
+oyendo eventos sin emisor — escrito en el #77: deriva los eventos de sus
+consumidores, estos scripts y estas reglas incluidos) y de [[migrations-end-with-deletion]]: **la promesa sobrevive al
 mecanismo que la cumplía, y nadie se entera porque nada se pone rojo.**
 
 ## El eval offline mide el ruteo sin esperar tráfico

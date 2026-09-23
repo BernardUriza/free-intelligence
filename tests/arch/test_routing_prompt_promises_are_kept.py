@@ -19,8 +19,8 @@ solo día, todas en el mismo prompt (`demux_ai/prompts/host_routing.md`):
 
 Ninguna de las tres se veía en producción: el log decía `llm_insult` (clean
 match) en cada turno, que se lee como salud. Son primas del arnés
-`test_every_counted_event_has_a_live_emitter` (contadores escuchando eventos sin
-emisor) y de [[migrations-end-with-deletion]]: la promesa sobrevive al mecanismo
+`tests/arch/test_every_counted_event_has_a_live_emitter.py` (contadores
+escuchando eventos sin emisor) y de [[migrations-end-with-deletion]]: la promesa sobrevive al mecanismo
 que la cumplía, y nadie se entera porque nada se pone rojo.
 
 Este arnés cierra la clase: si el prompt lo pide, el código lo provee o lo

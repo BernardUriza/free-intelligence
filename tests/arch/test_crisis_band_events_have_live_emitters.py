@@ -25,10 +25,12 @@ corre en una máquina sin fi-core instalado — la de Álex incluida, que es qui
 tiene que poder verificar la parte que guarda datos de personas reales en
 crisis.
 
-Es el arnés que `tests/arch/test_routing_prompt_promises_are_kept.py` lleva
-citando como su primo bajo el nombre `test_every_counted_event_has_a_live_emitter`
-sin que nadie lo escribiera. Éste cubre los dos eventos del #54, no la familia
-entera: el guardián completo sigue pendiente y sigue siendo decisión de Álex.
+Éste cubre los dos eventos del #54, no la familia entera. El guardián completo
+ya existe y lo envuelve: `tests/arch/test_every_counted_event_has_a_live_emitter.py`
+(issue #77), que deriva los eventos de sus consumidores en vez de listarlos.
+Este arnés se queda porque llega más lejos en los dos eventos que cuida: además
+de que exista el emisor, verifica que llamarlo produzca ESE nombre y que el
+camino del turno lo llame de verdad.
 """
 
 from __future__ import annotations
