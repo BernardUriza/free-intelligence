@@ -26,7 +26,6 @@ commands/immediate-orchestrator.md
 commands/insult.md
 commands/kill-zombies.md
 commands/logo-factory.md
-commands/modify-command.md
 commands/psalm-reader.md
 commands/purge-github.md
 commands/refresh-memory.md
@@ -35,7 +34,6 @@ commands/save-context.md
 commands/schizo-modernizer.md
 commands/submissive-modularizer.md
 commands/susurramelo.md
-commands/sync-commands.md
 commands/sync-rules.md
 commands/ultra-lord.md
 commands/ux-polish.md
