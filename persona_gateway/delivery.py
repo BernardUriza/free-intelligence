@@ -20,9 +20,12 @@ import re
 from collections import OrderedDict
 
 import discord
+import structlog
 
 from khimeras_shared.version import VERSION_TAG
 from shared.text import split_response
+
+log = structlog.get_logger()
 
 DISCORD_LIMIT = 1990  # leave headroom under Discord's 2000-char message cap
 DISCORD_HARD_CAP = 2000  # Discord's absolute per-message limit
@@ -105,18 +108,34 @@ async def send_chunked(channel: discord.abc.Messageable, text: str) -> list[disc
     """
     parts = split_response(text or "")
     if not parts:
-        return []
+        return Delivered()
     full = "\n".join(parts)
     groups = [chunk(part) for part in parts]
     groups[-1] = tag_pieces(groups[-1])
-    sent: list[discord.Message] = []
+    sent = Delivered()
     for index, group in enumerate(groups):
         if index:
             await asyncio.sleep(_pacing_delay(group[0]))
         for piece in group:
-            message = await channel.send(piece)
+            try:
+                message = await channel.send(piece)
+            except Exception:
+                # Nunca levantar después del primer chunk enviado: el usuario YA
+                # vio algo, y un "failed" aquí hacía que el host reintentara el
+                # turno entero — la segunda respuesta debajo de la primera.
+                if not sent:
+                    raise
+                sent.partial = True
+                log.error("persona_gateway_send_partial", sent=len(sent), pending=len(piece), exc_info=True)
+                return sent
             sent.append(message)
             message_id = getattr(message, "id", None)
             if isinstance(message_id, int):
                 _remember_full_text(message_id, full)
     return sent
+
+
+class Delivered(list):
+    """Los mensajes que sí salieron. `partial` = el envío se cortó a medias."""
+
+    partial: bool = False

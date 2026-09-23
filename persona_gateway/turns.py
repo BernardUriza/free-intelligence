@@ -18,6 +18,7 @@ from khimeras_shared.gifs import resolve_gifs, strip_gif_markers
 from khimeras_shared.memory import MemoryStore
 from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
 from khimeras_shared.runner.agent_client import AgentRunnerClient
+from khimeras_shared.tickets import LedgerRow
 from persona_gateway.delivery import send_chunked
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.voice import VoiceService
@@ -66,6 +67,8 @@ class TurnRunner:
         behavioral_guidance: str | None = None,
         other_people: str | None = None,
         relevant_memory: str | None = None,
+        turn_id: str | None = None,
+        resume_from: LedgerRow | None = None,
     ) -> bool:
         """Shared tail for mention + invite: runner call → react → markers → send.
 
@@ -79,69 +82,98 @@ class TurnRunner:
         `async with channel.typing()` (blocks on __aenter__, vulnerable to 429
         killing the turn before the runner runs — anti-pattern #1): a short task
         that re-triggers typing every ~9s until the stop_event is set.
+
+        Con `turn_id` cada etapa queda en la fila del boleto (`invite_turns`):
+        `runner_done` (la respuesta), `markers_done` (el texto tras los
+        marcadores), `sending`, `delivered` (los ids de Discord). Con
+        `resume_from` la réplica que reanuda ENTRA en la etapa registrada, nunca
+        antes: un turno que ya pasó por el runner no lo vuelve a llamar, uno que
+        ya enrutó marcadores no los repite. La etapa `sending` no se reanuda aquí
+        (`dispatch_invite` la declara `uncertain`): nadie sabe si el primer chunk
+        aterrizó, y reenviar es la única forma de dar dos respuestas.
         """
-        _typing_stop = asyncio.Event()
-
-        async def _typing_keepalive() -> None:
-            while not _typing_stop.is_set():
-                with contextlib.suppress(discord.HTTPException):
-                    async with channel.typing():
-                        with contextlib.suppress(TimeoutError):
-                            await asyncio.wait_for(_typing_stop.wait(), timeout=TYPING_REFRESH_SECONDS)
-                    if _typing_stop.is_set():
-                        break
-
-        _typing_task = asyncio.create_task(_typing_keepalive())
-        try:
-            resp = await self.agent_client.chat(
-                "",  # system_prompt ignored by the runner
-                messages,
-                channel_id=channel_id,
-                user_id=user_id,
+        stage = (resume_from.extra.get("stage") if resume_from is not None else None) or "accepted"
+        tail: dict = (resume_from.extra.get("tail") if resume_from is not None else None) or {}
+        if stage in ("runner_done", "markers_done"):
+            text = (resume_from.extra.get("stage_text") or "").strip()  # type: ignore[union-attr]
+            model_used = tail.get("model_used")
+            log.warning(
+                "persona_gateway_turn_resumed",
                 persona_id=self.persona.persona_id,
-                behavioral_guidance=behavioral_guidance,
-                other_people=other_people,
-                relevant_memory=relevant_memory,
+                channel_id=channel_id,
+                turn_id=turn_id,
+                stage=stage,
+                attempt=resume_from.attempts if resume_from is not None else None,
             )
-        finally:
-            _typing_stop.set()
-            _typing_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await _typing_task
+        else:
+            _typing_stop = asyncio.Event()
 
-        text = (resp.text or "").strip()
+            async def _typing_keepalive() -> None:
+                while not _typing_stop.is_set():
+                    with contextlib.suppress(discord.HTTPException):
+                        async with channel.typing():
+                            with contextlib.suppress(TimeoutError):
+                                await asyncio.wait_for(_typing_stop.wait(), timeout=TYPING_REFRESH_SECONDS)
+                        if _typing_stop.is_set():
+                            break
+
+            _typing_task = asyncio.create_task(_typing_keepalive())
+            try:
+                resp = await self.agent_client.chat(
+                    "",  # system_prompt ignored by the runner
+                    messages,
+                    channel_id=channel_id,
+                    user_id=user_id,
+                    persona_id=self.persona.persona_id,
+                    behavioral_guidance=behavioral_guidance,
+                    other_people=other_people,
+                    relevant_memory=relevant_memory,
+                    job_id=turn_id,
+                )
+            finally:
+                _typing_stop.set()
+                _typing_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await _typing_task
+
+            text = (resp.text or "").strip()
+            model_used = getattr(resp, "model_used", None)
+            await self._advance(turn_id, "runner_done", text=text, tail={"model_used": model_used, "user_id": user_id})
+
         raw_had_text = bool(text)
         reacted = False
 
-        # Reactions FIRST (they need the live `react_to` message and the
-        # module-level `add_reactions` the tests monkeypatch).
-        reactions = parse_reactions(text)
-        if reactions:
-            text = strip_reactions(text)
-            if react_to is not None:
-                task = asyncio.create_task(add_reactions(react_to, reactions))
-                self._bg_tasks.add(task)
-                task.add_done_callback(self._bg_tasks.discard)
-                reacted = True
-                log.info(
-                    "persona_gateway_reactions_fired",
-                    persona_id=self.persona.persona_id,
-                    emojis=reactions,
-                    turn_kind=turn_kind,
-                )
-            else:
-                log.warning(
-                    "persona_gateway_reactions_dropped_no_target",
-                    persona_id=self.persona.persona_id,
-                    emojis=reactions,
-                    turn_kind=turn_kind,
-                )
+        if stage != "markers_done":
+            # Reactions FIRST (they need the live `react_to` message and the
+            # module-level `add_reactions` the tests monkeypatch).
+            reactions = parse_reactions(text)
+            if reactions:
+                text = strip_reactions(text)
+                if react_to is not None:
+                    task = asyncio.create_task(add_reactions(react_to, reactions))
+                    self._bg_tasks.add(task)
+                    task.add_done_callback(self._bg_tasks.discard)
+                    reacted = True
+                    log.info(
+                        "persona_gateway_reactions_fired",
+                        persona_id=self.persona.persona_id,
+                        emojis=reactions,
+                        turn_kind=turn_kind,
+                    )
+                else:
+                    log.warning(
+                        "persona_gateway_reactions_dropped_no_target",
+                        persona_id=self.persona.persona_id,
+                        emojis=reactions,
+                        turn_kind=turn_kind,
+                    )
 
-        # Durable markers (research/agenda/remind/remember): persist the side
-        # effects and strip them so only the in-character ack reaches Discord.
-        text = await self._markers.route(
-            text, channel_id=channel_id, guild_id=guild_id, user_id=user_id, bot_user_id=bot_user_id
-        )
+            # Durable markers (research/agenda/remind/remember): persist the side
+            # effects and strip them so only the in-character ack reaches Discord.
+            text = await self._markers.route(
+                text, channel_id=channel_id, guild_id=guild_id, user_id=user_id, bot_user_id=bot_user_id
+            )
+            await self._advance(turn_id, "markers_done", text=text)
         # `[GIF: tag]` resolves against the persona's OWN catalog. Parsed BEFORE
         # the empty-text return so a reply that is only a GIF still posts it.
         gif_urls = resolve_gifs(self.persona.persona_id, text)
@@ -161,15 +193,21 @@ class TurnRunner:
             )
             return reacted
 
+        await self._advance(turn_id, "sending")
+        sent: list[discord.Message] = []
         if text:
-            await send_chunked(channel, text)
+            sent = await send_chunked(channel, text)
         await self._send_gifs(channel, gif_urls, turn_kind=turn_kind)
+        # La entrega queda en la fila ANTES del store: una réplica que reanude
+        # después de esto lee `delivered` y no vuelve a enviar.
+        await self._record_delivered(turn_id, sent)
         if not text:
             return True
 
         # What was actually said in Discord is the delimiter-free text — memory
         # and voice never see the `[SEND]` pacing marker.
         delivered = "\n".join(split_response(text))
+        first_id = getattr(sent[0], "id", None) if sent else None
         # Everything past this line happens AFTER the user saw the reply. A fault
         # here is not a failed turn — reporting it as one makes the host retry a
         # turn that already landed (a second answer to the same ask) and, before
@@ -185,7 +223,10 @@ class TurnRunner:
                 for_user_id=user_id,
                 guild_id=guild_id,
                 channel_name=channel_name,
-                model_used=getattr(resp, "model_used", None),
+                model_used=model_used,
+                # El id del primer chunk hace la fila idempotente: una reanudación
+                # que ya no envía nada tampoco duplica el assistant en `messages`.
+                discord_message_id=str(first_id) if isinstance(first_id, int) else None,
             )
         except Exception:
             log.exception(
@@ -215,6 +256,27 @@ class TurnRunner:
                 )
 
         return True
+
+    async def _advance(
+        self, turn_id: str | None, stage: str, *, text: str | None = None, tail: dict | None = None
+    ) -> None:
+        if turn_id is None:
+            return
+        try:
+            await self.memory.advance_invite_turn(turn_id, stage, text=text, tail=tail)
+        except Exception:
+            log.warning("persona_gateway_turn_stage_failed", turn_id=turn_id, stage=stage, exc_info=True)
+
+    async def _record_delivered(self, turn_id: str | None, sent: list[discord.Message]) -> None:
+        if turn_id is None:
+            return
+        ids = [m.id for m in sent if isinstance(getattr(m, "id", None), int)]
+        partial = bool(getattr(sent, "partial", False))
+        try:
+            await self.memory.mark_invite_turn_delivered(turn_id, ids, partial=partial)
+            log.info("persona_gateway_turn_delivered_recorded", turn_id=turn_id, messages=len(ids), partial=partial)
+        except Exception:
+            log.warning("persona_gateway_turn_delivery_record_failed", turn_id=turn_id, exc_info=True)
 
     async def _send_gifs(self, channel, urls: list[str], *, turn_kind: str) -> None:
         """Post each GIF as its OWN bare message — no version tag, no chunking.

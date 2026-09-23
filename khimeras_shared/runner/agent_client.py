@@ -245,6 +245,7 @@ class AgentRunnerClient:
         relevant_memory: str | None = None,
         other_people: str | None = None,
         persona_id: str | None = None,
+        job_id: str | None = None,
     ) -> LLMResponse:
         _ = (system_prompt, tools, max_tokens, cache_breakpoints, tool_choice, model, fallback_model)
 
@@ -300,7 +301,9 @@ class AgentRunnerClient:
         if prefix_blocks:
             effective_user_text = "\n\n".join([*prefix_blocks, effective_user_text])
 
-        job_id = uuid.uuid4().hex
+        # Un job_id dado (el turn_id del gateway) hace que una reanudación del
+        # gateway re-postee el MISMO job: el runner deduplica en vez de re-correr.
+        job_id = job_id or uuid.uuid4().hex
         payload: dict[str, Any] = {
             "channel_id": channel_id or "0",
             "user_id": user_id or "0",

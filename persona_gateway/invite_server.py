@@ -42,8 +42,14 @@ corre en una task del gateway y el host pregunta por su boleto en requests corta
 
     → 202 Accepted  { "status": "running", "channel_id": "...", "turn_id": "..." }
     GET /invite/turns/{turn_id}?wait_s=45
-    → 200 OK        { "status": "running" | "delivered" | "empty" | "failed", ... }
-    → 404           el gateway se reinició con el turno adentro
+    → 200 OK        { "status": "running" | "delivered" | "empty" | "failed" | "uncertain", ... }
+    → 404           id desconocido (o Postgres inalcanzable tras un reinicio)
+
+El boleto es DURABLE (2026-09-23, `invite_turns`): el host manda su propio
+``turn_id`` y la misma alta dos veces es UN turno; un gateway reiniciado
+contesta desde la fila lo que ya entregó (`delivered`) en vez de dejar que el
+host provoque una segunda respuesta, y reanuda un turno huérfano en la ETAPA
+donde quedó. `uncertain` = murió entre "enviando" y "entregado".
 """
 
 from __future__ import annotations
@@ -51,19 +57,24 @@ from __future__ import annotations
 import asyncio
 import hmac
 import time
-from typing import TYPE_CHECKING
+import uuid
+from collections.abc import Coroutine
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from fastapi import FastAPI, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from khimeras_shared.tickets import MAX_WAIT_S, TicketRegistry
+from khimeras_shared import tickets
+from khimeras_shared.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
 from persona_gateway.boot import GatewayBootState
+from persona_gateway.config import CONFIG
 from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID
 
 if TYPE_CHECKING:
-    from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID
+    from khimeras_shared.memory import MemoryStore
 from persona_gateway.gateway import PersonaClient
 
 log = structlog.get_logger()
@@ -79,6 +90,8 @@ INVITE_PERSONA_ID = DEFAULT_INVITE_PERSONA_ID
 # `first_turn_timeout_s` (600 s desde 2026-09-19, vía boleto); el margen va por
 # encima para que un turno vivo nunca se lea como mudez.
 _MUTE_GRACE_SECONDS = 660.0
+
+BOOT_RESUME_LIMIT = 10
 
 
 class InviteRequest(BaseModel):
@@ -131,6 +144,15 @@ class InviteRequest(BaseModel):
             "GET /invite/turns/{turn_id}. The turn's length stops being a request's length."
         ),
     )
+    turn_id: str | None = Field(
+        default=None,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_-]+$",
+        description=(
+            "Boleto elegido por el caller (el host). La misma alta dos veces es UN turno; "
+            "tras un reinicio el gateway contesta desde su fila lo que ya pasó."
+        ),
+    )
 
 
 class InviteResponse(BaseModel):
@@ -140,20 +162,46 @@ class InviteResponse(BaseModel):
     turn_id: str | None = None
 
 
+def _outcome_of(row: LedgerRow) -> str:
+    if row.status == "done":
+        result = row.result or {}
+        outcome = result.get("outcome") if isinstance(result, dict) else None
+        return str(outcome or "failed")
+    return "failed"
+
+
 def build_invite_app(
     personas: dict[str, PersonaClient],
     expected_token: str,
     boot: GatewayBootState | None = None,
+    memory: MemoryStore | None = None,
 ) -> FastAPI:
     """Wire FastAPI with bearer auth + the /invite handler.
 
     `personas` is the live persona_id → PersonaClient registry the gateway builds
     in `_main`; the handler routes the invite to `INVITE_PERSONA_ID`'s client.
-    `boot` carries the shared boot signals `/health` reports honestly.
+    `boot` carries the shared boot signals `/health` reports honestly. `memory`
+    aporta la fila del boleto (`invite_turns`); sin él el boleto vive sólo en RAM.
     """
-    app = FastAPI(title="Persona Gateway Invite API", version="1.0.0")
+    ledger = memory.invite_turn_ledger if memory is not None else None
+    registry: TicketRegistry[str] = TicketRegistry(
+        "invite-turn",
+        ledger=ledger,
+        encode=lambda outcome: {"outcome": outcome},
+        decode=lambda data: str(data.get("outcome", "failed")),
+    )
+
+    @asynccontextmanager
+    async def _lifespan(_app: FastAPI):
+        registry.start_heartbeat()
+        try:
+            yield
+        finally:
+            await registry.stop_heartbeat()
+
+    app = FastAPI(title="Persona Gateway Invite API", version="1.0.0", lifespan=_lifespan)
     app.state.background_tasks = set()
-    app.state.turn_tickets = TicketRegistry[str]("invite-turn")
+    app.state.turn_tickets = registry
     state = boot if boot is not None else GatewayBootState()
 
     def _ready_personas() -> list[str]:
@@ -162,6 +210,73 @@ def build_invite_app(
             for persona_id, client in personas.items()
             if getattr(client, "user", None) is not None and not state.is_down(persona_id)
         )
+
+    async def _run_invite(payload: dict[str, Any], turn_id: str, resume_from: LedgerRow | None = None) -> str:
+        """El turno detrás del boleto: el mismo `dispatch_invite` para el alta y
+        para la reanudación (la fila trae la etapa donde quedó)."""
+        persona_id = payload.get("persona_id") or INVITE_PERSONA_ID
+        client = personas.get(persona_id)
+        if client is None or getattr(client, "user", None) is None:
+            log.error(
+                "persona_gateway_invite_resume_deferred"
+                if resume_from is not None
+                else "persona_gateway_invite_persona_not_ready",
+                persona_id=persona_id,
+                turn_id=turn_id,
+            )
+            return "failed"
+        return await client.dispatch_invite(
+            channel_id=payload["channel_id"],
+            guild_id=payload.get("guild_id"),
+            channel_name=payload.get("channel_name"),
+            reason=payload["reason"],
+            invited_by=payload.get("invited_by") or "insult_rest",
+            trigger_message_id=payload.get("trigger_message_id"),
+            trigger_transcript=payload.get("trigger_transcript") or "",
+            fallback=False,
+            turn_id=turn_id,
+            resume_from=resume_from,
+        )
+
+    def _resume(row: LedgerRow) -> Coroutine[Any, Any, str]:
+        log.warning(
+            "persona_gateway_invite_turn_resumed",
+            turn_id=row.ticket_id,
+            channel_id=row.extra.get("label"),
+            stage=row.extra.get("stage"),
+            attempts=row.attempts,
+        )
+        return _run_invite(row.payload, row.ticket_id, resume_from=row)
+
+    async def _resume_stale() -> int:
+        """Boot: reclama los turnos que la réplica anterior dejó huérfanos y
+        nadie está polleando (el host también pudo reiniciarse)."""
+        if memory is None:
+            return 0
+        ids = await memory.stale_invite_turn_ids(
+            stale_s=tickets.STALE_S, max_attempts=tickets.MAX_ATTEMPTS, limit=BOOT_RESUME_LIMIT
+        )
+        if not ids:
+            return 0
+        resumed = 0
+        for turn_id in ids:
+            got = await registry.lookup(turn_id, resume=_resume)
+            if isinstance(got, Ticket):
+                resumed += 1
+        log.info("persona_gateway_boot_resumed_turns", found=len(ids), resumed=resumed)
+        return resumed
+
+    app.state.resume_stale_turns = _resume_stale
+
+    def _check_bearer(authorization: str | None) -> None:
+        if not expected_token:
+            log.error("persona_gateway_invite_no_token_configured")
+            raise HTTPException(status_code=503, detail="Invite endpoint not configured (missing token).")
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+        provided = authorization[len("Bearer ") :]
+        if not hmac.compare_digest(provided, expected_token):
+            raise HTTPException(status_code=401, detail="Invalid token")
 
     @app.get("/health")
     async def health() -> dict[str, object]:
@@ -207,21 +322,14 @@ def build_invite_app(
             # The anti-boot-zombie signal: serving:true is NOT proof of answering.
             "liveness": liveness,
             "mute_suspected": sorted(mute_suspected),
+            "durable_tickets": ledger is not None,
         }
 
     @app.post("/invite", response_model=InviteResponse, status_code=status.HTTP_202_ACCEPTED)
     async def invite(
         req: InviteRequest, authorization: str | None = Header(default=None)
     ) -> InviteResponse | JSONResponse:
-        if not expected_token:
-            log.error("persona_gateway_invite_no_token_configured")
-            raise HTTPException(status_code=503, detail="Invite endpoint not configured (missing token).")
-
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing bearer token")
-        provided = authorization[len("Bearer ") :]
-        if not hmac.compare_digest(provided, expected_token):
-            raise HTTPException(status_code=401, detail="Invalid token")
+        _check_bearer(authorization)
 
         persona_id = req.persona_id or INVITE_PERSONA_ID
         client = personas.get(persona_id)
@@ -239,27 +347,41 @@ def build_invite_app(
         if req.wait and req.ticket:
             # El turno corre aquí; el host pregunta por el boleto. El turno
             # sigue siendo del host (fallback=False): el gateway no pone "…".
-            ticket = app.state.turn_tickets.submit(
-                client.dispatch_invite(
-                    channel_id=req.channel_id,
-                    guild_id=req.guild_id,
-                    channel_name=req.channel_name,
-                    reason=req.reason,
-                    invited_by=req.invited_by or "insult_rest",
-                    trigger_message_id=req.trigger_message_id,
-                    trigger_transcript=req.trigger_transcript,
-                    fallback=False,
-                ),
+            turn_id = req.turn_id or uuid.uuid4().hex
+            payload = req.model_dump(exclude={"wait", "ticket", "turn_id"})
+            payload["persona_id"] = persona_id
+            got = await registry.open_durable(
+                payload,
+                lambda data: _run_invite(data, turn_id),
+                ticket_id=turn_id,
                 label=req.channel_id,
+                deadline_s=CONFIG.first_turn_timeout_s,
+                resume=_resume,
             )
+            if isinstance(got, LedgerRow):
+                if got.terminal:
+                    outcome = _outcome_of(got)
+                    log.info(
+                        "persona_gateway_invite_terminal_from_ledger",
+                        persona_id=persona_id,
+                        channel_id=req.channel_id,
+                        turn_id=turn_id,
+                        outcome=outcome,
+                    )
+                    code = status.HTTP_502_BAD_GATEWAY if outcome == "failed" else status.HTTP_200_OK
+                    body = InviteResponse(status=outcome, channel_id=req.channel_id, turn_id=turn_id)
+                    return JSONResponse(status_code=code, content=body.model_dump())
+                return InviteResponse(status="running", channel_id=req.channel_id, turn_id=turn_id)
             log.info(
                 "persona_gateway_invite_ticketed",
                 persona_id=persona_id,
                 channel_id=req.channel_id,
                 invited_by=req.invited_by or "insult_rest",
-                turn_id=ticket.ticket_id,
+                turn_id=got.ticket_id,
+                client_turn_id=req.turn_id is not None,
+                attempt=got.attempt,
             )
-            return InviteResponse(status="running", channel_id=req.channel_id, turn_id=ticket.ticket_id)
+            return InviteResponse(status="running", channel_id=req.channel_id, turn_id=got.ticket_id)
 
         if req.wait:
             # The caller owns the outcome — so it gets the outcome, not a receipt
@@ -317,34 +439,45 @@ def build_invite_app(
     ) -> InviteResponse:
         """Long-poll acotado del boleto de un `/invite` con ticket.
 
-        Un `dispatch_invite` nunca levanta — devuelve "failed" — así que aquí
-        no hay excepción que mapear: el outcome viaja tal cual. 404 = el
-        gateway se reinició con el turno adentro; el host lo lee como
-        "unreachable" y aplica su reintento único.
+        Un `dispatch_invite` nunca levanta — devuelve el outcome — así que aquí
+        no hay excepción que mapear: el outcome viaja tal cual. RAM primero; si
+        esta réplica no lo tiene, la fila: terminada → su outcome (un `delivered`
+        de una réplica muerta evita la segunda respuesta), viva en otra réplica →
+        se espera sobre la fila, huérfana → se reanuda aquí en su etapa. 404 = id
+        desconocido, o Postgres inalcanzable tras un reinicio.
         """
-        if not expected_token:
-            raise HTTPException(status_code=503, detail="Invite endpoint not configured (missing token).")
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing bearer token")
-        if not hmac.compare_digest(authorization[len("Bearer ") :], expected_token):
-            raise HTTPException(status_code=401, detail="Invalid token")
+        _check_bearer(authorization)
 
-        registry: TicketRegistry[str] = app.state.turn_tickets
-        ticket = registry.get(turn_id)
-        if ticket is None:
+        got = await registry.lookup(turn_id, resume=_resume)
+        if got is None:
             raise HTTPException(status_code=404, detail=f"unknown turn {turn_id!r}")
+        if isinstance(got, LedgerRow):
+            row = got if got.terminal else await registry.wait_row(turn_id, wait_s)
+            channel_id = str(got.extra.get("label") or "")
+            if row is None or not row.terminal:
+                return InviteResponse(status="running", channel_id=channel_id, turn_id=turn_id)
+            outcome = _outcome_of(row)
+            log.info(
+                "persona_gateway_invite_awaited",
+                turn_id=turn_id,
+                channel_id=channel_id,
+                outcome=outcome,
+                ticketed=True,
+                from_ledger=True,
+            )
+            return InviteResponse(status=outcome, channel_id=channel_id, turn_id=turn_id)
         try:
-            done, outcome = await registry.wait(ticket, wait_s)
+            done, outcome = await registry.wait(got, wait_s)
         except Exception:
-            log.exception("persona_gateway_invite_ticket_crashed", turn_id=turn_id, channel_id=ticket.label)
+            log.exception("persona_gateway_invite_ticket_crashed", turn_id=turn_id, channel_id=got.label)
             registry.drop(turn_id)
-            return InviteResponse(status="failed", channel_id=ticket.label, turn_id=turn_id)
+            return InviteResponse(status="failed", channel_id=got.label, turn_id=turn_id)
         if not done:
-            return InviteResponse(status="running", channel_id=ticket.label, turn_id=turn_id)
+            return InviteResponse(status="running", channel_id=got.label, turn_id=turn_id)
         registry.drop(turn_id)
         log.info(
-            "persona_gateway_invite_awaited", turn_id=turn_id, channel_id=ticket.label, outcome=outcome, ticketed=True
+            "persona_gateway_invite_awaited", turn_id=turn_id, channel_id=got.label, outcome=outcome, ticketed=True
         )
-        return InviteResponse(status=str(outcome), channel_id=ticket.label, turn_id=turn_id)
+        return InviteResponse(status=str(outcome), channel_id=got.label, turn_id=turn_id)
 
     return app

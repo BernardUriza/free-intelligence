@@ -29,7 +29,15 @@ class FakeLedger:
             error=r["error"],
             stale=r["stale"],
             owned=(me is not None and r["claimed_by"] == me),
-            extra={"label": r["label"], "aire_sent": r.get("aire_sent", False)},
+            extra={
+                "label": r["label"],
+                "aire_sent": r.get("aire_sent", False),
+                "stage": r.get("stage", "accepted"),
+                "stage_text": r.get("stage_text"),
+                "tail": r.get("tail") or {},
+                "delivered_message_ids": list(r.get("delivered_message_ids") or []),
+                "partial": bool(r.get("partial", False)),
+            },
         )
 
     def age(self, ticket_id: str) -> None:
@@ -89,6 +97,9 @@ class FakeLedger:
         if claimed_by is not None and (r["claimed_by"] != claimed_by or r["status"] != "running"):
             return False
         r.update(status=status, result=result, error=error)
+        outcome = (result or {}).get("outcome") if status == "done" else "failed"
+        if outcome in ("delivered", "empty", "failed", "uncertain"):
+            r["stage"] = outcome
         return True
 
     async def release(self, *, claimed_by):
@@ -118,3 +129,58 @@ class FakeLedger:
             for t, r in self.rows.items()
             if r["status"] in ("running", "queued") and r["stale"] and r["attempts"] < max_attempts
         ][:limit]
+
+    # -- dominio del gateway (invite_turns) --
+
+    async def advance_stage(self, turn_id, stage, *, text=None, tail=None):
+        if self.fail or turn_id not in self.rows:
+            return None
+        r = self.rows[turn_id]
+        r["stage"] = stage
+        if text is not None:
+            r["stage_text"] = text
+        if tail is not None:
+            r["tail"] = tail
+        return True
+
+    async def mark_delivered(self, turn_id, message_ids, *, partial=False):
+        if self.fail or turn_id not in self.rows:
+            return None
+        self.rows[turn_id].update(stage="delivered", delivered_message_ids=list(message_ids), partial=partial)
+        return True
+
+    def seed(self, turn_id, *, payload, stage="accepted", stage_text=None, tail=None, attempts=1, stale=True):
+        """Una fila huérfana de una réplica muerta, en la etapa que se diga."""
+        self.rows[turn_id] = {
+            "status": "running",
+            "attempts": attempts,
+            "payload": payload,
+            "result": None,
+            "error": None,
+            "stale": stale,
+            "claimed_by": "muerta",
+            "label": payload.get("channel_id", turn_id),
+            "stage": stage,
+            "stage_text": stage_text,
+            "tail": tail or {},
+        }
+
+
+class FakeInviteMemory:
+    """Lo que `build_invite_app`/`TurnRunner` le piden a `MemoryStore` sobre boletos."""
+
+    def __init__(self, ledger: FakeLedger | None = None) -> None:
+        self.ledger = ledger or FakeLedger()
+
+    @property
+    def invite_turn_ledger(self):
+        return self.ledger
+
+    async def advance_invite_turn(self, turn_id, stage, *, text=None, tail=None):
+        return await self.ledger.advance_stage(turn_id, stage, text=text, tail=tail)
+
+    async def mark_invite_turn_delivered(self, turn_id, message_ids, *, partial=False):
+        return await self.ledger.mark_delivered(turn_id, message_ids, partial=partial)
+
+    async def stale_invite_turn_ids(self, *, stale_s, max_attempts, limit):
+        return await self.ledger.stale_ids(stale_s=stale_s, max_attempts=max_attempts, limit=limit)

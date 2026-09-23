@@ -11,6 +11,7 @@ from khimeras_shared.memory.repositories.channels import ChannelSummariesReposit
 from khimeras_shared.memory.repositories.disclosure import DisclosureRepository
 from khimeras_shared.memory.repositories.facts import FactsRepository
 from khimeras_shared.memory.repositories.guild_config import GuildConfigRepository
+from khimeras_shared.memory.repositories.invite_turns import InviteTurnsRepository
 from khimeras_shared.memory.repositories.messages import MessagesRepository
 from khimeras_shared.memory.repositories.profiles import ProfilesRepository
 from khimeras_shared.memory.repositories.relational import RelationalStateRepository
@@ -26,6 +27,7 @@ __all__ = [
     "DisclosureRepository",
     "FactsRepository",
     "GuildConfigRepository",
+    "InviteTurnsRepository",
     "MessagesRepository",
     "ProfilesRepository",
     "RelationalStateRepository",

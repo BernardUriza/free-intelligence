@@ -44,6 +44,7 @@ from khimeras_shared.memory import MemoryStore
 from khimeras_shared.prompts import PromptCache
 from khimeras_shared.runner.agent_client import AgentRunnerClient
 from khimeras_shared.runner.judge_client import RunnerJudgeClient
+from khimeras_shared.tickets import LedgerRow
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.drain import TurnGate
@@ -398,6 +399,8 @@ class PersonaClient(discord.Client):
         trigger_message_id: str | None = None,
         trigger_transcript: str = "",
         fallback: bool = True,
+        turn_id: str | None = None,
+        resume_from: LedgerRow | None = None,
     ) -> str:
         """Guarded entry for the invite path — what `/invite` schedules.
 
@@ -416,7 +419,25 @@ class PersonaClient(discord.Client):
         silently mute; False means the caller owns it — the host, which awaits
         the outcome over ``/invite?wait``, retries once and posts a fallback in
         its OWN voice instead of making the persona mumble an ellipsis.
+
+        ``turn_id`` es el boleto durable (`invite_turns`); ``resume_from`` es la
+        fila cuando ESTA réplica reanuda un turno que otra dejó a medias. Una
+        fila en `sending` NO se reanuda: nadie sabe si el primer chunk aterrizó,
+        y reenviar es la única forma de dar dos respuestas — se declara
+        ``"uncertain"`` y el host ni reintenta ni tapa con su aviso.
         """
+        if resume_from is not None and resume_from.extra.get("stage") == "sending":
+            log.error(
+                "persona_gateway_turn_uncertain",
+                persona_id=self.persona.persona_id,
+                channel_id=channel_id,
+                turn_id=turn_id,
+                attempt=resume_from.attempts,
+            )
+            if turn_id is not None:
+                with contextlib.suppress(Exception):
+                    await self.memory.advance_invite_turn(turn_id, "uncertain")
+            return "uncertain"
         ticket = self._gate.admit(f"{self.persona.persona_id}:invite")
         if ticket is None:
             # Drenando: se rechaza sin trabajar y sin "…" en ningún caso. El
@@ -439,6 +460,8 @@ class PersonaClient(discord.Client):
                 invited_by=invited_by,
                 trigger_message_id=trigger_message_id,
                 trigger_transcript=trigger_transcript,
+                turn_id=turn_id,
+                resume_from=resume_from,
             )
         except Exception as exc:
             log.exception(
@@ -471,6 +494,8 @@ class PersonaClient(discord.Client):
         invited_by: str = "insult_rest",
         trigger_transcript: str = "",
         trigger_message_id: str | None = None,
+        turn_id: str | None = None,
+        resume_from: LedgerRow | None = None,
     ) -> bool | None:
         """Entry point for the gateway's ported /invite handler.
 
@@ -518,6 +543,26 @@ class PersonaClient(discord.Client):
             persona_id=self.persona.persona_id,
             channel_id=channel_id,
         )
+        # Reanudación por etapa: el runner ya contestó (o los marcadores ya
+        # corrieron) en la réplica que murió. Nada de contexto, nada de runner:
+        # directo a la cola de entrega con el texto de la fila.
+        if resume_from is not None and resume_from.extra.get("stage") in ("runner_done", "markers_done"):
+            tail = resume_from.extra.get("tail") or {}
+            delivered = await self._run_and_deliver(
+                channel=channel,
+                channel_id=channel_id,
+                user_id=tail.get("user_id") or (str(self.user.id) if self.user else ""),
+                guild_id=guild_id,
+                channel_name=channel_name,
+                messages=[],
+                turn_kind="invite",
+                react_to=react_to,
+                turn_id=turn_id,
+                resume_from=resume_from,
+            )
+            if delivered:
+                self.last_turn_delivered = time.time()
+            return delivered
         # The trigger message may carry images/documents — a host-routed turn
         # about an image is blind without them (2026-07-16 bug: Insult reacted
         # to a photo it never saw). Best-effort: a processing fault degrades to
@@ -616,6 +661,8 @@ class PersonaClient(discord.Client):
             behavioral_guidance=turn.guidance,
             other_people=turn.other_people,
             relevant_memory=turn.relevant_memory,
+            turn_id=turn_id,
+            resume_from=resume_from,
         )
         # Same rule as the mention path: no delivery, no stamp (issue #40).
         if delivered:
@@ -654,6 +701,8 @@ class PersonaClient(discord.Client):
         behavioral_guidance: str | None = None,
         other_people: str | None = None,
         relevant_memory: str | None = None,
+        turn_id: str | None = None,
+        resume_from: LedgerRow | None = None,
     ) -> bool:
         """Thin delegate to the injected TurnRunner (tests drive this directly).
 
@@ -671,4 +720,6 @@ class PersonaClient(discord.Client):
             behavioral_guidance=behavioral_guidance,
             other_people=other_people,
             relevant_memory=relevant_memory,
+            turn_id=turn_id,
+            resume_from=resume_from,
         )

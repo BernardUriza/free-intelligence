@@ -216,3 +216,18 @@ async def test_the_turn_budget_exhausted_fires_on_timeout_once_and_is_runner_dow
     with pytest.raises(RunnerDownError, match="unfinished"):
         await client.chat("sys", _msgs(), timeout_s=600.0, on_timeout=lambda: fired.append(1))
     assert fired == [1]
+
+
+@pytest.mark.asyncio
+async def test_a_given_job_id_travels_in_every_submit_and_names_the_poll(client):
+    """El gateway manda su turn_id como job_id: una reanudación del gateway
+    re-postea el MISMO job y el runner deduplica en vez de re-correr."""
+    _ScriptedClient.script = [
+        httpx.ReadTimeout("frío"),
+        _Resp(202, {"job_id": "j-given", "status": "running"}),
+        _Resp(200, {"job_id": "j-given", "status": "done", "response": TURN}),
+    ]
+    out = await client.chat("sys", _msgs(), job_id="j-given")
+    assert out.text == "Supremme de Luxe…"
+    assert {b.get("job_id") for b in _ScriptedClient.bodies} == {"j-given"}
+    assert "/v1/turn/jobs/j-given?wait_s=" in _ScriptedClient.calls[-1][1]
