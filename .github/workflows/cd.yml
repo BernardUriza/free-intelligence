@@ -312,6 +312,15 @@ jobs:
     # nothing-to-deploy notice still run, while a failed build blocks the deploy.
     if: ${{ !cancelled() && needs.detect.result == 'success' && needs.build.result != 'failure' }}
     steps:
+      # Only `scripts/` — the revision gate (`cd_wait_revision.py`) runs here, and
+      # this job never had a checkout because until 2026-09-23 it only ran `az`.
+      # Pinned to NEW_SHA so the gate that runs is the one this deploy ships.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.NEW_SHA }}
+          sparse-checkout: scripts
+          sparse-checkout-cone-mode: false
+
       - name: Azure Login
         uses: azure/login@v3
         with:

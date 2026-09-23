@@ -48,12 +48,16 @@ class _Scenario:
     """Feeds one canned revision list per poll; the last frame repeats. A fake
     clock advances by `poll_s` on every sleep, so the deadline is deterministic."""
 
-    def __init__(self, frames):
+    def __init__(self, frames, *, ingress: bool = True):
         self.frames = list(frames)
+        self.ingress = ingress
         self.polls = 0
         self.now = 0.0
         self.lines: list[str] = []
         self.logs_dumped_for: list[str] = []
+
+    def has_ingress(self, app, rg):
+        return self.ingress
 
     def list_revisions(self, app, rg):
         frame = self.frames[min(self.polls, len(self.frames) - 1)]
@@ -76,6 +80,7 @@ class _Scenario:
             "insult-rg",
             NEW_IMAGE,
             list_revisions=self.list_revisions,
+            has_ingress=self.has_ingress,
             dump_logs=self.dump_logs,
             sleep=self.sleep,
             clock=self.clock,
@@ -157,6 +162,26 @@ def test_not_green_while_an_older_replica_still_runs_beside_the_new_one():
     assert s.run() == 0
     assert s.polls == 3
     assert any("older replicas still run" in line for line in s.lines)
+
+
+def test_an_app_without_ingress_reports_traffic_0_and_still_counts_as_serving():
+    """The first live run (2026-09-23, CD run 35904668601) would have painted
+    `khimeras-host` red forever: it has no ingress, so ACA reports trafficWeight 0
+    on a revision that is Healthy + RunningAtMaxScale. Traffic is a signal only
+    when there is an ingress to split it."""
+    s = _Scenario([[_rev("host--168", NEW_IMAGE, traffic=0)]], ingress=False)
+    assert s.run() == 0
+    assert any("no ingress (traffic n/a)" in line for line in s.lines)
+
+
+def test_with_an_ingress_traffic_0_on_the_new_revision_is_not_serving_yet():
+    """RESISTANCE: on the gateway (ingress on :8788) traffic 0 means the swap has
+    not happened — the same frame must NOT pass just because the app has no
+    ingress elsewhere."""
+    s = _Scenario(
+        [[_rev("gw--1", OLD_IMAGE, traffic=100, created="1"), _rev("gw--2", NEW_IMAGE, traffic=0)]], ingress=True
+    )
+    assert s.run(timeout_s=45, poll_s=15) == 1
 
 
 def test_an_az_hiccup_is_retried_not_a_verdict():

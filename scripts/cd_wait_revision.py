@@ -57,6 +57,32 @@ def az_list_revisions(app: str, rg: str) -> list[dict]:
     return json.loads(out)
 
 
+def az_has_ingress(app: str, rg: str) -> bool:
+    """True when the app exposes an ingress. Without one, ACA reports
+    ``trafficWeight`` 0 on every revision (there is no traffic to split), so the
+    100% condition would be a false red — `khimeras-host` is exactly that: a
+    Discord websocket process with no listener."""
+    out = subprocess.run(  # nosec B603 B607
+        [
+            "az",
+            "containerapp",
+            "show",
+            "-n",
+            app,
+            "-g",
+            rg,
+            "--query",
+            "properties.configuration.ingress",
+            "-o",
+            "json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    return bool(out) and out != "null"
+
+
 def az_dump_revision_logs(app: str, rg: str, revision: str) -> str:
     try:
         return subprocess.run(  # nosec B603 B607
@@ -95,6 +121,7 @@ def wait_for_revision(
     timeout_s: int = DEFAULT_TIMEOUT_S,
     poll_s: int = DEFAULT_POLL_S,
     list_revisions: Callable[[str, str], list[dict]] = az_list_revisions,
+    has_ingress: Callable[[str, str], bool] = az_has_ingress,
     dump_logs: Callable[[str, str, str], str] = az_dump_revision_logs,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
@@ -104,10 +131,19 @@ def wait_for_revision(
     Every collaborator is injectable so the verdict logic is testable without Azure."""
     start = clock()
     last_seen = "(no revision observed yet)"
+    ingress: bool | None = None  # resolved once; None until az answers
     while True:
         elapsed = clock() - start
+        if ingress is None:
+            try:
+                ingress = bool(has_ingress(app, rg))
+                log(
+                    f"{app}: ingress={'yes' if ingress else 'no'} — traffic weight {'is' if ingress else 'is NOT'} a signal"
+                )
+            except Exception as e:
+                log(f"WARN {app}: az show failed ({type(e).__name__}: {str(e)[:200]}), retrying")
         try:
-            revisions = list_revisions(app, rg)
+            revisions = list_revisions(app, rg) if ingress is not None else None
         except Exception as e:  # az hiccup: keep polling until the deadline
             log(f"WARN {app}: az revision list failed ({type(e).__name__}: {str(e)[:200]}), retrying")
             revisions = None
@@ -141,14 +177,13 @@ def wait_for_revision(
                     for r in others
                     if _props(r).get("active") and _props(r).get("runningState") in OLD_STILL_RUNNING_STATES
                 ]
-                serving = (
-                    p.get("healthState") == "Healthy"
-                    and p.get("runningState") in SERVING_STATES
-                    and int(p.get("trafficWeight") or 0) == 100
-                )
+                traffic_ok = (not ingress) or int(p.get("trafficWeight") or 0) == 100
+                serving = p.get("healthState") == "Healthy" and p.get("runningState") in SERVING_STATES and traffic_ok
                 if serving and not blocking_old:
+                    traffic_note = "100% traffic" if ingress else "no ingress (traffic n/a)"
                     log(
-                        f"OK {app}: revision {new.get('name')} serves {expected_image} — Healthy, {p.get('runningState')}, 100% traffic, no older replica running"
+                        f"OK {app}: revision {new.get('name')} serves {expected_image} — "
+                        f"Healthy, {p.get('runningState')}, {traffic_note}, no older replica running"
                     )
                     return 0
                 if serving and blocking_old:
