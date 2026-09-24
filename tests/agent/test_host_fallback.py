@@ -113,3 +113,55 @@ async def test_uncertain_on_the_retry_stops_without_the_notice():
     assert outcome == "uncertain"
     assert summon.await_count == 2
     say.assert_not_awaited()
+
+
+# --- El double-dispatch del rollover: el turn_id del PRIMER intento es
+# determinístico por (trigger, persona, channel), no aleatorio, para que dos
+# réplicas del host colapsen en un turno (bug 2026-07-20). ---
+
+KW_TRIGGER = {**KW, "trigger_message_id": "999888777"}
+
+
+async def test_two_replicas_same_trigger_and_persona_mint_the_same_first_id():
+    # Dos invocaciones independientes (dos réplicas del host en el rollover) con
+    # el MISMO trigger+persona deben acuñar el MISMO turn_id → el ticket durable
+    # del gateway las dedupea.
+    summon_a = AsyncMock(return_value="delivered")
+    summon_b = AsyncMock(return_value="delivered")
+    say = AsyncMock()
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_a, invited_by="host", **KW_TRIGGER)
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_b, invited_by="host", **KW_TRIGGER)
+    assert summon_a.await_args.kwargs["turn_id"] == summon_b.await_args.kwargs["turn_id"]
+
+
+async def test_fanout_same_trigger_different_persona_stays_distinct():
+    # El MISMO mensaje que menciona a dos personas NO se debe dedupear: cada
+    # persona responde. El persona_id entra en el seed.
+    summon_i = AsyncMock(return_value="delivered")
+    summon_v = AsyncMock(return_value="delivered")
+    say = AsyncMock()
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_i, **{**KW_TRIGGER, "persona_id": "insult"})
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_v, **{**KW_TRIGGER, "persona_id": "vultur"})
+    assert summon_i.await_args.kwargs["turn_id"] != summon_v.await_args.kwargs["turn_id"]
+
+
+async def test_no_trigger_falls_back_to_a_unique_id():
+    # Un turno sin mensaje disparador (proactivo) no tiene qué dedupear → uuid4,
+    # distinto en cada invocación.
+    summon_a = AsyncMock(return_value="delivered")
+    summon_b = AsyncMock(return_value="delivered")
+    say = AsyncMock()
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_a, **KW)  # KW no trae trigger
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon_b, **KW)
+    assert summon_a.await_args.kwargs["turn_id"] != summon_b.await_args.kwargs["turn_id"]
+
+
+async def test_declared_failure_retries_fresh_even_with_a_trigger():
+    # Con trigger, el PRIMER id es determinístico; un `failed` declarado debe
+    # reintentar con un id NUEVO (no el determinístico) para que el segundo
+    # intento legítimo corra y no se dedupee contra el primero.
+    summon = AsyncMock(side_effect=["failed", "delivered"])
+    say = AsyncMock()
+    await deliver_or_fallback({"reason": "r"}, say=say, summon=summon, **KW_TRIGGER)
+    first, second = summon.await_args_list
+    assert first.kwargs["turn_id"] != second.kwargs["turn_id"]

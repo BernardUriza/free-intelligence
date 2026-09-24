@@ -29,7 +29,7 @@ Env required (same as the original film script):
     AZURE_OPENAI_EMBEDDING_DEPLOYMENT  — defaults to text-embedding-ada-002
 
 Run helper from this Mac (env injected from Azure secrets):
-    POSTGRES_URL=$(az containerapp secret show -n discord-bot -g insult-rg \\
+    POSTGRES_URL=$(az containerapp secret show -n persona-gateway -g insult-rg \\
         --secret-name postgres-url --query value -o tsv) \\
     AZURE_OPENAI_ENDPOINT=https://northcentralus.api.cognitive.microsoft.com/ \\
     AZURE_OPENAI_KEY=$(az cognitiveservices account keys list \\
