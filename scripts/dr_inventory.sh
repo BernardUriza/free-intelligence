@@ -79,30 +79,29 @@ secret_audit() {
     printf "  %-26s %-14s %-14s %s\n" "$name" "$(fp "$azv")" "$(fp "$lov")" "$status"
   }
 
-  check app discord-bot     discord-token             "$HOME/.secrets/discord-bot-insult-discord-token.txt"
-  check app discord-bot     postgres-url              "$HOME/.secrets/discord-bot-postgres-url.txt"
-  check app discord-bot     debug-token               "$HOME/.secrets/discord-bot-debug-token.v2.txt"
-  check app discord-bot     insult-to-alice-token     "$HOME/.secrets/discord-bot-insult-to-alice-token.txt"
-  check app discord-bot     susurro-key               "$HOME/.secrets/discord-bot-susurro-key.txt"
-  check app discord-bot     azure-openai-key          "$HOME/.secrets/discord-bot-azure-openai-key.txt"
+  # Los secretos de la app legacy `discord-bot` (BORRADA 2026-09-23) migraron a
+  # persona-gateway con sus nombres vivos; `debug-token` no sobrevivió (el debug
+  # server murió en la purga 2026-07-14) y sale del inventario.
+  check app persona-gateway insult-discord-token      "$HOME/.secrets/discord-bot-insult-discord-token.txt"
+  check app persona-gateway postgres-url              "$HOME/.secrets/discord-bot-postgres-url.txt"
+  check app persona-gateway insult-to-alice-token     "$HOME/.secrets/discord-bot-insult-to-alice-token.txt"
+  check app persona-gateway susurro-key               "$HOME/.secrets/discord-bot-susurro-key.txt"
+  check app persona-gateway azure-openai-key          "$HOME/.secrets/discord-bot-azure-openai-key.txt"
   check app persona-runner  claude-oauth-token        "$HOME/.secrets/discord-bot-claude-oauth-token.txt"
   check app persona-runner  insult-agent-runner-token "$HOME/.secrets/discord-bot-agent-runner-token.txt"
   check app persona-gateway vultur-discord-token      "$HOME/.secrets/vultur-discord-token.txt"
   check app persona-gateway alice-discord-token       "$HOME/.secrets/discord-bot-alice-discord-token.txt"
   check app persona-gateway frugivoro-discord-token   "$HOME/.secrets/frugivoro-discord-token.txt"
-  check job insult-canary   canary-token              "$HOME/.secrets/vultur-discord-token.txt"
 
   cat <<'EOF'
 
   Recuperables sin Bernard (no necesitan backup):
-    acr-password   → az acr credential show -n serverbotacr
+    acr-password   → az acr credential show -n insultacr
     azure-openai-key → az cognitiveservices account keys list -n insult-openai -g insult-rg
 
   Requieren a Bernard (login + MFA, NO regenerables por el agente):
     *-discord-token    → Discord Developer Portal (regenerar INVALIDA el vivo)
     claude-oauth-token → OAuth Claude Max
-
-  Nota: canary-token ES el token de Vultur (el probe postea como Vultur vía REST).
 EOF
 }
 

@@ -47,6 +47,42 @@ async def test_all_noise_returns_none_not_empty_block():
     assert block is None
 
 
+async def test_no_hits_emits_positive_telemetry():
+    """POSITIVO (gap del probe de Frugívoro, 2026-09-23): cuando SE consulta el
+    corpus y nada clarea el floor, se emite `deep_memory_corpus_no_hits` con el
+    top_similarity REAL — para distinguir en KQL 'floor demasiado alto' de 'no se
+    consultó'. Antes la rama retornaba None muda y el retrieval era inauditable
+    (Frugívoro respondió pero cero evento de corpus en KQL, imposible saber por qué)."""
+    hits = [_hit(0.72, "ruido a"), _hit(0.69, "ruido b")]
+    with (
+        patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)),
+        patch.object(references.log, "info") as log_info,
+    ):
+        block = await references.build_references_block(
+            "qué opinas del clima", namespace="__corpus_vegan__", header="# Refs"
+        )
+    assert block is None
+    call = next(c for c in log_info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_no_hits")
+    assert call.kwargs["top_similarity"] == 0.72  # el mejor hit real, aunque no clareó el floor
+    assert call.kwargs["queried"] == 2
+    assert call.kwargs["floor"] == references._REF_MIN_SIMILARITY
+
+
+async def test_empty_query_stays_silent_no_false_signal():
+    """RESISTENCIA: una query trivial (nada que consultar) NO emite el evento —
+    el retrieval-sin-hits sólo se loguea cuando de verdad se consultó y hubo
+    resultados que no clarearon; un query vacío no debe ensuciar la señal."""
+    with (
+        patch.object(references, "query_corpus", new=AsyncMock(return_value=[])) as qc,
+        patch.object(references.log, "info") as log_info,
+    ):
+        block = await references.build_references_block("  ", namespace="__corpus_vegan__", header="# Refs")
+    assert block is None
+    qc.assert_not_awaited()  # query trivial: ni siquiera se consulta
+    events = [c.args[0] for c in log_info.call_args_list if c.args]
+    assert "deep_memory_corpus_no_hits" not in events
+
+
 async def test_legit_hits_all_pass():
     """RESISTENCIA: contenido genuinamente relacionado (0.8+) no se pierde."""
     hits = [_hit(0.91, "chunk uno"), _hit(0.84, "chunk dos"), _hit(0.80, "chunk tres")]

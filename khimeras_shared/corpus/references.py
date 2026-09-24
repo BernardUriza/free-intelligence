@@ -127,6 +127,20 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
     hits = await query_corpus(q, namespace=namespace, top_k=_REF_TOP_K)
     relevant = [h for h in hits if h.get("similarity", 0.0) >= _REF_MIN_SIMILARITY]
     if not relevant:
+        # Telemetría positiva del retrieval-sin-hits: sin esto, un corpus que SE
+        # consulta pero nunca clarea el floor es indistinguible en KQL de uno que
+        # JAMÁS se consultó — el gap que el probe de Frugívoro destapó (2026-09-23:
+        # respondió pero cero `deep_memory_corpus_refs_built`, sin forma de saber
+        # si el floor 0.78 comió todo o el read-path no corrió). Mismo principio
+        # que load_relevant ("positive telemetry, not just failure"). El
+        # top_similarity real dice si el floor está demasiado alto.
+        log.info(
+            "deep_memory_corpus_no_hits",
+            namespace=namespace,
+            queried=len(hits),
+            top_similarity=round(hits[0].get("similarity", 0.0), 3) if hits else 0.0,
+            floor=_REF_MIN_SIMILARITY,
+        )
         return None
 
     lines: list[str] = []

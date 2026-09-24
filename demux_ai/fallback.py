@@ -29,6 +29,7 @@ Every step is a KQL event that can go red — the whole point of owning it.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -56,6 +57,25 @@ Say = Callable[[str, str], Awaitable[None]]
 def persona_label(persona_id: str | None) -> str:
     persona = get_persona(persona_id) if persona_id else None
     return persona.display_name if persona and persona.display_name else (persona_id or "La persona")
+
+
+def _first_turn_id(trigger_message_id: str | None, persona_id: str | None, channel_id: str) -> str:
+    """Turn id for the FIRST summon of a turn.
+
+    Deterministic from (trigger_message_id, persona_id, channel_id) so two host
+    replicas overlapping in a rollover — both processing the SAME trigger for the
+    SAME persona — mint the SAME id, and the gateway's durable ticket
+    (`TicketRegistry.submit` → `ticket_reused`) collapses the double dispatch into
+    one turn (the 2026-07-20 bug: 2 Insult replies, 2 assistant rows, vision twice).
+    Including persona_id keeps a multi-persona fanout on one trigger distinct (each
+    persona still answers). No trigger (proactive turns) → uuid4, nothing to dedupe
+    against. The RETRY id is minted separately by the caller: a `failed` turn gets a
+    fresh uuid4 so a legitimate second attempt is never deduped against the first.
+    """
+    if not trigger_message_id:
+        return uuid.uuid4().hex
+    seed = f"{trigger_message_id}:{persona_id or ''}:{channel_id}"
+    return hashlib.sha256(seed.encode()).hexdigest()[:32]
 
 
 async def deliver_or_fallback(
@@ -86,7 +106,7 @@ async def deliver_or_fallback(
         "trigger_message_id": trigger_message_id,
         "trigger_transcript": trigger_transcript,
     }
-    turn_id = uuid.uuid4().hex
+    turn_id = _first_turn_id(trigger_message_id, persona_id, channel_id)
     outcome = await summon(tool_input, invited_by=invited_by, turn_id=turn_id, **common)
     if outcome in TURN_TAKEN:
         log.info(
