@@ -204,12 +204,18 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   (`persona_gateway/gateway.py` / `turns.py`)
 
 ## Attachments (`khimeras_shared/attachments.py`)
-- Images (png/jpg/jpeg/gif/webp): sent as base64 vision blocks; oversize images
-  are resized/re-encoded to fit the cap
+- Images (png/jpg/jpeg/gif/webp): sent BY REFERENCE — a URL-source block with the
+  signed Discord CDN URL, never downloaded here. AIRE fetches it (SSRF-pinned),
+  shrinks it to <= 2000 px and detects its type (aire-server #50). Caps: 10 MB per
+  image (`MAX_IMAGE_SIZE`, AIRE's fetch cap) and 4 per message
+  (`MAX_IMAGES_PER_MESSAGE`; the extras are named in character). fi-runner checks
+  the result's `images_attached`: a mismatch is `attachments_lost` (terminal 500,
+  never a blind answer). The URL lives in the `turn_jobs` row, so a resumed job
+  carries the image; a signature that expired before the resume is `not_resumable`
 - Text/code extensions: read as UTF-8, injected as text blocks
 - PDFs: sent as base64 document blocks
 - Unsupported types: rejected with an in-character message
-- `MAX_ATTACHMENT_SIZE` = 5MB per attachment; `HARD_DOWNLOAD_LIMIT` = 25MB
+- `MAX_ATTACHMENT_SIZE` = 5MB per text/PDF attachment; `HARD_DOWNLOAD_LIMIT` = 25MB
 - Attachment content is NOT stored in longitudinal memory (only the text message)
 
 ## Dependencies

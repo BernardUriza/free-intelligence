@@ -1,6 +1,28 @@
 # Imágenes por referencia: Discord → AIRE, el pipeline sólo carga la URL firmada
 
-**Status:** Accepted (2026-09-25, idea de Bernard) — sin arrancar. Cross-repo: aire-server + este repo.
+**Status:** In progress (2026-09-25) — construido en los tres repos (aire-server `5cd1cee`, fi-runner 0.22.0 PR #495, este repo v4.41.0); falta el probe en #general. Idea de Bernard. Cross-repo: aire-server + fi-runner + este repo.
+
+## Lo que entró (2026-09-25)
+
+- **Gateway** (`khimeras_shared/attachments.py`): una imagen ya no se descarga; sale como
+  bloque `{"type":"image","source":{"type":"url","url":<firmada>}}`. Se borraron el
+  compresor de 2048 px (violaba la regla de 2000 px) y `MAX_IMAGE_B64_CHARS`: el tope de
+  bytes de imagen tiene un solo dueño, AIRE. Topes locales: 10 MB por imagen (el de fetch
+  de AIRE) y 4 por mensaje — las de más se nombran en personaje, el turno no muere
+  (hoyo #3 cerrado).
+- **Runner** (`aire_route.images_from_attachments`): la referencia se vuelve
+  `TurnImage(url=...)`; `attachments_lost` es terminal (500).
+- **fi-runner 0.22.0**: compara `images_attached` contra lo enviado y truena con
+  `attachments_lost` si no cuadra.
+- **`turn_jobs`**: la fila guarda las referencias (cientos de bytes), así que un job
+  reanudado trae la imagen por construcción. Texto/PDF inline siguen `not_resumable`.
+
+**Desviación del plan, a propósito:** el runner NO re-firma con `refresh-urls`. Eso le
+habría dado al runner un token de bot de Discord, y una credencial se queda en la
+superficie a la que se entregó. Como la firma dura 24 h y una reanudación ocurre en
+minutos, al reanudar se revisa el `ex` de la URL: si ya venció, el job es
+`not_resumable: image references expired`, en voz alta. Si algún día hace falta
+reanudar más de 24 h después, el lugar para re-firmar es el gateway, que ya tiene el token.
 
 ## El problema
 
