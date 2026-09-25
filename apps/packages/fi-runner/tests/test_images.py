@@ -58,6 +58,19 @@ def test_from_any_rejects_untypeable_input(bad):
         TurnImage.from_any(bad)
 
 
+def test_from_any_takes_a_url_reference():
+    assert TurnImage.from_any({"url": "https://cdn.discordapp.com/a.png?ex=1"}) == TurnImage(
+        url="https://cdn.discordapp.com/a.png?ex=1"
+    )
+
+
+@pytest.mark.parametrize("kwargs", [{}, {"media_type": "image/png"},
+                                    {"media_type": "image/png", "data": "eA==", "url": "https://x/y"}])
+def test_a_turn_image_is_exactly_one_shape(kwargs):
+    with pytest.raises(ValueError, match="exactly one"):
+        TurnImage(**kwargs)
+
+
 # --- Runner passthrough ------------------------------------------------------
 
 

@@ -356,10 +356,21 @@ class TurnImage:
     Current-turn only by design: history replay (``sanitize_history`` →
     ``render_transcript``) is a TEXT fold, so prior turns' images do not ride
     along — the client re-attaches an image when it wants the model to see it
-    again."""
+    again.
 
-    media_type: str
-    data: str
+    BY REFERENCE (aire-server #50): ``url`` instead of ``media_type``/``data`` —
+    a signed CDN URL the door fetches itself, so the bytes never ride the
+    consumer's pipeline. Exactly one of the two shapes; the door detects the
+    type, so a URL image carries no ``media_type``."""
+
+    media_type: str = ""
+    data: str = ""
+    url: str = ""
+
+    def __post_init__(self) -> None:
+        inline = bool(self.media_type and self.data)
+        if inline == bool(self.url):
+            raise ValueError("a TurnImage is either {media_type, data} or {url}, exactly one")
 
     @classmethod
     def from_any(cls, item: Any) -> TurnImage:
@@ -370,6 +381,9 @@ class TurnImage:
         if isinstance(item, cls):
             return item
         if isinstance(item, Mapping):
+            url = item.get("url")
+            if isinstance(url, str) and url:
+                return cls(url=url)
             media_type = item.get("media_type") or item.get("mediaType")
             data = item.get("data")
             if isinstance(media_type, str) and media_type and isinstance(data, str) and data:
@@ -406,6 +420,9 @@ class TurnResult:
     # result never carried it, so no consumer could show provenance — every UI
     # "powered by <model>" chip had nothing to read. Stamped at settlement.
     model: str | None = None
+    # How many images the backend says it attached (AIRE's ``images_attached``,
+    # aire-server #50). None when the backend does not report it.
+    images_attached: int | None = None
 
 
 @runtime_checkable

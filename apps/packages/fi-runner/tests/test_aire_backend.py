@@ -663,3 +663,37 @@ def test_default_policy_is_silent(caplog: pytest.LogCaptureFixture) -> None:
 )
 def test_every_non_default_policy_warns(policy: ToolPolicy, caplog: pytest.LogCaptureFixture) -> None:
     assert _warns(policy, caplog)
+
+
+@pytest.mark.asyncio
+async def test_a_url_image_rides_as_a_reference_and_the_count_is_checked(monkeypatch: Any) -> None:
+    """aire-server #50: {url} crosses the wire as-is, and images_attached lands on the result."""
+    b = _backend()
+    seen: dict[str, Any] = {}
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        seen.update(body)
+        yield {"type": "result", "result": {"text": "ok"}, "images_attached": 1}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    result = await b.run_turn(system_prompt="", user_message="", mcp_servers=[],
+                              tool_policy=ToolPolicy(), session_id="s",
+                              images=[TurnImage(url="https://cdn.discordapp.com/a.png?ex=1")])
+    assert seen["images"] == [{"url": "https://cdn.discordapp.com/a.png?ex=1"}]
+    assert result.images_attached == 1
+
+
+@pytest.mark.asyncio
+async def test_a_door_that_attached_fewer_images_raises_attachments_lost(monkeypatch: Any) -> None:
+    b = _backend()
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        yield {"type": "result", "result": {"text": "I see nothing"}, "images_attached": 0}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    with pytest.raises(BackendError, match="attachments_lost"):
+        await b.run_turn(system_prompt="", user_message="what is it?", mcp_servers=[],
+                         tool_policy=ToolPolicy(), session_id="s",
+                         images=[TurnImage(media_type="image/png", data="aGk=")])
