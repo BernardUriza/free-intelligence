@@ -1,9 +1,64 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
 Status: **In progress — los CUATRO pasos verificados desde el 2026-09-09
-(la ingesta en Postgres incluida); lo único pendiente es el benchmark ético
-(§1–§3)**. Actualizado 2026-08-06.
+(la ingesta en Postgres incluida). El benchmark ético (§1–§3) ya tiene harness
+reproducible en el repo (2026-09-25, v4.40.25); falta CORRERLO — resultado
+pendiente, cero números medidos**. Actualizado 2026-09-25.
 Proposed: 2026-06-29 by Bernard
+
+## Benchmark §1–§3 — harness listo, corrida PENDIENTE (2026-09-25)
+
+Lo que existe en el repo (v4.40.25):
+
+- `data/benchmarks/frugivoro/cases.json` — la matriz: 10 dimensiones × 3 niveles
+  (easy/expert/edge), los 9 marcadores de erudición de §3 y **17 casos**: los 12
+  prompts de §2 (split `dev`; el de alérgenos concretado como queso de anacardo
+  con un invitado alérgico) + 5 `heldout` nuevos (helado sin cristales, shōjin
+  ryōri y aliáceos, miel, un paper inventado de Kioto sobre B12, fruta de
+  invierno en México) contra los que **nunca** se itera el ADN. Cada caso trae
+  un piso determinista (`expect_any` / `forbid`, más `forbid_all`: fuga de
+  identidad).
+- `data/benchmarks/frugivoro/judge_absolute.md` + `judge_pairwise.md` — los
+  prompts del juez como contenido (Likert 1–5 anclado por dimensión + marcadores;
+  A/B anónimo).
+- `scripts/frugivoro_bench.py` — el harness. Capas: deterministas (cero gasto)
+  → juez absoluto vía `/v1/judge` (`--judge`) → pairwise contra el competidor con
+  el orden **invertido** en una segunda pasada (sólo cuenta la victoria que
+  sobrevive al cambio; si no, empate) → win-rate. Arma el turno como el gateway:
+  bloque RAG `__corpus_vegan__` primero + guidance del guardián para un usuario
+  sin facts (`bench-frugivoro`); `--no-corpus` es el contrafactual.
+- La frontera ética vive en código: `--competitor` sólo acepta un JSON escrito a
+  mano con `"collected_by": "manual"` por entrada; el script no habla con el
+  competidor jamás.
+- `tests/test_frugivoro_bench.py` — 22 tests sin red (suite válida, piso
+  positivo + resistencia, fuga de identidad, orden invertido, frontera manual,
+  agregado, dry-run completo con la red prohibida).
+
+Dry-run verde local: `python scripts/frugivoro_bench.py --dry-run --split all`
+→ 17 casos, cero llamadas.
+
+**Lo que falta (y no se hizo a propósito):**
+
+1. **La corrida real** contra el persona-runner de prod — gasta turnos de Opus
+   (AIRE/Max) y escribe una fila de `turn_jobs` por turno; necesita autorización
+   de Bernard. Comando exacto:
+
+       PERSONA_RUNNER_URL=... PERSONA_RUNNER_TOKEN=... POSTGRES_URL=... \
+           python scripts/frugivoro_bench.py --split dev --judge
+       # contrafactual del corpus, el mismo día:
+       ... python scripts/frugivoro_bench.py --split dev --judge --no-corpus \
+           --out scratchpad/frugivoro_bench_nocorpus.json
+
+   (`POSTGRES_URL` sólo para LEER el corpus; sin él el bloque RAG no llega y la
+   corrida mide el contrafactual sin decirlo — córrela con él.)
+2. **Las respuestas del competidor** (`vegan-gourmet`): recogerlas a mano en su
+   interfaz pública, bajo volumen, a un JSON
+   `{case_id: {"text", "collected_by": "manual", "collected_at"}}`, y pasarlo con
+   `--competitor`. Sólo casos `dev`.
+3. **Calibrar al juez** contra un set pequeño etiquetado a mano (§1) antes de
+   creerle. El default del runner es Haiku: Claude juzgando a Claude, sesgo de
+   auto-preferencia sin medir. Sin esa calibración los números del juez son
+   indicativos, no veredicto.
 
 ## Re-chequeo 2026-09-09 — el 4º paso queda verificado, por primera vez
 
@@ -226,7 +281,8 @@ Concrete because it clones the ALICE/Vultur path already shipped:
    registry; the LLM shadow-router `_VALID_TARGETS` mirror gets `"frugivoro"`
    (lockstep test guards it).
 3. **Corpus (the erudition):** clone Vultur's film-critic RAG pattern — a
-   `shared/corpus/vegan_gastronomy.md` frame + RAG over the **public** source subset
+   `shared/corpus/vegan_gastronomy.md` frame *(nunca existió con ese nombre: el
+   header vivo es `shared/corpus/headers/frugivoro.md`)* + RAG over the **public** source subset
    (§5) in `deep_memory_chunks` under a shared namespace (e.g. `__corpus_vegan__`),
    per `project_film_critic_corpus`. This is what makes it erudite vs a thin prompt.
 4. **Discord identity:** create the bot app → token → invite → set `bot_user_id` +
@@ -277,7 +333,7 @@ Y el volcado de conocimiento vivencial de Bernard respaldado con literatura.
   bot_user_id `1521273256236023989`, aliases frugi/frugívoro), respondiendo en
   #general; hard vegan identity endurecida en v4.21.115.
 - **Corpus INICIADO (2026-07-05)**: `khimeras_shared/corpus/vegan_gastronomy.md`
-  CREADO — primer ladrillo con la entrada "Fruta, fructosa e índice glucémico — el
+  CREADO (hoy borrado — `6ba7a61`; ver arriba) — primer ladrillo con la entrada "Fruta, fructosa e índice glucémico — el
   fruit-first calibrado" (fructosa entera vs añadida, IG por persona, sesgo por
   corticoide/prednisona, fruta en autoinmune/lupus), cada afirmación respaldada con
   literatura científica per el método. **Pendiente para ACTIVARLO** (que Frugi lo
@@ -305,7 +361,10 @@ RESPALDA con fuente científica antes de entrar al corpus (no anécdota suelta).
 respaldo es la mitad del trabajo, no un adorno.
 
 Next slice: sesión de volcado donde Bernard comparte su conocimiento → Claude lo
-estructura Y lo respalda con literatura → `khimeras_shared/corpus/vegan_gastronomy.md`
-(o `frutas_fructosa.md`) → ingesta a `deep_memory_chunks` namespace `__corpus_vegan__`
-(molde: `scripts/ingest_film_corpus.py`). Owner-fork: si el método fruit-first también
+estructura Y lo respalda con literatura → un documento nuevo en
+`data/corpus/frugivoro/` (registrado en su `MANIFEST.md`) → ingesta a
+`deep_memory_chunks` namespace `__corpus_vegan__` con `scripts/ingest_corpus.py`.
+*(Hasta el 2026-09-25 este párrafo apuntaba a `khimeras_shared/corpus/vegan_gastronomy.md`
+y a `scripts/ingest_film_corpus.py`; los dos están borrados — el primero en
+`6ba7a61`, recuperable con `git show 798ba77:khimeras_shared/corpus/vegan_gastronomy.md`.)* Owner-fork: si el método fruit-first también
 se endurece en el DNA (`shared/personas/frugivoro.md`) o vive solo en el corpus.
