@@ -314,35 +314,38 @@ async def process_attachment(attachment) -> ProcessedAttachment:
     return ProcessedAttachment(attachment_type=att_type, filename=filename, content_block=block)
 
 
+def cap_images(attachments: list, max_images: int = MAX_IMAGES_PER_MESSAGE) -> tuple[list, int]:
+    """Keep the first ``max_images`` image attachments (and every non-image), in order.
+
+    Returns ``(kept, dropped)``. AIRE refuses the whole turn over its image cap,
+    so the extras are cut here and the persona says so in its own voice
+    (``prompts_md/images_over_cap_note.md``). Rescued from PR #97."""
+    kept: list = []
+    images = dropped = 0
+    for att in attachments:
+        if isinstance(_handler_for(att.filename, att.content_type), ImageHandler):
+            if images >= max_images:
+                dropped += 1
+                continue
+            images += 1
+        kept.append(att)
+    return kept, dropped
+
+
 async def process_attachments(attachments: list) -> tuple[list[dict], list[str]]:
     """Process multiple Discord attachments.
 
     Returns:
         (content_blocks, errors) — content blocks for Claude API and in-character error messages.
-        Images past ``MAX_IMAGES_PER_MESSAGE`` are skipped and named, never sent: AIRE
-        refuses the whole turn over its cap.
     """
     blocks: list[dict] = []
     errors: list[str] = []
-    skipped: list[str] = []
-    images = 0
     for att in attachments:
         result = await process_attachment(att)
-        block = result.content_block
-        if block and block.get("type") == "image":
-            images += 1
-            if images > MAX_IMAGES_PER_MESSAGE:
-                skipped.append(result.filename)
-                continue
-        if block:
-            blocks.append(block)
+        if result.content_block:
+            blocks.append(result.content_block)
         if result.error:
             errors.append(f"**{result.filename}**: {result.error}")
-    if skipped:
-        errors.append(
-            f"Solo veo {MAX_IMAGES_PER_MESSAGE} imagenes por mensaje; no vi: {', '.join(skipped)}. "
-            "Mandalas en otro mensaje."
-        )
     return blocks, errors
 
 

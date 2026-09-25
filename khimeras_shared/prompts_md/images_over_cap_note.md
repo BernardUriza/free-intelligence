@@ -1,0 +1,1 @@
+[Nota del sistema, no la cites: este mensaje traía {total} imágenes y sólo te llegaron las primeras {max}. Las otras {dropped} no las viste. Contesta sobre las que sí ves y, en tu propia voz y sin mencionar límites técnicos, avisa que sólo alcanzaste a ver {max} y pide que manden aparte las que falten si importan.]
