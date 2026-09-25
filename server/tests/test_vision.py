@@ -5,7 +5,7 @@ import base64
 
 import pytest
 
-from aire.engine.vision import MAX_IMAGES, BadImage, clean_images, query_input
+from aire.engine.vision import MAX_IMAGES, BadImage, attached_counts, clean_images, query_input
 
 PNG_B64 = base64.b64encode(b"\x89PNG\r\n\x1a\nfakebytes").decode()
 IMG = {"media_type": "image/png", "data": PNG_B64}
@@ -34,14 +34,21 @@ def test_query_input_text_only_stays_a_plain_string():
     assert query_input("hola", ()) == "hola"
 
 
-def test_query_input_folds_images_first_then_the_text_block():
-    blocks = query_input("what is this?", (IMG,))
-    assert [b["type"] for b in blocks] == ["image", "text"]
-    assert blocks[0]["source"] == {"type": "base64", "media_type": "image/png",
-                                   "data": PNG_B64}
-    assert blocks[1]["text"] == "what is this?"
+BLOCK = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": PNG_B64}}
+DOC = {"type": "document", "source": {"type": "text", "media_type": "text/plain", "data": "hola"}}
 
 
-def test_query_input_image_only_send_has_no_text_block():
-    blocks = query_input("", (IMG,))
+def test_query_input_folds_attachments_first_then_the_text_block():
+    blocks = query_input("what is this?", (BLOCK, DOC))
+    assert [b["type"] for b in blocks] == ["image", "document", "text"]
+    assert blocks[0] == BLOCK and blocks[1] == DOC
+    assert blocks[2]["text"] == "what is this?"
+
+
+def test_query_input_attachment_only_send_has_no_text_block():
+    blocks = query_input("", (BLOCK,))
     assert [b["type"] for b in blocks] == ["image"]
+
+
+def test_attached_counts_reports_each_kind():
+    assert attached_counts((BLOCK, DOC, DOC)) == {"images_attached": 1, "documents_attached": 2}

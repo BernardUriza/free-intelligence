@@ -50,42 +50,50 @@ def _clean_one(i: int, item: Any) -> dict[str, str]:
     return {"media_type": item["media_type"], "data": data}
 
 
-async def _ready_one(i: int, item: dict[str, str]) -> dict[str, str]:
+Block = dict[str, Any]  # a ready Anthropic content block: image or document
+
+
+async def _ready_one(i: int, item: dict[str, str]) -> Block:
     try:
         raw = await fetch(item["url"]) if "url" in item else base64.b64decode(item["data"])
         small, media_type = await asyncio.to_thread(normalize, raw)
     except (FetchRefused, BadPixels) as exc:
         raise BadImage(f"image {i}: {exc}") from exc
-    return {"media_type": media_type, "data": base64.b64encode(small).decode()}
+    return {"type": "image",
+            "source": {"type": "base64", "media_type": media_type, "data": base64.b64encode(small).decode()}}
 
 
-async def prepare_images(raw: Any) -> tuple[dict[str, str], ...]:
+async def prepare_images(raw: Any) -> tuple[Block, ...]:
     """Shape-check, fetch and shrink — sequentially, never four decodes at once."""
     return tuple([await _ready_one(i, item) for i, item in enumerate(clean_images(raw))])
 
 
-def query_input(message: str, images: tuple[dict[str, str], ...]) -> str | list[dict[str, Any]]:
+def query_input(message: str, attachments: tuple[Block, ...]) -> str | list[Block]:
     """The `client.query()` payload — SDK-free and unit-testable. A text-only
-    turn stays a plain string (byte-identical to before); an image turn becomes
-    a block list, images first, the text block last — skipped when the message
-    is empty, because an image-only send is valid: the picture IS the message."""
-    if not images:
+    turn stays a plain string (byte-identical to before); a turn with
+    attachments (images from here, documents from `documents.py`) becomes a
+    block list, attachments first, the text block last — skipped when the
+    message is empty, because an attachment-only send is valid."""
+    if not attachments:
         return message
-    content: list[dict[str, Any]] = [
-        {"type": "image",
-         "source": {"type": "base64", "media_type": img["media_type"], "data": img["data"]}}
-        for img in images
-    ]
+    content: list[Block] = list(attachments)
     if message.strip():
         content.append({"type": "text", "text": message})
     return content
 
 
-async def send_turn(client: Any, message: str, images: tuple[dict[str, str], ...]) -> None:
-    """Send the turn's user message: a plain string for text-only turns; for
-    image turns, the SDK's streaming-input mode (an async iterable yielding one
+def attached_counts(attachments: tuple[Block, ...]) -> dict[str, int]:
+    """What the `result` event reports (#50), so a consumer can compare it
+    against what it sent and fail loud instead of answering blind."""
+    return {"images_attached": sum(1 for b in attachments if b["type"] == "image"),
+            "documents_attached": sum(1 for b in attachments if b["type"] == "document")}
+
+
+async def send_turn(client: Any, message: str, attachments: tuple[Block, ...]) -> None:
+    """Send the turn's user message: a plain string for text-only turns; with
+    attachments, the SDK's streaming-input mode (an async iterable yielding one
     user message dict) — the string mode carries no attachments."""
-    payload = query_input(message, images)
+    payload = query_input(message, attachments)
     if isinstance(payload, str):
         await client.query(payload)
         return

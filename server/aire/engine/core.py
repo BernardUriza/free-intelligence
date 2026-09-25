@@ -75,7 +75,7 @@ class Engine:
         return client, lock
 
     async def run_stream(self, project: str, session: str, prompt: str, spec: TurnSpec,
-                         images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
+                         attachments: tuple[dict[str, Any], ...] = ()) -> AsyncIterator[dict[str, Any]]:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues.
 
@@ -85,11 +85,11 @@ class Engine:
         async with self.pool.slot():
             # The turn lifecycle (attempts, budget cut, credential failover)
             # lives in turn.py — the #23/#31 detections share the result seam.
-            async for event in run_turn(self, project, session, prompt, spec, images):
+            async for event in run_turn(self, project, session, prompt, spec, attachments):
                 yield event
 
     def launch_detached(self, project: str, session: str, prompt: str, spec: TurnSpec,
-                        images: tuple[dict[str, str], ...] = (),
+                        attachments: tuple[dict[str, Any], ...] = (),
                         on_cost: CostSink | None = None) -> None:
         """Run the turn fire-and-forget (#22a): decoupled from the request, it
         finishes even if the caller hangs up. Raises if one already runs here.
@@ -98,7 +98,7 @@ class Engine:
         in detach.py, with the rest of the fire-and-forget concept."""
         key = f"{project}/{session}"
         self.detached.launch(key, lambda: drain_detached(
-            self.run_stream(project, session, prompt, spec, images), key, on_cost))
+            self.run_stream(project, session, prompt, spec, attachments), key, on_cost))
 
     async def _retire(self, project: str, session: str) -> None:
         """A client that reached max_budget_usd is POISONED: the SDK refuses every

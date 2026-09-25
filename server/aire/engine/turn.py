@@ -28,7 +28,7 @@ def _all_dry_event(rotor: Any) -> dict[str, Any]:
 
 async def run_turn(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec,
-                   images: tuple[dict[str, str], ...] = ()) -> AsyncIterator[dict[str, Any]]:
+                   attachments: tuple[dict[str, Any], ...] = ()) -> AsyncIterator[dict[str, Any]]:
     """Walk the credential chain until an attempt survives or the chain dries.
     Terminates: every rotation cools one more slot, and `active()` skips them."""
     while True:
@@ -42,7 +42,7 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
         if is_metered(slot.name) and engine.ledger.exhausted():
             raise BudgetExceeded(engine.ledger.refusal())
         rotated = False
-        async for event in _attempt(engine, project, session, prompt, spec, images, slot):
+        async for event in _attempt(engine, project, session, prompt, spec, attachments, slot):
             if event is _ROTATE:
                 rotated = True
             else:
@@ -73,7 +73,7 @@ async def _account(engine: Any, project: str, session: str,
 
 
 async def _attempt(engine: Any, project: str, session: str, prompt: str,
-                   spec: TurnSpec, images: tuple[dict[str, str], ...],
+                   spec: TurnSpec, attachments: tuple[dict[str, Any], ...],
                    slot: Any) -> AsyncIterator[dict[str, Any]]:
     key = f"{project}/{session}"
     # A pooled client binds mode/tools/model at birth; a turn that asks for a
@@ -85,7 +85,7 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
     notice: str | None = None
     try:
         async with lock:
-            await send_turn(client, prompt, images)
+            await send_turn(client, prompt, attachments)
             async for event in drain(client):
                 if event.get("type") == "result":
                     spent = await _account(engine, project, session, event, born_with)

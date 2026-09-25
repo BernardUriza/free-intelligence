@@ -20,7 +20,8 @@ from .engine.contract import Guard, RemoteTool
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
-from .engine import image_budget
+from .engine import attachment_budget
+from .engine.documents import BadDocument, prepare_documents
 from .engine.vision import BadImage, prepare_images
 from .names import InvalidName, clean
 
@@ -73,22 +74,32 @@ def safe_model(raw: Any) -> str | None:
     raise HTTPException(status_code=422, detail="invalid model")
 
 
-async def safe_images(raw: Any, key: dict[str, str]) -> tuple[dict[str, str], ...]:
-    """Attachments for THIS turn (#29 gap 4, #50): shape-checked, fetched and
-    shrunk in `engine/vision.py`, then weighed against what the session already
-    resends every turn (`engine/image_budget.py`). All before a dollar is spent."""
+async def _prepare(images: Any, documents: Any, provider: str) -> tuple[dict[str, Any], ...]:
     try:
-        images = await prepare_images(raw)
-    except BadImage as exc:
+        blocks = await prepare_images(images) + await prepare_documents(documents)
+    except (BadImage, BadDocument) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if provider != DEFAULT_PROVIDER and any(b["source"]["type"] == "base64" and b["type"] == "document"
+                                            for b in blocks):
+        raise HTTPException(status_code=422, detail=f"PDF documents need the {DEFAULT_PROVIDER} provider")
+    return blocks
+
+
+async def safe_attachments(images: Any, documents: Any, key: dict[str, str],
+                           provider: str = DEFAULT_PROVIDER) -> tuple[dict[str, Any], ...]:
+    """Attachments for THIS turn (#29 gap 4, #50) as ready content blocks: images
+    fetched and shrunk (`engine/vision.py`), documents fetched and typed
+    (`engine/documents.py`), then weighed against what the session already
+    resends every turn (`engine/attachment_budget.py`). All before a dollar is spent."""
+    blocks = await _prepare(images, documents, provider)
     try:
-        await image_budget.enforce(key["project_key"], key["session_id"], images)
-    except image_budget.OverBudget as exc:
+        await attachment_budget.enforce(key["project_key"], key["session_id"], blocks)
+    except attachment_budget.OverBudget as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:  # the store is unreachable: refuse loud, never guess the weight
         raise HTTPException(status_code=503,
-                            detail=f"session image budget unreadable: {type(exc).__name__}") from exc
-    return images
+                            detail=f"session attachment budget unreadable: {type(exc).__name__}") from exc
+    return blocks
 
 
 def safe_guard_names(raw: Any) -> list[str]:

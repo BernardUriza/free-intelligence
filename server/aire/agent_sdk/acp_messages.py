@@ -111,7 +111,20 @@ def _blocks(payload: Any) -> list[Any]:
             blocks.append(acp.image_block(src["data"], src["media_type"]))
         elif block.get("type") == "text":
             blocks.append(acp.text_block(block["text"]))
+        elif block.get("type") == "document":
+            blocks.append(_document_as_text(block))
     return blocks
+
+
+def _document_as_text(block: dict[str, Any]) -> Any:
+    """ACP has no document block: a text file rides as text. A PDF never gets
+    here — the door refuses it for a non-Claude provider — and if one did, it
+    raises instead of vanishing from the turn."""
+    src = block["source"]
+    if src.get("type") != "text":
+        raise ValueError("ACP cannot carry a PDF document")
+    title = block.get("title")
+    return acp.text_block(f"[{title}]\n{src['data']}" if title else src["data"])
 
 
 async def collect_blocks(payload: Any) -> list[Any]:

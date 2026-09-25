@@ -23,9 +23,9 @@ from .engine import BudgetExceeded, SlotBusy, TurnSpec
 from .engine.contract import Guard
 from .engine.drain import turn_cost
 from .engine.guards import observe
-from .intake import (build_guards, safe_guard_names, safe_images, safe_mode,
-                     safe_model, safe_names, safe_provider, safe_remote_tools,
-                     safe_tools)
+from .engine.vision import attached_counts
+from .intake import (build_guards, safe_attachments, safe_guard_names, safe_mode, safe_model,
+                     safe_names, safe_provider, safe_remote_tools, safe_tools)
 
 router = APIRouter()
 
@@ -41,11 +41,12 @@ async def post_message(project: str, session: str, request: Request) -> Any:
                     remote_tools=safe_remote_tools(body.get("remote_tools")),
                     provider=safe_provider(body.get("provider")))
     engine = await get_engine()
-    images = await safe_images(body.get("images"), engine.session_key(project, session))
+    attachments = await safe_attachments(body.get("images"), body.get("documents"),
+                                         engine.session_key(project, session), spec.provider)
     guard_names = safe_guard_names(body.get("guards"))
     # An empty turn spends real money for nothing, so the edge cuts it. An
-    # image-only send IS a turn (#29 gap 4): the picture is the message.
-    if not message and not images:
+    # attachment-only send IS a turn (#29 gap 4): the picture is the message.
+    if not message and not attachments:
         raise HTTPException(status_code=422, detail="empty message")
     holder = getattr(request.state, "holder", None)  # an invited key (#32d), or Bernard's
     if bool(body.get("background")):  # #22a — fire-and-forget, survives a dropped socket
@@ -56,9 +57,9 @@ async def post_message(project: str, session: str, request: Request) -> Any:
             # BEFORE building: the shape of the request is the caller's problem
             # and answers the same on every box; a missing backing is neither.
             raise HTTPException(status_code=422, detail="guards need a stream; drop `background`")
-        return await _launch_background(project, session, message, spec, images, holder)
+        return await _launch_background(project, session, message, spec, attachments, holder)
     guards = build_guards(guard_names)
-    return EventSourceResponse(_events(project, session, message, spec, images, holder, guards))
+    return EventSourceResponse(_events(project, session, message, spec, attachments, holder, guards))
 
 
 async def _bank(holder: Any, cost: float) -> None:
@@ -71,12 +72,12 @@ async def _bank(holder: Any, cost: float) -> None:
 
 
 async def _launch_background(project: str, session: str, message: str, spec: TurnSpec,
-                             images: tuple[dict[str, str], ...],
+                             attachments: tuple[dict[str, Any], ...],
                              holder: Any = None) -> JSONResponse:
     engine = await get_engine()
     sink = (lambda cost: _bank(holder, cost)) if holder is not None else None
     try:
-        engine.launch_detached(project, session, message, spec, images, on_cost=sink)
+        engine.launch_detached(project, session, message, spec, attachments, on_cost=sink)
     except RuntimeError as exc:  # a turn already runs on this session
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return JSONResponse({"status": "accepted", "session": session}, status_code=202)
@@ -109,14 +110,14 @@ async def session_exists(project: str, session: str, provider: str | None = None
 
 
 async def _events(project: str, session: str, message: str, spec: TurnSpec,
-                  images: tuple[dict[str, str], ...],
+                  attachments: tuple[dict[str, Any], ...],
                   holder: Any = None,
                   guards: list[Guard] | None = None) -> AsyncIterator[ServerSentEvent]:
     engine = await get_engine()
     try:
-        async for ev in engine.run_stream(project, session, message, spec, images):
+        async for ev in engine.run_stream(project, session, message, spec, attachments):
             if ev.get("type") == "result":  # #50: the consumer checks this against what it sent
-                ev = {**ev, "images_attached": len(images)}
+                ev = {**ev, **attached_counts(attachments)}
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":
