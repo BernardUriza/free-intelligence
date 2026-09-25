@@ -29,6 +29,21 @@ Receipts (2026-09-25, from the droplet):
 - Same URL without `ex/is/hm` → `404`: the reference is the whole URL, not the path.
 - `ex - is = 86400`: signatures live **24 h** — plenty against a 600 s turn budget,
   not a durable store.
+- **The 24 h window is closed by refreshing, not by storing** (verified 2026-09-25):
+  the bare path of a real #general attachment → `404`; the same bare path through
+  Discord's `POST /api/v10/attachments/refresh-urls` (`{"attachment_urls": [...]}`,
+  bot token) → a freshly signed URL → `200`, 2,677,920 B. So the consumer persists
+  the **path**, and re-signs it right before each send, resumes included. A job
+  resumed days later still carries a live image.
+- **Refreshing is the consumer's job, never AIRE's.** It takes a Discord bot token,
+  and AIRE holds no consumer's credentials (a credential is scoped to the surface it
+  was handed to). AIRE only fetches what it receives; an expired URL stays a
+  declared error (item 4 below).
+- **After the turn the image is durable anyway:** the transcript stores the image
+  block in base64 (85 `image` entries in `claude_session_store` on 2026-09-25), and
+  `resume` hands it back to Claude. The signed URL only has to live until the turn
+  runs. No OCR, no embeddings: they would downgrade an image Claude already sees
+  natively and store a copy of what the memory already holds.
 
 ## What it has to carry (or it opens new holes)
 
