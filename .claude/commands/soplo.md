@@ -24,7 +24,8 @@ tool, it hangs forever — use `tail -n`):
 ssh -i ~/.ssh/aire_vm -o ConnectTimeout=10 root@159.203.84.13 \
   'echo "== services =="; systemctl is-active aire-listener aire-server; \
    echo "== memory =="; curl -s --max-time 8 localhost:8088/health; echo; \
-   echo "== pen =="; grep -a "PEN-" /opt/aire/aire.log | tail -n 1; \
+   echo "== pen =="; zgrep -ah "PEN-" /opt/aire/aire.log* | sort | tail -n 1; \
+   echo "== last mirror write =="; grep -a "MIRROR" /opt/aire/aire.log | tail -n 1; \
    echo "== log tail =="; tail -n 8 /opt/aire/aire.log; \
    echo "== totals =="; printf "lines=%s casitas=%s uptime=%s\n" "$(wc -l < /opt/aire/aire.log)" "$(ls /opt/aire/workspaces | wc -l)" "$(uptime -p)"'
 ```
@@ -50,6 +51,18 @@ In 2-3 lines, with real receipts (Art. 2 — never fake-green):
   distress signal is the `PEN-` line. A `PEN-DOWN` tail = the memory is not being
   mirrored = NOT blowing, whatever the other proxies say
   (docs/listener-doctrine.md, the pen section).
+- **The pen line lives in the ROTATED logs too.** `PEN-` is a transition, not a
+  heartbeat: it is written once when the pen changes state, and logrotate
+  (`daily`, `rotate 7`) moves it out of `aire.log` within a day. That is why the
+  command `zgrep`s `aire.log*` and sorts by timestamp. On 2026-09-25 a plain grep of
+  the live file came back empty and /soplo reported the pen as unknown, while
+  `aire.log.2.gz` held `PEN-UP` from 09-23.
+- **No `PEN-` in the whole 7-day window** means no transition happened in that
+  time, which is fine; it does not prove the pen is UP. Report it as "no pen
+  transition in 7 days" and back it with the `last mirror write` line: a
+  `CASITA-MIRROR stored` from today means the pen is writing to Postgres. If both
+  are missing, you cannot tell whether the pen is working. Say that, and do not
+  call it blowing.
 - The last log lines and the totals (lines, casitas, uptime).
 - If SSH fails / times out: **report it honestly** (droplet down or unreachable), never
   invent a pulse. Check the droplet state with
