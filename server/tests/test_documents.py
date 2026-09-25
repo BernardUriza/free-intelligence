@@ -42,10 +42,10 @@ def test_the_shape_is_refused_before_any_fetch(bad):
 async def test_a_refused_fetch_is_a_declared_error_naming_the_document(monkeypatch):
     async def fetch(url):
         if "evil" in url:
-            raise FetchRefused("image host not allowed: evil.com")
+            raise FetchRefused("host not allowed: evil.com")
         return b"ok"
     monkeypatch.setattr(d, "fetch", fetch)
-    with pytest.raises(d.BadDocument, match="document 1: image host not allowed"):
+    with pytest.raises(d.BadDocument, match="document 1: host not allowed"):
         await d.prepare_documents([{"url": "https://cdn.discordapp.com/a.txt"}, {"url": "https://evil.com/x"}])
 
 
