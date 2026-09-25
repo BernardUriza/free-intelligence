@@ -135,6 +135,12 @@ Receipts:
 - Mutation: disabling the IP check or enabling redirects turns 8 fetch tests red;
   dropping the bomb-warning promotion turns its test red; dropping `exif_transpose`
   turns the rotation test red.
+- **Through the real door** (deploy `f594160`, `gate.bernarduriza.com`, 2026-09-25): a
+  turn with two `{url}` images answered correctly about both, so Pillow and the
+  pinned fetch run on the droplet; `169.254.169.254` → 422 "host not allowed"; the
+  bare path → 422 "answered 404"; `result` carries `images_attached`. In the store the
+  photo sits as 1500×2000 / 467 KB — the CLI re-encodes once more after AIRE, so what
+  the transcript keeps is still the CLI's choice.
 
 **Correction to item 7/13, measured, not assumed:** all 90 images in the store are
 already ≤ 2000 px (max side exactly 2000) — the bundled CLI resizes before it writes
