@@ -64,7 +64,7 @@ def _image_trigger():
 
 _IMAGE_BLOCK = {
     "type": "image",
-    "source": {"type": "base64", "media_type": "image/png", "data": "aGk="},
+    "source": {"type": "url", "url": "https://cdn.discordapp.com/attachments/1/2/a.png?ex=ffffffff&is=0&hm=abc"},
 }
 
 

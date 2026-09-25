@@ -19,9 +19,11 @@ def _user(content):
 
 
 def _image_block(media_type: str = "image/png", data: str = "AAAA") -> dict:
+    """Images ride by reference since aire-server #50; `data` only keeps the URLs distinct."""
+    ext = media_type.split("/")[-1]
     return {
         "type": "image",
-        "source": {"type": "base64", "media_type": media_type, "data": data},
+        "source": {"type": "url", "url": f"https://cdn.discordapp.com/attachments/1/2/{data}.{ext}?ex=ffffffff"},
     }
 
 
@@ -57,7 +59,7 @@ def test_last_user_attachments_extracts_images():
     attachments = _last_user_attachments(msgs)
     assert len(attachments) == 1
     assert attachments[0]["type"] == "image"
-    assert attachments[0]["source"]["media_type"] == "image/jpeg"
+    assert attachments[0]["source"]["url"].endswith("BBBB.jpeg?ex=ffffffff")
 
 
 def test_last_user_attachments_extracts_multiple_images():

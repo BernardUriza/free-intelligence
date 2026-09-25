@@ -200,13 +200,12 @@ def test_model_diverged_is_silent_when_aire_reports_no_model():
 # --- attachments (AIRE's door takes images only) ----------------------------
 
 
-def test_image_attachments_are_forwarded_as_aire_blocks():
-    """An Anthropic-shape base64 image becomes AIRE's {media_type, data}."""
+def test_a_base64_image_is_no_longer_forwarded_it_is_counted_as_dropped():
+    """Resistencia (#50): el camino base64 murió; si algo vuelve a mandarlo, se cuenta, no se cuela."""
     images, dropped = aire_route.images_from_attachments(
         [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "QUJD"}}]
     )
-    assert dropped == 0
-    assert images[0].media_type == "image/png" and images[0].data == "QUJD"
+    assert images == [] and dropped == 1
 
 
 def test_a_url_image_rides_as_a_reference_aire_fetches():
