@@ -49,8 +49,12 @@ async def held(project_key: str, session_id: str) -> tuple[int, int]:
     """`(images, attachment chars)` already in the session. File-only mode → (0, 0)."""
     if not db.dsn():
         return 0, 0
-    async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
-        row: Any = await conn.fetchrow(_SQL, project_key, session_id)
+    from asyncpg.exceptions import UndefinedTableError
+    try:
+        async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
+            row: Any = await conn.fetchrow(_SQL, project_key, session_id)
+    except UndefinedTableError:
+        return 0, 0  # no store table yet (fresh box, CI): no session holds anything
     return int(row["n"]), int(row["b64"])
 
 

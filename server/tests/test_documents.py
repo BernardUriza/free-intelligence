@@ -79,6 +79,9 @@ async def test_the_door_refuses_a_pdf_for_a_non_claude_provider_before_spending(
 
     async def no_images(_raw):
         return ()
+    async def empty_session(*_):
+        return 0, 0
+    monkeypatch.setattr(intake.attachment_budget, "held", empty_session)
     monkeypatch.setattr(intake, "prepare_documents", docs)
     monkeypatch.setattr(intake, "prepare_images", no_images)
     key = {"project_key": "pk", "session_id": "s"}
