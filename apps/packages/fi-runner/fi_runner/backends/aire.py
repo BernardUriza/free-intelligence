@@ -33,8 +33,10 @@ forward clauses:
   carries REAL provenance — AIRE reads it off the AssistantMessages, so it is
   the model that answered, never an echo of the request.
 - ``images`` → forwarded as ``{media_type, data}`` blocks (base64, no ``data:``
-  prefix). The door enforces its own limits (max 4 × 5MB b64, MIME in
-  jpeg/png/webp/gif) and an image-only message is a valid turn.
+  prefix) or as ``{url}`` references the door fetches itself (aire-server #50).
+  The door enforces its own limits (max 4, shrunk to ≤ 2000 px, MIME detected)
+  and an image-only message is a valid turn. The result's ``images_attached`` is
+  checked against what was sent: a mismatch raises instead of answering blind.
 - ``mcp_servers`` → translated to registry NAMES: only ``spec.name`` crosses
   the wire (as the door's ``tools`` field, riding the configured mode — since
   aire-server 5ae8e33 the door runs registry tools in ``complete`` too); the
@@ -86,6 +88,8 @@ Requires the ``aire`` extra::
 """
 
 from __future__ import annotations
+
+import dataclasses
 
 import json
 import logging
@@ -432,7 +436,8 @@ class AIREBackend:
         if chosen_model:
             body["model"] = chosen_model
         if images:
-            body["images"] = [{"media_type": i.media_type, "data": i.data} for i in images]
+            body["images"] = [{"url": i.url} if i.url else {"media_type": i.media_type, "data": i.data}
+                              for i in images]
         async for ev in self._stream_events(project, session, body):
             kind = ev.get("type")
             if kind == "text":
@@ -442,7 +447,15 @@ class AIREBackend:
             elif kind == "tool_call":
                 yield {"type": "tool_call", "tool": self._to_toolcall(ev.get("tool") or {})}
             elif kind == "result":
-                yield {"type": "result", "result": self._to_result(ev.get("result") or {}, session)}
+                attached = ev.get("images_attached")
+                if isinstance(attached, int) and attached != len(images or []):
+                    raise AIREDoorError(
+                        f"AIRE turn error [attachments_lost]: sent {len(images or [])} images, "
+                        f"the door attached {attached}", code="attachments_lost")
+                result = self._to_result(ev.get("result") or {}, session)
+                if isinstance(attached, int):
+                    result = dataclasses.replace(result, images_attached=attached)
+                yield {"type": "result", "result": result}
             elif kind == "error":
                 code = ev.get("error")
                 raise AIREDoorError(
