@@ -67,6 +67,39 @@ Receipts (2026-09-25, from the droplet):
 **Not doing:** passing the URL to Anthropic (`source: url`). Unverified with the
 Agent SDK + OAuth, and it loses compression and error control.
 
+## What the 2026-09-25 research added (receipts, not guesses)
+
+7. **Resize, don't just compress: long edge ≤ 2000 px.** When a request carries
+   more than 20 images, *counting the ones resent from earlier turns*, every
+   image must be ≤ 2000 px per side or the API rejects the **whole request**
+   (`invalid_request_error`, "many-image requests"). Once a session crosses 20
+   images, one old 4000 px photo kills every later turn. Downscaling to 2000 px
+   loses almost nothing (the hi-res tier downsamples to 2576 anyway), and it also
+   shrinks the bytes that sit in the transcript forever.
+   ([vision docs](https://platform.claude.com/docs/en/build-with-claude/vision))
+8. **History is resent every turn.** Base64 images ride in the payload on every
+   later turn of the session, against a **32 MB request limit**. Today it is
+   latent: the worst session holds 4 images / ~2 MB, and zero `many-image` /
+   `request_too_large` errors are in the store. It stays latent only while the
+   consumers keep rotating sessions, so the cap on images per session belongs here,
+   not by accident in the consumer.
+9. **The real API cap is 10 MB base64 per image** (5 MB is Bedrock/Vertex). The
+   limit that bites on this box is RAM, not Anthropic.
+10. **SSRF: a host allowlist is not enough.** Resolve the host once, reject
+    private/loopback/link-local/CGNAT/metadata IPs, and connect to that IP
+    (Host + SNI preserved). Re-validate after every redirect, or disable
+    redirects. Otherwise DNS rebinding gets around the allowlist. httpx 0.28.1 is
+    already in the venv.
+11. **Pillow is not installed** on the droplet. When it comes in: keep
+    `MAX_IMAGE_PIXELS` (never `None`), turn `DecompressionBombWarning` into an
+    error, and decode with `draft()`/`thumbnail()` so a 12 MP JPEG decodes small
+    and not as ~36 MB of RGB on a box with ~186 MB free.
+12. **Timeouts on the fetch** (connect/read, total ≤ ~15 s). A CDN read with no
+    timeout hangs for 60-120 s (hermes-agent #33400).
+13. **Storage weight is real:** 85 image entries = **35 MB of the 132 MB**
+    `claude_session_store` (26%) in 5 weeks, never swept (the store is deathless
+    by design). Resizing to 2000 px is also the growth fix.
+
 ## Tests it needs
 
 Positive: a `{url}` image on the allowlist reaches `query_input` as a base64 block;
