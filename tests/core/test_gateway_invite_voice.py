@@ -77,7 +77,7 @@ async def _invite(client: PersonaClient, channel, transcript: str) -> None:
             guild_id="G1",
             channel_name="general",
             reason="bernard2389: «[adjuntó: voice-message.ogg]»",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id="1527198401375113227",
             trigger_transcript=transcript,
         )

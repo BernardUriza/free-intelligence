@@ -43,7 +43,7 @@ async def test_202_returns_true_and_payload_carries_all_fields():
             guild_id="456",
             channel_name="general",
             persona_id="vultur",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id="1526655478313127987",
         )
     assert ok is True
@@ -51,7 +51,7 @@ async def test_202_returns_true_and_payload_carries_all_fields():
     assert payload["channel_id"] == "123"
     assert payload["reason"] == "toma el turno"
     assert payload["persona_id"] == "vultur"
-    assert payload["invited_by"] == "host_router"
+    assert payload["invited_by"] == "host"
     assert payload["trigger_message_id"] == "1526655478313127987"
 
 

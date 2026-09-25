@@ -1,6 +1,14 @@
 # Imágenes por referencia: Discord → AIRE, el pipeline sólo carga la URL firmada
 
-**Status:** In progress (2026-09-25) — construido en los tres repos (aire-server `5cd1cee`, fi-runner 0.22.0 PR #495, este repo v4.41.0); falta el probe en #general. Idea de Bernard. Cross-repo: aire-server + fi-runner + este repo.
+**Status:** Done (2026-09-25) — construido en los tres repos (aire-server `5cd1cee`, cerrado allá en `3a5c5ce`; fi-runner 0.22.0 PR #495; este repo v4.41.0, más `job_id` en logs y el aviso de más de 4 fotos en voz de la persona en #100, v4.41.2). Idea de Bernard. Cross-repo: aire-server + fi-runner + este repo.
+
+**Recibo del probe en #general (2026-09-25):** a las 22:35 UTC se mandó `@Vultur` con
+`probe-50.png` ("MANGO 5082" en amarillo sobre verde, círculo magenta). A las 22:37
+Vultur describió la imagen correctamente y firmó `ᵛ⁴·⁴¹·¹`, con gateway y runner en
+`d4bc23b`: la imagen hizo Discord → gateway → runner → AIRE → Claude por referencia.
+
+**Sigue pendiente:** PDFs por el mismo mecanismo (hoyo #4, punto 5 de abajo) y borrar el
+camino base64 cuando ningún cliente de AIRE lo mande (punto 7).
 
 ## Lo que entró (2026-09-25)
 
@@ -34,9 +42,9 @@ Formas medidas en que se perdieron o se pueden perder (sesión 2026-09-25):
 |---|---|---|
 | 1 | El job del runner se armaba desde la fila de `turn_jobs`, que no guarda la imagen | 23→25-sep; arreglado en #92 (v4.40.21) |
 | 2 | Imágenes de 3.7–5 MB → 422 de AIRE, turno muerto (18 turnos, 8→19-sep) | arreglado 18-sep, pero con `5_000_000` copiado a mano en dos repos |
-| 3 | Un mensaje con ≥5 fotos: el gateway no tiene tope, AIRE `MAX_IMAGES=4` → 422 | **abierto** |
+| 3 | Un mensaje con ≥5 fotos: el gateway no tiene tope, AIRE `MAX_IMAGES=4` → 422 | cerrado v4.41.0 (tope de 4 en el gateway) |
 | 4 | PDFs y archivos de texto: el runner los tira en silencio porque AIRE sólo acepta imágenes | **abierto** |
-| 5 | Ni gateway ni runner loggean `job_id` → no hay cómo cruzar una pérdida | **abierto** |
+| 5 | Ni gateway ni runner loggean `job_id` → no hay cómo cruzar una pérdida | cerrado v4.41.2 (#100) |
 
 ## La decisión: Claim Check con Discord como almacén
 

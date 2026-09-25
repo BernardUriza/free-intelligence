@@ -79,7 +79,7 @@ async def _invite(client: PersonaClient, channel, *, trigger_message_id="1527198
             guild_id="G1",
             channel_name="general",
             reason="bernard2389 suena mal; espejo empático",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id=trigger_message_id,
         )
         await asyncio.sleep(0)
