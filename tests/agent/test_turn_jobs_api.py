@@ -228,6 +228,32 @@ def test_a_job_another_replica_still_beats_is_not_re_run(client, monkeypatch, le
     assert runs["n"] == 1
 
 
+def test_the_live_run_receives_the_attachments_the_row_does_not_keep(client, monkeypatch, ledger):
+    """P0 2026-09-25: la fila no guarda los adjuntos (MB de base64) y eso está
+    bien; lo que NO está bien es que la corrida en vivo se reconstruyera desde la
+    fila. Desde c74dbf4 (v4.40.2) cada imagen se tiraba en el alta: el gateway
+    logueaba `attachments_forwarded count=1` y el runner `has_attachments=false`,
+    e Insult contestaba a ciegas. La prueba de al lado sólo miraba la fila."""
+    seen: dict[str, object] = {}
+
+    async def turn(req: TurnRequest) -> TurnResponse:
+        seen["attachments"] = req.attachments
+        seen["resumed"] = req.resumed
+        return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
+
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    image = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "aGk="}}
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [image]}, headers=HEADERS)
+    body = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
+
+    assert body["status"] == "done"
+    assert seen["attachments"] == [image]
+    assert seen["resumed"] is False
+    # Resistencia: la fila sigue sin la imagen, sólo con la marca de que la hubo.
+    assert "attachments" not in ledger.rows[JOB["job_id"]]["payload"]
+    assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is True
+
+
 def test_a_job_with_attachments_is_not_resumable(client, monkeypatch, ledger):
     async def never(_req: TurnRequest) -> TurnResponse:
         await asyncio.sleep(60)

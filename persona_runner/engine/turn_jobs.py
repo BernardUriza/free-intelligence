@@ -91,8 +91,12 @@ async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
     lo corre, o la fila cuando otro ya lo terminó o lo sigue corriendo."""
     job_id = req.job_id or uuid.uuid4().hex
 
-    async def run(payload: dict[str, Any]) -> TurnResponse:
-        return await runner(_request_from(payload, resumed=False))
+    # La corrida en vivo usa el request ORIGINAL, nunca el payload de la fila: la
+    # fila no guarda los adjuntos, y reconstruir desde ella tiraba cada imagen en
+    # el alta (P0 2026-09-25, regresión de c74dbf4). La fila sólo sirve para
+    # reanudar, y reanudar un job con adjuntos ya es `not_resumable`.
+    async def run(_payload: dict[str, Any]) -> TurnResponse:
+        return await runner(req.model_copy(update={"resumed": False}))
 
     return await JOBS.open_durable(
         _payload(req),
