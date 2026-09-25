@@ -1,6 +1,6 @@
 # 50 — Images by reference: the caller sends a signed URL, AIRE fetches the bytes
 
-Status: **Proposed** 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
+Status: **In progress** — AIRE side built 2026-09-25 (see *What landed*); the consumer still sends base64. Proposed 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
 
 ## Why
 
@@ -107,3 +107,43 @@ an oversize image comes back under the cap. Resistance: off-allowlist host →
 refused without a request; redirect to a foreign host → refused; expired/404 →
 declared error; 5 images → still refused (the cap does not move); count in the
 result equals images attached.
+
+## What landed (AIRE side, 2026-09-25)
+
+- `engine/fetch.py` — the `{url}` fetch: allowlist (`AIRE_IMAGE_HOSTS`), resolve once,
+  refuse the name if ANY address is non-global, connect to the pinned IP with `Host`
+  + SNI on the real name (TLS still verified), 3xx refused, 15 s total, 10 MiB cap
+  while streaming. Items 1, 4, 10, 12.
+- `engine/shrink.py` — Pillow, lazy-imported: bomb guard armed and its warning made an
+  error, JPEG `draft()`, ≤ 2000 px, EXIF rotation baked in, media type DETECTED. An
+  image already ≤ 2000 px, ≤ 1 MB and upright rides byte-identical. Items 2, 7, 11.
+- `engine/image_budget.py` — before the turn, the session's images already in
+  `claude_session_store` + this turn's must fit 100 images / 24 MB base64, or 422
+  "start a new session"; unreadable store → 503. Item 8.
+- `result` SSE event carries `images_attached`. Item 3. Inline `{media_type, data}`
+  still accepted and now also shrunk; its edge cap rose to 14 M chars (~10 MB, the API's
+  real cap) because oversize is shrunk, not refused. Item 5.
+- `pillow` in `requirements.txt` → the deploy installs it on the droplet.
+
+Receipts:
+- Live, from the Mac: four real #general attachments by signed URL through
+  `prepare_images` in 2.4 s — the pinned-IP TLS handshake to `cdn.discordapp.com`
+  works; three 2160×2880 iPhone photos of 2.7-4.7 MB came out 1500×2000 at 0.65-1.07 MB
+  (q85); the 17 KB PNG rode untouched; the bare path → declared `404`.
+- The budget SQL against the real store returns the measured numbers (4 images /
+  1.68 MB, 4 / 1.90, 3 / 0.84) in 77-157 ms from the Mac.
+- Mutation: disabling the IP check or enabling redirects turns 8 fetch tests red;
+  dropping the bomb-warning promotion turns its test red; dropping `exif_transpose`
+  turns the rotation test red.
+
+**Correction to item 7/13, measured, not assumed:** all 90 images in the store are
+already ≤ 2000 px (max side exactly 2000) — the bundled CLI resizes before it writes
+(its bundle carries `maxWidth:2000` / `maxHeight:2000` / `maxBase64Size:5242880`). So
+the many-image rule was never exposed on the native path, and resizing to 2000 alone
+does not shrink what the store keeps. What AIRE's shrink adds is ownership of the rule
+(not an undocumented CLI internal), a q85 re-encode that cuts phone photos ~70-75%
+before they reach the CLI's own encoder, and a CLI that never decodes a 12 MP photo
+on a 512 MB box.
+
+Still open: the consumer twin (discord-bot) switching to `{url}` and deleting its own
+`5_000_000` cap and 2048-px compressor; comparing `images_attached` there; PDFs (item 6).

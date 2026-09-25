@@ -22,7 +22,7 @@ kept honest, a status flipped the day it changes.
 | [40](40-every-guard-fails-quietly.md) | Every guard fails quietly | All 8 leftovers shipped 2026-08-22; 2 decisions open (Bernard's) |
 | [42](42-the-guards-are-observational.md) | The guards ride observational | Observational half Done 2026-08-22; the buffered half Proposed |
 | [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | **Done 2026-08-24** — both notches, plus a 5-min external pulse |
-| [50](50-images-by-reference.md) | Images by reference — the caller sends a signed Discord URL, AIRE fetches, compresses and counts | Proposed 2026-09-25 |
+| [50](50-images-by-reference.md) | Images by reference — the caller sends a signed Discord URL, AIRE fetches, compresses and counts | In progress — AIRE side built 2026-09-25; consumer twin pending |
 
 ## Closed
 
