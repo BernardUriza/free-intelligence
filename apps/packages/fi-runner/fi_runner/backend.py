@@ -392,6 +392,31 @@ class TurnImage:
 
 
 @dataclass(frozen=True)
+class TurnDocument:
+    """One document (a PDF or a text file) attached to the CURRENT turn, BY
+    REFERENCE (aire-server #50 item 6): a signed CDN URL the door fetches and
+    types itself — ``%PDF-`` becomes a PDF block, anything else must be text.
+    ``title`` rides as the block's title. Current-turn only, like images."""
+
+    url: str
+    title: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.url:
+            raise ValueError("a TurnDocument needs a url")
+
+    @classmethod
+    def from_any(cls, item: Any) -> TurnDocument:
+        """Coerce a :class:`TurnDocument` or a ``{url, title?}`` mapping."""
+        if isinstance(item, cls):
+            return item
+        if isinstance(item, Mapping) and isinstance(item.get("url"), str) and item["url"]:
+            title = item.get("title")
+            return cls(url=item["url"], title=title if isinstance(title, str) else "")
+        raise ValueError(f"cannot coerce {type(item).__name__} into TurnDocument")
+
+
+@dataclass(frozen=True)
 class TurnResult:
     """The result of one turn."""
 
@@ -423,6 +448,8 @@ class TurnResult:
     # How many images the backend says it attached (AIRE's ``images_attached``,
     # aire-server #50). None when the backend does not report it.
     images_attached: int | None = None
+    # Same for documents (``documents_attached``). None when not reported.
+    documents_attached: int | None = None
 
 
 @runtime_checkable

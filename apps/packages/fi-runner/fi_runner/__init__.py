@@ -47,6 +47,7 @@ from .backend import (
     PermissionMode,
     ToolCall,
     ToolPolicy,
+    TurnDocument,
     TurnImage,
     TurnResult,
     mcp_server_of,
@@ -97,7 +98,7 @@ from .context_binding import (
 from .prompts import load_prompt
 from .runner import FlowNarrator, RetryPolicy, Runner
 
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 
 __all__ = [
     "AgentBackend",
@@ -107,6 +108,7 @@ __all__ = [
     "PermissionMode",
     "ToolCall",
     "ToolPolicy",
+    "TurnDocument",
     "TurnImage",
     "TurnResult",
     "mcp_tool_id",

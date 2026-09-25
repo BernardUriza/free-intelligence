@@ -37,6 +37,9 @@ forward clauses:
   The door enforces its own limits (max 4, shrunk to ≤ 2000 px, MIME detected)
   and an image-only message is a valid turn. The result's ``images_attached`` is
   checked against what was sent: a mismatch raises instead of answering blind.
+- ``documents`` → forwarded as ``{url, title?}`` references (aire-server #50
+  item 6); the door detects PDF vs text. ``documents_attached`` is checked the
+  same way.
 - ``mcp_servers`` → translated to registry NAMES: only ``spec.name`` crosses
   the wire (as the door's ``tools`` field, riding the configured mode — since
   aire-server 5ae8e33 the door runs registry tools in ``complete`` too); the
@@ -104,6 +107,7 @@ from ..backend import (
     PermissionMode,
     ToolCall,
     ToolPolicy,
+    TurnDocument,
     TurnImage,
     TurnResult,
 )
@@ -133,6 +137,24 @@ class AIREDoorError(BackendError):
         self.code = code
         self.http_status = http_status
 
+
+
+def _attached_counts(ev: dict[str, Any], images: list[Any] | None,
+                     documents: list[Any] | None) -> dict[str, int]:
+    """The door's ``*_attached`` counts, checked against what was sent. A door
+    that attached fewer is ``attachments_lost``: answering without what the user
+    sent is worse than not answering. An older door that omits a count is not
+    judged on it."""
+    counts: dict[str, int] = {}
+    for field, sent in (("images_attached", len(images or [])), ("documents_attached", len(documents or []))):
+        attached = ev.get(field)
+        if not isinstance(attached, int):
+            continue
+        if attached != sent:
+            raise AIREDoorError(f"AIRE turn error [attachments_lost]: sent {sent} ({field}), "
+                                f"the door attached {attached}", code="attachments_lost")
+        counts[field] = attached
+    return counts
 
 class AIREBackend:
     """Agent backend backed by AIRE (a persistent HTTP server, not a CLI)."""
@@ -409,6 +431,7 @@ class AIREBackend:
         model: str | None = None,
         session_id: str | None = None,
         images: list[TurnImage] | None = None,
+        documents: list[TurnDocument] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn through the AIRE door. Re-emits AIRE's SSE events
         in fi-runner's stream vocabulary (``text`` / ``tool_call`` / ``result``),
@@ -438,6 +461,9 @@ class AIREBackend:
         if images:
             body["images"] = [{"url": i.url} if i.url else {"media_type": i.media_type, "data": i.data}
                               for i in images]
+        if documents:
+            body["documents"] = [{"url": d.url, "title": d.title} if d.title else {"url": d.url}
+                                 for d in documents]
         async for ev in self._stream_events(project, session, body):
             kind = ev.get("type")
             if kind == "text":
@@ -447,15 +473,9 @@ class AIREBackend:
             elif kind == "tool_call":
                 yield {"type": "tool_call", "tool": self._to_toolcall(ev.get("tool") or {})}
             elif kind == "result":
-                attached = ev.get("images_attached")
-                if isinstance(attached, int) and attached != len(images or []):
-                    raise AIREDoorError(
-                        f"AIRE turn error [attachments_lost]: sent {len(images or [])} images, "
-                        f"the door attached {attached}", code="attachments_lost")
-                result = self._to_result(ev.get("result") or {}, session)
-                if isinstance(attached, int):
-                    result = dataclasses.replace(result, images_attached=attached)
-                yield {"type": "result", "result": result}
+                counts = _attached_counts(ev, images, documents)
+                yield {"type": "result",
+                       "result": dataclasses.replace(self._to_result(ev.get("result") or {}, session), **counts)}
             elif kind == "error":
                 code = ev.get("error")
                 raise AIREDoorError(
@@ -473,6 +493,7 @@ class AIREBackend:
         model: str | None = None,
         session_id: str | None = None,
         images: list[TurnImage] | None = None,
+        documents: list[TurnDocument] | None = None,
     ) -> TurnResult:
         """One turn through the AIRE door. Drains the stream and returns the final
         ``result`` event. If AIRE never emits one (a torn stream), that is a real
@@ -495,6 +516,7 @@ class AIREBackend:
                 model=model,
                 session_id=session_id,
                 images=images,
+                documents=documents,
             ):
                 if event.get("type") == "result":
                     result = event["result"]
