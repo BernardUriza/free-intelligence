@@ -126,3 +126,33 @@ async def test_run_passes_images_and_emits_light_telemetry():
     assert attached[0]["media_types"] == ["image/jpeg"]
     # Telemetry never carries the bytes.
     assert "data" not in attached[0] and "aGVsbG8=" not in str(attached[0])
+
+
+# --- documents by reference (aire-server #50 item 6) -------------------------
+
+
+def test_turn_document_coerces_a_mapping_and_refuses_no_url():
+    from fi_runner import TurnDocument
+
+    assert TurnDocument.from_any({"url": "https://c/a.pdf", "title": "acta"}) == TurnDocument(
+        url="https://c/a.pdf", title="acta"
+    )
+    with pytest.raises(ValueError):
+        TurnDocument.from_any({"title": "sin url"})
+
+
+@pytest.mark.asyncio
+async def test_a_document_only_turn_is_valid_and_reaches_the_backend():
+    backend = _CapturingBackend()
+    runner = Runner(backend=backend, persona="p", flow_narrator=None)
+    _ = [ev async for ev in runner.run_stream("", documents=[{"url": "https://c/a.pdf"}])]
+    assert [d.url for d in backend.calls[0]["documents"]] == ["https://c/a.pdf"]
+    assert "images" not in backend.calls[0]
+
+
+@pytest.mark.asyncio
+async def test_a_text_only_turn_passes_no_documents_kwarg():
+    backend = _CapturingBackend()
+    runner = Runner(backend=backend, persona="p", flow_narrator=None)
+    _ = [ev async for ev in runner.run_stream("hola")]
+    assert "documents" not in backend.calls[0]

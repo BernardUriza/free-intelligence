@@ -697,3 +697,28 @@ async def test_a_door_that_attached_fewer_images_raises_attachments_lost(monkeyp
         await b.run_turn(system_prompt="", user_message="what is it?", mcp_servers=[],
                          tool_policy=ToolPolicy(), session_id="s",
                          images=[TurnImage(media_type="image/png", data="aGk=")])
+
+
+@pytest.mark.asyncio
+async def test_documents_ride_as_references_and_a_short_count_is_attachments_lost(monkeypatch: Any) -> None:
+    """aire-server #50 item 6: {url, title} crosses the wire; documents_attached is checked."""
+    from fi_runner import TurnDocument
+
+    b = _backend()
+    seen: dict[str, Any] = {}
+    attached = {"n": 1}
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        seen.update(body)
+        yield {"type": "result", "result": {"text": "ok"}, "documents_attached": attached["n"]}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    doc = TurnDocument(url="https://cdn.discordapp.com/a.pdf?ex=1", title="acta.pdf")
+    kwargs = dict(system_prompt="", user_message="", mcp_servers=[], tool_policy=ToolPolicy(), session_id="s")
+    result = await b.run_turn(**kwargs, documents=[doc])
+    assert seen["documents"] == [{"url": doc.url, "title": "acta.pdf"}]
+    assert result.documents_attached == 1
+    attached["n"] = 0
+    with pytest.raises(BackendError, match="attachments_lost"):
+        await b.run_turn(**kwargs, documents=[doc])

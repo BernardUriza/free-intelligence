@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
-from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnImage, TurnResult
+from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage, TurnResult
 from .conversation import ConversationStore, Message, render_transcript, sanitize_history
 from .flow import Event
 from .guards import Guard
@@ -383,13 +383,14 @@ class Runner:
         history: Iterable[Any] | None,
         emit: Callable[[str, dict[str, Any]], None],
         images: list[TurnImage] | None = None,
+        documents: list[TurnDocument] | None = None,
     ) -> _TurnSetup:
         """The shared turn preamble (see :class:`_TurnSetup`): validate, mint the
         request id, resolve MCP servers, route the model, fold continuity and
         render the context binding. Raises ``ValueError`` on an empty message —
         unless the turn carries ``images`` (an image-only send is a valid turn;
         the picture IS the message)."""
-        if (not user_message or not user_message.strip()) and not images:
+        if (not user_message or not user_message.strip()) and not images and not documents:
             raise ValueError("user_message must be non-empty")
         request_id = request_id or uuid.uuid4().hex[:12]
         t0 = time.perf_counter()
@@ -530,6 +531,7 @@ class Runner:
         session_id: str | None,
         turn_images: list[TurnImage] | None,
         emit: Callable[[str, dict[str, Any]], None],
+        turn_documents: list[TurnDocument] | None = None,
         live_text: bool,
     ) -> AsyncIterator[dict[str, Any]]:
         """THE turn attempt loop — shared by :meth:`run` and :meth:`run_stream`.
@@ -553,7 +555,9 @@ class Runner:
         model = setup.model
         result: TurnResult | None = None
         attempt = 0
-        images_kwarg = {"images": turn_images} if turn_images else {}
+        images_kwarg: dict[str, Any] = {"images": turn_images} if turn_images else {}
+        if turn_documents:
+            images_kwarg["documents"] = turn_documents
 
         for attempt in range(attempts):
             is_last = attempt == attempts - 1
@@ -702,6 +706,7 @@ class Runner:
         request_id: str | None = None,
         history: Iterable[Any] | None = None,
         images: Iterable[Any] | None = None,
+        documents: Iterable[Any] | None = None,
     ) -> TurnResult:
         """Run the turn pipeline: backend → guards → retry → post-processors.
 
@@ -738,8 +743,10 @@ class Runner:
             self._emit(event, fields)
 
         turn_images = [TurnImage.from_any(i) for i in images] if images else None
+        turn_documents = [TurnDocument.from_any(d) for d in documents] if documents else None
         setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, emit, images=turn_images
+            user_message, session_id, context, request_id, history, emit, images=turn_images,
+            documents=turn_documents,
         )
         request_id = setup.request_id
         model = setup.model
@@ -755,6 +762,7 @@ class Runner:
                 user_message=user_message,
                 session_id=session_id,
                 turn_images=turn_images,
+                turn_documents=turn_documents,
                 emit=emit,
                 live_text=False,
             ):
@@ -795,6 +803,7 @@ class Runner:
         request_id: str | None = None,
         history: Iterable[Any] | None = None,
         images: Iterable[Any] | None = None,
+        documents: Iterable[Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn: yields backend events AS THEY HAPPEN —
         ``{"type":"tool_call","tool":ToolCall}`` per tool call,
@@ -836,8 +845,10 @@ class Runner:
             self._emit(event, fields)
 
         turn_images = [TurnImage.from_any(i) for i in images] if images else None
+        turn_documents = [TurnDocument.from_any(d) for d in documents] if documents else None
         setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, emit, images=turn_images
+            user_message, session_id, context, request_id, history, emit, images=turn_images,
+            documents=turn_documents,
         )
         request_id = setup.request_id
         model = setup.model
@@ -850,6 +861,7 @@ class Runner:
                 user_message=user_message,
                 session_id=session_id,
                 turn_images=turn_images,
+                turn_documents=turn_documents,
                 emit=emit,
                 live_text=not self._enforces_before_delivery,
             ):
