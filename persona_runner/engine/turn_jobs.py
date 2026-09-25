@@ -6,7 +6,9 @@ da su fila (`engine/turn_ledger`, 2026-09-23): un runner que muere a media
 generación deja la fila `running` con el latido viejo; la réplica que la
 encuentra la reclama y RE-CORRE el turno bajo el mismo `job_id` — hasta la
 fase B (AIRE `background:true` + reattach) reanudar es re-preguntar, con la
-historia sin volver a plegar y la nota de reintento en la guía.
+historia sin volver a plegar y la nota de reintento en la guía. Eso aplica sólo
+si el intento anterior CRUZÓ a AIRE (`aire_sent_at`); si murió antes, el job
+corre como turno nuevo (`crossed_to_aire`).
 
 Los adjuntos no se persisten (base64 de varios MB): un job con adjuntos es
 no-reanudable — la fila queda `failed` con `not_resumable`, el gateway lo lee
@@ -77,11 +79,34 @@ def _request_from(payload: dict[str, Any], *, resumed: bool) -> TurnRequest:
     return TurnRequest.model_validate(data)
 
 
+def crossed_to_aire(row: LedgerRow) -> bool:
+    """¿El intento anterior de este job llegó a mandarle el mensaje a AIRE?
+
+    Lo dice `aire_sent_at` (`aire_route` lo marca justo antes del POST a la
+    puerta). Sólo un job que CRUZÓ puede haber dejado el mensaje del usuario en
+    el transcript de AIRE; uno que murió antes (topic, ruteo, facts) es un turno
+    que AIRE nunca vio, y reanudarlo como "reintento" le quitaba la historia al
+    tópico y le metía al modelo una nota sobre un corte que no le pasó.
+
+    Una fila sin el dato (un ledger que no lo reporta) se lee como CRUZADA: es
+    el contrato de la fase A, y equivocarse hacia ahí cuesta una nota de más;
+    equivocarse hacia el otro lado pliega la historia DOS veces en la sesión.
+    """
+    return bool(row.extra.get("aire_sent", True))
+
+
 def _resumer(runner: Runner) -> Callable[[LedgerRow], Coroutine[Any, Any, TurnResponse]]:
     async def resume(row: LedgerRow) -> TurnResponse:
         if row.payload.get("has_attachments"):
             raise NotResumableError("not_resumable: attachments are not persisted")
-        return await runner(_request_from(row.payload, resumed=True))
+        crossed = crossed_to_aire(row)
+        if not crossed:
+            # Nada que duplicar: el turno corre como si fuera la primera vez.
+            # Un `aire_route_turn_resumed` queda así reservado a los que SÍ
+            # mandan el mensaje por segunda vez — la cifra que la fase B
+            # (reattach) tiene que llevar a cero.
+            log.info("agent_runner_job_resumed_before_aire", job_id=row.ticket_id, attempts=row.attempts)
+        return await runner(_request_from(row.payload, resumed=crossed))
 
     return resume
 

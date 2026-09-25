@@ -107,7 +107,10 @@ lo tienen (`khimeras_shared/tickets.py` + `invite_turns` en el gateway,
   enviado (devuelve los que salieron, `partial=true`), y el assistant se guarda
   con `discord_message_id` del primer chunk (idempotente por el índice parcial).
 - **El runner reanuda re-preguntando** (fase A): `TurnRequest.resumed` no
-  re-pliega la historia y lleva la nota de `prompts_md/turn_resume_note.md`. Un
+  re-pliega la historia y lleva la nota de `prompts_md/turn_resume_note.md`.
+  Sólo si el intento anterior CRUZÓ a AIRE (`aire_sent_at`,
+  `turn_jobs.crossed_to_aire`, v4.40.23); si murió antes, corre como turno
+  nuevo. Así cada `aire_route_turn_resumed` = un mensaje duplicado en AIRE. Un
   job con adjuntos es no-reanudable (no se persisten) → 502 `not_resumable` →
   el host reintenta con id nuevo. Grace del runner: **600 s**
   (`RUNNER_SHUTDOWN_DRAIN_S=570`, luego suelta las filas para la sucesora).

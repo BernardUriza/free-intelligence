@@ -160,6 +160,7 @@ def test_a_runner_restart_mid_turn_resumes_the_job_under_the_same_id(client, mon
     monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
     assert client.post("/v1/turn/jobs", json=JOB, headers=HEADERS).status_code == 202
     assert ledger.rows[JOB["job_id"]]["status"] == "running"
+    ledger.rows[JOB["job_id"]]["aire_sent"] = True  # A alcanzó a mandarlo a AIRE
 
     _restart(monkeypatch, "replica-b")
     ledger.age(JOB["job_id"])
@@ -169,6 +170,50 @@ def test_a_runner_restart_mid_turn_resumes_the_job_under_the_same_id(client, mon
     assert [req.resumed for req in seen] == [False, True]
     assert seen[1].user_text == REQ["user_text"] and seen[1].job_id == JOB["job_id"]
     assert ledger.rows[JOB["job_id"]]["attempts"] == 2
+
+
+def test_a_job_that_died_before_reaching_aire_resumes_as_a_fresh_turn(client, monkeypatch, ledger):
+    """Positiva del guard `crossed_to_aire`: A murió antes del POST a AIRE (la
+    fila no tiene `aire_sent_at`), así que AIRE nunca vio el mensaje. La réplica
+    B lo corre como turno NUEVO: sin nota de reintento y con la historia del
+    tópico plegable — no como un reintento que le esconde el contexto."""
+    seen: list[TurnRequest] = []
+    first = {"done": False}
+
+    async def turn(req: TurnRequest) -> TurnResponse:
+        seen.append(req)
+        if not first["done"]:
+            first["done"] = True
+            await asyncio.sleep(60)  # A muere antes de cruzar a AIRE
+        return TurnResponse(text="limpio", output_tokens=5, model="m", stop_reason="end_turn")
+
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    assert client.post("/v1/turn/jobs", json=JOB, headers=HEADERS).status_code == 202
+    assert ledger.rows[JOB["job_id"]].get("aire_sent", False) is False
+
+    _restart(monkeypatch, "replica-b")
+    ledger.age(JOB["job_id"])
+    r = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS)
+    assert r.status_code == 200 and r.json()["status"] == "done"
+    assert r.json()["response"]["text"] == "limpio"
+    assert [req.resumed for req in seen] == [False, False]
+    assert seen[1].job_id == JOB["job_id"] and ledger.rows[JOB["job_id"]]["attempts"] == 2
+
+
+def test_a_resumed_row_that_does_not_report_aire_sent_keeps_the_phase_a_contract():
+    """Resistencia: una fila sin el dato se lee como CRUZADA. Equivocarse hacia
+    'no cruzó' plegaría la historia dos veces en la sesión de AIRE."""
+    from khimeras_shared.tickets import LedgerRow
+
+    def row(extra: dict) -> LedgerRow:
+        return LedgerRow(
+            ticket_id="j", status="running", attempts=2, payload={}, result=None, error=None,
+            stale=False, owned=True, extra=extra,
+        )  # fmt: skip
+
+    assert turn_jobs.crossed_to_aire(row({})) is True
+    assert turn_jobs.crossed_to_aire(row({"aire_sent": True})) is True
+    assert turn_jobs.crossed_to_aire(row({"aire_sent": False})) is False
 
 
 def test_a_turn_finished_before_the_restart_is_served_from_the_row_without_running_again(client, monkeypatch, ledger):
