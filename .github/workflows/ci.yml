@@ -148,17 +148,25 @@ jobs:
         # nil in CI/CD context. Conda-forge idna feedstock has not yet
         # built 3.15 for py314 as of 2026-05-19. Drop when feedstock catches up.
         #
-        # --- ML stack advisories (2026-05-20) — 21 PYSEC, NO upstream fix ---
-        # torch 2.10.0 (11), transformers 5.8.1 (8), joblib 1.5.3 (1),
-        # pyjwt 2.12.1 (1). pip-audit reports an empty "Fix Versions" column
-        # for ALL of them — there is no patched release to upgrade to. They
-        # are transitive deps of sentence-transformers (memory embeddings).
-        # The bot loads models from a trusted source (all-MiniLM-L6-v2 from
-        # HuggingFace) at startup, never from user input, so the dominant
-        # vector (malicious model / pickle deserialization) does not apply;
-        # residual risk is at most tokenizer ReDoS / bounded DoS on adversarial
-        # text. Authorized by Bernard 2026-05-20. Re-audit and drop each ID as
-        # its package publishes a fixed release.
+        # --- ML stack advisories — 2 left of 23 (re-audited 2026-09-25) ---
+        # The 2026-05-20 block ignored 21 PYSEC + CVE-2025-3000 as "no upstream
+        # fix". OSV says otherwise: 20 of them have `last_affected` BELOW what
+        # the env resolves (torch <=2.7.1, transformers <=5.0.0-rc0, joblib
+        # <=1.4.2, pyjwt <=2.10.1), so they were dead ignores — dropped, and
+        # environment.yml now carries floors (pytorch>=2.8, transformers>=5.0.0,
+        # joblib>=1.5.0, pyjwt>=2.11.0) so the solver cannot walk back into them.
+        # (pip-audit matches --ignore-vuln against aliases too, so one ID per
+        # advisory is enough.)
+        #
+        # PYSEC-2026-139 (CVE-2026-4538, torch <=2.10.0) stays, and so does
+        # CVE-2025-3000 below. Both ARE fixed upstream (pytorch >=2.11 / 2.13),
+        # but every conda-forge pytorch >=2.11 build requires `setuptools <82`,
+        # and environment.yml's `setuptools>=83` floor (PYSEC-2026-3447) forbids
+        # that — the solver stays on 2.10.0. A CVE trade, not an oversight.
+        # torch is reached only through sentence-transformers (MiniLM memory
+        # embeddings, gateway-only); models load from a trusted source at
+        # startup, never from user input. DROP both when conda-forge pytorch
+        # stops capping setuptools (or the setuptools floor can go).
         #
         # PYSEC-2026-161 (starlette <1.0.1, "BadHost"): missing Host-header
         # validation lets an attacker inject paths into the host part,
@@ -193,9 +201,10 @@ jobs:
         # fix (aiohttp 3.14.0, not yet in conda-forge for py314). Authorized by
         # Bernard 2026-06-03. DROP with the other aiohttp ignore when 3.14.0 lands.
         #
-        # CVE-2025-3000 (torch <=2.12.0): memory corruption via torch.jit.script.
-        # LOW severity, NO patched version published (GitHub advisory: patched=null
-        # as of 2026-06-10). torch is purely transitive (fi-core embeddings stack) —
+        # CVE-2025-3000 (= PYSEC-2025-194, torch <=2.12.0): memory corruption via
+        # torch.jit.script. LOW severity. pip-audit now reports fix 2.13.0, which
+        # the setuptools cap above keeps out of reach (see the ML stack block).
+        # torch is purely transitive (sentence-transformers embeddings) —
         # zero `import torch` / `torch.jit` anywhere in the surviving packages
         # (verified by grep), so the vector does not apply. Surfaced fresh on
         # 2026-06-10 22:26Z and broke main CI right after the PR-D merge (the PR
@@ -234,27 +243,7 @@ jobs:
           pip-audit --format json \
             --ignore-vuln CVE-2026-27205 \
             --ignore-vuln CVE-2026-45409 \
-            --ignore-vuln PYSEC-2024-277 \
-            --ignore-vuln PYSEC-2025-183 \
-            --ignore-vuln PYSEC-2025-189 \
-            --ignore-vuln PYSEC-2025-190 \
-            --ignore-vuln PYSEC-2025-191 \
-            --ignore-vuln PYSEC-2025-192 \
-            --ignore-vuln PYSEC-2025-193 \
-            --ignore-vuln PYSEC-2025-194 \
-            --ignore-vuln PYSEC-2025-195 \
-            --ignore-vuln PYSEC-2025-196 \
-            --ignore-vuln PYSEC-2025-197 \
-            --ignore-vuln PYSEC-2025-210 \
             --ignore-vuln PYSEC-2026-139 \
-            --ignore-vuln PYSEC-2025-211 \
-            --ignore-vuln PYSEC-2025-212 \
-            --ignore-vuln PYSEC-2025-213 \
-            --ignore-vuln PYSEC-2025-214 \
-            --ignore-vuln PYSEC-2025-215 \
-            --ignore-vuln PYSEC-2025-216 \
-            --ignore-vuln PYSEC-2025-217 \
-            --ignore-vuln PYSEC-2025-218 \
             --ignore-vuln PYSEC-2026-161 \
             --ignore-vuln CVE-2026-34993 \
             --ignore-vuln CVE-2026-47265 \

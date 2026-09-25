@@ -195,7 +195,28 @@ dependencies:
   - starlette<1.0
   - uvicorn>=0.30
   - httpx>=0.27
+  # Embeddings de la memoria (MiniLM 384d, `khimeras_shared/vectors.py`). Consumidor
+  # VIVO: el gateway — `turn_context.py` rankea los facts por similitud en cada
+  # turno y `FactsRepository` embebe al guardar. Host y runner no lo importan.
   - sentence-transformers>=3.0.0
+  # --- Pisos del ML-stack (2026-09-25, backlog ml-stack-cve-audit) ---
+  # Los 23 `--ignore-vuln` del ML-stack de ci.yml se ignoraban "sin fix
+  # upstream"; OSV dice otra cosa: 21 tienen `last_affected` por DEBAJO de lo
+  # que el env ya resuelve. Estos pisos fijan la versión limpia para que el
+  # solver no pueda regresar y esos 21 ignores se puedan borrar:
+  #   pytorch >=2.8   — PYSEC-2025-189..197 + 210 (<=2.7.1)
+  #   transformers >=5.0.0 — PYSEC-2025-211..218 (<=5.0.0-rc0)
+  #   joblib >=1.5.0  — PYSEC-2024-277 (<=1.4.2)
+  #   pyjwt >=2.11.0  — PYSEC-2025-183 (<=2.10.1)
+  # Quedan DOS de torch, y no por falta de fix: PYSEC-2026-139 (<=2.10.0) y
+  # CVE-2025-3000 (fix 2.13.0) se arreglan en pytorch >=2.11, pero TODO build de
+  # conda-forge >=2.11 exige `setuptools <82`, y el piso `setuptools>=83` de
+  # arriba (PYSEC-2026-3447) lo prohíbe — el solver se queda en 2.10. Es un
+  # trade de CVEs, no un olvido; ver ci.yml y el backlog.
+  - pytorch>=2.8
+  - transformers>=5.0.0
+  - joblib>=1.5.0
+  - pyjwt>=2.11.0
   - numpy
   - h5py>=3.10
 
