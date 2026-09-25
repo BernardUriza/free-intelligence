@@ -20,7 +20,8 @@ from .engine.contract import Guard, RemoteTool
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
-from .engine.vision import BadImage, clean_images
+from .engine import image_budget
+from .engine.vision import BadImage, prepare_images
 from .names import InvalidName, clean
 
 MODEL_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -72,12 +73,22 @@ def safe_model(raw: Any) -> str | None:
     raise HTTPException(status_code=422, detail="invalid model")
 
 
-def safe_images(raw: Any) -> tuple[dict[str, str], ...]:
-    """Attachments for THIS turn (#29 gap 4), validated in `engine/vision.py`."""
+async def safe_images(raw: Any, key: dict[str, str]) -> tuple[dict[str, str], ...]:
+    """Attachments for THIS turn (#29 gap 4, #50): shape-checked, fetched and
+    shrunk in `engine/vision.py`, then weighed against what the session already
+    resends every turn (`engine/image_budget.py`). All before a dollar is spent."""
     try:
-        return clean_images(raw)
+        images = await prepare_images(raw)
     except BadImage as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    try:
+        await image_budget.enforce(key["project_key"], key["session_id"], images)
+    except image_budget.OverBudget as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # the store is unreachable: refuse loud, never guess the weight
+        raise HTTPException(status_code=503,
+                            detail=f"session image budget unreadable: {type(exc).__name__}") from exc
+    return images
 
 
 def safe_guard_names(raw: Any) -> list[str]:

@@ -40,7 +40,8 @@ async def post_message(project: str, session: str, request: Request) -> Any:
                     model=safe_model(body.get("model")),
                     remote_tools=safe_remote_tools(body.get("remote_tools")),
                     provider=safe_provider(body.get("provider")))
-    images = safe_images(body.get("images"))
+    engine = await get_engine()
+    images = await safe_images(body.get("images"), engine.session_key(project, session))
     guard_names = safe_guard_names(body.get("guards"))
     # An empty turn spends real money for nothing, so the edge cuts it. An
     # image-only send IS a turn (#29 gap 4): the picture is the message.
@@ -114,6 +115,8 @@ async def _events(project: str, session: str, message: str, spec: TurnSpec,
     engine = await get_engine()
     try:
         async for ev in engine.run_stream(project, session, message, spec, images):
+            if ev.get("type") == "result":  # #50: the consumer checks this against what it sent
+                ev = {**ev, "images_attached": len(images)}
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":

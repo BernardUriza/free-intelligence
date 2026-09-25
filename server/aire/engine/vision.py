@@ -1,19 +1,25 @@
-"""The turn's image attachments (#29 gap 4) — validated at the edge, folded
-into the SDK's streaming-input mode. Ported from fi-runner's ClaudeCodeBackend
-(`build_query_input` / `_query`, the canonical vision fold).
+"""The turn's image attachments (#29 gap 4, #50) — validated at the edge,
+fetched and shrunk at the door, folded into the SDK's streaming-input mode.
+Ported from fi-runner's ClaudeCodeBackend (`build_query_input` / `_query`).
 
-`data` is base64-encoded bytes, no `data:` URL prefix. Blocks ride
-image-before-text (Anthropic's recommended ordering). Current-turn only: the
-mirrored transcript keeps whatever the SDK writes, and a caller re-attaches an
-image when it wants the model to see it again."""
+An image arrives two ways: inline `{media_type, data}` (base64, no `data:`
+prefix) or by reference `{url}` — a signed Discord CDN URL AIRE fetches itself
+(`fetch.py`), so the bytes never ride the consumer's pipeline. Either way it
+leaves through `shrink.normalize` (≤ 2000 px, media type detected), one image at
+a time on a 512 MB box. Blocks ride image-before-text. Current-turn only: a
+caller re-attaches an image when it wants the model to see it again."""
 
+import asyncio
 import base64
 import binascii
 from typing import Any
 
+from .fetch import FetchRefused, fetch
+from .shrink import BadPixels, normalize
+
 MEDIA_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_IMAGES = 4  # the whole body sits in RAM on a 512MB box — a cap, not a vibe
-MAX_IMAGE_B64 = 5_000_000  # ~3.7MB decoded, inside the API's 5MB-per-image cap
+MAX_IMAGE_B64 = 14_000_000  # ~10 MB decoded, the API's real per-image cap; shrink cuts it down
 
 
 class BadImage(Exception):
@@ -21,25 +27,41 @@ class BadImage(Exception):
 
 
 def clean_images(raw: Any) -> tuple[dict[str, str], ...]:
-    """Validate the body's `images`: a list of `{media_type, data}` dicts."""
+    """Validate the body's `images` SHAPE: a list of `{media_type, data}` or `{url}`."""
     if not raw:
         return ()
     if not isinstance(raw, list) or len(raw) > MAX_IMAGES:
         raise BadImage(f"images must be a list of at most {MAX_IMAGES}")
-    return tuple(_clean_one(item) for item in raw)
+    return tuple(_clean_one(i, item) for i, item in enumerate(raw))
 
 
-def _clean_one(item: Any) -> dict[str, str]:
+def _clean_one(i: int, item: Any) -> dict[str, str]:
+    if isinstance(item, dict) and isinstance(item.get("url"), str) and item["url"]:
+        return {"url": item["url"]}
     if not isinstance(item, dict) or item.get("media_type") not in MEDIA_TYPES:
-        raise BadImage(f"each image needs a media_type in {sorted(MEDIA_TYPES)}")
+        raise BadImage(f"image {i}: needs a url, or a media_type in {sorted(MEDIA_TYPES)}")
     data = item.get("data")
     if not isinstance(data, str) or not data or len(data) > MAX_IMAGE_B64:
-        raise BadImage(f"image data must be base64 of at most {MAX_IMAGE_B64} chars")
+        raise BadImage(f"image {i}: data must be base64 of at most {MAX_IMAGE_B64} chars")
     try:
         base64.b64decode(data, validate=True)
     except (binascii.Error, ValueError) as exc:
-        raise BadImage("image data is not valid base64") from exc
+        raise BadImage(f"image {i}: data is not valid base64") from exc
     return {"media_type": item["media_type"], "data": data}
+
+
+async def _ready_one(i: int, item: dict[str, str]) -> dict[str, str]:
+    try:
+        raw = await fetch(item["url"]) if "url" in item else base64.b64decode(item["data"])
+        small, media_type = await asyncio.to_thread(normalize, raw)
+    except (FetchRefused, BadPixels) as exc:
+        raise BadImage(f"image {i}: {exc}") from exc
+    return {"media_type": media_type, "data": base64.b64encode(small).decode()}
+
+
+async def prepare_images(raw: Any) -> tuple[dict[str, str], ...]:
+    """Shape-check, fetch and shrink — sequentially, never four decodes at once."""
+    return tuple([await _ready_one(i, item) for i, item in enumerate(clean_images(raw))])
 
 
 def query_input(message: str, images: tuple[dict[str, str], ...]) -> str | list[dict[str, Any]]:
