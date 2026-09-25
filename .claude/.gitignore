@@ -3,9 +3,13 @@ constitution/
 constitution.state.json
 settings.local.json
 # >>> constitution capabilities (managed: rewritten by `constitution install`, do not edit)
+agents/adversarial-review.md
 agents/dhl-expert.md
 agents/legal-advisor.md
 agents/pixel-perfectionist.md
+agents/pre-pr-review.md
+agents/prior-art-finder.md
+agents/web-researcher.md
 commands/anydesk.md
 commands/brutal-advance.md
 commands/build-check.md
@@ -21,14 +25,15 @@ commands/css-to-tailwind.md
 commands/cut.md
 commands/escucha.md
 commands/explain-as.md
-commands/histerical-search.md
 commands/immediate-orchestrator.md
 commands/insult.md
 commands/kill-zombies.md
 commands/logo-factory.md
+commands/modify-command.md
 commands/psalm-reader.md
 commands/purge-github.md
 commands/refresh-memory.md
+commands/rename-transcript.md
 commands/resume-context.md
 commands/save-context.md
 commands/schizo-modernizer.md
@@ -37,10 +42,12 @@ commands/susurramelo.md
 commands/sync-rules.md
 commands/ultra-lord.md
 commands/ux-polish.md
+commands/validate-claims.md
 commands/work.md
 skills/coagent/
 skills/devto-publish/
 skills/exchange-coagent/
+skills/histerical-search/
 skills/new-consumer/
 skills/register-rule/
 constitution.capabilities.json
