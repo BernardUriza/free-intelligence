@@ -1,6 +1,6 @@
 # 50 — Images by reference: the caller sends a signed URL, AIRE fetches the bytes
 
-Status: **In progress** — AIRE side built 2026-09-25 (see *What landed*); the consumer still sends base64. Proposed 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
+Status: **Done** 2026-09-25 end to end — AIRE `5cd1cee`, fi-runner 0.22.0 (free-intelligence PR #495), server-bot v4.41.0 + PR #100 (v4.41.2); live probe passed in #general. PDFs as `document` blocks (item 6) remain a follow-up. Proposed 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
 
 ## Why
 
@@ -153,3 +153,18 @@ on a 512 MB box.
 
 Still open: the consumer twin (discord-bot) switching to `{url}` and deleting its own
 `5_000_000` cap and 2048-px compressor; comparing `images_attached` there; PDFs (item 6).
+
+## Closed end to end (2026-09-25)
+
+- **fi-runner 0.22.0**: `TurnImage(url=...)`, `TurnResult.images_attached`, and an
+  `[attachments_lost]` AIREDoorError when the door's count differs from what was sent.
+- **server-bot v4.41.0**: the gateway sends the signed URL (URL-source block) and never
+  downloads an image; its 2048-px compressor and `5_000_000` cap are deleted (one owner of
+  the caps: this repo). `turn_jobs` keeps the references, so a resumed job carries its
+  images; a signature that expired before the resume is `not_resumable`, out loud. The
+  consumer does NOT re-sign with `refresh-urls`: that would hand the runner a Discord bot
+  token. **PR #100 (v4.41.2)** rescued the parts of the parallel PR #97 that main lacked:
+  `job_id` across gateway/runner logs and the over-4-images note in the persona's voice.
+- **Live probe**: `probe-50.png` (3200×2400, "MANGO 5082") sent to @Vultur in Khimeras
+  #general at 22:35 UTC. Vultur read "MANGO 5082 sobre verde selva, círculo magenta" and
+  signed ᵛ⁴·⁴¹·¹. In `claude_session_store` it sits as a 2000×1500 JPEG of 56,619 bytes.
