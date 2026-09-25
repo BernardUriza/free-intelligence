@@ -221,7 +221,7 @@ async def _run(
                     guild_id="G1",
                     channel_name="general",
                     reason=REASON,
-                    invited_by="host_router",
+                    invited_by="host",
                     trigger_message_id=str(TRIGGER_ID),
                 )
                 if guarded
@@ -230,7 +230,7 @@ async def _run(
                     guild_id="G1",
                     channel_name="general",
                     reason=REASON,
-                    invited_by="host_router",
+                    invited_by="host",
                     trigger_message_id=str(TRIGGER_ID),
                 )
             )
@@ -687,7 +687,7 @@ async def test_an_invite_without_trigger_drops_reactions_instead_of_failing():
             guild_id="G1",
             channel_name="general",
             reason=REASON,
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id=None,
         )
         await asyncio.sleep(0)
