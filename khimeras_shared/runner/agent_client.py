@@ -318,6 +318,7 @@ class AgentRunnerClient:
             payload["attachments"] = attachments
             log.info(
                 "agent_runner_client_attachments_forwarded",
+                job_id=job_id,
                 count=len(attachments),
                 types=[a.get("type") for a in attachments],
             )
@@ -331,6 +332,7 @@ class AgentRunnerClient:
             payload["behavioral_guidance"] = behavioral_guidance
             log.info(
                 "agent_runner_client_guidance_forwarded",
+                job_id=job_id,
                 guidance_chars=len(behavioral_guidance),
             )
         if relevant_memory:
@@ -542,6 +544,7 @@ class AgentRunnerClient:
         if resp.status_code >= 500:
             log.error(
                 "agent_runner_client_5xx",
+                job_id=job_id,
                 status=resp.status_code,
                 body_preview=resp.text[:200],
                 elapsed_ms=elapsed_ms,
@@ -551,6 +554,7 @@ class AgentRunnerClient:
         if resp.status_code >= 400:
             log.error(
                 "agent_runner_client_4xx",
+                job_id=job_id,
                 status=resp.status_code,
                 body_preview=resp.text[:200],
                 elapsed_ms=elapsed_ms,
@@ -578,6 +582,7 @@ class AgentRunnerClient:
         text = data.get("text", "") or ""
         log.info(
             "agent_runner_client_turn_complete",
+            job_id=job_id,
             text_len=len(text),
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
@@ -610,6 +615,7 @@ class AgentRunnerClient:
         if text.strip() and output_tokens == 0 and not returned_tool_calls:
             log.error(
                 "agent_runner_client_zero_generation",
+                job_id=job_id,
                 text_preview=text[:120],
                 model=data.get("model", ""),
                 stop_reason=data.get("stop_reason", ""),

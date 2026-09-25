@@ -7,6 +7,7 @@ from khimeras_shared.attachments import (
     MAX_IMAGE_SIZE,
     MAX_IMAGES_PER_MESSAGE,
     AttachmentType,
+    cap_images,
     classify_attachment,
     process_attachment,
     process_attachments,
@@ -179,11 +180,12 @@ class TestImagesByReference:
         assert result.content_block is None
         assert "Maximo 5MB" in (result.error or "")
 
-    async def test_images_past_the_door_cap_are_named_not_sent(self):
+    def test_cap_images_keeps_the_first_n_images_and_every_non_image(self):
         atts = [_mock_attachment(f"p{i}.png", "image/png", 100, b"") for i in range(MAX_IMAGES_PER_MESSAGE + 2)]
-        blocks, errors = await process_attachments(atts)
-        assert len(blocks) == MAX_IMAGES_PER_MESSAGE
-        assert len(errors) == 1 and "p4.png" in errors[0] and "p5.png" in errors[0]
+        doc = _mock_attachment("notas.txt", "text/plain", 10, b"x")
+        kept, dropped = cap_images([*atts, doc])
+        assert [a.filename for a in kept] == [f"p{i}.png" for i in range(MAX_IMAGES_PER_MESSAGE)] + ["notas.txt"]
+        assert dropped == 2
 
 
 class TestProcessAttachments:

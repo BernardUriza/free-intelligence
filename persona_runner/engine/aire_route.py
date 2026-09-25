@@ -547,6 +547,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     if dropped:
         log.warning(
             "aire_route_attachments_dropped",
+            job_id=req.job_id,
             channel_id=req.channel_id,
             dropped=dropped,
             forwarded=len(images),
@@ -593,6 +594,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
                 raise
             log.warning(
                 "aire_route_budget_cut_retrying",
+                job_id=req.job_id,
                 casita=casita,
                 topic=claim.topic_id,
                 channel_id=req.channel_id,
@@ -601,6 +603,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     except BackendError as exc:
         log.error(
             "aire_route_turn_failed",
+            job_id=req.job_id,
             channel_id=req.channel_id,
             user_id=req.user_id,
             casita=casita,
@@ -638,6 +641,8 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     log.info(
         "agent_runner_turn_complete",
         backend="aire",
+        job_id=req.job_id,
+        images_sent=len(images),
         channel_id=req.channel_id,
         user_id=req.user_id,
         casita=casita,

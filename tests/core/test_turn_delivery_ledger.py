@@ -103,7 +103,9 @@ async def test_without_a_turn_id_no_ledger_is_touched_but_the_store_still_carrie
     assert await _run(client, _channel()) is True
     assert calls == ["store"]
     assert client.memory.store.await_args.kwargs["discord_message_id"] == "11"
-    assert client.agent_client.chat.await_args.kwargs["job_id"] is None
+    # Sin ledger igual nace un job_id aquí, para cruzar el turno con el runner en KQL.
+    job_id = client.agent_client.chat.await_args.kwargs["job_id"]
+    assert isinstance(job_id, str) and len(job_id) == 32
 
 
 @pytest.mark.asyncio
