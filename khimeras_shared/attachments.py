@@ -85,17 +85,6 @@ class _Handler:
 class ImageHandler(_Handler):
     attachment_type: ClassVar[AttachmentType] = AttachmentType.IMAGE
     extensions: ClassVar[set[str]] = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
-    # Claude API supported image media types
-    media_types: ClassVar[dict[str, str]] = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-
-    def build_block(self, data: bytes, filename: str) -> tuple[dict | None, str | None]:
-        raise TypeError("images travel by reference; use ImageHandler.reference_block")
 
     @staticmethod
     def reference_block(url: str) -> dict:
@@ -204,7 +193,6 @@ _TEXT_HANDLER: TextHandler = next(h for h in _HANDLERS if isinstance(h, TextHand
 IMAGE_EXTENSIONS = ImageHandler.extensions
 TEXT_EXTENSIONS = TextHandler.extensions
 PDF_EXTENSIONS = PDFHandler.extensions
-IMAGE_MEDIA_TYPES = ImageHandler.media_types
 
 
 def _handler_for(filename: str, content_type: str | None) -> _Handler | None:

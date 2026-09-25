@@ -381,21 +381,19 @@ async def fetch_user_facts(user_id: str) -> str:
 
 
 def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
-    """Convert Anthropic-shape image blocks to AIRE's image items.
+    """Convert the gateway's URL-source image blocks to AIRE references.
 
-    A URL-source block (the gateway's default since aire-server #50) rides as a
-    reference AIRE fetches itself; a base64 block rides inline. Returns
-    (images, dropped): AIRE's door has no document/PDF block (named as a gap in
-    the stage-2 backlog), so non-image attachments are DROPPED and counted — the
-    caller logs the count instead of losing them silently."""
+    Images travel ONLY by reference since aire-server #50: AIRE fetches the
+    signed URL itself. Anything else — a base64 image no producer emits any
+    more, a document/PDF AIRE's door has no block for — is DROPPED and counted,
+    so the caller logs the count instead of losing it silently. Returns
+    (images, dropped)."""
     images: list[TurnImage] = []
     dropped = 0
     for block in attachments or []:
         source = (block or {}).get("source") or {}
         if block.get("type") == "image" and source.get("type") == "url" and source.get("url"):
             images.append(TurnImage(url=source["url"]))
-        elif block.get("type") == "image" and source.get("type") == "base64" and source.get("data"):
-            images.append(TurnImage(media_type=source.get("media_type", ""), data=source["data"]))
         else:
             dropped += 1
     return images, dropped

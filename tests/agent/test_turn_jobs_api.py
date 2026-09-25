@@ -242,7 +242,7 @@ def test_the_live_run_receives_the_attachments_the_row_does_not_keep(client, mon
         return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
 
     monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
-    image = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "aGk="}}
+    image = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "aGk="}}
     client.post("/v1/turn/jobs", json={**JOB, "attachments": [image]}, headers=HEADERS)
     body = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
 
@@ -260,7 +260,7 @@ def test_a_job_with_attachments_is_not_resumable(client, monkeypatch, ledger):
         raise AssertionError("unreachable")
 
     monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
-    with_image = {**JOB, "attachments": [{"type": "image", "source": {"data": "aGk="}}]}
+    with_image = {**JOB, "attachments": [{"type": "document", "source": {"type": "base64", "data": "aGk="}}]}
     client.post("/v1/turn/jobs", json=with_image, headers=HEADERS)
     assert "attachments" not in ledger.rows[JOB["job_id"]]["payload"]
     assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is True
