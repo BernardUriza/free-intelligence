@@ -10,7 +10,6 @@ clean rejection notice, turn still runs on the text).
 
 from __future__ import annotations
 
-import base64
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -59,6 +58,7 @@ def _attachment(filename: str, content_type: str, size: int, data: bytes = b"") 
     att.content_type = content_type
     att.size = size
     att.read = AsyncMock(return_value=data)
+    att.url = f"https://cdn.discordapp.com/attachments/1/2/{filename}?ex=ffffffff&is=0&hm=abc"
     return att
 
 
@@ -92,8 +92,9 @@ async def test_image_blocks_reach_the_runner_call():
     assert content[0] == {"type": "text", "text": "si ves la imagen???"}
     image_blocks = [b for b in content if b.get("type") == "image"]
     assert len(image_blocks) == 1
-    assert image_blocks[0]["source"]["media_type"] == "image/png"
-    assert image_blocks[0]["source"]["data"] == base64.standard_b64encode(b"fakepng").decode("ascii")
+    # aire-server #50: the signed URL rides, never the bytes; AIRE fetches it.
+    assert image_blocks[0]["source"] == {"type": "url", "url": image.url}
+    image.read.assert_not_awaited()
     stored_text = client.memory.store.await_args_list[0].args[4]
     assert stored_text == "si ves la imagen???"
 

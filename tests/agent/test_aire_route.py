@@ -209,6 +209,20 @@ def test_image_attachments_are_forwarded_as_aire_blocks():
     assert images[0].media_type == "image/png" and images[0].data == "QUJD"
 
 
+def test_a_url_image_rides_as_a_reference_aire_fetches():
+    """aire-server #50: the gateway's URL-source block becomes TurnImage(url=...)."""
+    url = "https://cdn.discordapp.com/attachments/1/2/a.png?ex=ffffffff&is=0&hm=abc"
+    images, dropped = aire_route.images_from_attachments([{"type": "image", "source": {"type": "url", "url": url}}])
+    assert dropped == 0 and images[0].url == url and not images[0].data
+
+
+def test_attachments_lost_maps_to_500_a_retry_resends_the_same_references():
+    err = aire_route.to_http_error(
+        AIREDoorError("AIRE turn error [attachments_lost]: sent 2, attached 1", code="attachments_lost")
+    )
+    assert err.status_code == 500
+
+
 def test_non_image_attachments_are_counted_not_silently_lost():
     """AIRE has no document block — the drop is COUNTED so the caller can log it."""
     images, dropped = aire_route.images_from_attachments(

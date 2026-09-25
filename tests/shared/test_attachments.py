@@ -1,10 +1,11 @@
 """Tests for khimeras_shared.attachments — file classification and processing."""
 
-import io
 from unittest.mock import AsyncMock
 
 from khimeras_shared.attachments import (
     MAX_ATTACHMENT_SIZE,
+    MAX_IMAGE_SIZE,
+    MAX_IMAGES_PER_MESSAGE,
     AttachmentType,
     classify_attachment,
     process_attachment,
@@ -91,18 +92,18 @@ def _mock_attachment(filename: str, content_type: str, size: int, data: bytes):
     att.content_type = content_type
     att.size = size
     att.read = AsyncMock(return_value=data)
+    att.url = f"https://cdn.discordapp.com/attachments/1/2/{filename}?ex=ffffffff&is=0&hm=abc"
     return att
 
 
 class TestProcessAttachment:
-    async def test_process_image(self):
+    async def test_process_image_is_a_url_reference_never_downloaded(self):
         att = _mock_attachment("test.png", "image/png", 100, b"\x89PNG fake image data")
         result = await process_attachment(att)
         assert result.attachment_type == AttachmentType.IMAGE
-        assert result.content_block is not None
-        assert result.content_block["type"] == "image"
-        assert result.content_block["source"]["media_type"] == "image/png"
         assert result.error is None
+        assert result.content_block == {"type": "image", "source": {"type": "url", "url": att.url}}
+        att.read.assert_not_awaited()
 
     async def test_process_text(self):
         """v3.9.59 fix: text files emit a `document` block (not `text`)
@@ -140,7 +141,7 @@ class TestProcessAttachment:
         assert "5MB" in (result.error or "")
 
     async def test_process_download_failure(self):
-        att = _mock_attachment("fail.png", "image/png", 100, b"")
+        att = _mock_attachment("fail.txt", "text/plain", 100, b"")
         att.read = AsyncMock(side_effect=Exception("Network error"))
         result = await process_attachment(att)
         assert result.content_block is None
@@ -155,125 +156,34 @@ class TestProcessAttachment:
         assert "café" in result.content_block["source"]["data"]
 
 
-def _build_real_jpeg(width: int, height: int) -> bytes:
-    """Build a real JPEG of the given dimensions for compression tests."""
-    from PIL import Image
+class TestImagesByReference:
+    """aire-server #50: images ride as signed URLs; AIRE fetches and shrinks them."""
 
-    img = Image.new("RGB", (width, height), color=(200, 100, 50))
-    # Add some entropy so quality steps actually change the size
-    pixels = img.load()
-    for y in range(0, height, 7):
-        for x in range(0, width, 11):
-            pixels[x, y] = ((x * 7) % 255, (y * 11) % 255, (x + y) % 255)
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=100)
-    return buf.getvalue()
-
-
-class TestImageCompression:
-    """Phase 2026-04-26: oversize images are compressed before reject."""
-
-    async def test_oversize_image_compressed_to_under_cap(self):
-        # 4000x3000 high-quality JPEG — typically ~5-7 MB raw
-        data = _build_real_jpeg(4000, 3000)
-        # Real Discord attachment object reports raw size; we mock it
-        att = _mock_attachment("photo.jpg", "image/jpeg", len(data), data)
+    async def test_an_image_over_aires_fetch_cap_is_refused_in_character_without_download(self):
+        att = _mock_attachment("huge.jpg", "image/jpeg", MAX_IMAGE_SIZE + 1, b"")
         result = await process_attachment(att)
-        assert result.attachment_type == AttachmentType.IMAGE
-        assert result.content_block is not None
-        assert result.error is None
-        # Decode the base64 — must fit under the 5 MB cap after compression
-        import base64
+        assert result.content_block is None
+        assert "10MB" in (result.error or "")
+        att.read.assert_not_awaited()
 
-        compressed_bytes = base64.standard_b64decode(result.content_block["source"]["data"])
-        assert len(compressed_bytes) <= MAX_ATTACHMENT_SIZE
-        # Compressed images are always returned as JPEG regardless of input
-        assert result.content_block["source"]["media_type"] == "image/jpeg"
-
-    async def test_image_under_5mb_but_over_the_base64_budget_is_compressed(self):
-        # 2026-09-18 P0: a ~4.9 MB screenshot passed the raw 5 MiB cap and its
-        # base64 (~6.5M chars) got a 422 from the AIRE door, twice, on every retry.
-        import os
-
-        from PIL import Image
-
-        from khimeras_shared.attachments import MAX_IMAGE_B64_CHARS, MAX_IMAGE_BYTES
-
-        img = Image.frombytes("RGB", (1200, 1200), os.urandom(1200 * 1200 * 3))
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        data = buf.getvalue()
-        assert MAX_IMAGE_BYTES < len(data) <= MAX_ATTACHMENT_SIZE
-        att = _mock_attachment("image.png", "image/png", len(data), data)
+    async def test_a_phone_photo_between_5_and_10_mb_rides_by_reference(self):
+        att = _mock_attachment("photo.jpg", "image/jpeg", 8 * 1024 * 1024, b"")
         result = await process_attachment(att)
         assert result.error is None
-        assert len(result.content_block["source"]["data"]) <= MAX_IMAGE_B64_CHARS
-
-    async def test_image_under_cap_passes_through_uncompressed(self):
-        # Small image — must NOT be re-encoded (no quality loss for users
-        # sending normal-sized screenshots/uploads)
-        small = _build_real_jpeg(100, 100)
-        assert len(small) < MAX_ATTACHMENT_SIZE
-        att = _mock_attachment("small.jpg", "image/jpeg", len(small), small)
-        result = await process_attachment(att)
-        assert result.content_block is not None
-        assert result.error is None
-        # Bytes match the original — no re-encoding when under the cap
-        import base64
-
-        passthrough = base64.standard_b64decode(result.content_block["source"]["data"])
-        assert passthrough == small
+        assert result.content_block["source"]["type"] == "url"
 
     async def test_oversize_non_image_still_rejected(self):
-        # Text files don't get a compression path
         big_text = b"x" * (MAX_ATTACHMENT_SIZE + 100)
         att = _mock_attachment("big.py", "text/plain", len(big_text), big_text)
         result = await process_attachment(att)
         assert result.content_block is None
         assert "Maximo 5MB" in (result.error or "")
 
-    async def test_huge_image_above_hard_limit_rejected_without_download(self):
-        # Beyond 25 MB we don't even try to download
-        att = _mock_attachment("huge.jpg", "image/jpeg", 30 * 1024 * 1024, b"")
-        result = await process_attachment(att)
-        assert result.content_block is None
-        assert "25MB" in (result.error or "")
-        # Confirm we never downloaded it
-        att.read.assert_not_awaited()
-
-    async def test_gif_oversize_rejected_no_compression(self):
-        # GIFs aren't compressed (animation would be lost). Use raw bytes >5MB
-        # — the .gif extension makes _compress_image bail before decoding.
-        data = b"GIF89a" + b"\x00" * (MAX_ATTACHMENT_SIZE + 100)
-        att = _mock_attachment("animation.gif", "image/gif", len(data), data)
-        result = await process_attachment(att)
-        assert result.content_block is None
-        assert "no se comprime" in (result.error or "").lower() or "maximo" in (result.error or "").lower()
-
-    async def test_png_with_alpha_compressed_flattens_to_jpeg(self):
-        from PIL import Image
-
-        # Create a real oversize PNG with transparency
-        img = Image.new("RGBA", (3000, 3000), color=(100, 200, 50, 128))
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        data = buf.getvalue()
-        if len(data) <= MAX_ATTACHMENT_SIZE:
-            # Pad with random data isn't an option; build a noisier image
-            pixels = img.load()
-            for y in range(img.size[1]):
-                for x in range(img.size[0]):
-                    pixels[x, y] = ((x * 13) % 255, (y * 17) % 255, (x + y) % 255, 128)
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            data = buf.getvalue()
-
-        if len(data) > MAX_ATTACHMENT_SIZE:
-            att = _mock_attachment("transparent.png", "image/png", len(data), data)
-            result = await process_attachment(att)
-            assert result.content_block is not None
-            # PNG with alpha compressed to JPEG — media_type must reflect that
-            assert result.content_block["source"]["media_type"] == "image/jpeg"
+    async def test_images_past_the_door_cap_are_named_not_sent(self):
+        atts = [_mock_attachment(f"p{i}.png", "image/png", 100, b"") for i in range(MAX_IMAGES_PER_MESSAGE + 2)]
+        blocks, errors = await process_attachments(atts)
+        assert len(blocks) == MAX_IMAGES_PER_MESSAGE
+        assert len(errors) == 1 and "p4.png" in errors[0] and "p5.png" in errors[0]
 
 
 class TestProcessAttachments:

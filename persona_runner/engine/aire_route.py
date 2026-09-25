@@ -108,7 +108,9 @@ AUDITED_MODE_DENIES = {
 AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
 # AIRE's structured error CODES, classified once. Terminal cuts (aire #23/#31)
 # cannot be fixed by retrying; backpressure can.
-_TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded")
+# attachments_lost (aire-server #50): the door attached fewer images than were
+# sent. A retry resends the same references, so it is terminal, never 502.
+_TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded", "attachments_lost")
 _BACKPRESSURE_ERRORS = ("slot_busy",)
 _STATUS_PREFIX = {500: "aire turn terminal", 503: "aire backpressure", 502: "aire turn failed"}
 
@@ -379,16 +381,20 @@ async def fetch_user_facts(user_id: str) -> str:
 
 
 def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
-    """Convert Anthropic-shape image blocks to AIRE's ``{media_type, data}``.
+    """Convert Anthropic-shape image blocks to AIRE's image items.
 
-    Returns (images, dropped): AIRE's door has no document/PDF block (named as a
-    gap in the stage-2 backlog), so non-image attachments are DROPPED and
-    counted — the caller logs the count instead of losing them silently."""
+    A URL-source block (the gateway's default since aire-server #50) rides as a
+    reference AIRE fetches itself; a base64 block rides inline. Returns
+    (images, dropped): AIRE's door has no document/PDF block (named as a gap in
+    the stage-2 backlog), so non-image attachments are DROPPED and counted — the
+    caller logs the count instead of losing them silently."""
     images: list[TurnImage] = []
     dropped = 0
     for block in attachments or []:
         source = (block or {}).get("source") or {}
-        if block.get("type") == "image" and source.get("type") == "base64" and source.get("data"):
+        if block.get("type") == "image" and source.get("type") == "url" and source.get("url"):
+            images.append(TurnImage(url=source["url"]))
+        elif block.get("type") == "image" and source.get("type") == "base64" and source.get("data"):
             images.append(TurnImage(media_type=source.get("media_type", ""), data=source["data"]))
         else:
             dropped += 1

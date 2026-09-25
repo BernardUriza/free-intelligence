@@ -285,3 +285,49 @@ def test_with_the_ledger_down_the_contract_is_exactly_ram_only(client, monkeypat
     assert client.get(f"/v1/turn/jobs/{job_id}", params={"wait_s": 5}, headers=HEADERS).json()["status"] == "done"
     assert client.get(f"/v1/turn/jobs/{job_id}", headers=HEADERS).status_code == 404
     assert ledger.rows == {}
+
+
+def _ref(ex_hex: str) -> dict:
+    return {
+        "type": "image",
+        "source": {"type": "url", "url": f"https://cdn.discordapp.com/attachments/1/2/a.png?ex={ex_hex}&is=0&hm=abc"},
+    }
+
+
+def test_an_image_by_reference_rides_in_the_row_and_a_resumed_job_carries_it(client, monkeypatch, ledger):
+    """aire-server #50: una referencia pesa cientos de bytes, así que la fila la
+    guarda y reanudar ya no es `not_resumable` — la imagen viene por construcción."""
+    seen: dict[str, object] = {}
+
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    async def turn(req: TurnRequest) -> TurnResponse:
+        seen["attachments"], seen["resumed"] = req.attachments, req.resumed
+        return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
+
+    image = _ref("ffffffff")
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [image]}, headers=HEADERS)
+    assert ledger.rows[JOB["job_id"]]["payload"]["attachments"] == [image]
+    assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is False
+    _restart(monkeypatch, "replica-b")
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    ledger.age(JOB["job_id"])
+    body = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
+    assert body["status"] == "done"
+    assert seen == {"attachments": [image], "resumed": True}
+
+
+def test_a_resume_whose_signed_url_expired_is_not_resumable_out_loud(client, monkeypatch, ledger):
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [_ref("1")]}, headers=HEADERS)
+    _restart(monkeypatch, "replica-b")
+    ledger.age(JOB["job_id"])
+    r = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 0.5}, headers=HEADERS)
+    assert r.status_code == 502 and "expired" in r.json()["detail"]
