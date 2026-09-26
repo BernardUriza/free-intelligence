@@ -23,12 +23,15 @@ from fastapi import Request
 # surface it was handed to, so a leak is revoked by emptying ONE variable and no
 # sibling consumer is disturbed. AIRE_AUTH_TOKEN is Bernard's own, CANARY the
 # Azure front's, RUNNER discord-bot's persona-runner (stage 2), PULSE the CI
-# canary that runs one real turn from outside the droplet after every deploy.
+# canary that runs one real turn from outside the droplet after every deploy,
+# BAIR the PR gatekeeper (BernardUriza/.github) that reviews each consumer repo's
+# pull requests from GitHub Actions — one mode=complete turn per review.
 ACCEPTED_TOKENS = tuple(
     t for t in (os.environ.get("AIRE_AUTH_TOKEN", ""),
                 os.environ.get("AIRE_CANARY_TOKEN", ""),
                 os.environ.get("AIRE_RUNNER_TOKEN", ""),
-                os.environ.get("AIRE_PULSE_TOKEN", "")) if t
+                os.environ.get("AIRE_PULSE_TOKEN", ""),
+                os.environ.get("AIRE_BAIR_TOKEN", "")) if t
 )
 
 
