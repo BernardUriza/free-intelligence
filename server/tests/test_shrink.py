@@ -69,3 +69,16 @@ def test_a_small_rotated_photo_is_re_encoded_upright_not_passed_through():
     img.save(out, "JPEG", exif=exif)
     small, _ = shrink.normalize(out.getvalue())
     assert _size(small) == (300, 400)
+
+
+def test_a_huge_non_jpeg_is_refused_before_its_raster_is_decoded():
+    out = io.BytesIO()
+    Image.new("1", (4200, 4200)).save(out, "PNG")  # one colour: a few KB on the wire
+    assert len(out.getvalue()) < 50_000
+    with pytest.raises(shrink.BadPixels, match="too large to decode"):
+        shrink.normalize(out.getvalue())
+
+
+def test_a_huge_jpeg_still_passes_because_draft_decodes_it_small():
+    out, _ = shrink.normalize(_img((4200, 4200), "JPEG"))
+    assert max(_size(out)) == 2000

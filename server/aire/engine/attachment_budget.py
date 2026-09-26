@@ -58,6 +58,13 @@ def check(held: int, held_bytes: int, adding_images: int, adding_bytes: list[int
             "Start a new session.")
 
 
+async def precheck(project_key: str, session_id: str, declared_images: int) -> None:
+    """Refuse from the counts alone, before a byte is fetched: a session that is
+    already full cannot be made to pay for downloads it will refuse anyway."""
+    n, size = await held(project_key, session_id)
+    check(n, size, declared_images, [])
+
+
 async def _rows(sql: str, project_key: str, session_id: str) -> list[Any]:
     """The session's rows for `sql`. File-only mode or no store table → none."""
     if not db.dsn():

@@ -1,9 +1,8 @@
 """The message surface — POST a turn and GET a session's background status.
 
-`POST …/messages` runs one turn: an SSE event stream by default, or fire-and-
-forget when the body carries `background: true` (#22a) — the turn survives a
-dropped socket; its result is read back via the artifacts endpoint (#22b) or the
-mirrored transcript. Events, never HTML ([[write-only-daemon]])."""
+`POST …/messages` runs one turn: an SSE stream, or fire-and-forget with
+`background: true` (#22a) — it survives a dropped socket; its result is read back
+via the artifacts endpoint (#22b) or the transcript. Events, never HTML."""
 
 from __future__ import annotations
 
@@ -24,8 +23,9 @@ from .engine.contract import Guard
 from .engine.drain import turn_cost
 from .engine.guards import observe
 from .engine.vision import attached_counts
-from .intake import (build_guards, safe_attachments, safe_guard_names, safe_mode, safe_model,
-                     safe_names, safe_provider, safe_remote_tools, safe_tools)
+from .attachment_door import safe_attachments
+from .intake import (build_guards, safe_guard_names, safe_mode, safe_model, safe_names,
+                     safe_provider, safe_remote_tools, safe_tools)
 
 router = APIRouter()
 

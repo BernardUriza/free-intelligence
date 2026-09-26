@@ -85,7 +85,7 @@ def test_acp_carries_a_text_document_as_text_and_refuses_a_pdf():
 async def test_the_door_refuses_a_pdf_for_a_non_claude_provider_before_spending(monkeypatch):
     from fastapi import HTTPException
 
-    from aire import intake
+    from aire import attachment_door as intake
 
     async def docs(_raw):
         return (d.to_block(PDF, 0),)

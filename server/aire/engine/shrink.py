@@ -19,6 +19,11 @@ import warnings
 from typing import Any
 
 MAX_SIDE = 2000
+# Only a JPEG decodes at a reduced scale (draft). Every other format decodes its
+# FULL raster before thumbnail() can shrink it, and a one-colour PNG a few KB
+# long can claim 9459×9459 — ~268 MB of RGB under Pillow's own bomb line, more
+# than this box has free. So a non-JPEG is capped at what the box can hold.
+MAX_DECODE_PIXELS = 4096 * 4096  # 64 MB as RGBA, the worst mode
 PASS_BYTES = 1_000_000  # already small AND ≤ MAX_SIDE → the caller's bytes ride untouched
 JPEG_QUALITY = 85  # a 4.7 MB iPhone photo lands near 1 MB at 2000 px
 MEDIA = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp", "GIF": "image/gif"}
@@ -40,6 +45,9 @@ def _open(raw: bytes) -> Any:
         raise BadPixels("image bytes are not a readable image") from exc
     if img.format not in MEDIA:
         raise BadPixels(f"image format {img.format} not accepted; send {sorted(MEDIA)}")
+    if img.format != "JPEG" and img.width * img.height > MAX_DECODE_PIXELS:
+        raise BadPixels(f"image refused: {img.width}×{img.height} {img.format} is too large to decode here; "
+                        "send it as a JPEG or smaller")
     return img
 
 
