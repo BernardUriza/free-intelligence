@@ -19,6 +19,13 @@ llena, aire-server `turn._serve` bajo el lock) son terminales (500): antes caía
 el reintento volvía a bajar los adjuntos para ser rechazado igual. 408 y 429 siguen
 siendo transitorios.
 
+**Recibo del probe de documentos (2026-09-26 02:06 UTC):** por orden de Bernard, Claude
+mandó `@Vultur` con `probe-docs.pdf` (603 bytes, "PERA 7719") en #general. A las 02:07
+Vultur contestó "PERA 7719" y firmó `ᵛ⁴·⁴²·¹`. En `claude_session_store` el bloque quedó
+como `document` / `application/pdf` / título `probe-docs.pdf`, con los 603 bytes
+idénticos, y no hubo `attachments_lost`. Imágenes y documentos viajan por referencia de
+punta a punta.
+
 ## Lo que entró (2026-09-25)
 
 - **Gateway** (`khimeras_shared/attachments.py`): una imagen ya no se descarga; sale como
