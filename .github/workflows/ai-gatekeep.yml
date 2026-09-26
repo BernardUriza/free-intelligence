@@ -2,8 +2,9 @@ name: 🛡️ BAIR Gatekeeper
 
 # AI gate on every PR to main. The gatekeeper analyzes the PR diff via git —
 # it is independent of this repo's language/stack, so no project deps are
-# installed. The exit code IS the gate: BLOCK or UNAVAILABLE → exit 1 → job
-# RED → PR cannot merge (once this check is marked required in branch rules).
+# installed. The exit code IS the gate: only BLOCK → exit 1 → job RED. When no
+# model answers, BAIR ABSTAINS out loud (comment, exit 0) — it never blocks on
+# infrastructure and never approves in silence.
 #
 # Modeled on free-intelligence/.github/workflows/pr-gate.yml (ai-gatekeep job).
 # The bair Python package lives at BernardUriza/.github (subdir bair); xair at
@@ -49,6 +50,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Claude Code
+        # bair reviews with the owner's subscription through the unmodified
+        # `claude` binary — the path Anthropic's terms allow for a subscription
+        # token (code.claude.com/docs/en/legal-and-compliance); it no longer sends
+        # the token to the Messages API itself. Stable channel, official installer.
+        run: |
+          set -e
+          curl -fsSL https://claude.ai/install.sh | bash -s stable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Install xair + bair
         # xair[openai] required even though gatekeep talks to Anthropic via
         # httpx — Container.production() instantiates the OpenAI provider at
@@ -63,9 +74,9 @@ jobs:
         id: gatekeep
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          # This repo's Anthropic auth is OAuth Max (CLAUDE_CODE_OAUTH_TOKEN), the
-          # same token the insult-runner uses — the direct ANTHROPIC_API_KEY is
-          # dead here. bair's deep-analysis path accepts either; OAuth is canonical.
+          # The subscription token reaches only the `claude` binary, which bair
+          # runs in an empty temp dir with a minimal environment (no GH_TOKEN).
+          # ANTHROPIC_API_KEY is the fallback provider when set.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           REPO: ${{ github.repository }}
