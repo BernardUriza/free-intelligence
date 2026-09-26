@@ -189,3 +189,26 @@ Still open: the consumer twin (discord-bot) switching to `{url}` and deleting it
   200 KB per text file, 4 documents per message.
 - **Real-door resistance**: a real Discord MP3 as a document → 422 "neither a PDF nor
   text"; an off-allowlist host → 422.
+
+## Adversarial review (2026-09-25) — what it found, what was real
+
+An independent adversarial-review agent read the whole system. Each finding was
+checked against the code before acting:
+
+| # | Finding | Verdict | Fix |
+|---|---|---|---|
+| 1 | fetch + decode ran before the RAM semaphore; a full session still paid a download per refused turn | **real** | `aire/attachment_door.py`: shape → weight from counts → one fetch-and-decode at a time box-wide (30 s, then 503) → final weight |
+| 2 | a one-colour PNG of a few KB can claim 9459×9459 (~268 MB RGB) under Pillow's bomb line; only JPEG decodes small | **real** | non-JPEG capped at 4096×4096 before decode (`shrink.MAX_DECODE_PIXELS`) |
+| 3 | documents dropped silently in fi-runner/server-bot | false positive — read stale checkouts; fi-runner 0.23.0 and server-bot `39bb9a6` carry them | — |
+| 4 | `attachments_lost` never emitted | false positive — fi-runner emits it by design; AIRE only reports the counts | — |
+| 5 | PDFs over 100 pages accepted | real, fixed just before | page cap summed per session, encrypted refused (`pypdf`) |
+| 6 | latin-1 fallback accepts any binary | real, fixed just before | ≥95% printable required |
+| 7 | TOCTOU: two concurrent turns on one session both pass the weight check | real but bounded | not fixed: the overshoot is one turn's attachments (≤4 images + ≤4 documents), and the next turn is refused |
+
+Also true and kept as a known limit: `images_attached` / `documents_attached` count what
+AIRE handed the SDK, not what the API accepted downstream. A cut made after the door
+would not show there.
+
+Receipts: 367 tests green (also against a real Postgres); every new guard goes red when
+removed; after deploy a real `{url}` turn through gate.bernarduriza.com read "MANGO 5082"
+with `images_attached: 1`.
