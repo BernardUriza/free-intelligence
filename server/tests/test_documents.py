@@ -1,13 +1,26 @@
 """Documents by reference (#50 item 6), offline: type detected, never trusted."""
 
 import base64
+import io
 
 import pytest
 
 from aire.engine import documents as d
 from aire.engine.fetch import FetchRefused
 
-PDF = b"%PDF-1.4\n1 0 obj << >> endobj\n%%EOF\n"
+def _pdf(pages: int = 1, password: str | None = None) -> bytes:
+    from pypdf import PdfWriter
+    writer = PdfWriter()
+    for _ in range(pages):
+        writer.add_blank_page(width=200, height=200)
+    if password:
+        writer.encrypt(password)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+PDF = _pdf()
 
 
 def test_pdf_bytes_become_a_base64_pdf_block_with_its_title():
@@ -89,3 +102,37 @@ async def test_the_door_refuses_a_pdf_for_a_non_claude_provider_before_spending(
         await intake.safe_attachments(None, [{"url": "u"}], key, "codex")
     assert exc.value.status_code == 422 and "PDF" in exc.value.detail
     assert await intake.safe_attachments(None, [{"url": "u"}], key) == (d.to_block(PDF, 0),)
+
+
+@pytest.mark.parametrize("raw,why", [
+    (_pdf(d.MAX_PDF_PAGES + 1), "pages"),
+    (_pdf(1, password="x"), "encrypted"),
+    (b"%PDF-1.4\nnot really a pdf", "could not be read"),
+])
+def test_a_pdf_the_api_would_refuse_is_refused_here_before_spending(raw, why):
+    with pytest.raises(d.BadDocument, match=why):
+        d.to_block(raw, 0)
+
+
+def test_a_pdf_at_the_page_cap_passes():
+    assert d.to_block(_pdf(d.MAX_PDF_PAGES), 0)["source"]["media_type"] == "application/pdf"
+
+
+def test_binary_that_is_not_utf8_and_has_no_nul_is_not_text():
+    junk = bytes(range(0x80, 0x100)) * 50  # latin-1 decodes it, but it is not text
+    with pytest.raises(d.BadDocument, match="neither a PDF nor text"):
+        d.to_block(junk, 0)
+
+
+@pytest.mark.asyncio
+async def test_the_session_pdf_page_budget_counts_what_history_resends(monkeypatch):
+    from aire.engine import attachment_budget as b
+
+    held = [{"data": base64.b64encode(_pdf(60)).decode()}]
+
+    async def rows(sql, *_):
+        return held if sql is b._PDF_SQL else []
+    monkeypatch.setattr(b, "_rows", rows)
+    await b.check_pdf_pages("pk", "s", [base64.b64encode(_pdf(40)).decode()])
+    with pytest.raises(b.OverBudget, match="100"):
+        await b.check_pdf_pages("pk", "s", [base64.b64encode(_pdf(41)).decode()])

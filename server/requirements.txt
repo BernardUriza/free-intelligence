@@ -6,3 +6,4 @@ claude-agent-sdk
 asyncpg
 agent-client-protocol
 pillow
+pypdf

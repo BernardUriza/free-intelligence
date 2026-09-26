@@ -13,6 +13,7 @@ One at a time, like the images: a 10 MiB PDF is the whole budget of this box's
 spare RAM several times over once it is base64'd."""
 
 import base64
+import io
 from typing import Any
 
 from .fetch import FetchRefused, fetch
@@ -21,6 +22,11 @@ MAX_DOCUMENTS = 4
 MAX_TEXT_CHARS = 200_000  # ~50k tokens: every later turn of the session resends it
 MAX_TITLE = 200
 PDF_MAGIC = b"%PDF-"
+# The API refuses a REQUEST over 100 PDF pages when its context window is under
+# 1M tokens (600 above) — history included. AIRE cannot know the session's
+# window, so it holds the line at 100, summed per session (attachment_budget).
+MAX_PDF_PAGES = 100
+MIN_PRINTABLE = 0.95  # below this share of printable chars, "text" is a binary
 
 
 class BadDocument(Exception):
@@ -46,23 +52,53 @@ def _clean_one(i: int, item: Any) -> dict[str, str]:
     return clean
 
 
+def _printable(text: str) -> bool:
+    sample = text[:20_000]
+    ok = sum(1 for ch in sample if ch.isprintable() or ch in "\t\n\r\f")
+    return not sample or ok / len(sample) >= MIN_PRINTABLE
+
+
 def _text(raw: bytes, i: int) -> str:
     if b"\x00" in raw[:8192]:
         raise BadDocument(f"document {i}: neither a PDF nor text")
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
-        text = raw.decode("latin-1")
+        text = raw.decode("latin-1")  # never fails: the printable check is the real gate
+    if not _printable(text):
+        raise BadDocument(f"document {i}: neither a PDF nor text")
     if len(text) > MAX_TEXT_CHARS:
         raise BadDocument(f"document {i}: text over {MAX_TEXT_CHARS} chars; send a shorter file")
     return text
 
 
+def pdf_pages(raw: bytes) -> int:
+    """Pages of a PDF, or `BadDocument` — encrypted PDFs are refused, as the API does."""
+    from pypdf import PdfReader
+    from pypdf.errors import PyPdfError
+    try:
+        reader = PdfReader(io.BytesIO(raw), strict=False)
+        if reader.is_encrypted:
+            raise BadDocument("PDF is encrypted; send it without a password")
+        return len(reader.pages)
+    except (PyPdfError, ValueError, KeyError, TypeError, IndexError, RecursionError, OSError) as exc:
+        raise BadDocument("PDF could not be read") from exc
+
+
+def _pdf_source(raw: bytes, i: int) -> dict[str, str]:
+    try:
+        pages = pdf_pages(raw)
+    except BadDocument as exc:
+        raise BadDocument(f"document {i}: {exc}") from exc
+    if pages > MAX_PDF_PAGES:
+        raise BadDocument(f"document {i}: PDF has {pages} pages; the limit is {MAX_PDF_PAGES}")
+    return {"type": "base64", "media_type": "application/pdf", "data": base64.b64encode(raw).decode()}
+
+
 def to_block(raw: bytes, i: int, title: str | None = None) -> dict[str, Any]:
     """The Anthropic `document` block for these bytes, the type detected."""
     if raw.startswith(PDF_MAGIC):
-        source = {"type": "base64", "media_type": "application/pdf",
-                  "data": base64.b64encode(raw).decode()}
+        source = _pdf_source(raw, i)
     else:
         source = {"type": "text", "media_type": "text/plain", "data": _text(raw, i)}
     block: dict[str, Any] = {"type": "document", "source": source}
