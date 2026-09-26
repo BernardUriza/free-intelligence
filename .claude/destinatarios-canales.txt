@@ -1,0 +1,8 @@
+# Registro de destinos de canal (Discord guild/channel) para envíos desde ESTE repo.
+# Regla: destino-lo-define-el-proyecto.md — el hook rule18-outbound-send.sh exige que el
+# DESTINO declarado en el script esté aquí.
+
+# Khimeras · #general — superficie de prueba de las personas, consumer de AIRE.
+# 2026-09-25: orden directa de Bernard ("mandalo tu") para el probe en vivo de
+# documentos por referencia (#50 item 6), después de que el hook bloqueara el envío.
+1488419218302042223/1489180895264116736

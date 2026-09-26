@@ -212,3 +212,12 @@ would not show there.
 Receipts: 367 tests green (also against a real Postgres); every new guard goes red when
 removed; after deploy a real `{url}` turn through gate.bernarduriza.com read "MANGO 5082"
 with `images_attached: 1`.
+
+## Live probe — documents (2026-09-26 02:06 UTC)
+
+`probe-docs.pdf` (603 bytes, "PERA 7719") sent by Claude on Bernard's order to @Vultur in
+Khimeras #general. Vultur answered "PERA 7719" at 02:07, signed ᵛ⁴·⁴²·¹. In
+`claude_session_store` the block sits as `document` / `application/pdf` / title
+`probe-docs.pdf`, the 603 bytes byte-identical. No `attachments_lost`, so the door's
+`documents_attached` matched what server-bot sent. #50 is closed end to end: images and
+documents, by reference, from Discord to Claude.
