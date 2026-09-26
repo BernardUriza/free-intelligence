@@ -110,7 +110,19 @@ AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
 # cannot be fixed by retrying; backpressure can.
 # attachments_lost (aire-server #50): the door attached fewer images than were
 # sent. A retry resends the same references, so it is terminal, never 502.
-_TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded", "attachments_lost")
+# attachment_budget (aire-server #50): the session already carries too many
+# attachments; every later turn resends them, so a retry can only be refused again.
+_TERMINAL_ERRORS = (
+    "budget_exhausted",
+    "credentials_exhausted",
+    "budget_exceeded",
+    "attachments_lost",
+    "attachment_budget",
+)
+# A 4xx from the door is AIRE refusing THIS request (bad shape, oversize or
+# expired attachment, full session): resending it byte-identical cannot pass,
+# and each retry re-fetches the attachments. Only these two 4xx are transient.
+_RETRYABLE_4XX = (408, 429)
 _BACKPRESSURE_ERRORS = ("slot_busy",)
 _STATUS_PREFIX = {500: "aire turn terminal", 503: "aire backpressure", 502: "aire turn failed"}
 
@@ -419,8 +431,11 @@ def _error_status(exc: BackendError) -> int:
         if code in _TERMINAL_ERRORS:
             return 500
         return 503 if code in _BACKPRESSURE_ERRORS else 502
-    if getattr(exc, "http_status", None) == 503:
+    status = getattr(exc, "http_status", None)
+    if status == 503:
         return 503
+    if isinstance(status, int) and 400 <= status < 500 and status not in _RETRYABLE_4XX:
+        return 500
     detail = str(exc)
     if any(known in detail for known in _TERMINAL_ERRORS):
         return 500
