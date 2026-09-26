@@ -33,8 +33,8 @@ def client(options: Any) -> ClaudeSDKClient:
 
 
 def build_options(birth: Birth) -> ClaudeAgentOptions:
-    """The modes dial and the SDK options factory stay in `engine/options.py`
-    (they ARE the engine's policy); this is the backend seam that reaches them.
+    """The modes dial and the SDK options factory stay in `engine/modes.py` and
+    `engine/options.py` (they ARE the engine's policy); this is the backend seam that reaches them.
     Imported late: options.py imports this package for the primitives above."""
     from ..engine.options import build_options as _build
     return _build(birth.session_store, birth.project, birth.cwd, birth.session_uuid,

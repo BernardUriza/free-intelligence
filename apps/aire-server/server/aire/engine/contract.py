@@ -58,6 +58,9 @@ class TurnSpec:
     operator's roster. Bound at birth like the rest, so a turn that switches
     provider drops the warm client — and, until the mirror is re-primed into the
     new agent, its memory: one session, one provider, is the honest shape."""
+    builtins: tuple[str, ...] | None = None
+    """A narrowing of the mode's builtin tools (#37). None keeps the notch whole;
+    `modes.clean_builtins` guarantees it never names a tool the mode lacks."""
 
 
 @dataclass(frozen=True)

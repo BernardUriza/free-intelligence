@@ -15,8 +15,9 @@ from typing import Any
 from fastapi import HTTPException
 
 from .agent_sdk import DEFAULT_PROVIDER, providers
-from .engine import DEFAULT_MODE, MODES
+from .engine import DEFAULT_MODE, MODES, TurnSpec
 from .engine.contract import Guard, RemoteTool
+from .engine.modes import BadBuiltins, clean_builtins
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
@@ -34,6 +35,29 @@ def safe_names(project: str, session: str) -> tuple[str, str]:
 
 def safe_mode(mode: str | None) -> str:
     return mode if mode in MODES else DEFAULT_MODE
+
+
+def safe_spec(body: dict[str, Any]) -> TurnSpec:
+    """One turn's shape, every field validated at the door before a dollar is spent."""
+    mode = safe_mode(body.get("mode"))
+    provider = safe_provider(body.get("provider"))
+    return TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
+                    model=safe_model(body.get("model")),
+                    remote_tools=safe_remote_tools(body.get("remote_tools")),
+                    provider=provider,
+                    builtins=safe_builtins(body.get("builtins"), mode, provider))
+
+
+def safe_builtins(raw: Any, mode: str, provider: str) -> tuple[str, ...] | None:
+    """The `builtins` field (#37): a narrowing of the mode's builtin tools, 422
+    on any name the mode does not grant. An ACP agent's tools are its own and
+    its only gate is allow/reject, so a subset it cannot honour is refused too."""
+    if raw is not None and provider != DEFAULT_PROVIDER:
+        raise HTTPException(status_code=422, detail="builtins need the native provider")
+    try:
+        return clean_builtins(raw, mode)
+    except BadBuiltins as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def safe_tools(raw: Any, _mode: str) -> tuple[str, ...]:
