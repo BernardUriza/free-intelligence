@@ -179,6 +179,24 @@ def test_an_unknown_door_failure_maps_to_502():
     assert err.status_code == 502
 
 
+@pytest.mark.parametrize(
+    "exc",
+    [
+        AIREDoorError("AIRE door 422: image 0: fetch answered 404 (expired signature?)", http_status=422),
+        AIREDoorError("AIRE door 413: too big", http_status=413),
+        AIREDoorError("AIRE turn error [attachment_budget]: session full", code="attachment_budget"),
+    ],
+)
+def test_a_request_the_door_refused_is_terminal_a_retry_would_refetch_and_fail_again(exc):
+    """aire-server #50: a 4xx or a full session is never fixed by resending the same request."""
+    assert aire_route.to_http_error(exc).status_code == 500
+
+
+@pytest.mark.parametrize("status", [408, 429])
+def test_a_transient_4xx_still_retries(status):
+    assert aire_route.to_http_error(AIREDoorError(f"AIRE door {status}", http_status=status)).status_code == 502
+
+
 # --- the model-binding finding (measured live 2026-08-22) -------------------
 
 

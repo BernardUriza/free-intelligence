@@ -13,6 +13,12 @@ AIRE `6b59010` (`documents: [{url, title?}]`, tipo detectado), fi-runner 0.23.0
 (`TurnDocument`, `documents_attached`, PR #496). Hoyo #4 cerrado. Ya no queda base64 en
 el cable del consumer: la fila de `turn_jobs` guarda todas las referencias.
 
+**v4.42.1:** un rechazo de la puerta ya no se reintenta. Cualquier 4xx de AIRE (adjunto
+vencido, demasiado grande, forma inválida) y su nuevo código `attachment_budget` (sesión
+llena, aire-server `turn._serve` bajo el lock) son terminales (500): antes caían en 502 y
+el reintento volvía a bajar los adjuntos para ser rechazado igual. 408 y 429 siguen
+siendo transitorios.
+
 ## Lo que entró (2026-09-25)
 
 - **Gateway** (`khimeras_shared/attachments.py`): una imagen ya no se descarga; sale como
