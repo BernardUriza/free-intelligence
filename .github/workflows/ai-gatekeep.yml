@@ -68,7 +68,7 @@ jobs:
           set -e
           pip install --no-cache-dir \
             "xair[openai] @ git+https://github.com/BernardUriza/xair@main" \
-            "git+https://github.com/BernardUriza/.github@claude-code-provider#subdirectory=bair"
+            "git+https://github.com/BernardUriza/.github@main#subdirectory=bair"
 
       - name: Run BAIR gatekeep
         id: gatekeep
