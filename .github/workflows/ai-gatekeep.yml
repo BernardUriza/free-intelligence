@@ -12,8 +12,9 @@ name: 🛡️ BAIR Gatekeeper
 # centralized in the bair package.
 #
 # PREREQUISITES (configure once on this repo):
-#   - Secrets: BAIR_APP_ID, BAIR_APP_PRIVATE_KEY, CLAUDE_CODE_OAUTH_TOKEN
-#     (this repo's Anthropic auth is OAuth Max, not a direct ANTHROPIC_API_KEY)
+#   - Secrets: BAIR_APP_ID, BAIR_APP_PRIVATE_KEY, AIRE_BAIR_TOKEN
+#     (bair reviews through AIRE, Bernard's canonical source of LLM agents, with
+#     its own revocable consumer token; AIRE holds the model credential)
 #   - Install the BAIR GitHub App (id 3878034) on BernardUriza/server-bot
 #     (repo renamed from `discord-bot` on 2026-09-23; app installations follow the repo id)
 
@@ -50,16 +51,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Claude Code
-        # bair reviews with the owner's subscription through the unmodified
-        # `claude` binary — the path Anthropic's terms allow for a subscription
-        # token (code.claude.com/docs/en/legal-and-compliance); it no longer sends
-        # the token to the Messages API itself. Stable channel, official installer.
-        run: |
-          set -e
-          curl -fsSL https://claude.ai/install.sh | bash -s stable
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
       - name: Install xair + bair
         # xair[openai] required even though gatekeep talks to Anthropic via
         # httpx — Container.production() instantiates the OpenAI provider at
@@ -74,11 +65,9 @@ jobs:
         id: gatekeep
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          # The subscription token reaches only the `claude` binary, which bair
-          # runs in an empty temp dir with a minimal environment (no GH_TOKEN).
-          # ANTHROPIC_API_KEY is the fallback provider when set.
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # BAIR's own slot on AIRE's door — revocable alone, without touching
+          # any other consumer. AIRE runs the review (mode=complete, no tools).
+          AIRE_BAIR_TOKEN: ${{ secrets.AIRE_BAIR_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUM: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
