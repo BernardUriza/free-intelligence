@@ -1,6 +1,6 @@
 # 50 — Images by reference: the caller sends a signed URL, AIRE fetches the bytes
 
-Status: **Done** 2026-09-25 end to end — AIRE `5cd1cee`, fi-runner 0.22.0 (free-intelligence PR #495), server-bot v4.41.0 + PR #100 (v4.41.2); live probe passed in #general. PDFs as `document` blocks (item 6) remain a follow-up. Proposed 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
+Status: **Done** 2026-09-25 end to end — AIRE `5cd1cee`, fi-runner 0.22.0 (free-intelligence PR #495), server-bot v4.41.0 + PR #100 (v4.41.2); live probe passed in #general. PDFs and text files (item 6) closed the same day by reference — see *Documents by reference*. Proposed 2026-09-25 by Bernard (*"un bypass SOLO para las imágenes, saltarlas directo de discord a AIRE como datos, y en el pipeline van solo los metadatos"*). Not started. Consumer-side twin: server-bot `.claude/backlog/imagenes-claim-check-discord-aire.md`.
 
 ## Why
 
@@ -168,3 +168,24 @@ Still open: the consumer twin (discord-bot) switching to `{url}` and deleting it
 - **Live probe**: `probe-50.png` (3200×2400, "MANGO 5082") sent to @Vultur in Khimeras
   #general at 22:35 UTC. Vultur read "MANGO 5082 sobre verde selva, círculo magenta" and
   signed ᵛ⁴·⁴¹·¹. In `claude_session_store` it sits as a 2000×1500 JPEG of 56,619 bytes.
+
+## Documents by reference (item 6, 2026-09-25)
+
+- **AIRE `6b59010`** — `documents: [{url, title?}]` through the same SSRF-pinned fetch;
+  the type is DETECTED (`%PDF-` → base64 PDF block, else UTF-8/latin-1 text, binary
+  refused, text capped at 200k chars). The engine now carries ready content blocks as
+  one `attachments` tuple; `image_budget` became `attachment_budget` (documents weigh
+  against the 24 MB resend cap; a missing store table reads as an empty session). The
+  `result` event carries `documents_attached`. ACP: text rides as text, a PDF is 422
+  at the door.
+- **Verified before building**: the bundled CLI takes both document shapes through
+  streaming input — a local turn read "PERA 7719" from a PDF and "LIMA 4402" from a
+  text document.
+- **fi-runner 0.23.0** (free-intelligence PR #496): `TurnDocument`,
+  `TurnResult.documents_attached`, `attachments_lost` on a short count; `Runner.run` /
+  `run_stream` take `documents=`.
+- **server-bot v4.42.0** (PR #106): PDFs and text files ride as URL-source `document`
+  blocks; the consumer downloads nothing anymore. Caps told in character: 10 MB per PDF,
+  200 KB per text file, 4 documents per message.
+- **Real-door resistance**: a real Discord MP3 as a document → 422 "neither a PDF nor
+  text"; an off-allowlist host → 422.
