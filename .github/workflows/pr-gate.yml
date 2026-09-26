@@ -179,6 +179,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install Claude Code
+        # bair reviews with the owner's subscription through the unmodified
+        # `claude` binary — the path Anthropic's terms allow for a subscription
+        # token (code.claude.com/docs/en/legal-and-compliance). Official installer,
+        # stable channel.
+        run: |
+          set -e
+          curl -fsSL https://claude.ai/install.sh | bash -s stable
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install xair + bair
         # xair[openai] required even though gatekeep uses Anthropic via
         # httpx — Container.production() unconditionally instantiates
