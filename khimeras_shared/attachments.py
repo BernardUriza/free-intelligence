@@ -1,22 +1,20 @@
 """Discord attachment processing for Claude API multimodal messages.
 
-Classifies attachments by type, downloads content, and converts
-to Claude API content blocks (text, image, document).
+Classifies attachments by type and turns each into a content block that
+carries a REFERENCE — the signed Discord CDN URL — never the bytes
+(aire-server #50, the Claim Check). AIRE fetches it (SSRF-pinned), shrinks an
+image to <= 2000 px, and detects a document's type (PDF by its magic bytes,
+anything else must be text), so this module downloads nothing, base64s
+nothing and compresses nothing. Every cap it keeps is the one AIRE enforces,
+refused here in character instead of as a 422 that kills the turn.
 
 Each supported type has its own handler. Adding a new type means
 adding a handler class and registering it once — no edits to
 `process_attachment` or to the classifier.
-
-Images travel BY REFERENCE (aire-server #50): the block carries the signed
-Discord CDN URL, never the bytes. AIRE fetches it (SSRF-pinned), shrinks it
-to <= 2000 px and detects its type, so this module no longer downloads,
-compresses or base64s a single image — the cap on image bytes has ONE owner,
-AIRE. Only text files and PDFs are still downloaded here.
 """
 
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar
@@ -25,18 +23,21 @@ import structlog
 
 log = structlog.get_logger()
 
-MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB — Claude API per-attachment cap
+MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5MB — the legacy classify_attachment contract
 
-# What AIRE's image fetch accepts (aire-server engine/fetch.py MAX_FETCH_BYTES,
-# Discord's free upload cap); refused here in character instead of as a 422.
+# What AIRE's fetch accepts (aire-server engine/fetch.py MAX_FETCH_BYTES,
+# Discord's free upload cap) — images and PDFs alike.
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
+MAX_PDF_SIZE = MAX_IMAGE_SIZE
 
-# AIRE's door takes at most 4 images per turn (engine/vision.py MAX_IMAGES);
-# beyond that the extras are named in character instead of killing the turn.
+# AIRE refuses a text document over 200k chars (engine/documents.py); a byte
+# never decodes to more than one char, so 200 KB is a cap that can't overshoot.
+MAX_TEXT_SIZE = 200_000
+
+# AIRE's door takes at most 4 images and 4 documents per turn (engine/vision.py,
+# engine/documents.py); beyond that the extras are cut here, never sent.
 MAX_IMAGES_PER_MESSAGE = 4
-
-# Hard upper bound on what we even download (text/PDF only).
-HARD_DOWNLOAD_LIMIT = 25 * 1024 * 1024  # 25MB
+MAX_DOCUMENTS_PER_MESSAGE = 4
 
 
 class AttachmentType(Enum):
@@ -64,36 +65,39 @@ class ProcessedAttachment:
 class _Handler:
     """Base for type-specific handlers.
 
-    Subclasses declare which extensions they own and how to turn raw bytes
-    into a Claude API content block. Handlers don't deal with download
-    failures, size limits, or logging — those live in `process_attachment`
-    so each handler stays a pure transform.
+    Subclasses declare which extensions they own, the largest file AIRE will
+    take for them, and the reference block they ride as. Handlers don't deal
+    with refusals or logging — those live in `process_attachment`.
     """
 
     attachment_type: ClassVar[AttachmentType]
     extensions: ClassVar[set[str]]
+    max_size: ClassVar[int]
 
-    def build_block(self, data: bytes, filename: str) -> tuple[dict | None, str | None]:
-        """Convert downloaded bytes to a content block.
-
-        Returns ``(block, error)``. ``block`` is None when ``data`` can't be
-        rendered (e.g. text that's neither UTF-8 nor latin-1).
-        """
+    def reference_block(self, url: str, filename: str) -> dict:
+        """The content block that carries this file's signed URL."""
         raise NotImplementedError
+
+
+class _DocumentHandler(_Handler):
+    def reference_block(self, url: str, filename: str) -> dict:
+        """A URL-source document block; AIRE decides whether it is a PDF or text."""
+        return {"type": "document", "source": {"type": "url", "url": url}, "title": filename}
 
 
 class ImageHandler(_Handler):
     attachment_type: ClassVar[AttachmentType] = AttachmentType.IMAGE
     extensions: ClassVar[set[str]] = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+    max_size: ClassVar[int] = MAX_IMAGE_SIZE
 
-    @staticmethod
-    def reference_block(url: str) -> dict:
+    def reference_block(self, url: str, filename: str) -> dict:
         """The Anthropic URL-source image block; AIRE fetches and types it."""
         return {"type": "image", "source": {"type": "url", "url": url}}
 
 
-class TextHandler(_Handler):
+class TextHandler(_DocumentHandler):
     attachment_type: ClassVar[AttachmentType] = AttachmentType.TEXT
+    max_size: ClassVar[int] = MAX_TEXT_SIZE
     extensions: ClassVar[set[str]] = {
         ".py",
         ".js",
@@ -133,54 +137,11 @@ class TextHandler(_Handler):
         ".dockerfile",
     }
 
-    def build_block(self, data: bytes, filename: str) -> tuple[dict | None, str | None]:
-        """Return an Anthropic ``document`` block — NOT a text block.
 
-        Pre-v3.9.59 this returned ``{type: "text", text: "[Archivo: ...]\\n..."}``
-        which got concatenated into the agent runner's ``user_text`` field and
-        blew its 8000-char cap with even modest attachments (Bernard 21KB
-        message.txt incident, 2026-05-19 07:06 → 422 → ALICE failover with no
-        attachment context).
-
-        Returning a proper document block routes the file through the same
-        dedicated ``attachments`` channel that images use (REWRITE-B1,
-        v3.9.43). The agent sees a real document the LLM can choose to
-        process. The Anthropic API supports text-source documents natively
-        (matching the PDFHandler shape below, just with `type: "text"`
-        instead of base64).
-        """
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError:
-            try:
-                text = data.decode("latin-1")
-            except Exception:
-                return None, "No pude leer el archivo. Parece que no es texto."
-        return {
-            "type": "document",
-            "source": {
-                "type": "text",
-                "media_type": "text/plain",
-                "data": text,
-            },
-            "title": filename,
-            "context": f"File the user attached in chat: {filename}",
-        }, None
-
-
-class PDFHandler(_Handler):
+class PDFHandler(_DocumentHandler):
     attachment_type: ClassVar[AttachmentType] = AttachmentType.PDF
     extensions: ClassVar[set[str]] = {".pdf"}
-
-    def build_block(self, data: bytes, filename: str) -> tuple[dict | None, str | None]:
-        return {
-            "type": "document",
-            "source": {
-                "type": "base64",
-                "media_type": "application/pdf",
-                "data": base64.standard_b64encode(data).decode("ascii"),
-            },
-        }, None
+    max_size: ClassVar[int] = MAX_PDF_SIZE
 
 
 # Registry — extension lookup walks this in order. New types: append a
@@ -246,31 +207,34 @@ def _rejected(att_type: AttachmentType, filename: str, error: str, **fields) -> 
     return ProcessedAttachment(attachment_type=att_type, filename=filename, content_block=None, error=error)
 
 
-def _image_reference(attachment, att_type: AttachmentType) -> ProcessedAttachment:
-    """An image never downloads here: its signed URL rides to AIRE (#50)."""
+def _mb(size: int) -> str:
+    return f"{size / 1024 / 1024:.1f}MB" if size >= 1024 * 1024 else f"{size // 1024}KB"
+
+
+def _reference(attachment, handler: _Handler, att_type: AttachmentType) -> ProcessedAttachment:
+    """No attachment downloads here: its signed URL rides to AIRE (#50)."""
     filename = attachment.filename
-    if attachment.size > MAX_IMAGE_SIZE:
+    if attachment.size > handler.max_size:
         return _rejected(
             att_type,
             filename,
-            f"Imagen muy pesada ({attachment.size / 1024 / 1024:.1f}MB). Maximo 10MB.",
+            f"Archivo muy pesado ({_mb(attachment.size)}). Maximo {_mb(handler.max_size)}.",
             size=attachment.size,
         )
     url = getattr(attachment, "url", None)
     if not url:
-        return _rejected(att_type, filename, "No pude leer la imagen. Intentale de nuevo.")
+        return _rejected(att_type, filename, "No pude leer el archivo. Intentale de nuevo.")
     log.info("attachment_processed", filename=filename, type=att_type.value, size=attachment.size, by="reference")
     return ProcessedAttachment(
-        attachment_type=att_type, filename=filename, content_block=ImageHandler.reference_block(url)
+        attachment_type=att_type, filename=filename, content_block=handler.reference_block(url, filename)
     )
 
 
 async def process_attachment(attachment) -> ProcessedAttachment:
-    """Process a single discord.Attachment into a Claude API content block.
+    """Process a single discord.Attachment into a reference content block.
 
-    Images become URL references (no download); text and PDFs are downloaded
-    and inlined, capped at ``MAX_ATTACHMENT_SIZE``. Every refusal carries an
-    in-character error for the channel.
+    Every supported type rides as its signed URL (images and documents alike);
+    every refusal carries an in-character error for the channel.
     """
     filename = attachment.filename
     att_type, type_error = classify_attachment(
@@ -281,25 +245,24 @@ async def process_attachment(attachment) -> ProcessedAttachment:
     handler = _handler_for(filename, attachment.content_type)
     if handler is None:
         return _rejected(att_type, filename, "Tipo de archivo no soportado.")
-    if isinstance(handler, ImageHandler):
-        return _image_reference(attachment, att_type)
-    if attachment.size > MAX_ATTACHMENT_SIZE:
-        return _rejected(att_type, filename, f"Archivo muy pesado ({attachment.size / 1024 / 1024:.1f}MB). Maximo 5MB.")
-    try:
-        data = await attachment.read()
-    except Exception as e:
-        log.error("attachment_download_failed", filename=filename, error=str(e))
-        return ProcessedAttachment(
-            attachment_type=att_type,
-            filename=filename,
-            content_block=None,
-            error="No pude descargar el archivo. Intentale de nuevo.",
-        )
-    block, build_error = handler.build_block(data, filename)
-    if build_error or block is None:
-        return ProcessedAttachment(attachment_type=att_type, filename=filename, content_block=None, error=build_error)
-    log.info("attachment_processed", filename=filename, type=att_type.value, size=len(data))
-    return ProcessedAttachment(attachment_type=att_type, filename=filename, content_block=block)
+    return _reference(attachment, handler, att_type)
+
+
+def cap_documents(attachments: list, max_documents: int = MAX_DOCUMENTS_PER_MESSAGE) -> tuple[list, list[str]]:
+    """Keep the first ``max_documents`` text/PDF attachments (and everything
+    else), in order. Returns ``(kept, dropped_filenames)``: AIRE refuses the
+    whole turn over its cap, so the extras are cut and named, never sent."""
+    kept: list = []
+    dropped: list[str] = []
+    docs = 0
+    for att in attachments:
+        if isinstance(_handler_for(att.filename, att.content_type), _DocumentHandler):
+            if docs >= max_documents:
+                dropped.append(att.filename)
+                continue
+            docs += 1
+        kept.append(att)
+    return kept, dropped
 
 
 def cap_images(attachments: list, max_images: int = MAX_IMAGES_PER_MESSAGE) -> tuple[list, int]:

@@ -56,7 +56,7 @@ from dataclasses import dataclass, field
 import structlog
 from fastapi import HTTPException
 from fi_runner import AIREBackend
-from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage
+from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage
 
 from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
@@ -380,23 +380,28 @@ async def fetch_user_facts(user_id: str) -> str:
     return "\n".join(lines)[: config.AIRE_FACTS_MAX_CHARS]
 
 
-def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
-    """Convert the gateway's URL-source image blocks to AIRE references.
+def refs_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], list[TurnDocument], int]:
+    """Split the gateway's URL-source blocks into AIRE references.
 
-    Images travel ONLY by reference since aire-server #50: AIRE fetches the
-    signed URL itself. Anything else — a base64 image no producer emits any
-    more, a document/PDF AIRE's door has no block for — is DROPPED and counted,
-    so the caller logs the count instead of losing it silently. Returns
-    (images, dropped)."""
+    Every attachment travels by reference since aire-server #50: an image block
+    becomes ``TurnImage(url)``, a document block (PDF or text — AIRE detects
+    which) becomes ``TurnDocument(url, title)``. Anything else — an inline
+    base64 block no producer emits any more — is DROPPED and counted, so the
+    caller logs it instead of losing it silently. Returns
+    (images, documents, dropped)."""
     images: list[TurnImage] = []
+    documents: list[TurnDocument] = []
     dropped = 0
     for block in attachments or []:
         source = (block or {}).get("source") or {}
-        if block.get("type") == "image" and source.get("type") == "url" and source.get("url"):
-            images.append(TurnImage(url=source["url"]))
+        url = source.get("url") if source.get("type") == "url" else None
+        if block.get("type") == "image" and url:
+            images.append(TurnImage(url=url))
+        elif block.get("type") == "document" and url:
+            documents.append(TurnDocument(url=url, title=block.get("title") or ""))
         else:
             dropped += 1
-    return images, dropped
+    return images, documents, dropped
 
 
 def _error_status(exc: BackendError) -> int:
@@ -541,7 +546,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         history_block=fold_history(req.history) if is_first_turn else "",
         memory_block=memory_block,
     )
-    images, dropped = images_from_attachments(req.attachments)
+    images, documents, dropped = refs_from_attachments(req.attachments)
     if dropped:
         log.warning(
             "aire_route_attachments_dropped",
@@ -549,6 +554,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             channel_id=req.channel_id,
             dropped=dropped,
             forwarded=len(images),
+            documents=len(documents),
         )
 
     backend = backend_for(base_id)
@@ -571,6 +577,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             model=model,
             session_id=claim.topic_id,
             images=images or None,
+            documents=documents or None,
         )
 
     token = _chat_casita.set(casita)
@@ -641,6 +648,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         backend="aire",
         job_id=req.job_id,
         images_sent=len(images),
+        documents_sent=len(documents),
         channel_id=req.channel_id,
         user_id=req.user_id,
         casita=casita,
@@ -771,9 +779,11 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     NOT what keeps prompts apart."""
     model = req.model or config.JUDGE_DEFAULT_MODEL
     casita = judge_casita_for(req.persona_id, req.system_prompt)
-    images, dropped = images_from_attachments(req.attachments)
+    images, documents, dropped = refs_from_attachments(req.attachments)
     if dropped:
-        log.warning("aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images))
+        log.warning(
+            "aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images), documents=len(documents)
+        )
     backend = judge_backend_for(casita)
     try:
         result = await backend.run_turn(
@@ -784,6 +794,7 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
             model=model,
             session_id=None,
             images=images or None,
+            documents=documents or None,
         )
     except BackendError as exc:
         log.error("aire_route_judge_failed", casita=casita, error=str(exc)[:300])

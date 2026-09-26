@@ -22,7 +22,13 @@ import contextlib
 import discord
 import structlog
 
-from khimeras_shared.attachments import MAX_IMAGES_PER_MESSAGE, cap_images, process_attachments
+from khimeras_shared.attachments import (
+    MAX_DOCUMENTS_PER_MESSAGE,
+    MAX_IMAGES_PER_MESSAGE,
+    cap_documents,
+    cap_images,
+    process_attachments,
+)
 from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from khimeras_shared.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
@@ -104,7 +110,13 @@ class MessageIngest:
         if not readable:
             return []
         readable, over_cap = cap_images(readable)
+        readable, extra_docs = cap_documents(readable)
         blocks, errors = await process_attachments(readable)
+        if extra_docs:
+            errors.append(
+                f"Solo leo {MAX_DOCUMENTS_PER_MESSAGE} archivos por mensaje; no lei: {', '.join(extra_docs)}. "
+                "Mandalos en otro mensaje."
+            )
         if over_cap:
             log.warning(
                 "persona_gateway_attachments_capped",

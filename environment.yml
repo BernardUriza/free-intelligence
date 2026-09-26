@@ -152,7 +152,9 @@ dependencies:
   # SUBIDO a 0.21.5 (2026-09-08): cap de fi-core <0.31, el que admite la 0.30.0.
   # SUBIDO a 0.22.0 (2026-09-25, free-intelligence PR #495): TurnImage(url=...)
   # y attachments_lost — las imágenes viajan por referencia a AIRE (#50).
-  - fi-runner=0.22.0
+  # SUBIDO a 0.23.0 (2026-09-25, free-intelligence PR #496): TurnDocument —
+  # PDFs y texto viajan por referencia a AIRE (#50 item 6).
+  - fi-runner=0.23.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

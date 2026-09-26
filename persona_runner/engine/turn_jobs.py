@@ -71,7 +71,7 @@ def _label(req: TurnRequest) -> str:
 
 def _is_reference(block: dict) -> bool:
     source = (block or {}).get("source") or {}
-    return block.get("type") == "image" and source.get("type") == "url" and bool(source.get("url"))
+    return block.get("type") in ("image", "document") and source.get("type") == "url" and bool(source.get("url"))
 
 
 def _payload(req: TurnRequest) -> dict[str, Any]:
