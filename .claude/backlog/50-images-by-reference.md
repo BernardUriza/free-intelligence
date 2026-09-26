@@ -203,7 +203,7 @@ checked against the code before acting:
 | 4 | `attachments_lost` never emitted | false positive — fi-runner emits it by design; AIRE only reports the counts | — |
 | 5 | PDFs over 100 pages accepted | real, fixed just before | page cap summed per session, encrypted refused (`pypdf`) |
 | 6 | latin-1 fallback accepts any binary | real, fixed just before | ≥95% printable required |
-| 7 | TOCTOU: two concurrent turns on one session both pass the weight check | real but bounded | not fixed: the overshoot is one turn's attachments (≤4 images + ≤4 documents), and the next turn is refused |
+| 7 | TOCTOU: two concurrent turns on one session both pass the weight check | **real** | fixed: the authoritative check runs in `turn._serve`, under the lock that serializes the session's turns; the second turn waits for the first to land and is weighed with it (in-stream `attachment_budget` error, before spending). The door keeps its cheap early check |
 
 Also true and kept as a known limit: `images_attached` / `documents_attached` count what
 AIRE handed the SDK, not what the API accepted downstream. A cut made after the door

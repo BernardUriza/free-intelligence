@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from .. import spend
+from . import attachment_budget
 from .contract import BudgetExceeded, TurnSpec
 from .credentials import is_metered, limit_hit
 from .drain import drain, turn_cost, turn_tokens
@@ -72,6 +73,46 @@ async def _account(engine: Any, project: str, session: str,
     return spent
 
 
+async def _weigh_under_lock(engine: Any, project: str, session: str,
+                            attachments: tuple[dict[str, Any], ...]) -> dict[str, Any] | None:
+    """The AUTHORITATIVE session-weight check (#50), run while holding the lock
+    that serializes this session's turns — the door's check runs before it, so
+    two concurrent turns could both pass there. Here the second one waits for the
+    first to land in the store and is weighed with it. Refused BEFORE spending."""
+    if not attachments:
+        return None
+    key = engine.session_key(project, session)
+    try:
+        await attachment_budget.enforce(key["project_key"], key["session_id"], attachments)
+    except attachment_budget.OverBudget as exc:
+        return {"type": "error", "error": "attachment_budget", "detail": str(exc)}
+    except Exception as exc:  # the store is unreachable: refuse loud, never guess the weight
+        return {"type": "error", "error": "attachment_budget",
+                "detail": f"session attachment budget unreadable: {type(exc).__name__}"}
+    return None
+
+
+async def _serve(engine: Any, project: str, session: str, prompt: str,
+                 attachments: tuple[dict[str, Any], ...], client: Any, born_with: str,
+                 state: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+    """The part that runs UNDER the session lock: weigh, send, drain. `state`
+    tells the caller whether the client spent its cap or hit a usage limit."""
+    if (refusal := await _weigh_under_lock(engine, project, session, attachments)) is not None:
+        yield refusal
+        return
+    await send_turn(client, prompt, attachments)
+    async for event in drain(client):
+        if event.get("type") == "result":
+            state["spent"] = await _account(engine, project, session, event, born_with)
+            result = event["result"]
+            if limit_hit(result.text, result.usage):
+                state["notice"] = result.text
+                continue
+        yield event
+    if state["spent"]:
+        yield engine.ledger.cut_event()
+
+
 async def _attempt(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec, attachments: tuple[dict[str, Any], ...],
                    slot: Any) -> AsyncIterator[dict[str, Any]]:
@@ -81,24 +122,14 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
     await engine._rebind(project, session, spec)
     client, lock = await engine._client_for(project, session, spec, slot)
     born_with = engine.slot_of.get(key, slot.name)
-    spent = False
-    notice: str | None = None
+    state: dict[str, Any] = {"spent": False, "notice": None}
     try:
         async with lock:
-            await send_turn(client, prompt, attachments)
-            async for event in drain(client):
-                if event.get("type") == "result":
-                    spent = await _account(engine, project, session, event, born_with)
-                    result = event["result"]
-                    if limit_hit(result.text, result.usage):
-                        notice = result.text
-                        continue
+            async for event in _serve(engine, project, session, prompt, attachments, client, born_with, state):
                 yield event
-            if spent:
-                yield engine.ledger.cut_event()
     finally:
-        if spent or notice is not None:
+        if state["spent"] or state["notice"] is not None:
             await engine._retire(project, session)
-    if notice is not None:
-        engine.rotor.burn(born_with, notice)
+    if state["notice"] is not None:
+        engine.rotor.burn(born_with, state["notice"])
         yield _ROTATE
