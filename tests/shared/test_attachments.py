@@ -4,9 +4,12 @@ from unittest.mock import AsyncMock
 
 from khimeras_shared.attachments import (
     MAX_ATTACHMENT_SIZE,
+    MAX_DOCUMENTS_PER_MESSAGE,
     MAX_IMAGE_SIZE,
     MAX_IMAGES_PER_MESSAGE,
+    MAX_TEXT_SIZE,
     AttachmentType,
+    cap_documents,
     cap_images,
     classify_attachment,
     process_attachment,
@@ -106,27 +109,23 @@ class TestProcessAttachment:
         assert result.content_block == {"type": "image", "source": {"type": "url", "url": att.url}}
         att.read.assert_not_awaited()
 
-    async def test_process_text(self):
-        """v3.9.59 fix: text files emit a `document` block (not `text`)
-        so they don't get concatenated into the agent runner's user_text
-        (which had an 8000-char cap; Bernard 21KB paste hit 422)."""
+    async def test_process_text_is_a_url_document_reference_never_downloaded(self):
         att = _mock_attachment("hello.py", "text/plain", 20, b"print('hello')")
         result = await process_attachment(att)
         assert result.attachment_type == AttachmentType.TEXT
-        assert result.content_block is not None
-        assert result.content_block["type"] == "document"
-        assert result.content_block["source"]["type"] == "text"
-        assert result.content_block["source"]["media_type"] == "text/plain"
-        assert result.content_block["source"]["data"] == "print('hello')"
-        assert result.content_block["title"] == "hello.py"
+        assert result.content_block == {
+            "type": "document",
+            "source": {"type": "url", "url": att.url},
+            "title": "hello.py",
+        }
+        att.read.assert_not_awaited()
 
-    async def test_process_pdf(self):
-        att = _mock_attachment("doc.pdf", "application/pdf", 100, b"%PDF-1.4 fake")
+    async def test_process_pdf_is_a_url_document_reference_never_downloaded(self):
+        att = _mock_attachment("doc.pdf", "application/pdf", 8 * 1024 * 1024, b"")
         result = await process_attachment(att)
         assert result.attachment_type == AttachmentType.PDF
-        assert result.content_block is not None
-        assert result.content_block["type"] == "document"
-        assert result.content_block["source"]["media_type"] == "application/pdf"
+        assert result.content_block["source"] == {"type": "url", "url": att.url}
+        att.read.assert_not_awaited()
 
     async def test_process_unsupported(self):
         att = _mock_attachment("song.mp3", "audio/mpeg", 100, b"fake audio")
@@ -134,27 +133,17 @@ class TestProcessAttachment:
         assert result.content_block is None
         assert result.error is not None
 
-    async def test_process_too_large_text(self):
-        # Non-images over 5 MB still hard-reject (no compression path).
-        att = _mock_attachment("huge.txt", "text/plain", MAX_ATTACHMENT_SIZE + 1, b"")
+    async def test_a_text_file_over_aires_text_cap_is_refused_in_character(self):
+        att = _mock_attachment("huge.txt", "text/plain", MAX_TEXT_SIZE + 1, b"")
         result = await process_attachment(att)
         assert result.content_block is None
-        assert "5MB" in (result.error or "")
+        assert "Maximo 195KB" in (result.error or "")
 
-    async def test_process_download_failure(self):
-        att = _mock_attachment("fail.txt", "text/plain", 100, b"")
-        att.read = AsyncMock(side_effect=Exception("Network error"))
+    async def test_an_attachment_without_a_url_is_refused_not_sent_empty(self):
+        att = _mock_attachment("notas.txt", "text/plain", 10, b"")
+        att.url = None
         result = await process_attachment(att)
-        assert result.content_block is None
-        assert result.error is not None
-
-    async def test_text_latin1_fallback(self):
-        att = _mock_attachment("legacy.txt", "text/plain", 10, "café".encode("latin-1"))
-        result = await process_attachment(att)
-        assert result.content_block is not None
-        assert result.content_block["type"] == "document"
-        # The decoded text now lives in source.data (v3.9.59).
-        assert "café" in result.content_block["source"]["data"]
+        assert result.content_block is None and "No pude leer" in (result.error or "")
 
 
 class TestImagesByReference:
@@ -164,7 +153,7 @@ class TestImagesByReference:
         att = _mock_attachment("huge.jpg", "image/jpeg", MAX_IMAGE_SIZE + 1, b"")
         result = await process_attachment(att)
         assert result.content_block is None
-        assert "10MB" in (result.error or "")
+        assert "Maximo 10.0MB" in (result.error or "")
         att.read.assert_not_awaited()
 
     async def test_a_phone_photo_between_5_and_10_mb_rides_by_reference(self):
@@ -173,12 +162,14 @@ class TestImagesByReference:
         assert result.error is None
         assert result.content_block["source"]["type"] == "url"
 
-    async def test_oversize_non_image_still_rejected(self):
-        big_text = b"x" * (MAX_ATTACHMENT_SIZE + 100)
-        att = _mock_attachment("big.py", "text/plain", len(big_text), big_text)
-        result = await process_attachment(att)
-        assert result.content_block is None
-        assert "Maximo 5MB" in (result.error or "")
+    def test_cap_documents_keeps_the_first_n_documents_and_names_the_rest(self):
+        docs = [
+            _mock_attachment(f"d{i}.pdf", "application/pdf", 100, b"") for i in range(MAX_DOCUMENTS_PER_MESSAGE + 1)
+        ]
+        photo = _mock_attachment("p.png", "image/png", 100, b"")
+        kept, dropped = cap_documents([photo, *docs])
+        assert [a.filename for a in kept] == ["p.png"] + [f"d{i}.pdf" for i in range(MAX_DOCUMENTS_PER_MESSAGE)]
+        assert dropped == [f"d{MAX_DOCUMENTS_PER_MESSAGE}.pdf"]
 
     def test_cap_images_keeps_the_first_n_images_and_every_non_image(self):
         atts = [_mock_attachment(f"p{i}.png", "image/png", 100, b"") for i in range(MAX_IMAGES_PER_MESSAGE + 2)]

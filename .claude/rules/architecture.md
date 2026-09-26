@@ -212,10 +212,14 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   the result's `images_attached`: a mismatch is `attachments_lost` (terminal 500,
   never a blind answer). The URL lives in the `turn_jobs` row, so a resumed job
   carries the image; a signature that expired before the resume is `not_resumable`
-- Text/code extensions: read as UTF-8, injected as text blocks
-- PDFs: sent as base64 document blocks
+- Text/code files and PDFs: sent BY REFERENCE too (#50 item 6) — a URL-source
+  `document` block with the filename as `title`, never downloaded here. AIRE fetches
+  it and detects the type (`%PDF-` → PDF block, anything else must decode as text).
+  Caps: 10 MB per PDF, 200 KB per text file (AIRE refuses text over 200k chars), 4
+  documents per message (`MAX_DOCUMENTS_PER_MESSAGE`; the extras are named).
+  fi-runner checks `documents_attached` the same way as images
 - Unsupported types: rejected with an in-character message
-- `MAX_ATTACHMENT_SIZE` = 5MB per text/PDF attachment; `HARD_DOWNLOAD_LIMIT` = 25MB
+- `MAX_ATTACHMENT_SIZE` = 5MB — only the legacy `classify_attachment` contract
 - Attachment content is NOT stored in longitudinal memory (only the text message)
 
 ## Dependencies

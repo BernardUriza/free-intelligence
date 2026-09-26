@@ -7,8 +7,11 @@
 Vultur describió la imagen correctamente y firmó `ᵛ⁴·⁴¹·¹`, con gateway y runner en
 `d4bc23b`: la imagen hizo Discord → gateway → runner → AIRE → Claude por referencia.
 
-**Sigue pendiente:** PDFs por el mismo mecanismo (hoyo #4, punto 5 de abajo) y borrar el
-camino base64 cuando ningún cliente de AIRE lo mande (punto 7).
+**Cerrado después (2026-09-25):** el camino base64 de imágenes se borró en #105
+(v4.41.4). Los PDFs y archivos de texto viajan por el mismo Claim Check desde v4.42.0:
+AIRE `6b59010` (`documents: [{url, title?}]`, tipo detectado), fi-runner 0.23.0
+(`TurnDocument`, `documents_attached`, PR #496). Hoyo #4 cerrado. Ya no queda base64 en
+el cable del consumer: la fila de `turn_jobs` guarda todas las referencias.
 
 ## Lo que entró (2026-09-25)
 
@@ -43,7 +46,7 @@ Formas medidas en que se perdieron o se pueden perder (sesión 2026-09-25):
 | 1 | El job del runner se armaba desde la fila de `turn_jobs`, que no guarda la imagen | 23→25-sep; arreglado en #92 (v4.40.21) |
 | 2 | Imágenes de 3.7–5 MB → 422 de AIRE, turno muerto (18 turnos, 8→19-sep) | arreglado 18-sep, pero con `5_000_000` copiado a mano en dos repos |
 | 3 | Un mensaje con ≥5 fotos: el gateway no tiene tope, AIRE `MAX_IMAGES=4` → 422 | cerrado v4.41.0 (tope de 4 en el gateway) |
-| 4 | PDFs y archivos de texto: el runner los tira en silencio porque AIRE sólo acepta imágenes | **abierto** |
+| 4 | PDFs y archivos de texto: el runner los tira en silencio porque AIRE sólo acepta imágenes | cerrado v4.42.0 (documentos por referencia) |
 | 5 | Ni gateway ni runner loggean `job_id` → no hay cómo cruzar una pérdida | cerrado v4.41.2 (#100) |
 
 ## La decisión: Claim Check con Discord como almacén

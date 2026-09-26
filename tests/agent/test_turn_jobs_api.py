@@ -331,3 +331,21 @@ def test_a_resume_whose_signed_url_expired_is_not_resumable_out_loud(client, mon
     ledger.age(JOB["job_id"])
     r = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 0.5}, headers=HEADERS)
     assert r.status_code == 502 and "expired" in r.json()["detail"]
+
+
+def test_a_document_reference_rides_in_the_row_like_an_image(client, monkeypatch, ledger):
+    """#50 item 6: un PDF por referencia también es cientos de bytes; la fila lo guarda."""
+
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
+    doc = {
+        "type": "document",
+        "source": {"type": "url", "url": "https://cdn.discordapp.com/attachments/1/2/acta.pdf?ex=ffffffff&is=0&hm=a"},
+        "title": "acta.pdf",
+    }
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [_ref("ffffffff"), doc]}, headers=HEADERS)
+    assert ledger.rows[JOB["job_id"]]["payload"]["attachments"] == [_ref("ffffffff"), doc]
+    assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is False

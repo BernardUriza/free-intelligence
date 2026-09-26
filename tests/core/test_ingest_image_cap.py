@@ -62,3 +62,24 @@ async def test_four_photos_pass_whole_with_no_note():
     blocks = await _ingest().attachment_blocks(msg)
     assert [b["type"] for b in blocks] == ["image"] * 4
     assert all(a.read.await_count == 0 for a in msg.attachments)
+
+
+async def test_five_documents_forward_four_and_name_the_fifth():
+    msg = MagicMock()
+    msg.id = 99
+    docs = []
+    for i in range(5):
+        att = MagicMock()
+        att.filename = f"acta{i}.pdf"
+        att.content_type = "application/pdf"
+        att.size = 100
+        att.url = f"https://cdn.discordapp.com/attachments/1/{i}/acta{i}.pdf?ex=1"
+        att.read = AsyncMock()
+        docs.append(att)
+    msg.attachments = docs
+    msg.flags = SimpleNamespace(voice=False)
+    msg.channel.send = AsyncMock()
+    blocks = await _ingest().attachment_blocks(msg)
+    assert [b["title"] for b in blocks] == [f"acta{i}.pdf" for i in range(4)]
+    assert "acta4.pdf" in msg.channel.send.await_args.args[0]
+    assert all(a.read.await_count == 0 for a in docs)
