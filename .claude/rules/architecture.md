@@ -2,6 +2,14 @@
 
 ## Nomenclature — the live surfaces (post-purga 2026-07-14 + host cutover 2026-07-15)
 
+> **⏸️ APAGADO 2026-09-27 (decisión de Bernard, ahorro Azure):** `persona-gateway`,
+> `khimeras-host` y `persona-runner` están en **Stopped** (`POST …/containerApps/<app>/stop`,
+> reversible con `/start`), y el workflow **CD está `disabled_manually`** para que un push
+> no las reviva. Los bots están offline en Discord A PROPÓSITO — no es un incidente. Se
+> reactivan "de otra forma" más adelante. Postgres, `prod-env` y `insultacr` NO se tocaron:
+> son compartidos (rancho, aire, portfolio, vhouse, og118, susurro). La alerta
+> `insult-turn-failure-rate` se borró (apuntaba al `prod-trust-ag` ya borrado; no podía sonar).
+
 Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 
 | Container App | State | Role |
