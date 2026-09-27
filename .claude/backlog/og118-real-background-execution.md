@@ -153,3 +153,16 @@ pero esta vez la causa es saldo agotado, no un budget ceiling nominal).
 15:01 UTC de hoy a que libere `oauth-primary` y reintentar el turno E2E desde ahí
 — lo segundo no arregla el fallback, sólo restaura un slot temporalmente hasta
 que vuelva a topar el límite semanal.
+
+### Re-verificación 2026-09-27 (journal leído por Bernard con `ssh -i ~/.ssh/aire_vm`, pegado en sesión) — el pool volvió a respirar
+
+`journalctl -u aire-server --since "48 hours ago"` en el droplet: servicio `active`,
+1458 líneas, **177 turnos `POST .../messages` → 200 OK** (los últimos a las 13:25 y
+21:54 UTC del 27), y **cero** líneas `CREDENTIAL-EXHAUSTED` / `cools` / `exhaust`.
+Control de presencia hecho antes de creerle al vacío ([[both-ends-of-the-data-path]]):
+con 177 turnos reales, la ausencia de exhaustion sí es evidencia. El clasificador de
+auto mode negó el SSH directo desde Claude (`[Production Reads]`); la lectura fue de
+Bernard.
+
+**Siguiente real:** reintentar el turno E2E en app.og118.ai hoy, con el pool vivo.
+Si el fallback vuelve a caer, el saldo de la cuenta de Console sigue siendo el átomo.
