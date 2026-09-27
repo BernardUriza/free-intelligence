@@ -154,7 +154,7 @@ pero esta vez la causa es saldo agotado, no un budget ceiling nominal).
 — lo segundo no arregla el fallback, sólo restaura un slot temporalmente hasta
 que vuelva a topar el límite semanal.
 
-### Re-verificación 2026-09-27 (journal leído por Bernard con `ssh -i ~/.ssh/aire_vm`, pegado en sesión) — el pool volvió a respirar
+### Re-verificación 2026-09-27 (journal leído por Bernard con `ssh -i ~/.ssh/aire_vm`, pegado en sesión) — el journal parecía sano; NO lo estaba (corregido el mismo día, abajo)
 
 `journalctl -u aire-server --since "48 hours ago"` en el droplet: servicio `active`,
 1458 líneas, **177 turnos `POST .../messages` → 200 OK** (los últimos a las 13:25 y
@@ -166,3 +166,38 @@ Bernard.
 
 **Siguiente real:** reintentar el turno E2E en app.og118.ai hoy, con el pool vivo.
 Si el fallback vuelve a caer, el saldo de la cuenta de Console sigue siendo el átomo.
+
+**CORRECCIÓN, mismo día:** lo de arriba fue fake-green mío. Un `200 OK` en
+`POST .../messages` no prueba que el modelo contestó (Rule 22: AIRE responde 200 y
+mete el error en el body), y el grep `credential|cools|exhaust` no cacha un 401 de
+token revocado porque AIRE no lo enfría. Los 177 turnos "sanos" incluían turnos
+mudos.
+
+### Intento E2E #2 — 2026-09-27 ~22:10 UTC: `401 OAuth access token has been revoked`
+
+Login en app.og118.ai por Google (sesión SSO viva en el Chrome de debug; la
+contraseña guardada de Auth0 está mal, el principal es `google-oauth2|…`). Chat
+nuevo, turno pidiendo explícitamente una tarea en background. Respuesta de og118,
+firmada `claude-sonnet-4-5`: **`Failed to authenticate. API Error: 401 OAuth access
+token has been revoked.`** La tool nunca se llamó; cero ejecuciones del Job.
+
+**Causa confirmada contra `api.anthropic.com` directo** (curl con el token
+canónico `claude-max-oauth`, que es el mismo de `aire-claude-oauth`, org
+`8e661957` vegdevida): `HTTP 401 "OAuth access token has been revoked."`
+
+**Por qué está revocado:** el 2026-09-26 Bernard revocó los 28 tokens de Claude
+Code de la cuenta vegdevida para cortarle el acceso a Alex (server-bot memoria
+`project_revocacion_alex_2026_09_26`, paso 4 ✅). El token de AIRE
+(`oauth-primary`) era uno de ellos. El paso 6 de ese plan — re-mintear con
+`claude setup-token` por cuenta y propagar con `rotate-claude-oauth.sh` — sigue ⏳.
+El backup de AIRE (`aire-claude-oauth-backup`, bernardurizadev, org `7b946828`)
+no se pudo probar desde esta sesión (el clasificador negó la lectura); si estuviera
+vivo AIRE habría caído a él, así que o está muerto o el rotor no cae en 401.
+
+**Siguiente real (átomo de Bernard, browser consent):** `claude setup-token`
+logueado en la cuenta que decida (bernarduriza `d1c8c86b` es la sana según
+`oauth-map.md`), capturado con `script -q` para no perderlo, luego
+`engineering-playbook/scripts/rotate-claude-oauth.sh <token>` + el paso manual del
+droplet (`/etc/aire/env`, `systemctl restart aire-server`), actualizar
+`oauth-map.md`, y reintentar este mismo turno. Hasta entonces AIRE está mudo para
+TODOS sus consumidores (og118, Insult, BAIR), no sólo para este E2E.
