@@ -91,6 +91,19 @@ def test_a_dead_card_burns_the_metered_slot_too():
     assert not limit_hit("Credit balance is too low", {**ZERO_USAGE, "output_tokens": 9})
 
 
+def test_a_revoked_token_burns_its_slot():
+    # The live text of 2026-09-28 04:48Z (og118, element Yodo, model <synthetic>):
+    # the primary's token was revoked by a re-mint, the backup answered 200 from
+    # outside, and the 401 still reached the user as the persona's reply.
+    assert limit_hit("Failed to authenticate. API Error: 401 OAuth access token "
+                     "has been revoked.", ZERO_USAGE)
+    assert limit_hit('{"type":"error","error":{"type":"authentication_error",'
+                     '"message":"Invalid bearer token"}}', None)
+    # A turn that TALKS about auth has tokens; it is an answer, not a dead slot.
+    assert not limit_hit("Your OAuth access token has been revoked? Rotate it.",
+                         {**ZERO_USAGE, "output_tokens": 14})
+
+
 NOW = datetime(2026, 9, 8, 17, 53, tzinfo=timezone.utc)
 
 
