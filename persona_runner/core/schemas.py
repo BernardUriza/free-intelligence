@@ -7,9 +7,13 @@ and the judge clients speak exactly these shapes.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+# The only ids a probe may speak as. A probe under a real principal is exactly
+# the 2026-09-28 mistake: a wire check landed in Bernard's own memory.
+PROBE_PRINCIPAL_PREFIX = "probe-"
 
 
 class TurnRequest(BaseModel):
@@ -72,6 +76,20 @@ class TurnRequest(BaseModel):
     # Sólo lo pone el runner al reanudar un job huérfano (engine/turn_jobs): la
     # historia ya cruzó a AIRE, no se vuelve a plegar, y va la nota de reintento.
     resumed: bool = False
+    # Who is really asking (2026-09-28). "probe" is synthetic traffic — a wire
+    # check, a deploy receipt. Its rows are stored tagged, facts are never
+    # extracted from it, and it may only speak as a `probe-*` principal, so it
+    # can never land in a real person's memory (it did, under Bernard's, the day
+    # this field was born). Same idea as Datadog's `x-datadog-origin: synthetics`
+    # and OpenTelemetry's `user_agent.synthetic.type=test`: the marker rides the
+    # data so every consumer can exclude it at write time.
+    origin: Literal["user", "probe"] = "user"
+
+    @model_validator(mode="after")
+    def _a_probe_never_speaks_as_a_real_principal(self) -> Self:
+        if self.origin == "probe" and not self.user_id.startswith(PROBE_PRINCIPAL_PREFIX):
+            raise ValueError(f"origin='probe' requires a user_id starting with {PROBE_PRINCIPAL_PREFIX!r}")
+        return self
 
 
 class TurnResponse(BaseModel):

@@ -226,6 +226,7 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
             assistant_id=persona.bot_user_id or persona.persona_id,
             attachments=list(req.attachments or []),
             resumed=req.resumed,
+            origin=req.origin,
         ),
         memory=memory,
         brain=brain,

@@ -43,3 +43,16 @@ async def test_a_reaction_only_turn_is_not_something_the_persona_said(pg_memory_
     await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "", reactions=["👀"])
     turns = await pg_memory_store._messages.recent_assistant_turns("Insult")
     assert [t["content"] for t in turns] == ["Ajá."]
+
+
+@pytest.mark.asyncio
+async def test_a_probe_row_is_tagged_and_the_reflection_loop_skips_it(pg_memory_store):
+    await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "respuesta real")
+    await pg_memory_store.store(CHANNEL, "bot", "Insult", "assistant", "respuesta de probe", origin="probe")
+
+    turns = await pg_memory_store._messages.recent_assistant_turns("Insult")
+    assert [t["content"] for t in turns] == ["respuesta real"]
+    tagged = await pg_memory_store._messages._fetch(
+        "SELECT origin FROM messages WHERE channel_id = $1 ORDER BY id", CHANNEL
+    )
+    assert [r["origin"] for r in tagged] == [None, "probe"]

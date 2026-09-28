@@ -319,3 +319,31 @@ async def test_the_in_process_judge_queues_behind_the_judge_gate(monkeypatch):
 async def test_the_in_process_judge_refuses_an_empty_prompt():
     with pytest.raises(ValueError, match="empty user_text"):
         await turn_pipeline.InProcessJudge("insult").utility_call("s", [{"role": "assistant", "content": "x"}])
+
+
+def test_a_probe_may_not_speak_as_a_real_principal():
+    """The runner's door rejects the exact shape of the 2026-09-28 mistake."""
+    import pydantic
+
+    with pytest.raises(pydantic.ValidationError, match="probe-"):
+        _req(origin="probe")  # user_id is Bernard's snowflake
+    assert _req(origin="probe", user_id="probe-claude").origin == "probe"
+    assert _req().origin == "user", "a caller that says nothing is a person"
+
+
+@pytest.mark.asyncio
+async def test_the_runner_hands_the_origin_to_the_pipeline(monkeypatch):
+    monkeypatch.setattr(aire_route, "turn_via_aire", AsyncMock(return_value=TurnResponse(text="ok", model="m")))
+    monkeypatch.setattr(turn_pipeline, "get_memory", AsyncMock(return_value=_pipeline_memory()))
+    seen = []
+
+    async def fake_run_turn(turn, **kwargs):
+        from persona_core.turn.pipeline import BrainTurn, OutboundTurn
+
+        seen.append(turn)
+        await kwargs["brain"](BrainTurn(turn.ask, None, []))
+        return OutboundTurn("ok", [], [], "m")
+
+    monkeypatch.setattr(turn_pipeline, "run_turn", fake_run_turn)
+    await turn_pipeline.serve_turn(_req(pipeline="runner", origin="probe", user_id="probe-claude", user_name="p"))
+    assert seen[0].origin == "probe"

@@ -32,6 +32,7 @@ class MessagesWrites(BaseRepository):
         model_used: str | None = None,
         discord_message_id: str | None = None,
         reactions: list[str] | None = None,
+        origin: str | None = None,
     ) -> None:
         """Append a message. Raises asyncpg.PostgresError on failure so the caller
         can decide whether to log-and-continue or bail.
@@ -45,12 +46,15 @@ class MessagesWrites(BaseRepository):
 
         ``reactions`` are the emoji the persona put on its own turn. A turn that
         was only a reaction is stored with ``content=''`` and these, so memory
-        records that the persona answered. Empty or None stores NULL."""
+        records that the persona answered. Empty or None stores NULL.
+
+        ``origin`` is NULL for a person and ``'probe'`` for synthetic traffic
+        (v4.47.1), so readers that aggregate across channels can skip it."""
         try:
             tag = await self._execute(
                 "INSERT INTO messages (channel_id, user_id, user_name, role, content, timestamp, "
-                "for_user_id, guild_id, channel_name, model_used, discord_message_id, reactions) "
-                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) "
+                "for_user_id, guild_id, channel_name, model_used, discord_message_id, reactions, origin) "
+                "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) "
                 "ON CONFLICT (discord_message_id) WHERE discord_message_id IS NOT NULL DO NOTHING",
                 channel_id,
                 user_id,
@@ -64,6 +68,7 @@ class MessagesWrites(BaseRepository):
                 model_used,
                 discord_message_id,
                 list(reactions) if reactions else None,
+                origin,
             )
             if tag == "INSERT 0 0":
                 log.info(

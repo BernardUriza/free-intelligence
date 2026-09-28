@@ -69,6 +69,9 @@ class InboundTurn:
     external_message_id: str | None = None
     # A job the runner resumes already stored its ask on the first attempt.
     resumed: bool = False
+    # "user" for a person, "probe" for synthetic traffic (a wire check, a deploy
+    # receipt): stored tagged on both rows, and never mined for facts.
+    origin: str = "user"
 
 
 @dataclass(frozen=True)
@@ -115,7 +118,13 @@ async def run_turn(
 ) -> OutboundTurn:
     """Run one turn end to end, short of delivery. Only `brain` may raise."""
     persona = turn.persona
-    log.info("turn_pipeline_started", persona_id=persona.persona_id, surface=turn.surface, channel_id=turn.channel_id)
+    log.info(
+        "turn_pipeline_started",
+        persona_id=persona.persona_id,
+        surface=turn.surface,
+        channel_id=turn.channel_id,
+        origin=turn.origin,
+    )
 
     # Recent window BEFORE storing the ask, so the ask is not in it twice.
     try:
@@ -166,12 +175,18 @@ async def run_turn(
 
     # A real human ask is the only turn worth mining; the extraction runs in the
     # background so its LLM round-trip never sits between the user and the reply.
-    FactExtractor(persona, memory, bg_tasks, model=facts_model).spawn(
-        judge,
-        turn.user_id,
-        turn.user_name,
-        [*recent[-facts_recent_window:], {"user_name": turn.user_name, "content": turn.ask}],
-    )
+    # A probe is synthetic by definition: mining it is how the principal's facts
+    # came to hold "ran probe #58 with fact 73 alive" — tests about the system,
+    # remembered as facts about the person.
+    if turn.origin == "probe":
+        log.info("turn_pipeline_facts_skipped", persona_id=persona.persona_id, reason="probe")
+    else:
+        FactExtractor(persona, memory, bg_tasks, model=facts_model).spawn(
+            judge,
+            turn.user_id,
+            turn.user_name,
+            [*recent[-facts_recent_window:], {"user_name": turn.user_name, "content": turn.ask}],
+        )
 
     empty_reason = ""
     if not delivered and not gif_urls:
@@ -185,8 +200,14 @@ async def run_turn(
         reactions=len(reactions),
         gifs=len(gif_urls),
         empty_reason=empty_reason,
+        origin=turn.origin,
     )
     return OutboundTurn(delivered, reactions, gif_urls, reply.model, empty_reason)
+
+
+def _origin_tag(turn: InboundTurn) -> str | None:
+    """The value stored in `messages.origin`: NULL for a person, else the tag."""
+    return None if turn.origin == "user" else turn.origin
 
 
 async def _store_ask(turn: InboundTurn, memory: MemoryStore) -> None:
@@ -204,6 +225,7 @@ async def _store_ask(turn: InboundTurn, memory: MemoryStore) -> None:
             guild_id=turn.guild_id,
             channel_name=turn.channel_name,
             discord_message_id=turn.external_message_id,
+            origin=_origin_tag(turn),
         )
     except Exception:
         log.exception("turn_pipeline_ask_store_failed", persona_id=turn.persona.persona_id, channel_id=turn.channel_id)
@@ -230,6 +252,7 @@ async def _store_reply(
             channel_name=turn.channel_name,
             model_used=model,
             reactions=list(reactions) if reactions else None,
+            origin=_origin_tag(turn),
         )
     except Exception:
         log.exception(
