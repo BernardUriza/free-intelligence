@@ -1,6 +1,6 @@
 # OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)
 
-Status: **In progress** — 2026-09-12: decidido (ACA Job) y construido en la rama `bernarduriza/og118-background-job`; falta el recibo E2E en app.og118.ai tras el deploy
+Status: **In progress — recibo del SERVIDOR obtenido 2026-09-28; falta el recibo del CLIENTE** (el turno rompió la UI con React #185 y no persistió; ver intento #3)
 Proposed: 2026-07-05 by Bernard (dogfood: og118 promised a background investigation, then had no access half an hour later)
 
 ## What it is
@@ -201,3 +201,41 @@ logueado en la cuenta que decida (bernarduriza `d1c8c86b` es la sana según
 droplet (`/etc/aire/env`, `systemctl restart aire-server`), actualizar
 `oauth-map.md`, y reintentar este mismo turno. Hasta entonces AIRE está mudo para
 TODOS sus consumidores (og118, Insult, BAIR), no sólo para este E2E.
+
+### Rotación del token — 2026-09-28 04:49 UTC
+
+Bernard minteó el token nuevo en vegdevida (org `8e661957`, HTTP 200, 7d al 71%) tras un
+primer minteo que cayó en bernarduriza (org `d1c8c86b`, 429: semanal al 100% hasta el
+28-sep 14:00 CST). `rotate-claude-oauth.sh` propagó SSOT + Azure `og118-api` + GH secrets;
+el droplet (`/etc/aire/env` + `systemctl restart aire-server`) lo corrió Bernard con el
+token por stdin del ssh. Prueba de vida de AIRE: un turno real de otra sesión a las 04:50 UTC
+contestó con texto de Insult (`claude-opus-4-7`), no con 401. Mapa: `~/.secrets/oauth-map.md`.
+
+### Intento E2E #3 — 2026-09-28 04:50 UTC: la cadena del servidor COMPLETA; el cliente se rompió
+
+Mismo chat (`394cdf32-e313-4dfc-8de6-e97c55297652`), turno pidiendo la tarea en background.
+
+**Recibo del servidor, verificado en tres superficies:**
+1. `az containerapp job execution list -n og118-worker -g og118-rg` → `og118-worker-78fbwrj`,
+   StartTime `2026-09-28T04:50:44Z`, **Succeeded**. La tool `start_background_task` SÍ se llamó
+   y el Job SÍ corrió.
+2. `GET /conversations/394cdf32…` (og118-api, bearer del navegador) → 3 mensajes; el tercero es
+   `role: assistant, origin: background, createdAt 2026-09-28T04:52:01Z`, con el análisis
+   completo ("# Por qué el oganesón marca el final de la tabla periódica…"). El worker entregó
+   con `append_message`.
+3. `updatedAt` de la conversación = 04:52:01Z, posterior al Job.
+
+**Lo que falló, en el cliente:**
+- Durante el stream la consola tiró `Uncaught Error: Minified React error #185` (maximum update
+  depth) ×3; el render se quedó en "Still working. This can take a second." sin pintar la respuesta.
+- El turno #3 (mensaje del usuario + ack del asistente) **no se persistió**: el PUT del cliente
+  nunca salió por el crash. La conversación en el servidor tiene el mensaje del worker pero no
+  la pregunta que lo originó — se ve un análisis sin su prompt.
+- Que el mensaje `origin: background` aparezca en el chat SIN recargar no pudo verificarse: otra
+  sesión de Bernard estaba conduciendo la misma pestaña de app.og118.ai en el Chrome de debug
+  (Rule 21.1.a), y en una pestaña nueva la lista de chats no cargó.
+
+**Siguiente:** reproducir el React #185 (sospecha: `useOg118ConversationSync` poll de 15 s /
+focus-visibility disparando `reloadActive()` + `seedVersion` DURANTE el stream, o la sesión
+concurrente en la misma cuenta), arreglar la pérdida del turno, y repetir el E2E con la pestaña
+sin otra sesión encima para el recibo visual (screenshot).
