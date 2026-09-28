@@ -1,7 +1,7 @@
 """Wire contracts of the runner — every request/response shape in one place.
 
 Each `Field` here carries the incident that shaped it. They are the runner's
-public API: `khimeras_shared.runner.agent_client` (the gateway's turn client)
+public API: `persona_core.runner.agent_client` (the gateway's turn client)
 and the judge clients speak exactly these shapes.
 """
 

@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
-from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+from persona_core.guidance import MAX_GUIDANCE_CHARS
 from persona_gateway.gateway import PersonaClient
 from persona_gateway.turn_context import PENDING_REMINDERS_MAX
 from shared.personas import Persona

@@ -7,7 +7,7 @@
    resistance test forces equal mtimes and demands each persona its own prose.
 
 2. Fact-shape contract (IMPORTANTE #3): the engine reads ``fact["fact"]`` from
-   the dicts ``khimeras_shared.memory`` emits. That contract was convention-only;
+   the dicts ``persona_core.memory`` emits. That contract was convention-only;
    if the memory layer renames the key, Alex's vulnerability guardian silently
    scores 0. This test welds the two layers together.
 """
@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import os
 
-from khimeras_shared.behavior import content
-from khimeras_shared.behavior.content import clear_guidance_cache, load_guidance
-from khimeras_shared.behavior.vulnerability import (
+from persona_core.behavior import content
+from persona_core.behavior.content import clear_guidance_cache, load_guidance
+from persona_core.behavior.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
 )
-from khimeras_shared.memory.repositories.facts import _fact_to_dict
+from persona_core.memory.repositories.facts import _fact_to_dict
 
 
 def test_same_named_guidance_with_equal_mtimes_stays_per_persona(tmp_path, monkeypatch):

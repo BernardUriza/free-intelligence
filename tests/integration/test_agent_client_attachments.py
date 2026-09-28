@@ -8,7 +8,7 @@ new split (`_last_user_text` vs `_last_user_attachments`).
 
 from __future__ import annotations
 
-from khimeras_shared.runner.agent_client import (
+from persona_core.runner.agent_client import (
     _last_user_attachments,
     _last_user_text,
 )

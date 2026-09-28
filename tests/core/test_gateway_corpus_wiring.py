@@ -163,7 +163,7 @@ async def test_merge_never_exceeds_runner_cap():
     """#1 (cruel-critic round 2): el merge corpus+guidance JAMÁS rebasa el cap
     del runner (max_length=16000) — si lo hiciera el runner responde 422 y el
     bot queda MUDO. El corpus se recorta; la guidance sobrevive completa."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     big_corpus = "C" * 3000  # supera el _REF_MAX_CHARS real, fuerza el recorte
@@ -182,7 +182,7 @@ async def test_merge_never_exceeds_runner_cap():
 async def test_corpus_dropped_when_guidance_fills_cap():
     """#1 resistencia: cuando la guidance sola llena el cap, el corpus se
     DESCARTA (no se recorta la guidance de seguridad) — turno vive, no 422."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     full_guidance = "G" * MAX_GUIDANCE_CHARS
@@ -197,7 +197,7 @@ async def test_corpus_dropped_when_guidance_fills_cap():
 
 async def test_corpus_only_turn_capped():
     """#1: el invite path (guidance=None) tampoco puede rebasar el cap."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     with patch(

@@ -70,7 +70,7 @@ from persona_runner.core import config
 log = structlog.get_logger()
 
 # The runner OWNS this table: it is the only reader and the only writer, and it
-# is not part of the memory store's schema (`khimeras_shared/memory/postgres_schema.sql`,
+# is not part of the memory store's schema (`persona_core/memory/postgres_schema.sql`,
 # applied by the gateway). So its DDL rides here, applied once per process on
 # first use — a runner that boots before anything else still works, and a failure
 # to create it degrades to the RAM path instead of killing turns.

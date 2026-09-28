@@ -21,12 +21,12 @@ import time
 import discord
 import structlog
 
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.persona import PersonaRuntimeConfig
-from khimeras_shared.runner.agent_client import AgentRunnerClient
-from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.stt import build_susurro_stt_client
-from khimeras_shared.tts import build_susurro_tts_client
+from persona_core.memory import MemoryStore
+from persona_core.persona import PersonaRuntimeConfig
+from persona_core.runner.agent_client import AgentRunnerClient
+from persona_core.runner.judge_client import RunnerJudgeClient
+from persona_core.stt import build_susurro_stt_client
+from persona_core.tts import build_susurro_tts_client
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
 from persona_gateway.drain import TurnGate
@@ -286,7 +286,7 @@ async def _check_corpus_embed(personas: dict[str, PersonaClient]) -> None:
     if not has_corpus:
         return
     try:
-        from khimeras_shared.corpus.pg_rag import embed_text
+        from persona_core.corpus.pg_rag import embed_text
 
         vec = await embed_text("corpus embed boot healthcheck")
     except Exception:

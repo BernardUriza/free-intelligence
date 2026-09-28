@@ -51,7 +51,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 
-from khimeras_shared.version import VERSION_TAG
+from persona_core.version import VERSION_TAG
 from persona_gateway import gateway as gateway_module
 from persona_gateway.delivery import DISCORD_LIMIT
 from persona_gateway.gateway import PersonaClient

@@ -1,6 +1,6 @@
 """Tests for insult.core.presets — preset classification and prompt building."""
 
-from khimeras_shared.behavior.presets import (
+from persona_core.behavior.presets import (
     PresetMode,
     PresetModifier,
     build_preset_prompt,

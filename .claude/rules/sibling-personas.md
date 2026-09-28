@@ -24,7 +24,7 @@ The durable host is `persona-gateway`:
 - **`Dockerfile.gateway`** clones `Dockerfile.alice` **minus the codex/node
   layer** — the gateway runs NO LLM of its own; it is a thin HTTP client of the
   persona-runner (`AgentRunnerClient` → `/v1/turn`). It COPYs `persona_gateway/` +
-  `khimeras_shared/` + `shared/` (its real import graph), guarded against the
+  `persona_core/` + `shared/` (its real import graph), guarded against the
   ModuleNotFound copy-gap class by
   `tests/arch/test_runner_dockerfile_copies_imports.py`.
 - **Container App**: `prod-env`, **`minReplicas=maxReplicas=1`** — and BOTH

@@ -69,7 +69,7 @@ async def _run(client: PersonaClient, channel) -> None:
 async def test_gif_is_a_separate_bare_message_and_the_marker_never_ships():
     client = _client("Eso amerita [GIF: fiesta] carnal.")
     channel = _channel()
-    with patch("khimeras_shared.gifs.load_guidance", return_value=CATALOG):
+    with patch("persona_core.gifs.load_guidance", return_value=CATALOG):
         await _run(client, channel)
 
     sent = [c.args[0] for c in channel.send.await_args_list]
@@ -84,7 +84,7 @@ async def test_a_reply_that_is_only_a_gif_still_posts_it():
     would have dropped the whole turn."""
     client = _client("[GIF: fiesta]")
     channel = _channel()
-    with patch("khimeras_shared.gifs.load_guidance", return_value=CATALOG):
+    with patch("persona_core.gifs.load_guidance", return_value=CATALOG):
         await _run(client, channel)
     assert [c.args[0] for c in channel.send.await_args_list] == [URL]
 
@@ -99,7 +99,7 @@ async def test_a_failing_gif_send_never_costs_the_reply():
         return MagicMock(id=1)
 
     channel.send = AsyncMock(side_effect=_send)
-    with patch("khimeras_shared.gifs.load_guidance", return_value=CATALOG):
+    with patch("persona_core.gifs.load_guidance", return_value=CATALOG):
         await _run(client, channel)
 
     sent = " ".join(str(c.args[0]) for c in channel.send.await_args_list)
@@ -110,7 +110,7 @@ async def test_a_failing_gif_send_never_costs_the_reply():
 async def test_unknown_tag_sends_no_gif_but_keeps_the_text():
     client = _client("Toma [GIF: no_existe] pues.")
     channel = _channel()
-    with patch("khimeras_shared.gifs.load_guidance", return_value=CATALOG):
+    with patch("persona_core.gifs.load_guidance", return_value=CATALOG):
         await _run(client, channel)
     sent = [str(c.args[0]) for c in channel.send.await_args_list]
     assert not any(s.startswith("https://") for s in sent)

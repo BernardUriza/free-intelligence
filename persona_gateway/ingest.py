@@ -22,15 +22,15 @@ import contextlib
 import discord
 import structlog
 
-from khimeras_shared.attachments import (
+from persona_core.attachments import (
     MAX_DOCUMENTS_PER_MESSAGE,
     MAX_IMAGES_PER_MESSAGE,
     cap_documents,
     cap_images,
     process_attachments,
 )
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
-from khimeras_shared.stt import (
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
     SusurroSttClient,
     is_audio_attachment,

@@ -1,6 +1,6 @@
 """Backfill the reserved `constraint` category over facts that already exist.
 
-The invariants pipeline (`khimeras_shared/constraints.py`) only sees facts tagged
+The invariants pipeline (`persona_core/constraints.py`) only sees facts tagged
 `category='constraint'`. Every fact written before 2026-07-23 predates the tag,
 so the load-bearing ones — vegan, atheist, does-not-drive — sit under `personal`
 or `preferences` and never ride the guidance. This promotes them.

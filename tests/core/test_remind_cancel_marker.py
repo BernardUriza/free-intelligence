@@ -9,13 +9,13 @@ double-schedule) and a create marker must never read as a cancel (a lost row).
 
 from __future__ import annotations
 
-from khimeras_shared.markers import (
+from persona_core.markers import (
     MAX_CANCEL_CRITERION_LEN,
     parse_remind_cancels,
     strip_delivery_markers,
     strip_remind_cancels,
 )
-from khimeras_shared.remind_marker import parse_remind, strip_reminds
+from persona_core.remind_marker import parse_remind, strip_reminds
 
 # --------------------------------------------------------------------------
 # parse_remind_cancels

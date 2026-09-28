@@ -22,7 +22,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
-from khimeras_shared.tickets import LedgerRow
+from persona_core.tickets import LedgerRow
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine import aire_route, principal_identity, turn_jobs

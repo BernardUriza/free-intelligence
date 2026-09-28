@@ -20,7 +20,7 @@ existe. El sistema vivo son cuatro paquetes:
 - **`persona_runner/`** — FastAPI + Claude Agent SDK. `runner.py` monta routers
   (`api/{turn,judge,workspace,ops}.py`); lógica en `core/`, `engine/`, `routing/`.
   Entrypoint fijo: `uvicorn persona_runner.runner:app`.
-- **`khimeras_shared/`** — todo lo compartido: `memory/`, `behavior/` (presets,
+- **`persona_core/`** — todo lo compartido: `memory/`, `behavior/` (presets,
   flows, vulnerabilidad — el motor conductual persona-agnóstico), `runner/`
   (clientes HTTP), markers, `guidance.py`, `prompts.py`.
 - **`shared/`** — `personas/` (registry + `<id>.md` DNA + `guidance/<id>/` prosa).
@@ -82,7 +82,7 @@ Mira `tests/agent/` y `tests/core/` antes de escribir. Mockea I/O (asyncpg,
 
 Un prompt LLM vive en un `.md`, nunca como string inline en `.py`. Prompts de
 ENGINE (juzgan al usuario: extracción de facts, juez de consolidación) →
-`khimeras_shared/prompts_md/`, cargados con `khimeras_shared.prompts.load_prompt`.
+`persona_core/prompts_md/`, cargados con `persona_core.prompts.load_prompt`.
 Prosa de la VOZ de una persona → `shared/personas/guidance/<persona_id>/`.
 
 ## ADN de personas — reglas de contenido (P0)
@@ -117,7 +117,7 @@ Prosa de la VOZ de una persona → `shared/personas/guidance/<persona_id>/`.
 - **NUNCA `git push`** — el humano revisa y pushea. Deja tus commits locales.
 - **Bump de versión en CADA commit** — es OBLIGATORIO, hay un pre-commit hook que
   RECHAZA el commit si no subes el patch en LOS DOS archivos juntos, mismo commit:
-  `pyproject.toml` (`version = "X.Y.Z"`) Y `khimeras_shared/version.py`
+  `pyproject.toml` (`version = "X.Y.Z"`) Y `persona_core/version.py`
   (`VERSION_TAG = "ᵛX·Y·Z"`, superíndices unicode: 0123456789→⁰¹²³⁴⁵⁶⁷⁸⁹, punto→·).
   Si el hook falla, léelo, corrige, reintenta — no rodees el hook.
 - Si `git commit` falla con `.git/index.lock: Operation not permitted`, tu sandbox

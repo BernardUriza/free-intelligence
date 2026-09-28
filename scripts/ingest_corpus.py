@@ -245,7 +245,7 @@ async def _embed_with_retry(chunk: str, sem: asyncio.Semaphore) -> list[float] |
     on failure). A single network blip in a ~2400-chunk run must NOT kill the
     job, so we retry a few times with a short backoff before giving up on this
     chunk. Returns the vector or None (the chunk is then skipped, not fatal)."""
-    from khimeras_shared.deep_memory import embed_text
+    from persona_core.deep_memory import embed_text
 
     async with sem:
         for attempt in range(_EMBED_RETRIES):
@@ -409,7 +409,7 @@ async def main() -> int:
     print(f"persona={args.persona} namespace={namespace or '<unset>'} sources={len(sources)}")
 
     # Extract + chunk every source first (cheap, local, no network).
-    from khimeras_shared.deep_memory import chunk_text_for_embedding
+    from persona_core.deep_memory import chunk_text_for_embedding
 
     prepared: list[tuple[str, list[str]]] = []
     empty: list[str] = []

@@ -23,9 +23,9 @@ import asyncio
 
 import structlog
 
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
-from khimeras_shared.runner.judge_client import RunnerJudgeClient
+from persona_core.memory import MemoryStore
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.runner.judge_client import RunnerJudgeClient
 
 log = structlog.get_logger()
 

@@ -1,8 +1,8 @@
-"""Tests for khimeras_shared.attachments — file classification and processing."""
+"""Tests for persona_core.attachments — file classification and processing."""
 
 from unittest.mock import AsyncMock
 
-from khimeras_shared.attachments import (
+from persona_core.attachments import (
     MAX_ATTACHMENT_SIZE,
     MAX_DOCUMENTS_PER_MESSAGE,
     MAX_IMAGE_SIZE,

@@ -13,9 +13,9 @@ import asyncio
 
 import structlog
 
-from khimeras_shared.facts import extract_facts, merge_facts_additive
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.runner.judge_client import RunnerJudgeClient
+from persona_core.facts import extract_facts, merge_facts_additive
+from persona_core.memory import MemoryStore
+from persona_core.runner.judge_client import RunnerJudgeClient
 from persona_gateway.config import CONFIG
 from shared.personas import Persona
 

@@ -7,8 +7,8 @@ retrieves the top corpus chunks and returns a finished, length-capped block for
 prompt injection — or None when the persona has no corpus, the query is trivial,
 or retrieval finds nothing.
 
-Lives under `shared/` (not `khimeras_shared/`) because it reads the persona
-registry and the header content files; it depends on `khimeras_shared.corpus`
+Lives under `shared/` (not `persona_core/`) because it reads the persona
+registry and the header content files; it depends on `persona_core.corpus`
 for the neutral retrieval, never the reverse. Best-effort: the gateway wraps the
 call and any fault here degrades to a turn with no references, never a dead turn.
 """
@@ -19,8 +19,8 @@ from pathlib import Path
 
 import structlog
 
-from khimeras_shared.corpus.references import build_references_block
-from khimeras_shared.prompts import PromptCache, load_prompt
+from persona_core.corpus.references import build_references_block
+from persona_core.prompts import PromptCache, load_prompt
 from shared.personas.registry import get_persona
 
 log = structlog.get_logger()
