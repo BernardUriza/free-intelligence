@@ -13,6 +13,11 @@ from pydantic import BaseModel, Field
 class TurnRequest(BaseModel):
     channel_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
+    # F2 (2026-09-27): la superficie que emitió `user_id` ("discord", "og118"…).
+    # Con ella el runner resuelve `(surface, user_id)` al principal canónico en
+    # `principal_identities` antes de leer memoria; sin ella busca el id en todas
+    # las superficies y sólo acepta un match único. Un id sin puente pasa tal cual.
+    surface: str | None = Field(default=None, max_length=32, pattern=r"^[a-z0-9_-]+$")
     # v3.9.58: raised from 8000 -> 256000 chars. Bernard 2026-05-19 07:06
     # pasted `message.txt` (21KB) and the runner rejected with 422, falling
     # over to ALICE who never saw the attachment content. The Claude Agent
