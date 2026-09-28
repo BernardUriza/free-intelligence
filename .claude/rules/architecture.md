@@ -151,7 +151,13 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   store every message twice. The gateway still uses the pieces directly
   (`TurnContextBuilder`, `MarkerRouter`, `FactExtractor`) with its own Discord
   delivery tail; moving it onto `run_turn` itself is the step for when Discord
-  comes back.
+  comes back. **Hosting the pipeline gave the runner the gateway's needs**:
+  `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_KEY` (secret `azure-openai-key`, set
+  by hand 2026-09-28 — CD does not manage env) for the corpus embeddings,
+  whose absence logs `deep_memory_embed_failed` and silently drops the corpus
+  block; and the MiniLM model for semantic fact recall, which costs ~25 s on
+  the first turn of a cold process and ~450 MiB of RAM (measured: 540 MiB peak
+  of 4 GiB).
 - Settings from env (`persona_gateway/config.py`), structured logging via
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");
