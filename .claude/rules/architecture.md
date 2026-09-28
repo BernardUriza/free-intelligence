@@ -155,9 +155,12 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_KEY` (secret `azure-openai-key`, set
   by hand 2026-09-28 — CD does not manage env) for the corpus embeddings,
   whose absence logs `deep_memory_embed_failed` and silently drops the corpus
-  block; and the MiniLM model for semantic fact recall, which costs ~25 s on
-  the first turn of a cold process and ~450 MiB of RAM (measured: 540 MiB peak
-  of 4 GiB).
+  block; and the MiniLM model for semantic fact recall (~450 MiB of RAM,
+  measured 540 MiB peak of 4 GiB). **The runner warms both at boot**
+  (`turn_pipeline.warm_at_boot`, v4.45.3): before that, the first turn of a
+  cold replica paid ~25 s of model load inside its own budget; now the boot
+  logs `turn_pipeline_warm_ready` (~13 s after start, measured) and the
+  turn's pre-brain stages take under a second.
 - Settings from env (`persona_gateway/config.py`), structured logging via
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");
