@@ -8,6 +8,11 @@ thread, markers persist their side effects, and facts grow in the background.
 A `pipeline="caller"` turn (the gateway) goes straight to the brain, exactly as
 before — the gateway already ran the pipeline on its side.
 
+What comes back is the whole `OutboundTurn` (F5, 2026-09-28): marker-free text
+plus the reactions, the GIF urls and the reason the text is empty when it is.
+Until F5 the response carried the text alone and the rest was logged as "not
+delivered" — a turn that was only a `[REACT:]` reached og118 as an empty answer.
+
 Three process-wide pieces live here:
 
 - the `MemoryStore`, ONE per process, created on first use (a store per turn
@@ -227,14 +232,14 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
         judge=InProcessJudge(persona.persona_id),
         bg_tasks=_bg_tasks,
     )
-    # Reactions and GIFs have no carrier on this wire yet; say so instead of
-    # dropping them in silence.
-    if outbound.reactions or outbound.gif_urls:
-        log.info(
-            "turn_pipeline_sidecars_not_delivered",
-            persona_id=persona.persona_id,
-            surface=req.surface,
-            reactions=len(outbound.reactions),
-            gifs=len(outbound.gif_urls),
-        )
-    return answered["response"].model_copy(update={"text": outbound.text})
+    # The whole OutboundTurn rides the response (F5): what the surface can show
+    # is the surface's call, not something to drop here. `turn_pipeline_completed`
+    # already counts the sidecars.
+    return answered["response"].model_copy(
+        update={
+            "text": outbound.text,
+            "reactions": list(outbound.reactions),
+            "gif_urls": list(outbound.gif_urls),
+            "empty_reason": outbound.empty_reason,
+        }
+    )
