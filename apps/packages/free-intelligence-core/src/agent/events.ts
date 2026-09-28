@@ -144,7 +144,17 @@ export type AgentStreamEvent =
   // selected). Emitted before the first text delta, so the live bubble is
   // attributed from its first character — not re-labelled after the fold.
   | { type: 'author'; author: MessageAuthor }
-  | { type: 'result'; text: string; sources?: string[]; meta?: AgentMeta }
+  // `reactions`: emoji the speaker put ON the turn (an engine with a reaction
+  // vocabulary — server-bot's personas emit `[REACT:]`, which the engine parses
+  // out of the text and returns structured, F5). A gesture, not content: the
+  // shell renders it as reaction chips under the bubble, never as text.
+  | {
+      type: 'result';
+      text: string;
+      sources?: string[];
+      meta?: AgentMeta;
+      reactions?: string[];
+    }
   | { type: 'meta'; meta: AgentMeta }
   | { type: 'error'; message: string }
   // A sign of life while the turn is QUIET. An idle watchdog cannot tell

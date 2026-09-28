@@ -129,10 +129,17 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
       // renders the provenance chip. Previously dropped: the chip never showed.
       const r = (ev.result ?? {}) as Record<string, unknown>;
       const model = typeof r.model === 'string' && r.model.trim() ? r.model : null;
+      // The persona's reactions (server-bot F5: the engine returns its whole
+      // OutboundTurn, and the og118 server forwards `reactions` on the result).
+      // A gesture on the turn, rendered by fi-glass as chips — never text.
+      const reactions = Array.isArray(r.reactions)
+        ? r.reactions.map((x) => String(x).trim()).filter(Boolean)
+        : [];
       return {
         type: 'result',
         text: String(r.text ?? ''),
         ...(model ? { meta: { model } } : {}),
+        ...(reactions.length > 0 ? { reactions } : {}),
       };
     }
     case 'error':

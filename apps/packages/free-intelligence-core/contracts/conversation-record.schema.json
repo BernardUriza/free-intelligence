@@ -30,7 +30,12 @@
         "timestamp": { "type": "string", "description": "ISO 8601." },
         "author": { "$ref": "#/$defs/MessageAuthor" },
         "images": { "type": "array", "items": { "$ref": "#/$defs/MessageImage" } },
-        "trace": { "$ref": "#/$defs/MessageTrace" }
+        "trace": { "$ref": "#/$defs/MessageTrace" },
+        "reactions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Emoji con los que el hablante REACCIONÓ al turno (mensajes de asistente). Es un gesto sobre el mensaje, no parte de su texto: por eso no va doblado en `content`. Viene del motor (server-bot F5 devuelve el OutboundTurn entero) y sobrevive el reload como sobreviven las imágenes."
+        }
       }
     },
     "MessageAuthor": {

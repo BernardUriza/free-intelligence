@@ -23,6 +23,7 @@ export function persistedTraceTurn(message: ChatMessage): AgentTurnState | null 
     steps: trace.tools ?? [],
     text: message.content,
     sources: trace.sources ?? [],
+    reactions: message.reactions ?? [],
     meta: null,
     author: message.author ?? null,
     heartbeats: 0,

@@ -41,20 +41,23 @@ struct PersistedMessage: Codable {
     var author: MessageAuthor?
     var images: [MessageImage]?
     var trace: MessageTrace?
+    /// Emoji con los que el hablante REACCIONÓ al turno (mensajes de asistente). Es un gesto sobre el mensaje, no parte de su texto: por eso no va doblado en `content`. Viene del motor (server-bot F5 devuelve el OutboundTurn entero) y sobrevive el reload como sobreviven las imágenes.
+    var reactions: [String]?
 
-    init(role: PersistedMessageRole, content: String, timestamp: String? = nil, author: MessageAuthor? = nil, images: [MessageImage]? = nil, trace: MessageTrace? = nil) {
+    init(role: PersistedMessageRole, content: String, timestamp: String? = nil, author: MessageAuthor? = nil, images: [MessageImage]? = nil, trace: MessageTrace? = nil, reactions: [String]? = nil) {
         self.role = role
         self.content = content
         self.timestamp = timestamp
         self.author = author
         self.images = images
         self.trace = trace
+        self.reactions = reactions
     }
 
     /// Campos que este build no conoce todavía. Viajan intactos.
     var ajenos: [String: JSONValor] = [:]
 
-    private static let propias: Set<String> = ["role", "content", "timestamp", "author", "images", "trace"]
+    private static let propias: Set<String> = ["role", "content", "timestamp", "author", "images", "trace", "reactions"]
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: LlaveLibre.self)
@@ -64,6 +67,7 @@ struct PersistedMessage: Codable {
         author = try c.decodeIfPresent(MessageAuthor.self, forKey: LlaveLibre(stringValue: "author"))
         images = try c.decodeIfPresent([MessageImage].self, forKey: LlaveLibre(stringValue: "images"))
         trace = try c.decodeIfPresent(MessageTrace.self, forKey: LlaveLibre(stringValue: "trace"))
+        reactions = try c.decodeIfPresent([String].self, forKey: LlaveLibre(stringValue: "reactions"))
         var resto: [String: JSONValor] = [:]
         for llave in c.allKeys where !Self.propias.contains(llave.stringValue) {
             resto[llave.stringValue] = try c.decode(JSONValor.self, forKey: llave)
@@ -79,6 +83,7 @@ struct PersistedMessage: Codable {
         try c.encodeIfPresent(author, forKey: LlaveLibre(stringValue: "author"))
         try c.encodeIfPresent(images, forKey: LlaveLibre(stringValue: "images"))
         try c.encodeIfPresent(trace, forKey: LlaveLibre(stringValue: "trace"))
+        try c.encodeIfPresent(reactions, forKey: LlaveLibre(stringValue: "reactions"))
         for (llave, valor) in ajenos {
             try c.encode(valor, forKey: LlaveLibre(stringValue: llave))
         }

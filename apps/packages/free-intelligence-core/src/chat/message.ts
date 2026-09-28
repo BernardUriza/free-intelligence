@@ -76,6 +76,15 @@ export interface ChatMessage {
    * messages, so the plain case stays byte-identical to before.
    */
   images?: MessageImage[];
+  /**
+   * Emoji the speaker REACTED to the turn with (assistant messages only). A
+   * reaction is a gesture on the message, not part of its text — Discord puts it
+   * under the bubble, never inside it — so it is a field, not a line folded into
+   * `content`. Comes from the engine's `OutboundTurn` (server-bot F5) via the
+   * `result` event, persists like `images` (a reload must not lose the gesture),
+   * and is absent on plain turns so those stay byte-identical.
+   */
+  reactions?: string[];
   /** Optional model reasoning rendered before the content. */
   thinking?: string | null;
   /** ISO 8601 timestamp. */

@@ -5,6 +5,7 @@ function initialAgentTurnState() {
     steps: [],
     text: "",
     sources: [],
+    reactions: [],
     meta: null,
     author: null,
     heartbeats: 0,
@@ -104,6 +105,7 @@ function applyAgentEvent(state, event) {
         text,
         plan,
         sources: event.sources ?? state.sources,
+        reactions: event.reactions ?? state.reactions,
         meta: event.meta ?? state.meta,
         status: "done"
       };
@@ -153,7 +155,10 @@ function foldAssistantTurn(turn, defaultAuthor) {
     author: turn.author ?? defaultAuthor,
     content: turn.text,
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    ...trace ? { trace } : {}
+    ...trace ? { trace } : {},
+    // The speaker's reactions are a gesture on the message, kept as a field so
+    // the shell renders chips and a reload keeps them; absent when there were none.
+    ...turn.reactions.length > 0 ? { reactions: turn.reactions } : {}
   };
 }
 
@@ -210,7 +215,7 @@ function applyConversationEvent(state, event) {
     case "turn_settled": {
       if (!state.pending) return state;
       const base = { ...state, pending: false };
-      if (event.controlled || !event.turn.text) return base;
+      if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) return base;
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
@@ -296,7 +301,10 @@ function sanitizeConversationMessage(message) {
     // not metadata — dropping them would blank the picture on reload the way
     // dropping `author` used to anonymize bubbles. Producers downscale before
     // encoding, so the persisted base64 stays within the record size caps.
-    ...message.images && message.images.length > 0 ? { images: message.images.map((i) => ({ mediaType: i.mediaType, data: i.data })) } : {}
+    ...message.images && message.images.length > 0 ? { images: message.images.map((i) => ({ mediaType: i.mediaType, data: i.data })) } : {},
+    // The speaker's reactions are user-visible too (chips under the bubble);
+    // dropping them would strip the gesture on reload. Plain strings, no payload.
+    ...message.reactions && message.reactions.length > 0 ? { reactions: message.reactions.map(String) } : {}
   };
 }
 function deriveConversationTitle(messages, max = TITLE_MAX) {

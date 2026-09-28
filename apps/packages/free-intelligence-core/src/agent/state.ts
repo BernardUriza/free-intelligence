@@ -52,6 +52,12 @@ export interface AgentTurnState {
   text: string;
   /** Evidence references (e.g. source URLs). App-agnostic name. */
   sources: string[];
+  /**
+   * Emoji the speaker reacted to the turn with (`result.reactions`). Empty on
+   * every turn from an engine without a reaction vocabulary. See
+   * `ChatMessage.reactions` for why this is a field and not text.
+   */
+  reactions: string[];
   meta: AgentMeta | null;
   /**
    * WHO is answering this turn, once the backend announces it (`author` event).
@@ -79,6 +85,7 @@ export function initialAgentTurnState(): AgentTurnState {
     steps: [],
     text: '',
     sources: [],
+    reactions: [],
     meta: null,
     author: null,
     heartbeats: 0,
@@ -254,6 +261,7 @@ export function applyAgentEvent(
         text,
         plan,
         sources: event.sources ?? state.sources,
+        reactions: event.reactions ?? state.reactions,
         meta: event.meta ?? state.meta,
         status: 'done',
       };

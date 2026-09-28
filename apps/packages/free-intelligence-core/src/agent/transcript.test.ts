@@ -148,3 +148,17 @@ describe('makeUserMessage', () => {
     expect('images' in makeUserMessage('hola', USER, [])).toBe(false);
   });
 });
+
+describe('foldAssistantTurn — reactions are a field, never text', () => {
+  it('folds the turn\'s reactions onto the message', () => {
+    const msg = foldAssistantTurn(turnWith({ reactions: ['👀'] }), OG118);
+    expect(msg.reactions).toEqual(['👀']);
+    expect(msg.content).toBe('hola');
+    expect(msg.content).not.toContain('👀');
+  });
+
+  it('a turn without reactions folds with no field at all (the plain case stays byte-identical)', () => {
+    const msg = foldAssistantTurn(turnWith({}), OG118);
+    expect('reactions' in msg).toBe(false);
+  });
+});

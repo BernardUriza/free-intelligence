@@ -27,6 +27,7 @@ const idleTurn: AgentTurnState = {
   meta: null,
   author: null,
   heartbeats: 0,
+  reactions: [],
   status: 'thinking',
 };
 

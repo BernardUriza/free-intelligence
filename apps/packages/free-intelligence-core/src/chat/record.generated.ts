@@ -68,6 +68,10 @@ export interface PersistedMessage {
   author?: MessageAuthor;
   images?: MessageImage[];
   trace?: MessageTrace;
+  /**
+   * Emoji con los que el hablante REACCIONÓ al turno (mensajes de asistente). Es un gesto sobre el mensaje, no parte de su texto: por eso no va doblado en `content`. Viene del motor (server-bot F5 devuelve el OutboundTurn entero) y sobrevive el reload como sobreviven las imágenes.
+   */
+  reactions?: string[];
 }
 /**
  * QUIÉN habló — el hablante nombrado, no sólo el lado. Una burbuja de asistente sin autor atribuye la respuesta a la app misma, y eso es una mentira que el framework no debe poder expresar. Sólo `id` y `name` son load-bearing.

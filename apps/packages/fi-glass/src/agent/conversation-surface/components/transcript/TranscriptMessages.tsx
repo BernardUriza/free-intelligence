@@ -13,7 +13,13 @@
 
 import { Fragment, type ReactNode } from 'react';
 import type { AgentTurnState, ChatMessage, MessageAuthor } from '@free-intelligence/core';
-import { MessageContent, MessageBubble, CopyButton, MessageImages } from '../../../../messages';
+import {
+  MessageContent,
+  MessageBubble,
+  CopyButton,
+  MessageImages,
+  MessageReactions,
+} from '../../../../messages';
 import {
   MessageAuthorHeader,
   defaultMessageHeader,
@@ -112,6 +118,10 @@ export function TranscriptMessages({
                 showLessLabel={showLessLabel}
                 collapseToggleClassName={collapseToggleClassName}
               />
+              {/* The speaker's reactions sit UNDER the text as chips — a gesture
+                  on the message, the way Discord shows one, never folded into
+                  the answer. Nothing renders when there are none. */}
+              <MessageReactions reactions={m.reactions} />
             </MessageBubble>
           </Fragment>
         );

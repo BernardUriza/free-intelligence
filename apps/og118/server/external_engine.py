@@ -68,28 +68,29 @@ def cap_history(history: list[dict] | None) -> list[dict]:
 
 
 def render_outbound(data: dict) -> str:
-    """Fold the engine's whole turn into the one thing og118 can show: text.
+    """The part of the engine's turn that IS message content: the text, plus the
+    persona's GIFs as markdown images the chat renders inline.
 
     Since server-bot F5 the engine returns the `OutboundTurn` it assembled, not
-    just its text: `reactions` (emoji the persona would put ON the message in a
-    surface with reactions) and `gif_urls` (from the persona's own catalog).
-    og118 declares text only, so it degrades rather than drops: a turn that was
-    ONLY a reaction becomes the emoji themselves (before F5 it surfaced as
-    "external engine returned an empty answer" — the persona had answered),
-    reactions on a textual turn trail it on their own line, and a GIF becomes a
-    markdown image the chat renders inline. An engine predating F5 has none of
-    these fields and renders exactly as before.
+    just its text. A GIF (from the persona's own catalog) is content, so it goes
+    in the body. A reaction is NOT content — it is a gesture on the message, the
+    way Discord shows it under the bubble — so it never gets folded in here: it
+    rides the `result` event as `reactions` (see `outbound_reactions`) and
+    fi-glass renders it as chips. An engine predating F5 has neither field and
+    renders exactly as before.
     """
     text = str(data.get("text", "")).strip()
-    reactions = [str(r).strip() for r in (data.get("reactions") or []) if str(r).strip()]
     gifs = [str(u).strip() for u in (data.get("gif_urls") or []) if str(u).strip().startswith("https://")]
     parts: list[str] = []
     if text:
         parts.append(text)
-    if reactions:
-        parts.append(" ".join(reactions))
     parts.extend(f"![gif]({url})" for url in gifs)
     return "\n\n".join(parts)
+
+
+def outbound_reactions(data: dict) -> list[str]:
+    """The emoji the persona reacted with, as the engine reported them."""
+    return [str(r).strip() for r in (data.get("reactions") or []) if str(r).strip()]
 
 
 async def stream_external_turn(
@@ -155,20 +156,24 @@ async def stream_external_turn(
         return
 
     text = render_outbound(data)
-    if not text:
-        # server-bot F5 names why a turn came back empty ("reactions_only",
-        # "markers_only", "brain_empty"); an engine predating it says nothing.
+    reactions = outbound_reactions(data)
+    if not text and not reactions:
+        # server-bot F5 names why a turn came back empty ("markers_only",
+        # "brain_empty"); an engine predating it says nothing.
         reason = str(data.get("empty_reason") or "").strip()
         detail = f" ({reason})" if reason else ""
         yield {"type": "error", "message": f"external engine returned an empty answer{detail}"}
         return
-    yield {"type": "text", "text": text}
+    if text:
+        yield {"type": "text", "text": text}
     # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
     # with a `result` so that provenance reaches the client the same way the local
     # path delivers it — the answer says what produced it, on both routes. The text
     # is repeated (the reducer replaces, never appends), and usage/session stay out:
-    # the frontend has no use for them and they are not the UI's business.
-    yield {
-        "type": "result",
-        "result": {"text": text, "model": data.get("model")},
-    }
+    # the frontend has no use for them and they are not the UI's business. The
+    # persona's reactions ride here structured: a reaction-only turn is a settled
+    # turn with empty text and a gesture, not an error.
+    result: dict = {"text": text, "model": data.get("model")}
+    if reactions:
+        result["reactions"] = reactions
+    yield {"type": "result", "result": result}

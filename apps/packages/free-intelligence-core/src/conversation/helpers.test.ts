@@ -457,3 +457,27 @@ describe('metadata patches (CONV-CONCURRENCY-1)', () => {
     }
   });
 });
+
+describe('sanitizeConversationMessage — reactions survive the reload', () => {
+  it('keeps the speaker\'s reactions as plain strings', () => {
+    const clean = sanitizeConversationMessage({
+      role: 'assistant',
+      content: '',
+      timestamp: '2026-09-28T00:00:00.000Z',
+      reactions: ['👀', '🔥'],
+      metadata: { token: 'Bearer xyz' },
+    });
+    expect(clean.reactions).toEqual(['👀', '🔥']);
+    expect('metadata' in clean).toBe(false);
+  });
+
+  it('omits the field when there were none', () => {
+    const clean = sanitizeConversationMessage({
+      role: 'assistant',
+      content: 'hola',
+      timestamp: '2026-09-28T00:00:00.000Z',
+      reactions: [],
+    });
+    expect('reactions' in clean).toBe(false);
+  });
+});
