@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from typing import Any
 
 import structlog
@@ -86,6 +87,41 @@ def reset_memory() -> None:
     global _memory, _memory_lock
     _memory = None
     _memory_lock = None
+
+
+async def warm_at_boot() -> None:
+    """Build the store at startup so the first turn finds everything resident.
+
+    On a cold replica (the runner scales to zero) the first runner-owned turn
+    used to pay the pool connect, the schema pass AND the ~25 s load of the
+    embedding model (measured 2026-09-28) inside its own budget. `connect()`
+    already starts that load off the critical path; this awaits it so the log
+    says when the replica is actually warm. Never raises — no Postgres means
+    no store, and turns run bare exactly as before.
+    """
+    started = time.monotonic()
+    try:
+        store = await get_memory()
+        if store is None:
+            log.info("turn_pipeline_warm_skipped", reason="no_postgres")
+            return
+        prewarmed = await store.wait_embeddings_prewarmed()
+    except Exception:
+        log.exception("turn_pipeline_warm_failed")
+        return
+    log.info(
+        "turn_pipeline_warm_ready",
+        embeddings=prewarmed,
+        elapsed_ms=int((time.monotonic() - started) * 1000),
+    )
+
+
+async def close_memory() -> None:
+    """Release the process store's pool at shutdown. Idempotent."""
+    global _memory
+    store, _memory = _memory, None
+    if store is not None:
+        await store.close()
 
 
 class InProcessJudge:

@@ -194,6 +194,47 @@ async def test_a_store_that_cannot_be_built_degrades_to_a_bare_turn(monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_warm_at_boot_builds_the_store_and_waits_for_the_embedder(monkeypatch):
+    """The first turn of a cold replica paid ~25 s of model load inside its own
+    budget (2026-09-28). Boot now builds the store and awaits the warmup
+    `connect()` starts, so traffic finds the model resident."""
+    store = MagicMock()
+    store.wait_embeddings_prewarmed = AsyncMock(return_value=True)
+    get_memory = AsyncMock(return_value=store)
+    monkeypatch.setattr(turn_pipeline, "get_memory", get_memory)
+
+    await turn_pipeline.warm_at_boot()
+
+    get_memory.assert_awaited_once()
+    store.wait_embeddings_prewarmed.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_warm_at_boot_is_a_noop_without_postgres(monkeypatch):
+    monkeypatch.setattr(turn_pipeline, "get_memory", AsyncMock(return_value=None))
+    await turn_pipeline.warm_at_boot()  # no raise, nothing to warm
+
+
+@pytest.mark.asyncio
+async def test_warm_at_boot_never_takes_the_runner_down(monkeypatch):
+    monkeypatch.setattr(turn_pipeline, "get_memory", AsyncMock(side_effect=RuntimeError("hf down")))
+    await turn_pipeline.warm_at_boot()  # logged, swallowed
+
+
+@pytest.mark.asyncio
+async def test_close_memory_releases_the_pool_once(monkeypatch):
+    store = MagicMock()
+    store.close = AsyncMock()
+    monkeypatch.setattr(turn_pipeline, "_memory", store)
+
+    await turn_pipeline.close_memory()
+    await turn_pipeline.close_memory()
+
+    store.close.assert_awaited_once()
+    assert turn_pipeline._memory is None
+
+
+@pytest.mark.asyncio
 async def test_the_in_process_judge_queues_behind_the_judge_gate(monkeypatch):
     seen = []
 
