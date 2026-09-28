@@ -67,6 +67,31 @@ def cap_history(history: list[dict] | None) -> list[dict]:
     return kept
 
 
+def render_outbound(data: dict) -> str:
+    """Fold the engine's whole turn into the one thing og118 can show: text.
+
+    Since server-bot F5 the engine returns the `OutboundTurn` it assembled, not
+    just its text: `reactions` (emoji the persona would put ON the message in a
+    surface with reactions) and `gif_urls` (from the persona's own catalog).
+    og118 declares text only, so it degrades rather than drops: a turn that was
+    ONLY a reaction becomes the emoji themselves (before F5 it surfaced as
+    "external engine returned an empty answer" — the persona had answered),
+    reactions on a textual turn trail it on their own line, and a GIF becomes a
+    markdown image the chat renders inline. An engine predating F5 has none of
+    these fields and renders exactly as before.
+    """
+    text = str(data.get("text", "")).strip()
+    reactions = [str(r).strip() for r in (data.get("reactions") or []) if str(r).strip()]
+    gifs = [str(u).strip() for u in (data.get("gif_urls") or []) if str(u).strip().startswith("https://")]
+    parts: list[str] = []
+    if text:
+        parts.append(text)
+    if reactions:
+        parts.append(" ".join(reactions))
+    parts.extend(f"![gif]({url})" for url in gifs)
+    return "\n\n".join(parts)
+
+
 async def stream_external_turn(
     *,
     persona_id: str,
@@ -129,9 +154,13 @@ async def stream_external_turn(
         yield {"type": "error", "message": "external engine returned a non-JSON body"}
         return
 
-    text = str(data.get("text", "")).strip()
+    text = render_outbound(data)
     if not text:
-        yield {"type": "error", "message": "external engine returned an empty answer"}
+        # server-bot F5 names why a turn came back empty ("reactions_only",
+        # "markers_only", "brain_empty"); an engine predating it says nothing.
+        reason = str(data.get("empty_reason") or "").strip()
+        detail = f" ({reason})" if reason else ""
+        yield {"type": "error", "message": f"external engine returned an empty answer{detail}"}
         return
     yield {"type": "text", "text": text}
     # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
