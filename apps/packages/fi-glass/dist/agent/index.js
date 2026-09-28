@@ -1897,8 +1897,37 @@ function MessageImages({
   );
 }
 
+// src/messages/MessageReactions.tsx
+import { jsx as jsx13 } from "react/jsx-runtime";
+var rowStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.375rem",
+  marginTop: "0.5rem"
+};
+var chipStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "0.125rem 0.5rem",
+  borderRadius: "9999px",
+  border: "1px solid var(--fi-reaction-border, rgba(127, 127, 127, 0.35))",
+  background: "var(--fi-reaction-bg, rgba(127, 127, 127, 0.12))",
+  fontSize: "0.9375rem",
+  lineHeight: 1.4
+};
+function MessageReactions({
+  reactions,
+  className,
+  chipClassName,
+  ariaLabel = "Reacciones"
+}) {
+  const chips = (reactions ?? []).map((r) => r.trim()).filter(Boolean);
+  if (chips.length === 0) return null;
+  return /* @__PURE__ */ jsx13("div", { className, "data-fi-message-reactions": "", role: "list", "aria-label": ariaLabel, style: rowStyle, children: chips.map((emoji, i) => /* @__PURE__ */ jsx13("span", { role: "listitem", className: chipClassName, style: chipStyle, children: emoji }, `${emoji}-${i}`)) });
+}
+
 // src/messages/MessageAuthorHeader.tsx
-import { Fragment as Fragment2, jsx as jsx13, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx14, jsxs as jsxs8 } from "react/jsx-runtime";
 var AVATAR = {
   width: 22,
   height: 22,
@@ -1929,7 +1958,7 @@ function MessageAuthorHeader({
 }) {
   const time = formatTime(timestamp, locale);
   return /* @__PURE__ */ jsxs8(Fragment2, { children: [
-    /* @__PURE__ */ jsx13(
+    /* @__PURE__ */ jsx14(
       "span",
       {
         "aria-hidden": true,
@@ -1942,8 +1971,8 @@ function MessageAuthorHeader({
         children: avatarToken(author)
       }
     ),
-    /* @__PURE__ */ jsx13("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
-    author.engine && /* @__PURE__ */ jsx13(
+    /* @__PURE__ */ jsx14("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx14(
       "span",
       {
         "data-fi-author-engine": "",
@@ -1957,13 +1986,13 @@ function MessageAuthorHeader({
         children: author.engine
       }
     ),
-    time && /* @__PURE__ */ jsx13("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+    time && /* @__PURE__ */ jsx14("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
   ] });
 }
 function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   const isUser = message.role === "user";
   const author = message.author ?? (isUser ? userAuthor : agentAuthor);
-  return /* @__PURE__ */ jsx13(
+  return /* @__PURE__ */ jsx14(
     MessageAuthorHeader,
     {
       author,
@@ -1975,7 +2004,7 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
 }
 
 // src/messages/MessageModelBadge.tsx
-import { jsx as jsx14, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx15, jsxs as jsxs9 } from "react/jsx-runtime";
 function MessageModelBadge({
   model,
   title = "Generado por {model}",
@@ -2000,7 +2029,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx14("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
+        /* @__PURE__ */ jsx15("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
       ]
     }
   );
@@ -2009,7 +2038,7 @@ function defaultMessageBadge(message) {
   if (message.role !== "assistant") return void 0;
   const model = message.trace?.model?.trim();
   if (!model) return void 0;
-  return /* @__PURE__ */ jsx14(MessageModelBadge, { model });
+  return /* @__PURE__ */ jsx15(MessageModelBadge, { model });
 }
 
 // src/agent/conversation-surface/persistedTraceTurn.ts
@@ -2023,6 +2052,7 @@ function persistedTraceTurn(message) {
     steps: trace.tools ?? [],
     text: message.content,
     sources: trace.sources ?? [],
+    reactions: message.reactions ?? [],
     meta: null,
     author: message.author ?? null,
     heartbeats: 0,
@@ -2031,7 +2061,7 @@ function persistedTraceTurn(message) {
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
-import { jsx as jsx15, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs10 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -2055,19 +2085,19 @@ function TranscriptMessages({
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
       return /* @__PURE__ */ jsxs10(Fragment3, { children: [
-        traceTurn && /* @__PURE__ */ jsx15(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        traceTurn && /* @__PURE__ */ jsx16(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
         /* @__PURE__ */ jsxs10(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx15(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx16(CopyButton, { content: m.content }) : void 0),
             isLatest: i === messages.length - 1,
             className: resolveBubbleClass(m),
             children: [
-              /* @__PURE__ */ jsx15(MessageImages, { images: m.images }),
-              /* @__PURE__ */ jsx15(
+              /* @__PURE__ */ jsx16(MessageImages, { images: m.images }),
+              /* @__PURE__ */ jsx16(
                 MessageContent,
                 {
                   isUser: m.role === "user",
@@ -2078,25 +2108,26 @@ function TranscriptMessages({
                   showLessLabel,
                   collapseToggleClassName
                 }
-              )
+              ),
+              /* @__PURE__ */ jsx16(MessageReactions, { reactions: m.reactions })
             ]
           }
         )
       ] }, `${m.timestamp}-${i}`);
     }),
     isStreaming && /* @__PURE__ */ jsxs10("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
-      /* @__PURE__ */ jsx15("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx15(AgentPanel, { turn, ...agentPanelProps }) }),
-      turn.text && /* @__PURE__ */ jsx15(
+      /* @__PURE__ */ jsx16("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx16(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx16(
         MessageBubble,
         {
           role: "assistant",
-          header: /* @__PURE__ */ jsx15(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          header: /* @__PURE__ */ jsx16(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
           className: resolveBubbleClass({
             role: "assistant",
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx15(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx16(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
@@ -2104,7 +2135,7 @@ function TranscriptMessages({
 }
 
 // src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx16, jsxs as jsxs11 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs11 } from "react/jsx-runtime";
 function TurnErrorBanner({
   error,
   onRetry,
@@ -2132,8 +2163,8 @@ function TurnErrorBanner({
         gap: "0.75rem"
       },
       children: [
-        /* @__PURE__ */ jsx16("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx16(
+        /* @__PURE__ */ jsx17("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx17(
           "button",
           {
             type: "button",
@@ -2151,7 +2182,7 @@ function TurnErrorBanner({
             children: retryLabel
           }
         ),
-        /* @__PURE__ */ jsx16(
+        /* @__PURE__ */ jsx17(
           "button",
           {
             type: "button",
@@ -2175,7 +2206,7 @@ function TurnErrorBanner({
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
-import { jsx as jsx17, jsxs as jsxs12 } from "react/jsx-runtime";
+import { jsx as jsx18, jsxs as jsxs12 } from "react/jsx-runtime";
 function TranscriptRegion({ surface, conversation, contentInset }) {
   const {
     messages,
@@ -2221,7 +2252,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     // Relative anchor: hosts the scroll area + the floating jump-to-latest
     // button, so the button stays glued to the transcript's bottom edge.
     /* @__PURE__ */ jsxs12("div", { style: { position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }, children: [
-      /* @__PURE__ */ jsx17(
+      /* @__PURE__ */ jsx18(
         "div",
         {
           ref: autoScroll ? stick.scrollRef : void 0,
@@ -2232,7 +2263,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
               ref: autoScroll ? stick.contentRef : void 0,
               style: { maxWidth: contentInset, margin: "0 auto", width: "100%" },
               children: [
-                idle ? emptyState : /* @__PURE__ */ jsx17(
+                idle ? emptyState : /* @__PURE__ */ jsx18(
                   TranscriptMessages,
                   {
                     messages,
@@ -2253,7 +2284,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     collapseToggleClassName
                   }
                 ),
-                turnError && /* @__PURE__ */ jsx17(
+                turnError && /* @__PURE__ */ jsx18(
                   TurnErrorBanner,
                   {
                     error: turnError,
@@ -2266,7 +2297,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     dismissButtonClassName
                   }
                 ),
-                persistError && /* @__PURE__ */ jsx17(
+                persistError && /* @__PURE__ */ jsx18(
                   TurnErrorBanner,
                   {
                     error: persistError,
@@ -2284,7 +2315,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
           )
         }
       ),
-      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx17(
+      autoScroll && !stick.isAtBottom && /* @__PURE__ */ jsx18(
         ScrollToBottomButton,
         {
           onClick: () => void stick.scrollToBottom(),
@@ -2306,7 +2337,7 @@ import {
   useRef as useRef9,
   useState as useState10
 } from "react";
-import { jsx as jsx18, jsxs as jsxs13 } from "react/jsx-runtime";
+import { jsx as jsx19, jsxs as jsxs13 } from "react/jsx-runtime";
 var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   value,
   onChange,
@@ -2344,7 +2375,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   const isNearLimit = maxLength && charCount > maxLength * 0.9;
   const isOverLimit = maxLength && charCount > maxLength;
   return /* @__PURE__ */ jsxs13("div", { className: `relative ${wrapperClassName}`, style: wrapperStyle, children: [
-    /* @__PURE__ */ jsx18(
+    /* @__PURE__ */ jsx19(
       "textarea",
       {
         ref: textareaRef,
@@ -2371,7 +2402,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
 });
 
 // src/composer/Composer.tsx
-import { jsx as jsx19 } from "react/jsx-runtime";
+import { jsx as jsx20 } from "react/jsx-runtime";
 function Composer({
   message,
   loading = false,
@@ -2400,7 +2431,7 @@ function Composer({
     // Marcado como slot para que el tema pueda darle su respiro sin que cada
     // consumer tenga que pasar una clase propia: era la única zona del composer
     // sin identificar, y por eso el padding acababa siendo trabajo del consumer.
-    /* @__PURE__ */ jsx19("div", { className: areaClassName, "data-fi-composer-slot": "area", children: /* @__PURE__ */ jsx19(
+    /* @__PURE__ */ jsx20("div", { className: areaClassName, "data-fi-composer-slot": "area", children: /* @__PURE__ */ jsx20(
       AutoResizeTextarea,
       {
         ref: textareaRef,
@@ -2583,7 +2614,7 @@ function useDensityStyle() {
 }
 
 // src/composer/ComposerFrame.tsx
-import { Fragment as Fragment4, jsx as jsx20, jsxs as jsxs14 } from "react/jsx-runtime";
+import { Fragment as Fragment4, jsx as jsx21, jsxs as jsxs14 } from "react/jsx-runtime";
 var COMPOSER_FRAME_STYLE_ID = "fi-composer-frame-style";
 var CSS4 = `
 [data-fi-composer-slot="header"] {
@@ -2723,7 +2754,7 @@ function ComposerFrame({
       "data-fi-composer-frame": "",
       "data-fi-rail": hasRail ? railOpen ? "open" : "closed" : void 0,
       children: [
-        filled(header) && /* @__PURE__ */ jsx20("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
+        filled(header) && /* @__PURE__ */ jsx21("div", { className: headerClassName, "data-fi-composer-slot": "header", children: header }),
         children,
         (filled(footer) || hasRail) && /* @__PURE__ */ jsxs14(
           "div",
@@ -2733,7 +2764,7 @@ function ComposerFrame({
             "data-fi-composer-slot": "footer",
             children: [
               hasRail && /* @__PURE__ */ jsxs14(Fragment4, { children: [
-                /* @__PURE__ */ jsx20(
+                /* @__PURE__ */ jsx21(
                   "button",
                   {
                     type: "button",
@@ -2742,10 +2773,10 @@ function ComposerFrame({
                     "aria-expanded": railOpen,
                     "aria-controls": railId,
                     onClick: () => setRailOpen((v) => !v),
-                    children: /* @__PURE__ */ jsx20(SlidersHorizontal, { size: 18, "aria-hidden": true })
+                    children: /* @__PURE__ */ jsx21(SlidersHorizontal, { size: 18, "aria-hidden": true })
                   }
                 ),
-                /* @__PURE__ */ jsx20(
+                /* @__PURE__ */ jsx21(
                   "div",
                   {
                     id: railId,
@@ -2767,7 +2798,7 @@ function ComposerFrame({
 // src/composer/ComposerImageAttachments.tsx
 import { useRef as useRef10 } from "react";
 import { X } from "lucide-react";
-import { jsx as jsx21, jsxs as jsxs15 } from "react/jsx-runtime";
+import { jsx as jsx22, jsxs as jsxs15 } from "react/jsx-runtime";
 function ComposerImageChips({
   drafts,
   onRemove,
@@ -2776,14 +2807,14 @@ function ComposerImageChips({
   removeLabel = "Quitar imagen"
 }) {
   if (drafts.length === 0) return null;
-  return /* @__PURE__ */ jsx21(
+  return /* @__PURE__ */ jsx22(
     "div",
     {
       className,
       "data-fi-image-chips": "",
       style: { display: "flex", flexWrap: "wrap", gap: "0.5rem" },
       children: drafts.map((draft) => /* @__PURE__ */ jsxs15("div", { style: { position: "relative" }, children: [
-        /* @__PURE__ */ jsx21(
+        /* @__PURE__ */ jsx22(
           "img",
           {
             src: draft.dataUrl,
@@ -2798,7 +2829,7 @@ function ComposerImageChips({
             }
           }
         ),
-        /* @__PURE__ */ jsx21(
+        /* @__PURE__ */ jsx22(
           "button",
           {
             type: "button",
@@ -2821,7 +2852,7 @@ function ComposerImageChips({
               color: "#fff",
               padding: 0
             },
-            children: /* @__PURE__ */ jsx21(X, { size: 12, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx22(X, { size: 12, "aria-hidden": true })
           }
         )
       ] }, draft.id))
@@ -2830,7 +2861,7 @@ function ComposerImageChips({
 }
 function useImagePicker(onFiles) {
   const inputRef = useRef10(null);
-  const input = /* @__PURE__ */ jsx21(
+  const input = /* @__PURE__ */ jsx22(
     "input",
     {
       ref: inputRef,
@@ -2855,7 +2886,7 @@ import { Plus } from "lucide-react";
 // src/menu/ActionMenu.tsx
 import { Fragment as Fragment5, useEffect as useEffect14, useRef as useRef11, useState as useState12 } from "react";
 import { createPortal } from "react-dom";
-import { Fragment as Fragment6, jsx as jsx22, jsxs as jsxs16 } from "react/jsx-runtime";
+import { Fragment as Fragment6, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
 function ActionMenu({
   actions,
   trigger,
@@ -2888,7 +2919,7 @@ function ActionMenu({
   if (actions.length === 0) return null;
   const triggerProps = triggerAttribute ? { [triggerAttribute]: "" } : {};
   return /* @__PURE__ */ jsxs16(Fragment6, { children: [
-    /* @__PURE__ */ jsx22(
+    /* @__PURE__ */ jsx23(
       "button",
       {
         ref: triggerRef,
@@ -2907,7 +2938,7 @@ function ActionMenu({
     ),
     open && typeof document !== "undefined" && createPortal(
       /* @__PURE__ */ jsxs16(Fragment6, { children: [
-        /* @__PURE__ */ jsx22(
+        /* @__PURE__ */ jsx23(
           "div",
           {
             className: "fixed inset-0 z-[9998]",
@@ -2915,7 +2946,7 @@ function ActionMenu({
             "aria-hidden": "true"
           }
         ),
-        /* @__PURE__ */ jsx22(
+        /* @__PURE__ */ jsx23(
           "div",
           {
             role: "menu",
@@ -2965,12 +2996,12 @@ function ActionMenu({
                   },
                   children: [
                     action.icon,
-                    /* @__PURE__ */ jsx22("span", { children: action.label })
+                    /* @__PURE__ */ jsx23("span", { children: action.label })
                   ]
                 },
                 action.id
               );
-              const divider = action.dividerBefore ? /* @__PURE__ */ jsx22(
+              const divider = action.dividerBefore ? /* @__PURE__ */ jsx23(
                 "div",
                 {
                   className: dividerClassName,
@@ -2994,7 +3025,7 @@ function ActionMenu({
 }
 
 // src/composer/ComposerActions.tsx
-import { jsx as jsx23 } from "react/jsx-runtime";
+import { jsx as jsx24 } from "react/jsx-runtime";
 function ComposerActions({
   actions,
   disabled = false,
@@ -3004,11 +3035,11 @@ function ComposerActions({
   menuClassName,
   itemClassName
 }) {
-  return /* @__PURE__ */ jsx23(
+  return /* @__PURE__ */ jsx24(
     ActionMenu,
     {
       actions,
-      trigger: /* @__PURE__ */ jsx23(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
+      trigger: /* @__PURE__ */ jsx24(Plus, { size: 18, "aria-hidden": true, className: iconClassName }),
       triggerLabel: label,
       triggerClassName: `fi-touch-target ${className ?? ""}`.trim(),
       triggerStyle: {
@@ -3035,7 +3066,7 @@ import { ImagePlus } from "lucide-react";
 
 // src/agent/conversation-surface/components/composer/ComposerControls.tsx
 import { Send, Loader2 as Loader23, Square as Square2 } from "lucide-react";
-import { Fragment as Fragment7, jsx as jsx24, jsxs as jsxs17 } from "react/jsx-runtime";
+import { Fragment as Fragment7, jsx as jsx25, jsxs as jsxs17 } from "react/jsx-runtime";
 function ComposerControls({
   dictation,
   micSlotOverride,
@@ -3057,7 +3088,7 @@ function ComposerControls({
   useComposerActionStyle();
   const stopping = isStreaming && onStop != null;
   return /* @__PURE__ */ jsxs17(Fragment7, { children: [
-    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx24(
+    micSlotOverride == null && dictation.micAvailable && dictation.isRecording && /* @__PURE__ */ jsx25(
       AudioVisualizer,
       {
         levels: dictation.bands,
@@ -3068,7 +3099,7 @@ function ComposerControls({
         barClassName: voiceVisualizerBarClassName
       }
     ),
-    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx24(
+    micSlotOverride != null ? micSlotOverride : dictation.micAvailable && /* @__PURE__ */ jsx25(
       ComposerMicSlot,
       {
         available: true,
@@ -3087,7 +3118,7 @@ function ComposerControls({
     // While streaming, a transport that can abort turns this into a live
     // STOP button — the primary control must never be a spinner the user
     // can only watch. Without abort support it falls back to that spinner.
-    /* @__PURE__ */ jsx24(
+    /* @__PURE__ */ jsx25(
       "button",
       {
         type: "button",
@@ -3101,22 +3132,22 @@ function ComposerControls({
           sendButtonClassName,
           stopping ? stopButtonClassName : void 0
         ].filter(Boolean).join(" "),
-        children: stopping ? /* @__PURE__ */ jsx24(Square2, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx24(
+        children: stopping ? /* @__PURE__ */ jsx25(Square2, { className: sendButtonIconClassName, fill: "currentColor", "aria-hidden": true }) : isStreaming ? /* @__PURE__ */ jsx25(
           Loader23,
           {
             className: sendButtonIconClassName ? `${sendButtonIconClassName} animate-spin` : "animate-spin",
             "aria-hidden": true
           }
-        ) : /* @__PURE__ */ jsx24(Send, { className: sendButtonIconClassName, "aria-hidden": true })
+        ) : /* @__PURE__ */ jsx25(Send, { className: sendButtonIconClassName, "aria-hidden": true })
       }
     )
   ] });
 }
 
 // src/agent/conversation-surface/components/composer/NewChatButton.tsx
-import { jsx as jsx25 } from "react/jsx-runtime";
+import { jsx as jsx26 } from "react/jsx-runtime";
 function NewChatButton({ onClick, disabled, label = "New chat" }) {
-  return /* @__PURE__ */ jsx25("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx25(
+  return /* @__PURE__ */ jsx26("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }, children: /* @__PURE__ */ jsx26(
     "button",
     {
       onClick,
@@ -3137,7 +3168,7 @@ function NewChatButton({ onClick, disabled, label = "New chat" }) {
 }
 
 // src/agent/conversation-surface/components/composer/ComposerRegion.tsx
-import { Fragment as Fragment8, jsx as jsx26, jsxs as jsxs18 } from "react/jsx-runtime";
+import { Fragment as Fragment8, jsx as jsx27, jsxs as jsxs18 } from "react/jsx-runtime";
 function ComposerRegion({ surface, state, contentInset }) {
   const {
     input,
@@ -3184,7 +3215,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     attachImageButtonClassName,
     imageChipsClassName
   } = surface;
-  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx26(
+  const imageChips = images && images.drafts.length > 0 ? /* @__PURE__ */ jsx27(
     ComposerImageChips,
     {
       drafts: images.drafts,
@@ -3199,7 +3230,7 @@ function ComposerRegion({ surface, state, contentInset }) {
       {
         id: "attach-image",
         label: attachImageLabel,
-        icon: /* @__PURE__ */ jsx26(ImagePlus, { size: 16, "aria-hidden": true }),
+        icon: /* @__PURE__ */ jsx27(ImagePlus, { size: 16, "aria-hidden": true }),
         onSelect: imagePicker.open
       }
     ] : [],
@@ -3207,7 +3238,7 @@ function ComposerRegion({ surface, state, contentInset }) {
   ];
   const attachButton = actions.length > 0 ? /* @__PURE__ */ jsxs18(Fragment8, { children: [
     images ? imagePicker.input : null,
-    /* @__PURE__ */ jsx26(
+    /* @__PURE__ */ jsx27(
       ComposerActions,
       {
         actions,
@@ -3227,7 +3258,7 @@ function ComposerRegion({ surface, state, contentInset }) {
     attachButton,
     composerFooterStart
   ] }) : void 0;
-  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx26(
+  const footer = showSendButton || micSlotOverride != null || dictation.micAvailable ? /* @__PURE__ */ jsx27(
     ComposerControls,
     {
       dictation,
@@ -3248,7 +3279,7 @@ function ComposerRegion({ surface, state, contentInset }) {
       stopButtonClassName
     }
   ) : null;
-  return /* @__PURE__ */ jsx26(
+  return /* @__PURE__ */ jsx27(
     "div",
     {
       style: {
@@ -3263,9 +3294,9 @@ function ComposerRegion({ surface, state, contentInset }) {
         borderTop: "1px solid rgba(255,255,255,0.06)"
       },
       children: /* @__PURE__ */ jsxs18("div", { style: { maxWidth: contentInset, margin: "0 auto", width: "100%", containerType: "inline-size", containerName: "fi-composer" }, children: [
-        hasThread && showNewChatButton && /* @__PURE__ */ jsx26(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
-        aboveComposer && /* @__PURE__ */ jsx26("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
-        /* @__PURE__ */ jsx26(
+        hasThread && showNewChatButton && /* @__PURE__ */ jsx27(NewChatButton, { onClick: newConversation, disabled: isStreaming, label: newChatLabel }),
+        aboveComposer && /* @__PURE__ */ jsx27("div", { className: "fi-surface-above-composer", style: { marginBottom: "0.5rem" }, children: aboveComposer }),
+        /* @__PURE__ */ jsx27(
           ComposerFrame,
           {
             className: composerBoxClassName,
@@ -3275,7 +3306,7 @@ function ComposerRegion({ surface, state, contentInset }) {
             footerStart,
             footerStartClassName: composerFooterStartClassName,
             footer,
-            children: /* @__PURE__ */ jsx26(
+            children: /* @__PURE__ */ jsx27(
               Composer,
               {
                 message: input,
@@ -3300,7 +3331,7 @@ function ComposerRegion({ surface, state, contentInset }) {
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { jsx as jsx27, jsxs as jsxs19 } from "react/jsx-runtime";
+import { jsx as jsx28, jsxs as jsxs19 } from "react/jsx-runtime";
 function AgentConversationSurface(props) {
   const {
     conversation,
@@ -3362,7 +3393,7 @@ function AgentConversationSurface(props) {
     send(t, attached.length > 0 ? attached : void 0);
   };
   return /* @__PURE__ */ jsxs19("div", { style: rootStyle, children: [
-    /* @__PURE__ */ jsx27(
+    /* @__PURE__ */ jsx28(
       TranscriptRegion,
       {
         surface: props,
@@ -3381,7 +3412,7 @@ function AgentConversationSurface(props) {
         contentInset
       }
     ),
-    /* @__PURE__ */ jsx27(
+    /* @__PURE__ */ jsx28(
       ComposerRegion,
       {
         surface: props,
@@ -3524,7 +3555,7 @@ function useEdgeSwipe({
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { jsx as jsx28, jsxs as jsxs20 } from "react/jsx-runtime";
+import { jsx as jsx29, jsxs as jsxs20 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
 function ensureToggleStyle() {
   if (typeof document === "undefined") return;
@@ -3655,12 +3686,12 @@ function AgentWorkspaceShell({
       className: rootClassName,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
-        header != null && /* @__PURE__ */ jsx28("header", { "data-fi-slot": "header", children: header }),
+        header != null && /* @__PURE__ */ jsx29("header", { "data-fi-slot": "header", children: header }),
         /* @__PURE__ */ jsxs20("main", { "data-fi-slot": "main", style: mainStyle, children: [
-          /* @__PURE__ */ jsx28("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
-          rail != null && /* @__PURE__ */ jsx28("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
+          /* @__PURE__ */ jsx29("div", { "data-fi-slot": "conversation", style: conversationStyle, children: conversation }),
+          rail != null && /* @__PURE__ */ jsx29("aside", { "data-fi-slot": "rail", style: railStyle, children: rail })
         ] }),
-        footer != null && /* @__PURE__ */ jsx28("footer", { "data-fi-slot": "footer", children: footer })
+        footer != null && /* @__PURE__ */ jsx29("footer", { "data-fi-slot": "footer", children: footer })
       ]
     }
   );
@@ -3710,7 +3741,7 @@ function AgentWorkspaceShell({
       "data-fi-drawer-dragging": dragging ? "" : void 0,
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx28(
+        /* @__PURE__ */ jsx29(
           "nav",
           {
             ref: panelRef,
@@ -3722,7 +3753,7 @@ function AgentWorkspaceShell({
             children: sidebarNode
           }
         ),
-        drawerMode && /* @__PURE__ */ jsx28(
+        drawerMode && /* @__PURE__ */ jsx29(
           "div",
           {
             onClick: close,
@@ -3738,7 +3769,7 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx28(
+        drawerMode && !isOpen && /* @__PURE__ */ jsx29(
           "button",
           {
             type: "button",
@@ -3760,7 +3791,7 @@ function AgentWorkspaceShell({
               opacity: dragging ? 1 - dragProgress : 1,
               transition: dragging ? "none" : "opacity 0.24s ease"
             },
-            children: /* @__PURE__ */ jsx28(Menu, { size: 18, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx29(Menu, { size: 18, "aria-hidden": true })
           }
         ),
         content
@@ -4032,7 +4063,7 @@ function useSidebarItemStyle() {
 }
 
 // src/agent/AgentSidebarItem.tsx
-import { Fragment as Fragment9, jsx as jsx29, jsxs as jsxs21 } from "react/jsx-runtime";
+import { Fragment as Fragment9, jsx as jsx30, jsxs as jsxs21 } from "react/jsx-runtime";
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -4047,7 +4078,7 @@ function ItemActionSlot({
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );
-  return /* @__PURE__ */ jsx29(
+  return /* @__PURE__ */ jsx30(
     "button",
     {
       type: "button",
@@ -4063,7 +4094,7 @@ function ItemActionSlot({
   );
 }
 function DestructiveActionSlot(props) {
-  return /* @__PURE__ */ jsx29(ItemActionSlot, { ...props, danger: true });
+  return /* @__PURE__ */ jsx30(ItemActionSlot, { ...props, danger: true });
 }
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState16(false);
@@ -4131,7 +4162,7 @@ function AgentSidebarItem({
 }) {
   useSidebarItemStyle();
   const interactive = !disabled && !editing && (toggleable || !selected);
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx29("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx30("span", { className: FI_ITEM_TITLE_CLASS, children: title }) : title;
   return /* @__PURE__ */ jsxs21(
     "div",
     {
@@ -4155,8 +4186,8 @@ function AgentSidebarItem({
       children: [
         /* @__PURE__ */ jsxs21("div", { className: FI_ITEM_BODY_CLASS, children: [
           titleNode,
-          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx29("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
-          meta != null && meta !== "" && /* @__PURE__ */ jsx29("span", { className: FI_ITEM_META_CLASS, children: meta })
+          subtitle != null && subtitle !== "" && /* @__PURE__ */ jsx30("span", { className: FI_ITEM_SUBTITLE_CLASS, children: subtitle }),
+          meta != null && meta !== "" && /* @__PURE__ */ jsx30("span", { className: FI_ITEM_META_CLASS, children: meta })
         ] }),
         actions
       ]
@@ -4180,7 +4211,7 @@ function EditableResourceItem({
   ariaLabel
 }) {
   const rename = useInlineRename(title, onRename, { maxLength, emptyPolicy });
-  const titleNode = rename.editing ? /* @__PURE__ */ jsx29(
+  const titleNode = rename.editing ? /* @__PURE__ */ jsx30(
     "input",
     {
       className: FI_RESOURCE_RENAME_INPUT_CLASS,
@@ -4188,7 +4219,7 @@ function EditableResourceItem({
       ...rename.inputProps
     }
   ) : title;
-  return /* @__PURE__ */ jsx29(
+  return /* @__PURE__ */ jsx30(
     AgentSidebarItem,
     {
       selected,
@@ -4200,7 +4231,7 @@ function EditableResourceItem({
       subtitle,
       meta,
       actions: !rename.editing && /* @__PURE__ */ jsxs21(Fragment9, { children: [
-        /* @__PURE__ */ jsx29(
+        /* @__PURE__ */ jsx30(
           ItemActionSlot,
           {
             label: renameLabel,
@@ -4282,7 +4313,7 @@ function useSidebarSectionStyle() {
 }
 
 // src/agent/AgentSidebarSection.tsx
-import { jsx as jsx30, jsxs as jsxs22 } from "react/jsx-runtime";
+import { jsx as jsx31, jsxs as jsxs22 } from "react/jsx-runtime";
 function joinClasses2(...parts) {
   return parts.filter(Boolean).join(" ");
 }
@@ -4301,7 +4332,7 @@ function AgentSidebarSection({
   className
 }) {
   useSidebarSectionStyle();
-  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx30("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
+  const titleNode = typeof title === "string" ? /* @__PURE__ */ jsx31("span", { className: FI_SECTION_TITLE_CLASS, children: title }) : title;
   const showEmpty = count === 0 && emptyState != null;
   const body = showEmpty ? emptyState : children;
   const scrollStyle = maxBlockSize != null ? {
@@ -4321,8 +4352,8 @@ function AgentSidebarSection({
           titleNode,
           actionSlot
         ] }),
-        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx30("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
-        footerSlot != null && /* @__PURE__ */ jsx30("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
+        scrollBehavior === "content" && !showEmpty ? /* @__PURE__ */ jsx31("div", { className: FI_SECTION_SCROLL_CLASS, style: scrollStyle, children: body }) : body,
+        footerSlot != null && /* @__PURE__ */ jsx31("div", { className: FI_SECTION_FOOTER_CLASS, children: footerSlot })
       ]
     }
   );

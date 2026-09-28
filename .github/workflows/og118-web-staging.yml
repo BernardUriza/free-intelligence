@@ -40,6 +40,18 @@ jobs:
       - name: Install (frozen)
         run: pnpm install --frozen-lockfile
 
+      # og118 web resolves `fi-glass` and `@free-intelligence/core` through
+      # their `dist/` (package.json exports), and that dist is COMMITTED — a
+      # frozen copy of `src/`. On 2026-09-28 PR #502 shipped `MessageReactions`
+      # in src with tests green and og118.ai served a bundle without it: nobody
+      # had rebuilt fi-glass's dist before committing. Building both here makes
+      # the deployed bundle derive from the source on this commit, whatever the
+      # committed dist says (rule: derived-not-frozen).
+      - name: Build the packages og118 web consumes
+        run: |
+          pnpm --filter @free-intelligence/core build
+          pnpm --filter fi-glass build
+
       - name: Build static export
         # Gate 3 cutover: staging on real Auth0 login. These NEXT_PUBLIC_* are
         # PUBLIC config (SPA client_id is embedded by design; PKCE = no secret),

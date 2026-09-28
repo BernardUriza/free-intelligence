@@ -461,8 +461,37 @@ function MessageImages({
   );
 }
 
+// src/messages/MessageReactions.tsx
+import { jsx as jsx6 } from "react/jsx-runtime";
+var rowStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.375rem",
+  marginTop: "0.5rem"
+};
+var chipStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "0.125rem 0.5rem",
+  borderRadius: "9999px",
+  border: "1px solid var(--fi-reaction-border, rgba(127, 127, 127, 0.35))",
+  background: "var(--fi-reaction-bg, rgba(127, 127, 127, 0.12))",
+  fontSize: "0.9375rem",
+  lineHeight: 1.4
+};
+function MessageReactions({
+  reactions,
+  className,
+  chipClassName,
+  ariaLabel = "Reacciones"
+}) {
+  const chips = (reactions ?? []).map((r) => r.trim()).filter(Boolean);
+  if (chips.length === 0) return null;
+  return /* @__PURE__ */ jsx6("div", { className, "data-fi-message-reactions": "", role: "list", "aria-label": ariaLabel, style: rowStyle, children: chips.map((emoji, i) => /* @__PURE__ */ jsx6("span", { role: "listitem", className: chipClassName, style: chipStyle, children: emoji }, `${emoji}-${i}`)) });
+}
+
 // src/messages/MessageAuthorHeader.tsx
-import { Fragment, jsx as jsx6, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx7, jsxs as jsxs4 } from "react/jsx-runtime";
 var AVATAR = {
   width: 22,
   height: 22,
@@ -493,7 +522,7 @@ function MessageAuthorHeader({
 }) {
   const time = formatTime(timestamp, locale);
   return /* @__PURE__ */ jsxs4(Fragment, { children: [
-    /* @__PURE__ */ jsx6(
+    /* @__PURE__ */ jsx7(
       "span",
       {
         "aria-hidden": true,
@@ -506,8 +535,8 @@ function MessageAuthorHeader({
         children: avatarToken(author)
       }
     ),
-    /* @__PURE__ */ jsx6("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
-    author.engine && /* @__PURE__ */ jsx6(
+    /* @__PURE__ */ jsx7("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx7(
       "span",
       {
         "data-fi-author-engine": "",
@@ -521,13 +550,13 @@ function MessageAuthorHeader({
         children: author.engine
       }
     ),
-    time && /* @__PURE__ */ jsx6("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+    time && /* @__PURE__ */ jsx7("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
   ] });
 }
 function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   const isUser = message.role === "user";
   const author = message.author ?? (isUser ? userAuthor : agentAuthor);
-  return /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsx7(
     MessageAuthorHeader,
     {
       author,
@@ -539,7 +568,7 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
 }
 
 // src/messages/MessageModelBadge.tsx
-import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
+import { jsx as jsx8, jsxs as jsxs5 } from "react/jsx-runtime";
 function MessageModelBadge({
   model,
   title = "Generado por {model}",
@@ -564,7 +593,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx7("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
+        /* @__PURE__ */ jsx8("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
       ]
     }
   );
@@ -573,11 +602,11 @@ function defaultMessageBadge(message) {
   if (message.role !== "assistant") return void 0;
   const model = message.trace?.model?.trim();
   if (!model) return void 0;
-  return /* @__PURE__ */ jsx7(MessageModelBadge, { model });
+  return /* @__PURE__ */ jsx8(MessageModelBadge, { model });
 }
 
 // src/messages/MessageList.tsx
-import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
 function MessageList({
   groups,
   renderItem,
@@ -591,7 +620,7 @@ function MessageList({
     header,
     groups.map((group) => /* @__PURE__ */ jsxs6("div", { children: [
       renderDivider?.(group.key),
-      /* @__PURE__ */ jsx8("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
+      /* @__PURE__ */ jsx9("div", { className: groupClassName, children: group.items.map((item, idx) => renderItem(item, idx)) })
     ] }, group.key)),
     footer
   ] });
@@ -606,6 +635,7 @@ export {
   MessageImages,
   MessageList,
   MessageModelBadge,
+  MessageReactions,
   defaultMessageBadge,
   defaultMessageHeader,
   ensureMessageActionsStyle,
