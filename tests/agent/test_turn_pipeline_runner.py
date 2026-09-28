@@ -164,6 +164,36 @@ async def test_a_failed_connect_is_retried_on_the_next_turn(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_the_real_store_is_built_with_a_small_pool(monkeypatch):
+    """2026-09-28: the fake store above accepted any kwargs, so a constructor
+    the REAL `MemoryStore` rejects shipped and 500'd og118's first F3 turn.
+    Only `connect` is faked here — the constructor is the real one."""
+    from persona_core.memory.connection import ConnectionManager
+
+    monkeypatch.setenv("POSTGRES_URL", "postgresql://x")
+    monkeypatch.setattr(ConnectionManager, "connect", AsyncMock())
+
+    store = await turn_pipeline.get_memory()
+
+    assert isinstance(store, turn_pipeline.MemoryStore)
+    assert (store._manager._min_size, store._manager._max_size) == (
+        turn_pipeline._MEMORY_POOL_MIN,
+        turn_pipeline._MEMORY_POOL_MAX,
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_store_that_cannot_be_built_degrades_to_a_bare_turn(monkeypatch):
+    monkeypatch.setenv("POSTGRES_URL", "postgresql://x")
+
+    def _boom(*a, **k):
+        raise TypeError("unexpected keyword argument")
+
+    monkeypatch.setattr(turn_pipeline, "MemoryStore", _boom)
+    assert await turn_pipeline.get_memory() is None, "a constructor fault must never become a 500"
+
+
+@pytest.mark.asyncio
 async def test_the_in_process_judge_queues_behind_the_judge_gate(monkeypatch):
     seen = []
 

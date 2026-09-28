@@ -68,8 +68,11 @@ async def get_memory() -> MemoryStore | None:
         _memory_lock = asyncio.Lock()
     async with _memory_lock:
         if _memory is None:
-            store = MemoryStore(url, min_size=_MEMORY_POOL_MIN, max_size=_MEMORY_POOL_MAX)
+            # Construction AND connect inside the guard: on 2026-09-28 a
+            # constructor that raised outside it turned "no memory" into a 500
+            # for og118 instead of the bare turn this module promises.
             try:
+                store = MemoryStore(url, min_size=_MEMORY_POOL_MIN, max_size=_MEMORY_POOL_MAX)
                 await store.connect()
             except Exception:
                 log.exception("turn_pipeline_memory_connect_failed")
