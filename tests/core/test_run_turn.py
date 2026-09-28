@@ -168,3 +168,49 @@ async def test_pacing_markers_never_reach_memory():
     out = await _run(_turn(), memory, _Brain("uno [SEND] dos"))
     assert out.text == "uno\ndos"
     assert memory.store.await_args_list[-1].args[4] == "uno\ndos"
+
+
+# --- The persona's reaction is memory too (v4.47.0) --------------------------
+# A turn that was only a `[REACT:]` used to store nothing: og118 persisted the
+# gesture, the persona's memory showed the user's message unanswered. Now the
+# assistant row lands with empty content and its emoji — a non-text event, the
+# way Rasa records every bot action.
+
+
+@pytest.mark.asyncio
+async def test_a_reaction_only_turn_is_stored_as_an_answer():
+    memory = _memory()
+    out = await _run(_turn(), memory, _Brain("[REACT:👀]"))
+
+    assert out.text == "" and out.reactions == ["👀"] and out.empty_reason == "reactions_only"
+    ask_row, reply_row = memory.store.await_args_list
+    assert reply_row.args[3] == "assistant"
+    assert reply_row.args[4] == "", "no invented text: the gesture is the answer"
+    assert reply_row.kwargs["reactions"] == ["👀"]
+
+
+@pytest.mark.asyncio
+async def test_a_text_turn_stores_its_reactions_with_the_words():
+    memory = _memory()
+    await _run(_turn(), memory, _Brain("Vives en GDL. [REACT:🔥]"))
+
+    reply_row = memory.store.await_args_list[-1]
+    assert reply_row.args[4] == "Vives en GDL."
+    assert reply_row.kwargs["reactions"] == ["🔥"]
+
+
+@pytest.mark.asyncio
+async def test_a_turn_with_nothing_to_remember_still_stores_no_reply():
+    """Resistance: markers-only has no words and no gesture — no assistant row."""
+    memory = _memory()
+    with patch("persona_core.turn.markers.persist_remembers", new=AsyncMock(return_value=1)):
+        await _run(_turn(), memory, _Brain("[REMEMBER: algo]"))
+    roles = [call.args[3] for call in memory.store.await_args_list]
+    assert roles == ["user"]
+
+
+@pytest.mark.asyncio
+async def test_a_plain_reply_stores_no_reactions():
+    memory = _memory()
+    await _run(_turn(), memory, _Brain("Sin gesto."))
+    assert memory.store.await_args_list[-1].kwargs["reactions"] is None

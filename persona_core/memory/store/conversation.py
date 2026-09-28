@@ -25,6 +25,7 @@ class ConversationFacade:
         channel_name: str | None = None,
         model_used: str | None = None,
         discord_message_id: str | None = None,
+        reactions: list[str] | None = None,
     ) -> None:
         await self._messages.store(
             channel_id,
@@ -37,6 +38,7 @@ class ConversationFacade:
             channel_name=channel_name,
             model_used=model_used,
             discord_message_id=discord_message_id,
+            reactions=reactions,
         )
 
     async def append_to_message(self, discord_message_id: str, suffix: str) -> bool:

@@ -220,3 +220,33 @@ def test_all_stopword_query_yields_no_terms():
 
 def test_accented_and_uppercase_forms_are_dropped():
     assert search_terms("Cuándo PORQUE También peli") == ["peli"]
+
+
+# --- Reactions in the live thread (v4.47.0) ----------------------------------
+
+
+def test_a_reaction_only_turn_reads_as_an_answer():
+    now = time.time()
+    rows = [
+        {"user_name": "Bernard", "role": "user", "content": "mira esto", "timestamp": now - 5},
+        {"user_name": "Insult", "role": "assistant", "content": "", "timestamp": now - 3, "reactions": ["👀"]},
+    ]
+    ctx = build_context(rows, self_name="Insult")
+    assert ctx[-1] == {"role": "assistant", "content": "Insult (tú): reaccionó 👀"}
+
+
+def test_words_and_a_reaction_keep_both():
+    now = time.time()
+    rows = [{"user_name": "Insult", "role": "assistant", "content": "Ajá.", "timestamp": now, "reactions": ["🔥"]}]
+    assert build_context(rows, self_name="Insult")[0]["content"] == "Insult (tú): Ajá. [reaccionó 🔥]"
+
+
+def test_rows_without_reactions_render_exactly_as_before():
+    """Resistance: the old shape (no `reactions` key) and an empty list are untouched."""
+    now = time.time()
+    rows = [
+        {"user_name": "Alex", "role": "user", "content": "hola", "timestamp": now},
+        {"user_name": "Alex", "role": "user", "content": "", "timestamp": now, "reactions": []},
+    ]
+    ctx = build_context(rows, self_name="Insult")
+    assert [c["content"] for c in ctx] == ["Alex: hola", "Alex: "]

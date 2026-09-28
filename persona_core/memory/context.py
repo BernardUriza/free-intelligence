@@ -44,6 +44,23 @@ def format_relative_time(timestamp: float) -> str:
 SELF_BOT_USER_NAME = "Insult"
 
 
+def _body_with_reactions(msg: dict) -> str:
+    """The row's words plus the gesture its speaker made on the turn.
+
+    A reaction-only turn is stored with ``content=''`` and its emoji in
+    ``reactions`` (v4.47.0): rendered as ``reaccionó 👀`` the model reads that it
+    ANSWERED, instead of seeing the user's message followed by nothing. A turn
+    with words and a reaction keeps both. Rows without reactions render exactly
+    as before.
+    """
+    content = msg.get("content") or ""
+    reactions = [str(r).strip() for r in (msg.get("reactions") or []) if str(r).strip()]
+    if not reactions:
+        return content
+    gesture = f"reaccionó {' '.join(reactions)}"
+    return f"{content} [{gesture}]" if content else gesture
+
+
 def build_context(
     recent: list[dict],
     *,
@@ -102,13 +119,11 @@ def build_context(
             msg_role = "user"
 
         speaker = f"{msg['user_name']} (tú)" if is_self else f"{msg['user_name']}"
+        body = _body_with_reactions(msg)
         is_fresh = (now - msg["timestamp"]) < fresh_window_seconds
-        if is_fresh:
-            # No bracketed prefix — these are the live thread, treat them
-            # as the active conversation, not as quoted snippets.
-            content = f"{speaker}: {msg['content']}"
-        else:
-            content = f"[{format_relative_time(msg['timestamp'])}] {speaker}: {msg['content']}"
+        # Fresh rows get no bracketed prefix — they are the live thread, the
+        # active conversation, not quoted snippets.
+        content = f"{speaker}: {body}" if is_fresh else f"[{format_relative_time(msg['timestamp'])}] {speaker}: {body}"
 
         context.append({"role": msg_role, "content": content})
 
