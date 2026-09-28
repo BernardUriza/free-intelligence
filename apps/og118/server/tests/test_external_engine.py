@@ -135,6 +135,52 @@ async def test_empty_answer_yields_error(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_reaction_only_turn_is_shown_as_the_emoji_not_as_an_error(monkeypatch) -> None:
+    """server-bot F5: the engine returns the whole OutboundTurn. A turn that was
+    only a `[REACT:]` used to arrive as text "" and became 'empty answer' here,
+    although the persona had answered."""
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(
+            resp=_FakeResp(200, {"text": "", "reactions": ["👀", "🔥"], "empty_reason": "reactions_only", "model": "m"})
+        ),
+    )
+    evs = await _collect(
+        external_engine.stream_external_turn(persona_id="insult", user_text="hi", session_uuid="s", user_id="u")
+    )
+    assert evs == [
+        {"type": "text", "text": "👀 🔥"},
+        {"type": "result", "result": {"text": "👀 🔥", "model": "m"}},
+    ]
+
+
+def test_reactions_trail_the_text_and_gifs_become_markdown_images() -> None:
+    data = {
+        "text": "Ajá.",
+        "reactions": ["👀"],
+        "gif_urls": ["https://tenor.com/view/facepalm-1", "javascript:alert(1)"],
+    }
+    assert external_engine.render_outbound(data) == "Ajá.\n\n👀\n\n![gif](https://tenor.com/view/facepalm-1)"
+    assert external_engine.render_outbound({"text": "solo texto"}) == "solo texto", "pre-F5 engines render as before"
+
+
+@pytest.mark.asyncio
+async def test_an_empty_turn_names_the_reason_the_engine_gave(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "", "empty_reason": "brain_empty"})),
+    )
+    evs = await _collect(
+        external_engine.stream_external_turn(persona_id="insult", user_text="hi", session_uuid="s", user_id="u")
+    )
+    assert evs == [{"type": "error", "message": "external engine returned an empty answer (brain_empty)"}]
+
+
+@pytest.mark.asyncio
 async def test_channel_id_is_the_conversation_id(monkeypatch) -> None:
     """OG118-CONTINUITY: the engine keys its long-lived session by channel_id
     (session_uuid is ignored by persona_runner). A hardcoded channel would pool
