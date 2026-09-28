@@ -4,7 +4,10 @@
 
 > **⏸️ APAGADO 2026-09-27 (decisión de Bernard, ahorro Azure):** `persona-gateway` y
 > `khimeras-host` están en **Stopped** (`POST …/containerApps/<app>/stop`, reversible con
-> `/start`), y el workflow **CD está `disabled_manually`** para que un push no las reviva.
+> `/start`). El CD volvió a estar activo el mismo día: su `detect` **salta cualquier app en
+> `Stopped`** (no mintea revisiones que nadie corre ni espera un health que no llega), así
+> que un push despliega el runner y deja las apps apagadas en paz; `az containerapp start`
+> las devuelve al siguiente deploy.
 > `persona-runner` se quedó **Running** (min=0, cuesta ~0 parado): og118
 > (`OG118_EXTERNAL_RUNNER_URL`) lo usa como cerebro de Yodo/Oxígeno — apagarlo no ahorra y
 > deja a og118 sin motor. Los bots están offline en Discord A PROPÓSITO — no es un incidente. Se
