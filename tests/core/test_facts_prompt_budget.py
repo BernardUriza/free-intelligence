@@ -24,7 +24,7 @@ from persona_core.facts import (
     EXISTING_FACTS_CHAR_BUDGET,
     extract_facts,
 )
-from persona_gateway.facts import FactExtractor
+from persona_core.turn.facts import FactExtractor
 
 
 class _CapturingJudge:

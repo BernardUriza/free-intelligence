@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from persona_gateway.markers import INVITE_PERSONA_ID, MarkerRouter
+from persona_core.turn.markers import INVITE_PERSONA_ID, MarkerRouter
 
 
 def _router(persona_id: str = "insult") -> MarkerRouter:

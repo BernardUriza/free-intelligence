@@ -60,6 +60,9 @@ class ConversationFacade:
     async def get_latest_username_per_user(self) -> dict[str, str]:
         return await self._messages.get_latest_username_per_user()
 
+    async def get_latest_username(self, user_id: str) -> str | None:
+        return await self._messages.get_latest_username(user_id)
+
     async def get_all_user_messages(self, limit_per_user: int = 30) -> dict[str, dict]:
         return await self._messages.get_all_user_messages(limit_per_user)
 

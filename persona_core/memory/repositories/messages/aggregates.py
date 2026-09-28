@@ -61,6 +61,18 @@ class MessagesAggregates(BaseRepository):
         )
         return {r["user_id"]: r["user_name"] for r in rows}
 
+    async def get_latest_username(self, user_id: str) -> str | None:
+        """The name this user last spoke under, or None if they never spoke.
+
+        A surface that knows the principal but not a display name (og118 sends
+        an Auth0 `sub`) takes the name the person already uses elsewhere. No
+        index leads on `user_id`: Postgres walks the primary key backwards,
+        which on ~10k rows (measured 2026-09-28) costs the same as a hit."""
+        return await self._fetchval(
+            "SELECT user_name FROM messages WHERE user_id = $1 AND role = 'user' ORDER BY id DESC LIMIT 1",
+            user_id,
+        )
+
     async def get_channel_participants(self, channel_id: str, limit: int = 10) -> list[dict]:
         """Distinct users who posted in a channel, most recent first.
 

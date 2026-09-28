@@ -55,21 +55,26 @@ The live system is FOUR packages plus the host:
   reception, `_dispatch`/`_handle`, 🔊 voice reaction), `boot.py`
   (bind→connect→login order, per-persona supervision), `config.py`,
   `delivery.py` (chunked send, `DISCORD_LIMIT = 1990`), `turns.py`
-  (run_and_deliver + typing keepalive), `facts.py` (background ADD-only
-  extraction), `ingest.py`, `routing.py`, `markers.py`, `invites.py` +
+  (run_and_deliver + typing keepalive — Discord's delivery tail), `ingest.py`,
+  `routing.py`, `invites.py` +
   `invite_server.py` (:8788 `/invite`, sole host post alice-bot retirement),
   `vision.py`, `voice.py`, `workers/` (agenda, reminders, research,
   reflection).
 - `persona_runner/` — FastAPI + Claude Agent SDK. `runner.py`, `api/` (turn,
-  judge, artifacts, ops, workspace), `engine/` (framing, options,
-  persona_files, session_pool), `routing/` (model_routing, router_runtime),
-  `core/` (auth, config, schemas), `workspace_renderer.py`.
-- `persona_core/` — the persona's core, surface-free: `memory/` (Postgres
-  store + repositories), `behavior/` (presets, vulnerability — the behavior
-  engine), `guidance.py` (the guardian seam), `facts.py`, `style.py`,
-  `markers.py`, `reactions.py`, `attachments.py`, `tts.py`/`stt.py`,
-  `prompts.py` + `prompts_md/`, `corpus/`, `tickets.py`, `runner/` (HTTP
-  client), `persona/`, `llm/` (shared types), `version.py` (`VERSION_TAG`).
+  `turn_pipeline` — the runner as pipeline host —, judge, artifacts, ops,
+  workspace), `engine/` (framing, options, persona_files, session_pool),
+  `routing/` (model_routing, router_runtime), `core/` (auth, config,
+  schemas), `workspace_renderer.py`.
+- `persona_core/` — the persona's core, surface-free: `turn/` (the turn
+  pipeline, F3 — `pipeline.py::run_turn`, `context.py` TurnContextBuilder,
+  `markers.py` MarkerRouter, `facts.py` FactExtractor, `framing.py`
+  compose_user_text), `memory/` (Postgres store + repositories), `behavior/`
+  (presets, vulnerability — the behavior engine), `guidance.py` (the
+  guardian seam), `facts.py`, `style.py`, `markers.py` (parsers),
+  `reactions.py`, `attachments.py`, `tts.py`/`stt.py`, `prompts.py` +
+  `prompts_md/`, `corpus/`, `tickets.py`, `runner/` (HTTP client),
+  `persona/`, `llm/` (shared types), `version.py` (`VERSION_TAG`). It imports
+  no surface and no host — `tests/arch/test_persona_core_is_surface_free.py`.
   **Named `khimeras_shared` until 2026-09-28** — renamed for its role (what
   makes a persona the same on every surface) instead of the Discord server it
   was born in; `git show <sha>:khimeras_shared/...` still reads the old trees.
@@ -136,6 +141,17 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   the HOST owns the failure instead (2026-09-03): `/invite` with `wait: true`
   returns the turn's real outcome, `demux_ai/fallback.py` retries once and then
   posts a house-voiced notice naming the persona — see `robustness.md`.
+- **One turn pipeline, every surface (F3, 2026-09-28)**: `persona_core.turn`
+  owns everything a turn does short of delivering it — store the ask, context +
+  guardian guidance, framing, markers, store the reply, facts in the
+  background. `TurnRequest.pipeline` says who runs it: `"caller"` (default,
+  the gateway — it assembles the turn itself and the runner only calls the
+  brain) or `"runner"` (og118 — the runner runs `run_turn` around the brain,
+  `persona_runner/api/turn_pipeline.py`). Never both for one turn: that would
+  store every message twice. The gateway still uses the pieces directly
+  (`TurnContextBuilder`, `MarkerRouter`, `FactExtractor`) with its own Discord
+  delivery tail; moving it onto `run_turn` itself is the step for when Discord
+  comes back.
 - Settings from env (`persona_gateway/config.py`), structured logging via
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");

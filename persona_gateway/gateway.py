@@ -18,13 +18,13 @@ Discord adapter: event handlers + the two turn entry points, each delegating to
 an injected service —
 - reception predicates → `persona_gateway.routing`
 - attachment blocks (audio is the host's lane, not this one) → `persona_gateway.ingest`
-- context/guidance/other-people assembly → `persona_gateway.turn_context`
+- context/guidance/other-people assembly → `persona_core.turn.context`
 - the turn tail (runner → react → markers → send → store → TTS) → `persona_gateway.turns`
 - invite helpers (channel resolve, instruction, trigger fetch) → `persona_gateway.invites`
 - reply delivery (chunk + tag + send) → `persona_gateway.delivery`
-- durable markers (research/agenda/remind/remember) → `persona_gateway.markers`
+- durable markers (research/agenda/remind/remember) → `persona_core.turn.markers`
 - the drain loops → `persona_gateway.workers`
-- background fact extraction → `persona_gateway.facts`
+- background fact extraction → `persona_core.turn.facts`
 - per-persona TTS → `persona_gateway.voice`
 - operator-tunable cadences/timeouts → `persona_gateway.config`
 - process bootstrap (deps, /invite server, lifecycle) → `persona_gateway.app`
@@ -45,15 +45,15 @@ from persona_core.prompts import PromptCache
 from persona_core.runner.agent_client import AgentRunnerClient
 from persona_core.runner.judge_client import RunnerJudgeClient
 from persona_core.tickets import LedgerRow
+from persona_core.turn.context import TurnContextBuilder
+from persona_core.turn.facts import FactExtractor
+from persona_core.turn.markers import MarkerRouter
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.drain import TurnGate
-from persona_gateway.facts import FactExtractor
 from persona_gateway.ingest import MessageIngest
 from persona_gateway.invites import fetch_trigger, invite_instruction, resolve_messageable
-from persona_gateway.markers import MarkerRouter
 from persona_gateway.routing import clean_mention, edit_summons, should_respond
-from persona_gateway.turn_context import TurnContextBuilder
 from persona_gateway.turns import TurnRunner
 from persona_gateway.vision import ImageTranscriber
 from persona_gateway.voice import VoiceService
@@ -124,7 +124,7 @@ class PersonaClient(discord.Client):
         self._markers = MarkerRouter(persona, memory)
         self._voice = VoiceService(persona, tts_client)
         self._ingest = MessageIngest(persona, stt_client)
-        self._context = TurnContextBuilder(persona, memory)
+        self._context = TurnContextBuilder(persona, memory, relevant_limit=CONFIG.relevant_limit)
         self._turns = TurnRunner(
             persona,
             memory,
@@ -134,7 +134,7 @@ class PersonaClient(discord.Client):
             self._bg_tasks,
             auto_tts_min_chars=auto_tts_min_chars,
         )
-        self._facts = FactExtractor(persona, memory, self._bg_tasks)
+        self._facts = FactExtractor(persona, memory, self._bg_tasks, model=CONFIG.facts_extraction_model)
         self._vision = ImageTranscriber(memory, self._bg_tasks)
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)

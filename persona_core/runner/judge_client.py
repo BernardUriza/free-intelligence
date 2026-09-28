@@ -26,7 +26,33 @@ import structlog
 
 log = structlog.get_logger()
 
-__all__ = ["JudgeResponse", "RunnerJudgeClient"]
+__all__ = ["JudgeResponse", "RunnerJudgeClient", "flatten_utility_messages"]
+
+
+def flatten_utility_messages(messages: list[dict[str, Any]]) -> tuple[str, list[dict]]:
+    """Anthropic-shape `messages` → the judge's one-shot `(user_text, attachments)`.
+
+    Only `user` turns count; list content splits into concatenated text plus
+    image/document blocks. Shared by this HTTP client and the runner's
+    in-process judge, so both read a prompt the same way.
+    """
+    user_text = ""
+    attachments: list[dict] = []
+    for msg in messages:
+        if msg.get("role") != "user":
+            continue
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            user_text += ("\n\n" if user_text else "") + content
+        elif isinstance(content, list):
+            for block in content:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "text" and block.get("text"):
+                    user_text += ("\n\n" if user_text else "") + block["text"]
+                elif block.get("type") in {"image", "document"}:
+                    attachments.append(block)
+    return user_text, attachments
 
 
 @dataclass
@@ -100,23 +126,7 @@ class RunnerJudgeClient:
             httpx.HTTPError on a transport failure or a non-2xx from the runner —
             callers treat fact extraction as best-effort and swallow it.
         """
-        user_text = ""
-        attachments: list[dict] = []
-        for msg in messages:
-            if msg.get("role") != "user":
-                continue
-            content = msg.get("content", "")
-            if isinstance(content, str):
-                user_text += ("\n\n" if user_text else "") + content
-            elif isinstance(content, list):
-                for block in content:
-                    if not isinstance(block, dict):
-                        continue
-                    if block.get("type") == "text" and block.get("text"):
-                        user_text += ("\n\n" if user_text else "") + block["text"]
-                    elif block.get("type") in {"image", "document"}:
-                        attachments.append(block)
-
+        user_text, attachments = flatten_utility_messages(messages)
         if not user_text.strip():
             raise ValueError("RunnerJudgeClient.utility_call: messages produced empty user_text")
 
