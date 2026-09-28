@@ -1,6 +1,6 @@
 # OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)
 
-Status: **In progress — recibo del SERVIDOR obtenido 2026-09-28; falta el recibo del CLIENTE** (el turno rompió la UI con React #185 y no persistió; ver intento #3)
+Status: **Done 2026-09-28** — recibo E2E completo en app.og118.ai (intento #4): la tool se llama, el Job corre `Succeeded`, el worker entrega con `append_message` y el mensaje aparece en el chat sin recargar. Screenshot: `evidence/og118-background-1-e2e4-prod-2026-09-28.jpg`
 Proposed: 2026-07-05 by Bernard (dogfood: og118 promised a background investigation, then had no access half an hour later)
 
 ## What it is
@@ -239,3 +239,39 @@ Mismo chat (`394cdf32-e313-4dfc-8de6-e97c55297652`), turno pidiendo la tarea en 
 focus-visibility disparando `reloadActive()` + `seedVersion` DURANTE el stream, o la sesión
 concurrente en la misma cuenta), arreglar la pérdida del turno, y repetir el E2E con la pestaña
 sin otra sesión encima para el recibo visual (screenshot).
+
+### Intento E2E #4 — 2026-09-28 05:06 UTC, producción, pestaña propia: ✅ DONE
+
+Chat nuevo en app.og118.ai (`3a6fb46d-a83b-49c0-86ca-3316938495e9`), pestaña que ninguna otra
+sesión tocaba. Turno a las 05:06; ack del modelo a las 05:06:54; mensaje del worker pintado
+en el chat **sin recargar** a las 05:07:42 (poll de `useOg118ConversationSync`).
+
+| Superficie | Recibo |
+|---|---|
+| UI | screenshot `evidence/og118-background-1-e2e4-prod-2026-09-28.jpg`: usuario, ack, mensaje del worker |
+| Consola | cero errores; sólo el warn de AudioContext sin gesto |
+| Azure | `og118-worker-2fjd0fa` StartTime 05:06:48Z → **Succeeded** |
+| og118-api | `GET /conversations/3a6fb46d…` → user, assistant, assistant `origin: background` — el turno SÍ quedó persistido |
+
+### El React #185 del intento #3 — NO se reprodujo; no hay fix de código
+
+Tres intentos limpios, cero #185:
+
+1. og118-web en `next dev` (auth0, build sin minificar) desde un worktree de `main`, contra
+   og118-api de producción por un proxy CORS local en :8118. Chat nuevo → sin error, mensaje del
+   worker en el chat sin recargar (Job `og118-worker-0wwca0e`).
+2. Mismo local, en el chat "sucio" del intento #3 (con el 401 y el mensaje huérfano) → sin error
+   (Job `og118-worker-oovmg8f`).
+3. El intento #4 en producción de arriba.
+
+Producción corre el mismo código que `main`: el último deploy de web es `a9862fdf` y hay **cero**
+commits en `apps/og118/web` o `apps/packages/fi-glass` desde entonces. La única condición distinta
+del intento #3 fue que **otra sesión de Claude estaba conduciendo la misma pestaña** del Chrome de
+debug (subió un PDF y mandó turnos de "Probe F2" en la misma cuenta mientras mi turno streameaba).
+Eso explica el crash y la pérdida del turno sin acusar al código; no se escribió un fix porque no
+hay nada que el test rojo pueda reproducir. Si el #185 vuelve a aparecer en una pestaña sin
+co-conductor, se reabre con el component stack del build de dev (la receta del proxy vive en esta
+sección).
+
+Residual real (no bloquea): el chat `394cdf32…` del intento #3 quedó con el mensaje del worker
+sin su pregunta, porque el PUT del cliente nunca salió. Es dato de prueba en la cuenta de Bernard.
