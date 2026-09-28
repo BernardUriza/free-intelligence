@@ -188,6 +188,15 @@ interface MessageImagesProps {
 }
 declare function MessageImages({ images, className, imageClassName, altLabel, }: MessageImagesProps): react.JSX.Element | null;
 
+interface MessageReactionsProps {
+    reactions: string[] | undefined;
+    className?: string;
+    chipClassName?: string;
+    /** Accessible label for the row. Default: "Reacciones". */
+    ariaLabel?: string;
+}
+declare function MessageReactions({ reactions, className, chipClassName, ariaLabel, }: MessageReactionsProps): react.JSX.Element | null;
+
 interface MessageAuthorHeaderProps {
     author: MessageAuthor;
     /** ISO timestamp; rendered as a short local time when parseable. */
@@ -257,4 +266,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, MessageReactions, type MessageReactionsProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };
