@@ -21,12 +21,12 @@ from ..listen.applog import _now, append
 COOLDOWN_S = float(os.environ.get("AIRE_CREDENTIAL_COOLDOWN_S", "3600"))
 RESET_MARGIN_S = 60.0
 RESET_HORIZON_S = 8 * 86400.0
-# Each phrase arrived as the TEXT of a "successful" turn with zero usage:
-# `session` (2026-09-03) is the Max 5h window; `credit balance` (2026-09-08)
-# is the card at $0 answering as prose, which kept a dead slot active.
+# Each arrived as the TEXT of a zero-usage "successful" turn: Max 5h `session` (09-03),
+# card at $0 (09-08), token `revoked` by a re-mint (09-28, 401 shown in og118).
 LIMIT_PHRASE = re.compile(
     r"hit your (weekly|usage|session) limit|usage limit.*resets"
-    r"|credit balance is too low|rate_limit_error",
+    r"|credit balance is too low|rate_limit_error"
+    r"|oauth access token has been revoked|authentication_error",
     re.IGNORECASE)
 # "resets Aug 10, 8pm (UTC)" (weekly) and "resets 11:20pm (UTC)" (session).
 RESET_AT = re.compile(
