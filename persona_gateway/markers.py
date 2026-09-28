@@ -19,13 +19,13 @@ import asyncio
 
 import structlog
 
-from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
-from khimeras_shared.invite_marker import parse_invite, strip_invites
-from khimeras_shared.markers import parse_remind_cancels, strip_remind_cancels
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.remember_marker import parse_remembers, persist_remembers, strip_remembers
-from khimeras_shared.remind_marker import parse_remind, persist_remind, strip_reminds
-from khimeras_shared.research_marker import parse_research, strip_research
+from persona_core.agenda_marker import parse_agenda, strip_agenda
+from persona_core.invite_marker import parse_invite, strip_invites
+from persona_core.markers import parse_remind_cancels, strip_remind_cancels
+from persona_core.memory import MemoryStore
+from persona_core.remember_marker import parse_remembers, persist_remembers, strip_remembers
+from persona_core.remind_marker import parse_remind, persist_remind, strip_reminds
+from persona_core.research_marker import parse_research, strip_research
 from shared.personas import Persona
 from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID as INVITE_PERSONA_ID
 

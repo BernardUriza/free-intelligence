@@ -116,6 +116,6 @@ async def test_gateway_never_calls_susurro_itself():
     channel = _invite_channel()
     channel.fetch_message.return_value = _voice_trigger()
     transcribe = AsyncMock(return_value="no debería llamarse")
-    with patch("khimeras_shared.stt.transcribe_voice_message", new=transcribe):
+    with patch("persona_core.stt.transcribe_voice_message", new=transcribe):
         await _invite(client, channel, SPOKEN)
     transcribe.assert_not_awaited()

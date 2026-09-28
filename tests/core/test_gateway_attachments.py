@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
-from khimeras_shared.attachments import MAX_ATTACHMENT_SIZE
+from persona_core.attachments import MAX_ATTACHMENT_SIZE
 from persona_gateway.gateway import PersonaClient
 from shared.personas import Persona
 

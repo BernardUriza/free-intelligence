@@ -16,12 +16,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from khimeras_shared.constraints import (
+from persona_core.constraints import (
     MAX_CONSTRAINTS,
     build_constraints_block,
     select_constraints,
 )
-from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, build_turn_guidance
+from persona_core.guidance import MAX_GUIDANCE_CHARS, build_turn_guidance
 
 ATHEIST = {"fact": "Es ateo", "category": "constraint"}
 VEGAN = {"fact": "Es vegano", "category": "constraint"}
@@ -70,7 +70,7 @@ def test_constraints_are_capped_but_never_dropped_silently():
 
 
 def test_a_store_fault_degrades_to_no_block_not_a_crash():
-    with patch("khimeras_shared.constraints.load_prompt", side_effect=RuntimeError("prompt gone")):
+    with patch("persona_core.constraints.load_prompt", side_effect=RuntimeError("prompt gone")):
         assert build_constraints_block([ATHEIST]) is None
 
 
@@ -90,7 +90,7 @@ def test_invariants_survive_the_guidance_truncation():
     """RESISTANCE: the 16k cap must eat preset prose, never an invariant — so the
     block goes FIRST."""
     huge = "x" * (MAX_GUIDANCE_CHARS * 2)
-    with patch("khimeras_shared.guidance.build_preset_prompt", return_value=huge):
+    with patch("persona_core.guidance.build_preset_prompt", return_value=huge):
         guidance = build_turn_guidance(
             current_message="hola",
             recent_messages=[],

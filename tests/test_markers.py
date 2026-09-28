@@ -4,7 +4,7 @@ because the drain loop stripped only its own marker, not [REACT:])."""
 
 from __future__ import annotations
 
-from khimeras_shared.markers import strip_delivery_markers
+from persona_core.markers import strip_delivery_markers
 
 
 def test_strips_leaked_react_marker():

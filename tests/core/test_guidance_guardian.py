@@ -18,9 +18,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from khimeras_shared import guidance as guidance_mod
-from khimeras_shared.behavior import VULNERABLE_THRESHOLD, compute_vulnerability_score
-from khimeras_shared.guidance import (
+from persona_core import guidance as guidance_mod
+from persona_core.behavior import VULNERABLE_THRESHOLD, compute_vulnerability_score
+from persona_core.guidance import (
     MAX_GUIDANCE_CHARS,
     build_turn_guidance,
     guidance_for_turn,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from khimeras_shared.proactive_agenda import frame_agenda_prompt, is_daytime, is_nothing_new
+from persona_core.proactive_agenda import frame_agenda_prompt, is_daytime, is_nothing_new
 from shared.time_context import MEXICO_CITY_TZ
 
 

@@ -68,7 +68,7 @@ def test_serve_route_is_defined_on_the_router():
 
 import pytest  # noqa: E402
 
-import khimeras_shared.html_artifacts as html_store  # noqa: E402
+import persona_core.html_artifacts as html_store  # noqa: E402
 from persona_runner import mcp_tools  # noqa: E402
 from persona_runner.mcp_tools import turn_context  # noqa: E402
 

@@ -20,9 +20,9 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
-from khimeras_shared.memory import MemoryStore, format_relevant_block
-from khimeras_shared.other_people import other_people_block_for_turn
+from persona_core.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
+from persona_core.memory import MemoryStore, format_relevant_block
+from persona_core.other_people import other_people_block_for_turn
 from persona_gateway.config import CONFIG
 from shared.corpus.persona_corpus import build_persona_corpus_block
 from shared.personas import Persona

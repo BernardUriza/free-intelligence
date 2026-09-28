@@ -54,7 +54,7 @@ dependencies:
   # `PSYCHIATRY.chronic_signals` — los 5 regex de crisis y los 6 grupos de
   # vulnerabilidad de este repo, migrados verbatim con sus pesos y su umbral.
   # El issue #52 delega en ellos y borra las copias locales; en 0.25.1 esos dos
-  # atributos NO existen y `khimeras_shared/behavior/vulnerability.py` no importa.
+  # atributos NO existen y `persona_core/behavior/vulnerability.py` no importa.
   # SUBIDO a 0.26.1 (2026-09-02): Alex midió la composición del #53 y en 0.26.0
   # `UrgencyClassifier` no veía "mejor sin mí" (el stripper de negaciones se la
   # comía por el "sin") ni ninguna frase sin acentos (16 bajaban de banda, 5 de
@@ -89,7 +89,7 @@ dependencies:
   # banda + grupos de los dos ejes en UNA lectura (aquí colapsaron
   # `matched_acute_groups`, `history_conditions`, `symptoms_in_message` y
   # `_GROUP_TO_CONDITION`), y `fi_core.audit` trae el seudónimo HMAC y el
-  # evento con hash que `khimeras_shared/audit.py` escribió primero.
+  # evento con hash que `persona_core/audit.py` escribió primero.
   # SUBIDO a 0.32.0 (2026-09-10): trae el EJE DE RECUPERACIÓN que Álex decidió
   # el 09-09 (hallazgo 4 del #55). El corpus sólo sabía subir la escalera — 145
   # turnos vivían en `stability` sin una sola señal de recuperación, que no es

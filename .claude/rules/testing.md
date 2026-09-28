@@ -53,7 +53,7 @@ Before EVERY push, verify that code actually works at the Python import level, n
 
 2. **Real import smoke test**: After adding imports from external packages, verify the module loads:
    ```bash
-   conda run -n discord-bot python -c "from khimeras_shared.guidance import guidance_for_turn; print('OK')"
+   conda run -n discord-bot python -c "from persona_core.guidance import guidance_for_turn; print('OK')"
    ```
 
 3. **Never assume SDK APIs exist**: Always check `dir(module)` or `hasattr(module, 'ClassName')` before using a class you haven't used before in this codebase.
@@ -83,7 +83,7 @@ The live introspection surfaces are:
    `memory/reference_azure_log_analytics.md`.
 2. **The Postgres data plane directly** — messages/facts live in Azure
    PostgreSQL (`POSTGRES_URL`, schema in
-   `khimeras_shared/memory/postgres_schema.sql`). A read-only `psql` query is
+   `persona_core/memory/postgres_schema.sql`). A read-only `psql` query is
    the modern replacement for every old `/debug/messages` step.
 3. **Discord itself via the debug Chrome (`:9333`)** — the canonical history of
    what was actually said and answered.
@@ -437,12 +437,12 @@ How to apply when driving Discord in the debug Chrome (`:9333`,
 - Open `https://discord.com/channels/<guild>/1489180895264116736` (#general),
   not the DM.
 - Send the probe there, confirm the persona replies with the expected
-  version tag (`khimeras_shared/version.py::VERSION_TAG`).
+  version tag (`persona_core/version.py::VERSION_TAG`).
 - A DM check is acceptable ONLY as a quick "is the process alive at all" smoke,
   never as the verification of record. If a fix is "verified", it was verified in
   #general.
 
-**Why (2026-06-16):** the khimeras_shared deploy-gap P0 manifested in #general
+**Why (2026-06-16):** the khimeras_shared (hoy `persona_core`) deploy-gap P0 manifested in #general
 (every turn fell over to ALICE there). The fix was first "verified" via the
 Insult DM — which replied fine because the DM path is the one that never breaks.
 Bernard: *"tú estás siempre probando Insult directo y eso pues nunca ha fallado"*.

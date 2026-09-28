@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from khimeras_shared.tickets import LedgerRow
+from persona_core.tickets import LedgerRow
 from persona_gateway.gateway import PersonaClient
 from shared.personas import Persona
 

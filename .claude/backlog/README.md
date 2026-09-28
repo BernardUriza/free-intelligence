@@ -1,5 +1,9 @@
 # Backlog — server-bot (repo renombrado de `discord-bot` el 2026-09-23)
 
+> **Rename 2026-09-28:** el paquete `khimeras_shared/` ahora se llama `persona_core/`.
+> Los items de este folder son bitácoras fechadas y conservan el nombre viejo: lee
+> `khimeras_shared/x` como `persona_core/x` en el árbol vivo.
+
 Roadmap / feature ideas que NO son reglas de comportamiento (esas viven en
 `.claude/rules/`). Un item por archivo. Regla padre: `backlog-handling.md`
 en el engineering-playbook. Items Done se retiran del folder (limpiezas

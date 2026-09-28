@@ -17,8 +17,8 @@ from typing import ClassVar
 import httpx
 import pytest
 
-from khimeras_shared.runner import agent_client as mod
-from khimeras_shared.runner.agent_client import AgentRunnerClient, RunnerDownError
+from persona_core.runner import agent_client as mod
+from persona_core.runner.agent_client import AgentRunnerClient, RunnerDownError
 
 
 class _Resp:
@@ -67,12 +67,12 @@ class _ScriptedClient:
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
 
     async def _no_sleep(_s):
         return None
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("persona_core.runner.agent_client.asyncio.sleep", _no_sleep)
     _ScriptedClient.script = []
     _ScriptedClient.calls = []
     _ScriptedClient.bodies = []
@@ -109,7 +109,7 @@ async def test_no_single_request_carries_the_turn_budget(client, monkeypatch):
         def __init__(self, *a, timeout=None, **k) -> None:
             seen.append(timeout)
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _Spy)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _Spy)
     _ScriptedClient.script = [
         _Resp(202, {"job_id": "j1"}),
         _Resp(200, {"job_id": "j1", "status": "done", "response": TURN}),
@@ -177,7 +177,7 @@ async def test_the_submit_read_timeout_covers_a_cold_start_but_not_the_ingress_c
         def __init__(self, *a, timeout=None, **k) -> None:
             seen.append(timeout)
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _Spy)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _Spy)
     _ScriptedClient.script = [
         _Resp(202, {"job_id": "j1"}),
         _Resp(200, {"job_id": "j1", "status": "done", "response": TURN}),

@@ -58,7 +58,7 @@ from fastapi import HTTPException
 from fi_runner import AIREBackend
 from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage
 
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
 from persona_runner.engine import aire_principal, aire_topic, auth_failure
@@ -759,7 +759,7 @@ def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
     in parallel — which is the whole point of the knob.
 
     Bounded, unlike a per-call name: judge system prompts are ``.md`` files
-    (``khimeras_shared/prompts_md/``) templated with at most a persona name, and
+    (``persona_core/prompts_md/``) templated with at most a persona name, and
     all per-user material rides the USER message. So the casita count is
     "distinct judge prompts times personas" — a handful, stable for the life of the
     droplet — instead of one directory per background fact extraction. AIRE has

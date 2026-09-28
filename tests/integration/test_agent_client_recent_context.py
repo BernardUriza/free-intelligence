@@ -19,7 +19,7 @@ from typing import ClassVar
 
 import pytest
 
-from khimeras_shared.runner.agent_client import (
+from persona_core.runner.agent_client import (
     _RECENT_CONTEXT_MAX_CHARS,
     AgentRunnerClient,
     _format_recent_context,
@@ -53,7 +53,7 @@ class _FakeClient:
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _FakeClient)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _FakeClient)
     _FakeClient.captured = {}
     return AgentRunnerClient("http://runner", "tok")
 

@@ -1,4 +1,4 @@
-"""Turnos con boleto en el runner — `khimeras_shared.tickets` aplicado a `/v1/turn`.
+"""Turnos con boleto en el runner — `persona_core.tickets` aplicado a `/v1/turn`.
 
 El porqué vive en ese módulo (el ingress corta a los 240 s; un turno de Vultur
 tardó 326.9 s y se tiró). Aquí se nombra el registro, se fija el tipo y se le
@@ -28,8 +28,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import structlog
 
-from khimeras_shared import tickets
-from khimeras_shared.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
+from persona_core import tickets
+from persona_core.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
 from persona_runner.core import config
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine.turn_ledger import PgTurnLedger

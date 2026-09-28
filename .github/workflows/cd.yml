@@ -212,7 +212,7 @@ jobs:
           HOST_SHA=$(running_tag khimeras-host app)
 
           BUILD_GW=$(changed "$GW_SHA" \
-            environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway Dockerfile.base)
+            environment.yml persona_gateway/ persona_core/ shared/ Dockerfile.gateway Dockerfile.base)
           if [ "$(stopped persona-gateway)" = "true" ]; then
             echo "persona-gateway is Stopped — skipping (start it to deploy)"; BUILD_GW=false
           fi
@@ -221,7 +221,7 @@ jobs:
           # + its HOST_DISCORD_TOKEN. Deploy is continue-on-error, so until that app
           # exists this is a no-op — exactly the gateway's own dormant pattern.
           BUILD_HOST=$(changed "$HOST_SHA" \
-            environment.yml demux_ai/ khimeras_shared/ shared/ Dockerfile.host Dockerfile.base)
+            environment.yml demux_ai/ persona_core/ shared/ Dockerfile.host Dockerfile.base)
           if [ "$(stopped khimeras-host)" = "true" ]; then
             echo "khimeras-host is Stopped — skipping (start it to deploy)"; BUILD_HOST=false
           fi
@@ -229,9 +229,9 @@ jobs:
           # importa personas.insult" era un comentario fósil del Dockerfile — el
           # grep del paquete conda instalado dio CERO. Los importadores reales
           # eran persona_runner/{model_routing,router_runtime,mcp_tools}.py, ya
-          # repunteados a khimeras_shared.{behavior,deep_memory,html_artifacts}.
+          # repunteados a persona_core.{behavior,deep_memory,html_artifacts}.
           BUILD_RUNNER=$(changed "$RUNNER_SHA" \
-            environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
+            environment.yml shared/ persona_core/ demux_ai/ persona_runner/ \
             infra/azure/runner.Dockerfile infra/azure/entrypoint.sh \
             Dockerfile.base)
           if [ "$(stopped persona-runner)" = "true" ]; then

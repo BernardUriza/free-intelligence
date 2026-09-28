@@ -64,12 +64,15 @@ The live system is FOUR packages plus the host:
   judge, artifacts, ops, workspace), `engine/` (framing, options,
   persona_files, session_pool), `routing/` (model_routing, router_runtime),
   `core/` (auth, config, schemas), `workspace_renderer.py`.
-- `khimeras_shared/` — everything shared: `memory/` (Postgres store +
-  repositories), `behavior/` (presets, vulnerability — the behavior
+- `persona_core/` — the persona's core, surface-free: `memory/` (Postgres
+  store + repositories), `behavior/` (presets, vulnerability — the behavior
   engine), `guidance.py` (the guardian seam), `facts.py`, `style.py`,
   `markers.py`, `reactions.py`, `attachments.py`, `tts.py`/`stt.py`,
-  `prompts.py` + `prompts_md/`, `consolidation/`, `corpus/`, `runner/` (HTTP
+  `prompts.py` + `prompts_md/`, `corpus/`, `tickets.py`, `runner/` (HTTP
   client), `persona/`, `llm/` (shared types), `version.py` (`VERSION_TAG`).
+  **Named `khimeras_shared` until 2026-09-28** — renamed for its role (what
+  makes a persona the same on every surface) instead of the Discord server it
+  was born in; `git show <sha>:khimeras_shared/...` still reads the old trees.
 - `shared/` — `personas/` (the registry `registry.py` — source of truth for
   aliases/gating —, per-persona DNA `<id>.md`, `addressing.py`, `guidance/`
   content), `corpus/`, `logging_setup/`, `text/`, `time_context.py`.
@@ -136,15 +139,15 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
 - Settings from env (`persona_gateway/config.py`), structured logging via
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");
-  Azure Postgres via `khimeras_shared/memory/`.
+  Azure Postgres via `persona_core/memory/`.
 - **Facts are ADD-only**: background extraction (`persona_gateway/facts.py`) →
   `merge_facts_additive` onto the full live auto set before `save_facts`. A raw
   `save_facts(subset)` is a hard-delete in disguise (2026-06-03 P0).
 - **Behavioral guidance per turn**: `guidance_for_turn`
-  (`khimeras_shared/guidance.py`) classifies the preset against the user's
+  (`persona_core/guidance.py`) classifies the preset against the user's
   facts and ships the rendered guidance + vulnerable-user overlay to the runner
   on the wire. Fail-safe: any fault → normal turn.
-- **User invariants ride EVERY turn** (`khimeras_shared/constraints.py`,
+- **User invariants ride EVERY turn** (`persona_core/constraints.py`,
   2026-07-23): facts tagged `category='constraint'` — atheist, vegan, allergies,
   does-not-drive, estrangements — are restrictions on what may be SAID, not
   trivia competing for prompt space. They are rendered FIRST into
@@ -157,11 +160,11 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   ever resembles the topic. Backfill of pre-tag facts:
   `scripts/backfill_constraints.py` (dry-run by default, UPDATE-only).
 - Emoji reactions parsed from `[REACT:]` markers
-  (`khimeras_shared/reactions.py`), executed async in background with
+  (`persona_core/reactions.py`), executed async in background with
   human-like delay; background tasks tracked in a set for lifecycle.
 - Durable markers (`[REMIND:]`, `[AGENDA:]`, `[RESEARCH:]`, `[REMEMBER:]`)
   persist to Postgres; gateway workers (`persona_gateway/workers/`) deliver.
-- **`[GIF: tag]`** (`khimeras_shared/gifs.py`, 2026-07-23): the persona posts a
+- **`[GIF: tag]`** (`persona_core/gifs.py`, 2026-07-23): the persona posts a
   GIF from its OWN catalog — `shared/personas/guidance/<id>/gifs/catalog.md`,
   `tag: url` per line, hot-editable. The model emits an INTENT, never a URL: a
   tag with no entry posts NOTHING, which is the anti-hallucination guard (a GIF
@@ -174,7 +177,7 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   Discord's own picker now serves from Klipy + Giphy. Existing `tenor.com/view/…`
   URLs still render — the unfurl scrapes the site, which outlived the API.
 
-## Preset System (`khimeras_shared/behavior/presets/`)
+## Preset System (`persona_core/behavior/presets/`)
 - 6 behavioral modes: DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE, RESPECTFUL_SERIOUS, META_DEFLECTION
 - 3 modifiers (overlay on any mode): MEMORY_RECALL, CONTEMPT, MULTI_DOMAIN_SYNTHESIS
 - Priority: RESPECTFUL_SERIOUS always wins (safety), then META_DEFLECTION
@@ -191,8 +194,8 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
 - **The universal rule lives in the playbook SSOT: `engineering-playbook/rules/prompts-as-content-not-code.md` (P0, all repos).** This section is the server-bot-specific instantiation; the cross-repo law is the SSOT.
 - LLM-facing prompts MUST live in content files — persona DNA in
   `shared/personas/<id>.md`, guidance prose in `shared/personas/guidance/`,
-  utility prompts in `khimeras_shared/prompts_md/*.md` loaded via
-  `khimeras_shared/prompts.py::load_prompt(name)` — NEVER as inline Python
+  utility prompts in `persona_core/prompts_md/*.md` loaded via
+  `persona_core/prompts.py::load_prompt(name)` — NEVER as inline Python
   strings.
 - The loader is mtime-aware: editing the `.md` is picked up on the next request
   without redeploy. Call `load_prompt("<name>")` inside the function that uses
@@ -210,13 +213,13 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
 ## Reactions
 - LLM includes `[REACT:emoji1,emoji2]` in response (max 3 emojis)
 - `parse_reactions()` extracts, `strip_reactions()` removes markers
-  (`khimeras_shared/reactions.py`); `add_reactions()` fires in background with
+  (`persona_core/reactions.py`); `add_reactions()` fires in background with
   human-like delay
 - Reaction-only responses (no text) are supported — powerful for dismissal/acknowledgment
 - The gateway owns the full parse→strip lifecycle
   (`persona_gateway/gateway.py` / `turns.py`)
 
-## Attachments (`khimeras_shared/attachments.py`)
+## Attachments (`persona_core/attachments.py`)
 - Images (png/jpg/jpeg/gif/webp): sent BY REFERENCE — a URL-source block with the
   signed Discord CDN URL, never downloaded here. AIRE fetches it (SSRF-pinned),
   shrinks it to <= 2000 px and detects its type (aire-server #50). Caps: 10 MB per
@@ -252,5 +255,5 @@ the file.
   neutral by design (see robustness.md) — the old regex character-guard died
   with the monolith and has NO live equivalent, so the DNA + error-path
   discipline carry that responsibility alone
-- CI security layers: `bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/`
+- CI security layers: `bandit -r persona_gateway/ demux_ai/ persona_core/ shared/`
   + `pip-audit` (`.github/workflows/ci.yml`)

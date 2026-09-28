@@ -40,11 +40,11 @@ import discord
 import structlog
 from discord.ext import tasks
 
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.prompts import PromptCache
-from khimeras_shared.runner.agent_client import AgentRunnerClient
-from khimeras_shared.runner.judge_client import RunnerJudgeClient
-from khimeras_shared.tickets import LedgerRow
+from persona_core.memory import MemoryStore
+from persona_core.prompts import PromptCache
+from persona_core.runner.agent_client import AgentRunnerClient
+from persona_core.runner.judge_client import RunnerJudgeClient
+from persona_core.tickets import LedgerRow
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import DISCORD_LIMIT, chunk, full_text_for, strip_version_tag
 from persona_gateway.drain import TurnGate

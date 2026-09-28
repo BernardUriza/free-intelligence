@@ -30,7 +30,7 @@ not just started. Update means:
 
 Scope: anything touching facts dedup (PR-1/2/3), the import-boundary ratchet,
 the internal reshaping of `insult/`, the physical demux (`personas/`,
-`demux_ai/`, `khimeras_shared/`), shared/fi-core promotion, or infra/deploy
+`demux_ai/`, `persona_core/`), shared/fi-core promotion, or infra/deploy
 alignment. If a turn ends with one of those advanced but the HTML untouched,
 the turn is incomplete.
 
@@ -72,7 +72,7 @@ This rule was registered 2026-06-12 after Claude ended a turn with
 conda run -n discord-bot ruff check .
 conda run -n discord-bot ruff format --check .
 conda run -n discord-bot pytest -v --cov
-conda run -n discord-bot bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml
+conda run -n discord-bot bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml
 conda run -n discord-bot pip-audit
 ```
 
@@ -92,7 +92,7 @@ conda run -n discord-bot pip-audit
 - On every commit, bump the patch version (micro point) in BOTH live files
   (`personas/insult/__init__.py` died in 2f8d9ad):
   - `pyproject.toml` → `version = "X.Y.Z"`
-  - `khimeras_shared/version.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript
+  - `persona_core/version.py` → `VERSION_TAG = "ᵛX·Y·Z"` (superscript
     unicode — every persona's last chunk wears this same deploy tag)
 - The version tag appears at the bottom of every bot response so we can track which deploy is responding
 - Bump patch (Z) for fixes/small changes, minor (Y) for features, major (X) for breaking changes

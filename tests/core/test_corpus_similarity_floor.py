@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-from khimeras_shared.corpus import references
-from khimeras_shared.deep_memory import _USER_MEMORY_MIN_SIMILARITY
+from persona_core.corpus import references
+from persona_core.deep_memory import _USER_MEMORY_MIN_SIMILARITY
 
 
 def _hit(similarity: float, text: str) -> dict:

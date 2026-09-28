@@ -54,8 +54,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from khimeras_shared.behavior.contracts.presets import PresetMode, PresetSelection
-from khimeras_shared.behavior.presets.guidance import build_preset_prompt
+from persona_core.behavior.contracts.presets import PresetMode, PresetSelection
+from persona_core.behavior.presets.guidance import build_preset_prompt
 
 GUIDANCE = (
     Path(__file__).resolve().parents[2]

@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
-from khimeras_shared.memory.context import build_context, format_relevant_block
-from khimeras_shared.memory.repositories.messages import search_terms
+from persona_core.memory.context import build_context, format_relevant_block
+from persona_core.memory.repositories.messages import search_terms
 from persona_gateway.gateway import PersonaClient
 from persona_gateway.turn_context import TurnContextBuilder
 from shared.personas import Persona

@@ -1,6 +1,6 @@
 """Import-smoke harness — a green suite must not hide an import-broken module.
 
-Why this exists (2026-07-14, the castigo): `khimeras_shared/deep_memory.py` was
+Why this exists (2026-07-14, the castigo): `persona_core/deep_memory.py` was
 resurrected two commits AFTER its dependency `corpus/film_references.py` was
 deleted as "zero consumers". The module crashed with ModuleNotFoundError at
 runtime (the runner's deep_memory MCP tool), but its tests had died in the same
@@ -16,11 +16,11 @@ import pkgutil
 import pytest
 
 import demux_ai
-import khimeras_shared
+import persona_core
 import persona_gateway
 import shared
 
-_PACKAGES = [khimeras_shared, shared, demux_ai, persona_gateway]
+_PACKAGES = [persona_core, shared, demux_ai, persona_gateway]
 
 
 def _all_modules() -> list[str]:

@@ -15,8 +15,8 @@ import time
 
 import structlog
 
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.self_reflection import reflect_self_facts
+from persona_core.memory import MemoryStore
+from persona_core.self_reflection import reflect_self_facts
 from persona_gateway.config import CONFIG
 from shared.personas import Persona
 

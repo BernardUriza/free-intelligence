@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared.remember_marker import (
+from persona_core.remember_marker import (
     MAX_FACTS_PER_TURN,
     parse_remembers,
     persist_remembers,

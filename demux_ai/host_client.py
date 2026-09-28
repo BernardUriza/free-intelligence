@@ -25,7 +25,7 @@ from discord.ext import tasks
 
 from demux_ai.fallback import deliver_or_fallback
 from demux_ai.host_loop import HostDispatchLoop
-from khimeras_shared.stt import (
+from persona_core.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
     WAKE_ETA_SECONDS,
     SusurroSttClient,

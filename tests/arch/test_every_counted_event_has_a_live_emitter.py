@@ -35,7 +35,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 #: Los paquetes vivos post-purga. Un emisor fuera de aquí no llega a producción.
-PAQUETES_VIVOS = ("persona_gateway", "persona_runner", "khimeras_shared", "demux_ai", "shared")
+PAQUETES_VIVOS = ("persona_gateway", "persona_runner", "persona_core", "demux_ai", "shared")
 
 #: Los métodos de structlog que publican un evento.
 NIVELES = frozenset({"debug", "info", "warning", "warn", "error", "exception", "critical", "msg"})

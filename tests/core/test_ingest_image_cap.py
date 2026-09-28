@@ -12,7 +12,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared.runner.agent_client import _last_user_attachments, _last_user_text
+from persona_core.runner.agent_client import _last_user_attachments, _last_user_text
 from persona_gateway.ingest import MessageIngest
 from shared.personas import Persona
 

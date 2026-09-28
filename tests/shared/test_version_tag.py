@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from khimeras_shared.version import VERSION_TAG
+from persona_core.version import VERSION_TAG
 
 
 def test_tag_is_superscript_version_shape():

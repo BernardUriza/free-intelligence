@@ -30,8 +30,8 @@ from __future__ import annotations
 
 import pytest
 
-from khimeras_shared.behavior.content import guidance_dir
-from khimeras_shared.behavior.presets.guidance import (
+from persona_core.behavior.content import guidance_dir
+from persona_core.behavior.presets.guidance import (
     BASE_GUIDANCE_ID,
     build_vulnerable_overlay_prompt,
 )

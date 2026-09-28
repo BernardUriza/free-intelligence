@@ -15,11 +15,11 @@ import uuid
 import discord
 import structlog
 
-from khimeras_shared.gifs import resolve_gifs, strip_gif_markers
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
-from khimeras_shared.runner.agent_client import AgentRunnerClient
-from khimeras_shared.tickets import LedgerRow
+from persona_core.gifs import resolve_gifs, strip_gif_markers
+from persona_core.memory import MemoryStore
+from persona_core.reactions import add_reactions, parse_reactions, strip_reactions
+from persona_core.runner.agent_client import AgentRunnerClient
+from persona_core.tickets import LedgerRow
 from persona_gateway.delivery import send_chunked
 from persona_gateway.markers import MarkerRouter
 from persona_gateway.voice import VoiceService

@@ -23,7 +23,7 @@ PERSONA = ROOT / "shared" / "personas" / "insult.md"
 # is what turns that rot red from now on.
 CAPABILITY_PATHS = {
     "tts": ROOT / "persona_gateway" / "voice.py",
-    "whisper": ROOT / "khimeras_shared" / "stt.py",
+    "whisper": ROOT / "persona_core" / "stt.py",
     "reminders": ROOT / "persona_gateway" / "workers" / "reminders.py",
     "research": ROOT / "persona_gateway" / "workers" / "research.py",
     "vision": ROOT / "persona_gateway" / "vision.py",

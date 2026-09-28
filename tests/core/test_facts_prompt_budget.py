@@ -19,7 +19,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from khimeras_shared.facts import (
+from persona_core.facts import (
     CONVERSATION_CHAR_BUDGET,
     EXISTING_FACTS_CHAR_BUDGET,
     extract_facts,
