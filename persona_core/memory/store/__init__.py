@@ -55,9 +55,11 @@ class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, Governa
     Deploys NO LONGER mutate the DB.
     """
 
-    def __init__(self, postgres_url: str):
+    def __init__(self, postgres_url: str, *, min_size: int = 2, max_size: int = 10):
         self.postgres_url = postgres_url
-        self._manager = ConnectionManager(postgres_url)
+        # Pool bounds pass through: the gateway keeps the defaults; the runner,
+        # which already holds another pool, asks for a smaller one.
+        self._manager = ConnectionManager(postgres_url, min_size=min_size, max_size=max_size)
 
         # Compose repositories. Each takes the shared manager so they all
         # read/write through the same asyncpg pool.
