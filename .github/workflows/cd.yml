@@ -194,18 +194,37 @@ jobs:
             fi
           }
 
+          stopped() {
+            # $1=app -> "true" when the Container App is deliberately Stopped
+            # (`az containerapp stop`, 2026-09-27: the Discord surfaces are off to
+            # save money, the runner stays because og118 uses it). A stopped app is
+            # NOT a deploy target: `az containerapp update` would mint a revision
+            # nobody runs and `cd_wait_revision.py` would wait forever for it.
+            # `az containerapp start` brings it back into the next deploy.
+            local st
+            st=$(az containerapp show -n "$1" -g "$RG" \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "")
+            [ "$st" = "Stopped" ] && echo "true" || echo "false"
+          }
+
           GW_SHA=$(running_tag persona-gateway app)
           RUNNER_SHA=$(running_tag persona-runner app)
           HOST_SHA=$(running_tag khimeras-host app)
 
           BUILD_GW=$(changed "$GW_SHA" \
             environment.yml persona_gateway/ khimeras_shared/ shared/ Dockerfile.gateway Dockerfile.base)
+          if [ "$(stopped persona-gateway)" = "true" ]; then
+            echo "persona-gateway is Stopped — skipping (start it to deploy)"; BUILD_GW=false
+          fi
           # The omnipresent host (#6). Build-ready + dormant: the image ships to ACR
           # so it's there the moment Bernard creates the `khimeras-host` Container App
           # + its HOST_DISCORD_TOKEN. Deploy is continue-on-error, so until that app
           # exists this is a no-op — exactly the gateway's own dormant pattern.
           BUILD_HOST=$(changed "$HOST_SHA" \
             environment.yml demux_ai/ khimeras_shared/ shared/ Dockerfile.host Dockerfile.base)
+          if [ "$(stopped khimeras-host)" = "true" ]; then
+            echo "khimeras-host is Stopped — skipping (start it to deploy)"; BUILD_HOST=false
+          fi
           # Gate del castigo LEVANTADO el mismo día (2026-07-14): el "fi-runner
           # importa personas.insult" era un comentario fósil del Dockerfile — el
           # grep del paquete conda instalado dio CERO. Los importadores reales
@@ -215,6 +234,9 @@ jobs:
             environment.yml shared/ khimeras_shared/ demux_ai/ persona_runner/ \
             infra/azure/runner.Dockerfile infra/azure/entrypoint.sh \
             Dockerfile.base)
+          if [ "$(stopped persona-runner)" = "true" ]; then
+            echo "persona-runner is Stopped — skipping (start it to deploy)"; BUILD_RUNNER=false
+          fi
 
           {
             echo "build_gw=$BUILD_GW"
