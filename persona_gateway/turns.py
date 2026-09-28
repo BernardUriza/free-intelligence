@@ -20,8 +20,8 @@ from persona_core.memory import MemoryStore
 from persona_core.reactions import add_reactions, parse_reactions, strip_reactions
 from persona_core.runner.agent_client import AgentRunnerClient
 from persona_core.tickets import LedgerRow
+from persona_core.turn.markers import MarkerRouter
 from persona_gateway.delivery import send_chunked
-from persona_gateway.markers import MarkerRouter
 from persona_gateway.voice import VoiceService
 from shared.personas import Persona
 from shared.text import split_response

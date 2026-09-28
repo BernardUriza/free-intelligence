@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 
 from persona_core.guidance import MAX_GUIDANCE_CHARS
+from persona_core.turn.context import PENDING_REMINDERS_MAX
 from persona_gateway.gateway import PersonaClient
-from persona_gateway.turn_context import PENDING_REMINDERS_MAX
 from shared.personas import Persona
 
 PENDING = [

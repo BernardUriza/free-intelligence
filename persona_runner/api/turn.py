@@ -23,9 +23,10 @@ from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel
 
 from persona_core.tickets import LedgerRow
+from persona_runner.api.turn_pipeline import serve_turn
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
-from persona_runner.engine import aire_route, principal_identity, turn_jobs
+from persona_runner.engine import principal_identity, turn_jobs
 
 router = APIRouter()
 
@@ -46,7 +47,7 @@ async def turn(req: TurnRequest, authorization: str | None = Header(default=None
     """Run one persona turn through AIRE's engine door."""
     check_auth(authorization)
     req = await principal_identity.apply(req)
-    return await aire_route.turn_via_aire(req)
+    return await serve_turn(req)
 
 
 @router.post("/v1/turn/jobs", response_model=TurnJobAccepted, status_code=status.HTTP_202_ACCEPTED)
@@ -57,7 +58,7 @@ async def submit_turn_job(req: TurnRequest, authorization: str | None = Header(d
     réplica ya lleva el principal canónico, no vuelve a preguntar."""
     check_auth(authorization)
     req = await principal_identity.apply(req)
-    job = await turn_jobs.submit(req, runner=aire_route.turn_via_aire)
+    job = await turn_jobs.submit(req, runner=serve_turn)
     return TurnJobAccepted(job_id=job.ticket_id)
 
 
@@ -85,7 +86,7 @@ async def poll_turn_job(
     handler; un fallo registrado por otra réplica es un 502 con su `error`.
     """
     check_auth(authorization)
-    got = await turn_jobs.lookup(job_id, runner=aire_route.turn_via_aire)
+    got = await turn_jobs.lookup(job_id, runner=serve_turn)
     if got is None:
         raise HTTPException(status_code=404, detail=f"unknown turn job {job_id!r}")
     if isinstance(got, LedgerRow):

@@ -62,7 +62,7 @@ import httpx
 import structlog
 
 from persona_core.llm.types import LLMResponse
-from shared.time_context import _get_current_time_context
+from persona_core.turn.framing import compose_user_text
 
 log = structlog.get_logger()
 
@@ -145,48 +145,6 @@ def _last_user_attachments(messages: list[dict]) -> list[dict]:
     return [b for b in content if isinstance(b, dict) and b.get("type") in {"image", "document"}]
 
 
-# How much of the prior channel conversation to replay to the runner. The
-# runner DISCARDS the plumbing-built `messages[]` and keeps only PER-USER
-# session state (see chat() below), so it is blind to what OTHER participants
-# just said. Concrete failure (2026-06-05, #general): Bernard names the film
-# "Creep" in his own message; seconds later Alex says "me dio ptsd la peli"
-# WITHOUT naming it; her turn's session never saw Bernard's line, so the bot
-# answers "¿cuál peli?". Replaying the tail of the SHARED channel lets
-# cross-user references ("la peli", "eso", "el de antes") resolve.
-_RECENT_CONTEXT_MAX_MESSAGES = 25
-_RECENT_CONTEXT_MAX_CHARS = 3500
-
-
-def _format_recent_context(messages: list[dict]) -> str:
-    """Render the channel messages BEFORE the current one as a transcript.
-
-    The plumbing builds `messages[]` (recent 50 + keyword-relevant) where each
-    prior entry's `content` is already a speaker-prefixed string like
-    "Bernard: ya terminamos". The runner ignores that list entirely, so the
-    shared group conversation never reaches it. We replay the tail here so the
-    runner can resolve references to what other people just said.
-
-    Returns "" when there is nothing prior to replay.
-    """
-    if not messages or len(messages) <= 1:
-        return ""
-    tail = messages[:-1][-_RECENT_CONTEXT_MAX_MESSAGES:]
-    lines: list[str] = []
-    for m in tail:
-        content = m.get("content", "")
-        if isinstance(content, list):
-            content = "\n".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
-        if isinstance(content, str) and content.strip():
-            lines.append(content.strip())
-    if not lines:
-        return ""
-    transcript = "\n".join(lines)
-    if len(transcript) > _RECENT_CONTEXT_MAX_CHARS:
-        # Keep the freshest tail — truncate from the front.
-        transcript = "…\n" + transcript[-_RECENT_CONTEXT_MAX_CHARS:]
-    return transcript
-
-
 class AgentRunnerClient:
     """The turn backend — delegates each chat turn to the runner.
 
@@ -255,51 +213,12 @@ class AgentRunnerClient:
             log.warning("agent_runner_client_empty_user_text", message_count=len(messages))
             return LLMResponse(text="", model_used="agent-runner", stop_reason="empty_input")
 
-        # v4.3.0: prepend deterministically pre-fetched history (deep_memory
-        # auto-retrieval) so the agent ALWAYS sees relevant past context
-        # instead of relying on the opt-in `deep_memory` tool (which fired on
-        # ~1% of turns). Framed as a labeled block so the agent reads it as
-        # retrieved context, not as the user's own words. The STORED message is
-        # unaffected — storage runs upstream, before this call.
-        effective_user_text = user_text or "[adjuntó solo imagen]"
-        # The runner DISCARDS `system_prompt` and rebuilds persona + the AUTHOR's
-        # facts from its own filesystem (via the user_id it gets). But facts about
-        # OTHER channel participants only live in the plumbing-built system_prompt,
-        # so without this the runner is blind to them: it could recall Alex when
-        # Alex spoke (her user_id) yet answer "no me lo has contado" when Bernard
-        # asked ABOUT Alex. Inject the pre-built "Other People" block into the
-        # user_text the runner DOES read — same mechanism as relevant_memory, no
-        # runner change needed. (2026-06-03 second-layer fix.)
-        prefix_blocks: list[str] = []
-        # Wall-clock time is SSOT'd in shared.time_context but only ever reached
-        # the plumbing-built system_prompt — which the runner DISCARDS under
-        # LEGACY=false. So NEITHER Insult NOR the siblings knew the date/time
-        # (Frugívoro built a weekly menu saying "domingo prep" on a Wednesday).
-        # Same class of loss as `other_people`; same fix: forward it as a
-        # dynamic prefix_block on the user_text every persona's runner DOES read.
-        # Goes FIRST + never cached (changes every minute — must not sit in a
-        # cacheable region). One seam, all personas inherit it. (2026-07-08.)
-        prefix_blocks.append(f"<current_time>\n{_get_current_time_context()} — America/Mexico_City\n</current_time>")
-        if relevant_memory:
-            prefix_blocks.append(f"<relevant_memory>\n{relevant_memory}\n</relevant_memory>")
-        if other_people:
-            prefix_blocks.append(f"<other_people_in_channel>\n{other_people}\n</other_people_in_channel>")
-        # The shared channel conversation the runner would otherwise never see
-        # (it only reads the last user message + its own per-user session).
-        # Goes LAST among the prefix blocks — closest to the current message —
-        # so it reads as the live thread, not as background memory.
-        recent_context = _format_recent_context(messages)
-        if recent_context:
-            prefix_blocks.append(
-                "<recent_conversation>\n"
-                "Lo que se acaba de decir en este canal (incluye a otras personas). "
-                'Úsalo para resolver referencias como "la peli", "eso", "el de antes" — '
-                "NO vuelvas a preguntar qué es algo que ya se nombró aquí.\n"
-                f"{recent_context}\n</recent_conversation>"
-            )
-            log.info("agent_runner_client_recent_context_forwarded", context_chars=len(recent_context))
-        if prefix_blocks:
-            effective_user_text = "\n\n".join([*prefix_blocks, effective_user_text])
+        # The in-band framing (time, relevant memory, other people, the live
+        # thread) is the turn pipeline's, not this client's: the runner frames
+        # its own pipeline's turns with the same function (F3, 2026-09-28).
+        effective_user_text = compose_user_text(
+            user_text, messages, relevant_memory=relevant_memory, other_people=other_people
+        )
 
         # Un job_id dado (el turn_id del gateway) hace que una reanudación del
         # gateway re-postee el MISMO job: el runner deduplica en vez de re-correr.

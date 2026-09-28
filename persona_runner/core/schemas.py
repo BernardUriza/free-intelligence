@@ -7,12 +7,24 @@ and the judge clients speak exactly these shapes.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class TurnRequest(BaseModel):
     channel_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
+    # F3 (2026-09-28): who assembles the turn. "caller" (default) is the
+    # gateway, which runs the pipeline itself and sends a framed `user_text` +
+    # guidance. "runner" is a surface with no pipeline of its own (og118): the
+    # runner runs `persona_core.turn.run_turn` — stores the ask and the reply,
+    # runs the guardian, frames the turn, routes markers, grows facts — around
+    # the same brain call. `user_text` is then the RAW ask.
+    pipeline: Literal["caller", "runner"] = "caller"
+    # The author's display name, for the stored row and the fact extractor.
+    # Only read with `pipeline="runner"`.
+    user_name: str | None = Field(default=None, max_length=100)
     # F2 (2026-09-27): la superficie que emitió `user_id` ("discord", "og118"…).
     # Con ella el runner resuelve `(surface, user_id)` al principal canónico en
     # `principal_identities` antes de leer memoria; sin ella busca el id en todas

@@ -27,8 +27,8 @@ import discord
 
 from persona_core.memory.context import build_context, format_relevant_block
 from persona_core.memory.repositories.messages import search_terms
+from persona_core.turn.context import TurnContextBuilder
 from persona_gateway.gateway import PersonaClient
-from persona_gateway.turn_context import TurnContextBuilder
 from shared.personas import Persona
 
 NOW = time.time()

@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from persona_runner.api import turn as turn_api
 from persona_runner.core.schemas import TurnRequest, TurnResponse
-from persona_runner.engine import principal_identity, turn_jobs
+from persona_runner.engine import aire_route, principal_identity, turn_jobs
 
 TOKEN = "tok-1"  # noqa: S105 — fixture, no un secreto
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
@@ -135,7 +135,7 @@ def _capture_turn(monkeypatch) -> list[TurnRequest]:
         seen.append(req)
         return TurnResponse(text="ok")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", fake_turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", fake_turn)
     return seen
 
 

@@ -19,11 +19,9 @@ from typing import ClassVar
 
 import pytest
 
-from persona_core.runner.agent_client import (
-    _RECENT_CONTEXT_MAX_CHARS,
-    AgentRunnerClient,
-    _format_recent_context,
-)
+from persona_core.runner.agent_client import AgentRunnerClient
+from persona_core.turn.framing import RECENT_CONTEXT_MAX_CHARS as _RECENT_CONTEXT_MAX_CHARS
+from persona_core.turn.framing import format_recent_context as _format_recent_context
 
 
 class _FakeResp:

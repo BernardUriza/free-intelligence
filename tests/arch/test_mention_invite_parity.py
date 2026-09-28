@@ -190,23 +190,25 @@ async def _run(
             channel=channel,
             message=message,
             guardian=enter(
-                patch("persona_gateway.turn_context.guidance_for_turn", new=AsyncMock(return_value="GUIA-DEL-GUARDIAN"))
+                patch("persona_core.turn.context.guidance_for_turn", new=AsyncMock(return_value="GUIA-DEL-GUARDIAN"))
             ),
             other_people=enter(
                 patch(
-                    "persona_gateway.turn_context.other_people_block_for_turn",
+                    "persona_core.turn.context.other_people_block_for_turn",
                     new=AsyncMock(return_value="OTROS: alex…"),
                 )
             ),
             corpus=enter(
                 patch(
-                    "persona_gateway.turn_context.build_persona_corpus_block",
+                    "persona_core.turn.context.build_persona_corpus_block",
                     new=AsyncMock(return_value=corpus_block),
                 )
             ),
             add_reactions=enter(patch("persona_gateway.turns.add_reactions", new_callable=AsyncMock)),
             resolve_gifs=enter(patch("persona_gateway.turns.resolve_gifs", return_value=list(gif_urls))),
-            persist_remembers=enter(patch("persona_gateway.markers.persist_remembers", new=AsyncMock(return_value=1))),
+            persist_remembers=enter(
+                patch("persona_core.turn.markers.persist_remembers", new=AsyncMock(return_value=1))
+            ),
             spawn_facts=enter(patch.object(client, "_spawn_fact_extraction")),
             spawn_vision=enter(patch.object(client._vision, "spawn")),
             speak=enter(patch.object(client._voice, "speak", new_callable=AsyncMock)),

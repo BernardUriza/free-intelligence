@@ -1,12 +1,12 @@
 """Turn context assembly — everything a persona turn carries besides the ask.
 
-One builder, two callers: the @mention path (`PersonaClient._handle`) and the
-host-routed invite path (`PersonaClient.respond_to_invite`) used to assemble
-this pipeline each on their own — relevant retrieval → context framing →
-guardian guidance → pending reminders → corpus RAG → other-people facts. The
-2026-07-19 invite gap (guardian/reminders/relevant wired only into the
-near-zero-traffic mention path) is exactly the drift that duplicated assembly
-invites; this module is the single source of that pipeline.
+One builder, every surface: the gateway's @mention and invite paths and the
+runner's own pipeline (`persona_core.turn.pipeline.run_turn`, F3) all assemble
+relevant retrieval → context framing → guardian guidance → pending reminders →
+corpus RAG → other-people facts HERE. The 2026-07-19 invite gap (guardian/
+reminders/relevant wired only into the near-zero-traffic mention path) is
+exactly the drift that duplicated assembly invites; this module is the single
+source of that pipeline. It lived in `persona_gateway/` until 2026-09-28.
 
 Every stage is best-effort by construction: a fault in retrieval, guidance,
 reminders or corpus degrades that block to None/[] — never to a mute turn.
@@ -23,7 +23,6 @@ import structlog
 from persona_core.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from persona_core.memory import MemoryStore, format_relevant_block
 from persona_core.other_people import other_people_block_for_turn
-from persona_gateway.config import CONFIG
 from shared.corpus.persona_corpus import build_persona_corpus_block
 from shared.personas import Persona
 
@@ -32,6 +31,10 @@ log = structlog.get_logger()
 # Per-ask semantic fact recall: enough hits to resurface the load-bearing fact
 # the injection top-N pushed out, never a wall that dilutes the turn.
 RELEVANT_FACTS_LIMIT = 8
+
+# Keyword-relevant OLDER turns merged in alongside the recent window. The
+# gateway overrides it from its env config; every other caller takes this.
+RELEVANT_MESSAGES_LIMIT = 5
 
 # The pending-reminders context block stays small on purpose: enough for the
 # persona to list/cancel by text, never a wall that crowds out the guidance.
@@ -66,9 +69,10 @@ class TurnContext:
 class TurnContextBuilder:
     """Owns the shared context pipeline for both turn entry points."""
 
-    def __init__(self, persona: Persona, memory: MemoryStore) -> None:
+    def __init__(self, persona: Persona, memory: MemoryStore, *, relevant_limit: int = RELEVANT_MESSAGES_LIMIT) -> None:
         self.persona = persona
         self.memory = memory
+        self.relevant_limit = relevant_limit
 
     async def build(
         self,
@@ -170,7 +174,7 @@ class TurnContextBuilder:
         if not ask:
             return []
         try:
-            hits = await self.memory.search(channel_id, ask, CONFIG.relevant_limit)
+            hits = await self.memory.search(channel_id, ask, self.relevant_limit)
         except Exception:
             log.exception("relevant_search_failed", channel_id=channel_id)
             return []

@@ -13,10 +13,8 @@ import asyncio
 
 import structlog
 
-from persona_core.facts import extract_facts, merge_facts_additive
+from persona_core.facts import UtilityClient, extract_facts, merge_facts_additive
 from persona_core.memory import MemoryStore
-from persona_core.runner.judge_client import RunnerJudgeClient
-from persona_gateway.config import CONFIG
 from shared.personas import Persona
 
 log = structlog.get_logger()
@@ -43,15 +41,24 @@ class FactExtractor:
     extraction on the very next turn, not just for clients built without one.
     """
 
-    def __init__(self, persona: Persona, memory: MemoryStore, bg_tasks: set[asyncio.Task]) -> None:
+    def __init__(
+        self,
+        persona: Persona,
+        memory: MemoryStore,
+        bg_tasks: set[asyncio.Task],
+        *,
+        model: str | None = None,
+    ) -> None:
         self.persona = persona
         self.memory = memory
         # Shares the client's task set so a spawned extraction is not GC'd mid-flight.
         self._bg_tasks = bg_tasks
+        # None = the judge's own default model (Haiku on the runner).
+        self.model = model
 
     def spawn(
         self,
-        judge_client: RunnerJudgeClient | None,
+        judge_client: UtilityClient | None,
         user_id: str,
         user_name: str,
         recent: list[dict],
@@ -65,7 +72,7 @@ class FactExtractor:
 
     async def _extract_and_persist(
         self,
-        judge: RunnerJudgeClient,
+        judge: UtilityClient,
         user_id: str,
         user_name: str,
         recent: list[dict],
@@ -85,7 +92,7 @@ class FactExtractor:
                 existing = await self.memory.get_facts(user_id)
                 new_facts = await extract_facts(
                     judge,
-                    CONFIG.facts_extraction_model,
+                    self.model,
                     user_name,
                     existing,
                     recent,
