@@ -87,6 +87,17 @@ class TurnResponse(BaseModel):
     model: str = ""
     stop_reason: str = ""
     tool_calls: list[dict] = Field(default_factory=list)
+    # F5 (2026-09-28): the whole `OutboundTurn` comes back over the wire, not
+    # just its text. Filled only when the runner owns the pipeline
+    # (`pipeline="runner"`): the caller-owned turn keeps its markers raw in
+    # `text` because the caller parses them itself. A surface that cannot show
+    # a reaction or a GIF degrades them its own way (F4) — the runner no longer
+    # decides that by dropping them. `empty_reason` says why `text` is "" when
+    # it is ("reactions_only", "markers_only", "brain_empty"), so a turn that
+    # was ONLY a reaction stops reading as a failed answer downstream.
+    reactions: list[str] = Field(default_factory=list)
+    gif_urls: list[str] = Field(default_factory=list)
+    empty_reason: str = ""
 
 
 class JudgeRequest(BaseModel):

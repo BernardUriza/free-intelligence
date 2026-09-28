@@ -84,12 +84,71 @@ async def test_a_runner_owned_turn_runs_the_pipeline_around_the_brain(monkeypatc
     (sent,) = seen
     assert sent.behavioral_guidance == "GUIA"
     assert "<current_time>" in sent.user_text and sent.user_text.endswith("¿qué sabes de mí?")
-    assert out.text == "Vives en GDL.", "markers and reactions never reach the surface"
+    assert out.text == "Vives en GDL.", "the text the surface shows is marker-free"
+    assert out.reactions == ["👀"] and out.empty_reason == "", "the reaction rides the wire (F5), not a log line"
     assert out.model == "claude-opus-4-7" and out.output_tokens == 12, "the brain's receipt survives"
     assert [c.args[3] for c in memory.store.await_args_list] == ["user", "assistant"]
     assert memory.store.await_args_list[0].args[2] == "Bernard"
     judge = extractor.return_value.spawn.call_args.args[0]
     assert isinstance(judge, turn_pipeline.InProcessJudge) and judge.persona_id == "insult"
+
+
+def _pipeline_memory() -> MagicMock:
+    memory = MagicMock()
+    memory.get_recent = AsyncMock(return_value=[])
+    memory.store = AsyncMock()
+    memory.search = AsyncMock(return_value=[])
+    memory.search_facts_semantic = AsyncMock(return_value=[])
+    memory.list_pending_reminders = AsyncMock(return_value=[])
+    memory.build_context = MagicMock(return_value=[])
+    return memory
+
+
+async def _serve_runner_turn(monkeypatch, brain_text: str, **patches) -> TurnResponse:
+    """A runner-owned turn against a stubbed brain and memory (F5 receipts)."""
+
+    async def brain(req):
+        return TurnResponse(text=brain_text, model="m", output_tokens=3)
+
+    monkeypatch.setattr(aire_route, "turn_via_aire", brain)
+    monkeypatch.setattr(turn_pipeline, "get_memory", AsyncMock(return_value=_pipeline_memory()))
+    with (
+        patch("persona_core.turn.context.guidance_for_turn", new=AsyncMock(return_value=None)),
+        patch("persona_core.turn.context.other_people_block_for_turn", new=AsyncMock(return_value=None)),
+        patch("persona_core.turn.context.build_persona_corpus_block", new=AsyncMock(return_value=None)),
+        patch("persona_core.turn.pipeline.FactExtractor"),
+        patch("persona_core.turn.pipeline.resolve_gifs", new=patches.get("resolve_gifs", lambda *_: [])),
+    ):
+        return await turn_pipeline.serve_turn(_req(pipeline="runner", surface="og118", user_name="Bernard"))
+
+
+@pytest.mark.asyncio
+async def test_a_reaction_only_turn_returns_empty_text_with_its_reason(monkeypatch):
+    """Before F5 og118 read this as 'external engine returned an empty answer':
+    the reaction was logged as not delivered and the text came back blank with
+    no explanation."""
+    out = await _serve_runner_turn(monkeypatch, "[REACT:👀,🔥]")
+
+    assert out.text == ""
+    assert out.reactions == ["👀", "🔥"]
+    assert out.empty_reason == "reactions_only"
+
+
+@pytest.mark.asyncio
+async def test_the_gif_urls_the_persona_resolved_ride_the_wire(monkeypatch):
+    url = "https://tenor.com/view/facepalm-1"
+    out = await _serve_runner_turn(monkeypatch, "Ajá. [GIF: facepalm]", resolve_gifs=lambda *_: [url])
+
+    assert out.text == "Ajá."
+    assert out.gif_urls == [url]
+    assert out.empty_reason == ""
+
+
+def test_a_response_written_before_f5_still_decodes():
+    """A ledger row from a pre-F5 replica has no sidecar fields; the poll of that
+    job must still decode (rolling update, or a job resumed across the deploy)."""
+    old = TurnResponse.model_validate({"text": "hola", "model": "m", "stop_reason": "end_turn"})
+    assert (old.reactions, old.gif_urls, old.empty_reason) == ([], [], "")
 
 
 @pytest.mark.asyncio
