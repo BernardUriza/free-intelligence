@@ -44,6 +44,9 @@ log = structlog.get_logger()
 _MEMORY_POOL_MIN = 1
 _MEMORY_POOL_MAX = 4
 
+# Placeholder ids a caller sends when it has no identity to give.
+NO_PRINCIPAL_IDS = frozenset({"0"})
+
 _memory: MemoryStore | None = None
 _memory_lock: asyncio.Lock | None = None
 _bg_tasks: set[asyncio.Task] = set()
@@ -134,6 +137,11 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
     if req.pipeline != "runner":
         return await aire_route.turn_via_aire(req)
 
+    # og118 sends "0" for a caller with no identity (its legacy bearer). A
+    # pipeline under that id would store turns and grow facts for nobody.
+    if req.user_id in NO_PRINCIPAL_IDS:
+        log.warning("turn_pipeline_unavailable", persona_id=req.persona_id, surface=req.surface, reason="no_principal")
+        return await aire_route.turn_via_aire(req)
     persona = get_persona(aire_route.base_persona_id(req.persona_id))
     memory = await get_memory()
     if persona is None or memory is None:

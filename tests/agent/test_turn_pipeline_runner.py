@@ -125,6 +125,19 @@ async def test_without_postgres_the_runner_turn_runs_bare(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_caller_with_no_principal_never_runs_the_pipeline(monkeypatch):
+    brain = AsyncMock(return_value=TurnResponse(text="hola", model="m"))
+    monkeypatch.setattr(aire_route, "turn_via_aire", brain)
+    get_memory = AsyncMock()
+    monkeypatch.setattr(turn_pipeline, "get_memory", get_memory)
+
+    out = await turn_pipeline.serve_turn(_req(pipeline="runner", user_id="0"))
+
+    assert out.text == "hola"
+    get_memory.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_no_postgres_url_means_no_store(monkeypatch):
     monkeypatch.delenv("POSTGRES_URL", raising=False)
     assert await turn_pipeline.get_memory() is None
