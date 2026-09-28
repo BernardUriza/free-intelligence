@@ -210,3 +210,24 @@ describe('author — the backend names WHO answers', () => {
     expect(s.status).toBe('done');
   });
 });
+
+describe('result.reactions — the speaker\'s gesture on the turn (server-bot F5)', () => {
+  it('starts empty and lands from the result', () => {
+    expect(initialAgentTurnState().reactions).toEqual([]);
+    const s = run({ type: 'text', delta: 'Vives en GDL.' }, { type: 'result', text: 'Vives en GDL.', reactions: ['👀'] });
+    expect(s.reactions).toEqual(['👀']);
+    expect(s.text).toBe('Vives en GDL.');
+  });
+
+  it('a result without reactions keeps what the turn had (an engine without the field changes nothing)', () => {
+    const s = run({ type: 'result', text: 'hola' });
+    expect(s.reactions).toEqual([]);
+  });
+
+  it('a reaction-only turn settles done with empty text — not an error', () => {
+    const s = run({ type: 'result', text: '', reactions: ['👀', '🔥'] });
+    expect(s.status).toBe('done');
+    expect(s.text).toBe('');
+    expect(s.reactions).toEqual(['👀', '🔥']);
+  });
+});

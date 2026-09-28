@@ -62,6 +62,11 @@ export function sanitizeConversationMessage(message: ChatMessage): ChatMessage {
     ...(message.images && message.images.length > 0
       ? { images: message.images.map((i) => ({ mediaType: i.mediaType, data: i.data })) }
       : {}),
+    // The speaker's reactions are user-visible too (chips under the bubble);
+    // dropping them would strip the gesture on reload. Plain strings, no payload.
+    ...(message.reactions && message.reactions.length > 0
+      ? { reactions: message.reactions.map(String) }
+      : {}),
   };
 }
 

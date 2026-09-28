@@ -235,6 +235,7 @@ type AgentStreamEvent$1 = {
     text: string;
     sources?: string[];
     meta?: AgentMeta;
+    reactions?: string[];
 } | {
     type: 'meta';
     meta: AgentMeta;
@@ -288,6 +289,12 @@ interface AgentTurnState {
     text: string;
     /** Evidence references (e.g. source URLs). App-agnostic name. */
     sources: string[];
+    /**
+     * Emoji the speaker reacted to the turn with (`result.reactions`). Empty on
+     * every turn from an engine without a reaction vocabulary. See
+     * `ChatMessage.reactions` for why this is a field and not text.
+     */
+    reactions: string[];
     meta: AgentMeta | null;
     /**
      * WHO is answering this turn, once the backend announces it (`author` event).
@@ -391,6 +398,15 @@ interface ChatMessage {
      * messages, so the plain case stays byte-identical to before.
      */
     images?: MessageImage[];
+    /**
+     * Emoji the speaker REACTED to the turn with (assistant messages only). A
+     * reaction is a gesture on the message, not part of its text — Discord puts it
+     * under the bubble, never inside it — so it is a field, not a line folded into
+     * `content`. Comes from the engine's `OutboundTurn` (server-bot F5) via the
+     * `result` event, persists like `images` (a reload must not lose the gesture),
+     * and is absent on plain turns so those stay byte-identical.
+     */
+    reactions?: string[];
     /** Optional model reasoning rendered before the content. */
     thinking?: string | null;
     /** ISO 8601 timestamp. */

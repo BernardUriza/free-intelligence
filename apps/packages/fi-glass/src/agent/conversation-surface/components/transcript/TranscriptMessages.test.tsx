@@ -22,6 +22,7 @@ const turn = (over: Partial<AgentTurnState> = {}): AgentTurnState => ({
   meta: null,
   author: null,
   heartbeats: 0,
+  reactions: [],
   status: 'thinking',
   ...over,
 });
@@ -180,5 +181,44 @@ describe('<TranscriptMessages> model provenance — the chip the consumer never 
       />,
     );
     expect(document.querySelector('[data-fi-model-badge]')).toBeNull();
+  });
+});
+
+// A persona's reaction is a gesture ON the message (server-bot F5 returns it
+// structured). It renders as chips under the bubble — never as text inside it,
+// and a reaction-only turn still gets its bubble instead of vanishing.
+describe('<TranscriptMessages> reactions', () => {
+  afterEach(cleanup);
+
+  it('renders the speaker\'s reactions as chips under the answer', () => {
+    const message: ChatMessage = {
+      role: 'assistant',
+      content: 'Vives en GDL.',
+      timestamp: '2026-09-28T12:00:00Z',
+      reactions: ['👀', '🔥'],
+    };
+    render(<TranscriptMessages {...base} messages={[message]} isStreaming={false} />);
+    const row = document.querySelector('[data-fi-message-reactions]') as HTMLElement;
+    expect(row).not.toBeNull();
+    expect(row.querySelectorAll('[role="listitem"]').length).toBe(2);
+    expect(row.textContent).toContain('👀');
+  });
+
+  it('renders no reaction row on a plain message', () => {
+    const message: ChatMessage = { role: 'assistant', content: 'hola', timestamp: '2026-09-28T12:00:00Z' };
+    render(<TranscriptMessages {...base} messages={[message]} isStreaming={false} />);
+    expect(document.querySelector('[data-fi-message-reactions]')).toBeNull();
+  });
+
+  it('a reaction-only turn keeps its bubble', () => {
+    const message: ChatMessage = {
+      role: 'assistant',
+      content: '',
+      timestamp: '2026-09-28T12:00:00Z',
+      reactions: ['👀'],
+    };
+    render(<TranscriptMessages {...base} messages={[message]} isStreaming={false} />);
+    expect(document.querySelectorAll('article').length).toBe(1);
+    expect(document.querySelector('[data-fi-message-reactions]')!.textContent).toContain('👀');
   });
 });

@@ -171,8 +171,10 @@ export function applyConversationEvent(
       if (!state.pending) return state;
       const base = { ...state, pending: false };
       // Controlled shells never fold: the consumer's own thread already holds the
-      // turn it mapped from its transport.
-      if (event.controlled || !event.turn.text) return base;
+      // turn it mapped from its transport. A turn that said nothing AND made no
+      // gesture folds nothing; a reaction-only turn (empty text, `reactions`
+      // set — server-bot F5) IS an answer and gets its bubble.
+      if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) return base;
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],

@@ -15,6 +15,8 @@ export {
 } from './messageActionsStyle';
 // OG118-IMAGE-UPLOAD-1: the images attached to a message, rendered in its bubble.
 export { MessageImages, type MessageImagesProps } from './MessageImages';
+// The speaker's reactions (server-bot F5 OutboundTurn), rendered as chips under the bubble.
+export { MessageReactions, type MessageReactionsProps } from './MessageReactions';
 // The default "who said this" row — rendered automatically off `message.author`.
 export {
   MessageAuthorHeader,

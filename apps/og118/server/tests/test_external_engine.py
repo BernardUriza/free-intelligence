@@ -135,10 +135,11 @@ async def test_empty_answer_yields_error(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_reaction_only_turn_is_shown_as_the_emoji_not_as_an_error(monkeypatch) -> None:
+async def test_a_reaction_only_turn_settles_with_its_reactions_not_as_an_error(monkeypatch) -> None:
     """server-bot F5: the engine returns the whole OutboundTurn. A turn that was
     only a `[REACT:]` used to arrive as text "" and became 'empty answer' here,
-    although the persona had answered."""
+    although the persona had answered. The reaction is a gesture on the message,
+    so it rides the result STRUCTURED (fi-glass renders chips) — never as text."""
     _configure(monkeypatch)
     monkeypatch.setattr(
         external_engine.httpx,
@@ -150,20 +151,36 @@ async def test_a_reaction_only_turn_is_shown_as_the_emoji_not_as_an_error(monkey
     evs = await _collect(
         external_engine.stream_external_turn(persona_id="insult", user_text="hi", session_uuid="s", user_id="u")
     )
+    assert evs == [{"type": "result", "result": {"text": "", "model": "m", "reactions": ["👀", "🔥"]}}]
+
+
+@pytest.mark.asyncio
+async def test_reactions_on_a_text_turn_ride_the_result_and_never_the_text(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "Vives en GDL.", "reactions": ["👀"], "model": "m"})),
+    )
+    evs = await _collect(
+        external_engine.stream_external_turn(persona_id="insult", user_text="hi", session_uuid="s", user_id="u")
+    )
     assert evs == [
-        {"type": "text", "text": "👀 🔥"},
-        {"type": "result", "result": {"text": "👀 🔥", "model": "m"}},
+        {"type": "text", "text": "Vives en GDL."},
+        {"type": "result", "result": {"text": "Vives en GDL.", "model": "m", "reactions": ["👀"]}},
     ]
 
 
-def test_reactions_trail_the_text_and_gifs_become_markdown_images() -> None:
+def test_gifs_become_markdown_images_and_reactions_stay_out_of_the_body() -> None:
     data = {
         "text": "Ajá.",
         "reactions": ["👀"],
         "gif_urls": ["https://tenor.com/view/facepalm-1", "javascript:alert(1)"],
     }
-    assert external_engine.render_outbound(data) == "Ajá.\n\n👀\n\n![gif](https://tenor.com/view/facepalm-1)"
+    assert external_engine.render_outbound(data) == "Ajá.\n\n![gif](https://tenor.com/view/facepalm-1)"
+    assert external_engine.outbound_reactions(data) == ["👀"]
     assert external_engine.render_outbound({"text": "solo texto"}) == "solo texto", "pre-F5 engines render as before"
+    assert external_engine.outbound_reactions({"text": "solo texto"}) == []
 
 
 @pytest.mark.asyncio

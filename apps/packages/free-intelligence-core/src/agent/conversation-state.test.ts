@@ -207,3 +207,26 @@ describe('hydrate + immutability', () => {
     expect(applyConversationEvent(s, { type: 'persist_skip_consumed' })).toBe(s);
   });
 });
+
+describe('a reaction-only turn is an answer (server-bot F5)', () => {
+  it('folds a bubble with empty text and the reactions', () => {
+    let s = send(initialConversationState(), 'mira esto');
+    s = applyConversationEvent(s, {
+      type: 'turn_settled',
+      turn: { ...settledTurn(''), reactions: ['👀'] },
+      author: AGENT,
+      controlled: false,
+    });
+    expect(s.messages).toHaveLength(2);
+    expect(s.messages[1].role).toBe('assistant');
+    expect(s.messages[1].content).toBe('');
+    expect(s.messages[1].reactions).toEqual(['👀']);
+    expect(s.skipPersist).toBe(false);
+  });
+
+  it('a turn with neither text nor reactions still folds nothing', () => {
+    let s = send(initialConversationState(), 'hola');
+    s = applyConversationEvent(s, { type: 'turn_settled', turn: settledTurn(''), author: AGENT, controlled: false });
+    expect(s.messages).toHaveLength(1);
+  });
+});

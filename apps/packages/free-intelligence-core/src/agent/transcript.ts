@@ -87,5 +87,8 @@ export function foldAssistantTurn(
     content: turn.text,
     timestamp: new Date().toISOString(),
     ...(trace ? { trace } : {}),
+    // The speaker's reactions are a gesture on the message, kept as a field so
+    // the shell renders chips and a reload keeps them; absent when there were none.
+    ...(turn.reactions.length > 0 ? { reactions: turn.reactions } : {}),
   };
 }
