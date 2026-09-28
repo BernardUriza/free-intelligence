@@ -1,6 +1,6 @@
 # OG118-BACKGROUND-1 — real cross-turn background execution (make "te aviso" true)
 
-Status: **In progress** — 2026-09-12: decidido (ACA Job) y construido en la rama `bernarduriza/og118-background-job`; falta el recibo E2E en app.og118.ai tras el deploy
+Status: **Done 2026-09-28** — recibo E2E completo en app.og118.ai (intento #4): la tool se llama, el Job corre `Succeeded`, el worker entrega con `append_message` y el mensaje aparece en el chat sin recargar. Screenshot: `evidence/og118-background-1-e2e4-prod-2026-09-28.jpg`
 Proposed: 2026-07-05 by Bernard (dogfood: og118 promised a background investigation, then had no access half an hour later)
 
 ## What it is
@@ -98,3 +98,180 @@ Decisión tomada por `/ultra-lord`: sí, y el ACA Job. Lo que existe en la rama:
 Lo que NO está hasta que haya recibo: la vuelta completa en app.og118.ai — el
 modelo llama la tool, la ejecución del Job sale `Succeeded`, y el mensaje aparece
 en el chat sin recargar.
+
+### Intento E2E #1 — 2026-09-12 22:33 UTC: bloqueado por las credenciales de AIRE, no por el código
+
+Deploy `a9862fdf` verificado en Azure: Job `og118-worker` Succeeded (comando
+`python background_worker.py`, `ragstore` en `/opt/fi/data`), *Container Apps
+Jobs Operator* asignado a la identidad `98a6f32f…` sobre el Job, el trío de env
+en `og118-api`. La puerta MCP en producción: 404 sin bearer, `tools/list` con
+bearer, cápsula falsa → error. AIRE: allowlist con el origen de og118 (sonda: el
+origen pasa, `attacker.example.com` sigue 422).
+
+El turno real en app.og118.ai murió antes de llegar al modelo:
+`AIRE turn error [credentials_exhausted]`. Journal de la puerta:
+`oauth-primary cools 232022s` (≈2.7 días: tope semanal del OAuth) y
+`api-key-fallback cools 3600s (default)` a las 22:34:11 UTC. Cero ejecuciones del
+Job, como corresponde: la tool nunca se llamó.
+
+Siguiente: reintentar el mismo turno (botón *Reintentar*) cuando el fallback
+salga del enfriamiento (~23:35 UTC). Si el fallback vuelve a caer, la causa está
+en esa llave (facturación/429), no en og118.
+
+### Re-verificación 2026-09-15 04:22 UTC (reloj del droplet) — el fallback SÍ volvió a caer, y por la razón anticipada
+
+El fallback no salió del enfriamiento una sola vez: `journalctl -u aire-server`
+en `root@159.203.84.13` muestra `CREDENTIAL-EXHAUSTED api-key-fallback cools
+3600s (default)` repitiéndose cada pocas horas desde el 2026-09-11, incluida la
+línea de las 04:11:37 UTC de hoy — 20 segundos después de un turno real
+(`POST .../insult-1489180895264116736/sessions/.../messages` → 200 OK).
+
+**Causa confirmada contra el servicio real, no contra el log** (`curl` directo a
+`api.anthropic.com/v1/messages` con esa key, sin pasar por AIRE):
+
+```
+HTTP 400 invalid_request_error
+"Your credit balance is too low to access the Anthropic API."
+```
+
+No es un rate limit que se cure solo. Es la tarjeta de esa cuenta de Anthropic
+Console sin saldo — recarga manual, átomo de Bernard (dinero).
+
+`oauth-primary` sigue en su cooldown real de tope semanal (`notice`, 232022s
+desde 2026-09-12T22:33:58Z) → libera **2026-09-15T15:01:00Z** (≈10h38m desde el
+snapshot de arriba).
+
+**O sea: desde el 2026-09-12 22:33 UTC (>2.5 días) el pool completo de AIRE está
+seco** — no sólo bloqueando este E2E, sino cortando con `credentials_exhausted`
+cualquier turno real que le llegue (se ve en el mismo journal: Insult e
+Insult-judge de discord-bot recibiendo turnos y saliendo mudos, el mismo patrón
+del P1 de 2026-08-25/26 documentado en `discord-bot/.claude/rules/aire-budget.md`,
+pero esta vez la causa es saldo agotado, no un budget ceiling nominal).
+
+**Siguiente real:** recargar la tarjeta de la cuenta Anthropic Console detrás de
+`ANTHROPIC_API_KEY_FALLBACK` (decisión/pago de Bernard), o esperar a las
+15:01 UTC de hoy a que libere `oauth-primary` y reintentar el turno E2E desde ahí
+— lo segundo no arregla el fallback, sólo restaura un slot temporalmente hasta
+que vuelva a topar el límite semanal.
+
+### Re-verificación 2026-09-27 (journal leído por Bernard con `ssh -i ~/.ssh/aire_vm`, pegado en sesión) — el journal parecía sano; NO lo estaba (corregido el mismo día, abajo)
+
+`journalctl -u aire-server --since "48 hours ago"` en el droplet: servicio `active`,
+1458 líneas, **177 turnos `POST .../messages` → 200 OK** (los últimos a las 13:25 y
+21:54 UTC del 27), y **cero** líneas `CREDENTIAL-EXHAUSTED` / `cools` / `exhaust`.
+Control de presencia hecho antes de creerle al vacío ([[both-ends-of-the-data-path]]):
+con 177 turnos reales, la ausencia de exhaustion sí es evidencia. El clasificador de
+auto mode negó el SSH directo desde Claude (`[Production Reads]`); la lectura fue de
+Bernard.
+
+**Siguiente real:** reintentar el turno E2E en app.og118.ai hoy, con el pool vivo.
+Si el fallback vuelve a caer, el saldo de la cuenta de Console sigue siendo el átomo.
+
+**CORRECCIÓN, mismo día:** lo de arriba fue fake-green mío. Un `200 OK` en
+`POST .../messages` no prueba que el modelo contestó (Rule 22: AIRE responde 200 y
+mete el error en el body), y el grep `credential|cools|exhaust` no cacha un 401 de
+token revocado porque AIRE no lo enfría. Los 177 turnos "sanos" incluían turnos
+mudos.
+
+### Intento E2E #2 — 2026-09-27 ~22:10 UTC: `401 OAuth access token has been revoked`
+
+Login en app.og118.ai por Google (sesión SSO viva en el Chrome de debug; la
+contraseña guardada de Auth0 está mal, el principal es `google-oauth2|…`). Chat
+nuevo, turno pidiendo explícitamente una tarea en background. Respuesta de og118,
+firmada `claude-sonnet-4-5`: **`Failed to authenticate. API Error: 401 OAuth access
+token has been revoked.`** La tool nunca se llamó; cero ejecuciones del Job.
+
+**Causa confirmada contra `api.anthropic.com` directo** (curl con el token
+canónico `claude-max-oauth`, que es el mismo de `aire-claude-oauth`, org
+`8e661957` vegdevida): `HTTP 401 "OAuth access token has been revoked."`
+
+**Por qué está revocado:** el 2026-09-26 Bernard revocó los 28 tokens de Claude
+Code de la cuenta vegdevida para cortarle el acceso a Alex (server-bot memoria
+`project_revocacion_alex_2026_09_26`, paso 4 ✅). El token de AIRE
+(`oauth-primary`) era uno de ellos. El paso 6 de ese plan — re-mintear con
+`claude setup-token` por cuenta y propagar con `rotate-claude-oauth.sh` — sigue ⏳.
+El backup de AIRE (`aire-claude-oauth-backup`, bernardurizadev, org `7b946828`)
+no se pudo probar desde esta sesión (el clasificador negó la lectura); si estuviera
+vivo AIRE habría caído a él, así que o está muerto o el rotor no cae en 401.
+
+**Siguiente real (átomo de Bernard, browser consent):** `claude setup-token`
+logueado en la cuenta que decida (bernarduriza `d1c8c86b` es la sana según
+`oauth-map.md`), capturado con `script -q` para no perderlo, luego
+`engineering-playbook/scripts/rotate-claude-oauth.sh <token>` + el paso manual del
+droplet (`/etc/aire/env`, `systemctl restart aire-server`), actualizar
+`oauth-map.md`, y reintentar este mismo turno. Hasta entonces AIRE está mudo para
+TODOS sus consumidores (og118, Insult, BAIR), no sólo para este E2E.
+
+### Rotación del token — 2026-09-28 04:49 UTC
+
+Bernard minteó el token nuevo en vegdevida (org `8e661957`, HTTP 200, 7d al 71%) tras un
+primer minteo que cayó en bernarduriza (org `d1c8c86b`, 429: semanal al 100% hasta el
+28-sep 14:00 CST). `rotate-claude-oauth.sh` propagó SSOT + Azure `og118-api` + GH secrets;
+el droplet (`/etc/aire/env` + `systemctl restart aire-server`) lo corrió Bernard con el
+token por stdin del ssh. Prueba de vida de AIRE: un turno real de otra sesión a las 04:50 UTC
+contestó con texto de Insult (`claude-opus-4-7`), no con 401. Mapa: `~/.secrets/oauth-map.md`.
+
+### Intento E2E #3 — 2026-09-28 04:50 UTC: la cadena del servidor COMPLETA; el cliente se rompió
+
+Mismo chat (`394cdf32-e313-4dfc-8de6-e97c55297652`), turno pidiendo la tarea en background.
+
+**Recibo del servidor, verificado en tres superficies:**
+1. `az containerapp job execution list -n og118-worker -g og118-rg` → `og118-worker-78fbwrj`,
+   StartTime `2026-09-28T04:50:44Z`, **Succeeded**. La tool `start_background_task` SÍ se llamó
+   y el Job SÍ corrió.
+2. `GET /conversations/394cdf32…` (og118-api, bearer del navegador) → 3 mensajes; el tercero es
+   `role: assistant, origin: background, createdAt 2026-09-28T04:52:01Z`, con el análisis
+   completo ("# Por qué el oganesón marca el final de la tabla periódica…"). El worker entregó
+   con `append_message`.
+3. `updatedAt` de la conversación = 04:52:01Z, posterior al Job.
+
+**Lo que falló, en el cliente:**
+- Durante el stream la consola tiró `Uncaught Error: Minified React error #185` (maximum update
+  depth) ×3; el render se quedó en "Still working. This can take a second." sin pintar la respuesta.
+- El turno #3 (mensaje del usuario + ack del asistente) **no se persistió**: el PUT del cliente
+  nunca salió por el crash. La conversación en el servidor tiene el mensaje del worker pero no
+  la pregunta que lo originó — se ve un análisis sin su prompt.
+- Que el mensaje `origin: background` aparezca en el chat SIN recargar no pudo verificarse: otra
+  sesión de Bernard estaba conduciendo la misma pestaña de app.og118.ai en el Chrome de debug
+  (Rule 21.1.a), y en una pestaña nueva la lista de chats no cargó.
+
+**Siguiente:** reproducir el React #185 (sospecha: `useOg118ConversationSync` poll de 15 s /
+focus-visibility disparando `reloadActive()` + `seedVersion` DURANTE el stream, o la sesión
+concurrente en la misma cuenta), arreglar la pérdida del turno, y repetir el E2E con la pestaña
+sin otra sesión encima para el recibo visual (screenshot).
+
+### Intento E2E #4 — 2026-09-28 05:06 UTC, producción, pestaña propia: ✅ DONE
+
+Chat nuevo en app.og118.ai (`3a6fb46d-a83b-49c0-86ca-3316938495e9`), pestaña que ninguna otra
+sesión tocaba. Turno a las 05:06; ack del modelo a las 05:06:54; mensaje del worker pintado
+en el chat **sin recargar** a las 05:07:42 (poll de `useOg118ConversationSync`).
+
+| Superficie | Recibo |
+|---|---|
+| UI | screenshot `evidence/og118-background-1-e2e4-prod-2026-09-28.jpg`: usuario, ack, mensaje del worker |
+| Consola | cero errores; sólo el warn de AudioContext sin gesto |
+| Azure | `og118-worker-2fjd0fa` StartTime 05:06:48Z → **Succeeded** |
+| og118-api | `GET /conversations/3a6fb46d…` → user, assistant, assistant `origin: background` — el turno SÍ quedó persistido |
+
+### El React #185 del intento #3 — NO se reprodujo; no hay fix de código
+
+Tres intentos limpios, cero #185:
+
+1. og118-web en `next dev` (auth0, build sin minificar) desde un worktree de `main`, contra
+   og118-api de producción por un proxy CORS local en :8118. Chat nuevo → sin error, mensaje del
+   worker en el chat sin recargar (Job `og118-worker-0wwca0e`).
+2. Mismo local, en el chat "sucio" del intento #3 (con el 401 y el mensaje huérfano) → sin error
+   (Job `og118-worker-oovmg8f`).
+3. El intento #4 en producción de arriba.
+
+Producción corre el mismo código que `main`: el último deploy de web es `a9862fdf` y hay **cero**
+commits en `apps/og118/web` o `apps/packages/fi-glass` desde entonces. La única condición distinta
+del intento #3 fue que **otra sesión de Claude estaba conduciendo la misma pestaña** del Chrome de
+debug (subió un PDF y mandó turnos de "Probe F2" en la misma cuenta mientras mi turno streameaba).
+Eso explica el crash y la pérdida del turno sin acusar al código; no se escribió un fix porque no
+hay nada que el test rojo pueda reproducir. Si el #185 vuelve a aparecer en una pestaña sin
+co-conductor, se reabre con el component stack del build de dev (la receta del proxy vive en esta
+sección).
+
+Residual real (no bloquea): el chat `394cdf32…` del intento #3 quedó con el mensaje del worker
+sin su pregunta, porque el PUT del cliente nunca salió. Es dato de prueba en la cuenta de Bernard.
