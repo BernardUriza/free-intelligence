@@ -92,9 +92,18 @@ async def stream_external_turn(
         "user_id": user_id or "0",
         "user_text": user_text,
         "persona_id": persona_id,
+        # Which surface emitted `user_id`: the engine resolves (surface, id) to
+        # its canonical principal before it reads memory (server-bot F2).
+        "surface": "og118",
     }
     if session_uuid:
         payload["session_uuid"] = session_uuid
+    # og118 has no turn pipeline of its own, so the engine runs it (server-bot
+    # F3): it stores the turn, runs the guardian and grows the user's facts.
+    # Only for a real person in a real conversation — a legacy-bearer caller or
+    # a turn with no conversation id would pile every stranger into one memory.
+    if user_id and session_uuid:
+        payload["pipeline"] = "runner"
     # Replayed client history (untrusted context, never authorization — same
     # doctrine as the local path). The engine folds it only when it opens a
     # fresh session for this channel; engines predating the field ignore it.

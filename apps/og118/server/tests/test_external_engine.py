@@ -170,6 +170,38 @@ async def test_no_session_falls_back_to_channel_zero(monkeypatch) -> None:
     assert "session_uuid" not in sent
 
 
+async def _payload(monkeypatch, **kwargs) -> dict:
+    _configure(monkeypatch)
+    sent: dict = {}
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _client_factory(resp=_FakeResp(200, {"text": "ok"}), sent=sent),
+    )
+    await _collect(external_engine.stream_external_turn(persona_id="insult", user_text="hi", **kwargs))
+    return sent
+
+
+@pytest.mark.asyncio
+async def test_a_person_in_a_conversation_asks_the_engine_to_run_the_pipeline(monkeypatch) -> None:
+    """server-bot F3: og118 has no turn pipeline of its own, so the engine runs
+    it — stores the turn, runs the guardian, grows the user's facts. `surface`
+    lets the engine resolve the Auth0 sub to its canonical principal (F2)."""
+    sent = await _payload(monkeypatch, session_uuid="conv-abc", user_id="google-oauth2|1")
+    assert sent["pipeline"] == "runner"
+    assert sent["surface"] == "og118"
+
+
+@pytest.mark.asyncio
+async def test_no_identity_or_no_conversation_never_runs_the_pipeline(monkeypatch) -> None:
+    """A legacy-bearer caller (user_id None → "0") or a turn with no conversation
+    id (channel "0") would pile strangers into one memory: bare turn only."""
+    for kwargs in ({"session_uuid": "conv-abc", "user_id": None}, {"session_uuid": None, "user_id": "u"}):
+        sent = await _payload(monkeypatch, **kwargs)
+        assert "pipeline" not in sent, kwargs
+        assert sent["surface"] == "og118"
+
+
 @pytest.mark.asyncio
 async def test_history_is_forwarded_capped(monkeypatch) -> None:
     """The replayed thread rides the payload (capped) so a fresh engine session —
