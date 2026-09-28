@@ -123,7 +123,13 @@ async def extract_facts(
             total=len(existing_lines),
         )
     existing_str = "\n".join(kept) if kept else "(none)"
-    conv_lines = [f"{m.get('user_name', 'persona')}: {m['content']}" for m in recent_messages[-10:]]
+    # A reaction-only turn (content '') carries no words to mine; a blank
+    # "Insult: " line only costs budget and invites the extractor to guess.
+    conv_lines = [
+        f"{m.get('user_name', 'persona')}: {m['content']}"
+        for m in recent_messages[-10:]
+        if (m.get("content") or "").strip()
+    ]
     conversation_str = "\n".join(_fit_lines(conv_lines, CONVERSATION_CHAR_BUDGET, keep_tail=True))
     user_prompt = (
         f"User display name: {user_name}\n\nExisting facts:\n{existing_str}\n\nRecent conversation:\n{conversation_str}"

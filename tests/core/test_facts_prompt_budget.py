@@ -122,3 +122,18 @@ async def test_distinct_users_still_extract_concurrently():
         ext._extract_and_persist(judge, "user-b", "u", turn),
     )
     assert memory.max_active == 2
+
+
+@pytest.mark.asyncio
+async def test_a_reaction_only_row_never_reaches_the_extractor():
+    """v4.47.0 stores a reaction-only turn with content ''. It has no words to
+    mine; a blank "Insult: " line would only cost budget and invite a guess."""
+    judge = _CapturingJudge()
+    messages = [
+        {"user_name": "Bernard", "content": "me mudé a Xalapa"},
+        {"user_name": "Insult", "content": "", "reactions": ["👀"]},
+    ]
+    await extract_facts(judge, None, "Bernard", [], messages)
+    user_text = judge.calls[0][0]["content"]
+    assert "Bernard: me mudé a Xalapa" in user_text
+    assert "Insult:" not in user_text

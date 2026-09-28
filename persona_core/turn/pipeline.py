@@ -159,8 +159,10 @@ async def run_turn(
     # What is said is the pacing-free text: memory never sees `[SEND]`.
     delivered = "\n".join(split_response(text)) if text else ""
 
-    if delivered:
-        await _store_reply(turn, memory, delivered, reply.model)
+    # A reaction-only turn IS an answer: stored with empty content and its
+    # emoji, so the persona's memory and the surface's transcript agree.
+    if delivered or reactions:
+        await _store_reply(turn, memory, delivered, reply.model, reactions)
 
     # A real human ask is the only turn worth mining; the extraction runs in the
     # background so its LLM round-trip never sits between the user and the reply.
@@ -207,8 +209,15 @@ async def _store_ask(turn: InboundTurn, memory: MemoryStore) -> None:
         log.exception("turn_pipeline_ask_store_failed", persona_id=turn.persona.persona_id, channel_id=turn.channel_id)
 
 
-async def _store_reply(turn: InboundTurn, memory: MemoryStore, delivered: str, model: str | None) -> None:
-    """Persist the persona's reply. A DB fault is logged and the turn goes on."""
+async def _store_reply(
+    turn: InboundTurn,
+    memory: MemoryStore,
+    delivered: str,
+    model: str | None,
+    reactions: list[str] | None = None,
+) -> None:
+    """Persist the persona's reply and its reactions. A DB fault is logged and
+    the turn goes on."""
     try:
         await memory.store(
             turn.channel_id,
@@ -220,6 +229,7 @@ async def _store_reply(turn: InboundTurn, memory: MemoryStore, delivered: str, m
             guild_id=turn.guild_id,
             channel_name=turn.channel_name,
             model_used=model,
+            reactions=list(reactions) if reactions else None,
         )
     except Exception:
         log.exception(

@@ -165,6 +165,14 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   structlog (never print()).
 - **Memory is append-only**: never delete, only grow ("infinite conversation");
   Azure Postgres via `persona_core/memory/`.
+- **A reaction is part of the answer** (v4.47.0): `run_turn` stores a
+  reaction-only turn as an assistant row with `content=''` and the emoji in
+  `messages.reactions`, and `build_context` renders it `Insult (tú): reaccionó
+  👀`. Before, the row was skipped, so the persona's memory showed the user's
+  message unanswered while og118 persisted the gesture (F5). The fact extractor
+  and the reflection loop read words only and skip these rows. The gateway's
+  Discord tail does not store them yet; it inherits this when it moves onto
+  `run_turn`.
 - **Facts are ADD-only**: background extraction (`persona_gateway/facts.py`) →
   `merge_facts_additive` onto the full live auto set before `save_facts`. A raw
   `save_facts(subset)` is a hard-delete in disguise (2026-06-03 P0).

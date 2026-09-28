@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS messages (
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS discord_message_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_discord_id
     ON messages(discord_message_id) WHERE discord_message_id IS NOT NULL;
+-- MIGRATION v4.47.0 (2026-09-28): the persona's reactions on its own turn.
+-- A turn that was ONLY a `[REACT:]` stored nothing, so the persona's memory
+-- showed the user's message unanswered while og118 persisted the gesture —
+-- two memories of one conversation. Now the assistant row is stored with
+-- `content = ''` and the emoji here: a non-text event, the way Rasa records
+-- every bot action and Matrix keeps `m.reaction` as a body-less event. NULL on
+-- every older row and on a reply with no reaction.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions TEXT[];
 CREATE INDEX IF NOT EXISTS idx_channel_ts ON messages(channel_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_user_context ON messages(channel_id, user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_for_user ON messages(channel_id, for_user_id, timestamp DESC);

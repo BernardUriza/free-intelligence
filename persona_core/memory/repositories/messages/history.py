@@ -28,7 +28,7 @@ class MessagesHistory(BaseRepository):
         """
         if user_id:
             rows = await self._fetch(
-                "SELECT user_id, user_name, role, content, timestamp FROM messages "
+                "SELECT user_id, user_name, role, content, timestamp, reactions FROM messages "
                 "WHERE channel_id = $1 AND (user_id = $2 OR for_user_id = $2) "
                 "ORDER BY timestamp DESC LIMIT $3",
                 channel_id,
@@ -37,11 +37,13 @@ class MessagesHistory(BaseRepository):
             )
         else:
             rows = await self._fetch(
-                "SELECT user_id, user_name, role, content, timestamp FROM messages "
+                "SELECT user_id, user_name, role, content, timestamp, reactions FROM messages "
                 "WHERE channel_id = $1 ORDER BY timestamp DESC LIMIT $2",
                 channel_id,
                 limit,
             )
+        # `reactions` rides every row (the persona's gesture on its own turn,
+        # v4.47.0) so the framer can say a reaction-only turn WAS an answer.
         return [
             {
                 "user_id": r["user_id"],
@@ -49,6 +51,7 @@ class MessagesHistory(BaseRepository):
                 "role": r["role"],
                 "content": r["content"],
                 "timestamp": r["timestamp"],
+                "reactions": list(r["reactions"] or []),
             }
             for r in reversed(rows)
         ]
@@ -61,8 +64,10 @@ class MessagesHistory(BaseRepository):
         by display name because assistant rows share bot-ish user_ids across
         hosts, while `user_name` is the persona's stable display name."""
         rows = await self._fetch(
+            # A reaction-only turn (content '') is not something the persona
+            # SAID; the reflection loop only reads words.
             "SELECT channel_id, content, timestamp FROM messages "
-            "WHERE role = 'assistant' AND user_name = $1 "
+            "WHERE role = 'assistant' AND user_name = $1 AND content <> '' "
             "ORDER BY timestamp DESC LIMIT $2",
             user_name,
             limit,
