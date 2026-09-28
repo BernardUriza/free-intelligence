@@ -140,6 +140,17 @@ class ConnectionManager:
         if self._vectors_available:
             self._prewarm_task = asyncio.create_task(self._prewarm_embeddings())
 
+    async def wait_embeddings_prewarmed(self) -> bool:
+        """Await the warmup `connect()` started; True when it ran to its end.
+
+        False when there was nothing to wait for (no pgvector, or connect()
+        never ran). A caller that wants the model resident BEFORE traffic —
+        the runner at boot — awaits this; everyone else keeps the lazy load."""
+        if self._prewarm_task is None:
+            return False
+        await self._prewarm_task
+        return True
+
     async def _prewarm_embeddings(self) -> None:
         """Warm the embedding model in the background. Runs in a thread because
         the encode is sync CPU work; never blocks the event loop heartbeat.

@@ -137,3 +137,26 @@ async def test_prewarm_failure_is_non_fatal(fake_pool, monkeypatch):
     with structlog.testing.capture_logs() as logs:
         await mgr._prewarm_task
     assert any(e["event"] == "embedding_prewarm_failed" for e in logs)
+
+
+# --- the runner awaits the warmup connect() starts (2026-09-28) --------------
+
+
+@pytest.mark.asyncio
+async def test_wait_embeddings_prewarmed_is_false_when_connect_started_nothing():
+    manager = ConnectionManager("postgresql://x")
+    assert await manager.wait_embeddings_prewarmed() is False
+
+
+@pytest.mark.asyncio
+async def test_wait_embeddings_prewarmed_awaits_the_warmup_task():
+    manager = ConnectionManager("postgresql://x")
+    done: list[str] = []
+
+    async def warmup() -> None:
+        await asyncio.sleep(0)
+        done.append("loaded")
+
+    manager._prewarm_task = asyncio.create_task(warmup())
+    assert await manager.wait_embeddings_prewarmed() is True
+    assert done == ["loaded"], "the caller must not return before the model is resident"

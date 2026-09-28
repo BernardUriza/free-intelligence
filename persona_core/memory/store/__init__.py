@@ -86,6 +86,9 @@ class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, Governa
     async def close(self) -> None:
         await self._manager.close()
 
+    async def wait_embeddings_prewarmed(self) -> bool:
+        return await self._manager.wait_embeddings_prewarmed()
+
     @property
     def _vectors_available(self) -> bool:
         return self._manager.vectors_available

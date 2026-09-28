@@ -851,11 +851,19 @@ async def test_the_runner_lifespan_closes_the_aire_backends(monkeypatch):
     backend = _Closable("insult")
     aire_route._backends["insult"] = backend
 
+    warm = AsyncMock(return_value=None)
+    close_memory = AsyncMock(return_value=None)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.warm_at_boot", warm)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.close_memory", close_memory)
+
     async with runner_mod._lifespan(object()):
-        pass
+        await asyncio.sleep(0)  # let the boot tasks start
 
     assert backend.closed, "shutdown left an AIRE door client open"
     closed_pool.assert_awaited_once()
+    # Boot warms the pipeline's store + embedder; shutdown releases its pool.
+    warm.assert_awaited_once()
+    close_memory.assert_awaited_once()
 
 
 # --- token counts: only what AIRE stated is a number (2026-09-03) -------------

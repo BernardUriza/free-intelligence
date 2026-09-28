@@ -69,14 +69,22 @@ async def _lifespan(app: FastAPI):
     # bloquea el boot, un ledger caído sólo lo loggea.
     turn_jobs.JOBS.start_heartbeat()
     boot_resume = asyncio.create_task(turn_jobs.resume_stale_at_boot(aire_route.turn_via_aire))
+    # La tubería del turno (F3) trae su propio pool y el modelo de embeddings;
+    # se calientan al arrancar, en background, para que el primer turno de una
+    # réplica fría no pague ~25 s de carga dentro de su propio presupuesto.
+    from persona_runner.api import turn_pipeline
+
+    boot_warm = asyncio.create_task(turn_pipeline.warm_at_boot())
 
     yield
 
     # Drenar ANTES de cerrar los clientes de AIRE y el pool: los jobs abiertos
     # los usan. Al vencer la espera, sus filas se sueltan para la sucesora.
     boot_resume.cancel()
+    boot_warm.cancel()
     await turn_jobs.drain_for_shutdown(config.RUNNER_SHUTDOWN_DRAIN_S)
     await turn_jobs.JOBS.stop_heartbeat()
+    await turn_pipeline.close_memory()
     # Every AIREBackend holds a pooled httpx.AsyncClient — turn backends and
     # judge backends alike get their connections and TLS sessions closed.
     await aire_route.close_backends()
