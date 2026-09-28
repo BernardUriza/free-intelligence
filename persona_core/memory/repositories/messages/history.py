@@ -65,9 +65,11 @@ class MessagesHistory(BaseRepository):
         hosts, while `user_name` is the persona's stable display name."""
         rows = await self._fetch(
             # A reaction-only turn (content '') is not something the persona
-            # SAID; the reflection loop only reads words.
+            # SAID; the reflection loop only reads words. A probe's reply is
+            # synthetic traffic, not a taste the persona confirmed (v4.47.1).
             "SELECT channel_id, content, timestamp FROM messages "
             "WHERE role = 'assistant' AND user_name = $1 AND content <> '' "
+            "AND origin IS DISTINCT FROM 'probe' "
             "ORDER BY timestamp DESC LIMIT $2",
             user_name,
             limit,

@@ -87,6 +87,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_discord_id
 -- every bot action and Matrix keeps `m.reaction` as a body-less event. NULL on
 -- every older row and on a reply with no reaction.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions TEXT[];
+-- MIGRATION v4.47.1 (2026-09-28): synthetic traffic is tagged ON the row.
+-- NULL = a person; 'probe' = a wire check or deploy receipt. The day this was
+-- born, a probe had landed in Bernard's own memory and the fact store already
+-- held facts mined from months of probes ("ran probe #58 with fact 73 alive").
+-- The marker rides the data so every reader excludes it at write time.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS origin TEXT;
 CREATE INDEX IF NOT EXISTS idx_channel_ts ON messages(channel_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_user_context ON messages(channel_id, user_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_for_user ON messages(channel_id, for_user_id, timestamp DESC);

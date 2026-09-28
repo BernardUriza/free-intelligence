@@ -214,3 +214,30 @@ async def test_a_plain_reply_stores_no_reactions():
     memory = _memory()
     await _run(_turn(), memory, _Brain("Sin gesto."))
     assert memory.store.await_args_list[-1].kwargs["reactions"] is None
+
+
+# --- Synthetic traffic is tagged and never mined (v4.47.1) -------------------
+# 2026-09-28: a wire probe ran under Bernard's principal and landed in his
+# memory, and his fact store already held facts mined from earlier probes.
+
+
+@pytest.mark.asyncio
+async def test_a_probe_turn_is_stored_tagged_and_never_mined():
+    memory = _memory()
+    with patch("persona_core.turn.pipeline.FactExtractor") as extractor:
+        out = await _run(_turn(origin="probe", user_id="probe-claude"), memory, _Brain("Vivo. [REACT:👀]"))
+
+    assert out.text == "Vivo."
+    extractor.assert_not_called()
+    assert [c.kwargs["origin"] for c in memory.store.await_args_list] == ["probe", "probe"]
+
+
+@pytest.mark.asyncio
+async def test_a_person_turn_is_stored_untagged_and_mined():
+    """Resistance: the tag never leaks onto a real turn, and extraction still runs."""
+    memory = _memory()
+    with patch("persona_core.turn.pipeline.FactExtractor") as extractor:
+        await _run(_turn(), memory, _Brain("Hola."))
+
+    extractor.return_value.spawn.assert_called_once()
+    assert [c.kwargs["origin"] for c in memory.store.await_args_list] == [None, None]
