@@ -22,7 +22,7 @@ from collections import OrderedDict
 import discord
 import structlog
 
-from khimeras_shared.version import VERSION_TAG
+from persona_core.version import VERSION_TAG
 from shared.text import split_response
 
 log = structlog.get_logger()

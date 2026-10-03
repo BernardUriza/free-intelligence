@@ -1,10 +1,59 @@
 # Frugívoro — erudite vegan-gastronomy sibling (FrugivoreGPT, Khimeras family)
 
 Status: **In progress — los CUATRO pasos verificados desde el 2026-09-09
-(la ingesta en Postgres incluida). El benchmark ético (§1–§3) ya tiene harness
-reproducible en el repo (2026-09-25, v4.40.25); falta CORRERLO — resultado
-pendiente, cero números medidos**. Actualizado 2026-09-25.
+(la ingesta en Postgres incluida). El harness del benchmark (§1–§3) corre por el
+wire del runner como probe (2026-10-03, v4.47.7); humo de 3 turnos hecho, la
+corrida completa espera autorización. El retrieval del corpus queda confirmado
+SÓLO cuando el bloque se inyecta — y para 2 de los 3 casos de corpus hoy NO se
+inyecta (bug abajo)**. Actualizado 2026-10-03.
 Proposed: 2026-06-29 by Bernard
+
+## 2026-10-03 — el harness pasa al runner, y el corpus se cae en silencio
+
+**Superficie.** Discord está apagado desde el 2026-09-27; el harness ya no arma
+el turno como el gateway: cada caso sale por `POST /v1/turn/jobs` como **probe**
+(`origin="probe"`, principal `probe-frugivoro-bench`, un canal
+`probe-<fecha>-fb-<corrida>-<brazo>-<caso>` por caso), con el cuerpo de
+`scripts/probe_turn.py::build_probe_payload`. Brazo `corpus` = `pipeline="runner"`
+(el `run_turn` de og118); brazo `--no-corpus` = `pipeline="caller"` con el mismo
+framing y la misma guidance del guardián, sin el bloque. `--case` acota a 1–3
+turnos para un humo.
+
+**Hallazgo 1 — la suite culinaria no toca el corpus.** `query_corpus` de sólo
+lectura sobre los 17 casos: 16 quedan bajo el piso 0.78 (0.72–0.77), sólo
+`heldout-paper-inventado` (0.787) lo clarea. El corpus son Williams 1883 y dos
+revisiones clínicas; macarons y garum no se le parecen. Se agregaron 3 casos
+`corpus_expected` (cardiometabólico, embarazo, ética histórica, 0.81–0.83).
+
+**Hallazgo 2 — BUG en el read-path: un pasaje largo vacía el bloque sin log.**
+`persona_core/corpus/references.py::build_references_block` rompe el loop en
+cuanto `total + len(line) > _REF_MAX_CHARS` (2200); si el PRIMER pasaje ya mide
+más, `lines` queda vacío y devuelve None **sin** `deep_memory_corpus_refs_built`
+ni `deep_memory_corpus_no_hits`. Los top-3 de embarazo miden 2408/2477/2589 chars
+(con etiqueta) y los de cardiometabólico 2366/2255/2255: el corpus nunca llega a
+esos turnos. 82 de los 893 chunks de `__corpus_vegan__` exceden el tope (y 29–107
+en cada uno de los otros corpus). Confirmado en KQL del humo: el turno de
+embarazo en el runner registró `prompt_loaded name=frugivoro` (la cabecera) y
+ningún evento de corpus. Además, esos tres pasajes son **listas de referencias
+bibliográficas** de la revisión PMC, no hallazgos: la ingesta chunkeó la
+bibliografía y embebe cerca de cualquier pregunta clínica. Fix pendiente (fuera
+de este PR, toca el turn path): recortar el pasaje en vez de soltarlo, loguear
+el bloque vacío, y filtrar la bibliografía en la ingesta.
+
+**Humo (3 turnos, Haiku por el ruteo, run `smk1`):**
+
+| caso | brazo | inyectado | veredicto |
+|---|---|---|---|
+| corpus-embarazo | corpus | 0 (bug) | `not_injected` — respuesta sin rastro del corpus |
+| corpus-embarazo | no-corpus | — | `not_injected` (el caso no discrimina hoy) |
+| corpus-etica-historica | corpus | 1 pasaje Williams | **`cited`** — Porfirio/*De Abstinencia* y la etiqueta `[williams-ethics-of-diet]` literal en la respuesta |
+
+Lo único confirmado: cuando el bloque SÍ se inyecta, lo recuperado llega a la
+respuesta (y la persona deja la etiqueta cruda entre corchetes, contra lo que
+pide su cabecera — "en tu voz"). **Falta** el contrafactual `--no-corpus` de
+`corpus-etica-historica` (no se corrió: tope de 3 turnos), así que ni siquiera
+ese `cited` está aislado del conocimiento propio del modelo — aunque una etiqueta
+de slug literal difícilmente sale sin el bloque.
 
 ## Benchmark §1–§3 — harness listo, corrida PENDIENTE (2026-09-25)
 
@@ -39,18 +88,25 @@ Dry-run verde local: `python scripts/frugivoro_bench.py --dry-run --split all`
 
 **Lo que falta (y no se hizo a propósito):**
 
-1. **La corrida real** contra el persona-runner de prod — gasta turnos de Opus
-   (AIRE/Max) y escribe una fila de `turn_jobs` por turno; necesita autorización
-   de Bernard. Comando exacto:
+1. **La corrida real** contra el persona-runner de prod — gasta turnos
+   (AIRE/Max), despierta el runner en frío y escribe una fila de `turn_jobs` por
+   turno (más dos filas `messages` con `origin='probe'` en el brazo corpus);
+   necesita autorización de Bernard. Comando exacto (2026-10-03; los dos brazos
+   el mismo día):
 
-       PERSONA_RUNNER_URL=... PERSONA_RUNNER_TOKEN=... POSTGRES_URL=... \
-           python scripts/frugivoro_bench.py --split dev --judge
-       # contrafactual del corpus, el mismo día:
+       PERSONA_RUNNER_URL=https://persona-runner.<env>.azurecontainerapps.io \
+       PERSONA_RUNNER_TOKEN=... POSTGRES_URL=... \
+       AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_KEY=... \
+           python scripts/frugivoro_bench.py --split dev --judge --run-id full1 \
+           --out scratchpad/fb_dev_corpus.json
        ... python scripts/frugivoro_bench.py --split dev --judge --no-corpus \
-           --out scratchpad/frugivoro_bench_nocorpus.json
+           --run-id full1 --out scratchpad/fb_dev_nocorpus.json
 
-   (`POSTGRES_URL` sólo para LEER el corpus; sin él el bloque RAG no llega y la
-   corrida mide el contrafactual sin decirlo — córrela con él.)
+   (`POSTGRES_URL` + `AZURE_OPENAI_*` son sólo para que el harness REPRODUZCA la
+   recuperación y dé el veredicto `corpus_trace`; el turno en sí lo arma el
+   runner. Sin ellos el veredicto sale `unknown`, nunca un falso "no hubo".)
+   Correrla antes de arreglar el bug del read-path de arriba mide un corpus que
+   no llega a 2 de los 3 casos que lo tocan.
 2. **Las respuestas del competidor** (`vegan-gourmet`): recogerlas a mano en su
    interfaz pública, bajo volumen, a un JSON
    `{case_id: {"text", "collected_by": "manual", "collected_at"}}`, y pasarlo con

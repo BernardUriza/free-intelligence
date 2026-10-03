@@ -21,7 +21,10 @@ import pytest
 
 from persona_gateway.vision import ImageTranscriber
 
-IMAGE = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "aaa"}}
+IMAGE = {
+    "type": "image",
+    "source": {"type": "url", "url": "https://cdn.discordapp.com/attachments/1/2/a.png?ex=ffffffff&is=0&hm=abc"},
+}
 TEXT_BLOCK = {"type": "text", "text": "mira esto"}
 DOC = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "b"}}
 
@@ -131,7 +134,7 @@ async def test_a_runaway_description_is_capped():
 @pytest.mark.parametrize("bad_id", ["", None])
 async def test_without_a_message_id_there_is_nowhere_to_append(bad_id):
     """RESISTANCE: the append is keyed on the Discord id — no key, no call."""
-    t, memory, tasks = _transcriber()
+    t, _memory, tasks = _transcriber()
     judge = _judge()
     t.spawn(judge, bad_id, [IMAGE])
     await _drain(tasks)

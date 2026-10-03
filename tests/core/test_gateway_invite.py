@@ -118,14 +118,14 @@ def test_invite_persona_id_routes_to_that_persona():
     alice = _ready_client()
     vultur = _ready_client()
     app = build_invite_app({INVITE_PERSONA_ID: alice, "vultur": vultur}, TOKEN)
-    payload = {**PAYLOAD, "persona_id": "vultur", "invited_by": "host_router"}
+    payload = {**PAYLOAD, "persona_id": "vultur", "invited_by": "host"}
     with TestClient(app) as http:
         r = http.post("/invite", json=payload, headers={"Authorization": f"Bearer {TOKEN}"})
     assert r.status_code == 202
     vultur.dispatch_invite.assert_called_once()
     alice.dispatch_invite.assert_not_called()
     kwargs = vultur.dispatch_invite.call_args.kwargs
-    assert kwargs["invited_by"] == "host_router"
+    assert kwargs["invited_by"] == "host"
 
 
 def test_invite_omitted_persona_id_keeps_alice_wire_contract():

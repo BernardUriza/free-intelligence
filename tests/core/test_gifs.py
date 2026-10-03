@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from khimeras_shared.gifs import (
+from persona_core.gifs import (
     MAX_GIFS_PER_TURN,
     catalog_block,
     load_catalog,
@@ -29,7 +29,7 @@ CATALOG = "fiesta: https://tenor.com/view/dance-gif-813685\ninocente: https://me
 
 
 def _with_catalog(raw: str):
-    return patch("khimeras_shared.gifs.load_guidance", return_value=raw)
+    return patch("persona_core.gifs.load_guidance", return_value=raw)
 
 
 def test_parses_and_strips_the_marker():

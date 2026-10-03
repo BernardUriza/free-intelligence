@@ -7,7 +7,7 @@ lee como salud cuando en realidad puede significar "esta rama ya no puede
 sonar". Aquí se fija que los dos suben por caminos distintos y que el veredicto
 lleva lo que Álex decidió que lleve, ni una palabra más.
 
-Estos tests corren SIN fi-core instalado a propósito: `khimeras_shared.audit`
+Estos tests corren SIN fi-core instalado a propósito: `persona_core.audit`
 no importa `behavior`, así que la máquina de Álex puede verificar la parte que
 guarda datos de personas reales sin depender del entorno de Bernard.
 """
@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 import pytest
 from structlog.testing import capture_logs
 
-from khimeras_shared.audit import (
+from persona_core.audit import (
     ABSENT_EVENT,
     AUDIT_KEY_ENV,
     CLASSIFIED_EVENT,
@@ -161,7 +161,7 @@ def test_una_falla_al_emitir_no_revienta(monkeypatch, con_llave):
             self.exceptions.append(event)
 
     falso = LoggerQueTruena()
-    monkeypatch.setattr("khimeras_shared.audit.log", falso)
+    monkeypatch.setattr("persona_core.audit.log", falso)
 
     log_crisis_band_absent(persona_id="valentis", reason="mensaje_vacio")
     log_crisis_band_classified(

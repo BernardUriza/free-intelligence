@@ -3,7 +3,7 @@
 The cadences, timeouts, batch sizes and window limits that an operator might
 reasonably tune under prod load live HERE, as a single `pydantic-settings`
 `BaseSettings` (the repo's canonical config convention — same family as
-`khimeras_shared.persona.config.PersonaRuntimeConfig` and Insult's `Settings`).
+`persona_core.persona.config.PersonaRuntimeConfig` and Insult's `Settings`).
 Reading them through env-typed fields beats a scatter of `os.environ.get`
 casts that silently mis-parse.
 
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from pydantic_settings import BaseSettings
 
-from khimeras_shared.tts import DEFAULT_SUSURRO_URL
+from persona_core.tts import DEFAULT_SUSURRO_URL
 
 
 class GatewayConfig(BaseSettings):

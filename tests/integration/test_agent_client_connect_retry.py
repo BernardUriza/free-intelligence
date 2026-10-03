@@ -21,7 +21,7 @@ from typing import ClassVar
 import httpx
 import pytest
 
-from khimeras_shared.runner.agent_client import (
+from persona_core.runner.agent_client import (
     AgentRunnerClient,
     PersonaTurnError,
     RunnerDownError,
@@ -73,13 +73,13 @@ class _ScriptedClient:
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
 
     # No real backoff sleeps in tests.
     async def _no_sleep(_s):
         return None
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("persona_core.runner.agent_client.asyncio.sleep", _no_sleep)
     _ScriptedClient.script = []
     _ScriptedClient.calls = 0
     _ScriptedClient.job_ids = []
@@ -150,12 +150,12 @@ async def test_el_presupuesto_de_reloj_corta_antes_que_los_intentos(monkeypatch)
     intento consume 20s de reloj simulado, así que el presupuesto de 45s se acaba
     en el tercero y el error lo dice.
     """
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _ScriptedClient)
 
     async def _no_sleep(_s):
         return None
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("persona_core.runner.agent_client.asyncio.sleep", _no_sleep)
 
     reloj = {"t": 0.0}
 
@@ -163,7 +163,7 @@ async def test_el_presupuesto_de_reloj_corta_antes_que_los_intentos(monkeypatch)
         reloj["t"] += 20.0  # cada lectura avanza el reloj: un connect que cuelga
         return reloj["t"]
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.time.monotonic", _monotonic)
+    monkeypatch.setattr("persona_core.runner.agent_client.time.monotonic", _monotonic)
     _ScriptedClient.script = [httpx.ConnectTimeout("hangs")]
     _ScriptedClient.calls = 0
 

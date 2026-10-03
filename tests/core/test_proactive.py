@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from khimeras_shared.proactive import (
+from persona_core.proactive import (
     ACTIVE_THRESHOLD,
     BASE_INTERVAL_HOURS,
     COOLING_THRESHOLD,

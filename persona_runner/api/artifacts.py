@@ -1,6 +1,6 @@
 """Artifact serving — the read side of `publish_html_artifact`.
 
-The runner already PERSISTS an HTML artifact (`khimeras_shared.html_artifacts`)
+The runner already PERSISTS an HTML artifact (`persona_core.html_artifacts`)
 and mints a shareable URL `{base}/a/{id}` — but nothing ever SERVED that path.
 The URL pointed at the old `discord-bot` container's FQDN, which is now NXDOMAIN
 (nicecliff) / scaled-to-zero (greendune), so every published link was dead on
@@ -24,7 +24,7 @@ import structlog
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
-from khimeras_shared.html_artifacts import get_artifact
+from persona_core.html_artifacts import get_artifact
 
 log = structlog.get_logger()
 

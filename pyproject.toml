@@ -1,6 +1,6 @@
 [project]
 name = "insult"
-version = "4.40.25"
+version = "4.47.7"
 requires-python = ">=3.14"
 
 [tool.ruff]
@@ -46,13 +46,13 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["persona_gateway", "demux_ai", "khimeras_shared", "shared"]
+source = ["persona_gateway", "demux_ai", "persona_core", "shared"]
 omit = [
     "persona_gateway/boot.py",      # Discord lifecycle glue (requires real bots)
     "persona_gateway/__main__.py",  # CLI entry point
     "demux_ai/__main__.py",         # CLI entry point
-    "khimeras_shared/memory/*",     # Postgres I/O (integration test territory)
-    "khimeras_shared/vectors.py",   # sentence-transformers I/O
+    "persona_core/memory/*",     # Postgres I/O (integration test territory)
+    "persona_core/vectors.py",   # sentence-transformers I/O
 ]
 
 [tool.coverage.report]

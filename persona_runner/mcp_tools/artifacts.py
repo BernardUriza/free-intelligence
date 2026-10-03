@@ -23,7 +23,7 @@ from persona_runner.mcp_tools.tooldef import tool
     {"title": str, "html_content": str},
 )
 async def publish_html_artifact(args: dict) -> dict:
-    from khimeras_shared.html_artifacts import insert_artifact
+    from persona_core.html_artifacts import insert_artifact
     from persona_runner.mcp_tools.turn_context import current_principal
 
     title = (args.get("title") or "").strip()

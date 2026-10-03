@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 import pytest
 from structlog.testing import capture_logs
 
-from khimeras_shared.audit import log_crisis_band_absent, log_crisis_band_classified
+from persona_core.audit import log_crisis_band_absent, log_crisis_band_classified
 
 SEPTIEMBRE = datetime(2026, 9, 8, 15, 20, tzinfo=UTC)
 
@@ -58,7 +58,7 @@ def payloads_vistos(monkeypatch):
         return "hash-de-mentiras"
 
     monkeypatch.setenv("CRISIS_AUDIT_KEY", "llave-de-prueba")
-    monkeypatch.setattr("khimeras_shared.audit.sha256_payload", espia)
+    monkeypatch.setattr("persona_core.audit.sha256_payload", espia)
     return vistos
 
 
@@ -97,7 +97,7 @@ def test_dos_veredictos_distintos_no_comparten_payload(payloads_vistos):
 
 def test_sin_fi_core_el_evento_sale_igual_sin_hash(monkeypatch):
     """La máquina de Álex, y cualquier entorno donde falte el paquete."""
-    monkeypatch.setattr("khimeras_shared.audit.sha256_payload", None)
+    monkeypatch.setattr("persona_core.audit.sha256_payload", None)
     assert un_veredicto()["audit_hash"] is None
 
 
@@ -107,7 +107,7 @@ def test_si_el_hash_truena_el_evento_sale_igual(monkeypatch):
     def truena(_payload):
         raise RuntimeError("el payload traía algo no serializable")
 
-    monkeypatch.setattr("khimeras_shared.audit.sha256_payload", truena)
+    monkeypatch.setattr("persona_core.audit.sha256_payload", truena)
     assert un_veredicto()["audit_hash"] is None
 
 

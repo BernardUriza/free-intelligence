@@ -306,4 +306,4 @@ jobs:
 
       - name: Run bandit
         shell: bash -leo pipefail {0}
-        run: bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml
+        run: bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml

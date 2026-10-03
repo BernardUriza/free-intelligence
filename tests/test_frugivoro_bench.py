@@ -215,3 +215,182 @@ def test_live_run_refuses_without_runner_credentials(monkeypatch):
     monkeypatch.delenv("PERSONA_RUNNER_URL", raising=False)
     monkeypatch.delenv("PERSONA_RUNNER_TOKEN", raising=False)
     assert asyncio.run(bench.main(["--split", "dev"])) == 2
+
+
+# ── superficie: cada turno sale como probe por el wire del runner ────────────
+
+
+def _runner_accepts(payload):
+    """El contrato del runner, no una copia: si el schema lo rechaza, el 422 llega aquí."""
+    from persona_runner.core.schemas import TurnRequest
+
+    return TurnRequest.model_validate(payload)
+
+
+def test_corpus_arm_is_a_probe_on_the_runner_pipeline(suite):
+    case = _case(suite, "corpus-embarazo")
+    payload = bench.build_turn_payload(case, arm="corpus", run_id="t1", today="2026-10-03")
+    req = _runner_accepts(payload)
+    assert req.pipeline == "runner"
+    assert req.origin == "probe"
+    assert req.user_id == "probe-frugivoro-bench"
+    assert req.channel_id == "probe-2026-10-03-fb-t1-corpus-corpus-embarazo"
+    # La pregunta va CRUDA: el runner arma guardián, corpus y framing.
+    assert req.user_text == case["prompt"]
+    assert req.behavioral_guidance is None
+
+
+def test_no_corpus_arm_is_the_same_turn_without_the_corpus_block(suite):
+    case = _case(suite, "corpus-embarazo")
+    payload = bench.build_turn_payload(case, arm="no-corpus", run_id="t1", today="2026-10-03")
+    req = _runner_accepts(payload)
+    assert req.pipeline == "caller"
+    assert req.origin == "probe" and req.user_id.startswith("probe-")
+    assert req.user_text.endswith(case["prompt"]) and "<current_time>" in req.user_text
+    assert "REFERENCIAS DE TU CORPUS" not in (req.behavioral_guidance or "")
+
+
+def test_every_case_gets_its_own_channel_and_job(suite):
+    """run_turn lee la historia del canal: dos casos en uno se contaminarían."""
+    payloads = [
+        bench.build_turn_payload(c, arm=arm, run_id="t1") for c in suite["cases"] for arm in ("corpus", "no-corpus")
+    ]
+    assert len({p["channel_id"] for p in payloads}) == len(payloads)
+    assert len({p["job_id"] for p in payloads}) == len(payloads)
+
+
+def test_the_bench_never_speaks_as_a_real_principal(suite):
+    for case in suite["cases"]:
+        for arm in bench.ARMS:
+            payload = bench.build_turn_payload(case, arm=arm, run_id="t1")
+            assert payload["origin"] == "probe"
+            assert payload["user_id"].startswith("probe-")
+
+
+def test_select_cases_by_id_and_rejects_unknown(suite):
+    assert [c["id"] for c in bench.select_cases(suite, "dev", ["corpus-embarazo"])] == ["corpus-embarazo"]
+    with pytest.raises(ValueError):
+        bench.select_cases(suite, "dev", ["no-existe"])
+
+
+def test_run_probe_turn_submits_then_polls_until_done():
+    import httpx
+
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        if request.method == "POST":
+            body = json.loads(request.content)
+            assert body["origin"] == "probe"
+            return httpx.Response(202, json={"job_id": body["job_id"], "status": "running"})
+        if len(calls) == 2:
+            return httpx.Response(200, json={"job_id": "j", "status": "running"})
+        return httpx.Response(200, json={"job_id": "j", "status": "done", "response": {"text": "hola"}})
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            payload = {"job_id": "j", "origin": "probe", "user_id": "probe-x"}
+            return await bench.run_probe_turn(http, "https://runner", "tok", payload)
+
+    assert asyncio.run(go()) == {"text": "hola"}
+    assert calls == [("POST", "/v1/turn/jobs"), ("GET", "/v1/turn/jobs/j"), ("GET", "/v1/turn/jobs/j")]
+
+
+def test_run_probe_turn_surfaces_a_rejected_submit():
+    import httpx
+
+    def handler(_request):
+        return httpx.Response(422, json={"detail": "origin='probe' requires a user_id starting with 'probe-'"})
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            await bench.run_probe_turn(http, "https://runner", "tok", {"job_id": "j"})
+
+    with pytest.raises(RuntimeError, match="422"):
+        asyncio.run(go())
+
+
+# ── ¿llegó el corpus a la respuesta? ─────────────────────────────────────────
+
+_PREGNANCY_HIT = {
+    "label": "plant-based-diet-pregnancy-review-pmc13086723",
+    "similarity": 0.833,
+    "text": "Vegan pregnancies require vitamin B12 supplementation; 2.6 micrograms daily and iodine monitoring.",
+}
+
+
+def _injected(*hits):
+    return {"cleared": list(hits), "injected": list(hits), "block_chars": 1}
+
+
+def test_grounding_unknown_when_retrieval_could_not_be_reproduced(suite):
+    assert bench.corpus_grounding("lo que sea", None, "¿pregunta?", suite)["verdict"] == "unknown"
+
+
+def test_grounding_no_retrieval_when_nothing_cleared_the_floor(suite):
+    """El caso culinario típico: el corpus ni llegó al turno — no es 'no lo usó'."""
+    retrieval = {"cleared": [], "injected": [], "block_chars": 0}
+    assert bench.corpus_grounding("Kombu y shiitake.", retrieval, "¿Dashi sin pescado?", suite)["verdict"] == (
+        "no_retrieval"
+    )
+
+
+def test_grounding_not_injected_when_passages_cleared_but_the_block_came_out_empty(suite):
+    """Medido 2026-10-03: un pasaje sobre `_REF_MAX_CHARS` vacía el bloque en silencio.
+    Eso no es 'la persona ignoró el corpus' — el corpus nunca llegó."""
+    retrieval = {"cleared": [_PREGNANCY_HIT], "injected": [], "block_chars": 0}
+    answer = "Una revisión (PMC 13086723) insiste en la B12."
+    trace = bench.corpus_grounding(answer, retrieval, "¿Vegana en el embarazo?", suite)
+    assert trace["verdict"] == "not_injected"
+
+
+def test_grounding_cited_when_the_answer_names_a_retrieved_source(suite):
+    answer = "Una revisión sobre dieta vegetal en el embarazo (PMC 13086723) insiste en la B12."
+    trace = bench.corpus_grounding(answer, _injected(_PREGNANCY_HIT), "¿Vegana en el embarazo?", suite)
+    assert trace["verdict"] == "cited"
+    assert trace["cited"] == ["plant-based-diet-pregnancy-review-pmc13086723"]
+
+
+def test_grounding_echoed_when_passage_figures_reappear_without_naming_it(suite):
+    answer = "Suplementa B12: unos 2.6 microgramos diarios, y vigila el yodo con supplementation guiada."
+    trace = bench.corpus_grounding(answer, _injected(_PREGNANCY_HIT), "¿Vegana en el embarazo?", suite)
+    assert trace["verdict"] == "echoed"
+    assert trace["shared_count"] >= bench.GROUNDING_MIN_SHARED_TERMS
+
+
+def test_grounding_resists_a_source_word_that_came_in_the_prompt(suite):
+    """Resistencia: repetir lo que el usuario ya dijo no es citar el corpus."""
+    prompt = "¿Qué dice la revisión sobre embarazo vegano?"
+    answer = "La revisión sobre embarazo que mencionas: come variado."
+    trace = bench.corpus_grounding(answer, _injected(_PREGNANCY_HIT), prompt, suite)
+    assert trace["verdict"] == "ungrounded"
+
+
+def test_grounding_does_not_count_a_source_that_was_not_retrieved(suite):
+    answer = "Como decía Williams en The Ethics of Diet, come variado."
+    trace = bench.corpus_grounding(answer, _injected(_PREGNANCY_HIT), "¿Vegana en el embarazo?", suite)
+    assert trace["cited"] == []
+
+
+def test_validation_catches_corpus_sources_that_can_never_match(suite):
+    broken = copy.deepcopy(suite)
+    broken["corpus_sources"]["williams-ethics-of-diet"] = ["Ética de la Dieta"]
+    assert any("corpus_sources" in e for e in bench.validate_suite(broken))
+
+
+def test_the_suite_carries_cases_that_actually_reach_the_corpus(suite):
+    """Medido 2026-10-03: los casos culinarios no clarean el piso 0.78; sin estos
+    el contrafactual --no-corpus no mide nada."""
+    assert sum(1 for c in suite["cases"] if c.get("corpus_expected")) >= 3
+
+
+def test_summarize_counts_corpus_verdicts_and_errors(suite):
+    results = [
+        {"id": "a", "tier": "expert", "corpus_trace": {"verdict": "cited"}},
+        {"id": "b", "tier": "expert", "corpus_trace": {"verdict": "no_retrieval"}},
+        {"id": "c", "tier": "edge", "error": "boom"},
+    ]
+    s = bench.summarize(results, suite)
+    assert s["corpus_trace"] == {"cited": 1, "no_retrieval": 1}
+    assert s["errors"] == 1

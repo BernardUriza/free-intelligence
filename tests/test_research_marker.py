@@ -6,7 +6,7 @@ for every parser (robustness.md mutator rule).
 
 from __future__ import annotations
 
-from khimeras_shared.research_marker import parse_research, strip_research
+from persona_core.research_marker import parse_research, strip_research
 
 
 class TestParseResearch:

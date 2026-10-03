@@ -19,35 +19,63 @@ preguntando en su interfaz pública, en bajo volumen, y cada entrada declara
 `"collected_by": "manual"`. Este script NO habla con el competidor, no extrae su
 prompt ni sus archivos, y rechaza un archivo que no declare recolección manual.
 
-Fidelidad (si algo se desvía, se mide otro sistema):
-  - La respuesta sale de `/v1/turn` del persona-runner con `persona_id=frugivoro`,
-    el mismo cliente que usa el gateway (`AgentRunnerClient`).
-  - `behavioral_guidance` se arma como en el gateway: el bloque del corpus RAG
-    (`build_persona_corpus_block`, namespace `__corpus_vegan__`) PRIMERO, y luego
-    la guidance del guardián para un usuario SIN facts (`build_turn_guidance`).
-    `--no-corpus` es el contrafactual: mide qué aporta el corpus.
-  - Usuario sintético `bench-frugivoro`: sin facts, no contamina a nadie real.
+Superficie (2026-10-03): Discord está APAGADO desde el 2026-09-27, así que el
+único camino vivo es el del runner que usa og118. Cada turno sale como PROBE:
+  - El cuerpo lo arma `scripts/probe_turn.py::build_probe_payload` — la única
+    fábrica de identidad de prueba: `origin="probe"`, principal
+    `probe-frugivoro-bench` (el runner rechaza con 422 un probe que no empiece por
+    `probe-`), y un canal `probe-<fecha>-fb-<corrida>-<brazo>-<caso>` PROPIO por
+    caso, para que ningún caso lea como "conversación reciente" a otro. Nunca
+    bajo el user_id de una persona real. Las filas quedan etiquetadas
+    `messages.origin='probe'` y nunca se minan facts de ellas.
+  - Viaja por boleto (`POST /v1/turn/jobs` + poll corto), nunca en una request
+    que el ingress corte a los 240 s.
 
-Costo y efectos de una corrida real (por eso NO se corre sin autorización):
-  - Un turno de Frugívoro por caso contra el runner de prod (gasto AIRE/Max) y una
-    fila en `turn_jobs` por turno (el boleto durable). Con `--judge`, una llamada
-    `/v1/judge` por caso; con `--competitor`, DOS más por caso (orden invertido).
-  - El corpus lee Postgres (`POSTGRES_URL`) y el servicio de embeddings: sólo
-    lectura.
+Los dos brazos — lo ÚNICO que cambia entre ellos es el bloque del corpus:
+  - `corpus` (default): `pipeline="runner"`. El runner corre `run_turn` — guardián,
+    corpus `__corpus_vegan__`, framing — exactamente como para og118.
+  - `--no-corpus`: `pipeline="caller"`. El harness arma lo mismo que `run_turn`
+    para un canal vacío y un principal sin facts (mismo `compose_user_text`, misma
+    guidance del guardián) y NO le pega corpus. Es el contrafactual: un canal
+    nuevo no tiene historia ni memoria relevante, así que el resto del turno es
+    idéntico.
+
+¿Llegó el corpus a la respuesta? (`corpus_trace`) — con `POSTGRES_URL` +
+`AZURE_OPENAI_*` el harness corre, de sólo lectura, la MISMA recuperación que
+`run_turn` (`query_corpus` con la pregunta cruda, mismo piso de similitud) y anota
+qué pasajes pasaron. Luego busca su huella en la respuesta: la procedencia
+nombrada (`corpus_sources` de la suite) y términos/cifras distintivos de los
+pasajes que no venían en la pregunta. Veredicto por caso: `no_retrieval` (nada
+clareó el piso), `not_injected` (clareó el piso pero el bloque salió vacío — el
+corpus no llegó al turno), `cited` (nombra la procedencia de un pasaje
+recuperado — señal fuerte), `echoed` (repite términos/cifras de los pasajes —
+débil), `ungrounded`, o `unknown` (sin
+credenciales para reproducir la recuperación). El veredicto que importa es la
+DIFERENCIA contra el brazo `--no-corpus` sobre los mismos casos.
+
+Costo y efectos de una corrida real (la completa espera autorización de Bernard):
+  - Un turno de Frugívoro por caso contra el runner de prod (gasto AIRE/Max,
+    despierta el runner si está en cero), una fila en `turn_jobs` por turno, y en
+    el brazo `corpus` dos filas `messages` etiquetadas `origin='probe'`. Con
+    `--judge`, una llamada `/v1/judge` por caso; con `--competitor`, DOS más.
+  - `corpus_trace` lee Postgres y el servicio de embeddings: sólo lectura.
 
 Uso:
-    python scripts/frugivoro_bench.py --dry-run          # valida la suite, arma los
-                                                         # payloads, cero red, cero gasto
+    python scripts/frugivoro_bench.py --dry-run          # valida la suite y arma los
+                                                         # payloads: cero red, cero gasto
     python scripts/frugivoro_bench.py --dry-run --answers scratchpad/frugi_bench.json
-                                                         # re-puntúa (deterministas)
-                                                         # respuestas ya guardadas
+                                                         # re-puntúa respuestas guardadas
 
-    # corrida real (requiere autorización de Bernard — gasta y escribe turn_jobs):
-    PERSONA_RUNNER_URL=... PERSONA_RUNNER_TOKEN=... POSTGRES_URL=... \\
-        python scripts/frugivoro_bench.py --split dev --judge
+    # humo (1 caso, los dos brazos = 2 turnos):
+    PERSONA_RUNNER_URL=... PERSONA_RUNNER_TOKEN=... POSTGRES_URL=... AZURE_OPENAI_ENDPOINT=... \\
+    AZURE_OPENAI_KEY=... python scripts/frugivoro_bench.py --case corpus-embarazo --out scratchpad/fb_corpus.json
+    ... python scripts/frugivoro_bench.py --case corpus-embarazo --no-corpus --out scratchpad/fb_nocorpus.json
+
+    # corrida completa (autorización de Bernard): los dos brazos, el mismo día
+    ... python scripts/frugivoro_bench.py --split dev --judge --out scratchpad/fb_dev_corpus.json
+    ... python scripts/frugivoro_bench.py --split dev --judge --no-corpus --out scratchpad/fb_dev_nocorpus.json
     # + pairwise contra respuestas del competidor recogidas a mano:
-    ... python scripts/frugivoro_bench.py --split dev --judge \\
-        --competitor data/benchmarks/frugivoro/competitor_manual.json
+    ... --competitor data/benchmarks/frugivoro/competitor_manual.json
 
 El set `heldout` NUNCA se usa para iterar el ADN; se corre sólo para confirmar.
 """
@@ -60,11 +88,16 @@ import json
 import os
 import re
 import sys
+import time
 import unicodedata
+import uuid
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from probe_turn import PROBE_PREFIX, build_probe_payload  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITE_DIR = ROOT / "data" / "benchmarks" / "frugivoro"
@@ -73,9 +106,27 @@ JUDGE_ABSOLUTE_PATH = SUITE_DIR / "judge_absolute.md"
 JUDGE_PAIRWISE_PATH = SUITE_DIR / "judge_pairwise.md"
 
 PERSONA_ID = "frugivoro"
-BENCH_USER_ID = "bench-frugivoro"
-BENCH_CHANNEL_ID = "bench-frugivoro"
+CORPUS_NAMESPACE = "__corpus_vegan__"
+# El principal de prueba. Nunca un id real: el runner rechaza (422) un probe
+# cuyo user_id no empiece por `probe-`, y este nombre lo deja grepeable.
+PROBE_ID = "frugivoro-bench"
+BENCH_USER_ID = f"{PROBE_PREFIX}{PROBE_ID}"
+BENCH_SURFACE = "bench"
 SPLITS = ("dev", "heldout")
+ARMS = ("corpus", "no-corpus")
+
+# Las costuras que cruzan el ingress de ACA (240 s): el alta y cada poll quedan
+# muy por debajo; el presupuesto del TURNO es el del gateway (600 s).
+SUBMIT_READ_TIMEOUT_S = 200.0
+POLL_WAIT_S = 45
+POLL_READ_TIMEOUT_S = 60.0
+TURN_BUDGET_S = 600.0
+
+# Huella del corpus: cuántos términos/cifras de los pasajes recuperados (ausentes
+# de la pregunta) tienen que reaparecer en la respuesta para leerla como apoyada
+# en ellos cuando no nombra la procedencia. Heurística: el número que manda es la
+# diferencia contra el brazo --no-corpus, no este umbral.
+GROUNDING_MIN_SHARED_TERMS = 3
 
 
 # ── suite ────────────────────────────────────────────────────────────────────
@@ -134,6 +185,18 @@ def validate_suite(suite: dict[str, Any]) -> list[str]:
                 re.compile(pattern)
             except re.error as exc:
                 errors.append(f"{cid}: regex inválido {pattern!r}: {exc}")
+    for label, patterns in suite.get("corpus_sources", {}).items():
+        if not patterns:
+            errors.append(f"corpus_sources[{label}]: sin patrones (una cita nunca se reconocería)")
+        for pattern in patterns:
+            if pattern != normalize(pattern):
+                errors.append(f"corpus_sources[{label}]: patrón {pattern!r} con acentos/mayúsculas nunca matchea")
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                errors.append(f"corpus_sources[{label}]: regex inválido {pattern!r}: {exc}")
+    if any(c.get("corpus_expected") for c in cases) and not suite.get("corpus_sources"):
+        errors.append("hay casos corpus_expected pero la suite no declara corpus_sources")
     present_tiers = {c.get("tier") for c in cases}
     for tier in tiers - present_tiers:
         errors.append(f"nivel {tier!r} sin casos: la matriz tendría una columna vacía")
@@ -143,8 +206,15 @@ def validate_suite(suite: dict[str, Any]) -> list[str]:
     return errors
 
 
-def select_cases(suite: dict[str, Any], split: str) -> list[dict[str, Any]]:
+def select_cases(suite: dict[str, Any], split: str, ids: list[str] | None = None) -> list[dict[str, Any]]:
+    """Los casos de un split, o exactamente los `ids` pedidos (para un humo de 1–3 turnos)."""
     cases = suite["cases"]
+    if ids:
+        by_id = {c["id"]: c for c in cases}
+        unknown = [i for i in ids if i not in by_id]
+        if unknown:
+            raise ValueError(f"casos desconocidos: {unknown}")
+        return [by_id[i] for i in ids]
     return cases if split == "all" else [c for c in cases if c["split"] == split]
 
 
@@ -170,6 +240,76 @@ def deterministic_checks(answer: str, case: dict[str, Any], suite: dict[str, Any
         if re.search(pattern, norm):
             failures.append(f"aparece lo prohibido {pattern!r}")
     return {"passed": not failures, "failures": failures}
+
+
+# ── huella del corpus ────────────────────────────────────────────────────────
+
+_WORD = re.compile(r"[a-z0-9][a-z0-9-]*")
+
+
+def _distinctive_terms(text: str) -> set[str]:
+    """Cifras (2+ dígitos) y palabras largas, truncadas a 8 letras.
+
+    El truncado es un stemming pobre que cruza idiomas donde importa: los pasajes
+    de las revisiones PMC están en inglés y la persona contesta en español
+    (`cardiometabolic` ↔ `cardiometabólico` comparten `cardiome`).
+    """
+    out: set[str] = set()
+    for tok in _WORD.findall(normalize(text)):
+        if sum(ch.isdigit() for ch in tok) >= 2:
+            out.add(tok)
+        elif len(tok) >= 9:
+            out.add(tok[:8])
+    return out
+
+
+def corpus_grounding(
+    answer: str,
+    retrieval: dict[str, Any] | None,
+    prompt: str,
+    suite: dict[str, Any],
+) -> dict[str, Any]:
+    """¿Dejaron huella en la respuesta los pasajes que el corpus le dio al turno?
+
+    `retrieval` = lo que devuelve `retrieve_corpus` (`cleared` / `injected`, cada
+    uno `[{label, similarity, text}]`), o None si no se pudo reproducir.
+    """
+    if retrieval is None:
+        return {"verdict": "unknown"}
+    if not retrieval["cleared"]:
+        return {"verdict": "no_retrieval"}
+    hits = retrieval["injected"]
+    if not hits:
+        # Clareó el piso y aun así el bloque salió vacío: el corpus NO llegó al
+        # turno. No es "la persona lo ignoró" — es el read-path que lo tiró.
+        return {"verdict": "not_injected", "cleared": sorted({h["label"] for h in retrieval["cleared"]})}
+    norm, pnorm = normalize(answer), normalize(prompt)
+    labels = sorted({h["label"] for h in hits})
+    sources = suite.get("corpus_sources", {})
+    cited = [
+        label
+        for label in labels
+        if any(re.search(p, norm) and not re.search(p, pnorm) for p in sources.get(label, []))
+    ]
+    passage_terms = set().union(*(_distinctive_terms(h.get("text", "")) for h in hits))
+    shared = sorted((passage_terms & _distinctive_terms(answer)) - _distinctive_terms(prompt))
+    # `cited` es la señal fuerte: la cabecera del corpus le ORDENA a la persona
+    # decir de dónde sale lo que usó. `echoed` es débil — vocabulario del tema
+    # puede coincidir sin el corpus — y sólo significa algo contra el brazo
+    # --no-corpus sobre el mismo caso.
+    if cited:
+        verdict = "cited"
+    elif len(shared) >= GROUNDING_MIN_SHARED_TERMS:
+        verdict = "echoed"
+    else:
+        verdict = "ungrounded"
+    return {
+        "verdict": verdict,
+        "retrieved": labels,
+        "cited": cited,
+        "shared_terms": shared[:20],
+        "shared_count": len(shared),
+    }
 
 
 # ── capa 2/3: prompts del juez (contenido en .md) ────────────────────────────
@@ -286,8 +426,15 @@ def summarize(results: list[dict[str, Any]], suite: dict[str, Any]) -> dict[str,
     pair = [r["pairwise"] for r in results if r.get("pairwise")]
     wins = sum(1 for p in pair if p == "frugivoro")
     losses = sum(1 for p in pair if p == "competitor")
+    corpus: dict[str, int] = {}
+    for r in results:
+        verdict = (r.get("corpus_trace") or {}).get("verdict")
+        if verdict:
+            corpus[verdict] = corpus.get(verdict, 0) + 1
     return {
         "cases": len(results),
+        "errors": sum(1 for r in results if r.get("error")),
+        "corpus_trace": corpus,
         "deterministic_passed": sum(1 for r in det if r["deterministic"]["passed"]),
         "deterministic_total": len(det),
         "judged": judged,
@@ -306,43 +453,143 @@ def summarize(results: list[dict[str, Any]], suite: dict[str, Any]) -> dict[str,
     }
 
 
-# ── red (sólo en corrida real) ───────────────────────────────────────────────
+# ── el turno: probe por el wire del runner ───────────────────────────────────
 
 
-async def _guidance_for(prompt: str, *, with_corpus: bool) -> str | None:
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS, build_turn_guidance
+def guardian_guidance(prompt: str) -> str | None:
+    """La guidance del guardián para un principal SIN facts — la que `run_turn` arma."""
+    from persona_core.guidance import build_turn_guidance
 
-    guidance = build_turn_guidance(
+    return build_turn_guidance(
         current_message=prompt,
         recent_messages=None,
         user_facts=[],
         persona_id=PERSONA_ID,
         user_id=BENCH_USER_ID,
     )
-    if not with_corpus:
-        return guidance
+
+
+def build_turn_payload(case: dict[str, Any], *, arm: str, run_id: str, today: str | None = None) -> dict[str, Any]:
+    """El cuerpo de `/v1/turn/jobs` de un caso, siempre como probe.
+
+    `corpus` → `pipeline="runner"` con la pregunta cruda: el runner corre
+    `run_turn` (guardián + corpus + framing) como para og118.
+    `no-corpus` → `pipeline="caller"`: lo mismo que `run_turn` arma para un canal
+    vacío y un principal sin facts, menos el bloque del corpus.
+    """
+    if arm not in ARMS:
+        raise ValueError(f"brazo desconocido {arm!r}")
+    payload = build_probe_payload(
+        case["prompt"],
+        persona=PERSONA_ID,
+        # Un canal por caso y por corrida: run_turn lee la historia reciente del
+        # canal, y un caso no debe ver a otro como "lo que se acaba de decir".
+        slug=f"fb-{run_id}-{arm}-{case['id']}",
+        probe_id=PROBE_ID,
+        surface=BENCH_SURFACE,
+        pipeline="runner" if arm == "corpus" else "caller",
+        today=today,
+    )
+    payload["job_id"] = f"fb-{run_id}-{uuid.uuid4().hex[:16]}"
+    if arm == "no-corpus":
+        from persona_core.turn.framing import compose_user_text
+
+        payload["user_text"] = compose_user_text(case["prompt"], [{"role": "user", "content": case["prompt"]}])
+        guidance = guardian_guidance(case["prompt"])
+        if guidance:
+            payload["behavioral_guidance"] = guidance
+    return payload
+
+
+async def run_probe_turn(http, url: str, token: str, payload: dict[str, Any]) -> dict[str, Any]:
+    """Alta del boleto + poll corto hasta que el turno termine. Devuelve el TurnResponse.
+
+    El alta es idempotente por `job_id`, así que un ReadTimeout del arranque en
+    frío se reintenta con el MISMO id (nunca un turno doble).
+    """
+    import httpx
+
+    headers = {"Authorization": f"Bearer {token}"}
+    deadline = time.monotonic() + TURN_BUDGET_S
+    while True:
+        try:
+            accepted = await http.post(
+                f"{url}/v1/turn/jobs",
+                json=payload,
+                headers=headers,
+                timeout=httpx.Timeout(SUBMIT_READ_TIMEOUT_S, connect=10.0),
+            )
+            break
+        except (httpx.ReadTimeout, httpx.ConnectError, httpx.ConnectTimeout):
+            if time.monotonic() >= deadline:
+                raise
+            await asyncio.sleep(2.0)
+    if accepted.status_code != 202:
+        raise RuntimeError(f"alta rechazada http={accepted.status_code}: {accepted.text[:300]}")
+    job_id = accepted.json()["job_id"]
+    while time.monotonic() < deadline:
+        try:
+            got = await http.get(
+                f"{url}/v1/turn/jobs/{job_id}",
+                params={"wait_s": POLL_WAIT_S},
+                headers=headers,
+                timeout=httpx.Timeout(POLL_READ_TIMEOUT_S, connect=10.0),
+            )
+        except (httpx.ReadTimeout, httpx.ConnectError, httpx.ConnectTimeout):
+            continue  # se cayó el poll, no el turno
+        if got.status_code != 200:
+            raise RuntimeError(f"poll http={got.status_code}: {got.text[:300]}")
+        body = got.json()
+        if body.get("status") == "done":
+            return body["response"]
+    raise TimeoutError(f"turno {job_id} sin terminar tras {TURN_BUDGET_S:.0f}s")
+
+
+async def retrieve_corpus(prompt: str) -> dict[str, Any] | None:
+    """Reproduce, de sólo lectura, lo que el corpus le da al turno de `run_turn`.
+
+    Dos medidas, porque divergen: `cleared` = los pasajes que pasan el piso de
+    similitud; `injected` = los que de verdad entran al bloque, calculado con la
+    MISMA función que el runner (`build_persona_corpus_block`). Medido 2026-10-03:
+    un pasaje que clarea el piso pero excede `_REF_MAX_CHARS` hace que el bloque
+    salga vacío SIN log — por eso no basta con mirar la similitud.
+
+    None = no se pudo reproducir (sin credenciales o falla): "no sé", nunca "no hubo".
+    """
+    if not os.environ.get("POSTGRES_URL") or not os.environ.get("AZURE_OPENAI_KEY"):
+        return None
+    from persona_core.corpus.references import _REF_MIN_SIMILARITY, _REF_TOP_K, cite_label, query_corpus
     from shared.corpus.persona_corpus import build_persona_corpus_block
 
-    block = await build_persona_corpus_block(persona_id=PERSONA_ID, query=prompt)
-    if not block:
-        return guidance
-    if not guidance:
-        return block[:MAX_GUIDANCE_CHARS]
-    budget = MAX_GUIDANCE_CHARS - len(guidance) - 2
-    return guidance if budget <= 0 else f"{block[:budget]}\n\n{guidance}"
+    hits = await query_corpus(prompt.strip(), namespace=CORPUS_NAMESPACE, top_k=_REF_TOP_K)
+    if not hits:
+        # query_corpus devuelve [] también cuando falla el embed o Postgres: con
+        # credenciales puestas, un corpus de cientos de chunks vacío es "no sé".
+        return None
+    cleared = [
+        {"label": cite_label(h.get("source_ref")), "similarity": round(h["similarity"], 3), "text": h["chunk_text"]}
+        for h in hits
+        if h["similarity"] >= _REF_MIN_SIMILARITY
+    ]
+    block = await build_persona_corpus_block(persona_id=PERSONA_ID, query=prompt) if cleared else None
+    injected = [h for h in cleared if block and h["text"].strip() in block]
+    return {"cleared": cleared, "injected": injected, "block_chars": len(block or "")}
 
 
 async def _run_live(args, suite, cases) -> list[dict[str, Any]]:
-    from khimeras_shared.runner.agent_client import AgentRunnerClient
-    from khimeras_shared.runner.judge_client import RunnerJudgeClient
+    import httpx
 
-    url = os.environ["PERSONA_RUNNER_URL"]
+    from persona_core.runner.judge_client import RunnerJudgeClient
+
+    url = os.environ["PERSONA_RUNNER_URL"].rstrip("/")
     token = os.environ["PERSONA_RUNNER_TOKEN"]
-    agent = AgentRunnerClient(url, token, timeout_s=600.0)
+    arm = "no-corpus" if args.no_corpus else "corpus"
+    run_id = args.run_id or uuid.uuid4().hex[:6]
     judge = RunnerJudgeClient(url, token) if (args.judge or args.competitor) else None
     competitor = load_competitor(Path(args.competitor)) if args.competitor else {}
     abs_tpl = JUDGE_ABSOLUTE_PATH.read_text(encoding="utf-8")
     pair_tpl = JUDGE_PAIRWISE_PATH.read_text(encoding="utf-8")
+    print(f"brazo={arm} corrida={run_id} principal={BENCH_USER_ID}\n")
 
     async def ask_judge(prompt: str) -> dict[str, Any]:
         resp = await judge.utility_call(
@@ -355,35 +602,46 @@ async def _run_live(args, suite, cases) -> list[dict[str, Any]]:
 
     results: list[dict[str, Any]] = []
     try:
-        for n, case in enumerate(cases, 1):
-            row: dict[str, Any] = {"id": case["id"], "tier": case["tier"], "split": case["split"]}
-            try:
-                guidance = await _guidance_for(case["prompt"], with_corpus=not args.no_corpus)
-                resp = await agent.chat(
-                    "",
-                    [{"role": "user", "content": case["prompt"]}],
-                    persona_id=PERSONA_ID,
-                    user_id=BENCH_USER_ID,
-                    channel_id=BENCH_CHANNEL_ID,
-                    behavioral_guidance=guidance,
+        async with httpx.AsyncClient() as http:
+            for n, case in enumerate(cases, 1):
+                row: dict[str, Any] = {"id": case["id"], "tier": case["tier"], "split": case["split"], "arm": arm}
+                try:
+                    payload = build_turn_payload(case, arm=arm, run_id=run_id)
+                    row["channel_id"] = payload["channel_id"]
+                    started = time.monotonic()
+                    resp = await run_probe_turn(http, url, token, payload)
+                    row["elapsed_s"] = round(time.monotonic() - started, 1)
+                    answer = resp.get("text", "")
+                    row["answer"] = answer
+                    row["model"] = resp.get("model")
+                    row["output_tokens"] = resp.get("output_tokens")
+                    row["deterministic"] = deterministic_checks(answer, case, suite)
+                    retrieval = await retrieve_corpus(case["prompt"])
+                    if retrieval is not None:
+                        row["retrieved"] = {
+                            "cleared": [{"label": h["label"], "similarity": h["similarity"]} for h in retrieval["cleared"]],
+                            "injected": len(retrieval["injected"]),
+                            "block_chars": retrieval["block_chars"],
+                        }
+                    row["corpus_trace"] = corpus_grounding(answer, retrieval, case["prompt"], suite)
+                    if args.judge:
+                        row["judge"] = validate_absolute(
+                            await ask_judge(render_absolute_prompt(abs_tpl, case, answer, suite)), case, suite
+                        )
+                    if case["id"] in competitor:
+                        other = competitor[case["id"]]
+                        v1 = await ask_judge(render_pairwise_prompt(pair_tpl, case, answer, other, suite))
+                        v2 = await ask_judge(render_pairwise_prompt(pair_tpl, case, other, answer, suite))
+                        row["pairwise"] = pairwise_outcome(str(v1.get("winner")), str(v2.get("winner")))
+                except Exception as exc:  # un caso caído no tira la corrida; queda registrado
+                    row["error"] = f"{type(exc).__name__}: {exc}"
+                det = row.get("deterministic", {})
+                trace = (row.get("corpus_trace") or {}).get("verdict", "-")
+                print(
+                    f"[{n:2}] {case['id']:32} det={'ok' if det.get('passed') else 'FALLA'} "
+                    f"corpus={trace} {row.get('elapsed_s', '')}s {row.get('error', '')}"
                 )
-                row["answer"] = resp.text
-                row["model"] = resp.model_used
-                row["deterministic"] = deterministic_checks(resp.text, case, suite)
-                if args.judge:
-                    row["judge"] = validate_absolute(
-                        await ask_judge(render_absolute_prompt(abs_tpl, case, resp.text, suite)), case, suite
-                    )
-                if case["id"] in competitor:
-                    other = competitor[case["id"]]
-                    v1 = await ask_judge(render_pairwise_prompt(pair_tpl, case, resp.text, other, suite))
-                    v2 = await ask_judge(render_pairwise_prompt(pair_tpl, case, other, resp.text, suite))
-                    row["pairwise"] = pairwise_outcome(str(v1.get("winner")), str(v2.get("winner")))
-            except Exception as exc:  # un caso caído no tira la corrida; queda registrado
-                row["error"] = repr(exc)
-            det = row.get("deterministic", {})
-            print(f"[{n:2}] {case['id']:32} det={'ok' if det.get('passed') else 'FALLA'} {row.get('error', '')}")
-            results.append(row)
+                results.append(row)
     finally:
         if judge is not None:
             await judge.aclose()
@@ -394,24 +652,18 @@ async def _run_live(args, suite, cases) -> list[dict[str, Any]]:
 
 
 def _dry_run(args, suite, cases) -> int:
-    from khimeras_shared.guidance import build_turn_guidance
-
     abs_tpl = JUDGE_ABSOLUTE_PATH.read_text(encoding="utf-8")
     pair_tpl = JUDGE_PAIRWISE_PATH.read_text(encoding="utf-8")
+    arm = "no-corpus" if args.no_corpus else "corpus"
     for n, case in enumerate(cases, 1):
         rendered = render_absolute_prompt(abs_tpl, case, "<respuesta>", suite)
-        # La guidance del guardián es pura (sin facts, sin red): el payload real se
-        # arma igual que en la corrida; sólo el bloque del corpus RAG queda fuera.
-        guidance = build_turn_guidance(
-            current_message=case["prompt"],
-            recent_messages=None,
-            user_facts=[],
-            persona_id=PERSONA_ID,
-            user_id=BENCH_USER_ID,
-        )
+        # El payload real, armado igual que en la corrida (sin red): el brazo
+        # corpus deja el corpus al runner; el no-corpus lleva la guidance aquí.
+        payload = build_turn_payload(case, arm=arm, run_id="dryrun")
         print(
             f"[{n:2}] {case['tier']:6} {case['split']:7} {case['id']:32} "
-            f"guidance={len(guidance or '')} juez={len(rendered)} chars"
+            f"pipeline={payload['pipeline']} principal={payload['user_id']} "
+            f"guidance={len(payload.get('behavioral_guidance') or '')} juez={len(rendered)} chars"
         )
         render_pairwise_prompt(pair_tpl, case, "<a>", "<b>", suite)
     if args.competitor:
@@ -441,12 +693,14 @@ def _dry_run(args, suite, cases) -> int:
 async def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--split", choices=[*SPLITS, "all"], default="dev")
+    ap.add_argument("--case", action="append", dest="cases", help="sólo este caso (repetible) — para un humo")
     ap.add_argument("--dry-run", action="store_true", help="valida y arma, sin red ni gasto")
     ap.add_argument("--answers", help="dry-run: re-puntúa (deterministas) un JSON de salida previo")
     ap.add_argument("--judge", action="store_true", help="puntúa cada respuesta con el juez (/v1/judge)")
     ap.add_argument("--judge-model", default=None, help="modelo del juez; vacío = default del runner")
     ap.add_argument("--competitor", help="JSON de respuestas del competidor recogidas A MANO")
-    ap.add_argument("--no-corpus", action="store_true", help="contrafactual: sin el bloque RAG __corpus_vegan__")
+    ap.add_argument("--no-corpus", action="store_true", help="contrafactual: el mismo turno sin el bloque del corpus")
+    ap.add_argument("--run-id", default=None, help="sufijo de los canales probe (default: aleatorio)")
     ap.add_argument("--out", default="scratchpad/frugivoro_bench.json")
     args = ap.parse_args(argv)
 
@@ -456,7 +710,11 @@ async def main(argv: list[str] | None = None) -> int:
         for e in errors:
             print(f"suite inválida: {e}", file=sys.stderr)
         return 2
-    cases = select_cases(suite, args.split)
+    try:
+        cases = select_cases(suite, args.split, args.cases)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     print(f"suite v{suite['version']}: {len(suite['cases'])} casos · split={args.split} → {len(cases)}\n")
 
     if args.dry_run:
@@ -471,12 +729,13 @@ async def main(argv: list[str] | None = None) -> int:
     summary = summarize(results, suite)
     print(f"\n{'=' * 60}\n{json.dumps(summary, ensure_ascii=False, indent=2)}")
     print("\nEl piso determinista NO es el veredicto: revisa a mano los fallos y cada pairwise.")
+    print("corpus_trace sólo significa algo contra el brazo --no-corpus de los mismos casos, el mismo día.")
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(results, ensure_ascii=False, indent=2))
     out.with_suffix(".summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"\ndetalle → {out}")
-    return 0
+    return 0 if not summary["errors"] else 1
 
 
 if __name__ == "__main__":

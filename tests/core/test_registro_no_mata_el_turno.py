@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 from structlog.testing import capture_logs
 
-from khimeras_shared.guidance import build_turn_guidance
+from persona_core.guidance import build_turn_guidance
 
 MENSAJE_GRAVE = "tengo un plan suicida"
 FACTS_CON_INTENTO = [{"fact": "tuvo un intento de suicidio el año pasado"}]
@@ -71,7 +71,7 @@ def test_sin_romper_nada_hay_guidance_y_hay_veredicto():
 
 def test_si_el_clasificador_truena_el_turno_se_completa(monkeypatch):
     """fi-core caído: se pierde la banda, no la respuesta que alguien espera."""
-    monkeypatch.setattr("khimeras_shared.guidance.crisis_verdict", truena)
+    monkeypatch.setattr("persona_core.guidance.crisis_verdict", truena)
     guidance, capturado = construir()
     assert guidance, "el turno se perdió por una falla del clasificador"
     assert not eventos(capturado, "crisis_band_classified")
@@ -92,7 +92,7 @@ def test_el_veredicto_registrado_no_lleva_una_frase_del_vocabulario():
 
 def test_si_el_registro_truena_el_turno_se_completa(monkeypatch):
     """La falla que el issue nombra por su nombre: "un serializador que se atraganta"."""
-    monkeypatch.setattr("khimeras_shared.guidance.log_crisis_band_classified", truena)
+    monkeypatch.setattr("persona_core.guidance.log_crisis_band_classified", truena)
     guidance, capturado = construir()
     assert guidance, "el turno se perdió por una falla del REGISTRO"
     # Y el denominador no miente sobre qué se cayó: hubo veredicto, falló el log.
@@ -106,7 +106,7 @@ def test_el_overlay_del_guardian_sobrevive_al_registro_roto(monkeypatch):
     sin la falla, overlay incluido.
     """
     sano, _ = construir()
-    monkeypatch.setattr("khimeras_shared.guidance.log_crisis_band_classified", truena)
+    monkeypatch.setattr("persona_core.guidance.log_crisis_band_classified", truena)
     con_registro_roto, _ = construir()
     assert con_registro_roto == sano
 

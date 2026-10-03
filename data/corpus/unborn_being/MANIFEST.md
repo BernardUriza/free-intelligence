@@ -52,7 +52,7 @@ repo aunque el texto no.
   1. **Los pasajes se recuperan por parecido con lo que escribe la persona**, y
      **nada apaga el corpus en un turno de crisis**: la guía de seguridad se
      reserva primero y el corpus sólo se cae si esa guía ya llenó el tope
-     (`persona_gateway/turn_context.py`), no por ser un turno grave.
+     (`persona_core/turn/context.py`), no por ser un turno grave.
   2. **El header de unborn_being obliga a decir de dónde viene lo que usa**, así
      que el pasaje no se leería en silencio: se citaría en voz alta como
      respaldo.

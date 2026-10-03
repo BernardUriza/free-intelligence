@@ -2,7 +2,7 @@
 
 The insult-era Container/cog fixtures died with ``personas/``. What remains
 fixtures the shared layer: the Postgres-backed ``pg_memory_store`` (used by the
-khimeras_shared memory tests) and a generic mocked MemoryStore.
+persona_core memory tests) and a generic mocked MemoryStore.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from khimeras_shared.style import UserStyleProfile
+from persona_core.style import UserStyleProfile
 
 # Pull in the Postgres-backed fixture (`pg_memory_store`) plus its supporting
 # pytest-postgresql factories. The module is import-safe even when pg_ctl is
@@ -28,7 +28,7 @@ if PG_CTL is not None:  # pragma: no cover — environment-dependent branch
 
 @pytest.fixture
 def mock_memory():
-    """Mocked MemoryStore with async methods (khimeras_shared.memory surface)."""
+    """Mocked MemoryStore with async methods (persona_core.memory surface)."""
     mem = AsyncMock()
     mem.store = AsyncMock()
     mem.get_recent = AsyncMock(return_value=[])

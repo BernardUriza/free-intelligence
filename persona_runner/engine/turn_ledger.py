@@ -1,4 +1,4 @@
-"""La fila del boleto del runner — `khimeras_shared.tickets.TicketLedger` sobre Postgres.
+"""La fila del boleto del runner — `persona_core.tickets.TicketLedger` sobre Postgres.
 
 The runner OWNS this table (same contract as `aire_topics`): it is the only
 reader and writer, its DDL rides here and is applied once per process on first
@@ -22,7 +22,7 @@ from typing import Any
 
 import structlog
 
-from khimeras_shared.tickets import LedgerRow
+from persona_core.tickets import LedgerRow
 
 log = structlog.get_logger()
 
@@ -192,7 +192,7 @@ class PgTurnLedger:
             return None
 
     def _stale(self) -> float:
-        from khimeras_shared import tickets
+        from persona_core import tickets
 
         return self._stale_s if self._stale_s is not None else tickets.STALE_S
 

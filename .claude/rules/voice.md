@@ -70,9 +70,9 @@ Post-purga, **prod runs susurro only.** The old Insult VoiceCog
   `persona_gateway/gateway.py::on_raw_reaction_add` → `PersonaVoice.speak`
   (`persona_gateway/voice.py`). Auto-speak fires for replies at/above
   a configurable char threshold (0 = manual 🔊 only).
-- **Backend**: `khimeras_shared/tts.py::synthesize_susurro_tts` against the
+- **Backend**: `persona_core/tts.py::synthesize_susurro_tts` against the
   **susurro gateway** — `sus.bernarduriza.com` (`POST /v1/tts`; the `/v1/stt`
-  client in `khimeras_shared/stt.py` is the HOST's, see above). Project-keyed proxy over a
+  client in `persona_core/stt.py` is the HOST's, see above). Project-keyed proxy over a
   dedicated Azure OpenAI; key in `~/.secrets/susurro-key-discord-bot.txt`,
   gateway config `susurro_url`/`susurro_key` (`persona_gateway/config.py`).
   The old direct Azure `tts`/`whisper` deployments were DELETED at the susurro

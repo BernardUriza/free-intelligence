@@ -16,8 +16,8 @@
 #   client of the persona-runner (AgentRunnerClient → /v1/turn). All cognition
 #   stays in the runner; the gateway only relays Discord ↔ runner + persists to
 #   the shared Postgres. So it skips ALICE's `@openai/codex` install entirely.
-# - Copies persona_gateway/ + khimeras_shared/ + shared/ — the gateway imports
-#   `khimeras_shared.{memory,persona,runner}` and `shared.personas`, never a
+# - Copies persona_gateway/ + persona_core/ + shared/ — the gateway imports
+#   `persona_core.{memory,persona,runner}` and `shared.personas`, never a
 #   persona package (personas.insult/alice). The COPY set is enforced against the
 #   real import graph by tests/arch/test_runner_dockerfile_copies_imports.py so a
 #   missing package can't ship a ModuleNotFound image (the PR #26 P0 class).
@@ -29,10 +29,10 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
 
-# The gateway's import graph: persona_gateway → khimeras_shared.{memory,persona,
+# The gateway's import graph: persona_gateway → persona_core.{memory,persona,
 # runner} + shared.personas. No persona package (the runner owns persona DNA).
 COPY persona_gateway/ persona_gateway/
-COPY khimeras_shared/ khimeras_shared/
+COPY persona_core/ persona_core/
 COPY shared/ shared/
 
 # Pinned in the image, not in an Azure env var somebody must remember: the

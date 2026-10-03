@@ -30,8 +30,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from threading import Lock
 
-from khimeras_shared.behavior.contracts.flows import FlowAnalysis, UserState
-from khimeras_shared.behavior.contracts.presets import PresetMode, PresetSelection
+from persona_core.behavior.contracts.flows import FlowAnalysis, UserState
+from persona_core.behavior.contracts.presets import PresetMode, PresetSelection
 
 
 class ModelTier(StrEnum):

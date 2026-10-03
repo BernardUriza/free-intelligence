@@ -6,11 +6,11 @@ import time
 
 import structlog
 
-from khimeras_shared.markers import strip_delivery_markers
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
-from khimeras_shared.remind_marker import compute_next_occurrence
-from khimeras_shared.runner.agent_client import AgentRunnerClient
+from persona_core.markers import strip_delivery_markers
+from persona_core.memory import MemoryStore
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.remind_marker import compute_next_occurrence
+from persona_core.runner.agent_client import AgentRunnerClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import send_chunked
 from persona_gateway.workers._host import GatewayHost, host_bot_id

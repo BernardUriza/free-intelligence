@@ -1,6 +1,52 @@
 # Imágenes por referencia: Discord → AIRE, el pipeline sólo carga la URL firmada
 
-**Status:** Accepted (2026-09-25, idea de Bernard) — sin arrancar. Cross-repo: aire-server + este repo.
+**Status:** Done (2026-09-25) — construido en los tres repos (aire-server `5cd1cee`, cerrado allá en `3a5c5ce`; fi-runner 0.22.0 PR #495; este repo v4.41.0, más `job_id` en logs y el aviso de más de 4 fotos en voz de la persona en #100, v4.41.2). Idea de Bernard. Cross-repo: aire-server + fi-runner + este repo.
+
+**Recibo del probe en #general (2026-09-25):** a las 22:35 UTC se mandó `@Vultur` con
+`probe-50.png` ("MANGO 5082" en amarillo sobre verde, círculo magenta). A las 22:37
+Vultur describió la imagen correctamente y firmó `ᵛ⁴·⁴¹·¹`, con gateway y runner en
+`d4bc23b`: la imagen hizo Discord → gateway → runner → AIRE → Claude por referencia.
+
+**Cerrado después (2026-09-25):** el camino base64 de imágenes se borró en #105
+(v4.41.4). Los PDFs y archivos de texto viajan por el mismo Claim Check desde v4.42.0:
+AIRE `6b59010` (`documents: [{url, title?}]`, tipo detectado), fi-runner 0.23.0
+(`TurnDocument`, `documents_attached`, PR #496). Hoyo #4 cerrado. Ya no queda base64 en
+el cable del consumer: la fila de `turn_jobs` guarda todas las referencias.
+
+**v4.42.1:** un rechazo de la puerta ya no se reintenta. Cualquier 4xx de AIRE (adjunto
+vencido, demasiado grande, forma inválida) y su nuevo código `attachment_budget` (sesión
+llena, aire-server `turn._serve` bajo el lock) son terminales (500): antes caían en 502 y
+el reintento volvía a bajar los adjuntos para ser rechazado igual. 408 y 429 siguen
+siendo transitorios.
+
+**Recibo del probe de documentos (2026-09-26 02:06 UTC):** por orden de Bernard, Claude
+mandó `@Vultur` con `probe-docs.pdf` (603 bytes, "PERA 7719") en #general. A las 02:07
+Vultur contestó "PERA 7719" y firmó `ᵛ⁴·⁴²·¹`. En `claude_session_store` el bloque quedó
+como `document` / `application/pdf` / título `probe-docs.pdf`, con los 603 bytes
+idénticos, y no hubo `attachments_lost`. Imágenes y documentos viajan por referencia de
+punta a punta.
+
+## Lo que entró (2026-09-25)
+
+- **Gateway** (`khimeras_shared/attachments.py`): una imagen ya no se descarga; sale como
+  bloque `{"type":"image","source":{"type":"url","url":<firmada>}}`. Se borraron el
+  compresor de 2048 px (violaba la regla de 2000 px) y `MAX_IMAGE_B64_CHARS`: el tope de
+  bytes de imagen tiene un solo dueño, AIRE. Topes locales: 10 MB por imagen (el de fetch
+  de AIRE) y 4 por mensaje — las de más se nombran en personaje, el turno no muere
+  (hoyo #3 cerrado).
+- **Runner** (`aire_route.images_from_attachments`): la referencia se vuelve
+  `TurnImage(url=...)`; `attachments_lost` es terminal (500).
+- **fi-runner 0.22.0**: compara `images_attached` contra lo enviado y truena con
+  `attachments_lost` si no cuadra.
+- **`turn_jobs`**: la fila guarda las referencias (cientos de bytes), así que un job
+  reanudado trae la imagen por construcción. Texto/PDF inline siguen `not_resumable`.
+
+**Desviación del plan, a propósito:** el runner NO re-firma con `refresh-urls`. Eso le
+habría dado al runner un token de bot de Discord, y una credencial se queda en la
+superficie a la que se entregó. Como la firma dura 24 h y una reanudación ocurre en
+minutos, al reanudar se revisa el `ex` de la URL: si ya venció, el job es
+`not_resumable: image references expired`, en voz alta. Si algún día hace falta
+reanudar más de 24 h después, el lugar para re-firmar es el gateway, que ya tiene el token.
 
 ## El problema
 
@@ -12,9 +58,9 @@ Formas medidas en que se perdieron o se pueden perder (sesión 2026-09-25):
 |---|---|---|
 | 1 | El job del runner se armaba desde la fila de `turn_jobs`, que no guarda la imagen | 23→25-sep; arreglado en #92 (v4.40.21) |
 | 2 | Imágenes de 3.7–5 MB → 422 de AIRE, turno muerto (18 turnos, 8→19-sep) | arreglado 18-sep, pero con `5_000_000` copiado a mano en dos repos |
-| 3 | Un mensaje con ≥5 fotos: el gateway no tiene tope, AIRE `MAX_IMAGES=4` → 422 | **abierto** |
-| 4 | PDFs y archivos de texto: el runner los tira en silencio porque AIRE sólo acepta imágenes | **abierto** |
-| 5 | Ni gateway ni runner loggean `job_id` → no hay cómo cruzar una pérdida | **abierto** |
+| 3 | Un mensaje con ≥5 fotos: el gateway no tiene tope, AIRE `MAX_IMAGES=4` → 422 | cerrado v4.41.0 (tope de 4 en el gateway) |
+| 4 | PDFs y archivos de texto: el runner los tira en silencio porque AIRE sólo acepta imágenes | cerrado v4.42.0 (documentos por referencia) |
+| 5 | Ni gateway ni runner loggean `job_id` → no hay cómo cruzar una pérdida | cerrado v4.41.2 (#100) |
 
 ## La decisión: Claim Check con Discord como almacén
 

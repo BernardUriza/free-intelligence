@@ -22,8 +22,15 @@ import contextlib
 import discord
 import structlog
 
-from khimeras_shared.attachments import process_attachments
-from khimeras_shared.stt import (
+from persona_core.attachments import (
+    MAX_DOCUMENTS_PER_MESSAGE,
+    MAX_IMAGES_PER_MESSAGE,
+    cap_documents,
+    cap_images,
+    process_attachments,
+)
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
     SusurroSttClient,
     is_audio_attachment,
@@ -32,6 +39,8 @@ from khimeras_shared.stt import (
 from shared.personas import Persona
 
 log = structlog.get_logger()
+
+_PROMPT_CACHE: PromptCache = {}
 
 
 class MessageIngest:
@@ -82,19 +91,44 @@ class MessageIngest:
     async def attachment_blocks(self, message: discord.Message) -> list[dict]:
         """Image/document attachments of the summoning message → Anthropic blocks.
 
-        Reuses Insult's shared processor (5MB cap with image compression,
-        png/jpg/gif/webp + text/pdf, in-character rejection notices). The blocks
-        ride the final user message; `AgentRunnerClient` extracts them and the
-        runner builds the multimodal SDK input — same E2E path Insult uses, so
-        siblings finally SEE images (P0 2026-07-07). Invite turns feed their
-        fetched trigger message through here too (2026-07-16).
+        Reuses the shared processor (images by reference to AIRE, text/pdf
+        inline, in-character rejection notices). The blocks ride the final user
+        message; `AgentRunnerClient` extracts them and the runner builds the
+        turn — same E2E path Insult uses, so siblings finally SEE images (P0
+        2026-07-07). Invite turns feed their fetched trigger message through here
+        too (2026-07-16).
+
+        More than ``MAX_IMAGES_PER_MESSAGE`` images: the first N ride and a
+        trailing TEXT block carries the note (`prompts_md/images_over_cap_note.md`)
+        so the persona tells the user in character. It is a text block on purpose —
+        the runner client folds every text block of the last message into the
+        turn's text, on the mention path and the invite path alike (PR #97).
         """
         if not message.attachments:
             return []
         readable = [att for att in message.attachments if not self.is_audio_attachment(att, message)]
         if not readable:
             return []
+        readable, over_cap = cap_images(readable)
+        readable, extra_docs = cap_documents(readable)
         blocks, errors = await process_attachments(readable)
+        if extra_docs:
+            errors.append(
+                f"Solo leo {MAX_DOCUMENTS_PER_MESSAGE} archivos por mensaje; no lei: {', '.join(extra_docs)}. "
+                "Mandalos en otro mensaje."
+            )
+        if over_cap:
+            log.warning(
+                "persona_gateway_attachments_capped",
+                persona_id=self.persona.persona_id,
+                discord_message_id=str(getattr(message, "id", "")),
+                max_images=MAX_IMAGES_PER_MESSAGE,
+                dropped=over_cap,
+            )
+            note = load_prompt(SHARED_PROMPTS_DIR, "images_over_cap_note", _PROMPT_CACHE).format(
+                total=MAX_IMAGES_PER_MESSAGE + over_cap, max=MAX_IMAGES_PER_MESSAGE, dropped=over_cap
+            )
+            blocks = [*blocks, {"type": "text", "text": note}]
         for err in errors:
             with contextlib.suppress(discord.HTTPException):
                 await message.channel.send(err)

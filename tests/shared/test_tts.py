@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from khimeras_shared.tts import (
+from persona_core.tts import (
     DEFAULT_SUSURRO_URL,
     build_susurro_tts_client,
     should_auto_tts,
@@ -95,7 +95,7 @@ class TestSynthesizeSusurroTts:
         client = build_susurro_tts_client(base_url="https://sus.example.com", api_key="sk-secret")
         factory, post = _mock_async_client(content=b"mp3bytes")
 
-        with patch("khimeras_shared.tts.httpx.AsyncClient", factory):
+        with patch("persona_core.tts.httpx.AsyncClient", factory):
             out = await synthesize_susurro_tts(client, "hola", voice="onyx")
 
         assert out == b"mp3bytes"
@@ -111,7 +111,7 @@ class TestSynthesizeSusurroTts:
         client = build_susurro_tts_client(base_url="https://sus.example.com", api_key="k")
         factory, post = _mock_async_client(content=b"x")
 
-        with patch("khimeras_shared.tts.httpx.AsyncClient", factory):
+        with patch("persona_core.tts.httpx.AsyncClient", factory):
             await synthesize_susurro_tts(client, "hi", voice="echo")
 
         assert post.await_args.kwargs["json"]["voice"] == "echo"
@@ -121,7 +121,7 @@ class TestSynthesizeSusurroTts:
         client = build_susurro_tts_client(base_url="https://sus.example.com", api_key="k")
         factory, post = _mock_async_client(content=b"")
 
-        with patch("khimeras_shared.tts.httpx.AsyncClient", factory):
+        with patch("persona_core.tts.httpx.AsyncClient", factory):
             await synthesize_susurro_tts(client, "x" * 5000, voice="onyx")
 
         assert len(post.await_args.kwargs["json"]["input"]) == 4096
@@ -133,5 +133,5 @@ class TestSynthesizeSusurroTts:
         client = build_susurro_tts_client(base_url="https://sus.example.com", api_key="k")
         factory, _post = _mock_async_client(raise_status=RuntimeError("502 from gateway"))
 
-        with patch("khimeras_shared.tts.httpx.AsyncClient", factory), pytest.raises(RuntimeError):
+        with patch("persona_core.tts.httpx.AsyncClient", factory), pytest.raises(RuntimeError):
             await synthesize_susurro_tts(client, "hola", voice="onyx")
