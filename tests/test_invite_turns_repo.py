@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from khimeras_shared.memory.repositories.invite_turns import InviteTurnsRepository
+from persona_core.memory.repositories.invite_turns import InviteTurnsRepository
 
 
 def _repo() -> InviteTurnsRepository:

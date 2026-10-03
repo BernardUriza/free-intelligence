@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from khimeras_shared.runner.agent_client import AgentRunnerClient, PersonaTurnError
+from persona_core.runner.agent_client import AgentRunnerClient, PersonaTurnError
 
 AUTH_ERROR = "Failed to authenticate. API Error: 401 Invalid authentication credentials"
 
@@ -49,7 +49,7 @@ def _patch_response(monkeypatch: pytest.MonkeyPatch, payload: dict[str, Any]) ->
         async def post(self, *a, **k):
             return resp
 
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _AsyncClient)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _AsyncClient)
 
 
 MESSAGES = [{"role": "user", "content": "hola"}]

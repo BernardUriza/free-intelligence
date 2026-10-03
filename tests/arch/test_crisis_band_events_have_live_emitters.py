@@ -8,7 +8,7 @@ salud, pregunta: si esto estuviera roto ahora mismo, ¿este contador podría
 subir?"*.
 
 Aplicada a este issue: el día que alguien borre la llamada en el camino del
-turno, `khimeras_shared/audit.py` va a seguir ahí completito, sus tests
+turno, `persona_core/audit.py` va a seguir ahí completito, sus tests
 unitarios van a seguir verdes, y `crisis_band_classified` no va a volver a
 aparecer en KQL nunca. **Nada se pondría rojo.** Este arnés es lo que se pone
 rojo.
@@ -41,7 +41,7 @@ from pathlib import Path
 import pytest
 from structlog.testing import capture_logs
 
-from khimeras_shared.audit import (
+from persona_core.audit import (
     ABSENT_EVENT,
     CLASSIFIED_EVENT,
     log_crisis_band_absent,
@@ -51,7 +51,7 @@ from khimeras_shared.audit import (
 REPO = Path(__file__).resolve().parents[2]
 
 #: El camino del turno: donde estos eventos TIENEN que dispararse.
-CAMINO_DEL_TURNO = REPO / "khimeras_shared" / "guidance.py"
+CAMINO_DEL_TURNO = REPO / "persona_core" / "guidance.py"
 
 UN_VEREDICTO = {
     "band": "HIGH",

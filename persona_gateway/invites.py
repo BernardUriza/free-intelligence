@@ -28,9 +28,15 @@ async def resolve_messageable(client: discord.Client, channel_id: str) -> discor
     return None
 
 
+# What demux_ai actually sends: dispatch.py routes as "host", fallback.py retries as
+# "host_retry". This once read "host_router", a value nobody emitted, so every
+# host-routed turn was told "Insult te invitó".
+HOST_ROUTED_INVITERS = frozenset({"host", "host_retry"})
+
+
 def invite_instruction(invited_by: str, reason: str) -> str:
     """The instruction injected as the FRESHEST turn — context, not a user message."""
-    if invited_by == "host_router":
+    if invited_by in HOST_ROUTED_INVITERS:
         return (
             f"[El turno es tuyo: la conversación del canal es la que tú traías. Contexto: {reason}] "
             "Lee el hilo de arriba y responde directo al último mensaje, en tu voz."

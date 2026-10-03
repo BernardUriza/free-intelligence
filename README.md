@@ -8,7 +8,7 @@ the name of the system.
 
 > Post-demux monorepo (v4.21.39+). The old flat `insult/` god-package was split
 > into a light host (`demux_ai/`), per-persona packages (`personas/`), a gateway
-> (`persona_gateway/`), and shared contracts (`khimeras_shared/`).
+> (`persona_gateway/`), and shared contracts (`persona_core/`).
 
 ## Architecture
 
@@ -38,8 +38,8 @@ personas/
                      (memory, llm, presets, flows, facts, health…), agent/, prompts/*.md
   alice/             sibling persona (Azure OpenAI gpt-4.1) — own app/bot/config/cogs/core/api
 persona_gateway/     one Discord bot user per sibling persona, all sharing one brain via persona_id
-khimeras_shared/     shared contracts/infra with 2+ real consumers — memory/, llm/, runner/,
-                     corpus/, persona/, vectors.py, style.py (see khimeras_shared/PROMOTION.md)
+persona_core/     shared contracts/infra with 2+ real consumers — memory/, llm/, runner/,
+                     corpus/, persona/, vectors.py, style.py (see persona_core/PROMOTION.md)
 shared/              cross-cutting helpers — corpus/, llm/, logging_setup/, text/, time_context.py
 tests/               arch/ (import-boundary ratchet) · chat/ · core/ · integration/ · agent/ · shared/
 infra/azure/         runner.Dockerfile, entrypoint.sh

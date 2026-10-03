@@ -15,7 +15,7 @@ person describing their trauma will be roasted by the bot."""
 
 import pytest
 
-from khimeras_shared.behavior.presets import PresetMode, classify_preset
+from persona_core.behavior.presets import PresetMode, classify_preset
 
 
 @pytest.mark.parametrize(
@@ -111,7 +111,7 @@ def test_vulnerable_user_neutral_message_routes_to_relational_probe():
     `chronic_nonacute_move_allowed` reason prefix.
 
     This is the case that aplanó a Alex on the DIF turn before F1."""
-    from khimeras_shared.behavior.presets import is_vulnerable_overlay_selection
+    from persona_core.behavior.presets import is_vulnerable_overlay_selection
 
     result = classify_preset(
         "He dormido bastante bien, y cada día me siento un poquito mejor",
@@ -127,7 +127,7 @@ def test_vulnerable_user_medication_follow_up_routes_to_relational_probe():
     acute crisis signals must route to RELATIONAL_PROBE for chronic-vulnerable
     users. F1: substantive engagement under the safety overlay, not flat
     presence."""
-    from khimeras_shared.behavior.presets import is_vulnerable_overlay_selection
+    from persona_core.behavior.presets import is_vulnerable_overlay_selection
 
     result = classify_preset(
         "Yo sentí efectos muy positivos desde las primeras tomas, como una especie de contención que aumentaba cada día",
@@ -149,7 +149,7 @@ def test_vulnerable_user_clinical_vocab_in_current_still_serious():
     discipline) ACTIVATES — this is the exact moment that overlay matters
     most, and dropping it here was the silent regression that the F1
     rewrite almost shipped."""
-    from khimeras_shared.behavior.presets import is_vulnerable_overlay_selection
+    from persona_core.behavior.presets import is_vulnerable_overlay_selection
 
     result = classify_preset(
         "Me aumentó dosis de quetiapina",
@@ -168,7 +168,7 @@ def test_non_chronic_user_clinical_vocab_does_not_get_overlay():
     depression in the current message gets RESPECTFUL_SERIOUS via the
     serious_trigger reason — no overlay (no fact history to justify it).
     The chronic-clinical branch must NOT over-trigger."""
-    from khimeras_shared.behavior.presets import is_vulnerable_overlay_selection
+    from persona_core.behavior.presets import is_vulnerable_overlay_selection
 
     result = classify_preset("estoy con depresión severa hoy")
     assert result.mode == PresetMode.RESPECTFUL_SERIOUS
@@ -250,7 +250,7 @@ def test_safety_overlay_activates_for_all_three_routing_reasons():
     that crosses the vulnerability threshold: acute_crisis,
     chronic_nonacute_move_allowed, and the legacy vulnerable_user_overlay
     prefix (kept for any in-flight selection during deploy)."""
-    from khimeras_shared.behavior.presets import (
+    from persona_core.behavior.presets import (
         PresetSelection,
         is_vulnerable_overlay_selection,
     )

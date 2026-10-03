@@ -179,6 +179,24 @@ def test_an_unknown_door_failure_maps_to_502():
     assert err.status_code == 502
 
 
+@pytest.mark.parametrize(
+    "exc",
+    [
+        AIREDoorError("AIRE door 422: image 0: fetch answered 404 (expired signature?)", http_status=422),
+        AIREDoorError("AIRE door 413: too big", http_status=413),
+        AIREDoorError("AIRE turn error [attachment_budget]: session full", code="attachment_budget"),
+    ],
+)
+def test_a_request_the_door_refused_is_terminal_a_retry_would_refetch_and_fail_again(exc):
+    """aire-server #50: a 4xx or a full session is never fixed by resending the same request."""
+    assert aire_route.to_http_error(exc).status_code == 500
+
+
+@pytest.mark.parametrize("status", [408, 429])
+def test_a_transient_4xx_still_retries(status):
+    assert aire_route.to_http_error(AIREDoorError(f"AIRE door {status}", http_status=status)).status_code == 502
+
+
 # --- the model-binding finding (measured live 2026-08-22) -------------------
 
 
@@ -197,24 +215,43 @@ def test_model_diverged_is_silent_when_aire_reports_no_model():
     assert not aire_route.model_diverged("claude-sonnet-4-6", None)
 
 
-# --- attachments (AIRE's door takes images only) ----------------------------
+# --- attachments (every one rides by reference, aire-server #50) ------------
+
+URL = "https://cdn.discordapp.com/attachments/1/2/a.png?ex=ffffffff&is=0&hm=abc"
 
 
-def test_image_attachments_are_forwarded_as_aire_blocks():
-    """An Anthropic-shape base64 image becomes AIRE's {media_type, data}."""
-    images, dropped = aire_route.images_from_attachments(
-        [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "QUJD"}}]
+def test_an_inline_base64_block_is_no_longer_forwarded_it_is_counted_as_dropped():
+    """Resistencia (#50): el camino base64 murió; si algo vuelve a mandarlo, se cuenta, no se cuela."""
+    images, documents, dropped = aire_route.refs_from_attachments(
+        [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "QUJD"}},
+            {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "QUJD"}},
+        ]
     )
-    assert dropped == 0
-    assert images[0].media_type == "image/png" and images[0].data == "QUJD"
+    assert images == [] and documents == [] and dropped == 2
 
 
-def test_non_image_attachments_are_counted_not_silently_lost():
-    """AIRE has no document block — the drop is COUNTED so the caller can log it."""
-    images, dropped = aire_route.images_from_attachments(
-        [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "QUJD"}}]
+def test_url_blocks_ride_as_references_aire_fetches():
+    """The gateway's URL-source blocks become TurnImage(url) and TurnDocument(url, title)."""
+    images, documents, dropped = aire_route.refs_from_attachments(
+        [
+            {"type": "image", "source": {"type": "url", "url": URL}},
+            {
+                "type": "document",
+                "source": {"type": "url", "url": URL.replace("a.png", "acta.pdf")},
+                "title": "acta.pdf",
+            },
+        ]
     )
-    assert images == [] and dropped == 1
+    assert dropped == 0 and images[0].url == URL and not images[0].data
+    assert documents[0].title == "acta.pdf" and documents[0].url.endswith("acta.pdf?ex=ffffffff&is=0&hm=abc")
+
+
+def test_attachments_lost_maps_to_500_a_retry_resends_the_same_references():
+    err = aire_route.to_http_error(
+        AIREDoorError("AIRE turn error [attachments_lost]: sent 2, attached 1", code="attachments_lost")
+    )
+    assert err.status_code == 500
 
 
 # --- the turn itself (backend mocked; no HTTP leaves the test) --------------
@@ -814,11 +851,19 @@ async def test_the_runner_lifespan_closes_the_aire_backends(monkeypatch):
     backend = _Closable("insult")
     aire_route._backends["insult"] = backend
 
+    warm = AsyncMock(return_value=None)
+    close_memory = AsyncMock(return_value=None)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.warm_at_boot", warm)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.close_memory", close_memory)
+
     async with runner_mod._lifespan(object()):
-        pass
+        await asyncio.sleep(0)  # let the boot tasks start
 
     assert backend.closed, "shutdown left an AIRE door client open"
     closed_pool.assert_awaited_once()
+    # Boot warms the pipeline's store + embedder; shutdown releases its pool.
+    warm.assert_awaited_once()
+    close_memory.assert_awaited_once()
 
 
 # --- token counts: only what AIRE stated is a number (2026-09-03) -------------

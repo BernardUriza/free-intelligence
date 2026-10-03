@@ -7,7 +7,7 @@ THE BUG this locks out:
   OUTSIDE that subset — on every single turn, with no recovery. A user's
   auto-facts could never grow past ~10 ("Alex explains the same thing every day").
 
-THE FIX (`khimeras_shared.facts.merge_facts_additive` + `get_auto_facts`):
+THE FIX (`persona_core.facts.merge_facts_additive` + `get_auto_facts`):
   Union the extractor's output onto the COMPLETE live auto set, so the snapshot
   `save_facts` writes is always a SUPERSET of what was already stored. Extraction
   can only ADD, never destroy.
@@ -21,7 +21,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared.facts import build_facts_prompt, extract_facts, merge_facts_additive, norm_fact
+from persona_core.facts import build_facts_prompt, extract_facts, merge_facts_additive, norm_fact
 
 # --------------------------------------------------------------------------
 # merge_facts_additive — pure

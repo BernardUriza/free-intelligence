@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 from fi_core.cognitive import PSYCHIATRY
 
-from khimeras_shared.behavior.vulnerability import (
+from persona_core.behavior.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
     is_acute_crisis,
@@ -303,7 +303,7 @@ def test_the_lists_are_imported_not_copied():
     a `_ACUTE_CRISIS_PATTERNS` y `_SIGNAL_GROUPS` va en el PR; esto cubre el
     otro lado, que el módulo de verdad lee de fi-core en tiempo de ejecución.
     """
-    from khimeras_shared.behavior import vulnerability
+    from persona_core.behavior import vulnerability
 
     fuente = vulnerability.__file__
     with open(fuente, encoding="utf-8") as fh:

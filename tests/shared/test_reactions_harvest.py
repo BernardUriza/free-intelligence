@@ -4,7 +4,7 @@ the `[REACT:...]` marker and writing emojis inline as raw text.
 
 from __future__ import annotations
 
-from khimeras_shared.reactions import MAX_REACTIONS, harvest_orphan_emojis
+from persona_core.reactions import MAX_REACTIONS, harvest_orphan_emojis
 
 
 def test_no_emojis_returns_unchanged():

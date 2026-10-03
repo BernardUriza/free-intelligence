@@ -56,9 +56,9 @@ from dataclasses import dataclass, field
 import structlog
 from fastapi import HTTPException
 from fi_runner import AIREBackend
-from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnImage
+from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage
 
-from khimeras_shared.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
 from persona_runner.engine import aire_principal, aire_topic, auth_failure
@@ -108,7 +108,21 @@ AUDITED_MODE_DENIES = {
 AIRE_ACCEPTED_TOOL_DELTA = ("Write", "Edit")
 # AIRE's structured error CODES, classified once. Terminal cuts (aire #23/#31)
 # cannot be fixed by retrying; backpressure can.
-_TERMINAL_ERRORS = ("budget_exhausted", "credentials_exhausted", "budget_exceeded")
+# attachments_lost (aire-server #50): the door attached fewer images than were
+# sent. A retry resends the same references, so it is terminal, never 502.
+# attachment_budget (aire-server #50): the session already carries too many
+# attachments; every later turn resends them, so a retry can only be refused again.
+_TERMINAL_ERRORS = (
+    "budget_exhausted",
+    "credentials_exhausted",
+    "budget_exceeded",
+    "attachments_lost",
+    "attachment_budget",
+)
+# A 4xx from the door is AIRE refusing THIS request (bad shape, oversize or
+# expired attachment, full session): resending it byte-identical cannot pass,
+# and each retry re-fetches the attachments. Only these two 4xx are transient.
+_RETRYABLE_4XX = (408, 429)
 _BACKPRESSURE_ERRORS = ("slot_busy",)
 _STATUS_PREFIX = {500: "aire turn terminal", 503: "aire backpressure", 502: "aire turn failed"}
 
@@ -378,21 +392,28 @@ async def fetch_user_facts(user_id: str) -> str:
     return "\n".join(lines)[: config.AIRE_FACTS_MAX_CHARS]
 
 
-def images_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], int]:
-    """Convert Anthropic-shape image blocks to AIRE's ``{media_type, data}``.
+def refs_from_attachments(attachments: list[dict] | None) -> tuple[list[TurnImage], list[TurnDocument], int]:
+    """Split the gateway's URL-source blocks into AIRE references.
 
-    Returns (images, dropped): AIRE's door has no document/PDF block (named as a
-    gap in the stage-2 backlog), so non-image attachments are DROPPED and
-    counted — the caller logs the count instead of losing them silently."""
+    Every attachment travels by reference since aire-server #50: an image block
+    becomes ``TurnImage(url)``, a document block (PDF or text — AIRE detects
+    which) becomes ``TurnDocument(url, title)``. Anything else — an inline
+    base64 block no producer emits any more — is DROPPED and counted, so the
+    caller logs it instead of losing it silently. Returns
+    (images, documents, dropped)."""
     images: list[TurnImage] = []
+    documents: list[TurnDocument] = []
     dropped = 0
     for block in attachments or []:
         source = (block or {}).get("source") or {}
-        if block.get("type") == "image" and source.get("type") == "base64" and source.get("data"):
-            images.append(TurnImage(media_type=source.get("media_type", ""), data=source["data"]))
+        url = source.get("url") if source.get("type") == "url" else None
+        if block.get("type") == "image" and url:
+            images.append(TurnImage(url=url))
+        elif block.get("type") == "document" and url:
+            documents.append(TurnDocument(url=url, title=block.get("title") or ""))
         else:
             dropped += 1
-    return images, dropped
+    return images, documents, dropped
 
 
 def _error_status(exc: BackendError) -> int:
@@ -410,8 +431,11 @@ def _error_status(exc: BackendError) -> int:
         if code in _TERMINAL_ERRORS:
             return 500
         return 503 if code in _BACKPRESSURE_ERRORS else 502
-    if getattr(exc, "http_status", None) == 503:
+    status = getattr(exc, "http_status", None)
+    if status == 503:
         return 503
+    if isinstance(status, int) and 400 <= status < 500 and status not in _RETRYABLE_4XX:
+        return 500
     detail = str(exc)
     if any(known in detail for known in _TERMINAL_ERRORS):
         return 500
@@ -540,13 +564,15 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         history_block=fold_history(req.history) if is_first_turn else "",
         memory_block=memory_block,
     )
-    images, dropped = images_from_attachments(req.attachments)
+    images, documents, dropped = refs_from_attachments(req.attachments)
     if dropped:
         log.warning(
             "aire_route_attachments_dropped",
+            job_id=req.job_id,
             channel_id=req.channel_id,
             dropped=dropped,
             forwarded=len(images),
+            documents=len(documents),
         )
 
     backend = backend_for(base_id)
@@ -569,6 +595,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             model=model,
             session_id=claim.topic_id,
             images=images or None,
+            documents=documents or None,
         )
 
     token = _chat_casita.set(casita)
@@ -590,6 +617,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
                 raise
             log.warning(
                 "aire_route_budget_cut_retrying",
+                job_id=req.job_id,
                 casita=casita,
                 topic=claim.topic_id,
                 channel_id=req.channel_id,
@@ -598,6 +626,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     except BackendError as exc:
         log.error(
             "aire_route_turn_failed",
+            job_id=req.job_id,
             channel_id=req.channel_id,
             user_id=req.user_id,
             casita=casita,
@@ -635,6 +664,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     log.info(
         "agent_runner_turn_complete",
         backend="aire",
+        job_id=req.job_id,
+        images_sent=len(images),
+        documents_sent=len(documents),
         channel_id=req.channel_id,
         user_id=req.user_id,
         casita=casita,
@@ -730,7 +762,7 @@ def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
     in parallel — which is the whole point of the knob.
 
     Bounded, unlike a per-call name: judge system prompts are ``.md`` files
-    (``khimeras_shared/prompts_md/``) templated with at most a persona name, and
+    (``persona_core/prompts_md/``) templated with at most a persona name, and
     all per-user material rides the USER message. So the casita count is
     "distinct judge prompts times personas" — a handful, stable for the life of the
     droplet — instead of one directory per background fact extraction. AIRE has
@@ -765,9 +797,11 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     NOT what keeps prompts apart."""
     model = req.model or config.JUDGE_DEFAULT_MODEL
     casita = judge_casita_for(req.persona_id, req.system_prompt)
-    images, dropped = images_from_attachments(req.attachments)
+    images, documents, dropped = refs_from_attachments(req.attachments)
     if dropped:
-        log.warning("aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images))
+        log.warning(
+            "aire_route_judge_attachments_dropped", dropped=dropped, forwarded=len(images), documents=len(documents)
+        )
     backend = judge_backend_for(casita)
     try:
         result = await backend.run_turn(
@@ -778,6 +812,7 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
             model=model,
             session_id=None,
             images=images or None,
+            documents=documents or None,
         )
     except BackendError as exc:
         log.error("aire_route_judge_failed", casita=casita, error=str(exc)[:300])

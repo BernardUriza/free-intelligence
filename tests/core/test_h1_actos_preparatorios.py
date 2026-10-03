@@ -48,7 +48,7 @@ from __future__ import annotations
 import pytest
 from fi_core.cognitive import PSYCHIATRY
 
-from khimeras_shared.behavior.vulnerability import crisis_band
+from persona_core.behavior.vulnerability import crisis_band
 
 # Las once de peso alto, en las palabras de Álex (comentario del 2026-09-04).
 LAS_ONCE = [

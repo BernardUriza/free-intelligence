@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 import asyncpg
 import pytest
 
-from khimeras_shared.memory.repositories.research_jobs import ResearchJobsRepository
+from persona_core.memory.repositories.research_jobs import ResearchJobsRepository
 
 
 def _make_repo() -> ResearchJobsRepository:

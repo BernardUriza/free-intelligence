@@ -123,7 +123,7 @@ fi
 # That tag is the only way this repo verifies a deploy actually landed
 # (.claude/rules/testing.md: "si el tag es el viejo, todavía no despliega"),
 # so a stale tag turns every deploy verification into a coin flip.
-VERSION_FILES=("pyproject.toml" "khimeras_shared/version.py")
+VERSION_FILES=("pyproject.toml" "persona_core/version.py")
 staged=$(git diff --cached --name-only)
 missing=()
 for f in "${VERSION_FILES[@]}"; do
@@ -135,7 +135,7 @@ if [ ${#missing[@]} -eq ${#VERSION_FILES[@]} ]; then
     echo "ERROR: Version bump required!"
     echo "Neither version file was modified:"
     echo "  - pyproject.toml             (version = \"X.Y.Z\")"
-    echo "  - khimeras_shared/version.py (VERSION_TAG = \"ᵛX·Y·Z\")"
+    echo "  - persona_core/version.py (VERSION_TAG = \"ᵛX·Y·Z\")"
     echo ""
     echo "Bump BOTH — they have to match. Use --no-verify to skip (emergencies only)."
     exit 1
@@ -158,14 +158,14 @@ import re, sys, pathlib
 SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 pyproject = pathlib.Path("pyproject.toml").read_text(encoding="utf-8")
-version_py = pathlib.Path("khimeras_shared/version.py").read_text(encoding="utf-8")
+version_py = pathlib.Path("persona_core/version.py").read_text(encoding="utf-8")
 
 m = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
 t = re.search(r'^VERSION_TAG\s*=\s*"([^"]+)"', version_py, re.M)
 if not m or not t:
     print("\nERROR: no pude leer la versión de uno de los dos archivos.")
     print("  pyproject.toml -> " + ("ok" if m else "sin `version = \"X.Y.Z\"`"))
-    print("  khimeras_shared/version.py -> " + ("ok" if t else "sin `VERSION_TAG = \"...\"`"))
+    print("  persona_core/version.py -> " + ("ok" if t else "sin `VERSION_TAG = \"...\"`"))
     sys.exit(1)
 
 version, tag = m.group(1), t.group(1)
@@ -173,7 +173,7 @@ esperado = "ᵛ" + version.replace(".", "·").translate(SUP)
 if tag != esperado:
     print("\nERROR: los dos archivos de versión no coinciden.")
     print(f"  pyproject.toml             version    = {version}")
-    print(f"  khimeras_shared/version.py VERSION_TAG = {tag}")
+    print(f"  persona_core/version.py VERSION_TAG = {tag}")
     print(f"  esperado                               = {esperado}")
     print("\nEl tag es lo que imprime cada bot al final de cada mensaje. Si miente,")
     print("verificar un deploy deja de significar algo.")

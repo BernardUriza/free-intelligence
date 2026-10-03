@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from khimeras_shared.stt import SusurroSttClient
+from persona_core.stt import SusurroSttClient
 from persona_gateway import ingest as ingest_mod
 from persona_gateway.ingest import MessageIngest
 from shared.personas import Persona

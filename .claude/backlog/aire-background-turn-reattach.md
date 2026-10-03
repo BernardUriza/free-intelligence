@@ -94,6 +94,14 @@ un mensaje que AIRE nunca vio.
   turno limpio; resistencia: fila sin dato → contrato fase A) +
   `tests/agent/test_runner_shutdown.py` (la reanudación en boot de un job que
   cruzó sigue marcando `resumed`).
+- **v4.47.3 (al traer `main` post-F3):** `resumed` dejó de cargar dos
+  significados. Lo que AIRE vio sigue en `resumed`; lo que ya está en `messages`
+  va en `TurnRequest.ask_stored`, que el runner pone en TODO job reanudado. Sin
+  eso, un job `pipeline="runner"` (og118) que murió armando el contexto —antes
+  de AIRE pero DESPUÉS de `_store_ask`— guardaba la pregunta dos veces. Y la
+  reanudación del arranque entraba directo a `turn_via_aire`, saltándose la
+  tubería entera (contexto, guía, guardado de la respuesta); ahora entra por
+  `serve_turn`. Tests: `tests/agent/test_turn_jobs_pipeline_resume.py`.
 - Residual conocido: `mark_aire_sent` es best-effort; si Postgres falla en ESE
   update y vuelve para la reanudación, la fila dice "no cruzó" y se re-pliega la
   historia. Ventana estrecha (Postgres caído justo en esa sentencia); aceptada.

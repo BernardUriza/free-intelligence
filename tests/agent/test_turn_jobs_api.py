@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 
 from persona_runner.api import turn as turn_api
 from persona_runner.core.schemas import TurnRequest, TurnResponse
-from persona_runner.engine import turn_jobs
+from persona_runner.engine import aire_route, turn_jobs
 
 TOKEN = "tok-1"  # noqa: S105 — fixture, no un secreto
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
@@ -48,7 +48,7 @@ def test_submit_then_poll_delivers_a_turn_longer_than_one_poll(client, monkeypat
             text="Supremme de Luxe…", output_tokens=1787, model="claude-opus-4-7", stop_reason="end_turn"
         )
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", slow_turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", slow_turn)
 
     r = client.post("/v1/turn/jobs", json=REQ, headers=HEADERS)
     assert r.status_code == 202
@@ -80,7 +80,7 @@ def test_the_same_job_id_posted_twice_runs_one_turn(client, monkeypatch):
         await asyncio.sleep(0.05)
         return TurnResponse(text="una sola vez", output_tokens=3, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", counted_turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", counted_turn)
     req = {**REQ, "job_id": "a3f0c9d1e2b84f7a9c6d5e4f3a2b1c0d"}
 
     first = client.post("/v1/turn/jobs", json=req, headers=HEADERS)
@@ -113,7 +113,7 @@ def test_a_turn_that_raises_surfaces_the_same_way_as_the_sync_path(client, monke
         await asyncio.sleep(0)
         raise RuntimeError("AIRE dijo que no")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", bad_turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", bad_turn)
     job_id = client.post("/v1/turn/jobs", json=REQ, headers=HEADERS).json()["job_id"]
     with pytest.raises(RuntimeError, match="AIRE dijo que no"):
         client.get(f"/v1/turn/jobs/{job_id}", params={"wait_s": 5}, headers=HEADERS)
@@ -157,7 +157,7 @@ def test_a_runner_restart_mid_turn_resumes_the_job_under_the_same_id(client, mon
             await asyncio.sleep(60)  # el proceso A muere antes de terminar
         return TurnResponse(text="reanudado", output_tokens=5, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     assert client.post("/v1/turn/jobs", json=JOB, headers=HEADERS).status_code == 202
     assert ledger.rows[JOB["job_id"]]["status"] == "running"
     ledger.rows[JOB["job_id"]]["aire_sent"] = True  # A alcanzó a mandarlo a AIRE
@@ -187,7 +187,7 @@ def test_a_job_that_died_before_reaching_aire_resumes_as_a_fresh_turn(client, mo
             await asyncio.sleep(60)  # A muere antes de cruzar a AIRE
         return TurnResponse(text="limpio", output_tokens=5, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     assert client.post("/v1/turn/jobs", json=JOB, headers=HEADERS).status_code == 202
     assert ledger.rows[JOB["job_id"]].get("aire_sent", False) is False
 
@@ -203,7 +203,7 @@ def test_a_job_that_died_before_reaching_aire_resumes_as_a_fresh_turn(client, mo
 def test_a_resumed_row_that_does_not_report_aire_sent_keeps_the_phase_a_contract():
     """Resistencia: una fila sin el dato se lee como CRUZADA. Equivocarse hacia
     'no cruzó' plegaría la historia dos veces en la sesión de AIRE."""
-    from khimeras_shared.tickets import LedgerRow
+    from persona_core.tickets import LedgerRow
 
     def row(extra: dict) -> LedgerRow:
         return LedgerRow(
@@ -223,7 +223,7 @@ def test_a_turn_finished_before_the_restart_is_served_from_the_row_without_runni
         runs["n"] += 1
         return TurnResponse(text="una vez", output_tokens=2, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     client.post("/v1/turn/jobs", json=JOB, headers=HEADERS)
     assert (
         client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()["status"] == "done"
@@ -243,7 +243,7 @@ def test_a_second_restart_is_refused_as_attempts_exhausted(client, monkeypatch, 
         await asyncio.sleep(60)
         raise AssertionError("unreachable")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
+    monkeypatch.setattr(aire_route, "turn_via_aire", never)
     client.post("/v1/turn/jobs", json=JOB, headers=HEADERS)
     _restart(monkeypatch, "replica-b")
     ledger.age(JOB["job_id"])
@@ -265,7 +265,7 @@ def test_a_job_another_replica_still_beats_is_not_re_run(client, monkeypatch, le
         await asyncio.sleep(60)
         raise AssertionError("unreachable")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     client.post("/v1/turn/jobs", json=JOB, headers=HEADERS)
     _restart(monkeypatch, "replica-b")  # la fila sigue fresca: A sigue latiendo
     r = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 0.01}, headers=HEADERS)
@@ -286,8 +286,8 @@ def test_the_live_run_receives_the_attachments_the_row_does_not_keep(client, mon
         seen["resumed"] = req.resumed
         return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
-    image = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "aGk="}}
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
+    image = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "aGk="}}
     client.post("/v1/turn/jobs", json={**JOB, "attachments": [image]}, headers=HEADERS)
     body = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
 
@@ -304,8 +304,8 @@ def test_a_job_with_attachments_is_not_resumable(client, monkeypatch, ledger):
         await asyncio.sleep(60)
         raise AssertionError("unreachable")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", never)
-    with_image = {**JOB, "attachments": [{"type": "image", "source": {"data": "aGk="}}]}
+    monkeypatch.setattr(aire_route, "turn_via_aire", never)
+    with_image = {**JOB, "attachments": [{"type": "document", "source": {"type": "base64", "data": "aGk="}}]}
     client.post("/v1/turn/jobs", json=with_image, headers=HEADERS)
     assert "attachments" not in ledger.rows[JOB["job_id"]]["payload"]
     assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is True
@@ -325,8 +325,73 @@ def test_with_the_ledger_down_the_contract_is_exactly_ram_only(client, monkeypat
     async def turn(_req: TurnRequest) -> TurnResponse:
         return TurnResponse(text="ram", output_tokens=1, model="m", stop_reason="end_turn")
 
-    monkeypatch.setattr(turn_api.aire_route, "turn_via_aire", turn)
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     job_id = client.post("/v1/turn/jobs", json=REQ, headers=HEADERS).json()["job_id"]
     assert client.get(f"/v1/turn/jobs/{job_id}", params={"wait_s": 5}, headers=HEADERS).json()["status"] == "done"
     assert client.get(f"/v1/turn/jobs/{job_id}", headers=HEADERS).status_code == 404
     assert ledger.rows == {}
+
+
+def _ref(ex_hex: str) -> dict:
+    return {
+        "type": "image",
+        "source": {"type": "url", "url": f"https://cdn.discordapp.com/attachments/1/2/a.png?ex={ex_hex}&is=0&hm=abc"},
+    }
+
+
+def test_an_image_by_reference_rides_in_the_row_and_a_resumed_job_carries_it(client, monkeypatch, ledger):
+    """aire-server #50: una referencia pesa cientos de bytes, así que la fila la
+    guarda y reanudar ya no es `not_resumable` — la imagen viene por construcción."""
+    seen: dict[str, object] = {}
+
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    async def turn(req: TurnRequest) -> TurnResponse:
+        seen["attachments"], seen["resumed"] = req.attachments, req.resumed
+        return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
+
+    image = _ref("ffffffff")
+    monkeypatch.setattr(aire_route, "turn_via_aire", never)
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [image]}, headers=HEADERS)
+    assert ledger.rows[JOB["job_id"]]["payload"]["attachments"] == [image]
+    assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is False
+    ledger.rows[JOB["job_id"]]["aire_sent"] = True  # A alcanzó a mandarlo a AIRE
+    _restart(monkeypatch, "replica-b")
+    monkeypatch.setattr(aire_route, "turn_via_aire", turn)
+    ledger.age(JOB["job_id"])
+    body = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 5}, headers=HEADERS).json()
+    assert body["status"] == "done"
+    assert seen == {"attachments": [image], "resumed": True}
+
+
+def test_a_resume_whose_signed_url_expired_is_not_resumable_out_loud(client, monkeypatch, ledger):
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(aire_route, "turn_via_aire", never)
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [_ref("1")]}, headers=HEADERS)
+    _restart(monkeypatch, "replica-b")
+    ledger.age(JOB["job_id"])
+    r = client.get(f"/v1/turn/jobs/{JOB['job_id']}", params={"wait_s": 0.5}, headers=HEADERS)
+    assert r.status_code == 502 and "expired" in r.json()["detail"]
+
+
+def test_a_document_reference_rides_in_the_row_like_an_image(client, monkeypatch, ledger):
+    """#50 item 6: un PDF por referencia también es cientos de bytes; la fila lo guarda."""
+
+    async def never(_req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(60)
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(aire_route, "turn_via_aire", never)
+    doc = {
+        "type": "document",
+        "source": {"type": "url", "url": "https://cdn.discordapp.com/attachments/1/2/acta.pdf?ex=ffffffff&is=0&hm=a"},
+        "title": "acta.pdf",
+    }
+    client.post("/v1/turn/jobs", json={**JOB, "attachments": [_ref("ffffffff"), doc]}, headers=HEADERS)
+    assert ledger.rows[JOB["job_id"]]["payload"]["attachments"] == [_ref("ffffffff"), doc]
+    assert ledger.rows[JOB["job_id"]]["payload"]["has_attachments"] is False

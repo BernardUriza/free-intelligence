@@ -32,7 +32,7 @@ from pathlib import Path
 import structlog
 
 from demux_ai.router_budget import RouterBudget
-from khimeras_shared.prompts import PromptCache, load_prompt
+from persona_core.prompts import PromptCache, load_prompt
 
 log = structlog.get_logger()
 

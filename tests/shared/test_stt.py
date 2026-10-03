@@ -1,4 +1,4 @@
-"""Tests for khimeras_shared.stt — voice-message STT via susurro.
+"""Tests for persona_core.stt — voice-message STT via susurro.
 
 The gateway exposes ``POST /v1/stt`` (Bearer auth, raw audio body, no forced
 language — Whisper autodetects,
@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from khimeras_shared.stt import (
+from persona_core.stt import (
     STT_COLD_START_ATTEMPTS,
     STT_TIMEOUT_S,
     SttTranscript,
@@ -83,7 +83,7 @@ class TestTranscribeVoiceMessage:
             }
         )
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+        with patch("persona_core.stt.httpx.AsyncClient", factory):
             result = await transcribe_voice_message(
                 b"fake-ogg-data",
                 base_url="https://sus.example.com",
@@ -109,7 +109,7 @@ class TestTranscribeVoiceMessage:
         """A caller that fixes the language still sends it — what went is the default."""
         factory, post = _mock_async_client(json_body={"success": True, "transcript": "x"})
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+        with patch("persona_core.stt.httpx.AsyncClient", factory):
             await transcribe_voice_message(
                 b"d",
                 base_url="https://sus.example.com",
@@ -124,7 +124,7 @@ class TestTranscribeVoiceMessage:
         """Caller-provided content type is sent unchanged."""
         factory, post = _mock_async_client(json_body={"success": True, "transcript": "x"})
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+        with patch("persona_core.stt.httpx.AsyncClient", factory):
             await transcribe_voice_message(
                 b"d",
                 base_url="https://sus.example.com",
@@ -139,7 +139,7 @@ class TestTranscribeVoiceMessage:
         """Blank transcript is treated as no transcription."""
         factory, _post = _mock_async_client(json_body={"success": True, "transcript": "   "})
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+        with patch("persona_core.stt.httpx.AsyncClient", factory):
             result = await transcribe_voice_message(b"d", base_url="https://sus.example.com", api_key="k")
 
         assert result is None
@@ -149,7 +149,7 @@ class TestTranscribeVoiceMessage:
         """HTTP errors fail safe to None."""
         factory, _post = _mock_async_client(raise_status=Exception("502"))
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory):
+        with patch("persona_core.stt.httpx.AsyncClient", factory):
             result = await transcribe_voice_message(b"d", base_url="https://sus.example.com", api_key="k")
 
         assert result is None
@@ -193,7 +193,7 @@ class TestColdStartRetry:
             ]
         )
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+        with patch("persona_core.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
             result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
 
         assert result == "lo que dije en la nota"
@@ -205,7 +205,7 @@ class TestColdStartRetry:
         the turn still has to reach the persona, degraded but alive."""
         factory, post = self._sequenced_client([httpx.ReadTimeout("timed out")])
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+        with patch("persona_core.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
             result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
 
         assert result is None
@@ -218,7 +218,7 @@ class TestColdStartRetry:
         denied = httpx.HTTPStatusError("401", request=MagicMock(), response=MagicMock(status_code=401))
         factory, post = self._sequenced_client([denied])
 
-        with patch("khimeras_shared.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
+        with patch("persona_core.stt.httpx.AsyncClient", factory), patch("asyncio.sleep", new=AsyncMock()):
             result = await transcribe_voice_message(b"ogg", base_url="https://sus.example.com", api_key="k")
 
         assert result is None

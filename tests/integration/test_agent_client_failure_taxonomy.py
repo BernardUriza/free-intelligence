@@ -19,7 +19,7 @@ from typing import ClassVar
 import httpx
 import pytest
 
-from khimeras_shared.runner.agent_client import (
+from persona_core.runner.agent_client import (
     AgentRunnerClient,
     AgentRunnerError,
     PersonaTurnError,
@@ -66,7 +66,7 @@ class _Client:
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr("khimeras_shared.runner.agent_client.httpx.AsyncClient", _Client)
+    monkeypatch.setattr("persona_core.runner.agent_client.httpx.AsyncClient", _Client)
     _Client.resp = None
     _Client.raise_exc = None
     return AgentRunnerClient("http://runner", "tok")

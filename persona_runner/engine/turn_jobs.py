@@ -1,4 +1,4 @@
-"""Turnos con boleto en el runner — `khimeras_shared.tickets` aplicado a `/v1/turn`.
+"""Turnos con boleto en el runner — `persona_core.tickets` aplicado a `/v1/turn`.
 
 El porqué vive en ese módulo (el ingress corta a los 240 s; un turno de Vultur
 tardó 326.9 s y se tiró). Aquí se nombra el registro, se fija el tipo y se le
@@ -10,10 +10,13 @@ historia sin volver a plegar y la nota de reintento en la guía. Eso aplica sól
 si el intento anterior CRUZÓ a AIRE (`aire_sent_at`); si murió antes, el job
 corre como turno nuevo (`crossed_to_aire`).
 
-Los adjuntos no se persisten (base64 de varios MB): un job con adjuntos es
-no-reanudable — la fila queda `failed` con `not_resumable`, el gateway lo lee
-como cerebro caído y el host reintenta con un id nuevo, re-ingiriendo la imagen
-de Discord.
+Las imágenes SÍ se persisten desde aire-server #50: viajan como referencia (la
+URL firmada del CDN de Discord, unos cientos de bytes), así que la fila las
+guarda y un job reanudado las trae por construcción. La firma dura 24 h: si al
+reanudar ya venció, el job es `not_resumable` en voz alta, nunca un turno sin
+la imagen. Lo que sigue sin persistirse son los adjuntos INLINE (texto y PDFs en
+base64): un job con ellos sigue siendo no-reanudable y el host reintenta con un
+id nuevo, re-ingiriendo el mensaje de Discord.
 """
 
 from __future__ import annotations
@@ -23,11 +26,12 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import structlog
 
-from khimeras_shared import tickets
-from khimeras_shared.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
+from persona_core import tickets
+from persona_core.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
 from persona_runner.core import config
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine.turn_ledger import PgTurnLedger
@@ -67,15 +71,38 @@ def _label(req: TurnRequest) -> str:
     return f"{req.persona_id or 'insult'}:{req.channel_id}"
 
 
+def _is_reference(block: dict) -> bool:
+    source = (block or {}).get("source") or {}
+    return block.get("type") in ("image", "document") and source.get("type") == "url" and bool(source.get("url"))
+
+
 def _payload(req: TurnRequest) -> dict[str, Any]:
-    data = req.model_dump(mode="json", exclude={"attachments", "resumed"})
-    data["has_attachments"] = bool(req.attachments)
+    data = req.model_dump(mode="json", exclude={"attachments", "resumed", "ask_stored"})
+    blocks = req.attachments or []
+    if blocks and all(_is_reference(b) for b in blocks):
+        data["attachments"] = blocks  # referencias: la fila las carga (#50)
+    data["has_attachments"] = bool(blocks) and "attachments" not in data
     return data
+
+
+def _expired(blocks: list[dict] | None, *, margin_s: float = 60.0) -> bool:
+    """¿Alguna URL firmada de Discord ya venció? `ex` es el epoch en hex."""
+    for block in blocks or []:
+        ex = parse_qs(urlsplit(block["source"]["url"]).query).get("ex", [""])[0]
+        try:
+            if int(ex, 16) < time.time() + margin_s:
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def _request_from(payload: dict[str, Any], *, resumed: bool) -> TurnRequest:
     data = {key: value for key, value in payload.items() if key != "has_attachments"}
     data["resumed"] = resumed
+    # Todo job reanudado ya pasó una vez por la tubería: su pregunta está en
+    # Postgres aunque no haya cruzado a AIRE (ver `TurnRequest.ask_stored`).
+    data["ask_stored"] = True
     return TurnRequest.model_validate(data)
 
 
@@ -99,6 +126,8 @@ def _resumer(runner: Runner) -> Callable[[LedgerRow], Coroutine[Any, Any, TurnRe
     async def resume(row: LedgerRow) -> TurnResponse:
         if row.payload.get("has_attachments"):
             raise NotResumableError("not_resumable: attachments are not persisted")
+        if _expired(row.payload.get("attachments")):
+            raise NotResumableError("not_resumable: image references expired")
         crossed = crossed_to_aire(row)
         if not crossed:
             # Nada que duplicar: el turno corre como si fuera la primera vez.
@@ -116,12 +145,11 @@ async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
     lo corre, o la fila cuando otro ya lo terminó o lo sigue corriendo."""
     job_id = req.job_id or uuid.uuid4().hex
 
-    # La corrida en vivo usa el request ORIGINAL, nunca el payload de la fila: la
-    # fila no guarda los adjuntos, y reconstruir desde ella tiraba cada imagen en
-    # el alta (P0 2026-09-25, regresión de c74dbf4). La fila sólo sirve para
-    # reanudar, y reanudar un job con adjuntos ya es `not_resumable`.
+    # La corrida en vivo usa el request ORIGINAL, nunca el payload de la fila:
+    # reconstruir desde ella tiraba cada imagen en el alta (P0 2026-09-25,
+    # regresión de c74dbf4). La fila sólo sirve para reanudar.
     async def run(_payload: dict[str, Any]) -> TurnResponse:
-        return await runner(req.model_copy(update={"resumed": False}))
+        return await runner(req.model_copy(update={"resumed": False, "ask_stored": False}))
 
     return await JOBS.open_durable(
         _payload(req),

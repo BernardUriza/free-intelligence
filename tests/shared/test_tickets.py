@@ -1,4 +1,4 @@
-"""`khimeras_shared.tickets` — un trabajo largo detrás de requests cortas.
+"""`persona_core.tickets` — un trabajo largo detrás de requests cortas.
 
 Positiva: un trabajo que tarda más que un poll sigue vivo entre polls y entrega
 su resultado al que pregunta después. Resistencia: la excepción del trabajo
@@ -17,8 +17,8 @@ import asyncio
 
 import pytest
 
-from khimeras_shared import tickets
-from khimeras_shared.tickets import LedgerRow, TicketRegistry
+from persona_core import tickets
+from persona_core.tickets import LedgerRow, TicketRegistry
 from tests.shared.fake_ledger import FakeLedger
 
 
