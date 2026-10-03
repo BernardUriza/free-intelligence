@@ -335,6 +335,60 @@ async def test_turn_via_aire_carries_facts_and_guidance_in_band(monkeypatch):
     assert "<behavioral_guidance>" in sent
 
 
+def _bind_recorder(monkeypatch, tmp_path):
+    """Wire a turn whose remote memory tools are ON, with a persona dir holding
+    insult (the default) and vultur, and record what `aire_principal.bind` gets.
+    `turn_via_aire` is where BOTH pipelines meet — the gateway's `caller` turn and
+    og118's `runner` turn (api/turn_pipeline's brain calls it) — so this is the
+    one place the self-facts owner is decided for every surface."""
+    (tmp_path / "insult.md").write_text("# insult")
+    (tmp_path / "vultur.md").write_text("# vultur")
+    monkeypatch.setattr(aire_route.config, "PERSONAS_DIR", tmp_path)
+    monkeypatch.setattr(aire_route.config, "PERSONA_PATH", tmp_path / "insult.md")
+    backend = AsyncMock()
+    backend.run_turn.return_value = _Result()
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(aire_route, "memory_tool_specs", lambda casita: [f"spec-{casita}"])
+    monkeypatch.setattr(
+        "persona_runner.routing.router_runtime.route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+    bound: list[dict] = []
+
+    async def record_bind(casita, **kw):
+        bound.append({"casita": casita, **kw})
+        return True
+
+    monkeypatch.setattr(aire_route.aire_principal, "bind", record_bind)
+    monkeypatch.setattr(aire_route.aire_principal, "clear", AsyncMock())
+    return bound
+
+
+@pytest.mark.asyncio
+async def test_the_turn_binds_its_own_persona_as_the_self_facts_owner(monkeypatch, tmp_path):
+    """A vultur turn publishes agent_id='vultur' — the persona whose DNA is loaded."""
+    bound = _bind_recorder(monkeypatch, tmp_path)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id="vultur"))
+
+    assert bound == [{"casita": "vultur-555", "user_id": "42", "channel_id": "555", "agent_id": "vultur"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("persona_id", ["no_such_persona", "../alice", "alice' OR '1'='1"])
+async def test_an_unknown_or_hostile_persona_id_never_becomes_the_self_facts_owner(monkeypatch, tmp_path, persona_id):
+    """Resistance: the caller's raw `persona_id` is not trusted as the owner. It
+    resolves exactly like the DNA does — to the default persona — so the facts the
+    turn may touch always belong to the voice actually speaking, never to a name
+    the request smuggled in."""
+    bound = _bind_recorder(monkeypatch, tmp_path)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id=persona_id))
+
+    assert [b["agent_id"] for b in bound] == ["insult"]
+
+
 @pytest.mark.asyncio
 async def test_a_cut_turn_raises_instead_of_returning_empty_success(monkeypatch):
     """`budget_exhausted` must surface as an HTTP error, never as a blank reply."""
@@ -851,11 +905,19 @@ async def test_the_runner_lifespan_closes_the_aire_backends(monkeypatch):
     backend = _Closable("insult")
     aire_route._backends["insult"] = backend
 
+    warm = AsyncMock(return_value=None)
+    close_memory = AsyncMock(return_value=None)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.warm_at_boot", warm)
+    monkeypatch.setattr("persona_runner.api.turn_pipeline.close_memory", close_memory)
+
     async with runner_mod._lifespan(object()):
-        pass
+        await asyncio.sleep(0)  # let the boot tasks start
 
     assert backend.closed, "shutdown left an AIRE door client open"
     closed_pool.assert_awaited_once()
+    # Boot warms the pipeline's store + embedder; shutdown releases its pool.
+    warm.assert_awaited_once()
+    close_memory.assert_awaited_once()
 
 
 # --- token counts: only what AIRE stated is a number (2026-09-03) -------------

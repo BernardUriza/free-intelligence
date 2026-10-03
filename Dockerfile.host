@@ -18,11 +18,11 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
 
-# The host's import graph: demux_ai → khimeras_shared (+ shared/ read at runtime
+# The host's import graph: demux_ai → persona_core (+ shared/ read at runtime
 # for persona guidance). No persona_gateway/persona_runner — it reaches personas
 # only over HTTP (/invite). Enforced by the dockerfile-copies arch test.
 COPY demux_ai/ demux_ai/
-COPY khimeras_shared/ khimeras_shared/
+COPY persona_core/ persona_core/
 COPY shared/ shared/
 
 ENV LOG_FORMAT=json

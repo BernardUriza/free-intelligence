@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import asyncpg
 
-from khimeras_shared.memory.repositories.reminders import RemindersRepository
+from persona_core.memory.repositories.reminders import RemindersRepository
 
 
 def _row(reminder_id: int, description: str, *, remind_at: float = 1000.0, recurring: str = "none") -> dict:

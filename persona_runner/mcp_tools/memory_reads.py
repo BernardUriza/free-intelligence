@@ -175,7 +175,7 @@ async def get_disclosure_log(args: dict) -> dict:
     {"query": str, "top_k": int},
 )
 async def deep_memory(args: dict) -> dict:
-    from khimeras_shared.deep_memory import query_user_memory
+    from persona_core.deep_memory import query_user_memory
 
     # El guard de namespaces reservados (`__chatgpt_archive__`, con el historial
     # íntimo de Bernard sacado a propósito del auto-recall en 2026-06-03) vivía

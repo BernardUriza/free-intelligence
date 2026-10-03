@@ -33,7 +33,7 @@
 - Never let exceptions propagate silently — always log with structlog.
 - **Fail-safe doctrine (guidance/behavior engine):** any fault in guidance
   assembly degrades to a normal turn, never a mute bot
-  (`khimeras_shared/guidance.py`).
+  (`persona_core/guidance.py`).
 
 ## Un turno NUNCA viaja en una sola request — el ingress corta a los 240 s
 
@@ -47,7 +47,7 @@ gateway a los 240 s (`summon_rejected 504 stream timeout`) y **reintentó ENCIMA
 del turno vivo (segundo Opus en paralelo). La respuesta existió, se pagó y se tiró.
 
 **La ley:** las dos costuras que cruzan el ingress viajan por **boleto**
-(`khimeras_shared/tickets.py`): el trabajo corre en una task del proceso que lo
+(`persona_core/tickets.py`): el trabajo corre en una task del proceso que lo
 recibe y el cliente pregunta por él en requests **cortas** (poll ≤ 50 s).
 
 | Costura | Alta | Poll | Presupuesto del turno |
@@ -87,7 +87,7 @@ Un boleto que sólo vive en RAM convierte cada restart a media generación en un
 404 y un reintento ciego río arriba: se re-pregunta a AIRE, o —si el gateway ya
 había hecho `send_chunked`— sale una **segunda respuesta**. Por eso la misma
 clave viaja host→gateway→runner y aterriza en Postgres en los dos saltos que ya
-lo tienen (`khimeras_shared/tickets.py` + `invite_turns` en el gateway,
+lo tienen (`persona_core/tickets.py` + `invite_turns` en el gateway,
 `turn_jobs` en el runner):
 
 - **RAM es la dueña; la fila es el handoff entre procesos.** `TicketRegistry`
@@ -129,7 +129,7 @@ y para el ledger: `tests/agent/test_turn_ledger_pg.py`, `tests/core/test_invite_
 ## LLM Resilience (historical lessons — the client died, the doctrine stands)
 
 The tuned retry loop below lived in the deleted `LLMClient`; today the gateway
-calls the runner over HTTP (`khimeras_shared/runner/` client) and the runner
+calls the runner over HTTP (`persona_core/runner/` client) and the runner
 owns the model call via the Claude Agent SDK. When (re)building any direct
 model client, these remain law:
 
@@ -168,8 +168,8 @@ model client, these remain law:
 
 > The three files named in the 2026-05-18 table died in 2f8d9ad, but the
 > principle binds every LIVE post-LLM mutator: the marker strippers
-> (`khimeras_shared/markers.py`, `khimeras_shared/reactions.py::strip_reactions`),
-> and the style-profile updater (`khimeras_shared/style.py` — which today
+> (`persona_core/markers.py`, `persona_core/reactions.py::strip_reactions`),
+> and the style-profile updater (`persona_core/style.py` — which today
 > implements the two-regime stickiness this lesson demanded).
 
 Any post-LLM mutator (regex stripper, heuristic truncator, profile updater)
@@ -200,7 +200,7 @@ on 2026-05-18 from this exact class (files as they existed then):
   still learning. Confident profiles MUST require N consecutive
   other-side signals (streak counter) before flipping a discrete field
   like `detected_language`. Continuous fields keep using EMA. Live
-  implementation: `khimeras_shared/style.py` (`lang_switch_streak`).
+  implementation: `persona_core/style.py` (`lang_switch_streak`).
 
 ### Required tests for any new mutator
 

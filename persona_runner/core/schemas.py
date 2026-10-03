@@ -1,18 +1,39 @@
 """Wire contracts of the runner — every request/response shape in one place.
 
 Each `Field` here carries the incident that shaped it. They are the runner's
-public API: `khimeras_shared.runner.agent_client` (the gateway's turn client)
+public API: `persona_core.runner.agent_client` (the gateway's turn client)
 and the judge clients speak exactly these shapes.
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Literal, Self
+
+from pydantic import BaseModel, Field, model_validator
+
+# The only ids a probe may speak as. A probe under a real principal is exactly
+# the 2026-09-28 mistake: a wire check landed in Bernard's own memory.
+PROBE_PRINCIPAL_PREFIX = "probe-"
 
 
 class TurnRequest(BaseModel):
     channel_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
+    # F3 (2026-09-28): who assembles the turn. "caller" (default) is the
+    # gateway, which runs the pipeline itself and sends a framed `user_text` +
+    # guidance. "runner" is a surface with no pipeline of its own (og118): the
+    # runner runs `persona_core.turn.run_turn` — stores the ask and the reply,
+    # runs the guardian, frames the turn, routes markers, grows facts — around
+    # the same brain call. `user_text` is then the RAW ask.
+    pipeline: Literal["caller", "runner"] = "caller"
+    # The author's display name, for the stored row and the fact extractor.
+    # Only read with `pipeline="runner"`.
+    user_name: str | None = Field(default=None, max_length=100)
+    # F2 (2026-09-27): la superficie que emitió `user_id` ("discord", "og118"…).
+    # Con ella el runner resuelve `(surface, user_id)` al principal canónico en
+    # `principal_identities` antes de leer memoria; sin ella busca el id en todas
+    # las superficies y sólo acepta un match único. Un id sin puente pasa tal cual.
+    surface: str | None = Field(default=None, max_length=32, pattern=r"^[a-z0-9_-]+$")
     # v3.9.58: raised from 8000 -> 256000 chars. Bernard 2026-05-19 07:06
     # pasted `message.txt` (21KB) and the runner rejected with 422, falling
     # over to ALICE who never saw the attachment content. The Claude Agent
@@ -55,6 +76,20 @@ class TurnRequest(BaseModel):
     # Sólo lo pone el runner al reanudar un job huérfano (engine/turn_jobs): la
     # historia ya cruzó a AIRE, no se vuelve a plegar, y va la nota de reintento.
     resumed: bool = False
+    # Who is really asking (2026-09-28). "probe" is synthetic traffic — a wire
+    # check, a deploy receipt. Its rows are stored tagged, facts are never
+    # extracted from it, and it may only speak as a `probe-*` principal, so it
+    # can never land in a real person's memory (it did, under Bernard's, the day
+    # this field was born). Same idea as Datadog's `x-datadog-origin: synthetics`
+    # and OpenTelemetry's `user_agent.synthetic.type=test`: the marker rides the
+    # data so every consumer can exclude it at write time.
+    origin: Literal["user", "probe"] = "user"
+
+    @model_validator(mode="after")
+    def _a_probe_never_speaks_as_a_real_principal(self) -> Self:
+        if self.origin == "probe" and not self.user_id.startswith(PROBE_PRINCIPAL_PREFIX):
+            raise ValueError(f"origin='probe' requires a user_id starting with {PROBE_PRINCIPAL_PREFIX!r}")
+        return self
 
 
 class TurnResponse(BaseModel):
@@ -70,6 +105,17 @@ class TurnResponse(BaseModel):
     model: str = ""
     stop_reason: str = ""
     tool_calls: list[dict] = Field(default_factory=list)
+    # F5 (2026-09-28): the whole `OutboundTurn` comes back over the wire, not
+    # just its text. Filled only when the runner owns the pipeline
+    # (`pipeline="runner"`): the caller-owned turn keeps its markers raw in
+    # `text` because the caller parses them itself. A surface that cannot show
+    # a reaction or a GIF degrades them its own way (F4) — the runner no longer
+    # decides that by dropping them. `empty_reason` says why `text` is "" when
+    # it is ("reactions_only", "markers_only", "brain_empty"), so a turn that
+    # was ONLY a reaction stops reading as a failed answer downstream.
+    reactions: list[str] = Field(default_factory=list)
+    gif_urls: list[str] = Field(default_factory=list)
+    empty_reason: str = ""
 
 
 class JudgeRequest(BaseModel):

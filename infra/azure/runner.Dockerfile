@@ -16,16 +16,16 @@ SHELL ["/bin/bash", "-l", "-c"]
 WORKDIR /app
 
 # Copy the runner's real import graph (post-castigo 2026-07-14 — `personas/`
-# no existe; el engine conductual vive en khimeras_shared.behavior):
+# no existe; el engine conductual vive en persona_core.behavior):
 #   - shared/* for chunking, logging setup, and the persona registry/DNA
-#   - khimeras_shared/* for runner.agent_client, prompts loader,
+#   - persona_core/* for runner.agent_client, prompts loader,
 #     memory/vectors/style/corpus, consolidation/, deep_memory,
 #     html_artifacts, and behavior/ (presets+flows+vulnerability engine that
 #     persona_runner.{model_routing,router_runtime} import)
 #   - persona_runner/* — the shared runner service (FastAPI + workspace_renderer)
 #   - demux_ai/* — routing seeds (host_llm, summon) reachable by lazy imports
 COPY shared/ shared/
-COPY khimeras_shared/ khimeras_shared/
+COPY persona_core/ persona_core/
 COPY persona_runner/ persona_runner/
 COPY demux_ai/ demux_ai/
 

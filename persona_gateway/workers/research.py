@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import structlog
 
-from khimeras_shared.markers import strip_delivery_markers
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.runner.agent_client import AgentRunnerClient
+from persona_core.markers import strip_delivery_markers
+from persona_core.memory import MemoryStore
+from persona_core.runner.agent_client import AgentRunnerClient
 from persona_gateway.config import CONFIG
 from persona_gateway.delivery import send_chunked
 from persona_gateway.workers._host import GatewayHost, host_bot_id

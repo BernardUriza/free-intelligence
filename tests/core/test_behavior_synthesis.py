@@ -1,10 +1,10 @@
-"""Tests for khimeras_shared.behavior.synthesis — cross-domain synthesis detector."""
+"""Tests for persona_core.behavior.synthesis — cross-domain synthesis detector."""
 
 import dataclasses
 
 import pytest
 
-from khimeras_shared.behavior.synthesis import (
+from persona_core.behavior.synthesis import (
     _MIN_MESSAGE_LENGTH,
     SynthesisSignal,
     detect_synthesis,

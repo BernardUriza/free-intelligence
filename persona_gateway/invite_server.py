@@ -67,14 +67,14 @@ from fastapi import FastAPI, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from khimeras_shared import tickets
-from khimeras_shared.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
+from persona_core import tickets
+from persona_core.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
 from persona_gateway.boot import GatewayBootState
 from persona_gateway.config import CONFIG
 from shared.personas.registry import DEFAULT_INVITE_PERSONA_ID
 
 if TYPE_CHECKING:
-    from khimeras_shared.memory import MemoryStore
+    from persona_core.memory import MemoryStore
 from persona_gateway.gateway import PersonaClient
 
 log = structlog.get_logger()

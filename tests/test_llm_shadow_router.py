@@ -217,7 +217,7 @@ def test_routing_instruction_closed_exchange_returns_to_insult():
 
 def test_routing_instruction_loads_from_content_file_not_inline():
     """prompts-as-content-not-code (P0, playbook SSOT): the routing prompt lives
-    in demux_ai/prompts/host_routing.md behind the mtime-aware khimeras_shared
+    in demux_ai/prompts/host_routing.md behind the mtime-aware persona_core
     loader — never as an inline Python constant requiring a redeploy to tune."""
     assert not hasattr(llm_shadow_router, "_ROUTING_INSTRUCTION")
     assert (llm_shadow_router._PROMPTS_DIR / "host_routing.md").exists()

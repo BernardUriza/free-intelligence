@@ -21,7 +21,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from khimeras_shared.audit import AUDIT_KEY_ENV, audit_period, pseudonymous_user
+from persona_core.audit import AUDIT_KEY_ENV, audit_period, pseudonymous_user
 
 UNA_PERSONA = "284712993456127001"
 OTRA_PERSONA = "284712993456127002"
@@ -115,5 +115,5 @@ def test_una_falla_adentro_devuelve_none_y_no_revienta(con_llave, monkeypatch):
     def truena(*_args, **_kwargs):
         raise RuntimeError("el hmac se atragantó")
 
-    monkeypatch.setattr("khimeras_shared.audit.hmac.new", truena)
+    monkeypatch.setattr("persona_core.audit.hmac.new", truena)
     assert pseudonymous_user(UNA_PERSONA, now=SEPTIEMBRE) is None

@@ -13,8 +13,8 @@ has a name in the suite instead of living only in a Postgres row.
 
 from __future__ import annotations
 
-from khimeras_shared.invite_marker import parse_invite, strip_invites
-from khimeras_shared.markers import strip_delivery_markers
+from persona_core.invite_marker import parse_invite, strip_invites
+from persona_core.markers import strip_delivery_markers
 
 # The real 2026-07-31 assistant row (messages.id 15763), verbatim.
 IDEATION_TURN = (

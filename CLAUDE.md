@@ -28,7 +28,7 @@ ruff check . && ruff format .     # Lint + format (run before every commit)
 ruff check --fix .                # Auto-fix lint issues
 
 # Full CI locally (mirrors .github/workflows/ci.yml)
-ruff check . && ruff format --check . && pytest -v --cov && bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml && pip-audit
+ruff check . && ruff format --check . && pytest -v --cov && bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml && pip-audit
 ```
 
 **Dependency changes**: edit `environment.yml`, then `mamba env update -f environment.yml`.
@@ -43,7 +43,7 @@ Anaconda.org channel, declared in environment.yml's channels list.
 > flat `cogs/chat` pipeline, all of it. It was the "delete-me" god-package that
 > had quietly become the system; today it's gone. The live system is FOUR
 > packages: **`persona_gateway/`** (the Discord turn path), **`persona_runner/`**
-> (FastAPI + Claude Agent SDK), **`khimeras_shared/`** (everything shared —
+> (FastAPI + Claude Agent SDK), **`persona_core/`** (everything shared —
 > memory, the behavior engine, markers, guidance, HTTP clients), and **`shared/`**
 > (the persona registry + `<id>.md` DNA + per-persona guidance content). Anything
 > below that still says `personas.insult` / `cogs/chat` / `ChatCog` describes the
@@ -67,7 +67,7 @@ chatter right now — Insult's omnipresence died with the `personas/insult` mono
 RETURNS only when the demux_ai host (#6) owns reception and routes. The registry
 (`shared/personas/registry.py`) is the source of truth for this) → `_handle`: store the
 user turn to Postgres → build per-turn
-`behavioral_guidance` (`khimeras_shared/guidance.py::guidance_for_turn`: loads the
+`behavioral_guidance` (`persona_core/guidance.py::guidance_for_turn`: loads the
 user's facts, runs `classify_preset`, renders the persona's preset guidance + the
 vulnerable-user overlay) → `_run_and_deliver` → `AgentRunnerClient.chat(persona_id,
 behavioral_guidance)` → runner `/v1/turn` → the runner loads `shared/personas/<id>.md`
@@ -75,7 +75,7 @@ behavioral_guidance)` → runner `/v1/turn` → the runner loads `shared/persona
 `[AGENDA:]` `[REMIND:]` `[REMEMBER:]`), chunks to Discord (1990 char cap), and in the
 background extracts facts (ADD-only merge) and fires reactions.
 
-**The behavior engine** lives in **`khimeras_shared/behavior/`**, persona-agnostic
+**The behavior engine** lives in **`persona_core/behavior/`**, persona-agnostic
 (it reads the USER's state, never a persona's identity):
 - `behavior/presets/` — the rule-based classifier (`classify_preset`): 6 modes
   (DEFAULT_ABRASIVE, PLAYFUL_ROAST, INTELLECTUAL_PRESSURE, RELATIONAL_PROBE,
@@ -92,7 +92,7 @@ background extracts facts (ADD-only merge) and fires reactions.
   `shared/personas/guidance/<persona_id>/presets/*.md` (Insult has the full
   set; a persona with no content contributes an empty block, the engine still runs).
 
-**The guardian (`khimeras_shared/guidance.py`)** is the seam that makes the engine
+**The guardian (`persona_core/guidance.py`)** is the seam that makes the engine
 matter: it classifies the turn against the user's facts and sends the result as
 `behavioral_guidance` on the wire, so the persona's mode + the safety overlay
 actually reach the model. **Vulnerable-user overlay**: when the facts cross the
@@ -104,11 +104,11 @@ Vida). Verbatim regressions in `tests/core/test_presets_clinical.py` +
 `tests/core/test_guidance_guardian.py`. **Fail-safe: any fault → a normal turn,
 never a mute bot.**
 
-**Memory & facts** (`khimeras_shared/memory/`): append-only **Azure PostgreSQL**
+**Memory & facts** (`persona_core/memory/`): append-only **Azure PostgreSQL**
 (`POSTGRES_URL`). Facts grow ADD-only — the extractor runs in the background via
 `/v1/judge`, and `merge_facts_additive` unions onto the full live auto set before
 `save_facts` (a raw `save_facts(subset)` is a hard-delete in disguise, the 2026-06-03
-P0). **Nada poda los facts hoy**: el consolidador (`khimeras_shared/consolidation/`,
+P0). **Nada poda los facts hoy**: el consolidador (`khimeras_shared/consolidation/`, nombre de entonces del paquete,
 688 líneas + su guarda clínica `filter_clinical_destruction`, la que protegía a
 Alex) se BORRÓ el 2026-08-06 junto con su job de Azure. No fue una limpieza
 cosmética: el job llevaba fallando en producción desde el 2026-07-09 (3 de 3 runs
@@ -144,8 +144,7 @@ against that same floor). Pure I/O modules are excluded via the coverage
 config in `pyproject.toml` — read it rather than trusting doc lists.
 
 ## Rules
-Detailed rules in `.claude/rules/`: architecture, robustness, testing, workflow, persona, voice, sibling-personas, router-observability, training-sessions, delegar-produce-evidencia. Key non-obvious rules:
-- **En una capacitación, Claude NO teclea después del setup** — AnyDesk pasa a solo lectura y los prompts se redactan en `#general` para que la persona los mande con sus manos (y para que Insult, que está en el canal, se entere y sugiera). Ver `.claude/rules/training-sessions.md`.
+Detailed rules in `.claude/rules/`: architecture, robustness, testing, workflow, persona, voice, sibling-personas, router-observability. (Las reglas de capacitación —`training-sessions`, `delegar-produce-evidencia`— y `training-contributors/` se congelaron el 2026-09-27 al terminar la colaboración con Alex; viven en git, no en el árbol.) Key non-obvious rules:
 - **"La persona equivocada contestó" se diagnostica con `python scripts/router_health.py`, NUNCA leyendo turnos sueltos** — un sesgo de ruteo es invisible turno por turno por construcción (cada decisión se ve razonable) y sólo aparece al agregar. El router mandó el 97.6% de los turnos a insult durante tres semanas con CERO señales rojas. `reason=llm_x` limpio significa que el modelo lo ELIGIÓ; `router_fault`/`llm_unparseable` significa que se cayó al default — diagnósticos opuestos. Ver `.claude/rules/router-observability.md`.
 - **Un contador en cero no prueba salud: puede ser una rama que no puede sonar.** `recovered_without_context` fue inalcanzable seis semanas; `effort` se calculaba y se tiraba. El arnés que cierra la clase es `tests/arch/test_routing_prompt_promises_are_kept.py` — lo que el prompt promete, el código lo provee o lo consume.
 - **Sibling personas (Vultur, future) run from a durable Azure Container App** (`persona-gateway`, cloned from `alice-bot`), NEVER an ephemeral local-Mac process — see `.claude/rules/sibling-personas.md`. Diagnose "sibling X no responde" by host-liveness FIRST, not the corpus.

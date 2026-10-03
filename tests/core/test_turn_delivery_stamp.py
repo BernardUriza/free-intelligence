@@ -144,7 +144,7 @@ async def test_gif_only_reply_counts_as_delivered():
     client = _client("[GIF: fiesta]")
     channel = _channel()
 
-    with patch("khimeras_shared.gifs.load_guidance", return_value=CATALOG):
+    with patch("persona_core.gifs.load_guidance", return_value=CATALOG):
         delivered = await _run(client, channel)
 
     assert delivered is True

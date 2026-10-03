@@ -3,7 +3,7 @@
 Discord-message-in → decision/text-out, no I/O and no persona state: whether a
 bot answers (`should_respond`), whether an edit newly summons it (`edit_summons`),
 and stripping its own mention (`clean_mention`). Kept pure so they unit-test
-without a live bot. Context framing is `khimeras_shared.memory.context` — the
+without a live bot. Context framing is `persona_core.memory.context` — the
 one canonical framer.
 """
 
