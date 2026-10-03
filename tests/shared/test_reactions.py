@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
+from persona_core.reactions import add_reactions, parse_reactions, strip_reactions
 
 # --- parse_reactions ---
 
@@ -96,19 +96,19 @@ class TestAddReactions:
         msg.add_reaction = AsyncMock()
         return msg
 
-    @patch("khimeras_shared.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("persona_core.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_adds_single_reaction(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀"])
         mock_message.add_reaction.assert_called_once_with("💀")
 
-    @patch("khimeras_shared.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("persona_core.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_adds_multiple_reactions(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀", "🔥"])
         assert mock_message.add_reaction.call_count == 2
         mock_message.add_reaction.assert_any_call("💀")
         mock_message.add_reaction.assert_any_call("🔥")
 
-    @patch("khimeras_shared.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("persona_core.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_stops_on_http_error(self, mock_sleep, mock_message):
         import discord
 
@@ -118,7 +118,7 @@ class TestAddReactions:
         # Stops after first failure, doesn't try second
         assert mock_message.add_reaction.call_count == 1
 
-    @patch("khimeras_shared.reactions.asyncio.sleep", new_callable=AsyncMock)
+    @patch("persona_core.reactions.asyncio.sleep", new_callable=AsyncMock)
     async def test_has_initial_delay(self, mock_sleep, mock_message):
         await add_reactions(mock_message, ["💀"])
         # First sleep call is the initial human-like delay

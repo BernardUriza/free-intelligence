@@ -79,7 +79,7 @@ async def _invite(client: PersonaClient, channel, reason: str) -> None:
             guild_id="G1",
             channel_name="general",
             reason=reason,
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id="42",
         )
         await asyncio.sleep(0)
@@ -99,7 +99,7 @@ async def test_invite_turn_carries_the_persona_corpus():
     client = _client()
     channel = _invite_channel(trigger_content="que opinas de Mulholland Drive")
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value=_CORPUS_BLOCK),
     ) as mock_corpus:
         await _invite(client, channel, reason="bernard2389 pregunta por una peli")
@@ -115,7 +115,7 @@ async def test_invite_falls_back_to_the_reason_when_there_is_no_human_text():
     client = _client()
     channel = _invite_channel()  # sin sujeto humano
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value=_CORPUS_BLOCK),
     ) as mock_corpus:
         await _invite(client, channel, reason="bernard2389 pregunta por una peli")
@@ -127,7 +127,7 @@ async def test_invite_corpus_fault_ships_turn_without_block():
     client = _client()
     channel = _invite_channel()
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(side_effect=RuntimeError("pg caído")),
     ):
         await _invite(client, channel, reason="ven a opinar")
@@ -139,7 +139,7 @@ async def test_corpus_rides_before_guardian_guidance():
     """#2 positivo: corpus PRIMERO, overlay del guardián AL FINAL del bloque."""
     client = _client()
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value=_CORPUS_BLOCK),
     ):
         merged = await client._context.append_corpus_block("OVERLAY VULNERABLE: calidez y líneas de crisis", "ask")
@@ -152,7 +152,7 @@ async def test_no_corpus_leaves_guidance_untouched():
     """#2 resistencia: sin hit de corpus la guidance del guardián pasa intacta."""
     client = _client()
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value=None),
     ):
         merged = await client._context.append_corpus_block("OVERLAY", "ask")
@@ -163,13 +163,13 @@ async def test_merge_never_exceeds_runner_cap():
     """#1 (cruel-critic round 2): el merge corpus+guidance JAMÁS rebasa el cap
     del runner (max_length=16000) — si lo hiciera el runner responde 422 y el
     bot queda MUDO. El corpus se recorta; la guidance sobrevive completa."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     big_corpus = "C" * 3000  # supera el _REF_MAX_CHARS real, fuerza el recorte
     near_cap_guidance = "G" * (MAX_GUIDANCE_CHARS - 500)  # deja hueco < corpus
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value=big_corpus),
     ):
         merged = await client._context.append_corpus_block(near_cap_guidance, "ask")
@@ -182,12 +182,12 @@ async def test_merge_never_exceeds_runner_cap():
 async def test_corpus_dropped_when_guidance_fills_cap():
     """#1 resistencia: cuando la guidance sola llena el cap, el corpus se
     DESCARTA (no se recorta la guidance de seguridad) — turno vive, no 422."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     full_guidance = "G" * MAX_GUIDANCE_CHARS
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value="C" * 2000),
     ):
         merged = await client._context.append_corpus_block(full_guidance, "ask")
@@ -197,11 +197,11 @@ async def test_corpus_dropped_when_guidance_fills_cap():
 
 async def test_corpus_only_turn_capped():
     """#1: el invite path (guidance=None) tampoco puede rebasar el cap."""
-    from khimeras_shared.guidance import MAX_GUIDANCE_CHARS
+    from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
     with patch(
-        "persona_gateway.turn_context.build_persona_corpus_block",
+        "persona_core.turn.context.build_persona_corpus_block",
         new=AsyncMock(return_value="C" * (MAX_GUIDANCE_CHARS + 5000)),
     ):
         merged = await client._context.append_corpus_block(None, "ask")

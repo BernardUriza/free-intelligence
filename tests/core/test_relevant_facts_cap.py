@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from khimeras_shared.memory.repositories.facts import FactsRepository
+from persona_core.memory.repositories.facts import FactsRepository
 
 
 def _fact(text: str):

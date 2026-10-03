@@ -5,7 +5,7 @@ reminders); the loop shell in `PersonaClient` stays one line (`await
 worker.drain(self)`). Workers take their deps injected (persona, memory,
 agent_client) and receive the live client as a `host` per call — for
 `get_channel` and the bot user id — so they never import `PersonaClient` and the
-dependency graph stays acyclic (workers → khimeras_shared, never back).
+dependency graph stays acyclic (workers → persona_core, never back).
 """
 
 from __future__ import annotations

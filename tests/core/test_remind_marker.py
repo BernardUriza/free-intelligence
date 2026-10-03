@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from khimeras_shared.remind_marker import (
+from persona_core.remind_marker import (
     RemindRequest,
     compute_next_occurrence,
     parse_remind,

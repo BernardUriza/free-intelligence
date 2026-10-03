@@ -10,17 +10,18 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import uuid
 
 import discord
 import structlog
 
-from khimeras_shared.gifs import resolve_gifs, strip_gif_markers
-from khimeras_shared.memory import MemoryStore
-from khimeras_shared.reactions import add_reactions, parse_reactions, strip_reactions
-from khimeras_shared.runner.agent_client import AgentRunnerClient
-from khimeras_shared.tickets import LedgerRow
+from persona_core.gifs import resolve_gifs, strip_gif_markers
+from persona_core.memory import MemoryStore
+from persona_core.reactions import add_reactions, parse_reactions, strip_reactions
+from persona_core.runner.agent_client import AgentRunnerClient
+from persona_core.tickets import LedgerRow
+from persona_core.turn.markers import MarkerRouter
 from persona_gateway.delivery import send_chunked
-from persona_gateway.markers import MarkerRouter
 from persona_gateway.voice import VoiceService
 from shared.personas import Persona
 from shared.text import split_response
@@ -92,6 +93,12 @@ class TurnRunner:
         (`dispatch_invite` la declara `uncertain`): nadie sabe si el primer chunk
         aterrizó, y reenviar es la única forma de dar dos respuestas.
         """
+        # The runner's `job_id` is born HERE, not inside the client, so the
+        # gateway's own turn lines carry the same id the runner logs — the only
+        # way to cross one turn between the two processes in KQL. On the
+        # invite path it is the host's `turn_id` (the ledger key); a mention
+        # turn has no ledger and gets a fresh one. (Rescued from PR #97.)
+        job_id = turn_id or uuid.uuid4().hex
         stage = (resume_from.extra.get("stage") if resume_from is not None else None) or "accepted"
         tail: dict = (resume_from.extra.get("tail") if resume_from is not None else None) or {}
         if stage in ("runner_done", "markers_done"):
@@ -128,7 +135,7 @@ class TurnRunner:
                     behavioral_guidance=behavioral_guidance,
                     other_people=other_people,
                     relevant_memory=relevant_memory,
-                    job_id=turn_id,
+                    job_id=job_id,
                 )
             finally:
                 _typing_stop.set()
@@ -187,6 +194,7 @@ class TurnRunner:
                 "persona_gateway_turn_empty",
                 persona_id=self.persona.persona_id,
                 channel_id=channel_id,
+                job_id=job_id,
                 turn_kind=turn_kind,
                 reason=reason,
                 delivered=reacted,
@@ -239,6 +247,7 @@ class TurnRunner:
             "persona_gateway_turn_complete",
             persona_id=self.persona.persona_id,
             channel_id=channel_id,
+            job_id=job_id,
             chars=len(delivered),
             turn_kind=turn_kind,
         )

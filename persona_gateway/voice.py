@@ -7,7 +7,7 @@ import io
 import discord
 import structlog
 
-from khimeras_shared.tts import should_auto_tts, split_for_tts, synthesize_susurro_tts
+from persona_core.tts import should_auto_tts, split_for_tts, synthesize_susurro_tts
 from shared.personas import Persona
 
 log = structlog.get_logger()

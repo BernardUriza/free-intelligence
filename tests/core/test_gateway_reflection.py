@@ -114,7 +114,7 @@ async def test_no_judge_client_is_a_noop():
 
 def test_parse_reflection_survives_garbage_and_caps():
     """El parser regresa [] ante basura y respeta max_facts."""
-    from khimeras_shared.self_reflection import parse_reflection
+    from persona_core.self_reflection import parse_reflection
 
     assert parse_reflection("no soy json", 3) == []
     assert parse_reflection('{"fact": "dict, no lista"}', 3) == []
@@ -126,7 +126,7 @@ def test_parse_reflection_survives_garbage_and_caps():
 
 def test_reflection_material_lists_existing_and_turns():
     """El material del juez incluye los facts existentes y los turnos vividos."""
-    from khimeras_shared.self_reflection import build_reflection_material
+    from persona_core.self_reflection import build_reflection_material
 
     material = build_reflection_material(
         [{"category": "gustos", "fact": "Ama el cine lento"}],
@@ -141,7 +141,7 @@ def test_reflection_judge_response_shape():
     con SimpleNamespace, sin red)."""
     import asyncio
 
-    from khimeras_shared.self_reflection import reflect_self_facts
+    from persona_core.self_reflection import reflect_self_facts
 
     judge = MagicMock()
     judge.utility_call = AsyncMock(

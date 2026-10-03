@@ -148,6 +148,9 @@ jobs:
         #   - flask 2.2.5 (CVE-2026-27205): NO lo traía pip-audit, lo traía el
         #     azure-core de azure-storage-blob, dependencia sin un solo import
         #     que salió del env. Sin ella no hay flask.
+        # 2026-10-03 (v4.47.4): pyjwt 2.13.0 (PYSEC-2026-4140..4152) y urllib3
+        # 2.7.0 (PYSEC-2026-4175..4177) se publicaron después del último verde
+        # de main; se cierran con piso en environment.yml, NO con ignore.
         # Si alguno vuelve a aparecer, NO se re-ignora a ciegas: se lee qué lo
         # arrastró (conda-meta/*.json → depends) antes de escribir la excusa.
         #
@@ -244,4 +247,4 @@ jobs:
 
       - name: Run bandit
         shell: bash -leo pipefail {0}
-        run: bandit -r persona_gateway/ demux_ai/ khimeras_shared/ shared/ -c pyproject.toml
+        run: bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml

@@ -91,7 +91,7 @@ async def test_manual_fact_isolation_between_users(pg_memory_store):
     snapshot no longer silently proceeds — save_facts([]) raises unless the
     caller passes allow_empty=True, because an extractor returning nothing is
     far more often a failed extraction than a principal with no facts. Prod
-    never sends an empty list (persona_gateway/facts.py returns early when
+    never sends an empty list (persona_core/turn/facts.py returns early when
     nothing was added), so the guard firing IS the contract now — and either
     way, nobody's facts move."""
     await pg_memory_store.add_manual_fact("u1", "u1 private detail", "personal")

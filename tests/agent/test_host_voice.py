@@ -22,7 +22,7 @@ import pytest
 from demux_ai.batch import DEFAULT_WINDOW_SECONDS
 from demux_ai.host_client import HostClient
 from demux_ai.host_loop import HostDispatchLoop
-from khimeras_shared.stt import WAKE_ETA_SECONDS, SusurroSttClient
+from persona_core.stt import WAKE_ETA_SECONDS, SusurroSttClient
 
 
 @pytest.fixture(autouse=True)

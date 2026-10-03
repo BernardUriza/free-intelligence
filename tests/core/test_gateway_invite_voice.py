@@ -77,7 +77,7 @@ async def _invite(client: PersonaClient, channel, transcript: str) -> None:
             guild_id="G1",
             channel_name="general",
             reason="bernard2389: «[adjuntó: voice-message.ogg]»",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id="1527198401375113227",
             trigger_transcript=transcript,
         )
@@ -116,6 +116,6 @@ async def test_gateway_never_calls_susurro_itself():
     channel = _invite_channel()
     channel.fetch_message.return_value = _voice_trigger()
     transcribe = AsyncMock(return_value="no debería llamarse")
-    with patch("khimeras_shared.stt.transcribe_voice_message", new=transcribe):
+    with patch("persona_core.stt.transcribe_voice_message", new=transcribe):
         await _invite(client, channel, SPOKEN)
     transcribe.assert_not_awaited()

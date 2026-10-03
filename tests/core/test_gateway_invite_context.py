@@ -79,7 +79,7 @@ async def _invite(client: PersonaClient, channel, *, trigger_message_id="1527198
             guild_id="G1",
             channel_name="general",
             reason="bernard2389 suena mal; espejo empático",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id=trigger_message_id,
         )
         await asyncio.sleep(0)
@@ -90,7 +90,7 @@ async def test_invite_runs_guardian_for_the_trigger_author():
     channel = _invite_channel()
     channel.fetch_message.return_value = _human_trigger()
     with patch(
-        "persona_gateway.turn_context.guidance_for_turn", new=AsyncMock(return_value="OVERLAY VULNERABLE")
+        "persona_core.turn.context.guidance_for_turn", new=AsyncMock(return_value="OVERLAY VULNERABLE")
     ) as guardian:
         await _invite(client, channel)
     guardian.assert_awaited_once()
@@ -124,7 +124,7 @@ async def test_invite_ships_other_people_on_the_wire():
     channel = _invite_channel()
     channel.fetch_message.return_value = _human_trigger()
     with patch(
-        "persona_gateway.turn_context.other_people_block_for_turn", new=AsyncMock(return_value="OTROS: alex…")
+        "persona_core.turn.context.other_people_block_for_turn", new=AsyncMock(return_value="OTROS: alex…")
     ) as block:
         await _invite(client, channel)
     assert block.await_args.kwargs["exclude_user_id"] == str(SUBJECT_ID)
@@ -149,7 +149,7 @@ async def test_bot_trigger_author_never_runs_the_guardian():
     trigger.author = SimpleNamespace(id=999, bot=True, display_name="Vultur")
     channel.fetch_message.return_value = trigger
     with (
-        patch("persona_gateway.turn_context.guidance_for_turn", new=AsyncMock()) as guardian,
+        patch("persona_core.turn.context.guidance_for_turn", new=AsyncMock()) as guardian,
         patch.object(client, "_spawn_fact_extraction") as spawn,
     ):
         await _invite(client, channel)
@@ -161,7 +161,7 @@ async def test_bot_trigger_author_never_runs_the_guardian():
 async def test_invite_without_trigger_still_delivers_without_guardian():
     client = _client("Llego sin trigger.")
     channel = _invite_channel()
-    with patch("persona_gateway.turn_context.guidance_for_turn", new=AsyncMock()) as guardian:
+    with patch("persona_core.turn.context.guidance_for_turn", new=AsyncMock()) as guardian:
         await _invite(client, channel, trigger_message_id=None)
     guardian.assert_not_awaited()
     sent = " ".join(str(c) for c in channel.send.call_args_list)

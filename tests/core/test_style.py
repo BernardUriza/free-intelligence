@@ -2,7 +2,7 @@
 
 import pytest
 
-from khimeras_shared.style import (
+from persona_core.style import (
     UserStyleProfile,
     _compute_formality,
     _compute_technical_level,
