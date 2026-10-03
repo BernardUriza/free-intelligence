@@ -382,9 +382,16 @@ jobs:
           # por la fila mientras la nueva contesta `running`), y ÚTIL (un turno de
           # 330 s termina en vez de re-preguntarse a AIRE). Techo = presupuesto del
           # turno del gateway (first_turn_timeout_s = 600).
+          # Probes (2026-10-03): `az containerapp update` has no probe flags, so the
+          # image, the grace period AND the startup/readiness probes on `/ready` ride
+          # one template PATCH rendered from the live app — one revision per deploy,
+          # and the probes can never be forgotten by a hand-run `az`. Numbers and
+          # their measurement: scripts/cd_runner_template.py.
+          az containerapp show --name persona-runner --resource-group "$RG" -o json > runner-live.json
+          python3 scripts/cd_runner_template.py runner-live.json \
+            "$REGISTRY/persona-runner:${{ env.NEW_SHA }}" > runner-patch.json
           az containerapp update --name persona-runner --resource-group "$RG" \
-            --image "$REGISTRY/persona-runner:${{ env.NEW_SHA }}" \
-            --termination-grace-period 600
+            --yaml runner-patch.json
 
       - name: Deploy khimeras-host
         # Dormant until Bernard provisions the `khimeras-host` Container App + its
@@ -420,6 +427,17 @@ jobs:
         run: |
           if az containerapp show -n persona-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
             az containerapp show -n persona-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
+            # The deploy step is continue-on-error and the YAML path drops what the
+            # CLI's model does not know without a word: red here if the probes did
+            # not land on the live template.
+            PROBE_PATHS=$(az containerapp show -n persona-runner -g "$RG" \
+              --query "join(',', properties.template.containers[0].probes[].join(':', [type, httpGet.path]))" -o tsv \
+              2>/dev/null || true)
+            if [ "$PROBE_PATHS" != "Startup:/health,Readiness:/ready" ]; then
+              echo "FAIL persona-runner: declared probes missing from the live template (got '$PROBE_PATHS')"
+              exit 1
+            fi
+            echo "OK persona-runner: probes live ($PROBE_PATHS)"
             RUNNER_LOGS=$(az containerapp logs show -n persona-runner -g "$RG" --tail 15 2>&1 || true)
             echo "$RUNNER_LOGS" | tail -10
 
