@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from khimeras_shared.tickets import LedgerRow
+from persona_core.tickets import LedgerRow
 
 
 class FakeLedger:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from khimeras_shared.behavior.contracts.flows import (
+from persona_core.behavior.contracts.flows import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,
@@ -16,7 +16,7 @@ from khimeras_shared.behavior.contracts.flows import (
     StyleFlavor,
     UserState,
 )
-from khimeras_shared.behavior.contracts.presets import PresetMode, PresetSelection
+from persona_core.behavior.contracts.presets import PresetMode, PresetSelection
 from persona_runner.routing.model_routing import ModelTier, OpusBudget, select_model
 
 CASUAL = "haiku"

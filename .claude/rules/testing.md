@@ -53,7 +53,7 @@ Before EVERY push, verify that code actually works at the Python import level, n
 
 2. **Real import smoke test**: After adding imports from external packages, verify the module loads:
    ```bash
-   conda run -n discord-bot python -c "from khimeras_shared.guidance import guidance_for_turn; print('OK')"
+   conda run -n discord-bot python -c "from persona_core.guidance import guidance_for_turn; print('OK')"
    ```
 
 3. **Never assume SDK APIs exist**: Always check `dir(module)` or `hasattr(module, 'ClassName')` before using a class you haven't used before in this codebase.
@@ -83,7 +83,7 @@ The live introspection surfaces are:
    `memory/reference_azure_log_analytics.md`.
 2. **The Postgres data plane directly** — messages/facts live in Azure
    PostgreSQL (`POSTGRES_URL`, schema in
-   `khimeras_shared/memory/postgres_schema.sql`). A read-only `psql` query is
+   `persona_core/memory/postgres_schema.sql`). A read-only `psql` query is
    the modern replacement for every old `/debug/messages` step.
 3. **Discord itself via the debug Chrome (`:9333`)** — the canonical history of
    what was actually said and answered.
@@ -418,6 +418,41 @@ discord.py the same way — see e.g. the guarded recovery send in
     [discord-api-types RESTJSONErrorCodes](https://discord-api-types.dev/api/discord-api-types-v10/enum/RESTJSONErrorCodes)
     before quoting an error code as fact.
 
+## Wire probes to production run as a PROBE principal, tagged — never as Bernard
+
+A probe that exercises the real runner pipeline (`pipeline="runner"`) stores its
+ask and reply in Postgres and, unless told otherwise, mines them for facts. Sent
+under a real principal, it becomes part of that person's memory.
+
+**Use `scripts/probe_turn.py`, never a hand-rolled curl.** It sends
+`origin="probe"` and `user_id="probe-<name>"` on a `probe-<date>-<slug>` channel:
+
+- `origin="probe"` (v4.47.1) stores both rows with `messages.origin='probe'`,
+  never spawns the fact extractor (`turn_pipeline_facts_skipped` in KQL), and
+  keeps the reply out of the reflection loop.
+- A `probe-*` user id is unlinked, so it is its own principal: no memory to read,
+  nothing written into anyone else's. No `link_identity.py` step is needed.
+- The runner **rejects with 422** a probe whose `user_id` does not start with
+  `probe-`, which is the exact shape of the mistake below.
+
+The canon: synthetic traffic carries a marker persisted with the data so every
+consumer can exclude it at write time (Datadog `x-datadog-origin: synthetics`,
+OpenTelemetry `user_agent.synthetic.type=test`), and it runs under a dedicated
+test identity (Stripe sandboxes, Auth0 one tenant per environment).
+
+**Browser probes on og118.ai are still under Bernard's Auth0 login.** The web
+surface cannot tag a turn, so a UI verification there still lands in his memory
+and is still mined. Closing that needs a separate test account (his atom: account
+creation and login). Until then, keep UI probes few and prefer the script for
+anything that only needs the wire.
+
+**Why (2026-09-28):** the F5 wire check went out by curl under Bernard's
+principal and landed in his memory (`messages` rows 17494 and 17495). Reading his
+facts afterwards showed the class was old: the extractor had already stored
+facts mined from months of probes, such as "Ejecutó probe #58 a las 9:03…" and
+"probe v4.21.117 test scheme: Med X 200mg…". Those were tests about the system,
+remembered as facts about the person.
+
 ## Test surface — ALWAYS #general, NEVER the Insult DM
 
 **Every real-contract bot verification runs in `#general` of the Khimeras server
@@ -437,12 +472,12 @@ How to apply when driving Discord in the debug Chrome (`:9333`,
 - Open `https://discord.com/channels/<guild>/1489180895264116736` (#general),
   not the DM.
 - Send the probe there, confirm the persona replies with the expected
-  version tag (`khimeras_shared/version.py::VERSION_TAG`).
+  version tag (`persona_core/version.py::VERSION_TAG`).
 - A DM check is acceptable ONLY as a quick "is the process alive at all" smoke,
   never as the verification of record. If a fix is "verified", it was verified in
   #general.
 
-**Why (2026-06-16):** the khimeras_shared deploy-gap P0 manifested in #general
+**Why (2026-06-16):** the khimeras_shared (hoy `persona_core`) deploy-gap P0 manifested in #general
 (every turn fell over to ALICE there). The fix was first "verified" via the
 Insult DM — which replied fine because the DM path is the one that never breaks.
 Bernard: *"tú estás siempre probando Insult directo y eso pues nunca ha fallado"*.

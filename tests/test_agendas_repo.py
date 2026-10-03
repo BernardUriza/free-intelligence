@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock
 import asyncpg
 import pytest
 
-from khimeras_shared.memory.repositories.agendas import AgendasRepository
+from persona_core.memory.repositories.agendas import AgendasRepository
 
 
 def _make_repo() -> AgendasRepository:

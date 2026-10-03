@@ -6,7 +6,7 @@ for every parser (robustness.md mutator rule).
 
 from __future__ import annotations
 
-from khimeras_shared.agenda_marker import parse_agenda, strip_agenda
+from persona_core.agenda_marker import parse_agenda, strip_agenda
 
 
 class TestParseAgenda:

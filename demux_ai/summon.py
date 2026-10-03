@@ -40,8 +40,8 @@ log = structlog.get_logger()
 # Container Apps' ingress HOLDS a request open while a scaled-to-zero replica
 # boots instead of refusing it, so a SLEEPING gateway looks like a hang, never
 # like a connection error — the only signal is latency. (Same trap
-# `khimeras_shared.stt` documents for susurro, and the reason the runner client
-# splits its budget the same way in `khimeras_shared/runner/agent_client.py`.)
+# `persona_core.stt` documents for susurro, and the reason the runner client
+# splits its budget the same way in `persona_core/runner/agent_client.py`.)
 #
 # A flat 5s budget therefore turned "the gateway is cold" into a DROPPED summon:
 # the persona simply never arrived and `summon_http_error` was the only trace.

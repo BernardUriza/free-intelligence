@@ -138,7 +138,7 @@ async def test_invite_with_trigger_message_id_reacts_to_that_message():
             guild_id="G1",
             channel_name="general",
             reason="bernard2389: «que opina Vultur?»",
-            invited_by="host_router",
+            invited_by="host",
             trigger_message_id="1526655478313127987",
         )
         await asyncio.sleep(0)

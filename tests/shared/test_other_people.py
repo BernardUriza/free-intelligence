@@ -7,7 +7,7 @@ died and is covered by the agent-client integration tests.
 
 import pytest
 
-from khimeras_shared.other_people import (
+from persona_core.other_people import (
     format_other_people_block,
     load_other_participants_facts,
     other_people_block_for_turn,

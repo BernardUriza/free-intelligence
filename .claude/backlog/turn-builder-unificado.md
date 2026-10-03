@@ -1,6 +1,18 @@
 # Builder de turno unificado — matar la clase "invite path olvidado"
 
-Status: **In progress** — slice 2 (arnés de paridad mención↔invite) HECHO el
+## Re-chequeo 2026-09-27 — el item se absorbe en F3 del checklist
+
+Discord quedó apagado hoy (gateway + host en Stopped, CD deshabilitado) y og118 es
+el primer cliente del cerebro. Los dos entry points que este item quería unificar
+(`_handle` / `respond_to_invite`) son ambos del gateway, que ya no sirve tráfico;
+el valor restante del slice 1 no es "unificar dos puertas de Discord" sino
+**extraer la tubería del turno** (`TurnContextBuilder` + guardián + store + facts)
+a un `run_turn(InboundTurn)` que og118 pueda llamar — eso es **F3** de
+`~/Documents/proyectos-docs/khimeras-demux-checklist.html`, y ahí se sigue. Las
+dos asimetrías abiertas (user_id del bot al runner; summon por edición) mueren
+con el gateway. Este archivo se retira cuando F3 aterrice.
+
+Status: **Absorbido en F3** (antes: In progress) — slice 2 (arnés de paridad mención↔invite) HECHO el
 2026-08-06; slice 1 (`TurnSpec`/`TurnBuilder`) sigue sin existir.
 Re-verificado 2026-09-07.
 Proposed: 2026-07-16 by Claude (meta-hallazgo del /cruel-critic, Art. 9)

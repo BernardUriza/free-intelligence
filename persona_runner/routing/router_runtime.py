@@ -57,7 +57,7 @@ from typing import Any
 import asyncpg
 import structlog
 
-from khimeras_shared.behavior.contracts.flows import (
+from persona_core.behavior.contracts.flows import (
     AwarenessAnalysis,
     ConversationPattern,
     EpistemicAnalysis,
@@ -69,7 +69,7 @@ from khimeras_shared.behavior.contracts.flows import (
     StyleFlavor,
     UserState,
 )
-from khimeras_shared.behavior.presets import classify_preset
+from persona_core.behavior.presets import classify_preset
 from persona_runner.routing.model_routing import ModelChoice, OpusBudget, select_model
 
 log = structlog.get_logger()

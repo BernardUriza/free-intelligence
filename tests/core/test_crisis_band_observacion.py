@@ -23,12 +23,12 @@ from __future__ import annotations
 import pytest
 from fi_core.cognitive import PSYCHIATRY, URGENCY_BANDS
 
-from khimeras_shared.behavior.vulnerability import (
+from persona_core.behavior.vulnerability import (
     crisis_band,
     crisis_verdict,
     is_acute_crisis,
 )
-from khimeras_shared.guidance import build_turn_guidance
+from persona_core.guidance import build_turn_guidance
 
 # Los facts de un usuario con historia: alimentan `medical_history`.
 FACTS_CON_INTENTO = [{"fact": "tuvo un intento de suicidio el año pasado"}]
