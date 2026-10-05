@@ -6,8 +6,8 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "e8afc695313a0d2199898efd6f0a9d54f4840027"
-tree = "sha256:417310deb9985f96b536d06f4f333278e6cf7218fda9176991a7e02b721e8952"
+rev = "3ebddfec242194705a411bf023315eb0efea764f"
+tree = "sha256:586ffd222f887c29106d9d4d3a44a5cb47884b4201b9813e312cce13a4752fcc"
 
 [repo]
 id = "aire-server"
@@ -30,12 +30,12 @@ policy = ["repo", "bernard", "core"]
 methodology = []
 
 [lock]
-canonical_sha256 = "790e2daea42166d7372264f15c1a39522c209b28b297bc3d92d3fd502d2a8e70"
+canonical_sha256 = "403a63ca6ba3e27ee52c5347971c108cc0efd651258795537edee44c1c32ab6b"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "58c84bf8e316c40ceea5cb6b37a490894791843f"
-tree = "sha256:a0ea740948378dca9dc6f292949fe03e6d28cc419a54c6ba8d5d386e50c88455"
+rev = "d476046d1985c0f4543d363bd99b03c422396624"
+tree = "sha256:440977dbb852f3f95fc69b401865a318cff565bd0838ad1815239c9f9441bc84"
