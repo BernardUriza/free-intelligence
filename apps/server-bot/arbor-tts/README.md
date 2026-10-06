@@ -186,6 +186,17 @@ For guaranteed-verbatim output, create your own GPT with instructions like:
 
 ---
 
+## Known deadline: the echo GPT dies 2026-12-11
+
+ChatGPT is migrating GPTs to plugins. Since 2026-10 the **Mirror Emoji** GPT shows
+a *"Mirror Emoji is now a plugin — you can keep using this GPT until December 11"*
+card on every page load (the composer stays locked until **Keep using GPT** is
+clicked; `synthesize.js` clicks it). **After 2026-12-11 the GPT stops working**:
+before then, point `CHATGPT_GPT_URL` at another echo GPT (or drive the plugin) and
+re-verify a take end to end.
+
+---
+
 ## Caveats / known limitations
 
 - **Login expiry:** re-run `npm run login` when the session dies.
@@ -193,9 +204,12 @@ For guaranteed-verbatim output, create your own GPT with instructions like:
   usually passes headless, but a challenge can still appear; if so, run `npm run
   login` again (or set `HEADLESS=0` to debug). If headless gets challenged often,
   consider `chromium.launch({ channel: "chrome" })`.
-- **DOM selectors** (`#prompt-textarea`, `[data-message-author-role="assistant"]`)
-  are ChatGPT internals and may change without notice — update `synthesize.js` if
-  sends stop working.
+- **DOM selectors** (the composer: `#prompt-textarea` or, since 2026-10,
+  `div.ProseMirror[role="textbox"]`) are ChatGPT internals and may change without
+  notice — update `COMPOSER` in `synthesize.js` if sends stop working.
+- **Reply detection uses the conversation API, not the DOM:** after sending, the
+  service polls `/backend-api/conversation/<id>` (`latestAssistant()`) for the new
+  finished assistant message (`data-message-author-role` vanished in 2026-10).
 - **Serialized:** one ChatGPT session = one conversation at a time; requests are
   queued internally.
 - **ToS:** see the warning at the top.
