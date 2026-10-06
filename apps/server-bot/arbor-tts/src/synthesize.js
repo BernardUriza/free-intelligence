@@ -5,6 +5,12 @@ const STEP_TIMEOUT = 60_000;
 // Hard ceiling for a whole speak() so a hung Playwright op can never wedge the
 // serialized queue (the recurring "voice goes silent until hard-restart" bug).
 const SPEAK_TIMEOUT = 150_000;
+// The composer. ChatGPT dropped `#prompt-textarea` (2026-10): it is now a
+// ProseMirror div with role=textbox. Keep the old id first for older builds.
+const COMPOSER = '#prompt-textarea, div.ProseMirror[role="textbox"]';
+// GPTs being migrated to plugins show a "now a plugin" card whose composer is
+// contenteditable=false until "Keep using GPT" is clicked — on EVERY page load.
+const KEEP_GPT_BUTTON = "Keep using GPT";
 
 /**
  * ArborTTS — a headless black box that turns text into ChatGPT "Arbor" (fathom)
@@ -17,6 +23,30 @@ const SPEAK_TIMEOUT = 150_000;
  * One browser/context is reused across calls; requests are serialized because a
  * single ChatGPT web session drives one conversation at a time.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The newest assistant reply on the active branch of a conversation, read from
+ * the /backend-api/conversation/<id> JSON (walks current_node up its parents).
+ * The DOM is not used: ChatGPT renamed its turn markup in 2026-10
+ * (data-message-author-role disappeared), the API shape did not change.
+ * Returns { id, done, text } or null when no assistant text exists yet.
+ */
+export function latestAssistant(conv) {
+  const mapping = conv?.mapping || {};
+  let node = mapping[conv?.current_node];
+  while (node) {
+    const m = node.message;
+    const parts = m?.content?.parts;
+    const text = Array.isArray(parts) ? parts.filter((x) => typeof x === "string").join("") : "";
+    if (m?.author?.role === "assistant" && text.trim()) {
+      return { id: m.id, done: m.status === "finished_successfully", text };
+    }
+    node = mapping[node.parent];
+  }
+  return null;
+}
+
 export class ArborTTS {
   constructor(opts = {}) {
     this.gptUrl =
@@ -149,72 +179,67 @@ export class ArborTTS {
     }
   }
 
+  /** Dismiss the GPT→plugin migration card if it is up, then wait until the
+   *  composer is actually editable (a visible but locked composer swallows the
+   *  text and the send silently). */
+  async _unlockComposer(page, timeout) {
+    // Whichever renders first: an editable composer, or the migration card's
+    // button (the locked composer is hidden, so "visible" alone never resolves).
+    const keep = page.getByRole("button", { name: KEEP_GPT_BUTTON });
+    const editable = (sel) => document.querySelector(sel)?.isContentEditable === true;
+    await Promise.race([
+      page.waitForFunction(editable, COMPOSER, { timeout }),
+      keep.waitFor({ state: "visible", timeout }),
+    ]);
+    if (await keep.isVisible().catch(() => false)) await keep.click();
+    await page.waitForFunction(editable, COMPOSER, { timeout: 15_000 });
+  }
+
   /** One synthesis attempt against `target` (a conversation URL or GPT base). */
   async _attempt(text, voice, format, target) {
     const reuse = target !== this.gptUrl;
     const page = await this._getPage();
     {
-      const composer = page.locator("#prompt-textarea");
+      const composer = page.locator(COMPOSER).first();
       await page.goto(target, {
         waitUntil: "domcontentloaded",
         timeout: STEP_TIMEOUT,
       });
       // Fast-fail when reusing so we fall back quickly; patient for a new chat.
-      await composer.waitFor({
-        state: "visible",
-        timeout: reuse ? 12_000 : STEP_TIMEOUT,
-      });
+      await this._unlockComposer(page, reuse ? 12_000 : STEP_TIMEOUT);
+      await composer.waitFor({ state: "visible", timeout: 15_000 });
 
       // Remember the current last assistant id so we can tell the NEW reply
       // apart from prior ones when reusing a conversation.
-      const prevAssistantId = await page
-        .locator('[data-message-author-role="assistant"]')
-        .last()
-        .getAttribute("data-message-id")
-        .catch(() => null);
+      const convIdOf = () => (page.url().match(/\/c\/([0-9a-f-]{36})/) || [])[1];
+      const before = convIdOf();
+      const prevAssistantId = before
+        ? (latestAssistant(await this._fetchConversation(page, before).catch(() => null)) || {}).id
+        : null;
 
       await composer.click();
       await composer.fill(String(text));
       await page.keyboard.press("Enter");
 
-      const assistant = page
-        .locator('[data-message-author-role="assistant"]')
-        .last();
-      await assistant.waitFor({ state: "attached", timeout: STEP_TIMEOUT });
-      await this._waitStreamDone(page, assistant);
-
-      // Resolve the REAL ids. Right after sending, the DOM carries a temporary
-      // placeholder id (e.g. "request-placeholder-..." / "request-WEB:...") and
-      // the URL has not yet flipped to /c/<uuid>. Poll until both are real:
-      // a UUID-shaped message id and a conversation id in the URL.
-      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      // Poll the conversation API until a NEW assistant reply is finished.
+      // The URL flips to /c/<uuid> a moment after sending.
       let messageId = null;
       let conversationId;
-      const idDeadline = Date.now() + 30_000;
-      while (Date.now() < idDeadline) {
-        messageId = await page
-          .locator('[data-message-author-role="assistant"]')
-          .last()
-          .getAttribute("data-message-id")
-          .catch(() => null);
-        conversationId = (page.url().match(/\/c\/([0-9a-f-]{36})/) || [])[1];
-        // Must be a real UUID, have a conversation id, AND be a NEW message
-        // (different from the last one when reusing a conversation).
-        if (
-          messageId &&
-          UUID_RE.test(messageId) &&
-          conversationId &&
-          messageId !== prevAssistantId
-        )
-          break;
-        await page.waitForTimeout(400);
+      const deadline = Date.now() + STEP_TIMEOUT;
+      while (Date.now() < deadline) {
+        conversationId = convIdOf();
+        if (conversationId) {
+          const reply = latestAssistant(
+            await this._fetchConversation(page, conversationId).catch(() => null),
+          );
+          if (reply && reply.done && UUID_RE.test(reply.id) && reply.id !== prevAssistantId) {
+            messageId = reply.id;
+            break;
+          }
+        }
+        await page.waitForTimeout(1000);
       }
-      if (
-        !messageId ||
-        !UUID_RE.test(messageId) ||
-        !conversationId ||
-        messageId === prevAssistantId
-      ) {
+      if (!messageId || !conversationId) {
         throw new Error(
           `could not resolve ids (message_id=${messageId} conversation_id=${conversationId})`,
         );
@@ -266,24 +291,18 @@ export class ArborTTS {
     }
   }
 
-  /** Wait until the assistant stopped streaming and its text is stable. */
-  async _waitStreamDone(page, assistant) {
-    const deadline = Date.now() + STEP_TIMEOUT;
-    let last = "";
-    let stableSince = Date.now();
-    const stopBtn =
-      'button[data-testid="stop-button"], button[aria-label="Stop streaming"], button[aria-label="Stop"]';
-    while (Date.now() < deadline) {
-      const streaming = await page.locator(stopBtn).count().catch(() => 0);
-      const txt = (await assistant.innerText().catch(() => "")) || "";
-      if (txt !== last) {
-        last = txt;
-        stableSince = Date.now();
-      }
-      if (!streaming && txt.length > 0 && Date.now() - stableSince > 1500) return;
-      await page.waitForTimeout(300);
-    }
-    // best-effort: fall through and let synthesize fail loudly if incomplete
+  /** GET /backend-api/conversation/<id> with the page's session token. */
+  async _fetchConversation(page, conversationId) {
+    return page.evaluate(async (id) => {
+      const sess = await (await fetch("/api/auth/session")).json();
+      const token = sess && sess.accessToken;
+      if (!token) throw new Error("no accessToken (login expired?)");
+      const r = await fetch(`/backend-api/conversation/${id}`, {
+        headers: { authorization: "Bearer " + token },
+      });
+      if (!r.ok) throw new Error(`conversation ${r.status}`);
+      return r.json();
+    }, conversationId);
   }
 
   async close() {
