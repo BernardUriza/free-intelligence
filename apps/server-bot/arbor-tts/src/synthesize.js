@@ -186,7 +186,13 @@ export class ArborTTS {
     // Whichever renders first: an editable composer, or the migration card's
     // button (the locked composer is hidden, so "visible" alone never resolves).
     const keep = page.getByRole("button", { name: KEEP_GPT_BUTTON });
-    const editable = (sel) => document.querySelector(sel)?.isContentEditable === true;
+    // The locked composer is ALREADY contentEditable (0x0, under aria-hidden), so
+    // "editable" alone won the race and the card was never clicked (2026-10-07).
+    const editable = (sel) => {
+      const el = document.querySelector(sel);
+      return el?.isContentEditable === true && el.getClientRects().length > 0
+        && !el.closest("[aria-hidden=true]");
+    };
     await Promise.race([
       page.waitForFunction(editable, COMPOSER, { timeout }),
       keep.waitFor({ state: "visible", timeout }),
