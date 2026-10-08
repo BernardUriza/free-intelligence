@@ -3,7 +3,9 @@
 These are the first WRITE-capable tools in the persona_memory MCP server, so the
 tests cover both the happy path and the resistance cases that keep a malformed
 call from ever touching Postgres:
-  - get_agent_facts: agent_id required, optional category filter, formatting.
+  - every tool: the agent is the persona bound to the turn, never an argument
+    (2026-09-26: a model-supplied agent_id let one persona rewrite another's).
+  - get_agent_facts: optional category filter, formatting.
   - add_agent_fact: rejects an out-of-enum provenance BEFORE connecting.
   - update_agent_fact: needs fact_id, needs at least one field, soft-delete path.
 """
@@ -16,6 +18,7 @@ import pytest
 
 from persona_runner import mcp_tools
 from persona_runner.mcp_tools import shared
+from persona_runner.mcp_tools.turn_context import bind_turn_principal, reset_turn_principal
 
 _get = mcp_tools.get_agent_facts.handler
 _add = mcp_tools.add_agent_fact.handler
@@ -52,16 +55,70 @@ def _patch_conn(monkeypatch, conn):
     monkeypatch.setattr(shared, "_connect", AsyncMock(return_value=conn))
 
 
-# ─── get_agent_facts ────────────────────────────────────────────────────
+@pytest.fixture(autouse=True)
+def _insult_turn():
+    """Every call runs inside an Insult turn, bound by the server as in production."""
+    token = bind_turn_principal(user_id="907264175246569543", channel_id="1489180895264116736", agent_id="insult")
+    yield
+    reset_turn_principal(token)
+
+
+@pytest.fixture
+def _unbound_persona():
+    token = bind_turn_principal(user_id="907264175246569543", channel_id="1489180895264116736", agent_id="")
+    yield
+    reset_turn_principal(token)
+
+
+# ─── the persona is bound by the server, never named by the model ───────
 
 
 @pytest.mark.asyncio
-async def test_get_agent_facts_requires_agent_id(monkeypatch):
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: _get({}),
+        lambda: _add({"fact": "x", "provenance": "self_declared"}),
+        lambda: _upd({"fact_id": 5, "fact": "x"}),
+        lambda: _upd({"fact_id": 5, "delete": True}),
+    ],
+)
+async def test_every_tool_refuses_a_turn_with_no_persona_bound(monkeypatch, _unbound_persona, call):
     spy = AsyncMock()
     monkeypatch.setattr(shared, "_connect", spy)
-    out = await _get({"agent_id": ""})
+    out = await call()
     spy.assert_not_awaited()
-    assert "required" in repr(out).lower()
+    assert "no persona bound" in repr(out).lower()
+
+
+@pytest.mark.parametrize("tool", [mcp_tools.get_agent_facts, mcp_tools.add_agent_fact, mcp_tools.update_agent_fact])
+def test_no_tool_lets_the_model_name_the_agent(tool):
+    assert "agent_id" not in tool.input_schema
+
+
+@pytest.mark.asyncio
+async def test_a_model_supplied_agent_id_is_ignored_on_write(monkeypatch):
+    conn = _FakeConn(fetchval=3)
+    _patch_conn(monkeypatch, conn)
+    await _add({"agent_id": "alice", "fact": "soy ALICE", "provenance": "self_declared"})
+    assert conn.calls[0][2][0] == "insult"
+
+
+@pytest.mark.asyncio
+async def test_another_personas_fact_cannot_be_rewritten_or_deleted(monkeypatch):
+    # The row exists but belongs to ALICE: scoped by agent_id, Postgres matches nothing.
+    conn = _FakeConn(execute="UPDATE 0")
+    _patch_conn(monkeypatch, conn)
+    edited = await _upd({"fact_id": 11, "fact": "ALICE ahora es cruel"})
+    deleted = await _upd({"fact_id": 11, "delete": True})
+    assert "no active self-fact" in repr(edited).lower()
+    assert "no active self-fact" in repr(deleted).lower()
+    for _kind, sql, args in conn.calls:
+        assert "agent_id = $" in sql
+        assert args[-1] == "insult"
+
+
+# ─── get_agent_facts ────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -72,7 +129,7 @@ async def test_get_agent_facts_lists_facts(monkeypatch):
         ]
     )
     _patch_conn(monkeypatch, conn)
-    out = await _get({"agent_id": "insult"})
+    out = await _get({})
     blob = repr(out)
     assert "soy abrasivo" in blob
     assert "self_declared" in blob
@@ -86,7 +143,7 @@ async def test_get_agent_facts_lists_facts(monkeypatch):
 async def test_get_agent_facts_category_filter(monkeypatch):
     conn = _FakeConn(fetch=[])
     _patch_conn(monkeypatch, conn)
-    await _get({"agent_id": "insult", "category": "voice"})
+    await _get({"category": "voice"})
     sql, args = conn.calls[0][1], conn.calls[0][2]
     assert "category = $2" in sql
     assert args == ("insult", "voice")
@@ -95,7 +152,7 @@ async def test_get_agent_facts_category_filter(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_agent_facts_empty(monkeypatch):
     _patch_conn(monkeypatch, _FakeConn(fetch=[]))
-    out = await _get({"agent_id": "insult"})
+    out = await _get({})
     assert "no self-facts" in repr(out).lower()
 
 
@@ -106,7 +163,7 @@ async def test_get_agent_facts_empty(monkeypatch):
 async def test_add_agent_fact_rejects_bad_provenance_before_db(monkeypatch):
     spy = AsyncMock()
     monkeypatch.setattr(shared, "_connect", spy)
-    out = await _add({"agent_id": "insult", "fact": "x", "category": "voice", "provenance": "invented"})
+    out = await _add({"fact": "x", "category": "voice", "provenance": "invented"})
     spy.assert_not_awaited()  # never reached Postgres
     assert "provenance" in repr(out).lower()
 
@@ -115,7 +172,7 @@ async def test_add_agent_fact_rejects_bad_provenance_before_db(monkeypatch):
 async def test_add_agent_fact_requires_fact(monkeypatch):
     spy = AsyncMock()
     monkeypatch.setattr(shared, "_connect", spy)
-    out = await _add({"agent_id": "insult", "fact": "", "provenance": "self_declared"})
+    out = await _add({"fact": "", "provenance": "self_declared"})
     spy.assert_not_awaited()
     assert "required" in repr(out).lower()
 
@@ -124,9 +181,7 @@ async def test_add_agent_fact_requires_fact(monkeypatch):
 async def test_add_agent_fact_inserts(monkeypatch):
     conn = _FakeConn(fetchval=42)
     _patch_conn(monkeypatch, conn)
-    out = await _add(
-        {"agent_id": "insult", "fact": "no me disculpo", "category": "voice", "provenance": "self_declared"}
-    )
+    out = await _add({"fact": "no me disculpo", "category": "voice", "provenance": "self_declared"})
     assert "42" in repr(out)
     kind, sql, args = conn.calls[0]
     assert kind == "fetchval"
@@ -138,7 +193,7 @@ async def test_add_agent_fact_inserts(monkeypatch):
 async def test_add_agent_fact_defaults_category(monkeypatch):
     conn = _FakeConn(fetchval=1)
     _patch_conn(monkeypatch, conn)
-    await _add({"agent_id": "insult", "fact": "f", "provenance": "user_attributed"})
+    await _add({"fact": "f", "provenance": "user_attributed"})
     assert conn.calls[0][2][2] == "general"
 
 
@@ -181,7 +236,8 @@ async def test_update_sets_fields(monkeypatch):
     sql, args = conn.calls[0][1], conn.calls[0][2]
     assert "fact = $1" in sql and "category = $2" in sql
     assert "updated_at = extract(epoch from now())" in sql
-    assert args == ("nuevo", "identity", 5)
+    assert "agent_id = $4" in sql
+    assert args == ("nuevo", "identity", 5, "insult")
 
 
 @pytest.mark.asyncio
@@ -190,8 +246,9 @@ async def test_update_soft_delete(monkeypatch):
     _patch_conn(monkeypatch, conn)
     out = await _upd({"fact_id": 9, "delete": True})
     assert "soft-deleted" in repr(out).lower()
-    sql = conn.calls[0][1]
+    sql, args = conn.calls[0][1], conn.calls[0][2]
     assert "deleted_at = extract(epoch from now())" in sql
+    assert "agent_id = $2" in sql and args == (9, "insult")
 
 
 @pytest.mark.asyncio
