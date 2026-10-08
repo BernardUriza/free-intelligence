@@ -3,9 +3,17 @@
 **A**rtificial **I**ntelligence **R**eflector **E**nvelope. An HTTP server that wraps
 the Claude Agent SDK and mirrors each session's transcript to Postgres.
 
+**Since 2026-10-08 this directory is `apps/aire-server` inside the
+free-intelligence monorepo** (the standalone `BernardUriza/aire-server` repo is
+archived; its issue numbers cited below still resolve there). The workflows live
+at the monorepo root, prefixed: `aire-server-ci-front.yml`,
+`aire-server-deploy-front.yml`, `aire-server-deploy-server.yml`,
+`aire-server-costwatch.yml`. The droplet checks out only this directory's
+`server/` cone and keeps `/opt/aire/server` as a symlink into it.
+
 **This is a MONOREPO** (backlog #20, 2026-07-20): `server/` is the daemon — the
 pen, role `aire`, deployed to the DigitalOcean droplet by
-`.github/workflows/deploy-server.yml`; `front/` is the waiter — read-only, role
+`aire-server-deploy-server.yml`; `front/` is the waiter — read-only, role
 `aire_reader`, Next.js SSR on Azure Container Apps, deployed by its own
 path-filtered workflow. One repo, still two deployments and two credentials:
 the CQRS wall is credential-and-pipeline, not folder. **The front NEVER rides

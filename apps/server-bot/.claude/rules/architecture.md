@@ -27,7 +27,9 @@ Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 
 **Registry (2026-08-12 — GHCR, no ACR):** live images are
 `persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>` under
-`ghcr.io/bernarduriza/discord-bot`, built on the GitHub runner. The two Azure
+`ghcr.io/bernarduriza/free-intelligence/server-bot` (since the monorepo
+absorption of 2026-10-08; `ghcr.io/bernarduriza/discord-bot` before that, its
+packages still linked to the archived repo), built on the GitHub runner. The two Azure
 registries this repo used are history: images moved `insultacr` → `serverbotacr`
 on 2026-07-25 and off Azure entirely on 2026-08-12. `az acr build` was billing
 ACR task vCPU-seconds ON TOP of the runner minutes the CD already spent waiting
@@ -289,4 +291,4 @@ the file.
   with the monolith and has NO live equivalent, so the DNA + error-path
   discipline carry that responsibility alone
 - CI security layers: `bandit -r persona_gateway/ demux_ai/ persona_core/ shared/`
-  + `pip-audit` (`.github/workflows/ci.yml`)
+  + `pip-audit` (the monorepo's `.github/workflows/server-bot-ci.yml`)

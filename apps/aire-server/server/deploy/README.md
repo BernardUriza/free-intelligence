@@ -1,7 +1,7 @@
 # Deploy — AIRE on the daemon box (Ubuntu 24.04 LTS)
 
 CI/CD via GitHub Actions. **Never deploy by hand.** Every `push` to `main` that
-touches the code runs `.github/workflows/deploy-server.yml`, which SSHes into the box,
+touches the code runs the monorepo's `.github/workflows/aire-server-deploy-server.yml`, which SSHes into the box,
 resets to `origin/main`, reinstalls the units, restarts them and **verifies each
 one individually came back `active`** (otherwise the CI fails — no fake-green).
 

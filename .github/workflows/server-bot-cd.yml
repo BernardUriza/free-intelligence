@@ -1,0 +1,496 @@
+name: server-bot CD
+
+# Builds and deploys the Azure Container Apps + Jobs, but ONLY the surfaces whose
+# source actually changed since the SHA each one is currently RUNNING. This is the
+# per-service blast-radius cut: a prompt-only change to Insult no longer rebuilds
+# ALICE/Vultur or restarts bots that didn't change.
+#
+# Surfaces and the image each consumes (the three live Container Apps):
+#   * persona-gateway     <- persona-gateway image   (Dockerfile.gateway)
+#       (ALICE runs here as a gateway persona since v4.21.110; the legacy
+#        alice-bot Container App + Dockerfile.alice were retired 2026-07-05)
+#   * persona-runner      <- persona-runner image    (infra/azure/runner.Dockerfile)
+#   * khimeras-host       <- khimeras-host image     (Dockerfile.host)
+#   The retired `discord-bot` plumbing app (ex insult-bot) was DELETED on
+#   2026-09-23 (scaled to zero since the 2026-07-14 purge, never built here);
+#   the repo itself was renamed `server-bot` the same day (GHCR namespace kept
+#   on purpose, see REGISTRY).
+#
+# Per-image SOURCE deps come from each Dockerfile's COPY lines — the map below is
+# COPY-accurate ON PURPOSE: over-building is wasteful, but UNDER-building ships a
+# stale surface (the COPY-gap P0 class, 2026-06-16). When a COPY line in any
+# Dockerfile changes, update the matching *_PATHS list here in the same commit.
+#
+# workflow_run cannot use `paths:` (it is decoupled from the push), so change
+# detection diffs each image's paths between the SHA the Container App is RUNNING
+# and the new SHA. Diffing against the running image (not HEAD~1) is self-healing:
+# if a prior deploy was skipped or failed, the diff still spans back to reality.
+#
+# Four stages (2026-08-06 — the CD ran 15-22min and 87% of it was builds):
+#   bases   -> the shared conda/toolchain images, content-addressed; a tag lookup
+#              on any commit that doesn't touch dependencies
+#   detect  -> which surfaces changed, and the build matrix that follows from it
+#   build   -> one runner PER image, in parallel; the stage costs the slowest
+#              image instead of the sum of all three
+#   deploy  -> containerapp update + the health/turn checks that prove it serves
+
+on:
+  workflow_run:
+    workflows: [server-bot CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: "Build & deploy every surface regardless of diff"
+        type: boolean
+        default: false
+
+# ONE deploy at a time, and they QUEUE — they do not cancel each other.
+#
+# `cancel-in-progress: true` looked right (newest commit is the one that should be
+# live) and starved the pipeline instead: this repo is worked by several agents at
+# once, so a new commit lands every few minutes, every in-flight CD gets cancelled
+# by the next one, and NOTHING ever reaches prod. Measured 2026-08-06: runs
+# cancelled at 902s in queue, three P0 fixes stuck behind an infinite preemption
+# chain while the apps sat on a SHA from hours earlier.
+#
+# Queuing converges where cancelling could not: every run finishes, and since
+# `detect` diffs against the SHA each app is RUNNING (not HEAD~1), a superseded
+# run simply finds nothing left to do and the last one leaves the correct state.
+# Slower per commit, but it actually deploys — which is the whole point.
+concurrency:
+  group: server-bot-cd-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write   # push to ghcr.io
+
+env:
+  NEW_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  RG: insult-rg
+  # GHCR replaced serverbotacr on 2026-08-12. The registry was a Basic ACR: a
+  # per-registry unit every month plus storage, and its `az acr build` tasks
+  # billed vCPU-seconds ON TOP of the runner minutes this job already paid while
+  # it sat waiting for them. Building here instead removes both charges; GitHub
+  # does not bill container storage or bandwidth.
+  #
+  # The four-stage shape below is UNCHANGED — content-addressed bases, diff
+  # against the running SHA, one runner per image, deploy what was rebuilt. Only
+  # the builder and the registry moved.
+  # Since 2026-10-08 the images live under the MONOREPO's namespace: the old
+  # ghcr.io/bernarduriza/discord-bot/* packages are linked to the retired
+  # server-bot repo, and this repo's GITHUB_TOKEN cannot push to them.
+  REGISTRY: ghcr.io/bernarduriza/free-intelligence/server-bot
+
+defaults:
+  run:
+    working-directory: apps/server-bot
+
+jobs:
+  # --- Stage 1: shared bases, rebuilt ONLY when their inputs change ---------
+  #
+  # The three surfaces used to each run the identical `mamba env update`, and
+  # `az acr build` has no `--cache-from`, so a one-line code change reinstalled
+  # the conda env three times and Playwright's Chromium once (2026-08-06: 892s
+  # of the CD's 17min were builds). The bases are content-addressed by the
+  # SHA-256 of the files that define them, so this stage is a no-op tag lookup
+  # on the commits that don't touch dependencies — which is nearly all of them.
+  bases:
+    name: Shared base images
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      base_tag: ${{ steps.tags.outputs.base_tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute content-addressed base tags
+        id: tags
+        run: |
+          set -euo pipefail
+          BASE_TAG=$(cat environment.yml Dockerfile.base | sha256sum | cut -c1-12)
+          echo "base_tag=$BASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "base: \`$BASE_TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build khimeras-base if absent
+        # `docker manifest inspect` is the GHCR equivalent of the old
+        # `az acr repository show` probe: it asks the registry for the tag and
+        # exits non-zero when it isn't there, so the fast path stays a pure tag
+        # lookup on every commit that doesn't touch dependencies.
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tags.outputs.base_tag }}"
+          if docker manifest inspect "$REGISTRY/khimeras-base:$TAG" >/dev/null 2>&1; then
+            echo "khimeras-base:$TAG already in GHCR — skipping (this is the fast path)."
+          else
+            docker buildx build --platform linux/amd64 \
+              -f Dockerfile.base \
+              -t "$REGISTRY/khimeras-base:$TAG" \
+              -t "$REGISTRY/khimeras-base:latest" \
+              --push .
+          fi
+
+  # --- Stage 2: what actually changed ------------------------------------
+  detect:
+    name: Detect changed surfaces
+    runs-on: ubuntu-latest
+    # workflow_run fires on success AND failure; only deploy on a green CI.
+    # workflow_dispatch has no workflow_run payload, so allow it through too.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      build_gw: ${{ steps.detect.outputs.build_gw }}
+      build_runner: ${{ steps.detect.outputs.build_runner }}
+      build_host: ${{ steps.detect.outputs.build_host }}
+      surfaces: ${{ steps.detect.outputs.surfaces }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0 # full history so we can diff against any running SHA
+
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Detect which surfaces changed
+        id: detect
+        run: |
+          set -euo pipefail
+          FORCE="${{ github.event.inputs.force_all || 'false' }}"
+
+          running_tag() {
+            # $1=name $2=kind(app|job) -> the :tag of the currently deployed image
+            local name="$1" kind="$2" img=""
+            if [ "$kind" = "job" ]; then
+              img=$(az containerapp job show -n "$name" -g "$RG" \
+                --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "")
+            else
+              img=$(az containerapp show -n "$name" -g "$RG" \
+                --query "properties.template.containers[0].image" -o tsv 2>/dev/null || echo "")
+            fi
+            echo "${img##*:}"
+          }
+
+          changed() {
+            # $1=running_sha ; rest=paths -> "true" if a rebuild is needed.
+            # Unknown/absent running SHA (latest, rolled-off, missing app) -> build.
+            local running="$1"; shift
+            if [ "$FORCE" = "true" ]; then echo "true"; return; fi
+            if [ -z "$running" ] || ! git cat-file -e "${running}^{commit}" 2>/dev/null; then
+              echo "true"; return
+            fi
+            if [ -n "$(git diff --name-only "$running" "$NEW_SHA" -- "$@")" ]; then
+              echo "true"
+            else
+              echo "false"
+            fi
+          }
+
+          stopped() {
+            # $1=app -> "true" when the Container App is deliberately Stopped
+            # (`az containerapp stop`, 2026-09-27: the Discord surfaces are off to
+            # save money, the runner stays because og118 uses it). A stopped app is
+            # NOT a deploy target: `az containerapp update` would mint a revision
+            # nobody runs and `cd_wait_revision.py` would wait forever for it.
+            # `az containerapp start` brings it back into the next deploy.
+            local st
+            st=$(az containerapp show -n "$1" -g "$RG" \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "")
+            [ "$st" = "Stopped" ] && echo "true" || echo "false"
+          }
+
+          GW_SHA=$(running_tag persona-gateway app)
+          RUNNER_SHA=$(running_tag persona-runner app)
+          HOST_SHA=$(running_tag khimeras-host app)
+
+          BUILD_GW=$(changed "$GW_SHA" \
+            environment.yml persona_gateway/ persona_core/ shared/ Dockerfile.gateway Dockerfile.base)
+          if [ "$(stopped persona-gateway)" = "true" ]; then
+            echo "persona-gateway is Stopped — skipping (start it to deploy)"; BUILD_GW=false
+          fi
+          # The omnipresent host (#6). Build-ready + dormant: the image ships to ACR
+          # so it's there the moment Bernard creates the `khimeras-host` Container App
+          # + its HOST_DISCORD_TOKEN. Deploy is continue-on-error, so until that app
+          # exists this is a no-op — exactly the gateway's own dormant pattern.
+          BUILD_HOST=$(changed "$HOST_SHA" \
+            environment.yml demux_ai/ persona_core/ shared/ Dockerfile.host Dockerfile.base)
+          if [ "$(stopped khimeras-host)" = "true" ]; then
+            echo "khimeras-host is Stopped — skipping (start it to deploy)"; BUILD_HOST=false
+          fi
+          # Gate del castigo LEVANTADO el mismo día (2026-07-14): el "fi-runner
+          # importa personas.insult" era un comentario fósil del Dockerfile — el
+          # grep del paquete conda instalado dio CERO. Los importadores reales
+          # eran persona_runner/{model_routing,router_runtime,mcp_tools}.py, ya
+          # repunteados a persona_core.{behavior,deep_memory,html_artifacts}.
+          BUILD_RUNNER=$(changed "$RUNNER_SHA" \
+            environment.yml shared/ persona_core/ demux_ai/ persona_runner/ \
+            infra/azure/runner.Dockerfile infra/azure/entrypoint.sh \
+            Dockerfile.base)
+          if [ "$(stopped persona-runner)" = "true" ]; then
+            echo "persona-runner is Stopped — skipping (start it to deploy)"; BUILD_RUNNER=false
+          fi
+
+          {
+            echo "build_gw=$BUILD_GW"
+            echo "build_runner=$BUILD_RUNNER"
+            echo "build_host=$BUILD_HOST"
+          } >> "$GITHUB_OUTPUT"
+
+          # The build matrix carries ONLY the surfaces that changed, so the fan-out
+          # spawns no idle runners and the job skips entirely when nothing moved.
+          #
+          # It is a list of BARE NAMES, never a list of objects, and that is not a
+          # style choice. An object carries `{` and `}`, and this repo's
+          # AZURE_CREDENTIALS is stored as pretty-printed JSON — Actions registers
+          # each of its lines as a secret, so the lines holding a lone brace turn
+          # EVERY brace in every log and output into "a secret". The masker then
+          # dropped this output whole (`Skip output 'surfaces' since it may contain
+          # secret`), `fromJSON('')` blew up the matrix, and `deploy` skipped: three
+          # surfaces sat un-deployed for days while CI stayed green (2026-08-10, the
+          # commit that closed the Bash hole could not reach prod). A brace-free
+          # array survives the masker. The real cure is storing that secret as
+          # single-line JSON (`jq -c`); this shape keeps CD alive meanwhile.
+          SURFACES=$(jq -cn --arg gw "$BUILD_GW" --arg rn "$BUILD_RUNNER" --arg ho "$BUILD_HOST" '
+            [
+              ("persona-gateway" | select($gw == "true")),
+              ("persona-runner"  | select($rn == "true")),
+              ("khimeras-host"   | select($ho == "true"))
+            ]')
+          echo "surfaces=$SURFACES" >> "$GITHUB_OUTPUT"
+
+          echo "## CD change detection" >> "$GITHUB_STEP_SUMMARY"
+          echo "new sha: \`$NEW_SHA\` (force=$FORCE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "| surface | running sha | rebuild |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-gateway | \`${GW_SHA:0:7}\` | $BUILD_GW |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| persona-runner | \`${RUNNER_SHA:0:7}\` | $BUILD_RUNNER |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| khimeras-host (dormant until provisioned) | \`${HOST_SHA:0:7}\` | $BUILD_HOST |" >> "$GITHUB_STEP_SUMMARY"
+
+
+  # --- Stage 3: the three images, IN PARALLEL --------------------------------
+  #
+  # They used to be three sequential steps in one job: 459s + 220s + 213s, so a
+  # deploy paid the SUM of the builds even though nothing links them. Fanning out
+  # makes the stage cost the SLOWEST image instead. The matrix is built by
+  # `detect`, so only changed surfaces spawn a runner and an unchanged commit
+  # skips the whole stage.
+  build:
+    name: Build ${{ matrix.surface }}
+    runs-on: ubuntu-latest
+    needs: [bases, detect]
+    if: ${{ needs.detect.outputs.surfaces != '[]' && needs.detect.outputs.surfaces != '' }}
+    strategy:
+      # One broken image must not cancel its siblings: the others are still
+      # deployable, and a fail-fast here would hide which of them also broke.
+      fail-fast: false
+      matrix:
+        surface: ${{ fromJSON(needs.detect.outputs.surfaces) }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      # The per-surface dockerfile and base image are resolved HERE, from the bare
+      # name, instead of riding along in the matrix — see the detect step for why
+      # the matrix cannot carry objects. An unknown name fails loudly rather than
+      # building the wrong dockerfile.
+      - name: Build ${{ matrix.surface }} image
+        env:
+          BASE_TAG: ${{ needs.bases.outputs.base_tag }}
+        run: |
+          set -euo pipefail
+          case "${{ matrix.surface }}" in
+            persona-gateway) FILE="Dockerfile.gateway";              BASE="khimeras-base:$BASE_TAG" ;;
+            persona-runner)  FILE="infra/azure/runner.Dockerfile";   BASE="khimeras-base:$BASE_TAG" ;;
+            khimeras-host)   FILE="Dockerfile.host";                 BASE="khimeras-base:$BASE_TAG" ;;
+            *) echo "unknown surface '${{ matrix.surface }}' — detect and build disagree"; exit 1 ;;
+          esac
+          docker buildx build --platform linux/amd64 \
+            -f "$FILE" \
+            --build-arg BASE_IMAGE="$REGISTRY/$BASE" \
+            -t "$REGISTRY/${{ matrix.surface }}:$NEW_SHA" \
+            -t "$REGISTRY/${{ matrix.surface }}:latest" \
+            --push .
+
+  # --- Stage 4: deploy what was rebuilt, then prove it serves ----------------
+  deploy:
+    name: Deploy & verify
+    runs-on: ubuntu-latest
+    needs: [detect, build]
+    # `build` is skipped when nothing changed; !cancelled() lets the
+    # nothing-to-deploy notice still run, while a failed build blocks the deploy.
+    if: ${{ !cancelled() && needs.detect.result == 'success' && needs.build.result != 'failure' }}
+    steps:
+      # Only `scripts/` — the revision gate (`cd_wait_revision.py`) runs here, and
+      # this job never had a checkout because until 2026-09-23 it only ran `az`.
+      # Pinned to NEW_SHA so the gate that runs is the one this deploy ships.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.NEW_SHA }}
+          sparse-checkout: apps/server-bot/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # --- Deploys (only what was rebuilt) ---
+
+      - name: Deploy persona-gateway
+        # Continue-on-error so a not-yet-provisioned gateway never breaks the run.
+        if: ${{ needs.detect.outputs.build_gw == 'true' }}
+        continue-on-error: true
+        run: |
+          # --termination-grace-period 45: el gate de recepción drena 25s (drain_timeout_s)
+          # y la invariante es grace >= drain + 20s (backlog graceful-turn-drain-on-deploy).
+          az containerapp update --name persona-gateway --resource-group "$RG" \
+            --image "$REGISTRY/persona-gateway:${{ env.NEW_SHA }}" \
+            --termination-grace-period 45
+
+      - name: Deploy persona-runner
+        if: ${{ needs.detect.outputs.build_runner == 'true' }}
+        continue-on-error: true
+        run: |
+          # --termination-grace-period 600: el lifespan espera los jobs abiertos hasta
+          # RUNNER_SHUTDOWN_DRAIN_S (570) y suelta sus filas al vencer; el ledger
+          # `turn_jobs` hace SEGURO un grace largo (la réplica vieja termina y entrega
+          # por la fila mientras la nueva contesta `running`), y ÚTIL (un turno de
+          # 330 s termina en vez de re-preguntarse a AIRE). Techo = presupuesto del
+          # turno del gateway (first_turn_timeout_s = 600).
+          az containerapp update --name persona-runner --resource-group "$RG" \
+            --image "$REGISTRY/persona-runner:${{ env.NEW_SHA }}" \
+            --termination-grace-period 600
+
+      - name: Deploy khimeras-host
+        # Dormant until Bernard provisions the `khimeras-host` Container App + its
+        # HOST_DISCORD_TOKEN (the cutover atom). continue-on-error so a not-yet-
+        # created host never breaks the run — the image is already in ACR, ready.
+        if: ${{ needs.detect.outputs.build_host == 'true' }}
+        continue-on-error: true
+        run: |
+          az containerapp update --name khimeras-host --resource-group "$RG" \
+            --image "$REGISTRY/khimeras-host:${{ env.NEW_SHA }}"
+
+      - name: Verify persona-gateway revision serves
+        if: ${{ needs.detect.outputs.build_gw == 'true' }}
+        run: |
+          # Until 2026-09-23 this step grepped `persona_gateway_starting` in the last 30
+          # log lines — a line the gateway prints BEFORE it can crash, so the check could
+          # not fail: 14 crash-looping revisions (09-17 → 09-18) got 14 green runs, and the
+          # only detector was a stale version tag in #general. The gate is now the revision
+          # that carries THIS image being Healthy + RunningAtMaxScale with 100% traffic and
+          # no older replica still running beside it (two replicas of a Discord bot post
+          # duplicate replies). Red on Failed/Unhealthy at once, with that revision's logs.
+          python3 scripts/cd_wait_revision.py persona-gateway "$RG" "$REGISTRY/persona-gateway:$NEW_SHA"
+
+      - name: Verify khimeras-host revision serves
+        if: ${{ needs.detect.outputs.build_host == 'true' }}
+        run: |
+          # Same class, same gate: the host has no ingress, so its revision state is the
+          # only thing a crash loop changes that the CD can read. min=1, like the gateway.
+          python3 scripts/cd_wait_revision.py khimeras-host "$RG" "$REGISTRY/khimeras-host:$NEW_SHA"
+
+      - name: Verify persona-runner health
+        if: ${{ needs.detect.outputs.build_runner == 'true' }}
+        run: |
+          if az containerapp show -n persona-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
+            az containerapp show -n persona-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
+            RUNNER_LOGS=$(az containerapp logs show -n persona-runner -g "$RG" --tail 15 2>&1 || true)
+            echo "$RUNNER_LOGS" | tail -10
+
+            FQDN="persona-runner.greendune-53f1f4af.eastus2.azurecontainerapps.io"
+            TOKEN=$(az containerapp secret show \
+              -n persona-runner -g "$RG" \
+              --secret-name insult-agent-runner-token \
+              --query value -o tsv 2>/dev/null || echo "")
+
+            HEALTH=$(curl -sS -m 15 "https://$FQDN/health" 2>&1 || echo "{}")
+            echo "health: $HEALTH"
+            if ! echo "$HEALTH" | grep -q '"auth_configured":true'; then
+              echo "FAIL persona-runner: auth_configured!=true in /health"
+              exit 1
+            fi
+            if ! echo "$HEALTH" | grep -q '"claude_md_present":true'; then
+              echo "FAIL persona-runner: claude_md_present!=true in /health"
+              exit 1
+            fi
+
+            if [ -n "$TOKEN" ]; then
+              RESET=$(curl -sS -m 15 -X DELETE \
+                "https://$FQDN/v1/session/cd-smoke-${{ github.run_id }}" \
+                -H "Authorization: Bearer $TOKEN" 2>&1 || echo "{}")
+              echo "reset: $RESET"
+              if ! echo "$RESET" | grep -q '"existed":false'; then
+                echo "FAIL persona-runner: DELETE /v1/session returned unexpected shape"
+                exit 1
+              fi
+              echo "OK persona-runner: /health + DELETE /v1/session both green"
+
+              # REAL /v1/turn — the only check that proves the agent loop serves
+              # (the ModuleNotFoundError COPY-gap that 502'd 2026-06-16 was invisible
+              # to /health and DELETE /v1/session, which never import the persona stack).
+              SMOKE_CH="cd-smoke-${{ github.run_id }}"
+              TURN_OK=""
+              for attempt in 1 2 3 4 5 6; do
+                BODY=$(curl -sS -m 120 -w '\nHTTP_CODE:%{http_code}' -X POST \
+                  "https://$FQDN/v1/turn" \
+                  -H "Authorization: Bearer $TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"channel_id\":\"$SMOKE_CH\",\"user_id\":\"cd-smoke\",\"user_text\":\"ping\"}" 2>&1 \
+                  || echo "HTTP_CODE:000")
+                CODE=$(echo "$BODY" | grep -o 'HTTP_CODE:[0-9]*' | cut -d: -f2)
+                echo "turn attempt $attempt -> HTTP $CODE"
+                if echo "$BODY" | grep -qiE "ModuleNotFoundError|No module named"; then
+                  echo "FAIL persona-runner: agent loop ModuleNotFoundError — broken image deploy"
+                  echo "$BODY" | head -5
+                  curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
+                    -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
+                  exit 1
+                fi
+                if [ "$CODE" = "200" ] && echo "$BODY" | grep -q '"text"'; then
+                  TURN_OK=1; break
+                fi
+                sleep 15
+              done
+              curl -sS -m 15 -X DELETE "https://$FQDN/v1/session/$SMOKE_CH" \
+                -H "Authorization: Bearer $TOKEN" >/dev/null 2>&1 || true
+              if [ -z "$TURN_OK" ]; then
+                echo "FAIL persona-runner: /v1/turn never returned a healthy 200 (agent loop down)"
+                exit 1
+              fi
+              echo "OK persona-runner: real /v1/turn served — agent loop alive"
+            else
+              echo "WARN persona-runner: token unavailable, skipping DELETE + turn checks"
+            fi
+          else
+            echo "INFO persona-runner: not yet provisioned, skipping health check"
+          fi
+
+      - name: Nothing-to-deploy notice
+        if: ${{ needs.detect.outputs.build_gw != 'true' && needs.detect.outputs.build_runner != 'true' && needs.detect.outputs.build_host != 'true' }}
+        run: echo "No surface changed since its running SHA — nothing built or deployed."

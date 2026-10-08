@@ -76,7 +76,7 @@ tail -f /opt/aire/aire.log                      # the lines, live
 
 The whole DO budget is **$20 USD/month**; the budgeted inventory is exactly one
 `s-1vcpu-512mb-10gb` droplet (~$4/mo, backups off) and nothing else. Enforced by
-`.github/workflows/costwatch.yml` (daily cron; fails red → GitHub email if
+the monorepo's `.github/workflows/aire-server-costwatch.yml` (daily cron; fails red → GitHub email if
 month-to-date usage crosses $10/$20, if the inventory drifts, or if backups get
 enabled) plus a $10 billing alert in the DO panel. Full law:
 [`.claude/rules/do-budget.md`](../../.claude/rules/do-budget.md). No paid resource

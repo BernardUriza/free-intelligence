@@ -1,16 +1,16 @@
-name: CI front
+name: aire-server CI front
 
 on:
   push:
     branches: [main]
-    paths: ["front/**", ".github/workflows/ci-front.yml"]
+    paths: ["apps/aire-server/front/**", ".github/workflows/aire-server-ci-front.yml"]
   pull_request:
     branches: [main]
-    paths: ["front/**", ".github/workflows/ci-front.yml"]
+    paths: ["apps/aire-server/front/**", ".github/workflows/aire-server-ci-front.yml"]
 
 defaults:
   run:
-    working-directory: front
+    working-directory: apps/aire-server/front
 
 jobs:
   build:
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: front/package-lock.json
+          cache-dependency-path: apps/aire-server/front/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run lint
@@ -60,7 +60,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: front/package-lock.json
+          cache-dependency-path: apps/aire-server/front/package-lock.json
       - run: npm ci
 
       # The daemon owns the DDL (the server half's law); CI only needs a table
@@ -93,7 +93,7 @@ jobs:
       # two-role shape. Grants and then PROVES the wall — so the mechanism the
       # front's whole existence rests on is exercised here, not assumed.
       - name: Raise the reader wall with the production script
-        working-directory: .   # the wall is the server's; this workflow defaults to front/
+        working-directory: apps/aire-server   # the wall is the server's; this workflow defaults to front/
         run: |
           pip install --quiet asyncpg
           AIRE_DATABASE_URL="$PEN_DSN" python3 server/infra/wall.py

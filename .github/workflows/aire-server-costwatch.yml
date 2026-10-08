@@ -1,4 +1,4 @@
-name: costwatch
+name: aire-server costwatch
 
 on:
   schedule:
@@ -281,4 +281,4 @@ jobs:
             echo "::error::AIRE_PULSE_TOKEN secret is missing — the canary is blind"
             exit 1
           fi
-          bash server/scripts/canary.sh
+          bash apps/aire-server/server/scripts/canary.sh

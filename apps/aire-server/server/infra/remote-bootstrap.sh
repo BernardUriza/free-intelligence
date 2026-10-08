@@ -22,15 +22,26 @@ ensure_swap() {
 }
 
 sync_repo() {
-  echo "    [remote] repo at $REMOTE_DIR (server/ only — the front never touches the body)…"
+  # The body follows the MONOREPO since 2026-10-08: aire-server lives at
+  # apps/aire-server inside free-intelligence. Only its server/ cone is ever
+  # materialized here, and $REMOTE_DIR/server is a symlink into it so every
+  # unit, logrotate and the watchdog keep saying /opt/aire/server.
+  echo "    [remote] repo at $REMOTE_DIR (apps/aire-server/server only — the front never touches the body)…"
   if [[ -d "$REMOTE_DIR/.git" ]]; then
-    git -C "$REMOTE_DIR" sparse-checkout set --cone server 2>/dev/null || true
-    git -C "$REMOTE_DIR" fetch --all --quiet
+    git -C "$REMOTE_DIR" remote set-url origin "$REPO_URL"
+    git -C "$REMOTE_DIR" config remote.origin.promisor true
+    git -C "$REMOTE_DIR" config remote.origin.partialclonefilter blob:none
+    git -C "$REMOTE_DIR" sparse-checkout set --cone apps/aire-server/server
+    git -C "$REMOTE_DIR" fetch --filter=blob:none --quiet origin main
     git -C "$REMOTE_DIR" reset --hard origin/main
   else
     # Partial + sparse: front/ blobs are never even downloaded to the droplet.
     git clone --filter=blob:none --sparse "$REPO_URL" "$REMOTE_DIR"
-    git -C "$REMOTE_DIR" sparse-checkout set --cone server
+    git -C "$REMOTE_DIR" sparse-checkout set --cone apps/aire-server/server
+  fi
+  if [[ ! -L "$REMOTE_DIR/server" ]]; then
+    rm -rf "$REMOTE_DIR/server"
+    ln -s apps/aire-server/server "$REMOTE_DIR/server"
   fi
 }
 

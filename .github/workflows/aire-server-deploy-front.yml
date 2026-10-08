@@ -1,4 +1,4 @@
-name: deploy-front
+name: aire-server deploy-front
 
 # Builds the image on the runner, pushes it to GHCR, and rolls the Container App
 # to it. Only on a green "CI front" — and that CI includes the attack suite, so a
@@ -10,7 +10,7 @@ name: deploy-front
 
 on:
   workflow_run:
-    workflows: [CI front]
+    workflows: [aire-server CI front]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -22,7 +22,9 @@ permissions:
 
 env:
   RG: insult-rg
-  IMAGE: ghcr.io/bernarduriza/aire-server/front
+  # Monorepo namespace since 2026-10-08 (the old aire-server/front package belongs
+  # to the retired repo and this GITHUB_TOKEN cannot push to it).
+  IMAGE: ghcr.io/bernarduriza/free-intelligence/aire-front
   APP: aire-front
 
 jobs:
@@ -50,7 +52,7 @@ jobs:
       - name: Build and push the image (context = front/)
         uses: docker/build-push-action@v6
         with:
-          context: front
+          context: apps/aire-server/front
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ env.SHA }}

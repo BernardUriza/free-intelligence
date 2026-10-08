@@ -1,11 +1,11 @@
-name: deploy-server
+name: aire-server deploy-server
 
 on:
   push:
     branches: [main]
     paths:
-      - "server/**"
-      - ".github/workflows/deploy-server.yml"
+      - "apps/aire-server/server/**"
+      - ".github/workflows/aire-server-deploy-server.yml"
   workflow_dispatch:
 
 concurrency:
@@ -44,13 +44,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        working-directory: server
+        working-directory: apps/aire-server/server
         run: pip install --quiet -r requirements.txt pytest pytest-asyncio
       - name: Thirty-line law check
-        working-directory: server
+        working-directory: apps/aire-server/server
         run: python3 scripts/check_law.py
       - name: pytest
-        working-directory: server
+        working-directory: apps/aire-server/server
         run: python3 -m pytest tests/ -q
 
   deploy:
@@ -77,10 +77,24 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new "root@${AIRE_VM_HOST}" bash -s <<'REMOTE'
           set -euo pipefail
           cd /opt/aire
-          # The front never rides to the droplet — the body materializes server/ only.
-          git sparse-checkout set --cone server 2>/dev/null || true
-          git fetch --all
+          # The box follows the MONOREPO since 2026-10-08: aire-server was absorbed
+          # into free-intelligence as apps/aire-server. A droplet still on the old
+          # remote migrates itself here, once, idempotently — same URL scheme (the
+          # credential it already holds keeps working), blobless fetch (a 10 GB box
+          # never materializes the monorepo's history) and a sparse cone that
+          # materializes server/ only: the front never rides to the droplet.
+          FI_URL=$(git remote get-url origin | sed 's#/aire-server\(\.git\)\?$#/free-intelligence.git#; s#:BernardUriza/aire-server\(\.git\)\?$#:BernardUriza/free-intelligence.git#')
+          if [ "$(git remote get-url origin)" != "$FI_URL" ]; then
+            git remote set-url origin "$FI_URL"
+            git config remote.origin.promisor true
+            git config remote.origin.partialclonefilter blob:none
+            git sparse-checkout set --cone apps/aire-server/server
+          fi
+          git fetch --filter=blob:none origin main
           git reset --hard origin/main
+          # Every unit, logrotate and the watchdog say /opt/aire/server — one symlink
+          # keeps that true, so nothing on the box had to learn the new layout.
+          if [ ! -L server ]; then rm -rf server; ln -s apps/aire-server/server server; fi
           # A new direct dependency (e.g. httpx for the gateway door) must land
           # with the code that imports it — provisioning is not the only installer.
           /opt/aire/.venv/bin/pip install -q --no-input -r server/requirements.txt
@@ -132,7 +146,7 @@ jobs:
             echo "::error::AIRE_PULSE_TOKEN secret is missing — the deploy would ship unverified"
             exit 1
           fi
-          bash server/scripts/canary.sh
+          bash apps/aire-server/server/scripts/canary.sh
 
       # A red canary means the code now on the box does not serve. The rollback is
       # printed, never automatic: the canary also goes red when ANTHROPIC is down,

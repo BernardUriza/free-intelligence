@@ -577,7 +577,7 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 3. On CI success, CD triggers automatically (workflow_run on CI completion)
 4. CD detects which surfaces changed, builds the per-surface images
    (`persona-gateway`, `persona-runner`, `khimeras-host`) on the runner with
-   buildx, pushes them to `ghcr.io/bernarduriza/discord-bot`, and deploys each
+   buildx, pushes them to `ghcr.io/bernarduriza/free-intelligence/server-bot`, and deploys each
    changed Container App in `insult-rg`
 5. Monitor CD deployment via `az` CLI:
    - `gh run list --workflow=cd.yml --limit=3` to check CD run status
@@ -586,6 +586,6 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 6. Once deployed, verify the persona responds in #general (version-tag probe via the debug Chrome)
 
 ### Key Resources
-- **Registry**: `ghcr.io/bernarduriza/discord-bot` (`persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`, plus the content-addressed `khimeras-base` / `khimeras-runner-base`). No ACR since 2026-08-12 — see `architecture.md` § Registry.
+- **Registry**: `ghcr.io/bernarduriza/free-intelligence/server-bot` since the monorepo absorption (2026-10-08; before that `ghcr.io/bernarduriza/discord-bot`, whose packages stay linked to the archived repo) (`persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`, plus the content-addressed `khimeras-base` / `khimeras-runner-base`). No ACR since 2026-08-12 — see `architecture.md` § Registry.
 - **Container Apps**: persona-gateway, persona-runner, khimeras-host (resource group: insult-rg); `discord-bot` retired at scale 0
-- **CD workflow**: `.github/workflows/cd.yml` — triggers on CI success on main
+- **CD workflow**: the monorepo's `.github/workflows/server-bot-cd.yml` — triggers on `server-bot CI` success on main

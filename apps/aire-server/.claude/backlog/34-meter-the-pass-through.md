@@ -13,7 +13,7 @@ per client.
 
 The canonical item — the three legs, the operations problem, the SRE research and the
 decisions that are the owner's — is
-`~/Documents/server-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`.
+`~/Documents/free-intelligence/apps/server-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`.
 **It is not restated here.** What this item owns is the one AIRE-shaped piece it names.
 
 **AIRE is the delivery vehicle**, and it already carries both halves the product sells:
@@ -135,7 +135,7 @@ anonymous showing "—". `npm run attack` green. The remaining owner decisions b
 unchanged.
 
 See the canonical item at
-`~/Documents/server-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`,
+`~/Documents/free-intelligence/apps/server-bot/.claude/backlog/servidor-llave-en-mano-personas-alex.md`,
 and [#32](32-the-nickname-door.md) (the nickname door and its slice (e), where the lending
 seam was built).
 

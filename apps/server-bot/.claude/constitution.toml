@@ -1,7 +1,0 @@
-profile = "shared"
-repo_id = "discord-bot"
-
-[core]
-id = "agent-constitution"
-repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "main"

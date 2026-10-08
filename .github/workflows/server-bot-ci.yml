@@ -1,0 +1,319 @@
+name: server-bot CI
+
+on:
+  push:
+    branches: [main]
+    # Docs-only changes under .claude/ (rules, backlog, plans) never affect the
+    # running bot, so they must NOT burn a full CI→CD redeploy (~20min image
+    # rebuild). Path-scoped triggers per the fi-runner-azure-deploy doctrine.
+    # NOTE: persona DNA lives in shared/personas/ (not under .claude), so
+    # persona edits still deploy — only .claude/ docs are skipped. CD is
+    # workflow_run on CI, so a skipped CI cascades to a skipped CD.
+    paths:
+      - 'apps/server-bot/**'
+      - '!apps/server-bot/.claude/**'
+      - '.github/workflows/server-bot-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/server-bot/**'
+      - '!apps/server-bot/.claude/**'
+      - '.github/workflows/server-bot-ci.yml'
+
+# One CI per ref: pushing twice in a minute used to run both to completion and
+# make the second deploy wait behind a run nobody was reading any more. The
+# newest commit is the only one whose result matters.
+concurrency:
+  group: server-bot-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Conda-native CI per memory feedback_no_pypi_only_conda.
+# All jobs install from environment.yml via `setup-micromamba`.
+# environment.yml channels: bernardurizaorozco (for fi-core) →
+# conda-forge (everything else).
+#
+# The micromamba action handles caching automatically via cache-environment
+# and cache-downloads, keyed on the env file's hash. First run on a new
+# environment.yml pays ~3-5 min of resolve+download; subsequent runs hit
+# the cache and start in ~30s.
+
+defaults:
+  run:
+    working-directory: apps/server-bot
+
+jobs:
+  # --- Layer 1: Lint & Format (fastest, runs first) ---
+  lint:
+    name: Ruff Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: apps/server-bot/environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
+
+      - name: Ruff lint
+        shell: bash -leo pipefail {0}
+        run: ruff check --output-format=github .
+
+      - name: Ruff format check
+        shell: bash -leo pipefail {0}
+        run: ruff format --check .
+
+  # --- Layer 2: Unit Tests + Coverage ---
+  test:
+    name: Tests + Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    # `pytest-postgresql` (used by tests/_pg_fixture.py) needs a `pg_ctl` binary
+    # at INSULT_PG_CTL so it can spin up an ephemeral PG instance per test
+    # session. We install postgresql-17 + pgvector from the official PGDG repo
+    # rather than using a service container — pytest-postgresql is a CLIENT of
+    # `pg_ctl init`, it does NOT connect to an already-running server. A
+    # `services: postgres:` block would be ignored by the fixture.
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: apps/server-bot/environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
+
+      - name: Install PostgreSQL 17 + pgvector (system, for pg_ctl)
+        # Adds the upstream PGDG apt repo, installs postgresql-17 server bin
+        # + the matching pgvector. We stop the auto-started service because
+        # `pytest-postgresql` owns the lifecycle of the test instance.
+        # NOTE: this is SYSTEM postgres for pg_ctl/server binaries, NOT a
+        # conda dep — pytest-postgresql shells out to pg_ctl directly and
+        # the conda postgresql package's bins are pathed for activated envs.
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          # SÓLO el repo de PostgreSQL, no los del runner. Un `apt-get update`
+          # global falla entero si CUALQUIER repo preinstalado está roto, y el
+          # 2026-09-09 el de Google Chrome devolvió `Hash Sum mismatch` dos veces
+          # seguidas: la suite completa se puso roja sin que nadie tocara el
+          # código, en un paso al que Chrome no le importa. Acotar la lista es
+          # mejor que un `|| true`, que también escondería un fallo del repo que
+          # sí necesitamos.
+          sudo apt-get update -qq \
+            -o Dir::Etc::sourcelist="sources.list.d/pgdg.list" \
+            -o Dir::Etc::sourceparts="-" \
+            -o APT::Get::List-Cleanup="0"
+          sudo apt-get install -y -qq postgresql-17 postgresql-17-pgvector
+          sudo systemctl stop postgresql || true
+
+      - name: Run tests with coverage
+        shell: bash -leo pipefail {0}
+        env:
+          # Tells `tests/_pg_fixture.py` where the postgres-17 pg_ctl lives so
+          # the asyncpg-backed tests run against a real PG instead of skipping.
+          INSULT_PG_CTL: /usr/lib/postgresql/17/bin/pg_ctl
+        run: pytest -v --tb=short --cov --cov-report=term-missing:skip-covered
+
+  # --- Layer 3: Security — Dependency Audit ---
+  security-deps:
+    name: Dependency Audit (pip-audit)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: apps/server-bot/environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
+
+      - name: Run pip-audit against the conda env
+        shell: bash -leo pipefail {0}
+        # pip-audit scans whatever's installed in the active env (conda + pip).
+        # CVE-2026-3219 (pip <= 26.0.1, tar+ZIP) was ignored here from
+        # 2026-04-26 while no fix existed; pip 26.1 shipped it and the env
+        # resolves 26.2.1, so the ignore was dropped 2026-09-07 (backlog
+        # cve-exploitability-review: "MITIGADO → DROP").
+        #
+        # CVE-2026-27205 (flask 2.2.5): pulled in transitively by pip-audit
+        # itself for its optional web-UI mode which we do NOT use. flask is
+        # never imported by application code; only pip-audit can reach it.
+        # Drop when conda-forge ships a pip-audit build that no longer
+        # transitively requires flask (or upgrades flask to 3.1.3+).
+        # CVE-2026-45409 (idna <3.15): transitive via httpx / urllib3 / others.
+        # idna is a domain-name parsing lib; the CVE is a DoS via crafted
+        # input. Application code does not pass user input to idna; only
+        # network libs use it for hostname validation. Threat surface is
+        # nil in CI/CD context. Conda-forge idna feedstock has not yet
+        # built 3.15 for py314 as of 2026-05-19. Drop when feedstock catches up.
+        #
+        # --- ML stack advisories (2026-05-20) — 21 PYSEC, NO upstream fix ---
+        # torch 2.10.0 (11), transformers 5.8.1 (8), joblib 1.5.3 (1),
+        # pyjwt 2.12.1 (1). pip-audit reports an empty "Fix Versions" column
+        # for ALL of them — there is no patched release to upgrade to. They
+        # are transitive deps of sentence-transformers (memory embeddings).
+        # The bot loads models from a trusted source (all-MiniLM-L6-v2 from
+        # HuggingFace) at startup, never from user input, so the dominant
+        # vector (malicious model / pickle deserialization) does not apply;
+        # residual risk is at most tokenizer ReDoS / bounded DoS on adversarial
+        # text. Authorized by Bernard 2026-05-20. Re-audit and drop each ID as
+        # its package publishes a fixed release.
+        #
+        # PYSEC-2026-161 (starlette <1.0.1, "BadHost"): missing Host-header
+        # validation lets an attacker inject paths into the host part,
+        # bypassing PATH-BASED security checks. MEDIUM. The fix is ONLY in
+        # starlette 1.0.1, which does NOT co-resolve with the bot's conda stack
+        # on py314 — the solver rejects starlette>=1.0.1 against the
+        # fastapi-core / mcp / sse-starlette chain (every installable starlette
+        # is <1.0.1, all carrying the CVE). The bot's only web surfaces (the
+        # bearer-token debug server + the internal agent runner) authenticate
+        # via TOKEN, not path-based routing security, so the CVE's actual vector
+        # does not apply to this deployment. Authorized by Bernard 2026-06-03.
+        # DROP the instant starlette 1.0.1 becomes co-installable (watch the
+        # fastapi / starlette conda-forge feedstocks).
+        #
+        # CVE-2026-34993 (aiohttp <3.14.0): CookieJar.load() with untrusted
+        # input may allow arbitrary code execution. MEDIUM (CVSS 6.4,
+        # AV:L/AC:H/PR:H/UI:R). aiohttp is transitive (discord.py's Discord-API
+        # client + the bearer-token debug server). The app NEVER calls
+        # CookieJar.load() on untrusted files — discord.py talks only to the
+        # trusted Discord API and the debug server is a plain aiohttp server,
+        # so the vector does not apply. Fix is aiohttp 3.14.0; conda-forge has
+        # not co-resolved it against the discord.py / py314 stack yet.
+        # Authorized by Bernard 2026-06-03. DROP when aiohttp 3.14.0 is
+        # co-installable.
+        #
+        # CVE-2026-47265 (aiohttp <3.14.0): cookies set via the per-request
+        # `cookies=` parameter are re-sent after a cross-origin redirect, leaking
+        # them if an attacker controls the redirect. MEDIUM (CVSS 6.6). The app
+        # NEVER uses the `cookies=` parameter (verified: discord.py auth is
+        # header-based, and since the Moltbook deletion of 2026-07-07 the app
+        # owns no outbound aiohttp ClientSession at all). Same
+        # fix (aiohttp 3.14.0, not yet in conda-forge for py314). Authorized by
+        # Bernard 2026-06-03. DROP with the other aiohttp ignore when 3.14.0 lands.
+        #
+        # CVE-2025-3000 (torch <=2.12.0): memory corruption via torch.jit.script.
+        # LOW severity, NO patched version published (GitHub advisory: patched=null
+        # as of 2026-06-10). torch is purely transitive (fi-core embeddings stack) —
+        # zero `import torch` / `torch.jit` anywhere in the surviving packages
+        # (verified by grep), so the vector does not apply. Surfaced fresh on
+        # 2026-06-10 22:26Z and broke main CI right after the PR-D merge (the PR
+        # branch run at 18:07Z predated the advisory). Authorized by Bernard
+        # 2026-06-10. DROP when torch publishes a fixed version.
+        #
+        # --- web-stack advisories surfaced 2026-06-16 (by the new JSON gate) ---
+        # GHSA-537c-gmf6-5ccf (cryptography 48.0.0): fix is 48.0.1, NOT yet on the
+        # conda-forge feedstock for py314 (verified: `mamba search cryptography>=48.0.1`
+        # → no entries). Transitive via the runner's TLS stack. DROP when 48.0.1 lands.
+        # CVE-2026-48818/48817/54283/54282 (starlette 0.52.1): all fixed only in
+        # starlette 1.x — a MAJOR bump from 0.52 that breaks the pinned fastapi/
+        # fi-runner envelope (the env notes warn about this exact cascade). starlette
+        # is the ASGI layer under the runner's FastAPI; the bot does not expose the
+        # vulnerable surfaces to untrusted input. Ignored to unblock CI; RE-AUDIT and
+        # bump to starlette 1.x once fastapi/fi-runner support it. NOT yet
+        # human-reviewed for exploitability — flagged for Bernard.
+        # --- advisories surfaced 2026-06-19 (by the new JSON gate) ---
+        # GHSA-6v7p-g79w-8964 (msgpack 1.1.2): fix is 1.2.1. Transitive
+        # serialization lib; the bot never deserializes UNTRUSTED msgpack — all
+        # msgpack traffic is its own internal data. DROP when conda-forge ships
+        # msgpack 1.2.1 for py314.
+        # GHSA-4xgf-cpjx-pc3j (pydantic-settings 2.14.1): fix is 2.14.2. The bot
+        # reads config only from trusted env / .env set by ops, never from user
+        # input, so the parsing vector is unreachable. DROP when conda-forge ships
+        # pydantic-settings 2.14.2 for py314.
+        # fi-core / fi-runner are conda-only (Bernard's channel, NEVER on PyPI by
+        # explicit policy). pip-audit can't audit them → "Dependency not found on
+        # PyPI" → exit 1, even with zero real vulns. That's a tooling gap, not a
+        # security finding: it detonates on any fresh-env CI (cache miss). So we
+        # parse pip-audit's JSON and fail ONLY on deps with actual (non-ignored)
+        # vulns; deps carrying a skip_reason (unauditable, not on PyPI) are
+        # reported and skipped — trusted via the conda channel. Real vulns still
+        # fail the build; the --ignore-vuln list above still applies.
+        run: |
+          pip-audit --format json \
+            --ignore-vuln CVE-2026-27205 \
+            --ignore-vuln CVE-2026-45409 \
+            --ignore-vuln PYSEC-2024-277 \
+            --ignore-vuln PYSEC-2025-183 \
+            --ignore-vuln PYSEC-2025-189 \
+            --ignore-vuln PYSEC-2025-190 \
+            --ignore-vuln PYSEC-2025-191 \
+            --ignore-vuln PYSEC-2025-192 \
+            --ignore-vuln PYSEC-2025-193 \
+            --ignore-vuln PYSEC-2025-194 \
+            --ignore-vuln PYSEC-2025-195 \
+            --ignore-vuln PYSEC-2025-196 \
+            --ignore-vuln PYSEC-2025-197 \
+            --ignore-vuln PYSEC-2025-210 \
+            --ignore-vuln PYSEC-2026-139 \
+            --ignore-vuln PYSEC-2025-211 \
+            --ignore-vuln PYSEC-2025-212 \
+            --ignore-vuln PYSEC-2025-213 \
+            --ignore-vuln PYSEC-2025-214 \
+            --ignore-vuln PYSEC-2025-215 \
+            --ignore-vuln PYSEC-2025-216 \
+            --ignore-vuln PYSEC-2025-217 \
+            --ignore-vuln PYSEC-2025-218 \
+            --ignore-vuln PYSEC-2026-161 \
+            --ignore-vuln CVE-2026-34993 \
+            --ignore-vuln CVE-2026-47265 \
+            --ignore-vuln CVE-2025-3000 \
+            --ignore-vuln GHSA-537c-gmf6-5ccf \
+            --ignore-vuln CVE-2026-48818 \
+            --ignore-vuln CVE-2026-48817 \
+            --ignore-vuln CVE-2026-54283 \
+            --ignore-vuln CVE-2026-54282 \
+            --ignore-vuln GHSA-6v7p-g79w-8964 \
+            --ignore-vuln GHSA-4xgf-cpjx-pc3j > /tmp/pip-audit.json || true
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("/tmp/pip-audit.json"))
+          skipped, real = [], []
+          for dep in data.get("dependencies", []):
+              if dep.get("skip_reason"):
+                  skipped.append(dep["name"])
+                  continue
+              if dep.get("vulns"):
+                  real.append((dep["name"], dep.get("version"), [v.get("id") for v in dep["vulns"]]))
+          if skipped:
+              print(f"pip-audit: skipped {len(skipped)} unauditable conda-only dep(s) not on PyPI "
+                    f"(trusted via channel): {', '.join(sorted(skipped))}")
+          if real:
+              print("pip-audit: REAL (non-ignored) vulnerabilities found:")
+              for name, ver, ids in real:
+                  print(f"  {name} {ver}: {', '.join(i for i in ids if i)}")
+              sys.exit(1)
+          print("pip-audit: no actionable vulnerabilities.")
+          PY
+
+  # --- Layer 4: Security — Static Code Analysis ---
+  security-code:
+    name: Code Security (bandit)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up conda env (cached)
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: apps/server-bot/environment.yml
+          environment-name: discord-bot
+          cache-environment: true
+          cache-downloads: true
+          init-shell: bash
+
+      - name: Run bandit
+        shell: bash -leo pipefail {0}
+        run: bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml

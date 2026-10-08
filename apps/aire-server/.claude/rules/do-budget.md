@@ -73,7 +73,7 @@ what is inside it.
 
 ## Enforcement (the parts that alarm on their own)
 
-- **`.github/workflows/costwatch.yml`** — daily cron: fails RED (→ GitHub
+- **`.github/workflows/aire-server-costwatch.yml`** (monorepo root) — daily cron: fails RED (→ GitHub
   emails Bernard) if month-to-date usage crosses **$10** (early warning) or
   **$20** (budget), if the droplet inventory drifts from the budgeted one, if
   any volume/snapshot/reserved-IP/LB/DB appears, or if backups get enabled.

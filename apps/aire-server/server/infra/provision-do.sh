@@ -34,7 +34,7 @@ ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow:
 BUDGET_FILE="$HOME/.secrets/aire-budget.txt"              # #25 cumulative spend backstop
 REMOTE_TOOLS_FILE="$HOME/.secrets/aire-remote-tools.txt"  # #48 remote-tool origin allowlist
 RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport
-REPO_URL="git@github.com:BernardUriza/aire-server.git"
+REPO_URL="git@github.com:BernardUriza/free-intelligence.git"   # aire-server lives at apps/aire-server since 2026-10-08
 REMOTE_DIR="/opt/aire"
 PG_SERVER="development-pg-n66dz"          # the pen's Azure Postgres
 PG_RG="insult-rg"
@@ -80,6 +80,6 @@ echo "  SSH       : ssh -i ~/.ssh/aire_vm root@$IP"
 echo "  Log       : ssh -i ~/.ssh/aire_vm root@$IP 'tail -f $REMOTE_DIR/aire.log'"
 echo ""
 echo "  Set the GitHub secrets so the CI/CD deploys on every push:"
-echo "    gh secret set AIRE_VM_HOST -R BernardUriza/aire-server -b \"$IP\""
-echo "    cat ~/.ssh/aire_vm | gh secret set AIRE_VM_SSH_KEY -R BernardUriza/aire-server"
+echo "    gh secret set AIRE_VM_HOST -R BernardUriza/free-intelligence -b \"$IP\""
+echo "    cat ~/.ssh/aire_vm | gh secret set AIRE_VM_SSH_KEY -R BernardUriza/free-intelligence"
 echo "============================================================"

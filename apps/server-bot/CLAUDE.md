@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Since 2026-10-08 this directory is `apps/server-bot` inside the free-intelligence
+monorepo** (the standalone `BernardUriza/server-bot` repo is archived; the PR and
+issue numbers cited across `.claude/` still resolve there). Everything below is
+relative to this directory. CI/CD lives at the monorepo root, prefixed:
+`server-bot-ci.yml` (conda env, tests, pip-audit, bandit), `server-bot-cd.yml`
+(GHCR images under `ghcr.io/bernarduriza/free-intelligence/server-bot/*` → Azure
+Container Apps) and `server-bot-dashboard-swa.yml`. The BAIR gatekeeper is the
+monorepo's `pr-gate.yml`. `.claude/rules/` here is read on demand — the monorepo
+root's `.claude/rules/` is what loads automatically.
+
 ## Commands
 
 This project is **conda-managed** (memory: `feedback_no_pypi_only_conda`).
@@ -27,7 +37,7 @@ conda run -n discord-bot pytest -k "test_disclosure" -v                # por nom
 ruff check . && ruff format .     # Lint + format (run before every commit)
 ruff check --fix .                # Auto-fix lint issues
 
-# Full CI locally (mirrors .github/workflows/ci.yml)
+# Full CI locally (mirrors the monorepo's .github/workflows/server-bot-ci.yml)
 ruff check . && ruff format --check . && pytest -v --cov && bandit -r persona_gateway/ demux_ai/ persona_core/ shared/ -c pyproject.toml && pip-audit
 ```
 
