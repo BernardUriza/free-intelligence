@@ -58,6 +58,9 @@ class TurnSpec:
     operator's roster. Bound at birth like the rest, so a turn that switches
     provider drops the warm client — and, until the mirror is re-primed into the
     new agent, its memory: one session, one provider, is the honest shape."""
+    lane: str = ""
+    """The consumer lane the DOOR derived from the token (`engine/lanes.py`), never
+    the caller's claim. Binds the credential at birth like the rest of the shape."""
 
 
 @dataclass(frozen=True)

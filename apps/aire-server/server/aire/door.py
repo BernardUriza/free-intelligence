@@ -30,6 +30,7 @@ from fastapi.responses import JSONResponse
 
 from . import lending, tokens
 from .bearer import ACCEPTED_TOKENS, accepted, presented_token
+from .engine.lanes import lane_of
 
 
 async def llm_door(request: Request, call_next: Any) -> Any:
@@ -46,6 +47,7 @@ async def llm_door(request: Request, call_next: Any) -> Any:
         return JSONResponse({"detail": "no LLM-door token is configured"}, status_code=503)
     presented = presented_token(request)
     if accepted(presented):
+        request.state.lane = lane_of(presented)  # a consumer with its own credential (lanes.py)
         return await call_next(request)
     refusal = _admit_invited(request, presented)
     return refusal if refusal else await call_next(request)

@@ -16,7 +16,7 @@ from fastapi import HTTPException
 
 from .agent_sdk import DEFAULT_PROVIDER, providers
 from .engine import DEFAULT_MODE, MODES
-from .engine.contract import Guard, RemoteTool
+from .engine.contract import Guard, RemoteTool, TurnSpec
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
@@ -93,6 +93,16 @@ def safe_remote_tools(raw: Any) -> tuple[RemoteTool, ...]:
         return clean_remote_tools(raw)
     except BadRemoteTool as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def turn_spec(body: dict[str, Any], lane: str = "") -> TurnSpec:
+    """The turn's shape from the wire, every field through its own gate. `lane`
+    is not the caller's to choose: the door derives it from the token presented."""
+    mode = safe_mode(body.get("mode"))
+    return TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
+                    model=safe_model(body.get("model")),
+                    remote_tools=safe_remote_tools(body.get("remote_tools")),
+                    provider=safe_provider(body.get("provider")), lane=lane)
 
 
 def build_guards(names: list[str]) -> list[Guard]:
