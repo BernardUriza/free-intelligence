@@ -1,0 +1,17 @@
+{
+  "name": "arbor-tts",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Headless black-box TTS using ChatGPT's Arbor (internal id 'fathom') voice via the undocumented /backend-api/synthesize endpoint, driven by Playwright with a persisted login.",
+  "scripts": {
+    "login": "node src/login.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "tts": "node src/cli.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "playwright": "^1.49.1"
+  }
+}

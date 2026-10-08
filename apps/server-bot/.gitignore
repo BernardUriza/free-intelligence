@@ -1,0 +1,47 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+*.db
+storage/
+.DS_Store
+
+# Test artifacts
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Film corpus source PDFs — copyrighted books, ingested locally into the
+# shared deep_memory corpus, never committed (6 MB, not a repo artifact).
+data/film_corpus_sources/
+
+# Per-persona RAG corpus sources — public-domain + open-access texts and any
+# copyrighted book atoms, ingested locally into deep_memory (scripts/ingest_corpus.py).
+# The source files stay local (like film_corpus_sources); only the MANIFEST.md
+# per folder is versioned so the provenance travels with the repo.
+data/corpus/**
+!data/corpus/**/
+!data/corpus/**/MANIFEST.md
+# Excepción: los documentos que escribió esta casa (registros de hilos propios de
+# Khimeras) SÍ se versionan — son texto nuestro, no una fuente de terceros.
+!data/corpus/unborn_being/khimeras_*.md
+
+# Claude Code tooling state (local-only, never commit)
+.claude/plans/
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/SESSION_STATE.md
+
+# ChatGPT data export — ALL personal conversations (therapy, finance, etc.)
+# 2.5GB, NEVER commit. Local-only working copy.
+data/chatgpt_export/
+.vultur_tok_tmp*
+data/vegan_corpus_sources/
+discord_backup_codes.txt
+
+# Working dir for tooling that dumps REAL #general messages (scripts/router_eval.py
+# writes its per-case detail here). Verbatim conversations — health, money, drugs.
+scratchpad/
+.claude/tmp_*
+.probe/

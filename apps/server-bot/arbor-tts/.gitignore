@@ -1,0 +1,11 @@
+node_modules/
+auth/
+output/
+.env
+*.mp3
+*.aac
+*.ogg
+*.m4a
+
+# persisted ChatGPT conversation id (runtime state)
+.last_conversation

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Khimeras — Checklist Monorepo Post-Demux</title>
+<style>
+  :root {
+    --bg: #210E1B;
+    --panel: #2d1526;
+    --panel2: #3a1c31;
+    --text: #e8dce4;
+    --muted: #a08898;
+    --accent: #e85d9a;
+    --green: #5dd39e;
+    --amber: #e8b85d;
+    --red: #e87a5d;
+    --border: #4a2a3e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    line-height: 1.5;
+    padding: 2rem 1rem 4rem;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+  h1 .v { color: var(--accent); }
+  .sub { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+  .progress-bar {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    height: 14px;
+    overflow: hidden;
+    margin-bottom: .4rem;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    width: 0%;
+    transition: width .3s ease;
+  }
+  .progress-label { color: var(--muted); font-size: .8rem; margin-bottom: 2rem; }
+  details {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  summary {
+    cursor: pointer;
+    padding: .9rem 1.1rem;
+    font-weight: 600;
+    font-size: 1.02rem;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--accent); transition: transform .2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary .count { margin-left: auto; font-size: .78rem; color: var(--muted); font-weight: 400; }
+  .phase-tag {
+    font-size: .68rem;
+    padding: .1rem .5rem;
+    border-radius: 99px;
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+  .tag-done   { background: rgba(93,211,158,.15); color: var(--green); border: 1px solid var(--green); }
+  .tag-active { background: rgba(232,184,93,.15); color: var(--amber); border: 1px solid var(--amber); }
+  .tag-gated  { background: rgba(232,122,93,.15); color: var(--red); border: 1px solid var(--red); }
+  .tag-future { background: rgba(160,136,152,.12); color: var(--muted); border: 1px solid var(--muted); }
+  .items { padding: 0 1.1rem 1rem; }
+  label.item {
+    display: flex;
+    align-items: flex-start;
+    gap: .65rem;
+    padding: .5rem .6rem;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  label.item:hover { background: var(--panel2); }
+  label.item input {
+    margin-top: .28rem;
+    accent-color: var(--accent);
+    width: 15px; height: 15px;
+    flex-shrink: 0;
+  }
+  label.item input:checked + .txt { color: var(--muted); text-decoration: line-through; }
+  .txt b { color: var(--accent); font-weight: 600; }
+  label.item input:checked + .txt b { color: var(--muted); }
+  .txt code {
+    background: var(--panel2);
+    padding: .08rem .35rem;
+    border-radius: 4px;
+    font-size: .84em;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .note {
+    margin: .3rem .6rem .6rem 2.4rem;
+    padding: .5rem .8rem;
+    border-left: 3px solid var(--amber);
+    background: rgba(232,184,93,.07);
+    font-size: .82rem;
+    color: var(--muted);
+    border-radius: 0 6px 6px 0;
+  }
+  .tree {
+    background: #1a0a15;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: .82rem;
+    line-height: 1.65;
+    white-space: pre;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+    color: #d8c8d2;
+  }
+  .tree .c { color: var(--muted); }
+  .tree .hl { color: var(--accent); font-weight: 600; }
+  footer { margin-top: 2.5rem; color: var(--muted); font-size: .75rem; text-align: center; }
+  /* ocultar ítems completados cuando toggle activo */
+  .items.hide-done label.item:has(input:checked) { display: none; }
+  .toggle-done {
+    margin-left: .5rem;
+    background: rgba(232,93,154,.1);
+    border: 1px solid rgba(232,93,154,.3);
+    color: var(--accent);
+    border-radius: 99px;
+    padding: .1rem .55rem;
+    font-size: .68rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background .15s;
+    vertical-align: middle;
+    line-height: 1.4;
+  }
+  .toggle-done:hover { background: rgba(232,93,154,.25); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Khimeras <span class="v">→</span> Monorepo Post-Demux</h1>
+<p class="sub" style="border:2px solid #c0392b; padding:8px; font-weight:bold">🧊 SELLADO 2026-07-08 — 64/79 completados. Archivo HISTÓRICO, no se edita más. El checklist ACTIVO (Checklist 2, 25 pendientes) vive en ~/Desktop/khimeras-demux-checklist.html y sellado-gemelo en el repo.</p>
+<p class="sub">Checklist de lo que falta para llegar al árbol objetivo consensuado con el coagent (2026-06-11). El progreso se guarda en este navegador (localStorage).</p>
+
+<div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
+<p class="progress-label" id="plabel">0 / 0 completados</p>
+
+<div class="tree"><span class="c"># Árbol objetivo (consensuado con el coagent orquestador)</span>
+discord-bot/
+├─ <span class="hl">demux_ai/</span>          <span class="c"># host ligero: onboarding, routing, gpt-4.1/CodexBackend</span>
+├─ <span class="hl">personas/</span>
+│  ├─ insult/          <span class="c"># cogs/ core/ prompts/ infra/ composition.py</span>
+│  └─ alice/           <span class="c"># misma estructura, sibling simétrico</span>
+├─ <span class="hl">khimeras_shared/</span>   <span class="c"># contratos/infra compartida REAL (2+ consumers)</span>
+├─ tests/              <span class="c"># arch/ chat/ core/ integration/</span>
+└─ .claude/plans/</div>
+
+<details open>
+<summary>⚠ INCIDENTE 2026-06-25 · Recovery de prod + siguiente paso (veredicto coagent) <span class="phase-tag tag-active">EN CURSO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="inc-recovery" checked><span class="txt"><b>✅ Insult REVIVIDO desde cero (2026-06-25).</b> Causa raíz: <b>billing suspendió la subscription de Azure</b> → todo el compute murió ~15h (05:01→20:41 UTC). Pagado (invoice <code>G163074988</code> $131.25). Se borró <code>insult-env</code> para recrearlo; el create en <code>eastus</code> falló por <code>ManagedEnvironmentCapacityHeavyUsageError</code> (AKS sin capacidad en la región) dejando un env <b>Failed</b> que bloqueaba el 5º slot. <b>Fix:</b> borrar el cadáver + recrear <b>prod-env en EASTUS2</b> (<code>greendune-53f1f4af.eastus2.azurecontainerapps.io</code>). <code>insult-runner</code> + <code>discord-bot</code> recreados vía YAML desde imagen <code>da2dee7</code> (v4.21.99) + secrets de <code>~/.secrets</code>. <b>Verificado por contrato real (no /health):</b> runner <code>/v1/turn</code> → "Vivo" 200 end_turn; discord-bot <code>bot_ready guilds=1</code>, Postgres intacto (21 tablas), y <b>round-trip real en #general a las 20:56 UTC</b> respondiendo al mensaje de Bernard (atado a <code>chat_turn_end</code> en backend). <code>cd.yml</code> actualizado al FQDN eastus2. Breadcrumb en <code>~/.secrets/discord-bot-RECOVERY-STATE.md</code>.</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p0-alice" checked><span class="txt"><b>✅ P0 — alice-bot RECREADO (2026-06-26, reconciliado 2026-07-03)</b> — Container App <code>alice-bot</code> creado 2026-06-26T04:36Z en <code>prod-env</code> (eastus2), imagen <code>alice-bot:c245947</code> (v4.21.109), Running minReplicas=1. Contrato real verificado por logs: <code>alice_responding invited_by=user_mention</code> + <code>alice_turn_complete</code> en #general (2026-06-30 02:01Z), en su propio path gpt-4.1. ORIGINAL: (token perdido en el incidente, regenerado por Bernard). ⚠️ Su recreación abrió el P0 doble-host de abajo.</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p0-alice-doublehost" checked><span class="txt"><b>✅ P0 RESUELTO (2026-07-04) — ALICE single-host stabilization ejecutada completa</b> (GO del coagent vía /exchange-coagent). ORIGINAL: doble-host descubierto 2026-07-03 — el deploy c245947 arrancó ALICE en el gateway (Claude) con <code>alice-bot</code> legacy (gpt-4.1) vivo con el mismo token; <b>doble reply observado</b> 2026-06-30 #general (02:01:08 legacy <code>chars=1350</code> + 02:01:27 gateway <code>chars=1739</code>). <b>Ejecución:</b> (1) <code>/invite</code> portado al gateway — <b>v4.21.110</b> commit <code>b6fab70</code>, 7 tests, CI/CD verdes; (2) ingress INTERNO puerto 8788 + secret <code>insult-to-alice-token</code> (gotcha cazado: el token de <code>~/.secrets</code> estaba STALE vs el secret store de discord-bot → 401; sincronizado desde el caller, archivo actualizado); (3) <code>ALICE_INVITE_URL</code> → <code>vultur-gateway.internal…/invite</code> (rev discord-bot 0000011); (4) <b>verificado por contrato real en #general</b>: @A.L.I.C.E. → UNA respuesta ("Viva y contigo, Bern." 21:49Z, <code>persona_gateway_turn_complete turn_kind=mention</code>, runner claude-sonnet-4-6) + POST /invite con el token del caller → <b>202</b> → respuesta de ALICE aterrizó en el canal (21:56Z); (5) <b>alice-bot legacy DESACTIVADO</b> (revision deactivate, 0 réplicas) — en SOAK. <b>✅ SOAK CERRADO + LEGACY ELIMINADO (2026-07-05, "dale" de Bernard):</b> soak limpio (0 réplicas, 0 filas de log desde el deactivate, gateway sin errores) → cirugía CD <b>v4.21.112</b> <code>9ec843e</code> (alice-bot fuera de cd.yml + <code>Dockerfile.alice</code> borrado + param del arch test retirado — sin esto, cualquier cambio a environment.yml habría deployado contra un CA inexistente) → <code>az containerapp delete alice-bot</code> ejecutado. Familia: discord-bot + vultur-gateway (ALICE/Vultur/Frugívoro) + persona-runner. <b>Fix del supresor TAMBIÉN aterrizado: v4.21.113</b> <code>783b00d</code> — mensaje que ABRE con "insult"/@Insult ya no se suprime aunque nombre un sibling (5 tests nuevos, positivo+resistencia); ✅ E2E verificado (2026-07-05 07:47Z): el mensaje exacto que ayer moría en el supresor ("insult, invita a alice…") llegó a Insult y respondió en personaje con tag <code>ᵛ⁴·²¹·¹¹³</code>. ⚠️ La misma prueba destapó que la convocatoria fue teatro sin REST: <code>agent_client.py</code> regresa <code>tool_calls=[]</code> hardcodeado y el runner no conoce <code>invoke_alice</code> → el invite orgánico solo dispara vía failover desde el cutover al runner (endpoint /invite sí verificado E2E). ✅ Slice <code>[INVITE:]</code> APROBADO por Bernard y SHIPPED (2026-07-05, <b>v4.21.114</b> <code>3f871a5</code>): <code>invites.py</code> espejo de remembers + wiring S4/mutation/rescue + sección persona.md. <b>E2E verificado 08:16Z en #general</b>: "insult, invita a alice" → Insult ᵛ⁴·²¹·¹¹⁴ (marcador stripped) → <code>invite_marker_fired accepted=True</code> → <code>persona_gateway_invite_accepted</code> → <code>turn_complete turn_kind=invite</code> → ALICE entregó en el mismo minuto. El invite orgánico Insult→ALICE vive de nuevo, ahora vía el contrato de marcadores del runner. <b>Hallazgo colateral (pre-existente):</b> <code>addressed_to_sibling</code> suprime a Insult con CUALQUIER alias como palabra — "insult, invita a alice" nunca llega a Insult (<code>msg_skipped_addressed_to_sibling</code> 21:50Z); el invoke_alice orgánico solo puede disparar en turnos que no nombren a ALICE. Candidato a fix: no suprimir cuando el mensaje abre dirigiéndose a Insult.</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p0-kql-workspace"><span class="txt"><b>🚨 P0 OBSERVABILIDAD (descubierto 2026-07-03) — el prod-env recuperado loguea a OTRO workspace de Log Analytics.</b> <code>prod-env</code> (eastus2) → customerId <code>14ebd989-62d2-4207-b099-f6e13256fd72</code>; toda la doctrina KQL-first (<code>scripts/kql.sh</code>, <code>docs/kql_queries.md</code>, memorias, testing.md) apunta al workspace viejo <code>a07bf4c8-…</code> que está VACÍO desde el recovery → todo query documentado regresa cero filas silenciosamente (fake-"no events"). <b>Fix:</b> actualizar <code>scripts/kql.sh</code> + docs + memoria al workspace nuevo (o re-apuntar el env al workspace viejo, decisión de Bernard).</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p0-vultur" checked><span class="txt"><b>✅ P0 — vultur-gateway RECREADO (2026-06-25)</b> — image <code>vultur-gateway:9b078e3</code>, eastus2, sin ingress, 0.5cpu/1Gi. <code>persona_gateway_ready guilds=1 persona_id=vultur</code> + TTS. <b>Voz Vultur verificada</b> por <code>/v1/turn persona_id=vultur</code> ("No recomiendo películas… el cine es fetichismo formal" = Vultur, NO Insult). ORIGINAL: (imagen <code>vultur-gateway:da2dee7</code> lista; <code>vultur-discord-token.txt</code> existe). Criterio: gateway live + <code>persona_id=vultur</code> responde <b>en voz Vultur</b> (no Insult) + TTS/config verificada si aplica. Sin Vultur vivo el router puede decidir vultur pero no se valida delivery ni fallback real.</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p0-consolidation" checked><span class="txt"><b>✅ P0 — job fact-consolidation RECREADO (2026-06-25)</b> — image <code>insult-bot:da2dee7</code>, cron <code>0 7 */2 * *</code>, command <code>["python","-m","personas.insult","consolidate-facts"]</code>. <b>Arranque verificado</b> (Failed@80s → Running&gt;270s procesando tras fix). <b>GOTCHA registrado:</b> el job importa <code>config.settings</code> que exige <code>discord_token</code> required → 1er run Failed sin DISCORD_TOKEN; fix = añadir secret <code>discord-token</code>. Run manual detenido para no contender con el runner vivo; corre real en su cron dead-air. ORIGINAL: (cron de higiene del data plane). Criterio: job existe + dry/safe run o último run exitoso visible + <b>NO toca Tier B</b> (cap ZERO se queda).</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p1-dr"><span class="txt"><b>P1 — DR/IaC mínimo del incidente</b> (runbook reproducible, no Terraform perfecto). Documentar: causa (billing suspension destruyó compute), reconstrucción eastus2, recursos no recreados automáticamente, secretos que no sobrevivieron / requieren Bernard, FQDNs nuevos, checklist de recovery por servicio, comandos <code>az</code>/scripts idempotentes. <b>Criterio:</b> otra persona reconstruye el compute sin depender de la memoria del chat.</span></label>
+  <label class="item"><input type="checkbox" data-k="inc-p2-measure"><span class="txt"><b>P2 — reiniciar la medición HOST 5 (router cutover readiness)</b> SOLO con la familia completa. Resetear la ventana A.2.3 desde la <b>rev post-recovery</b>: #general only, direct transport, prompt de intención actual, familia completa, target ≥50 decisiones o varios días. El incidente <b>no invalida</b> el milestone HOST 5, pero sí <b>invalidó la ventana de medición previa</b> (el shadow estuvo muerto ~15h). <b>UPDATE 2026-07-03:</b> familia completa desde 2026-06-26 (alice-bot recreado) + harness de readiness YA en main (PR #28, v4.21.109, merge <code>c245947</code> 2026-06-30) → este item quedó DESBLOQUEADO; falta correrlo sobre la ventana post-recovery. OJO: el harness lee KQL — depende del fix del workspace (P0 observabilidad arriba).</span></label>
+</div>
+<div class="note">🧭 Veredicto del coagent (2026-06-25, vía /exchange-coagent): <b>orden = P0 (familia) → P1 (DR) → P2 (medición)</b>. <b>NO-GO ahora:</b> router implicit cutover, PR-4c ALICE→Claude, HOST onboarding nuevo. Razón: "cerrar lo ya abierto &gt; abrir otra migración de persona"; medir el router con familia incompleta no vale. Primero vuelve a estar viva la familia; luego mides.</div>
+</details>
+
+<details>
+<summary>0 · Pre-requisito: estabilizar el data plane (facts dedup) <span class="phase-tag tag-done">DONE</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p0-pr1" checked><span class="txt"><b>PR-1</b> — dedup write-path en <code>merge_facts_additive</code> (copias exactas normalizadas). Mergeado a main (#23, v4.21.27).</span></label>
+  <label class="item"><input type="checkbox" data-k="p0-pr1-prod" checked><span class="txt"><b>PR-1 validado en prod</b> — CD verde ✓, rev 0000105 LIVE ✓ (sin ActivationFailed), health OK ✓ (gw 16.7ms, pg 18ms). FALTA solo: observar la convergencia del snapshot (31,590 → ~1,517 filas en el primer save natural por usuario).</span></label>
+  <label class="item"><input type="checkbox" data-k="p0-pr2" checked><span class="txt"><b>PR-2</b> — UNIQUE index parcial <code>(principal_id, md5(norm)) WHERE deleted_at IS NULL AND source='auto'</code>. Solo después de la convergencia de PR-1.</span></label>
+  <label class="item"><input type="checkbox" data-k="p0-pr3" checked><span class="txt"><b>PR-3</b> — near-miss folding. <b>RE-ALCANCE (2026-06-14):</b> partido en dos tiers. <b>Tier A</b> (fold determinista ortográfico-puro: NO tira ninguna palabra, preserva dígitos/dueños/entidades, SIN LLM ni cosine) = <em>code-ready + 19 tests verdes</em> (refinado 2026-06-14: cerrados 2 hoyos — drop de posesivos fusionaba "su dinero"/"mi dinero"; colapso de números fusionaba "3,5"/"35") (<code>core/near_miss_fold.py</code>, ADR en <code>.claude/plans/pr3_near_miss_fold.md</code>). <b>Tier B</b> (juez LLM semántico) SIGUE CONGELADO (cap ZERO se queda — fue lo que sepultó a Alex). <b>APLICADO en prod 2026-06-14:</b> dry-run (98 grupos / 99 losers / 4.9%, invariantes 0/0/0) → apply soft-delete <b>2020→1921</b> (197 audit rows, bot quieto >600s, idempotente). Etapa 0 CERRADA (PR-1 + PR-2 + PR-3 Tier A). Tier B sigue congelado.</span></label>
+  <label class="item"><input type="checkbox" data-k="p0-adr-cierre" checked><span class="txt"><b>ADR de cierre</b> — estado final del árbol, fases y capabilities existentes, lecciones aprendidas, mapa de ownership actualizado, qué se considera arquitectura estable para el demux. Recomendado por el coagent (2026-06-12) al cerrar el programa ratchet 14→0.</span></label>
+</div>
+<div class="note">⛔ Gate actualizado (2026-06-12): Coagent cerró el programa ratchet (14→0, 1531 tests, 78.43% cov). Recomendación: congelar arquitectura, observar convergencia real de facts dedup, luego decidir si PR-3 sigue siendo necesario. PR-3 BLOQUEADO hasta confirmar convergencia. ADR de cierre = siguiente acción desbloqueada.</div>
+<div class="note">✅ Convergencia CONFIRMADA en prod (2026-06-14, query directa a Postgres): 31,590 → <b>2,020</b> filas auto vivas (Bernard 1331 + Alex 689, 2 usuarios). <b>0 grupos de duplicados exactos-normalizados, 0 filas redundantes</b>. Índice PR-2 <code>idx_pf_auto_dedup</code> presente. El gate de PR-3 (convergencia observada de PR-1) está SATISFECHO. Medición de near-miss (self-join pgvector): 404 pares ≥0.95 sim (~⅓ de las 2,020), dominados por restatements triviales (coma/artículo/acento/separador de miles) — causa raíz = extracción ADD-only (v4.20.11) acumula re-frases. PR-3 SÍ es necesario, pero como se leía ("subir el cap del juez") re-armaba el P0 de Alex. Resuelto por split en dos tiers → ver item PR-3.</div>
+</details>
+
+<details>
+<summary>1 · Cerrar el ratchet de import boundaries (4 → 0) <span class="phase-tag tag-done">DONE</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p1-gov1" checked><span class="txt">Governance: <code>__main__ → memory</code> ✓ PR-gov v4.21.37</span></label>
+  <label class="item"><input type="checkbox" data-k="p1-gov2" checked><span class="txt">Governance: <code>__main__ → memory_consolidator</code> ✓ PR-gov v4.21.37</span></label>
+  <label class="item"><input type="checkbox" data-k="p1-gov3" checked><span class="txt">Governance: <code>app → memory</code> ✓ PR-gov v4.21.37</span></label>
+  <label class="item"><input type="checkbox" data-k="p1-voice" checked><span class="txt"><code>voice → transcribe</code> — <b>TranscriptionPort</b> en <code>cogs/voice/ports.py</code> ✓ PR-voice v4.21.38</span></label>
+</div>
+<div class="note"><strong>PROGRAMA DE RATCHET COMPLETO — 0 violations.</strong> Recorrido total 22 → 0 (relocations 22→12, capability/domain seams PR-A..G 12→4, governance PR-gov 4→1, transcribe PR-voice 1→0). El xfail goal test promovido a gate permanente de regresión (2 passed). ADR de cierre: <code>.claude/plans/ratchet_program_closure.md</code> + copia en <code>~/Desktop/ratchet_program_closure.md</code>. Recomendación del coagent: CONGELAR arquitectura unas semanas; lo siguiente ya no es refactor de ratchet sino demux físico (Sección 3) o evolución de producto.</div>
+</details>
+
+<details>
+<summary>2 · Forma interna de insult/ (pre-move) <span class="phase-tag tag-future">FUTURO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p2-comp" checked><span class="txt">Extraer <code>composition.py</code> — único lugar que conoce implementaciones concretas (hoy el wiring vive en <code>app.py</code> / Container).</span></label>
+  <label class="item"><input type="checkbox" data-k="p2-pipeline" checked><span class="txt">Consolidar <code>pipeline.py</code> con los DTOs S1–S5 (separado de <code>stages.py</code>, que queda como orquestación thin).</span></label>
+  <label class="item"><input type="checkbox" data-k="p2-contracts" checked><span class="txt">Crear <code>core/contracts/</code> (presets, flows, history, arc/facts si hace falta) — contratos separados de implementación.</span></label>
+  <label class="item"><input type="checkbox" data-k="p2-infra" checked><span class="txt"><s>Crear <code>insult/infra/</code> y mover ahí <code>memory.py</code>, <code>memory_consolidator.py</code>, <code>llm_clients</code>, <code>postgres</code></s> — <strong>AUDITADO: no-action</strong> (2026-06-12). <code>memory.py</code> monolítico ya no existe: fue descompuesto en <code>insult/core/memory/</code> (paquete). Las piezas puras de infra (<code>connection.py</code>, <code>base.py</code>, <code>minilm_embedder.py</code>) viven DENTRO del paquete, cero callsites externos — moverlas a <code>infra/</code> no crea seam nuevo. <code>memory_consolidator.py</code> = dominio/servicio, no infra. <code>metrics.py</code> + <code>backup.py</code> + <code>vectors.py</code> = infra sueltos en <code>core/</code> pero valor del move bajo vs. riesgo de imports. Coagent eligió C: no mover, documentar.</span></label>
+  <label class="item"><input type="checkbox" data-k="p2-prompts" checked><span class="txt">Migrar prompts inline pendientes a <code>insult/prompts/*.md</code>: <s><code>presets/guidance.py</code> ✓ v4.21.29</s>, <s><code>presets_llm.py</code> ✓</s>, <s><code>flows/guidance.py</code> + <code>flows/prompt.py</code> ✓ v4.21.30</s>, <s><code>stance_log.py</code> ✓ v4.21.31</s>, <code>character/prompts.py</code> (pendiente reevaluación), <del>summaries.py</del> (deprecated, saltar), <del>image_summary.py</del> (no existe).</span></label>
+  <label class="item"><input type="checkbox" data-k="p2-voicedir" checked><span class="txt">Reorganizar <code>cogs/voice/</code> como paquete (<code>cog.py</code> + <code>ports.py</code>).</span></label>
+</div>
+<div class="note">Regla del coagent: chat.stages = phase orchestration, no dueño de nouns. composition.py conoce concretos. *ports.py define fronteras. core/* conserva behavior/state. Sin fake cuts. — Mapa p2-infra (2026-06-12): connection.py/base.py/minilm_embedder.py = PURA INFRA (dentro del paquete memory/, 0 callsites externos). context.py/store.py/repositories/ = DOMINIO (6 callsites externos). memory_consolidator.py = DOMINIO/servicio (política de negocio, no infra). metrics.py/backup.py/vectors.py = INFRA suelta en core/, candidatos menores. llm/ = infra-adyacente, 5+ callsites.</div>
+</details>
+
+<details open>
+<summary>3 · Demux físico del monorepo <span class="phase-tag tag-active">EN CURSO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p3-personas" checked><span class="txt">Crear <code>personas/</code> y mover <code>insult/</code> → <code>personas/insult/</code> (imports, pyproject, Dockerfile, CD). ✓ v4.21.39 — 1532 tests verdes, ruff limpio.</span></label>
+  <label class="item"><input type="checkbox" data-k="p3-alice" checked><span class="txt">Mover <code>alice/</code> → <code>personas/alice/</code> como sibling simétrico (su propia cogs/, core/, prompts/, composición).</span></label>
+  <label class="item"><input type="checkbox" data-k="p3-demux" checked><span class="txt">Crear <code>demux_ai/</code> top-level (carpeta) — ✓ <code>__init__.py</code> v4.21.39. <b>⚠️ SOLO el esqueleto: 0 bytes, el HOST no existe.</b> Pasos reales del host abajo (foldeados del ADR 2026-06-14).</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-0" checked><span class="txt"><b>HOST paso 0 — DECIDIDO (Bernard, 2026-06-16):</b> mismo proveedor que ALICE = <b>Azure OpenAI</b> (cuenta <code>insult-openai</code>, deployment <code>gpt-4.1</code>, northcentralus) <b>vía <code>fi_runner.CodexBackend</code></b> — NO AsyncAzureOpenAI directo. Coincide con la spec del coagent ("gpt-4.1/CodexBackend"). Patrón canónico a clonar: <code>personas/alice/core/llm.py</code> (misma key, mismo deployment, misma factura). Gate de PR-4b cerrado.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-1" checked><span class="txt"><b>HOST paso 1 ✅ DONE</b> — ya cubierto por <code>demux_ai/host_llm.py</code> (<code>HostRouterLLM.complete()</code>, CodexBackend gpt-4.1 reciclado de <code>personas/alice/core/llm.py</code>, sin persona/antidrift) que aterrizó como <b>PR-4b slice 1</b> (commit <code>f676be3</code>, v4.21.66). Reconciliado 2026-06-18 (vía /exchange-coagent→/ultra-lord): el entregable "host_complete() + test" = <code>complete()</code> + <code>tests/test_host_router_llm.py</code> (3/3 verde). NO se escribió <code>llm.py</code> nuevo — habría sido superficie paralela (Art. 6).</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-2" checked><span class="txt"><b>HOST paso 2 ✅ VIVO EN PROD (2026-07-08): el demux decide persona SIN @mención y la cara correcta contesta.</b> Cerebro = gpt-4.1 context-aware (últimos 8 msgs del canal, prompt en <code>demux_ai/prompts/host_routing.md</code> editable sin redeploy, budget $5/sem, timeout 3s, fail-safe total a Insult).
+<br>• <b>v4.22.0 (jul-6)</b>: router context-aware + las 4 personas en el prompt (antes no podía elegir frugivoro — root del P0 frugi).
+<br>• <b>v4.22.2 (jul-7)</b>: P0 continuaciones — "Eres un buitre no-cis" / "Soy presagio" ruteaban insult AUN con contexto (el candado "vultur ONLY film" aplastaba la continuación). Fix: continuación = RULE 1 "regardless of topic" + mapa display-name→target + ejemplos fundacionales. Replay vivo 6/6.
+<br>• <b>v4.22.4 (jul-7)</b>: slice C construida flag-off — stage tras memory_store: turno implícito → route() on-path → sibling → StageStop a Insult + <code>/invite persona_id</code> del gateway (cara propia). 17+3 tests.
+<br>• <b>FLIP ON + E2E (jul-8 00:40Z, rev 0000037)</b>: pre-flip checklist del coagent cumplido (visión sibling pixel-perfect, primera divergencia real, fail-safes). Cadena completa 00:42Z: probe sin mención → <code>llm_router_cutover_decision target=vultur</code> → invite accepted → <code>outcome=routed_to_vultur</code> (Insult callado) → Vultur contestó con SU cara (<code>turn_kind=invite</code>).
+<br>• <b>Vigilancia</b>: si aparecen timeouts del route en KQL (2.8s rozó el cap de 3s), subir <code>LLM_ROUTER_CUTOVER_TIMEOUT_SECONDS=5</code>; alerta <code>invite-accepted-without-completion</code> ya cubre el turno-mudo post-202. El mismo b6775cb llevó el fix de VISIÓN (attachments a khimeras_shared; el gateway nunca leía <code>message.attachments</code>).</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-addressing-p0" checked><span class="txt"><b>✅ P0 addressing contract (2026-07-06, PR #33 v4.22.0)</b> — Insult usurpaba turnos de Frugi + silencios de 5 min en #general. Root: el gate de suppression de Insult y el summon del gateway evaluaban predicados DISTINTOS (alias en cualquier posición vs mention-only) → mensajes caían en el hueco. Fix: <code>shared/personas/addressing.py</code> (UN predicado, dos consumidores): vocativo = address, alias tras marcador de objeto ("dile <b>a</b> frugi") = Insult contesta normal; gateway dispara con vocativos de SU persona; edits que AGREGAN mención re-evalúan ambos lados (<code>retract_if_pending</code> + <code>edit_summons</code>). Regla nueva en playbook: <code>omission-is-a-failure-class.md</code> (el cutover diferido 3 semanas con gate verde ES la causa raíz meta).</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-3"><span class="txt">HOST paso 3: <code>demux_ai/onboarding.py</code> — bienvenida a nuevos miembros (<code>on_member_join</code>) vía <code>llm.py</code>. Test. <i>(Sigue FUTURO — única pieza del host no tocada por el strangler-fig de hoy.)</i></span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-4" checked><span class="txt">HOST paso 4: <code>demux_ai/app.py</code> — <code>on_message</code> → router → despacha al <code>/v1/turn</code> del runner con <code>persona_id</code>. Reusa <code>persona_gateway/gateway.py</code> para las caras. <b>✅ CUMPLIDO EN SUSTANCIA (2026-07-08, vía slice C)</b> — con una decisión de forma distinta a la letra: NO existe un <code>demux_ai/app.py</code> proceso aparte; el flujo real es <code>on_message</code> (plumbing) → stage <code>llm_router_cutover</code> → cerebro <code>demux_ai</code> (route context-aware) → <code>/invite persona_id</code> del gateway → la cara correcta postea. El "app del host" quedó absorbido como stage del pipeline (strangler-fig) en vez de proceso nuevo — menos superficie, mismo contrato. Si algún día se quiere el proceso host FÍSICO separado, eso es una etapa nueva, no este item.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-5" checked><span class="txt">HOST paso 5: cortar el cordón — discord-bot deja de mandar todo a Insult; manda al router del host. Insult = UNA persona, no el dueño. <b>✅ CORTADO (2026-07-08, flip ON del slice C)</b>: los turnos implícitos ya NO van default a Insult — el cerebro del demux decide por turno (Insult solo si el router lo elige o como fail-safe). Addressing explícito + fail-safes intactos.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-6" checked><span class="txt"><b>HOST paso 6 — APARECE ✅ (done-criterion CUMPLIDO 2026-07-08 00:42Z)</b>: mensaje SIN @mención ("¿el tercer acto redime esta cinta?") → router eligió vultur → <b>la cara correcta respondió</b> (Vultur Analytica, turn_kind=invite, 3546 chars) con Insult callado. Verificado E2E en Discord real + cadena KQL completa. El criterio fundacional del demux está VIVO en prod.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-demux-5a" checked><span class="txt"><b>HOST 5/6 slice A — shadow router (DONE · 2026-06-18)</b>. Resumen por slice (receipts completos en ▸):
+<br>• <b>A — determinista ✅ v4.21.76</b> (<code>0334af8</code>, rev 0157): <code>demux_ai/shadow_router.py</code> espeja la regla viva <code>@vultur</code>/<code>~vultur</code>, LOGUEA <code>shadow_router_decision</code>, behavior-neutral. Verificado en #general (tag <code>ᵛ⁴·²¹·⁷⁶</code>).
+<br>• <b>A.1 — telemetry hardening ✅ v4.21.77</b> (<code>ba7001d</code>, rev 0159): + <code>guild_id</code>/<code>explicit_vultur_trigger</code>/<code>route_input_len</code>, report particiona por canal. Ambos caminos deterministas verificados vivos, <b>0 divergencias</b> (el determinista no puede divergir: espeja el path vivo por diseño).
+<br>• <b>A.2 — gpt-4.1 LLM shadow ✅ v4.21.78</b> (<code>b0fa968</code>) + fix codex CLI v4.21.79 (<code>a58861a</code>, rev 0162): <code>demux_ai/llm_shadow_router.py</code> corre OFF del critical path (<code>spawn_task</code>), captura divergencias genuinas. <b>Primera divergencia genuina capturada en prod</b> (22:52Z, <code>missing_vultur</code>: cine→Insult vivo, cerebro gpt-4.1→Vultur). Flag <b>gated OFF</b> (spend, rev 0163); bloat de ~9.5k tokens → <code>.claude/backlog/llm-shadow-router-token-bloat.md</code>.
+<br>• <b>A.2 direct transport ✅ MEDIDO v4.21.82</b> (<code>716e1cd</code>, rev 0167): <code>DirectAzureLLMRouter</code> (<code>AsyncAzureOpenAI</code>, flag <code>llm_shadow_transport=direct</code>) — medido en prod <b>9509 → 115 input tokens (−98.8%)</b>, misma divergencia. El LLM shadow corre cheap, acumulando muestras.
+<br>• <b>B — cutover DESPLEGADO flag-off ✅ v4.21.83</b> (<code>8eb0194</code>, rev 0168, agente + orquestador): mecanismo de cutover detrás de <code>host_router_cutover_enabled</code> (default OFF, behavior-neutral). Corta el shadow DETERMINISTA (latencia cero; no-op estructural hoy porque espeja la regla viva = primer corte seguro del strangler-fig). Fail-safe: un fault restaura la regla viva. <code>apply_cutover</code> puro, ratchet 0, 1708 tests. <b>Behavior-neutral verificado en #general</b> (Insult respondió en su voz, tag <code>ᵛ⁴·²¹·⁸³</code>, sin reroute). <b>✅ Cutover determinista FLIPEADO ON en prod (2026-06-19, autorizado por Bernard, rev 0169):</b> <code>HOST_ROUTER_CUTOVER_ENABLED=true</code>, rev Healthy, armado (sin log inerte). Es no-op estructural por construcción (determinista == regla viva → <code>diverged=false</code> garantizado); el primer turno ORGÁNICO de #general emitirá <code>host_router_cutover_applied diverged=false</code> = prueba de que el seam carga la decisión del host en prod. No se generó tráfico (decisión de Bernard: confirmar en turno orgánico). Reversible con flip OFF. <b>Sub-slice futura GATED → Bernard:</b> cutover del router gpt-4.1 (turnos implícitos sin prefijo), gated en las muestras de divergencia que el LLM shadow directo acumula a 115 tokens/turno.
+<br>• <b>GATED → Bernard:</b> flipear <code>host_router_cutover_enabled=True</code> (prueba estructural del seam, no-op esperado) + sub-slice futura: cutover del router gpt-4.1 para turnos implícitos (gated en las muestras de divergencia que el LLM shadow acumula ahora). Doctrina viva en <code>.claude/rules/architecture.md</code>.
+<details style="margin-top:.4rem"><summary style="cursor:pointer;opacity:.75">▸ receipts y correcciones honestas (historia completa)</summary>
+<div style="font-size:.92em;opacity:.9;margin-top:.3rem">
+<b>slice A (determinista):</b> <code>shadow_route(text) → ShadowDecision(target, reason)</code> puro (sin LLM/Azure/spend/<code>personas.*</code>). Seam canónico <code>composition.build_shadow_router</code> (import diferido, único toucher de demux_ai) → <code>TurnRuntimeDeps.shadow_route</code> → stage loguea sobre texto RAW (pre-strip), NUNCA cambia routing (wrapped: fault invisible). Flag <code>shadow_router_enabled=True</code> (kill switch, default ON). 11 tests, ruff limpio, ratchet 7/7. Commits <code>0334af8</code>+<code>e1aea91</code> → rev <code>discord-bot--0000157</code>. Receipt KQL en prod: <code>current=insult, shadow=insult, diverged=false, default_insult</code> (channel-independent). Re-verificado en #general 18:50Z (NO DM — regla reforzada, commit <code>59fe906</code>: el DM nunca falla).
+<br><br><b>slice A.1:</b> el coagent pidió enriquecer telemetría. + <code>guild_id, explicit_vultur_trigger, route_input_len</code> (channel_id/request_id/user_id ya venían vía structlog contextvars). Report particiona por canal (DM = sanity débil, no evidencia #general). TDD 25 tests, hook arreglado de raíz (<code>per-file-ignore scripts/** [S]</code>). Push autorizado, CI/CD verdes → rev <code>discord-bot--0000159</code> (SHA <code>ba7001d</code>, <code>/health serving=true</code>). <b>Verificación de récord cerrada en vivo (21:37–21:42Z):</b> (1) <code>default_insult</code>: <code>current=insult/shadow=insult/explicit_vultur=false/route_input_len=64/diverged=false</code> (tag <code>ᵛ⁴·²¹·⁷⁷</code>); (2) <code>vultur_prefix</code> (<code>~vultur …</code>): <code>current=vultur/shadow=vultur/explicit_vultur=true/route_input_len=58/diverged=false</code>. Report: 2 eventos, ambos #general, 0 divergencias. <b>Corrección honesta (Art. 2):</b> el coagent esperaba <code>diverged=true</code> en el prefijo explícito — IMPOSIBLE por diseño: la regla viva (mention-gating, <code>stages.py:117-121</code>) ya pone <code>current_target=vultur</code>, así current==shadow (el comentario <code>stages.py:112-114</code> lo hace a propósito para no "falsely diverge on every Vultur turn"). Criterio re-definido y aceptado: GREEN = ambos caminos deterministas + current==shadow + campos correctos + 0 falsas divergencias.
+<br><br><b>slice A.2 (gpt-4.1 LLM shadow):</b> Bernard autorizó el spend. <code>LLMShadowRouter</code> envuelve <code>HostRouterLLM</code> (gpt-4.1 vía <code>fi_runner.CodexBackend</code>), parser tolerante (<code>llm_&lt;target&gt;</code>/<code>_loose</code>/<code>unparseable</code>), boundary-clean (cero <code>personas.*</code>, target set en lockstep con el registry, guardado por test). Flag <code>llm_shadow_router_enabled</code> default OFF (el flip en prod ES la autorización). Seam <code>composition.build_llm_shadow_router</code> (deferred import, boot logs) → stage corre vía <code>spawn_task</code>, loguea <code>llm_shadow_router_decision</code>, wrapped. Report + taxonomía genuina (<code>missing_vultur</code>/<code>false_vultur</code>). TDD 16 tests, suite 1695 verde, coverage 80.63%, ruff+bandit limpios, ratchet 0. Commit <code>b0fa968</code> (v4.21.78). <b>Deploy gotcha arreglado de raíz (v4.21.79, <code>a58861a</code>):</b> primer probe falló con <code>BackendError(codex CLI not on PATH)</code> — el image de plumbing no traía <code>@openai/codex</code> (gotcha #2 fi-runner-azure-deploy, variante CLI; el <code>host_degrader</code> tenía el mismo muro latente). Fix: instalar codex CLI en el <code>Dockerfile</code> (espejo de <code>Dockerfile.alice</code>) + guard test. <b>Primera divergencia genuina (22:52Z, rev 0162):</b> probe de cine sin prefijo → <code>current=insult</code> pero gpt-4.1 dijo <code>llm_shadow_target=vultur</code> → <code>llm_diverged=true</code>, <code>reason=llm_vultur</code>, <code>missing_vultur</code> (9507 in / 4 out tokens). Report lo clasifica correcto. Flag flipeado OFF (rev 0163) tras la prueba — el bloat de ~9.5k tokens (harness agéntico del CLI <code>codex exec</code>, NO recortable vía ToolPolicy) quedó en backlog para fix antes de re-encender.
+</div></details></span></label>
+  <label class="item"><input type="checkbox" data-k="p3-shared" checked><span class="txt">Crear <code>khimeras_shared/</code> — al inicio casi vacío; solo contratos que insult + alice + host consuman de verdad. Esqueleto <code>khimeras_shared/__init__.py</code> creado ✓ v4.21.39.</span></label>
+  <label class="item"><input type="checkbox" data-k="p3-tests" checked><span class="txt">Reorganizar <code>tests/</code> en <code>arch/ chat/ core/ integration/</code> y actualizar los import-boundary tests al árbol nuevo. <b>⚠️ Estaba marcado done pero los boundary tests seguían apuntando a <code>insult/</code> muerto (fake-green) — cerrado de verdad en PR-0 abajo.</b></span></label>
+  <label class="item"><input type="checkbox" data-k="p3-vultur" checked><span class="txt">Decidir destino de <b>Vultur</b> — <b>RESUELTO (v4.21.72–74):</b> NO es un paquete <code>personas/vultur/</code> aparte; corre como cara propia vía <code>persona_gateway</code> compartiendo el cerebro del runner (<code>persona_id</code>), DNA en <code>shared/personas/vultur.md</code>, y ahora tiene <b>host durable</b> — el Container App <code>vultur-gateway</code> clonado de <code>alice-bot</code> (5362ae1, ya NO efímero en el Mac), con su propia voz 🔊 (91f7bca). Regla en <code>.claude/rules/sibling-personas.md</code>.</span></label>
+  <label class="item"><input type="checkbox" data-k="p3-aurity" checked><span class="txt">Decidir <b>AURITY</b> (runner Qwen, hoy solo docstring) — ¿se scaffoldea o se descarta del árbol?</span></label>
+  <label class="item"><input type="checkbox" data-k="p3-etapa3-go" checked><span class="txt"><b>GO Etapa 3 (coagent, 2026-06-15)</b> — separar persona/host/shared/runner sin cambiar semántica runtime. Inventario + mapa de moves en <code>.claude/plans/etapa3_demux_fisico_inventario.md</code>. Tier B congelado, no mezclar con dedup semántico.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr0" checked><span class="txt"><b>PR-0 — un-fake-green del ratchet ✅ DONE</b> (commit <code>994235f</code>, v4.21.51, rama <code>fix/boot-zombie-observability</code>): <code>HOST_FACING_PATTERNS</code> re-apuntado a <code>personas/insult/</code> (38 host files, baseline host→smart = 0 REAL); guard de conjunto-vacío = FAIL; 3 fitness functions cross-boundary con baseline medido (persona→otra-persona: 1 edge alice→insult deep_memory · shared→personas: 0 locked · gateway→persona: 3 edges). 6/6 tests nuevos + 60/60 <code>tests/arch/</code> verde.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr1" checked><span class="txt"><b>PR-1 — move mecánico de capabilities fuera de Insult</b> (moves + import rewrites only, cero behavior change): <code>build_film_references_block</code> → <code>khimeras_shared</code> (desata alice→insult); <code>AgentRunnerClient</code> + <code>MemoryStore</code> → runner/shared (desata gateway→persona). Tests verdes, ruff/mypy. <b>✅ DONE — item STALE reconciliado (2026-06-18, vía /exchange-coagent)</b> contra commits <code>b14d3f2</code> (PR-1a film/pg_rag), <code>51d1d2e</code> (PR-1b AgentRunnerClient + LLMResponse/ToolCall → <code>khimeras_shared/llm,runner</code>), <code>a8c6326</code> (PR-1c MemoryStore+style+vectors), <code>acff796</code> (PR-3b prompts loader), <code>57155f5</code> (PR-3d memory_consolidator split), <code>af72fbb</code> (PR-2 config edge). Ratchet VIVO 7/7 verde: persona→persona=0, shared→persona=0, gateway→persona=0, demux_ai→persona=0. composition IoC queda persona-owned (correcto). Sin gap → cero código nuevo.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr2" checked><span class="txt"><b>PR-2 — boundary enforcement</b> — <i>DONE · verificado 2026-06-20 (65 arch tests verdes)</i>. Los 5 fitness functions en cero ESTRICTO, todos los baselines vacíos: host→smart (<code>BASELINE_VIOLATIONS=frozenset()</code>), cross-persona, shared→persona, gateway→persona, demux→persona. Persona-no-importa-otra-persona ✓, shared-no-importa-persona ✓, host orquesta sin identidad ✓. El checkpoint de memoria (baseline 8) quedó stale — los 8 edges restantes cayeron.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr3-wiring" checked><span class="txt"><b>PR-3 — runtime wiring</b>: <code>discord-bot</code> selecciona persona explícitamente; Insult/ALICE como personas, <code>demux_ai</code> como host. (Decisiones coagent: <code>composition.py</code>→host, <code>memory_consolidator</code>→host job, <code>prompts_loader</code>→shared loader.) <b>SPINE ATERRIZÓ (2026-06-15, commit <code>9ba2419</code> v4.21.56):</b> host launcher de <code>demux_ai</code> con selección explícita — <code>registry.py</code> (PersonaApp neutral, entrypoints como strings, default=insult), <code>host.py</code> (resolve + importlib launch sobre <code>personas.&lt;id&gt;.__main__</code>, structlog-first preservado), <code>__main__.py</code> (<code>python -m demux_ai run --persona ID</code>). demux_ai→persona ratchet sigue en CERO (resuelve por string, no import estático). 12 tests host + 61 arch + suite 1603 passed, ruff limpio, cero behavior change.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr3-prompts" checked><span class="txt"><b>PR-3b — <code>prompts_loader</code> → shared</b> ✅ DONE (2026-06-15, commit <code>acff796</code> v4.21.57): loader genérico mtime-aware a <code>khimeras_shared/prompts.py</code> (<code>load_prompt(dir,name,cache)</code> + <code>list_available</code>), <code>personas/insult/core/prompts_loader.py</code> queda shim delgado (superficie pública intacta, ~14 callers sin tocar, <code>_PROMPTS_DIR</code> dinámico para los tests). shared→persona en 0. (Orden coagent: prompts primero porque desbloquea interfaz limpia para composition.)</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr3-composition" checked><span class="txt"><b>PR-3c — composition IoC contract</b> ✅ DONE (2026-06-15, commit <code>1edc44f</code> v4.21.58): inversión de control real, NO mover archivo. <code>khimeras_shared/persona/app.py</code> = <code>PersonaApp</code> + <code>PersonaAppFactory</code> Protocols (runtime_checkable); cada persona expone <code>persona_app.build_app()</code> público; el host resuelve la factory por contrato (registry→importlib→factory()→app.run()). <code>composition.py</code> se queda INTERNO en Insult (primer corte aprobado). 15 host tests (+3 contrato) + 61 arch + suite 1606. Ratchets demux/gateway/shared→persona + persona→persona en 0.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p3-pr3-consolidator" checked><span class="txt"><b>PR-3d — <code>memory_consolidator</code> SPLIT con hooks</b> ✅ DONE (2026-06-16, commit <code>57155f5</code> v4.21.59): SPLIT, no move (subsistema con P0 de pérdida de datos). <b>khimeras_shared/memory_consolidation.py</b> = core neutral verbatim (<code>consolidate_user_facts</code> con <b>safety-cap P0 cap=ZERO + guard de fuentes curated intactos</b>, <code>_call_judge</code>, <code>_op_factory</code>, <code>hard_purge_soft_deleted</code>, <code>FactOperation</code>, <code>ConsolidationReport</code>) + <code>ConsolidationHooks</code> Protocol + <code>NoopConsolidationHooks</code> + <code>consolidate_all_users(*, hooks)</code> neutral. <b>personas/insult/core/consolidation_hooks.py</b> = <code>InsultConsolidationHooks</code> (siesta markers + dream diary + deep_memory ingest = voz/runtime de Insult). <b>memory_consolidator.py</b> = shim back-compat (firma vieja intacta, cablea Insult hooks). <b>Nota de placement:</b> orquestador en khimeras_shared (no demux_ai) para evitar la inversión persona→host y mantener el trigger del ACA Job intacto; criterios de cierre cumplidos igual. Safety-cap probado por tests de equivalencia (curated-never-deleted/merged + destruction-cap) vía shim. 5 tests nuevos + suite 1611. Ratchets shared/demux/gateway→persona + persona→persona en 0. Cero cambio behavior/schema/schedule.</span></label>
+</div>
+<div class="note">✅ <b>PR-3 (runtime wiring) COMPLETO + MERGEADO a main (2026-06-16):</b> spine (<code>9ba2419</code>) + PR-3b prompts (<code>acff796</code>) + PR-3c composition IoC (<code>1edc44f</code>) + PR-3d consolidator split (<code>57155f5</code>). <b>PR #26 merged</b> (merge commit <code>e527080</code>), rama <code>fix/boot-zombie-observability</code> borrada (local+remoto), <b>CD verde, bot serving=true/healthy=true en prod</b>. Insult dejó de ser "el sistema": es UNA persona que <code>demux_ai</code> selecciona explícitamente; capabilities neutrales en <code>khimeras_shared</code>; voz/runtime de persona detrás de contratos. Etapa 3 demux físico: criterio de éxito cumplido (repo arranca igual, bot igual, tests igual).</div>
+<div class="note">⚠️ <b>Durante el merge salieron 2 fixes de CI (commits <code>e659ec3</code>, <code>18a15cf</code>):</b> (1) pip-audit ahora salta los conda-only no-PyPI (fi-core/fi-runner) vía parser JSON en vez de romper el build —era un gap latente que detonó en env fresco; (2) destapó <b>CVEs web-stack reales nuevos sin fix conda-available</b> (cryptography GHSA-537c-gmf6-5ccf → fix 48.0.1 no en conda-forge; starlette CVE-2026-48818/48817/54283/54282 → fix solo en starlette 1.x, major bump que rompe el envelope fastapi/fi-runner). Ignorados con justificación + trigger de re-auditoría, <b>marcados en-comentario como NO revisados aún por exploitability — PENDIENTE revisión de Bernard</b>.</div>
+<div class="note">✅ <b>ADR de Etapa 3 ESCRITO (2026-06-16, vía /exchange-coagent):</b> <code>.claude/plans/adr_etapa3_demux_fisico.md</code> (Status: Accepted, copia visible en <code>~/Desktop/</code>). Documenta las 7 decisiones de ubicación (registry/launcher explícito, host/plugin inversion, AgentRunnerClient en shared, prompts_loader genérico, composition interno por persona, memory_consolidator SPLIT, consolidate_all_users en shared temporal) + Boundary Locks 0 + Deferred decisions. <b>Verificado en vivo:</b> merge e527080 (PR #26 MERGED 2026-06-16T07:29:41Z), arch boundary suite 61 passed. Suite 1611 + ruff = passed en PR/CD, NO re-corridos localmente (marcado honesto). ⚠️ <code>.claude/plans</code> está gitignored por convención (ningún ADR trackeado en git) → ADR queda local, decisión de commitear a tracked es de Bernard.</div>
+<div class="note">🎯 <b>Router gpt-4.1 — intent + budget $5/sem (2026-06-21, v4.21.96 <code>d194292</code>, rev 0000183 LIVE):</b> Bernard autorizó el spend ($5/sem). (1) <code>_ROUTING_INSTRUCTION</code> apretado a <b>INTENCIÓN</b> — mataba el falso positivo documentado (mención de "peli/Netflix" → Vultur en vez de pedir crítica); + guard test anti-revert a keyword-matching. <b>Verificado contra el gpt-4.1 REAL 5/5</b> (Loop Law): 3 menciones casuales → insult, 2 intenciones → vultur. (2) <code>RouterBudget</code> = cap duro $5/ISO-week, fail-safe a determinista al cruzarlo, log <code>llm_router_spend</code> acumulado + <code>llm_router_budget_exceeded</code>; cableado en el LLM-shadow stage vía composition (<code>router_budget_built cap_usd=5.0</code> en boot). Costo real: el few-shot subió input ~115→~274 tok/llamada (~$0.00057/turno → ~8,700 turnos/sem caben en $5). 6 tests + suite 1739. <b>Behavior-neutral: sigue SHADOW</b> — el flip del cutover (que el router maneje turnos implícitos) es la siguiente sub-slice, gated en muestras orgánicas de prod que confirmen que bajó la tasa de falsos positivos a escala (+ requiere el cutover async-on-critical-path, separado del seam determinista sync de hoy).</div>
+<div class="note">📊 <b>Readiness harness del cutover (2026-06-21, debatido + acordado con el coagent):</b> el siguiente milestone NO es abrir superficie (PR-4c/onboarding) sino CERRAR el router que ya corre shadow. Extendido el harness canónico <code>scripts/shadow_divergence_report.py</code> (NO script paralelo, Art. 6) con el readiness verdict de los criterios de flip del coagent: tokens avg/p95, spend vs cap $5 (reusa <code>RouterBudget.cost_usd</code>, sin tabla de precios paralela), modos de fallo (router_error/timeout/unparseable), y un veredicto <code>GREEN_PENDING_MANUAL / WAIT / RED</code> (kill-switch + deterministic-fallback quedan MANUAL: el reporte nunca da verde de algo que no corrió). +14 tests (suite 29/29 verde), ruff limpio. <b>Loop Law cazó un bug real</b> que pytest no vio: el run directo no tenía la raíz del repo en <code>sys.path</code> → <code>demux_ai</code> ModuleNotFound; fix = script auto-localizante. <b>Lectura en vivo contra prod (ventana post-fix 60h):</b> VERDICT = <b>GREEN_PENDING_MANUAL</b> — 176 muestras #general, <b>0 false_vultur</b> (el prompt de intención no sobre-agarra Vultur), 34 missing_vultur (REVIEW, necesitan label humano), 0 router_error/timeout/unparseable, tokens avg 127 / p95 278 (transporte direct en efecto). La ventana ancha (168h) daba RED por 4 <code>llm_shadow_router_failed</code> STALE — todos del cluster pre-fix codex-CLI del 06-18 22:26–22:28 (v4.21.79 los arregló). <b>Pendiente para el flip (decisión de Bernard):</b> los 2 MANUAL (kill-switch + deterministic-fallback probados) + label humano de los 34 missing_vultur; el harness se re-corre sobre tráfico orgánico.</div>
+<div class="note">⏭️ <b>Siguiente deferred (etapa aparte):</b> repointar ACA Job a entrypoint de host explícito (<code>python -m demux_ai ...</code>) — cambiaría trigger; + optional <code>demux_ai/jobs</code> wrapper; + exploitability review de CVEs cryptography/starlette; Tier B semantic judge sigue congelado.</div>
+<div class="note">El insult/ god-package deja de ser el nombre del sistema: Insult se vuelve UNA persona. Migración = sea layers, del abismo a la superficie (ADR khimeras_demux_destilado).</div>
+
+<div class="note">🔥 <b>PR-4 — Production trust + host demux (2026-06-16, vía /exchange-coagent).</b> Nacido del P0 de hoy: el demux de PR #26 shippeó ambas imágenes sin <code>COPY khimeras_shared/</code> → Insult muerto ~2h, tapado por failover ALICE + /health fake-green. Veredicto del coagent sobre el diseño del host (corrige un framing previo equivocado): <b>el host demux es un ROUTER TONTO en gpt-4.1, NO sirve personas</b>; TODAS las personas (Insult, ALICE, Vultur) corren en el runner Claude; la resiliencia real = <b>el host OpenAI sobrevive a la caída del runner Claude</b> con degradación honesta (NUNCA impersonar una persona). Failover demux→ALICE solo aplica a fallo de persona individual (Insult bug/timeout con ALICE-en-Claude viva), no a runner caído.</div>
+  <label class="item sub"><input type="checkbox" data-k="p4a-smoke" checked><span class="txt"><b>PR-4a — smoke post-deploy REAL</b> ✅ (2026-06-16, commit <code>7ab2734</code> v4.21.65): el smoke viejo del CD solo tocaba <code>/health</code> + <code>DELETE /v1/session</code> (ninguno importa el persona stack → no cachó el ModuleNotFound). Extendido en <code>cd.yml</code> con un <code>POST /v1/turn</code> REAL que ejercita el agent loop, reintenta ~90s y truena el CD ante 502/ModuleNotFound. + ratchet CI <code>tests/arch/test_runner_dockerfile_copies_imports.py</code> (parametrizado sobre runner.Dockerfile + Dockerfile raíz). + addendum del incidente en el ADR. <b>El CD se auto-valida ahora — pendiente confirmar verde el turn real.</b></span></label>
+  <label class="item sub"><input type="checkbox" data-k="p4b-host-router"><span class="txt"><b>PR-4b — host demux ROUTER puro en gpt-4.1</b> (GATED: arranca cuando PR-4a quede verde). OpenAI/gpt-4.1 vía <code>fi_runner.CodexBackend</code> (mismo proveedor que ALICE hoy — DECIDIDO por Bernard, ver HOST paso 0). Solo recepción/ruteo: clasificar intención, elegir persona destino, detectar runner caído, degradación honesta si no hay persona disponible. <b>NO sirve personas, NO impersona ALICE/Insult/Vultur.</b> Patrón canónico a clonar: <code>personas/alice/core/llm.py</code>. Tests de no-impersonation + boundary OpenAI-host vs Claude-personas. <b>✅ Slice 1 (2026-06-16, commit <code>f676be3</code> v4.21.66):</b> <code>demux_ai/host_llm.py</code> = <code>HostRouterLLM</code> sobre <code>fi_runner.CodexBackend</code>/Azure gpt-4.1, SIN persona ni antidrift (router, no carácter), Azure de env (ratchet demux→persona en 0), 3 tests. Inerte/sin cablear. <b>✅ Slice 2 (2026-06-16, commit <code>7711a1a</code> v4.21.67):</b> taxonomía <code>FailoverReason</code> (RUNNER_DOWN / PERSONA_ERROR / ROUTER_ERROR) + política pura <code>decide_failover</code> + rewire honesto en <code>stages.py</code> — ALICE solo si el runner está DOWN; un <code>persona_error</code> degrada honesto (no fabrica fake-ALICE). <b>✅ Slice 3 (2026-06-16, commits <code>0f11e70</code>→<code>bbd3e19</code> v4.21.68–71, pusheado):</b> host degrader gpt-4.1 cableado <b>INERT</b> en la cola de degradación honesta vía seam Port+composition (<code>HostDegraderPort</code> neutral + concreto <code>demux_ai/host_degrader.py</code>), gateado por <code>host_router_enabled=False</code> (cero spend, cero cambio prod, import de demux DIFERIDO). <code>COPY demux_ai/</code> en AMBOS Dockerfiles (el P0 copy-gap test cazó el edge nuevo persona→demux). Fallback conservador completo (blank / timeout 12s / ROUTER_ERROR → aviso estático) + instrumentación (flag state, construcción en boot, boundary). 9 tests nuevos, suite verde. <b>Pendiente (GATED — tuyo):</b> enable LIVE de gpt-4.1 (<code>host_router_enabled=True</code> = spend real por turno fallido) + el path de clasificación/ruteo de intención (slice 4).</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p4c-alice-claude" checked><span class="txt"><b>PR-4c — ALICE reciclada de cerebro gpt-4.1 → persona Claude</b> (per ADR "3 verdades"). <b>✅ CUTOVER LIVE (2026-06-29, v4.21.102→108):</b> persona-runner renombrado (insult-runner→persona-runner); ALICE registrada como sibling Claude (<code>shared/personas/alice.md</code>, gateway_enabled=True), suppression colapsada a registry-driven; <code>host_router_enabled=True</code> LIVE (degradación honesta gpt-4.1 = reemplazo de failover, boot logs <code>host_degrader_built</code>); <code>/v1/turn persona_id=alice</code> verificado en su voz; <b>alice-bot (gpt-4.1) DESACTIVADO</b> (no borrado — pausa reversible); gateway corre A.L.I.C.E.#6451 como persona Claude (<code>persona_gateway_ready</code>, guilds=1). <b>Pendiente para cierre real (post-soak):</b> borrar alice-bot + Dockerfile.alice + cd.yml steps; la capa clínica (<code>clinical_reflection</code>/triage) queda PARKED. ADR: <code>.claude/plans/adr_alice_to_claude_sibling.md</code>.</span></label>
+  <label class="item sub"><input type="checkbox" data-k="p4d-frugivoro" checked><span class="txt"><b>✅ FRUGÍVORO — nuevo hermano gastronómico vegano LIVE (2026-06-29, v4.21.108)</b> — persona Claude erudita en alta cocina vegana, nativa del gateway (sin legacy que retirar). DNA <code>shared/personas/frugivoro.md</code> (verdura-protagonista, anti-sermón, razona desde química; guardrail anti-dieta-extrema para usuaria vulnerable). Registry gateway_enabled=True + <code>_VALID_TARGETS</code> lockstep. Discord app/bot creado (id 1521273256236023989, Message Content Intent, token en ~/.secrets, invitado a Khimeras). <b>Benchmark caja-negra ético vs GPT competidor: Frugívoro-Claude YA supera solo con DNA</b> (más erudito/mecanístico/voz propia); patch densidad+citas-honestas auto-corrigió un receptor. <code>frugi#5531</code> ready en el gateway, <code>/v1/turn persona_id=frugivoro</code> verificado. Backlog <code>.claude/backlog/frugivoro-persona.md</code>. <b>Pendiente (hardening, no blocker):</b> corpus RAG público <code>__corpus_vegan__</code> (McGee/Yonan/frugivorismo), logo frug.png.</span></label>
+</details>
+
+<details open>
+<summary>3.5 · Production Trust / Observability <span class="phase-tag tag-active">EN CURSO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p35-boot" checked><span class="txt"><b>Boot-zombie observability</b> — el <code>/health</code> reportaba <code>is_ready:true</code> con el bot 14 min MUERTO. Fix DESPLEGADO ✓ v4.21.44 (+ flush v4.21.45 en rama <code>fix/boot-zombie-observability</code>): <code>serving</code>/<code>healthy</code>/<code>guild_count</code> honestos, instrumentación de boot (<code>pg_pool_creating→bot_ready</code>), fail-fast con <code>os._exit</code>, prewarm fuera del crítico. Verificado por contrato real (mensaje Discord → respuesta <code>ᵛ⁴·²¹·⁴⁴</code>).</span></label>
+  <label class="item"><input type="checkbox" data-k="p35-canary" checked><span class="txt"><b>Discord real canary</b> — <i>VERIFIED e2e (2026-06-20) → RETIRED (2026-06-21) por decisión del operador. NO es protección activa.</i> Probaba el contrato externo que <code>/health</code> no puede. Implementación verificada LIVE: ACA Job <code>insult-canary</code> cron <code>*/5</code> (todas Succeeded), poster=Vultur REST-only, canal <code>#canary</code>, nonce <code>CANARY insult &lt;uuid&gt;</code> → <code>CANARY_OK &lt;uuid&gt;</code> (sin LLM), exit non-zero on failure + doble alerta (probe-failure → webhook Discord v4.21.90; heartbeat-absent → Azure Monitor → action group → email). <b>Retirado end-to-end (v4.21.97/98):</b> Bernard mató el probe <code>*/5</code> por el ruido en <code>#canary</code> — eliminados el ACA Job, el cog/runner/script, el step de <code>cd.yml</code>, la alerta Azure Monitor, el action group y el webhook; canal <code>#canary</code> purgado. <b>Riesgo asumido (documentado en architecture.md):</b> era el único probe del contrato real no-falseable; production-trust ahora se apoya en proxies que SÍ pueden mentir (<code>/health</code>, logs, smoke CD).</span></label>
+  <label class="item"><input type="checkbox" data-k="p35-constitution" checked><span class="txt"><b>Constitution enforcement</b> — hook <code>UserPromptSubmit</code> ACTIVO ✓: inyecta los 9 artículos de <code>engineering-playbook/rules/00-constitution.md</code> cada turno (capa anti-decaimiento de reglas). Bulletproof (piso <code>cat</code>, exit 0 garantizado).</span></label>
+  <label class="item"><input type="checkbox" data-k="p35-doctrines" checked><span class="txt"><b>Operational rigor doctrines</b> en el playbook ✓: no fake-green / instrumentación total (<code>observability-logging.md</code>), jerarquía de rigor <code>Chrome DevTools &gt; proxy</code> + arreglar-Chrome-no-rodearlo (<code>verify-before-assuming.md</code>).</span></label>
+  <label class="item"><input type="checkbox" data-k="p35-alerts" checked><span class="txt"><b>✅ Alerting mínimo RESTABLECIDO (2026-07-08, "dale" de Bernard)</b> — desde el kill del canary (jun-21) NO quedaba ni una alerta viva. Creados vía ARM REST (la extensión az scheduled-query falla pip en esta Mac, mismo gotcha que log-analytics): action group <code>prod-trust-ag</code> (email) + <code>insult-turn-failure-rate</code> (3+ turnos fallidos/30min, sev 2) + <code>invite-accepted-without-completion</code> (el borde del coagent post-slice-C: 202 sin <code>turn_complete</code> = turno MUDO, colchón 5 min, sev 1) + <code>insult-canary-heartbeat-absent</code> (sin <code>canary_probe_ok</code> en 2.5h, sev 1; query por evento porque ACA Jobs loguean <code>ContainerAppName_s</code> vacío). Queries validadas en vivo contra el workspace antes de crear.</span></label>
+  <label class="item"><input type="checkbox" data-k="p35-canary-v2"><span class="txt"><b>⏳ Canary RESUCITADO — horario + auto-borrable (2026-07-08, commit <code>8fe2033</code> v4.22.9)</b> — el kill de jun-21 fue por la cadencia <code>*/5</code>, NO por el mecanismo (ya era self-cleaning: el probe borra su nonce, Insult borra su eco). Restaurado verbatim del history (<code>ac7e350^</code>) con cron <code>7 * * * *</code> (1×/hora). Cog + intercept pre-batch + 3 config snowflakes + probe REST (token Vultur, sin segundo IDENTIFY) + <code>canary-job.sh</code> + step de sync en cd.yml + 2 suites de test (29 verdes, suite 1601). ACA Job <code>insult-canary</code> CREADO; env vars del eco en rev discord-bot--0000039 (canal <code>1517700376672075958</code>). <b>PENDIENTE el E2E</b>: trigger manual post-deploy de v4.22.9 → <code>canary_probe_ok</code> + auto-limpieza verificada. Con eso la fase 3.5 CIERRA con el contrato real garantizado de nuevo.</span></label>
+</div>
+<div class="note">Phase 3.5 nace del incidente 2026-06-13: el bot murió mudo y el proxy <code>/health</code> mintió. El contrato real es "responde en Discord", no un flag interno. Spec del coagent: agregar esta sección + el canary como prioridad #1 de pendientes. <b>2026-07-08:</b> el gap-analysis de cierre (canary hole + cero alertas + blind spot del cutover + ActivationFailed del gateway) se ejecutó: canary horario + 4 recursos de alerting. Queda como 3.5-class el <b>ActivationFailed recurrente del gateway</b> (hoy anotado en fase 6) — root fix pendiente.</div>
+</details>
+
+<details>
+<summary>3.6 · Distribución TS fi → npm (público) <span class="phase-tag tag-done">DONE</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="tsfi-publish" checked><span class="txt"><b>Publicados a npm público</b> ✓ — <code>@free-intelligence/core@1.1.1</code> + <code>fi-glass@1.1.1</code> (org <code>free-intelligence</code> creada vía DevTools, workflow tag-triggered <code>fi-ts-v*</code> espejo del de Anaconda). Verificado LIVE: install desde repo limpio + READMEs en el registry. <code>pnpm publish</code> reescribe <code>workspace:*</code> → versión real.</span></label>
+  <label class="item"><input type="checkbox" data-k="tsfi-template" checked><span class="txt"><b>Template python-bot consume fi-glass</b> ✓ — chat hand-rolled borrado; <code>AgentConversationSurface</code> + <code>useAgentConversation</code> + transporte <code>useTemplateAgent</code> (modelo og118/web). <code>next build</code> verde + harness vitest con <b>11 tests del mapper</b> verdes.</span></label>
+  <label class="item"><input type="checkbox" data-k="tsfi-pr"><span class="txt"><b>PR #245</b> (<code>ci/publish-fi-ts → main</code> en free-intelligence) — workflow + drop <code>private:true</code> + READMEs. MERGEABLE, abierto. <em>Gated: el merge es decisión de Bernard (la sesión concurrente tiene el main tree).</em></span></label>
+</div>
+<div class="note">Decisión B (2026-06-13): publicar el lado TS como fi-runner/fi-core se publican a Anaconda, pero a npm PÚBLICO (cero fricción para el clon del template). git-dep descartado (<code>workspace:*</code> no resuelve desde git URL). Distinto del Phase 5 (conda/fi-core).</div>
+</details>
+
+<details>
+<summary>4 · Migración a khimeras_shared/ (ownership real) <span class="phase-tag tag-active">EN CURSO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p4-pg"><span class="txt"><code>postgres.py</code> → <code>khimeras_shared/infra/</code> (el coagent: "casi seguro migra a shared").</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-mem"><span class="txt">Partir <code>memory.py</code>: store genérico compartido en shared + adapters persona-specific en cada persona.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-corpus" checked><span class="txt"><code>shared/corpus/</code> → <code>khimeras_shared/corpus/</code> ✓ 2026-06-14 (git mv, imports actualizados en insult+alice+tests, 33 tests verdes). Primer move real a shared.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-contracts"><span class="txt">Contratos cross-persona (mensajería entre bots, /invite, tokens) → <code>khimeras_shared/contracts/</code>. <b>⏳ AVANZADO (2026-07-07, v4.22.4):</b> el <code>/invite</code> del gateway ya es multi-persona (<code>persona_id</code> opcional wire-compatible + <code>invited_by</code>) — es el contrato de convocatoria que usa el router cutover.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-reactions" checked><span class="txt"><b>✅ <code>[REACT:]</code> → <code>khimeras_shared/reactions.py</code> (2026-07-07, commit <code>a488fb3</code> v4.22.3)</b> — gate PROMOTION cumplido (3 consumers: Insult + ALICE + gateway). TODOS los siblings reaccionan con emojis: parse/strip/add_reactions con delays humanos; sección "## Reacciones con emoji" por persona <code>.md</code>; <code>harvest_orphan_emojis</code> opt-in solo Insult (su DNA prohíbe emojis inline; los siblings los usan legítimo). Suite 1831, coverage 81.17%.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-attachments" checked><span class="txt"><b>✅ <code>attachments.py</code> → <code>khimeras_shared/</code> + VISIÓN para siblings (2026-07-07, commit <code>b6775cb</code> v4.22.4)</b> — P0 del día ("no llegó imagen a mi mesa de disección", Vultur 17:48): root = <code>/v1/turn</code> + <code>AgentRunnerClient</code> YA soportaban image attachments (v3.9.43); el gateway construía user turn string plano y nunca leía <code>message.attachments</code>. Promoción verbatim (git mv) + gateway procesa imágenes (5MB cap, Pillow, notices de rechazo). <b>E2E verificado</b>: Vultur describió pixel-perfect la imagen probe.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-purge" checked><span class="txt"><b>✅ PURGA LEGACY de Insult — slim hacia shape de sibling (2026-07-08, commit <code>62d87e9</code> v4.22.5, directiva de Bernard)</b> — <b>−1396 líneas</b>, cada muerte probada contra el contrato VIVO (runner descarta system_prompt/tools/model, <code>tool_calls=[]</code>; prod env leído con az). Cayeron: model router completo (<code>routing.py</code> + OpusBudget + 4 settings), <code>llm/{parsing,pricing,retry}</code> + <code>shared/llm/</code> (pricing alimentaba <code>/debug/costs</code> de ceros eternos — señal que miente), <code>INVOKE_ALICE_TOOL</code> muerto, 2 tests false-green. Docs curados (CLAUDE.md contaba el sistema pre-demux: LLMClient/SQLite → runner/Postgres real; voice.md → susurro; hook pre-commit paths). Vivos con razón: presets_llm (su banner DEPRECATED era la mentira), character/ (política pre/post-LLM viva vía ports — wave 5 del blast map obsoleta como escrita). 1816 passed, coverage 80.75%, ratchet 0.</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-moltbook-kill" checked><span class="txt"><b>✅ Moltbook MUERTO (2026-07-08, commit <code>67f1c75</code> v4.22.7, CD verde)</b> — −8,082 líneas, probado en worktree aislado (1584 passed, cov 82.55%). — OFF en prod (4 flags false, sin API key); agente borrando ~8 módulos + settings + 4 prompts .md + tasks de bot.py + ~10 archivos de test + docs (~2k líneas). Target v4.22.6. Cabos: secret Azure <code>moltbook-api-key</code> si existe (comando az en el reporte).</span></label>
+  <label class="item"><input type="checkbox" data-k="p4-reminders-port" checked><span class="txt"><b>✅ Reminders [REMIND:] LIVE + E2E VERIFICADO (2026-07-08, commit <code>ae91640</code> v4.22.8)</b> — E2E real 19:49-19:51: "insult, recuérdame en 2 minutos que le baje al horno" → "Va. En 2 te grito." (ᵛ⁴·²²·⁸, sin marker visible) → disparo EXACTO a los 2 min con mention. Tool-theater muerto en el mismo commit. — hallazgo de la purga: la creación vivía en <code>REMINDER_TOOLS</code> (tool-theater muerto: <code>tool_calls=[]</code> hardcodeado) → el bot no podía CREAR reminders, solo disparar los guardados. Port al contrato canónico de marcadores in-band: <code>[REMIND:]</code> espejo de <code>[INVITE:]</code> (v4.21.114), parse/strip/fire + marker-rescue en truncadores + sección en persona.md (prompts-as-content) + storage existente intacto. De paso muere el tool-theater completo (<code>ALL_TOOLS</code>/<code>CHANNEL_TOOLS</code>/dispatch) si ningún path vivo consume tools. Target v4.22.7. E2E post-deploy: "recuérdame X en 2 min" en #general → marker → storage → disparo.</span></label>
+</div>
+<div class="note">Regla dura del coagent: NO mover a shared por "reuso potencial". Solo migrar cuando insult + alice + host consuman el MISMO contrato real. Nada de abstraer antes de encontrar ownership. <b>Decisiones que siguen siendo de Bernard (post-purga 2026-07-08):</b> (1) rename env <code>INSULT_AGENT_RUNNER_*</code> → <code>PERSONA_RUNNER_*</code> (comando az listo en el body de <code>62d87e9</code>; coordinar con el env vivo del cutover); (2) retirar <code>_VULTUR_PREFIXES</code> (el addressing por prefijo de texto) ahora que el LLM cutover está LIVE y probado — es la regla que los slices A/B espejan, retirarla cierra el strangler-fig.</div>
+</details>
+
+<details>
+<summary>5 · Promoción a fi-core (capa pública conda) <span class="phase-tag tag-future">FUTURO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p5-criteria" checked><span class="txt">Definir criterio de promoción por módulo: estable + reusable fuera del monorepo + contrato maduro + sin contexto privado de Khimeras. ✓ khimeras_shared/PROMOTION.md (2026-06-14, acordado con coagent).</span></label>
+  <label class="item"><input type="checkbox" data-k="p5-audit"><span class="txt">Auditar qué de <code>khimeras_shared/</code> ya sobrevivió como shared interno y califica (pipeline: persona → shared → fi-core, sin quemar etapas).</span></label>
+  <label class="item"><input type="checkbox" data-k="p5-token"><span class="txt">⚠️ Rotar el token de Anaconda (leaked 2026-05-23) ANTES de cualquier publish nuevo. <b>ESCALADO a Bernard (2026-06-13)</b> — acción de credenciales, gated; NO auto-rotada. Nota: el publish npm de hoy usó un <code>NPM_TOKEN</code> fresco, no el de Anaconda.</span></label>
+</div>
+</details>
+
+<details>
+<summary>6 · Infra y deploy alineados al árbol nuevo <span class="phase-tag tag-active">EN CURSO</span><span class="count"></span></summary>
+<div class="items">
+  <label class="item"><input type="checkbox" data-k="p6-docker" checked><span class="txt">Dockerfiles por servicio — <b>YA separados</b> (<code>Dockerfile</code> insult-bot, <code>Dockerfile.alice</code>, <code>Dockerfile.gateway</code>, <code>infra/azure/runner.Dockerfile</code>). El dolor era "un solo build para todo" en el CD, resuelto en <code>p6-cd</code>.</span></label>
+  <label class="item"><input type="checkbox" data-k="p6-cd" checked><span class="txt"><b>CD por servicio ✅ DONE (v4.21.95, commit <code>661244e</code>).</b> <code>cd.yml</code> ya no reconstruye las 4 imágenes ni redespliega los 5 surfaces + 2 jobs en cada push. Un step <code>detect</code> diffea los paths COPY-accurate de cada imagen entre el SHA que <b>realmente corre</b> en su Container App y el SHA nuevo (self-healing: un deploy saltado/fallido se recupera solo). <b>Verificado EN VIVO en su primera corrida</b>: un cambio solo-Insult reconstruyó bot+runner, <code>skipped</code> alice + gateway. Mapa de deps en el header del workflow (sub-construir = stale = clase P0 COPY-gap). Escape <code>workflow_dispatch force_all</code>.</span></label>
+  <label class="item"><input type="checkbox" data-k="p6-acr"><span class="txt">Renombrar el repo ACR <code>insult-bot:&lt;sha&gt;</code> (legacy) — actualizar cada línea <code>az acr build</code> del CD.</span></label>
+  <label class="item"><input type="checkbox" data-k="p6-rename-repo"><span class="txt"><b>Renombrar el repo/sistema <code>discord-bot</code> → <code>server-bot</code></b> (propuesto Bernard 2026-06-18) — ya no es "Discord cognitivo" a secas; con el demux apunta a host multi-superficie. <b>OJO con el alcance:</b> renombrar el REPO/sistema sí, pero el Container App de la plomería de Discord debería quedarse Discord-named (p.ej. <code>discord-gateway</code>) — el componente surface-agnostic ya es el host <code>demux_ai</code>; "server-bot" en la plomería choca con el 2º transporte. Clonar el runbook <b>RENAME-1b</b> (scale-to-0 → create → delete, ~30s downtime), NO inventar. <b>Subordinado a:</b> terminar el host del demux primero (renombrar algo que aún muta = error). Backlog: <code>.claude/backlog/rename-discord-bot-to-server-bot.md</code>. Agrupar con <code>p6-acr</code> (misma operación). <b>GATED — go + alcance son decisión de Bernard.</b></span></label>
+  <label class="item"><input type="checkbox" data-k="p6-runner-rename" checked><span class="txt"><b>✅ RUNNER renombrado <code>insult-runner</code> → <code>persona-runner</code> (2026-06-28, v4.21.102 commit <code>4f2ed88</code>)</b> — distinto del repo-rename (p6-rename-repo). El runner Claude ya no es "de Insult": sirve TODAS las personas (Insult con <code>persona_id</code> omitido + Vultur/siblings vía <code>persona_id</code>), así que su nombre legacy era erróneo. <b>RENAME-1b vivo + verificado por contrato real (NO /health):</b> CA <code>persona-runner</code> clonado por YAML de insult-runner (insult-rg/prod-env, 2cpu/4Gi, ingress 8080, mount AzureFile, 4 secrets repoblados del CA vivo incl. OAuth Max), <code>/v1/turn</code> 200; imagen ACR vía <code>az acr import</code>; 3 consumidores (discord-bot, vultur-gateway, fact-consolidation job) repuntados al FQDN nuevo; <b>round-trip real #general OK</b> (Insult voz A, chat_turn_end ok); CA viejo borrado (imagen en ACR para rollback). <b>NO cambiado (follow-up):</b> env var <code>INSULT_AGENT_RUNNER_URL/TOKEN</code> (nombre), imagen ACR <code>insult-bot</code> del plumbing (= p6-acr). <b>PENDIENTE:</b> aterrizar el commit en <code>main</code> — su <code>cd.yml</code> aún referencia el insult-runner borrado (landmine en el próximo CD de main); decisión de Bernard por la divergencia con el branch router-readiness.</span></label>
+  <label class="item"><input type="checkbox" data-k="p6-rules"><span class="txt">Actualizar <code>.claude/rules/architecture.md</code> + CLAUDE.md + memorias al árbol nuevo (los docs rotan silenciosamente).</span></label>
+  <label class="item"><input type="checkbox" data-k="p6-probe" checked><span class="txt">Resolver el ActivationFailed recurrente (gateway hang vs startup probe) ANTES de multiplicar servicios — cada servicio nuevo hereda el problema.</span></label>
+</div>
+</details>
+
+<footer>Generado por Claude Code · 2026-06-11 · fuente: diálogo con el coagent orquestador + ADR khimeras_demux_destilado · el estado de los checks vive en localStorage de este navegador</footer>
+</div>
+
+<script>
+const KEY      = "khimeras-demux-checklist";
+const HIDE_KEY = "khimeras-demux-hide-done";
+const saved     = JSON.parse(localStorage.getItem(KEY)      || "{}");
+const hideSaved = JSON.parse(localStorage.getItem(HIDE_KEY) || "{}");
+
+const boxes = document.querySelectorAll("input[type=checkbox]");
+boxes.forEach(b => {
+  const k = b.dataset.k;
+  if (k in saved) b.checked = saved[k];
+  b.addEventListener("change", () => {
+    saved[k] = b.checked;
+    localStorage.setItem(KEY, JSON.stringify(saved));
+    refresh();
+  });
+});
+
+function sectionKey(d) {
+  return (d.querySelector("summary")?.textContent || "").slice(0, 40).trim();
+}
+
+function updateToggleBtn(btn, itemsDiv, doneCount) {
+  const hiding = itemsDiv.classList.contains("hide-done");
+  btn.textContent = hiding
+    ? `▸ ${doneCount} hecho${doneCount !== 1 ? "s" : ""}`
+    : `▾ ocultar ${doneCount}`;
+  btn.title = hiding
+    ? `Mostrar ${doneCount} ítems completados`
+    : `Ocultar ${doneCount} ítems completados`;
+}
+
+function refresh() {
+  const all  = [...boxes];
+  const done = all.filter(b => b.checked).length;
+  document.getElementById("fill").style.width = (100 * done / all.length) + "%";
+  document.getElementById("plabel").textContent = done + " / " + all.length + " completados";
+
+  document.querySelectorAll("details").forEach(d => {
+    const bs         = [...d.querySelectorAll("input[type=checkbox]")];
+    const checkedBs  = bs.filter(b => b.checked);
+    const doneCount  = checkedBs.length;
+    const totalCount = bs.length;
+
+    // Actualizar contador del summary
+    const c = d.querySelector(".count");
+    if (c) c.textContent = doneCount + "/" + totalCount;
+
+    const itemsDiv = d.querySelector(".items");
+    if (!itemsDiv || totalCount === 0) return;
+
+    const hasUnchecked = doneCount < totalCount;
+    const hasChecked   = doneCount > 0;
+
+    // Solo mostrar toggle si hay mezcla (algunos done, algunos pending)
+    if (!hasChecked || !hasUnchecked) {
+      d.querySelector(".toggle-done")?.remove();
+      return;
+    }
+
+    // Crear botón si no existe
+    let btn = d.querySelector(".toggle-done");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.className = "toggle-done";
+      d.querySelector("summary").appendChild(btn);
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        e.preventDefault();
+        const hiding = itemsDiv.classList.toggle("hide-done");
+        hideSaved[sectionKey(d)] = hiding;
+        localStorage.setItem(HIDE_KEY, JSON.stringify(hideSaved));
+        updateToggleBtn(btn, itemsDiv, doneCount);
+      });
+    }
+
+    // Estado inicial: ocultar si hay ≥5 done y no hay preferencia guardada
+    const sk = sectionKey(d);
+    if (!(sk in hideSaved)) {
+      hideSaved[sk] = doneCount >= 5;
+    }
+    itemsDiv.classList.toggle("hide-done", !!hideSaved[sk]);
+    updateToggleBtn(btn, itemsDiv, doneCount);
+  });
+}
+
+refresh();
+</script>
+</body>
+</html>

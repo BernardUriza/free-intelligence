@@ -1,0 +1,22 @@
+# The nickname service (backlog #32) — deliberately NOT in requirements.txt.
+# onnxruntime + numpy + tokenizers is the whole stack: no torch, no
+# transformers, because neither fits beside the daemon on a 512MB box.
+#
+# What this split does NOT do, despite what this comment used to claim: it does
+# not stop the engine from "paying their memory". Both files install into the
+# SAME venv (/opt/aire/.venv), and memory is paid at IMPORT, not at install. The
+# things that actually keep those 110 MB away from the engine are that no module
+# under aire/ imports them (only aire/nickname.py does) and MemoryMax=200M on
+# aire-nickname.service.
+#
+# What the split really buys, measured 2026-08-22: CI installs only
+# requirements.txt, so the suite never downloads these 110 MB — and if an engine
+# module ever grew one of these imports, CI would go red on the next push. That
+# guard is worth more than the tidiness of one file.
+#
+# The canonical 2026 form for this is [dependency-groups] in pyproject.toml
+# (PEP 735). Not adopted yet on purpose: `pip install --group` landed in pip
+# 25.1 and the droplet's venv runs pip 24.0.
+onnxruntime
+numpy
+tokenizers

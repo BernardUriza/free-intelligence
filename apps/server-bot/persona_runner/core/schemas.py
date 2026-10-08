@@ -1,0 +1,157 @@
+"""Wire contracts of the runner — every request/response shape in one place.
+
+Each `Field` here carries the incident that shaped it. They are the runner's
+public API: `persona_core.runner.agent_client` (the gateway's turn client)
+and the judge clients speak exactly these shapes.
+"""
+
+from __future__ import annotations
+
+from typing import Literal, Self
+
+from pydantic import BaseModel, Field, model_validator
+
+# The only ids a probe may speak as. A probe under a real principal is exactly
+# the 2026-09-28 mistake: a wire check landed in Bernard's own memory.
+PROBE_PRINCIPAL_PREFIX = "probe-"
+
+
+class TurnRequest(BaseModel):
+    channel_id: str = Field(..., min_length=1)
+    user_id: str = Field(..., min_length=1)
+    # F3 (2026-09-28): who assembles the turn. "caller" (default) is the
+    # gateway, which runs the pipeline itself and sends a framed `user_text` +
+    # guidance. "runner" is a surface with no pipeline of its own (og118): the
+    # runner runs `persona_core.turn.run_turn` — stores the ask and the reply,
+    # runs the guardian, frames the turn, routes markers, grows facts — around
+    # the same brain call. `user_text` is then the RAW ask.
+    pipeline: Literal["caller", "runner"] = "caller"
+    # The author's display name, for the stored row and the fact extractor.
+    # Only read with `pipeline="runner"`.
+    user_name: str | None = Field(default=None, max_length=100)
+    # F2 (2026-09-27): la superficie que emitió `user_id` ("discord", "og118"…).
+    # Con ella el runner resuelve `(surface, user_id)` al principal canónico en
+    # `principal_identities` antes de leer memoria; sin ella busca el id en todas
+    # las superficies y sólo acepta un match único. Un id sin puente pasa tal cual.
+    surface: str | None = Field(default=None, max_length=32, pattern=r"^[a-z0-9_-]+$")
+    # v3.9.58: raised from 8000 -> 256000 chars. Bernard 2026-05-19 07:06
+    # pasted `message.txt` (21KB) and the runner rejected with 422, falling
+    # over to ALICE who never saw the attachment content. The Claude Agent
+    # SDK handles long inputs fine; the previous cap was an arbitrary Pydantic
+    # constraint with no upstream justification.
+    user_text: str = Field(..., min_length=1, max_length=256000)
+    # Kept in the schema for caller backward-compat but ignored — the
+    # per-channel client owns continuity now.
+    session_uuid: str | None = None
+    # v3.9.43 (REWRITE-B1): Anthropic-shape content blocks for non-text
+    # attachments (image, document). Caller extracts them from the
+    # `messages[-1].content` list and forwards them raw. When present the agent
+    # receives a multimodal user message instead of text-only. Bug origin:
+    # 2026-05-18 Alex sent text+2 images, runner only saw text → bot ignored
+    # the images entirely.
+    attachments: list[dict] | None = None
+    # v3.9.94: per-turn behavioral guidance (preset + vulnerability overlay)
+    # computed by the caller's classifier. The runner-extracted architecture had
+    # dropped it (agent_client discards `system_prompt`), so the persona answered
+    # with its raw base tone regardless of what the classifier decided. Symptom
+    # 2026-05-22: classifier picked relational_probe + vulnerability overlay
+    # (score 11) for a user hours after suicidal ideation, but Insult stayed
+    # abrasive. Injected into the USER message (not the system prompt) so the
+    # persona stays cache-stable while the guidance varies per turn.
+    behavioral_guidance: str | None = Field(default=None, max_length=16000)
+    # Khimeras multi-persona: which sibling persona answers this turn. None ⇒
+    # the default persona, fully backward-compatible. A valid id loads
+    # PERSONAS_DIR/<id>.md; an unknown/invalid id falls back + logs.
+    persona_id: str | None = Field(default=None, max_length=32)
+    # OG118-CONTINUITY: prior turns of THIS conversation, replayed by a
+    # local-first caller (og118) whose transcript lives client-side. Folded into
+    # the user message ONLY when this turn opens a FRESH pool slot — a live SDK
+    # session already holds the thread internally, so re-inlining would duplicate
+    # context every turn. Untrusted conversational context, never authorization;
+    # role-allowlisted + capped by `fold_history`. Discord callers never send it.
+    history: list[dict] | None = None
+    # Boleto elegido por el cliente para `/v1/turn/jobs`: la misma alta dos veces
+    # es UN turno, así que un alta perdida en un arranque en frío se puede repetir.
+    job_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    # Sólo lo pone el runner al reanudar un job huérfano (engine/turn_jobs): la
+    # historia ya cruzó a AIRE, no se vuelve a plegar, y va la nota de reintento.
+    resumed: bool = False
+    # Who is really asking (2026-09-28). "probe" is synthetic traffic — a wire
+    # check, a deploy receipt. Its rows are stored tagged, facts are never
+    # extracted from it, and it may only speak as a `probe-*` principal, so it
+    # can never land in a real person's memory (it did, under Bernard's, the day
+    # this field was born). Same idea as Datadog's `x-datadog-origin: synthetics`
+    # and OpenTelemetry's `user_agent.synthetic.type=test`: the marker rides the
+    # data so every consumer can exclude it at write time.
+    origin: Literal["user", "probe"] = "user"
+
+    @model_validator(mode="after")
+    def _a_probe_never_speaks_as_a_real_principal(self) -> Self:
+        if self.origin == "probe" and not self.user_id.startswith(PROBE_PRINCIPAL_PREFIX):
+            raise ValueError(f"origin='probe' requires a user_id starting with {PROBE_PRINCIPAL_PREFIX!r}")
+        return self
+
+
+class TurnResponse(BaseModel):
+    text: str
+    session_uuid: str | None = None
+    # None = the backend reported no usage. Never coerce that to 0: the gateway
+    # reads an EXPLICIT output_tokens == 0 under real text as "text no model
+    # generated" and answers "…" (its 2026-07-19 auth-error guard). A zero it was
+    # never told is an accusation this side invented — 2026-09-03, eight of
+    # Insult's answers to Alex died that way on AIRE's budget-cut turns.
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    model: str = ""
+    stop_reason: str = ""
+    tool_calls: list[dict] = Field(default_factory=list)
+    # F5 (2026-09-28): the whole `OutboundTurn` comes back over the wire, not
+    # just its text. Filled only when the runner owns the pipeline
+    # (`pipeline="runner"`): the caller-owned turn keeps its markers raw in
+    # `text` because the caller parses them itself. A surface that cannot show
+    # a reaction or a GIF degrades them its own way (F4) — the runner no longer
+    # decides that by dropping them. `empty_reason` says why `text` is "" when
+    # it is ("reactions_only", "markers_only", "brain_empty"), so a turn that
+    # was ONLY a reaction stops reading as a failed answer downstream.
+    reactions: list[str] = Field(default_factory=list)
+    gif_urls: list[str] = Field(default_factory=list)
+    empty_reason: str = ""
+
+
+class JudgeRequest(BaseModel):
+    """One-shot utility request — an SDK call with an arbitrary system prompt,
+    no session pool, no persona. Used by fact extraction, the consolidator job,
+    image transcription and any future utility caller, so OAuth Max stays
+    centralized in the runner. Memory: [[mcp-shape-b-canonical]].
+    """
+
+    system_prompt: str = Field(..., min_length=1, max_length=256000)
+    user_text: str = Field(..., min_length=1, max_length=256000)
+    max_tokens: int = Field(default=4096, ge=1, le=64000)
+    model: str | None = Field(
+        default=None,
+        description="Override AGENT_RUNNER_JUDGE_MODEL. Defaults to Haiku.",
+    )
+    # v4.21.117: same attachment contract as TurnRequest. Lets utility callers
+    # use the judge's vision (image transcription for longitudinal memory) — the
+    # judge was text-only before, which is why image content never survived past
+    # its live turn.
+    attachments: list[dict] | None = None
+    # AIRE stage 2: which persona's utility casita (`{persona_id}-judge`) hosts
+    # this call on the AIRE route. None ⇒ the default persona's casita —
+    # existing callers unchanged. Ignored entirely on the local backend.
+    persona_id: str | None = Field(default=None, max_length=32)
+
+
+class JudgeResponse(BaseModel):
+    text: str
+    model: str = ""
+    stop_reason: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class RuleRequest(BaseModel):
+    """A house rule Bernard appends to the agents' CLAUDE.md, live."""
+
+    rule: str

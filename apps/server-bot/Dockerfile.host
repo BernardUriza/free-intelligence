@@ -1,0 +1,30 @@
+# Khimeras omnipresent host — the receiver that owns Discord reception (#6).
+#
+# Clone of Dockerfile.gateway (Art. 6), differing only in the COPY set and CMD.
+# The host is a thin Discord client: it batches every message, asks the gpt-4.1
+# router WHO answers, and summons that persona through the gateway /invite. Like
+# the gateway it runs NO LLM of its own beyond the router call and is outbound-only
+# (no ingress). This retires Insult as the structural owner of reception — the
+# host receives, Insult becomes a routed persona (cutover, gated on the host's
+# HOST_DISCORD_TOKEN; run_host stays dormant without it so it never double-listens).
+#
+# DORMANT UNTIL CUTOVER: building this image changes nothing live. The host only
+# connects when HOST_DISCORD_TOKEN is set on its Container App AND Insult's
+# omnipresence is stood down — Bernard's atom + go.
+
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-base:latest
+FROM ${BASE_IMAGE}
+
+SHELL ["/bin/bash", "-l", "-c"]
+WORKDIR /app
+
+# The host's import graph: demux_ai → persona_core (+ shared/ read at runtime
+# for persona guidance). No persona_gateway/persona_runner — it reaches personas
+# only over HTTP (/invite). Enforced by the dockerfile-copies arch test.
+COPY demux_ai/ demux_ai/
+COPY persona_core/ persona_core/
+COPY shared/ shared/
+
+ENV LOG_FORMAT=json
+
+CMD ["python", "-m", "demux_ai", "host"]

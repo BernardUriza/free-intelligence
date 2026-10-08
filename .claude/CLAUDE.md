@@ -87,7 +87,11 @@ free-intelligence/
 │   │   └── free-intelligence-core/
 │   ├── aurity/          # LEGACY (see below) — Next.js frontend
 │   ├── aurity-desktop/  # Tauri desktop app
-│   └── fi-monitor/      # Windows monitor app
+│   ├── fi-monitor/      # Windows monitor app
+│   ├── server-bot/      # LIVE (absorbed 2026-10-08): Discord personas + persona-runner on Azure Container Apps
+│   │                    #   own CLAUDE.md/AGENTS.md; CI/CD = server-bot-*.yml (conda env, GHCR images)
+│   └── aire-server/     # LIVE (absorbed 2026-10-08): AIRE daemon (DO droplet) + front (ACA)
+│                        #   own CLAUDE.md; CI/CD = aire-server-*.yml
 └── .claude/             # Documentation (Hong Kong standard)
 ```
 

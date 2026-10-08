@@ -1,0 +1,15 @@
+[Unit]
+Description=AIRE broom — delete aire_log and aire_gateway_log rows past retention
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/aire/server
+Environment=AIRE_LOG=/opt/aire/aire.log
+Environment=AIRE_RETENTION_DAYS=30
+# The gateway mirror's own window (#6) — unset, it follows AIRE_RETENTION_DAYS.
+Environment=AIRE_GATEWAY_RETENTION_DAYS=30
+EnvironmentFile=-/etc/aire/env
+ExecStart=/usr/bin/python3 -m aire.sweep

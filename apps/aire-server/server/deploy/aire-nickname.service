@@ -1,0 +1,26 @@
+[Unit]
+Description=AIRE nickname — the landing's generator (MiniLM int8 on CPU, port 8090)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/aire/server
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=AIRE_MODEL_DIR=/opt/aire/models/minilm
+EnvironmentFile=-/etc/aire/env
+# The whole point of a separate unit: the engine must never pay these weights'
+# memory, and this process must never be able to starve it. 458MB box, the
+# engine holds ~234MB — if the model ever bloats past its share, systemd kills
+# THIS and the pen keeps writing.
+MemoryMax=200M
+MemoryHigh=170M
+# Loopback only. Caddy fronts it on 443 (deploy/Caddyfile) and the Bearer check
+# lives in the app, so the token never crosses a plaintext hop.
+ExecStart=/opt/aire/.venv/bin/uvicorn aire.nickname:app --host 127.0.0.1 --port 8090
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

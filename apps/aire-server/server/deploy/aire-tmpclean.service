@@ -1,0 +1,10 @@
+[Unit]
+Description=AIRE tmp broom — remove SDK resume temp dirs left on the mortal /tmp (#27)
+# tmpfiles.d cannot age-remove whole dirs matching a glob (its `e` type only
+# cleans dir CONTENTS), so this uses find -mmin, the aire-sweep timer pattern.
+
+[Service]
+Type=oneshot
+User=root
+# Only dirs untouched for >60min: a dir backing a live pooled client is younger.
+ExecStart=/usr/bin/find /tmp -maxdepth 1 -type d -name "claude-resume-*" -mmin +60 -exec rm -rf {} +

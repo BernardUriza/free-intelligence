@@ -1,0 +1,42 @@
+# Khimeras persona gateway — one Discord bot user per sibling persona (Vultur…).
+#
+# Durable host for the sibling personas that share ONE brain (the persona-runner)
+# via persona_id. Before this image they ran ONLY as an ephemeral local process
+# on Bernard's Mac — so a Mac restart or a trimmed .env silently took Vultur
+# offline (the "Vultur no responde" class). This gives the gateway the same
+# always-on Azure Container App home that alice-bot has.
+#
+# Built on `khimeras-base` (Dockerfile.base), which owns the conda env from
+# environment.yml (memory: feedback_no_pypi_only_conda). This image is COPY
+# layers only — the dependency install is shared with every other surface and
+# paid once per environment.yml change instead of once per commit per image.
+#
+# Differences from the ALICE image:
+# - NO Node.js / codex layer. The gateway does NOT run an LLM: it is a thin HTTP
+#   client of the persona-runner (AgentRunnerClient → /v1/turn). All cognition
+#   stays in the runner; the gateway only relays Discord ↔ runner + persists to
+#   the shared Postgres. So it skips ALICE's `@openai/codex` install entirely.
+# - Copies persona_gateway/ + persona_core/ + shared/ — the gateway imports
+#   `persona_core.{memory,persona,runner}` and `shared.personas`, never a
+#   persona package (personas.insult/alice). The COPY set is enforced against the
+#   real import graph by tests/arch/test_runner_dockerfile_copies_imports.py so a
+#   missing package can't ship a ModuleNotFound image (the PR #26 P0 class).
+# - No EXPOSE / ingress: Discord traffic is outbound only, like Insult's plumbing.
+
+ARG BASE_IMAGE=serverbotacr.azurecr.io/khimeras-base:latest
+FROM ${BASE_IMAGE}
+
+SHELL ["/bin/bash", "-l", "-c"]
+WORKDIR /app
+
+# The gateway's import graph: persona_gateway → persona_core.{memory,persona,
+# runner} + shared.personas. No persona package (the runner owns persona DNA).
+COPY persona_gateway/ persona_gateway/
+COPY persona_core/ persona_core/
+COPY shared/ shared/
+
+# Pinned in the image, not in an Azure env var somebody must remember: the
+# guarantee travels with the artifact even if the base ever changes.
+ENV LOG_FORMAT=json
+
+CMD ["python", "-m", "persona_gateway", "run"]
