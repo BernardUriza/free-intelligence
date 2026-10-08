@@ -1,0 +1,70 @@
+[project]
+name = "insult"
+version = "4.47.1"
+requires-python = ">=3.14"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+exclude = ["dashboard/", "scripts/"]  # Brython uses <= as DOM op; scripts are tooling
+# Without this, `exclude` is ignored whenever a path is passed EXPLICITLY — which is
+# exactly what the pre-commit hook does with the staged files. So `ruff check .` passed
+# while committing a one-line dashboard edit failed on 60 pre-existing Brython `<=`.
+force-exclude = true
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade (modern Python patterns)
+    "B",     # flake8-bugbear (common bugs)
+    "S",     # flake8-bandit (security, inline)
+    "A",     # flake8-builtins (shadowing builtins)
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "S101",  # assert used — fine in tests
+    "S311",  # random — we use it for error response selection, not crypto
+    "E501",  # line too long — handled by formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106"]  # asserts and hardcoded passwords OK in tests
+"shared/personas/registry.py" = ["S106"]  # `token_env` is an env-var NAME, not a secret
+"scripts/**" = ["S"]  # local operator tooling (az subprocess, Log Analytics REST) — already in `exclude`; this also covers the pre-commit hook, which passes explicit paths and bypasses `exclude`
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["persona_gateway", "demux_ai", "persona_core", "shared"]
+omit = [
+    "persona_gateway/boot.py",      # Discord lifecycle glue (requires real bots)
+    "persona_gateway/__main__.py",  # CLI entry point
+    "demux_ai/__main__.py",         # CLI entry point
+    "persona_core/memory/*",     # Postgres I/O (integration test territory)
+    "persona_core/vectors.py",   # sentence-transformers I/O
+]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+skip_covered = true
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+skips = [
+    "B101",  # assert OK
+    "B110",  # try-except-pass used for expected errors (e.g. Azure container exists)
+    "B311",  # random.choice for error responses, not crypto
+    "B608",  # SQL queries use parameterized ? placeholders
+]

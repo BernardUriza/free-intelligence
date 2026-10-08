@@ -1,0 +1,228 @@
+# Conda environment definition for server-bot (persona-gateway, khimeras-host, persona-runner).
+# The env itself is still named `discord-bot` (line 25): renaming it touches every
+# machine (Bernard, Alex, the CI cache) and is a separate, deliberate step.
+#
+# This file replaces requirements.txt as the canonical dependency manifest
+# (see memory: feedback_no_pypi_only_conda + reference_anaconda_channel).
+#
+# Channels (order matters — first match wins):
+#   1. bernardurizaorozco — Bernard's personal channel hosts fi-core
+#   2. conda-forge        — every other dep
+#   3. nodefaults         — explicitly skip Anaconda's `defaults` channel
+#                           (commercial license + slower mirror)
+#
+# Pip subsection: ONLY for packages that have NO conda-forge build for
+# Python 3.14 (which is the rule per the memory). As of 2026-05-19 that
+# is only `ruff` — ruff==0.11.12 was built for py39/py312/py313 but not
+# py314 yet on conda-forge. When the conda feedstock catches up, move
+# it back to the conda section.
+#
+# Local install:
+#   conda env create -f environment.yml -n discord-bot
+#   conda activate discord-bot
+#
+# Why Python 3.14: matches the existing runtime (.python-version),
+# CI matrix, and the type-hint syntax this codebase already uses.
+
+name: discord-bot
+channels:
+  - bernardurizaorozco
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.14
+
+  # Bernard's shared package — the reason this whole migration exists.
+  # fi-core ships the chunking algorithm + Embedder/ChunkStore protocols
+  # + DocumentChunkStore (HDF5-backed). HDF5 is the data-pipeline
+  # justification for going conda in the first place.
+  # Floor raised to 0.7.0 (v4.1.0): the facts layer now uses
+  # fi_core.memory.PgMemoryStore, which FIRST shipped in 0.7.0. A build that
+  # resolved to 0.5.x/0.6.x (which lack fi_core.memory) would crash facts at
+  # import — pin the floor so the conda solver can't cache an older version.
+  # Floor raised to 0.9.1 (alice 0.1.20): ALICE's clinical reflection layer
+  # imports fi_core.cognitive.PSYCHIATRY (the ClinicalDomain added in 0.9.1);
+  # 0.9.0 lacks it and crashes ALICE at boot with ImportError.
+  # PINNED exact to 0.25.1 (v4.33.1): fi-runner >=0.20 imports fi_core.prompts
+  # (the P0 prompts-as-content loader) at import time, which first ships in
+  # fi-core 0.25 — 0.24.4 crashes `import fi_runner` (caught by CI on the
+  # 0.20.0 bump; fi-runner 0.20.1 encodes the honest floor). Pinned exact so a
+  # future fi-core bump can't drift behavior silently. See
+  # conda_version_constraint.
+  # SUBIDO a 0.26.0 (publicada 2026-08-28, un día después de que se pinneara
+  # 0.25.1): es la primera que trae `PSYCHIATRY.acute_signals` y
+  # `PSYCHIATRY.chronic_signals` — los 5 regex de crisis y los 6 grupos de
+  # vulnerabilidad de este repo, migrados verbatim con sus pesos y su umbral.
+  # El issue #52 delega en ellos y borra las copias locales; en 0.25.1 esos dos
+  # atributos NO existen y `persona_core/behavior/vulnerability.py` no importa.
+  # SUBIDO a 0.26.1 (2026-09-02): Alex midió la composición del #53 y en 0.26.0
+  # `UrgencyClassifier` no veía "mejor sin mí" (el stripper de negaciones se la
+  # comía por el "sin") ni ninguna frase sin acentos (16 bajaban de banda, 5 de
+  # CRITICAL a LOW). free-intelligence PR #456 lo arregla en la fuente.
+  # SUBIDO a 0.27.0 (2026-09-03): trae `PSYCHIATRY.match(texto)` — el emparejador
+  # oficial que pliega acentos y respeta negaciones igual que el clasificador
+  # (free-intelligence #458 / PR #459). Es el paso previo del #53: nadie en este
+  # repo vuelve a plegar ni a grepear las listas de PSYCHIATRY por su cuenta.
+  # SUBIDO a 0.28.0 (2026-09-07): cierra el #64 — "sin esperanza" / "no tengo
+  # esperanza" entran al vocabulario, y la negación pasa a ser LOCAL por
+  # registro (free-intelligence PR #460): "no"/"sin"/"nunca" niegan a una
+  # palabra y nunca cruzan una coma, así que "el equipo va a estar mejor sin
+  # mí" ya no se la come el "sin". `PSYCHIATRY.match()` devuelve además el
+  # bucket `denied` ("no me quiero morir" → denied=('quiero morir',)), que es
+  # lo que dejó a `is_acute_crisis` soltar su última subcadena plegada local.
+  # Y a 0.29.0 el mismo día (free-intelligence #461 / PR #462, las H1/H2 de
+  # Álex): `acute_signals` también respeta la negación local, `match()` suma
+  # el bucket `excluded` (modismo "de la risa", tema ajeno "documental",
+  # desahogo laboral "no puedo más con este proyecto") y llegan los dos grupos
+  # crónicos de exposición (`exposicion_intento` / `exposicion_consumado`):
+  # "mi hermana intentó suicidarse" deja de ser crisis del hablante y pasa a
+  # ser historia — se mapea a `high_risk_conditions` en vulnerability.py.
+  # Y a 0.29.1 la misma tarde (free-intelligence PR #463), los dos defectos que
+  # salieron al probar la 0.29.0 desde aquí: `critical_pattern()` escaneaba
+  # `symptoms + medical_history` pegados (todo usuario con antecedente de
+  # intento salía CRITICAL en cada turno, mensaje vacío inclusive) y la
+  # ventana de negación de `acute_signals` no alcanzaba "no me quiero
+  # suicidar" (cue → clítico → verbo). Sin cambio de API.
+  # SUBIDO a 0.30.0 (2026-09-08, free-intelligence PR #465, issue #54): las
+  # `reasons` de `GravityScore` son tipadas (`UrgencyReason` — kind/key/peso
+  # para el log, la frase sólo en `render()`), `PSYCHIATRY.assess()` devuelve
+  # banda + grupos de los dos ejes en UNA lectura (aquí colapsaron
+  # `matched_acute_groups`, `history_conditions`, `symptoms_in_message` y
+  # `_GROUP_TO_CONDITION`), y `fi_core.audit` trae el seudónimo HMAC y el
+  # evento con hash que `persona_core/audit.py` escribió primero.
+  # SUBIDO a 0.32.0 (2026-09-10): trae el EJE DE RECUPERACIÓN que Álex decidió
+  # el 09-09 (hallazgo 4 del #55). El corpus sólo sabía subir la escalera — 145
+  # turnos vivían en `stability` sin una sola señal de recuperación, que no es
+  # estabilidad sino que nadie miraba el otro lado. `PSYCHIATRY.recovery_signals`
+  # llega con umbral 4 contra pesos de 3, así que ninguna señal prende sola, y
+  # con `silenced_by`, la capacidad nueva del motor: en sustancias el eje se
+  # apaga ENTERO (ahí no hay intervención, hay contención). Se salta la 0.31.0
+  # —el re-ingest del retriever, ajeno a este repo— porque el H4 no entró en
+  # ningún tag anterior: 0.30.0 y 0.31.0 NO lo contienen (verificado con
+  # `git merge-base --is-ancestor`), y sin este bump el trabajo clínico de Álex
+  # no llega a producción por más que esté mergeado.
+  # SUBIDO a 0.33.0 (2026-09-22, free-intelligence #492/#493/#494): las dos
+  # decisiones de Álex del #55 que faltaban. H3 — `named_diagnosis` nombra
+  # depresión, anorexia, bulimia, borderline (en/es) y ansiedad generalizada;
+  # depresión y ansiedad sólo detrás de un marcador de diagnóstico, para que
+  # "tengo ansiedad" siga en cero. H4 follow-up — el silenciador de sustancias
+  # del eje de recuperación aprende sus 26 frases coloquiales con cópula libre
+  # ("ando bien pedo", "me tomé unas chelas", "estoy bien pacheco"); "vape" a
+  # secas no entra. Ningún eje, peso ni umbral cambia: más frases puntúan o
+  # silencian, nada más.
+  - fi-core=0.33.0
+  # fi-runner — the runner framework. Every LLM path in this repo now crosses
+  # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
+  # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
+  # fi-runner deleted ClaudeCodeBackend / CodexBackend / SubprocessCLIBackend and
+  # AIREBackend became the only backend. The floor history below is kept as the
+  # record of why the pin moved; the CodexBackend fixes it names are dead code
+  # upstream now, and this repo imports none of the deleted classes.
+  # MUST be published to the bernardurizaorozco channel for the prod build.
+  # Floor raised to 0.2.1 (alice 0.1.20): CodexBackend._extract_text drops
+  # aborted-retry partials (Azure content_filter mid-stream); 0.2.0 concatenates
+  # them and garbles ALICE's replies. 0.2.0 also has the azure_endpoint kwargs.
+  # Floor raised to 0.2.2: CodexBackend now passes `codex exec --skip-git-repo-check`
+  # so it runs in the containerized runner cwd (no git working tree). Without it
+  # codex refused to run and ALICE failed EVERY turn ("Not inside a trusted directory").
+  # Floor raised to 0.3.0: insult now wires the fi-core persona MCP server via
+  # fi_runner.capabilities.resolve(["persona"], env_passthrough=False) instead of a
+  # hand-built spec — the env_passthrough kwarg on resolve()/factories is 0.3.0+.
+  # PINNED exact to 0.21.0 (v4.34.0) — adds the HTTP MCP transport on
+  # MCPServerSpec (R6): aire_route sends persona_memory as remote_tools so the
+  # droplet agent calls THIS runner's /mcp/{casita} door. Also the release that ships
+  # fi_runner.backends.aire (AIREBackend + AIREDoorError + thin birth), which
+  # let this repo DELETE its vendored persona_runner/engine/aire_backend.py
+  # and import the canonical client. Also carries antidrift_guard + packs +
+  # capabilities (all imported by the repo) and requires fi-core>=0.25 (no
+  # upper bound — verified in the conda metadata of 0.21.0/0.21.1 on
+  # 2026-08-31), satisfied by the pinned fi-core=0.26.0. Pinned exact (not
+  # `>=`) so the
+  # fi-core/fi-runner pair stays the validated combo and can't drift apart on a
+  # fresh solve. See conda_version_constraint.
+  # NOTE: 0.21.0 still SHIPS the deleted backends, so this pin does not break
+  # today — but it is also the last version that does. The next bump must land
+  # together with an AIRE-only repo, which is what the host_llm migration bought.
+  # SUBIDO a 0.21.2 (2026-09-03): el repo ya es AIRE-only (host_llm migró el
+  # 2026-08-29; los backends borrados sólo sobreviven en docstrings), y 0.21.2
+  # es la primera fi-runner cuyo cap de fi-core (<0.28) admite la 0.27.0 de
+  # arriba — con 0.21.0/0.21.1 (cap <0.27) el par no resuelve.
+  # SUBIDO a 0.21.4 (2026-09-07): cap de fi-core <0.30, el que admite la 0.29.0
+  # de arriba (0.21.3 capaba <0.29).
+  # SUBIDO a 0.21.5 (2026-09-08): cap de fi-core <0.31, el que admite la 0.30.0.
+  # SUBIDO a 0.22.0 (2026-09-25, free-intelligence PR #495): TurnImage(url=...)
+  # y attachments_lost — las imágenes viajan por referencia a AIRE (#50).
+  # SUBIDO a 0.23.0 (2026-09-25, free-intelligence PR #496): TurnDocument —
+  # PDFs y texto viajan por referencia a AIRE (#50 item 6).
+  - fi-runner=0.23.0
+
+  # Runtime — Discord, LLMs, Postgres, FastAPI
+  - discord.py>=2.3.0
+  # Python 3.13+ removed the `audioop` stdlib module that discord.py
+  # 2.3.x imports unconditionally for voice/audio support.
+  # `audioop-lts` is the official backport — installs a module named
+  # `audioop` that discord.py's import resolves to. Without this,
+  # `import discord` crashes on py314 with ModuleNotFoundError.
+  # Drop when discord.py 2.5+ lands on conda-forge (upstream made the
+  # import conditional).
+  - audioop-lts
+  - anthropic>=0.42.0
+  # claude-agent-sdk left with the local SDK host (aire-engine-stage2
+  # deletion): turns/judges ride AIRE's door over httpx, and the memory
+  # tools declare themselves via persona_runner.mcp_tools.tooldef.
+  - python-dotenv>=1.0.0
+  - pydantic>=2.5.0
+  - pydantic-settings>=2.1.0
+  - aiosqlite>=0.19.0
+  - asyncpg>=0.30.0
+  - psycopg>=3.1
+  - pgvector-python>=0.4.0
+  - structlog>=24.1.0
+  - typer>=0.9.0
+  # pillow floor 12.3.0: PYSEC-2026-2253..2257 (5 CVEs) live in <=12.2.0,
+  # all fixed in 12.3.0 (verified against OSV 2026-07-14).
+  - pillow>=12.3.0
+  # setuptools floor 83: PYSEC-2026-3447 lives in 81.0.0 (the version the CI
+  # env resolved as tooling); 83.0.0 is the fixed line.
+  - setuptools>=83
+  - azure-storage-blob>=12.19.0
+  - openai>=1.30.0
+  - fastapi>=0.115
+  # starlette CAPPED <1.0: PYSEC-2026-161 lives in starlette 1.0.0 (fixed in
+  # 1.0.1), BUT no fastapi on conda-forge supports starlette 1.x yet — the
+  # newest (0.116) caps `starlette<0.47`. The original `>=1.0.1` pin was
+  # unsatisfiable against fastapi and only "worked" while CI restored a cached
+  # env (it never solved clean). Capping `<1.0` keeps the env OFF the vulnerable
+  # 1.0.0 (so the advisory is still honored) while letting fastapi pull a
+  # compatible 0.4x starlette. pip-audit gates that the resolved 0.4x is clean.
+  # Lift the cap to `>=1.0.1` only once fastapi's floor supports starlette 1.x.
+  - starlette<1.0
+  - uvicorn>=0.30
+  - httpx>=0.27
+  - sentence-transformers>=3.0.0
+  - numpy
+  - h5py>=3.10
+
+  # Testing
+  - pytest>=8.0.0
+  - pytest-asyncio>=0.24.0
+  - pytest-cov>=6.0.0
+  - pytest-postgresql>=6.0.0
+
+  # Security / lint
+  - pip-audit>=2.7.0
+  - bandit>=1.8.0
+  # Transitive (bandit, transformers) — pinned only to clear the 5 HIGH GHSAs
+  # published 2026-07-24 against <=3.1.54 (config-injection RCE, --output
+  # overwrite, clone --template, kwarg smuggling, env exfiltration). Nothing
+  # here imports it; the floor exists so pip-audit stops red-gating the CD.
+  - gitpython>=3.1.56
+
+  # Packages without py314 conda-forge build yet → pip fallback (allowed
+  # per the memory rule when no conda recipe exists AND we need the
+  # exact version). Migrate back to conda section when builds catch up.
+  - pip
+  - pip:
+      # CI pins this version because newer ruff (≥0.13) corrupts some
+      # multi-except syntax. Memory: feedback_ruff_version_pinned.
+      - ruff==0.11.12

@@ -1,0 +1,745 @@
+/* Insult Dashboard — Dark glass morphism */
+
+:root {
+  --bg: #0a0a0f;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #e8e8ed;
+  --text-dim: #6b6b7b;
+  --text-muted: #4a4a5a;
+  --red: #e74c3c;
+  --green: #2ecc71;
+  --yellow: #f39c12;
+  --blue: #3498db;
+  --purple: #9b59b6;
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  /* Mobile-first: vertical scroll is fine. Desktop overrides below. */
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Topbar — mobile-first: compact, wrap-friendly */
+.topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  gap: 0.5rem;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 50;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo span { color: var(--red); }
+.logo em { font-style: normal; font-size: 0.55rem; color: var(--text-muted); margin-left: 0.25rem; }
+
+/* Tabs — mobile-first: 44px touch targets per Apple HIG */
+.tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: 0;
+  flex-wrap: wrap;
+  order: 3;
+  width: 100%;
+}
+
+.tab {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  padding: 0.65rem 1rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tab:hover { background: var(--surface-hover); color: var(--text); }
+.tab.active { background: rgba(231, 76, 60, 0.15); color: var(--red); border-color: rgba(231, 76, 60, 0.3); }
+
+.logo-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.status {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+
+.status-live { color: var(--green); border-color: rgba(46, 204, 113, 0.3); }
+.status-error { color: var(--red); border-color: rgba(231, 76, 60, 0.3); }
+.status-stale { color: var(--yellow); border-color: rgba(243, 156, 18, 0.35); }
+.status-dead {
+  color: var(--red);
+  border-color: rgba(231, 76, 60, 0.45);
+  background: rgba(231, 76, 60, 0.12);
+  font-weight: 600;
+}
+
+/* Staleness banner — the dashboard says out loud how old its data is. */
+.stale-banner {
+  margin: 0.75rem 0.85rem 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  background: rgba(231, 76, 60, 0.08);
+}
+
+.stale-banner-stale {
+  border-color: rgba(243, 156, 18, 0.35);
+  background: rgba(243, 156, 18, 0.08);
+}
+
+.stale-banner-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  margin-bottom: 0.3rem;
+}
+
+.stale-banner-stale .stale-banner-title { color: var(--yellow); }
+
+.stale-banner-body {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* Fossil data must not read as live: dim the numbers, kill the "alive" pulse. */
+.data-stale .bento { opacity: 0.55; filter: saturate(0.5); }
+.data-stale .logo-dot { background: var(--red); animation: none; }
+
+/* Bento — mobile-first: 2-col stat cards, single-col panels, vertical scroll.
+   Desktop overrides at the bottom of the file restore the 4-col grid layout. */
+.bento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem 2rem;
+  /* No fixed height: let mobile scroll vertically. Desktop overrides this. */
+}
+
+/* Each stat card occupies one column by default (2-col grid above). */
+.stat-card { grid-column: span 1; }
+
+/* Panels (presets, counters, traces, logs) span both columns on mobile.
+   They stack vertically as you scroll. Desktop will reposition them via
+   grid-area in the @media (min-width: ...) block below. */
+.panel { grid-column: span 2; }
+
+.g-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(20px);
+}
+
+/* Stat Cards */
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Panels */
+.panel h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 0.75rem;
+}
+
+/* Preset Distribution */
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.preset-label {
+  font-size: 0.65rem;
+  width: 70px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.preset-bar-bg {
+  flex: 1;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.preset-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.preset-count {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Counter List */
+.counter-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.counter-row:last-child { border-bottom: none; }
+
+.counter-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.counter-value {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Carousel */
+.carousel-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
+}
+
+.carousel-card {
+  flex: 0 0 280px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.carousel-card:hover { background: var(--surface-hover); }
+.carousel-card.selected { border-color: var(--red); background: rgba(231, 76, 60, 0.05); }
+
+.trace-user {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--blue);
+  margin-bottom: 0.25rem;
+}
+
+.trace-input {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+  line-height: 1.4;
+  max-height: 2.8em;
+  overflow: hidden;
+}
+
+.trace-response {
+  font-size: 0.6rem;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+  line-height: 1.4;
+  max-height: 4.2em;
+  overflow: hidden;
+}
+
+.trace-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.trace-tag {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+}
+
+.trace-tag.preset { color: var(--red); background: rgba(231, 76, 60, 0.1); }
+.trace-tag.pressure { color: var(--yellow); background: rgba(243, 156, 18, 0.1); }
+.trace-tag.shape { color: var(--purple); background: rgba(155, 89, 182, 0.1); }
+.trace-tag.tool { color: var(--green); background: rgba(46, 204, 113, 0.1); }
+.trace-tag.break { color: var(--red); background: rgba(231, 76, 60, 0.25); font-weight: 600; }
+
+/* Trace Detail Button */
+.trace-detail-btn {
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  margin-left: auto;
+  transition: color 0.2s, background 0.2s;
+}
+
+.trace-detail-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Trace Modal */
+.trace-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.trace-modal {
+  background: #12121a;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.trace-modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.trace-modal-close:hover { background: var(--surface-hover); color: var(--text); }
+
+.trace-modal-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--blue);
+}
+
+.trace-modal-label {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.trace-modal-text {
+  font-size: 0.7rem;
+  line-height: 1.6;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+}
+
+.trace-modal-text.input { color: var(--text-dim); }
+.trace-modal-text.response { color: var(--text); }
+
+.trace-modal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.trace-modal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+.trace-modal-row:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+
+.trace-modal-key {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+.trace-modal-val {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.trace-modal-val.preset { color: var(--red); }
+.trace-modal-val.pressure { color: var(--yellow); }
+.trace-modal-val.shape { color: var(--purple); }
+.trace-modal-val.tool { color: var(--green); }
+
+.empty-msg {
+  color: var(--text-dim);
+  font-size: 0.65rem;
+  padding: 0.5rem;
+}
+
+/* Log Panel */
+.log-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.log-header h3 { margin-bottom: 0; }
+
+.filter-select {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.log-entries {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1.6;
+}
+
+.log-entries::-webkit-scrollbar {
+  width: 4px;
+}
+
+.log-entries::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.log-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.15rem 0.25rem;
+  border-radius: 3px;
+}
+
+.log-row:hover { background: var(--surface-hover); }
+
+.log-time { color: var(--text-muted); flex-shrink: 0; }
+.log-event { color: var(--text); font-weight: 500; flex-shrink: 0; }
+.log-extra { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.log-error .log-event { color: var(--red); }
+.log-warning .log-event { color: var(--yellow); }
+.log-info .log-event { color: var(--blue); }
+
+/* Facts View */
+.facts-view {
+  padding: 1rem 1.5rem;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+}
+
+.facts-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.facts-stats {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.75rem;
+}
+
+.fact-user-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(20px);
+}
+
+.fact-user-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.fact-user-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--blue);
+}
+
+.fact-user-count {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+.fact-item {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 0.65rem;
+  line-height: 1.5;
+}
+
+.fact-item:last-child { border-bottom: none; }
+
+.fact-category {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  height: fit-content;
+  margin-top: 0.1rem;
+}
+
+.fact-category.personal { color: var(--purple); background: rgba(155,89,182,0.1); }
+.fact-category.preference { color: var(--yellow); background: rgba(243,156,18,0.1); }
+.fact-category.technical { color: var(--blue); background: rgba(52,152,219,0.1); }
+.fact-category.opinion { color: var(--red); background: rgba(231,76,60,0.1); }
+.fact-category.context { color: var(--green); background: rgba(46,204,113,0.1); }
+
+.fact-text {
+  color: var(--text);
+}
+
+.fact-time {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ALICE Sister-Bot Card */
+.bot-pill {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 100px;
+  background: rgba(155, 89, 182, 0.15);
+  color: var(--purple);
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.alice-empty {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  padding: 0.5rem 0;
+}
+
+.alice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.alice-stat {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.alice-stat-label {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.alice-stat-value {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.alice-stat-alert {
+  border-color: rgba(231, 76, 60, 0.4);
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.alice-stat-alert .alice-stat-value {
+  color: var(--red);
+}
+
+/* Tablet widens ALICE card to 4 columns when there's room */
+@media (min-width: 640px) {
+  .alice-grid { grid-template-columns: repeat(4, 1fr); }
+  #alice-panel { grid-column: span 4; }
+}
+
+/* Responsive — mobile-first.
+   Default styles target phone (375px+). These overrides expand to
+   tablet/desktop. We never shrink things from a desktop baseline. */
+
+/* Tablet — 2-col stat row, side-by-side preset/counters panels */
+@media (min-width: 640px) {
+  .topbar { padding: 0.75rem 1.25rem; }
+  .tabs { width: auto; order: 0; margin-left: 1rem; }
+  .tab { font-size: 0.65rem; padding: 0.4rem 0.85rem; min-height: 36px; }
+  .bento {
+    grid-template-columns: repeat(4, 1fr);
+    padding: 1rem 1.25rem 1.5rem;
+  }
+  .stat-card { grid-column: span 1; }
+  #presets-panel { grid-column: span 2; }
+  #counters-panel { grid-column: span 2; }
+  #traces-panel { grid-column: span 4; }
+  #logs-panel { grid-column: span 4; }
+}
+
+/* Desktop — restore the original bento layout with fixed viewport height */
+@media (min-width: 1024px) {
+  body { overflow: hidden; }
+  .topbar {
+    position: static;
+    padding: 0.75rem 1.5rem;
+    flex-wrap: nowrap;
+  }
+  .bento {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "s1 s2 s3 s4"
+      "presets presets counters counters"
+      "traces traces traces traces"
+      "logs logs logs logs";
+    height: calc(100dvh - 52px);
+    padding: 1rem 1.5rem;
+  }
+  #stat-uptime { grid-area: s1; grid-column: auto; }
+  #stat-messages { grid-area: s2; grid-column: auto; }
+  #stat-latency { grid-area: s3; grid-column: auto; }
+  #stat-errors { grid-area: s4; grid-column: auto; }
+  #presets-panel { grid-area: presets; grid-column: auto; }
+  #counters-panel { grid-area: counters; grid-column: auto; }
+  #traces-panel { grid-area: traces; grid-column: auto; }
+  #logs-panel { grid-area: logs; grid-column: auto; }
+}
+
+/* Legacy block kept for backward-compat of any selector that referenced
+   the old 900px breakpoint. The min-width queries above are authoritative. */
+@media (max-width: 900px) {
+  .bento-legacy-noop {
+    /* intentionally empty — see min-width queries above */
+    display: block;
+  }
+}

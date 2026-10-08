@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insult — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.13.0/brython.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/brython@3.13.0/brython_stdlib.js"></script>
+</head>
+<body onload="brython({debug: 0})">
+
+  <!-- App Shell -->
+  <div class="app" id="app">
+    <div class="topbar">
+      <div class="logo"><span>INSULT</span> Dashboard <div class="logo-dot"></div></div>
+      <div class="tabs">
+        <button class="tab active" id="tab-monitor" data-tab="monitor">Monitor</button>
+        <button class="tab" id="tab-facts" data-tab="facts">Facts</button>
+      </div>
+      <div class="status" id="status-indicator">connecting...</div>
+    </div>
+
+    <div class="stale-banner" id="stale-banner" style="display:none"></div>
+
+    <!-- Stat Cards -->
+    <div class="bento">
+      <div class="g-card stat-card" id="stat-uptime" style="grid-area:s1">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" id="val-uptime">--</div>
+      </div>
+      <div class="g-card stat-card" id="stat-messages" style="grid-area:s2">
+        <div class="stat-label">Messages</div>
+        <div class="stat-value" id="val-messages">--</div>
+      </div>
+      <div class="g-card stat-card" id="stat-latency" style="grid-area:s3">
+        <div class="stat-label">Latency</div>
+        <div class="stat-value" id="val-latency">--</div>
+      </div>
+      <div class="g-card stat-card" id="stat-errors" style="grid-area:s4">
+        <div class="stat-label">LLM Errors</div>
+        <div class="stat-value" id="val-errors">--</div>
+      </div>
+
+      <!-- Preset Distribution -->
+      <div class="g-card panel" id="presets-panel" style="grid-area:presets">
+        <h3>Preset Distribution</h3>
+        <div id="preset-bars"></div>
+      </div>
+
+      <!-- Counters -->
+      <div class="g-card panel" id="counters-panel" style="grid-area:counters">
+        <h3>Counters</h3>
+        <div id="counter-list"></div>
+      </div>
+
+      <!-- ALICE Status (sibling bot) -->
+      <div class="g-card panel" id="alice-panel">
+        <h3>ALICE <span class="bot-pill">gpt-4.1</span></h3>
+        <div id="alice-card-body">
+          <div class="alice-empty">ALICE no ha reportado todavía</div>
+        </div>
+      </div>
+
+      <!-- Message Traces Carousel -->
+      <div class="g-card panel" id="traces-panel" style="grid-area:traces">
+        <h3>Recent Messages</h3>
+        <div id="traces-carousel" class="carousel-container"></div>
+      </div>
+
+      <!-- Live Logs -->
+      <div class="g-card panel log-panel" id="logs-panel" style="grid-area:logs">
+        <div class="log-header">
+          <h3>Live Logs</h3>
+          <select id="log-filter" class="filter-select">
+            <option value="all">All</option>
+            <option value="error">Errors</option>
+            <option value="llm">LLM</option>
+            <option value="preset">Presets</option>
+            <option value="flow">Flows</option>
+            <option value="whisper">Whisper</option>
+            <option value="reminder">Reminders</option>
+          </select>
+        </div>
+        <div id="log-entries" class="log-entries"></div>
+      </div>
+    </div>
+
+    <!-- Facts View (hidden by default) -->
+    <div class="facts-view" id="facts-view" style="display:none">
+      <div class="facts-header">
+        <div class="facts-stats" id="facts-stats"></div>
+        <select id="facts-user-filter" class="filter-select">
+          <option value="all">All Users</option>
+        </select>
+        <select id="facts-category-filter" class="filter-select">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
+      <div class="facts-grid" id="facts-grid"></div>
+    </div>
+  </div>
+
+  <!-- Brython entry point -->
+  <script type="text/python">
+from py.app import *  # noqa: F403
+  </script>
+</body>
+</html>

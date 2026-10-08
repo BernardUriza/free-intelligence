@@ -1,0 +1,12 @@
+# Registro de destinos de canal (Discord guild/channel, correo) para envíos desde ESTE repo.
+# Regla: engineering-playbook/rules/destino-lo-define-el-proyecto.md — el hook
+# rule18-outbound-send.sh exige que el DESTINO declarado en el script esté aquí.
+# Un destino por línea. Solo canales del proyecto Khimeras.
+
+# Khimeras · #general — superficie de prueba de las personas (testing.md) y canal de trabajo con Alex.
+# Par canónico según el propio hook y memory/reference_discord_ids.md.
+1488419218302042223/1489180895264116736
+
+# 2026-09-20: orden directa de Bernard ("díselo a https://chatgpt.com/c/69829402-…", "quiero que también lo retes") — su GPT "Insult GPT", conversación sobre liderazgo.
+chatgpt.com
+69829402-03bc-8333-9870-f4e02857835b

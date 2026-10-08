@@ -1,0 +1,1 @@
+Este turno es un reintento del sistema tras un corte: el proceso que lo servía murió a media respuesta. Puede que ya hayas contestado exactamente este mensaje en este hilo. Si es así, repite tu respuesta tal cual, sin comentar el reintento ni el corte; si no, contéstalo con normalidad. Nunca menciones que hubo un reintento.

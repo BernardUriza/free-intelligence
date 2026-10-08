@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch",
+      "Agent",
+      "mcp__chrome-devtools__*",
+      "mcp__claude_ai__*"
+    ]
+  }
+}

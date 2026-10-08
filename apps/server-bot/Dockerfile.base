@@ -1,0 +1,28 @@
+# Khimeras shared base — the conda environment, built ONCE for every surface.
+#
+# persona-gateway, khimeras-host and persona-runner all ran the identical
+# `mamba env update -f environment.yml` in their own Dockerfile, and `az acr
+# build` has no `--cache-from`, so every deploy paid that ~2-minute install
+# THREE times from scratch (2026-08-06: 459s + 220s + 213s of CD, 87% of it
+# builds). Dependencies that change once a month were being rebuilt on every
+# commit.
+#
+# This image is that install, alone. It is tagged by the SHA-256 of the inputs
+# that define it (`environment.yml` + this file), so CD only builds it when it
+# genuinely changed and otherwise reuses the tag already in ACR. Consumers do
+# `FROM .../khimeras-base:<tag>` and are left with nothing but COPY layers.
+
+FROM quay.io/condaforge/miniforge3:26.1.1-3
+
+SHELL ["/bin/bash", "-l", "-c"]
+WORKDIR /app
+
+COPY environment.yml .
+RUN mamba env update -n base -f environment.yml \
+ && mamba clean --all --yes \
+ && find /opt/conda/ -follow -type f -name '*.a' -delete \
+ && find /opt/conda/ -follow -type f -name '*.pyc' -delete
+
+# See Dockerfile.gateway: ConsoleRenderer's ANSI escapes break every KQL field
+# predicate, so every surface inheriting this base logs JSON.
+ENV LOG_FORMAT=json

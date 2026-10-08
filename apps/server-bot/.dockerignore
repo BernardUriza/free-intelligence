@@ -1,0 +1,10 @@
+.venv/
+.env
+.claude/
+.git/
+__pycache__/
+*.pyc
+storage/*.db
+bot.py
+config.py
+core/
