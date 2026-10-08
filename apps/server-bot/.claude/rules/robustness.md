@@ -107,7 +107,14 @@ lo tienen (`persona_core/tickets.py` + `invite_turns` en el gateway,
   enviado (devuelve los que salieron, `partial=true`), y el assistant se guarda
   con `discord_message_id` del primer chunk (idempotente por el índice parcial).
 - **El runner reanuda re-preguntando** (fase A): `TurnRequest.resumed` no
-  re-pliega la historia y lleva la nota de `prompts_md/turn_resume_note.md`. Un
+  re-pliega la historia y lleva la nota de `prompts_md/turn_resume_note.md`.
+  Sólo si el intento anterior CRUZÓ a AIRE (`aire_sent_at`,
+  `turn_jobs.crossed_to_aire`, v4.40.23); si murió antes, corre como turno
+  nuevo. Así cada `aire_route_turn_resumed` = un mensaje duplicado en AIRE.
+  Lo que AIRE vio (`resumed`) y lo que ya está en `messages` (`ask_stored`) son
+  ejes distintos: un job `pipeline="runner"` (og118) reanudado nunca vuelve a
+  guardar la pregunta, haya cruzado o no, y la reanudación del arranque entra
+  por `serve_turn`, la misma puerta que el alta (v4.47.3). Un
   job con adjuntos es no-reanudable (no se persisten) → 502 `not_resumable` →
   el host reintenta con id nuevo. Grace del runner: **600 s**
   (`RUNNER_SHUTDOWN_DRAIN_S=570`, luego suelta las filas para la sucesora).
