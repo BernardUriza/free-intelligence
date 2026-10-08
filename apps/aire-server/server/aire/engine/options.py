@@ -1,4 +1,4 @@
-"""The modes dial + the SDK options factory.
+"""The SDK options factory. The modes dial itself lives in `modes.py` (#37).
 
 complete → no tools, no agentic loop → the substitute for the raw API.
 agent    → tools + acceptEdits → the enhancer that executes tools.
@@ -8,8 +8,8 @@ root ("cannot be used with root/sudo privileges"), and the daemon does — so
 that mode made every agent turn die with exit 1 (verified 2026-07-20 on the
 droplet, invisible until the door was finally exercised for real). acceptEdits
 auto-approves the file edits an agent needs AND honours `allowed_tools`, which
-bypass left decorative. `Bash` stays out; the real filesystem confinement is
-`SandboxSettings`, not yet in place — `cwd` is NOT a cage.
+bypass left decorative. `Bash` stays out; the filesystem cage is `cage.py`, a
+`PreToolUse` hook that denies any file tool outside the casita (#24).
 
 `max_budget_usd` guards the CARD (#23): only a METERED client is born with the
 cap. An OAuth client's dollars are nominal, so it runs uncapped (2026-09-03).
@@ -21,6 +21,7 @@ from typing import Any
 
 from .cage import cage_hooks
 from .contract import TurnSpec
+from .modes import policy_for
 
 SYSTEM_PROMPT = (
     "You are an agent working inside AIRE, a service that mirrors your session to "
@@ -59,20 +60,6 @@ def _debase(text: str) -> str:
     except (InvalidName, OSError):
         return text
     return f"{base}\n\n{rest.strip()}" if rest.strip() else base
-
-MODES: dict[str, dict[str, Any]] = {
-    "complete": {
-        "allowed_tools": [],
-        "disallowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"],
-        "permission_mode": "default",
-    },
-    "agent": {
-        "allowed_tools": ["Read", "Write", "Glob", "Grep", "WebSearch", "WebFetch"],
-        "disallowed_tools": ["Bash"],
-        "permission_mode": "acceptEdits",
-    },
-}
-DEFAULT_MODE = "agent"
 
 
 def _env(project: str, credential_env: dict[str, str] | None = None) -> dict[str, str]:
@@ -121,7 +108,7 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
                   spec: TurnSpec, resuming: bool,
                   credential_env: dict[str, str] | None = None, metered: bool = True) -> Any:
     from ..agent_sdk import Options
-    policy = MODES.get(spec.mode, MODES[DEFAULT_MODE])
+    policy = policy_for(spec.mode, spec.builtins)
     casita = _casita_prompt(cwd)
     kwargs: dict[str, Any] = {
         "system_prompt": f"{SYSTEM_PROMPT}\n\n{casita}" if casita else SYSTEM_PROMPT,
