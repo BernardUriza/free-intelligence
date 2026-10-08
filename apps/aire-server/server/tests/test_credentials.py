@@ -104,6 +104,15 @@ def test_a_revoked_token_burns_its_slot():
                          {**ZERO_USAGE, "output_tokens": 14})
 
 
+def test_an_org_monthly_spend_limit_burns_its_slot():
+    # The live text of 2026-10-08 18:02Z (the deploy canary, mode=complete): the
+    # primary's org hit its monthly spend limit, the rotor did not know the phrase,
+    # and every turn came back as that sentence at $0 instead of rotating.
+    assert limit_hit("You've hit your org's monthly spend limit", ZERO_USAGE)
+    assert not limit_hit("What happens if I hit my org's monthly spend limit?",
+                         {**ZERO_USAGE, "output_tokens": 21})
+
+
 NOW = datetime(2026, 9, 8, 17, 53, tzinfo=timezone.utc)
 
 
