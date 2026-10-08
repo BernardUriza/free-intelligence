@@ -27,6 +27,7 @@ BAIR_TOKEN_FILE="$HOME/.secrets/aire-bair-token.txt"       # revocable BAIR gate
 OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 OAUTH_BACKUP_FILE="$HOME/.secrets/aire-claude-oauth-backup.txt"     # #31 failover slot 2 (optional)
 API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failover slot 3 (optional)
+BAIR_API_KEY_FILE="$HOME/.secrets/aire-bair-api-key.txt"            # BAIR's lane, ANTHROPIC_API_KEY_BAIR= (optional)
 ACP_AGENTS_FILE="$HOME/.secrets/aire-acp-agents.txt"                # #49 ACP roster, AIRE_ACP_AGENTS=<json> (optional)
 LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered key AIRE lends (optional)
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"

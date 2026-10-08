@@ -71,6 +71,8 @@ compose_env() {
   # from a DIFFERENT seat/account, or it shares the primary's weekly pool.
   append_secret "$OAUTH_BACKUP_FILE"     "CLAUDE_CODE_OAUTH_TOKEN_BACKUP=" "the failover backup OAuth (#31)"
   append_secret "$API_KEY_FALLBACK_FILE" "ANTHROPIC_API_KEY_FALLBACK="     "the failover metered API key (#31)"
+  # BAIR's lane (engine/lanes.py): its own key, so reviews never burn the pool.
+  append_secret "$BAIR_API_KEY_FILE" "ANTHROPIC_API_KEY_BAIR=" "BAIR's own credential lane"
   append_secret "$WHITELIST_FILE"  "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
   # Which ACP agents the box may spawn, by name (#49). Config, not a secret —
   # but it lives here so a re-provision restores the roster, not just the code.
