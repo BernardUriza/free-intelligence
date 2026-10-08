@@ -65,6 +65,7 @@ async def test_boot_resumes_the_orphans_the_previous_replica_left(ledger):
         "stale": True,
         "claimed_by": None,
         "label": "insult:1",
+        "aire_sent": True,  # la réplica anterior alcanzó a mandarlo a AIRE
     }
     seen: list[TurnRequest] = []
 

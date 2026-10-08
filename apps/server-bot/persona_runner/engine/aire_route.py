@@ -542,8 +542,11 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     claim = await aire_topic.claim(casita, state.topic)
     log_topic_decision(casita, claim)
     # Un turno REANUDADO (el runner anterior murió a media generación) ya cruzó
-    # a AIRE una vez: la historia no se vuelve a plegar y la guía lleva la nota
-    # de reintento, para que el modelo repita en vez de comentar el corte.
+    # a AIRE una vez — `resumed` sólo llega en True cuando la fila dice que cruzó
+    # (turn_jobs.crossed_to_aire) —: la historia no se vuelve a plegar y la guía
+    # lleva la nota de reintento, para que el modelo repita en vez de comentar
+    # el corte. Cada `aire_route_turn_resumed` es por tanto UN mensaje del
+    # usuario duplicado en el transcript de AIRE: lo que la fase B elimina.
     is_first_turn = claim.needs_fold and not req.resumed
     guidance = req.behavioral_guidance
     if req.resumed:

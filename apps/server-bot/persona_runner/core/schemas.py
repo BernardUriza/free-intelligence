@@ -73,9 +73,17 @@ class TurnRequest(BaseModel):
     # Boleto elegido por el cliente para `/v1/turn/jobs`: la misma alta dos veces
     # es UN turno, así que un alta perdida en un arranque en frío se puede repetir.
     job_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    # Sólo lo pone el runner al reanudar un job huérfano (engine/turn_jobs): la
-    # historia ya cruzó a AIRE, no se vuelve a plegar, y va la nota de reintento.
+    # Sólo lo pone el runner al reanudar un job huérfano cuyo intento anterior
+    # CRUZÓ a AIRE (engine/turn_jobs.crossed_to_aire): la historia ya está en la
+    # sesión, no se vuelve a plegar, y va la nota de reintento.
     resumed: bool = False
+    # Sólo lo pone el runner al reanudar CUALQUIER job huérfano, haya cruzado a
+    # AIRE o no: el intento anterior ya pasó por la tubería (`pipeline="runner"`,
+    # F3), que guarda la pregunta en Postgres antes del cerebro. Es un eje
+    # distinto de `resumed` — uno dice qué vio AIRE, éste qué ya está en
+    # `messages` —; confundirlos guardaba DOS veces la pregunta de un job que
+    # murió armando el contexto (embeddings, guía) antes de llegar a AIRE.
+    ask_stored: bool = False
     # Who is really asking (2026-09-28). "probe" is synthetic traffic — a wire
     # check, a deploy receipt. Its rows are stored tagged, facts are never
     # extracted from it, and it may only speak as a `probe-*` principal, so it

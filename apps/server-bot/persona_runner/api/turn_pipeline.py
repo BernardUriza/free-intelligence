@@ -225,7 +225,9 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
             # persona reads as one speaker in `messages` whatever the surface.
             assistant_id=persona.bot_user_id or persona.persona_id,
             attachments=list(req.attachments or []),
-            resumed=req.resumed,
+            # The ask is in `messages` for ANY resumed job, crossed to AIRE or
+            # not; `req.resumed` (what AIRE saw) still rides to the brain below.
+            resumed=req.ask_stored or req.resumed,
             origin=req.origin,
         ),
         memory=memory,

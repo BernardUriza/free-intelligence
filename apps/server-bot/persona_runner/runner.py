@@ -67,13 +67,16 @@ async def _lifespan(app: FastAPI):
     # Boletos durables: el latido mantiene vivas nuestras filas, y la réplica
     # anterior pudo dejar jobs huérfanos que se reanudan en background — nunca
     # bloquea el boot, un ledger caído sólo lo loggea.
+    from persona_runner.api import turn_pipeline
+
     turn_jobs.JOBS.start_heartbeat()
-    boot_resume = asyncio.create_task(turn_jobs.resume_stale_at_boot(aire_route.turn_via_aire))
+    # La reanudación entra por `serve_turn`, la MISMA puerta que el alta y el
+    # poll: un job `pipeline="runner"` (og118) reanudado directo contra AIRE
+    # llegaba sin contexto ni guía y su respuesta no se guardaba en memoria.
+    boot_resume = asyncio.create_task(turn_jobs.resume_stale_at_boot(turn_pipeline.serve_turn))
     # La tubería del turno (F3) trae su propio pool y el modelo de embeddings;
     # se calientan al arrancar, en background, para que el primer turno de una
     # réplica fría no pague ~25 s de carga dentro de su propio presupuesto.
-    from persona_runner.api import turn_pipeline
-
     boot_warm = asyncio.create_task(turn_pipeline.warm_at_boot())
 
     yield
