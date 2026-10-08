@@ -1,0 +1,128 @@
+name: CI front
+
+on:
+  push:
+    branches: [main]
+    paths: ["front/**", ".github/workflows/ci-front.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["front/**", ".github/workflows/ci-front.yml"]
+
+defaults:
+  run:
+    working-directory: front
+
+jobs:
+  build:
+    name: Typecheck, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm run build
+
+  attack:
+    name: Prove it cannot write
+    runs-on: ubuntu-latest
+
+    # A DISPOSABLE Postgres, not AIRE's. The shape that matters is TWO roles, as
+    # in production: an owner that writes (the pen) and a reader with GRANT
+    # SELECT and nothing else (the waiter). The suite connects as the reader and
+    # proves the DATABASE refuses it — stronger than proving the code declines.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aire
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      OWNER_DSN: postgresql://postgres:postgres@localhost:5432/aire
+      PEN_DSN: postgresql://aire:ci-pen@localhost:5432/aire
+      AIRE_DATABASE_URL: postgresql://aire_reader:ci-reader@localhost:5432/aire
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - run: npm ci
+
+      # The daemon owns the DDL (the server half's law); CI only needs a table
+      # shaped like the one it writes, a row the attacks can try to destroy, and
+      # the read-only role the app is supposed to arrive as. Both roles are REAL
+      # here — `aire` owns the tables — because the wall production depends on is
+      # `ALTER DEFAULT PRIVILEGES FOR ROLE aire`, and a fixture that grants on a
+      # different owner tests a look-alike instead of the mechanism.
+      - name: Build the pen, the log, and the waiter's credential
+        run: |
+          psql "$OWNER_DSN" -v ON_ERROR_STOP=1 <<'SQL'
+            CREATE ROLE aire LOGIN PASSWORD 'ci-pen';
+            GRANT CREATE, USAGE ON SCHEMA public TO aire;
+            CREATE ROLE aire_reader LOGIN PASSWORD 'ci-reader';
+            GRANT CONNECT ON DATABASE aire TO aire_reader;
+            GRANT USAGE ON SCHEMA public TO aire_reader;
+          SQL
+          psql "$PEN_DSN" -v ON_ERROR_STOP=1 <<'SQL'
+            CREATE TABLE aire_log (
+              seq  bigserial PRIMARY KEY,
+              at   timestamptz NOT NULL DEFAULT now(),
+              line text NOT NULL
+            );
+            INSERT INTO aire_log (line) VALUES
+              ('2026-01-01T00:00:00 127.0.0.1:1 app-ci KEEPALIVE seq=1'),
+              ('2026-01-01T00:00:01 127.0.0.1:1 app-ci MESSAGE POS lat=0 lon=0');
+          SQL
+
+      # The SAME script provisioning runs (server/infra/wall.py), against the same
+      # two-role shape. Grants and then PROVES the wall — so the mechanism the
+      # front's whole existence rests on is exercised here, not assumed.
+      - name: Raise the reader wall with the production script
+        working-directory: .   # the wall is the server's; this workflow defaults to front/
+        run: |
+          pip install --quiet asyncpg
+          AIRE_DATABASE_URL="$PEN_DSN" python3 server/infra/wall.py
+
+      # Refuses to run at all unless it arrived as a role that cannot INSERT.
+      - run: npm run attack
+
+      # The guarantee that matters and that a snapshot GRANT cannot give: a table
+      # created AFTER the wall is born readable. Every feature the daemon ships
+      # depends on it, and it fails silently — the front just goes blind.
+      - name: A table born after the wall is visible to the waiter
+        run: |
+          psql "$PEN_DSN" -v ON_ERROR_STOP=1 \
+            -c "CREATE TABLE aire_born_later (seq bigserial PRIMARY KEY, body jsonb);"
+          psql "$AIRE_DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM aire_born_later;"
+
+      # The other half of that guarantee, and the one nobody had checked: a
+      # table the reader CANNOT read must cost only its own row, not the page.
+      # The catalog lists what the database holds; the grant covers what the pen
+      # owns. Those are not the same set, and one unreadable table used to make
+      # the whole console report the database unreachable.
+      - name: An unreadable table does not blind the console
+        run: npm run blind-table
+
+      # The suite says aire_log is untouched. Verify that from OUTSIDE the code
+      # under test — a read path that could write could also lie about it.
+      - name: Confirm from outside that nothing was written
+        run: |
+          ROWS=$(psql "$OWNER_DSN" -tAc "SELECT count(*) FROM aire_log")
+          echo "aire_log holds $ROWS rows (expected 2)"
+          test "$ROWS" = "2"

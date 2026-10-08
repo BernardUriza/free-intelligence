@@ -1,0 +1,17 @@
+# The door mirror (backlog #17): offers the interactive CLI's JSONL transcript
+# entries to claude_session_store in the owner's Postgres. Idempotent (the
+# store dedups by entry uuid), so re-running is always safe. Needs the venv
+# python: claude_agent_sdk (project_key_for_directory) is not system-installed.
+[Unit]
+Description=AIRE session mirror — the SSH door's transcripts, deathless
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/aire/server
+Environment=AIRE_LOG=/opt/aire/aire.log
+Environment=AIRE_CLI_PROJECTS=/root/.claude/projects
+EnvironmentFile=-/etc/aire/env
+ExecStart=/opt/aire/.venv/bin/python3 -m aire.mirror

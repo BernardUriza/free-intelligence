@@ -1,0 +1,284 @@
+name: costwatch
+
+on:
+  schedule:
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  costwatch:
+    runs-on: ubuntu-latest
+    # Job-level env, NOT `if: secrets.X != ''` on the steps: the `secrets` context
+    # is not available in a step's `if`, so such a guard evaluates empty, skips the
+    # step, and the watchdog reports green while checking nothing.
+    env:
+      AIRE_VM_HOST: ${{ secrets.AIRE_VM_HOST }}
+    steps:
+      # The canary at the end of this job runs a script that lives in the repo,
+      # so the repo has to be here. It was not, until 2026-08-23 — every step was
+      # a curl or an ssh.
+      - uses: actions/checkout@v4
+
+      - name: Check DigitalOcean spend and inventory against the $20/mo budget
+        env:
+          DO_TOKEN: ${{ secrets.DO_API_TOKEN }}
+          BUDGET_USD: "20"
+          WARN_USD: "10"
+        run: |
+          set -euo pipefail
+          if [[ -z "${DO_TOKEN}" ]]; then
+            echo "::error::DO_API_TOKEN secret is missing — the watchdog is blind"
+            exit 1
+          fi
+          # --retry: a transient DO API blip must NOT fail the job. A watchdog that
+          # cries wolf is a watchdog nobody reads on the day it is right.
+          api() {
+            curl -sfS --retry 3 --retry-delay 5 --retry-all-errors \
+              -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/$1"
+          }
+
+          echo "== spend =="
+          USAGE="$(api customers/my/balance | jq -r '.month_to_date_usage')"
+          echo "month-to-date usage: \$${USAGE} (warn \$${WARN_USD}, budget \$${BUDGET_USD})"
+
+          echo "== inventory =="
+          FAIL=0
+          DROPLETS="$(api 'droplets?per_page=200' | jq -r '.droplets[] | "\(.name) \(.size_slug)"')"
+          echo "droplets:"; echo "${DROPLETS:-  (none)}"
+          if [[ "$DROPLETS" != "aire-droplet s-1vcpu-512mb-10gb" ]]; then
+            echo "::error::droplet inventory drifted — expected exactly one aire-droplet s-1vcpu-512mb-10gb"
+            FAIL=1
+          fi
+          for res in volumes snapshots reserved_ips load_balancers databases; do
+            N="$(api "$res?per_page=200" | jq -r --arg k "$res" '.[$k] | length')"
+            echo "$res: $N"
+            if [[ "$N" != "0" ]]; then
+              echo "::error::unexpected $res in the account ($N) — nothing besides the droplet is budgeted"
+              FAIL=1
+            fi
+          done
+          BACKUPS="$(api 'droplets?per_page=200' | jq -r '.droplets[0].features | index("backups") // "off"')"
+          if [[ "$BACKUPS" != "off" ]]; then
+            echo "::error::droplet backups are enabled (+20%/mo) — not budgeted"
+            FAIL=1
+          fi
+
+          echo "== verdict =="
+          if awk -v u="$USAGE" -v b="$BUDGET_USD" 'BEGIN{exit !(u+0 >= b+0)}'; then
+            echo "::error::month-to-date \$${USAGE} REACHED the \$${BUDGET_USD} budget"
+            FAIL=1
+          elif awk -v u="$USAGE" -v w="$WARN_USD" 'BEGIN{exit !(u+0 >= w+0)}'; then
+            echo "::error::month-to-date \$${USAGE} crossed the \$${WARN_USD} early-warning line"
+            FAIL=1
+          fi
+          [[ "$FAIL" == "0" ]] && echo "OK — spend \$${USAGE}, inventory clean" || exit 1
+
+      # The $20 cap only ever watched DigitalOcean, where spend is frozen at $4. The
+      # thing that actually GROWS is the pen's table in Azure Postgres, and port 9099
+      # lets anyone on the internet feed it (accepted risk, see the unit's comment).
+      # The broom is the only thing holding that back — so the broom gets a watchdog.
+      # Checked over SSH, never with a SELECT: this repo is write-only toward the
+      # database (.claude/rules/write-only-daemon.md).
+      - name: Install SSH key
+        if: env.AIRE_VM_HOST != ''
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AIRE_VM_SSH_KEY }}
+
+      - name: Check the broom, the rotation and the disk
+        if: env.AIRE_VM_HOST != ''
+        env:
+          DISK_PCT_MAX: "80"
+          LOG_MB_MAX: "64"
+          # The number Bernard chose for AIRE_MAX_SPEND_USD, finally applied to a
+          # month instead of to a process lifetime.
+          ANTHROPIC_WARN_USD: "20"
+        run: |
+          set -euo pipefail
+          ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "root@${AIRE_VM_HOST}" DISK_PCT_MAX="${DISK_PCT_MAX}" LOG_MB_MAX="${LOG_MB_MAX}" \
+            ANTHROPIC_WARN_USD="${ANTHROPIC_WARN_USD}" bash -s <<'REMOTE'
+          set -euo pipefail
+          FAIL=0
+
+          DISK_PCT="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
+          echo "disk used: ${DISK_PCT}% (max ${DISK_PCT_MAX}%)"
+          if (( DISK_PCT >= DISK_PCT_MAX )); then
+            echo "::error::droplet disk at ${DISK_PCT}% — the log is filling the box"
+            FAIL=1
+          fi
+
+          # The OTHER half of the disk cap. [[do-budget]] and the listener unit
+          # both said this was watched nightly; it was not, and the only thing
+          # that would ever have shown a stopped rotation was the disk climbing
+          # — late, indirect, and by then the box is the alarm. Four signals,
+          # each able to go red on its own: the config a deploy could drop, the
+          # timer that fires it, WHEN it last actually fired (the one that
+          # cannot be faked), and the size of the file itself.
+          LOG=/opt/aire/aire.log
+          if [[ ! -f /etc/logrotate.d/aire ]] || ! logrotate --debug /etc/logrotate.d/aire >/dev/null 2>&1; then
+            echo "::error::/etc/logrotate.d/aire is missing or invalid — nothing caps the log file"
+            FAIL=1
+          elif ! systemctl --quiet is-active logrotate.timer; then
+            echo "::error::logrotate.timer is NOT active — the config is fine and nobody runs it"
+            FAIL=1
+          fi
+          STAMP="$(awk -v f="\"$LOG\"" '$1==f {print $2}' /var/lib/logrotate/status 2>/dev/null || true)"
+          if [[ -z "$STAMP" ]]; then
+            echo "::error::logrotate has no record of ${LOG} — it has never rotated it"
+            FAIL=1
+          else
+            WHEN="$(echo "$STAMP" | awk -F- '{print $1"-"$2"-"$3" "$4}')"
+            AGE=$(( ( $(date +%s) - $(date -d "$WHEN" +%s) ) / 86400 ))
+            echo "last rotation: ${WHEN} (${AGE}d ago, config says daily)"
+            # Three days, not one: `notifempty` skips a genuinely silent day, and
+            # a watchdog that cries wolf is one nobody reads on the day it is right.
+            if (( AGE > 3 )); then
+              echo "::error::${LOG} has not rotated in ${AGE} days — rotation has stopped"
+              FAIL=1
+            fi
+          fi
+          SIZE_MB=$(( $(stat -c %s "$LOG") / 1048576 ))
+          echo "aire.log: ${SIZE_MB} MB (ceiling ${LOG_MB_MAX} MB)"
+          if (( SIZE_MB >= LOG_MB_MAX )); then
+            echo "::error::aire.log is ${SIZE_MB} MB — whatever the timer says, it is not being rotated"
+            FAIL=1
+          fi
+
+          if systemctl --quiet is-active aire-sweep.timer; then
+            echo "aire-sweep.timer active"
+          else
+            echo "::error::aire-sweep.timer is NOT active — nothing is sweeping aire_log"
+            FAIL=1
+          fi
+
+          # A timer that fires but whose sweep CRASHES every night is a silent
+          # non-sweep: check the unit's last exit, not just the timer's liveness.
+          # An oneshot that has never run reports Result=success, which is fine —
+          # the SWEEP lines below are what prove it actually swept.
+          RESULT="$(systemctl show aire-sweep.service -p Result --value)"
+          echo "last sweep result: ${RESULT}"
+          if [[ "$RESULT" != "success" ]]; then
+            echo "::error::last aire-sweep run did not succeed (Result=${RESULT})"
+            journalctl -u aire-sweep --no-pager -n 20 || true
+            FAIL=1
+          fi
+
+          echo "last SWEEP lines:"
+          grep SWEEP /opt/aire/aire.log | tail -3 || echo "  (none yet — timer has not fired)"
+
+          # The reader wall. It is the two-halves architecture itself, and until
+          # 2026-08-22 it lived only as psql someone typed once — so a restore, a
+          # rebuilt server or one dropped role would take the front's eyes out
+          # with nothing to notice. Read-only assertion of a GRANT, no view.
+          set -a; . /etc/aire/env; set +a
+          if /opt/aire/.venv/bin/python3 /opt/aire/server/infra/wall.py --check; then
+            :
+          else
+            echo "::error::the reader wall is down — the front is going blind"
+            FAIL=1
+          fi
+
+          # How fast the memory is GROWING. do-budget's own words: "never watch
+          # only the cloud where the spend is frozen — the blind spot always opens
+          # over the thing that grows." DO is frozen at $4 and checked above; the
+          # Azure Postgres is the half that grows, and until now only its BROOM
+          # was watched, never its size against the input rate.
+          if ! /opt/aire/.venv/bin/python3 /opt/aire/server/infra/growth.py; then
+            FAIL=1
+          fi
+
+          # Which guards are silently OFF (aire/arming.py). Every one of them
+          # degrades politely and /health answered "ok" for all of them at once.
+          # ONE is DECLARED off, so the alarm does not cry wolf — anything else
+          # going dark is the thing this watch exists for:
+          #   whitelist_enforce  — deliberate; aire_device is empty, and flipping
+          #                        it on with an empty roster denies every device
+          #                        (.claude/rules/device-verb-protocol.md).
+          #
+          # credential_failover LEFT this list on 2026-08-22, the day Bernard armed
+          # slot 3 with a metered key. Leaving it declared would have been worse
+          # than never declaring it: the guard is ON now, so a future loss of that
+          # key must go RED — and a stale declaration would have answered "accepted,
+          # carry on" to exactly the regression this watch exists to catch.
+          DECLARED='["whitelist_enforce"]'
+          # The arming half of /health is gated: the endpoint is the one thing the
+          # middleware lets through unauthenticated, and a list of which defences
+          # are down is reconnaissance. The token is already in /etc/aire/env.
+          DISARMED="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" \
+                        http://127.0.0.1:8088/health | jq -c '.disarmed // "unreadable"')"
+          echo "disarmed guards: ${DISARMED}  (declared: ${DECLARED})"
+
+          # What the daemon SPENT this month (#25, aire_spend). The $20 ceiling
+          # in AIRE_MAX_SPEND_USD lives in RAM and is born at zero on every
+          # restart — fourteen deploys on 2026-08-23 alone — so it never had a
+          # month to bite. Bernard's call (2026-08-23) is that the month alarms
+          # rather than refuses: a hard cap can take og118 and Fénix down at 3am
+          # over an accounting threshold, and the per-process backstop already
+          # stops a single runaway session. This is the alarm.
+          # -1 means the ledger was unreadable, which is NOT a cheap month.
+          MONTH="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" \
+                     http://127.0.0.1:8088/health | jq -r '.spend_month_usd // "unreadable"')"
+          echo "anthropic spend, month to date: \$${MONTH} (warn \$${ANTHROPIC_WARN_USD})"
+          if [[ "$MONTH" == "unreadable" ]] || awk -v m="$MONTH" 'BEGIN{exit !(m+0 < 0)}'; then
+            echo "::error::the spend ledger is unreadable — the month has no figure, which is not the same as no spend"
+            FAIL=1
+          elif awk -v m="$MONTH" -v w="$ANTHROPIC_WARN_USD" 'BEGIN{exit !(m+0 >= w+0)}'; then
+            echo "::error::Anthropic spend \$${MONTH} crossed the \$${ANTHROPIC_WARN_USD} line for the month"
+            FAIL=1
+          fi
+          UNDECLARED="$(jq -nc --argjson d "$DISARMED" --argjson k "$DECLARED" '$d - $k' 2>/dev/null || echo '"unreadable"')"
+          if [[ "$UNDECLARED" != "[]" ]]; then
+            echo "::error::undeclared guards are disarmed: ${UNDECLARED} — a safety went off with nobody deciding it"
+            FAIL=1
+          fi
+
+          # The credential chain (#31), both halves — config and live. The count
+          # hid which slot was empty: primary + api-key reads "failover armed"
+          # while the free second-Max oauth-backup is empty, so a burned weekly
+          # pool rotates only to the metered card. On 2026-09-15 that card sat
+          # at $0 and the primary was on its weekly reset — every slot dry, the
+          # engine served NOTHING, and nothing said so for 2.5 days.
+          HEALTH="$(curl -sS -m 10 -H "Authorization: Bearer ${AIRE_AUTH_TOKEN}" http://127.0.0.1:8088/health)"
+          SLOTS="$(echo "$HEALTH" | jq -c '.credential_slots_armed // "unreadable"')"
+          echo "credential slots armed: ${SLOTS}"
+          # oauth-backup empty is a WARNING, not a failure: leaving it empty is
+          # sometimes Bernard's deliberate account-staggering (aire-budget.md),
+          # so this must stay VISIBLE without crying wolf every night.
+          if ! echo "$SLOTS" | jq -e 'index("oauth-backup")' >/dev/null 2>&1; then
+            echo "::warning::credential chain is missing oauth-backup — the free second-Max failover slot is empty; a burned primary falls straight to the metered card"
+          fi
+          # All slots dry is a hard failure: the engine cannot serve a single turn.
+          ALL_DRY="$(echo "$HEALTH" | jq -r '.credentials_all_dry // "unreadable"')"
+          COOLING="$(echo "$HEALTH" | jq -c '.credentials_cooling // "unreadable"')"
+          echo "credentials cooling: ${COOLING}  (all dry: ${ALL_DRY})"
+          if [[ "$ALL_DRY" == "true" ]]; then
+            echo "::error::every credential slot is dry (${COOLING}) — the engine can serve NO turns until a slot reopens or a real key is installed"
+            FAIL=1
+          fi
+
+          exit "$FAIL"
+          REMOTE
+
+      # Every check above this line runs ON the box or against a vendor's API,
+      # and every one of them is a liveness proxy: units active, a timer armed, a
+      # config that parses, /health saying "ok". None can go red while the engine
+      # is dead. So the day's last word is the same canary the deploy fires — one
+      # real turn through the public door from outside the droplet — because a
+      # daemon that stops COMPLETING turns is exactly the failure a nightly watch
+      # built out of proxies would sit through in silence.
+      #
+      # It costs $0.028 (measured 2026-08-23: haiku, mode=complete, 13,598
+      # cache-creation tokens for the system prompt), so ~$0.85/month. That is the
+      # price of the watch, and [[do-budget]]'s own law is why it is worth paying:
+      # never watch only the cloud where the spend is frozen.
+      - name: The canary — one real turn through the public door
+        env:
+          AIRE_PULSE_TOKEN: ${{ secrets.AIRE_PULSE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${AIRE_PULSE_TOKEN}" ]]; then
+            echo "::error::AIRE_PULSE_TOKEN secret is missing — the canary is blind"
+            exit 1
+          fi
+          bash server/scripts/canary.sh

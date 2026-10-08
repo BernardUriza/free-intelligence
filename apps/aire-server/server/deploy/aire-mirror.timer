@@ -1,0 +1,9 @@
+[Unit]
+Description=AIRE session mirror every minute (the door's memory leaves the body)
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
