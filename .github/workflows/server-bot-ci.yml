@@ -232,6 +232,14 @@ jobs:
         # reads config only from trusted env / .env set by ops, never from user
         # input, so the parsing vector is unreachable. DROP when conda-forge ships
         # pydantic-settings 2.14.2 for py314.
+        # CVE-2026-104874 (multidict 6.7.1, GHSA-54p9-h82j-f925): reference leak in
+        # CIMultiDict/MultiDict items-view union and subtraction. Published 2026-10-02;
+        # surfaced on the first CI run of the monorepo absorption (2026-10-08). Fixed
+        # only in multidict 7.0.0, which conda-forge does not ship yet (latest 6.7.1).
+        # Transitive via aiohttp (discord.py / the debug server); the app never unions
+        # or subtracts multidict views itself. Ignored to unblock CI; NOT yet
+        # human-reviewed for exploitability — flagged for Bernard. DROP when
+        # conda-forge ships multidict 7.0.0 for py314.
         # fi-core / fi-runner are conda-only (Bernard's channel, NEVER on PyPI by
         # explicit policy). pip-audit can't audit them → "Dependency not found on
         # PyPI" → exit 1, even with zero real vulns. That's a tooling gap, not a
@@ -275,7 +283,8 @@ jobs:
             --ignore-vuln CVE-2026-54283 \
             --ignore-vuln CVE-2026-54282 \
             --ignore-vuln GHSA-6v7p-g79w-8964 \
-            --ignore-vuln GHSA-4xgf-cpjx-pc3j > /tmp/pip-audit.json || true
+            --ignore-vuln GHSA-4xgf-cpjx-pc3j \
+            --ignore-vuln CVE-2026-104874 > /tmp/pip-audit.json || true
           python3 - <<'PY'
           import json, sys
           data = json.load(open("/tmp/pip-audit.json"))
