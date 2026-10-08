@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from .. import spend
-from . import attachment_budget
+from . import attachment_budget, lanes
 from .contract import BudgetExceeded, TurnSpec
 from .credentials import is_metered, limit_hit
 from .drain import drain, turn_cost, turn_tokens
@@ -33,7 +33,7 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
     """Walk the credential chain until an attempt survives or the chain dries.
     Terminates: every rotation cools one more slot, and `active()` skips them."""
     while True:
-        slot = engine.rotor.active()
+        slot = lanes.pick(engine.rotor, spec.lane)  # an armed lane never touches the pool
         if slot is None:
             yield _all_dry_event(engine.rotor)
             return
