@@ -579,7 +579,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         # The remote tools resolve identity from this durable row (the server
         # binds it, the model never asks — engine/aire_principal). Published
         # under the casita lock, so the live row IS the turn being served.
-        principal_bound = await aire_principal.bind(casita, user_id=req.user_id, channel_id=req.channel_id)
+        principal_bound = await aire_principal.bind(
+            casita, user_id=req.user_id, channel_id=req.channel_id, agent_id=base_id
+        )
         if not principal_bound:
             remote_specs = []  # no identity, no memory tools — never a guessed user
 

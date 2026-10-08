@@ -40,12 +40,11 @@ from persona_runner.mcp_tools.turn_context import (
 )
 
 # Nombres de parámetro que significan "dime de quién hablo" — justo lo que el
-# modelo no debe poder decidir.
-IDENTITY_PARAMS = {"user_id", "channel_id", "principal_id", "author_id"}
-
-# `agent_facts` es la memoria que una persona tiene sobre SÍ MISMA, llaveada por
-# agent_id (la persona), no por un humano. No es identidad de usuario.
-SELF_KNOWLEDGE_PARAM = "agent_id"
+# modelo no debe poder decidir. `agent_id` estuvo exento hasta el 2026-09-26 con
+# el argumento de que "no es identidad de usuario"; lo es de otra dueña: con él,
+# Insult podía leer, escribir, reescribir y borrar los self-facts de ALICE. La
+# persona del turno la ata el servidor igual que al usuario.
+IDENTITY_PARAMS = {"user_id", "channel_id", "principal_id", "author_id", "agent_id"}
 
 
 def _schema_of(tool) -> dict:
@@ -58,7 +57,7 @@ def _schema_of(tool) -> dict:
 @pytest.mark.parametrize("tool", PERSONA_MEMORY_TOOLS, ids=lambda t: t.name)
 def test_no_memory_tool_takes_a_human_identity_parameter(tool):
     """El modelo no puede nombrar a nadie: no hay dónde escribirlo."""
-    params = set(_schema_of(tool).keys()) - {SELF_KNOWLEDGE_PARAM}
+    params = set(_schema_of(tool).keys())
     leaked = params & IDENTITY_PARAMS
     assert not leaked, (
         f"{tool.name} todavía acepta {sorted(leaked)} del modelo — "
