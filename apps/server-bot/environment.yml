@@ -172,7 +172,8 @@ dependencies:
   # tools declare themselves via persona_runner.mcp_tools.tooldef.
   - python-dotenv>=1.0.0
   - pydantic>=2.5.0
-  - pydantic-settings>=2.1.0
+  # piso 2.14.2: GHSA-4xgf-cpjx-pc3j vive en <=2.14.1 (2026-09-25).
+  - pydantic-settings>=2.14.2
   - aiosqlite>=0.19.0
   - asyncpg>=0.30.0
   - psycopg>=3.1
@@ -185,21 +186,59 @@ dependencies:
   # setuptools floor 83: PYSEC-2026-3447 lives in 81.0.0 (the version the CI
   # env resolved as tooling); 83.0.0 is the fixed line.
   - setuptools>=83
-  - azure-storage-blob>=12.19.0
+  # azure-storage-blob SALIÓ (2026-09-25, v4.40.26): cero importadores
+  # (`grep -rnE "^\s*(from|import) azure" --include='*.py' .` → nada; los
+  # "azure" que quedan son Azure OpenAI/Postgres por httpx/openai, no el SDK
+  # de azure-core; el backup a blob murió con
+  # la migración a Postgres del 2026-05-13). Y no era inocuo: el azure-core de
+  # conda-forge declara `flask 2.2.5` como dependencia de RUN, y ese flask
+  # cargaba CVE-2026-27205 — el ignore del CI culpaba a pip-audit, que no lo
+  # arrastra. Sin el paquete muerto no hay flask en el env.
   - openai>=1.30.0
   - fastapi>=0.115
-  # starlette CAPPED <1.0: PYSEC-2026-161 lives in starlette 1.0.0 (fixed in
-  # 1.0.1), BUT no fastapi on conda-forge supports starlette 1.x yet — the
-  # newest (0.116) caps `starlette<0.47`. The original `>=1.0.1` pin was
-  # unsatisfiable against fastapi and only "worked" while CI restored a cached
-  # env (it never solved clean). Capping `<1.0` keeps the env OFF the vulnerable
-  # 1.0.0 (so the advisory is still honored) while letting fastapi pull a
-  # compatible 0.4x starlette. pip-audit gates that the resolved 0.4x is clean.
-  # Lift the cap to `>=1.0.1` only once fastapi's floor supports starlette 1.x.
-  - starlette<1.0
+  # starlette >=1.3.1 (2026-09-25): el cap `<1.0` cayó. Su premisa ("ninguna
+  # fastapi de conda-forge soporta starlette 1.x, la 0.116 capa <0.47") dejó
+  # de ser cierta: fastapi-core 0.141 pide `starlette >=0.46.0` sin techo, mcp
+  # `>=0.48`, sse-starlette `>=0.49.1` (leído en conda-meta de un solve
+  # fresco). 1.3.1 es la que cierra el lote entero: PYSEC-2026-161 (1.0.1),
+  # CVE-2026-48818/48817 (1.1.0), CVE-2026-54282 (1.3.0), CVE-2026-54283 (1.3.1).
+  - starlette>=1.3.1
+  # Pisos de transitivas por CVE (2026-09-25). Nada del repo las importa; el
+  # piso existe para que ningún solve — ni un caché viejo — baje a la versión
+  # vulnerable. Todas ya estaban publicadas en conda-forge para py314.
+  - cryptography>=48.0.1       # GHSA-537c-gmf6-5ccf (OpenSSL del wheel ≤48.0.0)
+  - aiohttp>=3.14.0            # CVE-2026-34993, CVE-2026-47265 (vía discord.py)
+  - msgpack-python>=1.2.1      # GHSA-6v7p-g79w-8964
+  - idna>=3.15                 # CVE-2026-45409 (vía httpx/requests)
+  # 2026-10-03 (v4.47.4): advisories publicados DESPUÉS del último CI verde de
+  # main (09-28) — el solve fresco caía en pyjwt 2.13.0 y urllib3 2.7.0, ambos
+  # vulnerables; conda-forge ya publica los arreglos.
+  - pyjwt>=2.15.0              # PYSEC-2026-4140..4152 (fix 2.14.0; 4141 pide 2.15.0)
+  - urllib3>=2.8.0             # PYSEC-2026-4175/4176/4177
   - uvicorn>=0.30
   - httpx>=0.27
+  # Embeddings de la memoria (MiniLM 384d, `persona_core/vectors.py`). Consumidor
+  # VIVO: `persona_core/turn/context.py` rankea los facts por similitud en cada
+  # turno y `FactsRepository` embebe al guardar. Host y runner no lo importan.
   - sentence-transformers>=3.0.0
+  # --- Pisos del ML-stack (2026-09-25, backlog ml-stack-cve-audit) ---
+  # Los 23 `--ignore-vuln` del ML-stack de ci.yml se ignoraban "sin fix
+  # upstream"; OSV dice otra cosa: 21 tienen `last_affected` por DEBAJO de lo
+  # que el env ya resuelve. Estos pisos fijan la versión limpia para que el
+  # solver no pueda regresar y esos 21 ignores se puedan borrar:
+  #   pytorch >=2.8   — PYSEC-2025-189..197 + 210 (<=2.7.1)
+  #   transformers >=5.0.0 — PYSEC-2025-211..218 (<=5.0.0-rc0)
+  #   joblib >=1.5.0  — PYSEC-2024-277 (<=1.4.2)
+  #   pyjwt          — PYSEC-2025-183 (<=2.10.1): lo cubre el piso >=2.15.0
+  #                    de arriba (2026-10-03), no se declara dos veces.
+  # Quedan DOS de torch, y no por falta de fix: PYSEC-2026-139 (<=2.10.0) y
+  # CVE-2025-3000 (fix 2.13.0) se arreglan en pytorch >=2.11, pero TODO build de
+  # conda-forge >=2.11 exige `setuptools <82`, y el piso `setuptools>=83` de
+  # arriba (PYSEC-2026-3447) lo prohíbe — el solver se queda en 2.10. Es un
+  # trade de CVEs, no un olvido; ver ci.yml y el backlog.
+  - pytorch>=2.8
+  - transformers>=5.0.0
+  - joblib>=1.5.0
   - numpy
   - h5py>=3.10
 
