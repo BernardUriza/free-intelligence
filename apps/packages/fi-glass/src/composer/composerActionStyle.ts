@@ -69,7 +69,7 @@ const CSS = `
 }
 /* Unavailable, not absent: a disabled control keeps its box so the composer does
  * not reflow between empty and typed — the state a user sees most. */
-:where(.${FI_COMPOSER_ACTION_CLASS}:disabled) {
+.${FI_COMPOSER_ACTION_CLASS}:disabled {
   cursor: not-allowed;
 }
 .${FI_COMPOSER_ACTION_CLASS} svg {

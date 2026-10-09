@@ -31,20 +31,19 @@ export function ensureTouchTargetStyle(): void {
   if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
   const el = document.createElement('style');
   el.id = TOUCH_TARGET_STYLE_ID;
-  // A phone (coarse pointer) OR a narrow viewport gets the 44×44 minimum; a wide
-  // desktop with a fine pointer is left exactly as-is. inline-flex centering keeps
-  // a small icon centered inside the enlarged hit area. The 768px breakpoint
-  // mirrors AgentWorkspaceShell's drawer mobileQuery so MOBILE-1 and MOBILE-2
-  // flip at the same width.
+  // The 44×44 minimum is a guarantee; the centering is a default for icon controls
+  // that a component with its own layout (a card) overrides with one class.
   el.textContent = `
     @media ${FI_TOUCH_QUERY} {
       .${FI_TOUCH_TARGET_CLASS} {
         min-width: var(--fi-touch-target, 44px);
         min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-sizing: border-box;
       }
     }
   `;

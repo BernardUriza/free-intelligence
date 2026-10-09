@@ -1,7 +1,7 @@
 'use client';
 
 // src/resource/resourceStyle.ts
-import { useEffect } from "react";
+import { useEffect as useEffect2 } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -126,6 +126,35 @@ var glassTokens = {
   watermarkOpacity: "0.08"
 };
 
+// src/shell/touchTarget.ts
+import { useEffect } from "react";
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
 // src/resource/resourceStyle.ts
 var FI_INDEX_HEADER_CLASS = "fi-resource-index-header";
 var FI_INDEX_TITLE_CLASS = "fi-resource-index-title";
@@ -214,6 +243,8 @@ var CSS = `
 .${FI_CARD_CLASS} {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 1rem;
   height: 100%;
@@ -416,6 +447,8 @@ var CSS = `
 .${FI_DOC_CARD_CLASS} {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 0.35rem;
   min-height: var(--fi-resource-doc-card-height, 120px);
   padding: 0.6rem;
@@ -488,6 +521,7 @@ var CSS = `
 `;
 function ensureResourceStyle() {
   if (typeof document === "undefined") return;
+  ensureTouchTargetStyle();
   if (document.getElementById(RESOURCE_STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = RESOURCE_STYLE_ID;
@@ -495,7 +529,7 @@ function ensureResourceStyle() {
   document.head.appendChild(el);
 }
 function useResourceStyle() {
-  useEffect(() => {
+  useEffect2(() => {
     ensureResourceStyle();
   }, []);
 }
@@ -549,33 +583,6 @@ function filterByQuery(items, query, fields) {
 }
 function fold(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-}
-
-// src/shell/touchTarget.ts
-import { useEffect as useEffect2 } from "react";
-var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
-var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
-function ensureTouchTargetStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = TOUCH_TARGET_STYLE_ID;
-  el.textContent = `
-    @media ${FI_TOUCH_QUERY} {
-      .${FI_TOUCH_TARGET_CLASS} {
-        min-width: var(--fi-touch-target, 44px);
-        min-height: var(--fi-touch-target, 44px);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-      }
-    }
-  `;
-  document.head.appendChild(el);
-}
-function withTouchTarget(className) {
-  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
 
 // src/resource/ResourceCardGrid.tsx

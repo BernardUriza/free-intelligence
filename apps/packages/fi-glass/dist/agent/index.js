@@ -696,10 +696,12 @@ function ensureTouchTargetStyle() {
       .${FI_TOUCH_TARGET_CLASS} {
         min-width: var(--fi-touch-target, 44px);
         min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-sizing: border-box;
       }
     }
   `;
@@ -2520,7 +2522,7 @@ var CSS2 = `
 }
 /* Unavailable, not absent: a disabled control keeps its box so the composer does
  * not reflow between empty and typed \u2014 the state a user sees most. */
-:where(.${FI_COMPOSER_ACTION_CLASS}:disabled) {
+.${FI_COMPOSER_ACTION_CLASS}:disabled {
   cursor: not-allowed;
 }
 .${FI_COMPOSER_ACTION_CLASS} svg {
@@ -2711,6 +2713,7 @@ var CSS4 = `
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 0.375rem;
+    padding: 0.25rem 0.3rem;
   }
   [data-fi-composer-slot="header"] {
     flex: 1 1 100%;
@@ -2720,9 +2723,10 @@ var CSS4 = `
   [data-fi-composer-slot="footer"] {
     display: contents;
   }
-  /* The body (whatever wrapper the consumer's Composer renders) becomes the
-     row's flexing member so the textarea shares the line with toggle/mic/send. */
-  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+  /* The body becomes the row's flexing member \u2014 a bare wrapper or the area slot,
+     which og118 renders: excluding it left the row unfilled and send off the edge. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]),
+  [data-fi-composer-frame] > [data-fi-composer-slot="area"] {
     flex: 1 1 0%;
     min-width: 0;
   }

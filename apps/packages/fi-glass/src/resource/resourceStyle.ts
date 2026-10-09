@@ -20,6 +20,7 @@
 import { useEffect } from 'react';
 import { FI_MOBILE_QUERY, FI_TOUCH_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';
+import { ensureTouchTargetStyle } from '../shell/touchTarget';
 
 export const FI_INDEX_HEADER_CLASS = 'fi-resource-index-header';
 export const FI_INDEX_TITLE_CLASS = 'fi-resource-index-title';
@@ -113,6 +114,8 @@ const CSS = `
 .${FI_CARD_CLASS} {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 1rem;
   height: 100%;
@@ -315,6 +318,8 @@ const CSS = `
 .${FI_DOC_CARD_CLASS} {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 0.35rem;
   min-height: var(--fi-resource-doc-card-height, 120px);
   padding: 0.6rem;
@@ -389,6 +394,8 @@ const CSS = `
 /** Inject the idempotent resource-workspace stylesheet (no-op on the server / if already present). */
 export function ensureResourceStyle(): void {
   if (typeof document === 'undefined') return;
+  // Cards and the breadcrumb compose fi-touch-target; its sheet must not depend on another component.
+  ensureTouchTargetStyle();
   if (document.getElementById(RESOURCE_STYLE_ID)) return;
   const el = document.createElement('style');
   el.id = RESOURCE_STYLE_ID;
