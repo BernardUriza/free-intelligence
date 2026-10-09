@@ -246,6 +246,82 @@ body {
   color: #64748b;
   font-size: 0.95rem;
 }
+.og-loading-inline {
+  height: 100%;
+  min-height: 40vh;
+}
+
+.og-start {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 0;
+}
+.og-start-card {
+  max-width: 560px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.og-start-tile {
+  display: block;
+  margin: 0 auto;
+  width: clamp(120px, 40vw, 220px);
+  height: auto;
+  filter: drop-shadow(0 8px 24px rgba(52, 211, 153, 0.15));
+}
+.og-start-title {
+  margin: 1.5rem 0 0.25rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+.og-start-accent {
+  color: var(--og-accent, #34d399);
+}
+.og-start-element {
+  margin: 0 0 1rem;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+.og-start-pitch {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+.og-start-hint {
+  margin: 1.5rem 0 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.og-start-hint strong {
+  color: var(--og-accent, #34d399);
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .og-start {
+    padding: 0.5rem 0;
+  }
+  .og-start-card {
+    padding: 1.5rem 1.1rem;
+    border-radius: 16px;
+  }
+  .og-start-title {
+    margin-top: 1rem;
+    font-size: 1.6rem;
+  }
+  .og-start-element {
+    font-size: 0.85rem;
+  }
+  .og-start-pitch {
+    font-size: 0.95rem;
+  }
+}
 
 /* Projects section (proj-sidebar) — sits above the conversations list. The head +
    title layout moved to fi-glass `AgentSidebarSection` (B3-FIGLASS-SHELL-PRIMITIVES-1C);

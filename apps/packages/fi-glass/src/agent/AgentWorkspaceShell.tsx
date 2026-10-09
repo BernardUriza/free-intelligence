@@ -125,6 +125,10 @@ function ensureToggleStyle(): void {
     .fi-aws-toggle:focus-visible {
       outline: 2px solid var(--fi-accent, #34d399); outline-offset: 2px;
     }
+    /* The floating toggle has no header row of its own: the transcript reserves its height. */
+    .fi-aws-drawer .fi-transcript-scroll {
+      padding-top: calc(0.6rem + 44px + 0.5rem) !important;
+    }
   `;
   document.head.appendChild(el);
 }
@@ -241,6 +245,7 @@ export function AgentWorkspaceShell({
     'fi-agent-workspace',
     `fi-visual-${visual}`,
     `fi-density-${density}`,
+    drawerMode ? 'fi-aws-drawer' : null,
     className,
   ]
     .filter(Boolean)

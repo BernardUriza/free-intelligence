@@ -511,6 +511,8 @@ interface MessageRenderProps {
     showCopyAction?: boolean;
     /** Copy for the "retry saving" button on the persist-failure banner. */
     persistRetryLabel?: string;
+    /** BCP-47 locale for message times, e.g. `es-MX-u-hc-h23`. Default: the browser's. */
+    messageLocale?: string;
     /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
     renderHeader?: (message: ChatMessage) => ReactNode;
     /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */

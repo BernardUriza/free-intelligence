@@ -109,6 +109,8 @@ export const AutoResizeTextarea = forwardRef<
     // value React skips the attribute, which would leave the reset `1` behind.
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
+    // Below maxRows nothing is clipped but the wrapped placeholder, so no scroll indicator.
+    textarea.style.overflowY = value === '' || newRows < maxRows ? 'hidden' : 'auto';
     // Fill the wrapper width. Set imperatively (not via the style prop) so it
     // never collides with the imperative height above on re-render — a composer
     // textarea should always span its container.

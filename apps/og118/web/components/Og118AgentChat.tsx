@@ -294,7 +294,16 @@ export function Og118AgentChat() {
           // sidebar lives in the AgentWorkspaceShell drawer (reachable via the
           // hamburger), so the CTA is one tap away — no affordance is lost.
           showNewChatButton={false}
-          emptyState={<Og118StartScreen />}
+          emptyState={
+            conversationStore.status === 'connecting' ? (
+              <div className="og-loading og-loading-inline" role="status">
+                Cargando tus chats…
+              </div>
+            ) : (
+              <Og118StartScreen />
+            )
+          }
+          messageLocale="es-MX-u-hc-h23"
           // Only what must INTERRUPT stays outside the box: system banners and
           // the audio queue. Everything the user SETS before composing moved
           // into the composer's footer rail (COMPOSER-FOOTER-ZONES-1).
