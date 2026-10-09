@@ -80,7 +80,7 @@ free-intelligence/
 │   └── core/            # Legacy (DI refactor pending)
 ├── apps/
 │   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
-│   ├── fenix/           # LIVE: the stationery shop — real users (see below)
+│   ├── fenix/           # PAUSED: the stationery shop — still deployed, no traffic (see below)
 │   ├── packages/
 │   │   ├── fi-glass/    # the chat framework (aurity is its SSOT)
 │   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
@@ -100,22 +100,32 @@ free-intelligence/
 ## 🔗 Quick Links
 
 - **Production:** https://app.og118.ai — the app that actually ships today
-- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site, with real users
+- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site (paused, still online)
 
-### `apps/fenix` has REAL USERS — the "no launch, no users" clause does NOT cover it
+### `apps/fenix` is PAUSED — deployed, reachable, and unused (verified 2026-10-09)
 
-The **Project Status** section below says this repo has no users. That is true of
-og118 and false of `apps/fenix`: children at the shop's internet café use
-`/app/` for homework today, and Bernard's mother's team runs the business on it.
+Bernard paused Fénix; the last change under `apps/fenix` is `06cf5c0a` (2026-09-09).
+It used to have real users (the internet café's children on `/app/`, his mother's
+team at the counter), and the rules below were written for that. Today, measured:
 
-Two consequences that override the "delete it, refactor it now" freedom below:
+- **Traffic:** 24 requests to `fenix-api` in 30 days (Azure `Requests` metric), the
+  shape of bots and probes, not a shop.
+- **Azure cost:** $0.40 USD in Sep, $0.01 in Oct to the 9th (Cost Management,
+  `og118-rg`). `fenix-api` scales to 0, `fenix-web` is the Free SWA,
+  `fenixdatastore` is ~$0. Deleting them saves cents and loses the domain binding
+  and the data — not worth it while paused.
+- **Still online:** `www.serviciosfenix.com.mx` and `/app/` answer 200. A visitor's
+  turn spends Fénix's own `ANTHROPIC_API_KEY`, which bills per use and does NOT show
+  in the Azure cost above.
 
-- **A broken deploy is a shop that cannot work**, not a red build. It ships on
-  its own workflow (`fenix-backend.yml`) to Azure Container Apps `fenix-api`.
-- **It runs on og118's server** (`create_app()` + its own door), so a change in
-  `apps/og118/server` reaches Fénix's users. `apps/fenix/DEPLOY.md` documents the
-  gate, the public quota and — most importantly — **why `OG118_ACCESS_TOKEN` must
-  never be set here**: it silenced the café for days while every page looked fine.
+What still holds while it sits on og118's server (`create_app()` + its own door):
+a change in `apps/og118/server` still ships to `fenix-api` through
+`fenix-backend.yml`, and **`OG118_ACCESS_TOKEN` must never be set there** — it
+silenced the café for days while every page looked fine (`apps/fenix/DEPLOY.md`).
+
+**When Bernard resumes it, this section flips back to REAL USERS the same day**:
+a broken deploy is then a shop that cannot work, and the "delete it, refactor it
+now" freedom below stops covering `apps/fenix`.
 
 ### ⚠️ The "staging" that is actually PRODUCTION
 
