@@ -98,6 +98,25 @@ export function shortTime(iso: string): string {
   });
 }
 
+export function releaseLabel(sha: string | undefined, iso: string | undefined): string {
+  const version = sha ? sha.slice(0, 7) : 'dev';
+  const date = iso ? new Date(iso) : null;
+  if (!date || Number.isNaN(date.getTime())) return version;
+  const when = date.toLocaleString('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  return `${version} · ${when}`;
+}
+
+const RELEASE_LABEL = releaseLabel(
+  process.env.NEXT_PUBLIC_OG118_RELEASE_SHA,
+  process.env.NEXT_PUBLIC_OG118_RELEASED_AT,
+);
+
 export function Og118Sidebar({
   conversations,
   activeId,
@@ -207,8 +226,13 @@ export function Og118Sidebar({
         ariaLabel="Conversaciones"
         count={pinned.length + active.length}
         title={
-          <span className={FI_SECTION_TITLE_CLASS}>
-            og118<span style={{ color: 'var(--og-accent, #34d399)' }}>.ai</span>
+          <span className="og-sidebar-brand">
+            <span className={FI_SECTION_TITLE_CLASS}>
+              og118<span style={{ color: 'var(--og-accent, #34d399)' }}>.ai</span>
+            </span>
+            <span className="og-sidebar-release" title={`Versión y fecha de la última actualización: ${process.env.NEXT_PUBLIC_OG118_RELEASED_AT ?? 'local'}`}>
+              {RELEASE_LABEL}
+            </span>
           </span>
         }
         actionSlot={

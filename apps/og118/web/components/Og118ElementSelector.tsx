@@ -98,24 +98,3 @@ export function Og118ElementSelector({
     />
   );
 }
-
-/**
- * Og118ActiveElementStrip — the sidebar's read-only status of the active element
- * (COMPOSER-SWITCH-1: the composer owns the control, the sidebar shows ambient
- * state). A single fixed-height line — badge · name · engine chip — that never
- * wraps and truncates the name, so it can't clip its slot the way a full
- * AgentSidebarSection card did. The "Elemento activo" label lives in aria-label,
- * not in visual height (ELEMENTS-STRIP-1, per the coagent's status-strip verdict).
- */
-export function Og118ActiveElementStrip({ element }: { element?: Og118Element }) {
-  return (
-    <div
-      className="flex items-center gap-2 whitespace-nowrap px-3 py-2 text-sm text-slate-200"
-      aria-label="Elemento activo"
-    >
-      {element ? atomicBadge(element, true) : null}
-      <span className="truncate min-w-0">{element ? element.displayName : 'og118 (base)'}</span>
-      {element?.engine ? engineChip(element.engine) : null}
-    </div>
-  );
-}

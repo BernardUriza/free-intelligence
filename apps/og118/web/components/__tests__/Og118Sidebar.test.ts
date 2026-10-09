@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { shortTime, syncNote } from '../Og118Sidebar';
+import { releaseLabel, shortTime, syncNote } from '../Og118Sidebar';
 
 describe('shortTime', () => {
   it('formats in Spanish (es-MX), not the browser locale', () => {
@@ -46,5 +46,20 @@ describe('syncNote', () => {
   it('keeps the cloud and local copy for the settled states', () => {
     expect(syncNote('cloud', false)).toMatch(/Sincronizado en tu cuenta/);
     expect(syncNote('local', false)).toBe('Guardado localmente en este navegador.');
+  });
+});
+
+describe('releaseLabel', () => {
+  it('shows the short commit and the release date in 24h Spanish, short enough to share the header row', () => {
+    const out = releaseLabel('48e0ff55d1c2a9b0', '2026-10-09T15:28:00');
+    expect(out).toMatch(/^48e0ff5 · /);
+    expect(out.toLowerCase()).toContain('oct');
+    expect(out.length).toBeLessThanOrEqual(22);
+    expect(out).toContain('15:28');
+  });
+
+  it('falls back to "dev" with no commit and to the bare version with no date', () => {
+    expect(releaseLabel(undefined, undefined)).toBe('dev');
+    expect(releaseLabel('48e0ff55', 'garbage')).toBe('48e0ff5');
   });
 });

@@ -413,6 +413,20 @@ body {
   flex: 1;
   min-height: 0;
 }
+.og-sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.og-sidebar-release {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .og-sidebar-new {
   padding: 0.35rem 0.6rem;
   border-radius: 8px;
