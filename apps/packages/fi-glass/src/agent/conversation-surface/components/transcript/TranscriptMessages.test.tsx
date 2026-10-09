@@ -234,7 +234,7 @@ describe('<TranscriptMessages> message time locale', () => {
     render(
       <TranscriptMessages
         {...base}
-        turn={turn({ status: 'idle', plan: null })}
+        turn={turn({ status: 'done', plan: null })}
         isStreaming={false}
         messages={stored}
         messageLocale="es-MX-u-hc-h23"
