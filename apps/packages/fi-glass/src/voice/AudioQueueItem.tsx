@@ -21,6 +21,7 @@ import {
   formatArtifactSize,
   formatArtifactDuration,
 } from './audioArtifact';
+import { ACCENT_TEXT_HOVER, ACCENT_TEXT_MUTED } from '../theme/accentClasses';
 
 export interface AudioQueueItemProps {
   artifact: AudioArtifact;
@@ -168,7 +169,7 @@ export function AudioQueueItem({
         {artifact.state === 'transcribed' && onArchive && (
           <button
             onClick={() => onArchive(artifact.id)}
-            className="fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors"
+            className={`fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 ${ACCENT_TEXT_MUTED} ${ACCENT_TEXT_HOVER} transition-colors`}
             aria-label="Marcar como enviado al chat"
             title="Marcar como enviado al chat"
           >

@@ -2313,6 +2313,16 @@ import {
   Trash2,
   FileAudio
 } from "lucide-react";
+
+// src/theme/accentClasses.ts
+var ACCENT_TEXT = "text-[color:var(--fi-accent,#34d399)]";
+var ACCENT_TEXT_HOVER = "hover:text-[color:var(--fi-accent,#34d399)]";
+var ACCENT_TEXT_LIGHT = "text-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_70%,white)]";
+var ACCENT_TEXT_MUTED = "text-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_60%,transparent)]";
+var ACCENT_BG_SOFT = "bg-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_20%,transparent)]";
+var ACCENT_BG_SOFT_HOVER = "hover:bg-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_30%,transparent)]";
+
+// src/voice/AudioQueueItem.tsx
 import { jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
 function StateIcon({ state }) {
   const base = "w-4 h-4 shrink-0";
@@ -2427,7 +2437,7 @@ function AudioQueueItem({
             "button",
             {
               onClick: () => onArchive(artifact.id),
-              className: "fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 text-emerald-400/60 hover:text-emerald-400 transition-colors",
+              className: `fi-audio-item-archive p-1.5 rounded-md hover:bg-white/10 ${ACCENT_TEXT_MUTED} ${ACCENT_TEXT_HOVER} transition-colors`,
               "aria-label": "Marcar como enviado al chat",
               title: "Marcar como enviado al chat",
               children: /* @__PURE__ */ jsx11(CheckCheck, { className: "w-3.5 h-3.5" })
@@ -2634,7 +2644,7 @@ function AudioDraftPlayer({
               className: "fi-audio-draft-player flex items-center gap-1 flex-1 min-w-0",
               buttonClassName: "p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-35 disabled:cursor-not-allowed transition-colors",
               iconClassName: "w-4 h-4",
-              progressClassName: "flex-1 min-w-0 text-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+              progressClassName: `flex-1 min-w-0 ${ACCENT_TEXT} cursor-pointer disabled:cursor-not-allowed`
             }
           ),
           /* @__PURE__ */ jsxs9("div", { className: "hidden sm:flex items-center gap-1.5 shrink-0 text-xs text-white/45", children: [
@@ -2685,7 +2695,7 @@ function AudioDraftPlayer({
               type: "button",
               onClick: () => onPrimary(artifact.id),
               disabled: isSaving || isBusy,
-              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
+              className: `${FI_TOUCH_TARGET_CLASS} fi-audio-draft-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold ${ACCENT_BG_SOFT} ${ACCENT_BG_SOFT_HOVER} ${ACCENT_TEXT_LIGHT} disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95`,
               children: [
                 /* @__PURE__ */ jsx13(ArrowUp, { className: "w-3.5 h-3.5" }),
                 primaryActionLabel
