@@ -37,6 +37,13 @@ export {
   type ConversationArchiveDialogProps,
 } from './ConversationArchiveDialog';
 export {
+  useConversationUrl,
+  readConversationIdFromPath,
+  readConversationIdFromLocation,
+  DEFAULT_CONVERSATION_PATH_PREFIX,
+  type UseConversationUrlOptions,
+} from './useConversationUrl';
+export {
   useCloudConversationLibrary,
   type CloudSyncStatus,
   type CloudConversationLibraryState,

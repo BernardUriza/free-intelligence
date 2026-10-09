@@ -181,6 +181,12 @@ interface UseConversationLibraryOptions {
      * under whatever happens to be active right now.
      */
     projectId?: string;
+    /**
+     * The conversation the URL names, for a routed shell (`/c/<id>`). A string opens
+     * that conversation; `null` starts a fresh one. When set, the library never
+     * falls back to "the most recent" on its own — the address decides what is open.
+     */
+    initialActiveId?: string | null;
 }
 /** `load` = the store could not be read (mount, store swap, or its retry). */
 type ConversationAction = 'load' | 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
@@ -281,6 +287,24 @@ declare const FI_ARCHIVE_DIALOG_CLASS = "fi-archive-dialog";
 declare function ensureArchiveDialogStyle(): void;
 declare function ConversationArchiveDialog({ open, conversations: given, onArchive, onClose, renderMeta, labels: labelOverrides, }: ConversationArchiveDialogProps): react.JSX.Element;
 
+declare const DEFAULT_CONVERSATION_PATH_PREFIX = "/c/";
+/** The conversation id a path names (`/c/<id>` or `/c/<id>/`), or `null` for any other path. */
+declare function readConversationIdFromPath(pathname: string, prefix?: string): string | null;
+/** The id the current address names — call it once, before the library mounts. */
+declare function readConversationIdFromLocation(prefix?: string): string | null;
+interface UseConversationUrlOptions {
+    activeId: string | null;
+    /** The library's summaries: an id becomes addressable once it is saved. */
+    conversations: ConversationSummary[];
+    /** Back/forward landed on another address: open that conversation, or a fresh one for `null`. */
+    onNavigate: (conversationId: string | null) => void;
+    /** Path prefix for a conversation. Default `/c/`. */
+    prefix?: string;
+    /** The address of "no conversation yet". Default `/`. */
+    rootPath?: string;
+}
+declare function useConversationUrl({ activeId, conversations, onNavigate, prefix, rootPath, }: UseConversationUrlOptions): void;
+
 type CloudSyncStatus = 'local' | 'connecting' | 'cloud' | 'unreachable';
 interface UseCloudConversationLibraryOptions {
     local: ConversationLibrary;
@@ -305,4 +329,4 @@ interface CloudConversationLibraryState {
  */
 declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
 
-export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, ConversationArchiveDialog, type ConversationArchiveDialogLabels, type ConversationArchiveDialogProps, type ConversationLibraryState, EphemeralConversationLibrary, FI_ARCHIVE_DIALOG_CLASS, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, ensureArchiveDialogStyle, mergeConversationRecords, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, ConversationArchiveDialog, type ConversationArchiveDialogLabels, type ConversationArchiveDialogProps, type ConversationLibraryState, DEFAULT_CONVERSATION_PATH_PREFIX, EphemeralConversationLibrary, FI_ARCHIVE_DIALOG_CLASS, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, type UseConversationUrlOptions, ensureArchiveDialogStyle, mergeConversationRecords, migrateConversationLibrary, readConversationIdFromLocation, readConversationIdFromPath, useCloudConversationLibrary, useConversationLibrary, useConversationUrl, useIndexedDBConversationLibrary };

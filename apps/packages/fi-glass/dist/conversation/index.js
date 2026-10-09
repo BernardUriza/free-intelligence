@@ -253,9 +253,12 @@ function useConversationLibrary(library, options = {}) {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
   const { projectId } = options;
+  const routed = options.initialActiveId !== void 0;
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState(null);
+  const [activeId, setActiveId] = useState(
+    () => routed ? options.initialActiveId ?? idFactory() : null
+  );
   const [activeMessages, setActiveMessages] = useState([]);
   const [activeRecord, setActiveRecord] = useState(null);
   const activeIdRef = useRef(activeId);
@@ -325,9 +328,14 @@ function useConversationLibrary(library, options = {}) {
           if (previous?.id === current) await library.put(previous);
           return;
         }
-        if (list.length > 0) {
-          const record = await library.get(list[0].id);
-          if (isCurrent(current)) adopt(list[0].id, record ?? null);
+        if (routed) {
+          if (isCurrent(current) && current === null) adopt(idFactory(), null);
+          return;
+        }
+        const recent = list.find((summary) => !summary.archivedAt);
+        if (recent) {
+          const record = await library.get(recent.id);
+          if (isCurrent(current)) adopt(recent.id, record ?? null);
         } else if (isCurrent(current) && (current === null || previous !== null)) {
           adopt(idFactory(), null);
         }
@@ -1024,8 +1032,56 @@ function ConversationArchiveDialog({
   );
 }
 
+// src/conversation/useConversationUrl.ts
+import { useEffect as useEffect3, useRef as useRef3 } from "react";
+var DEFAULT_CONVERSATION_PATH_PREFIX = "/c/";
+function readConversationIdFromPath(pathname, prefix = DEFAULT_CONVERSATION_PATH_PREFIX) {
+  if (!pathname.startsWith(prefix)) return null;
+  const id = decodeURIComponent(pathname.slice(prefix.length).replace(/\/+$/, ""));
+  return id && !id.includes("/") ? id : null;
+}
+function readConversationIdFromLocation(prefix = DEFAULT_CONVERSATION_PATH_PREFIX) {
+  if (typeof window === "undefined") return null;
+  return readConversationIdFromPath(window.location.pathname, prefix);
+}
+function useConversationUrl({
+  activeId,
+  conversations,
+  onNavigate,
+  prefix = DEFAULT_CONVERSATION_PATH_PREFIX,
+  rootPath = "/"
+}) {
+  const onNavigateRef = useRef3(onNavigate);
+  onNavigateRef.current = onNavigate;
+  const shownId = useRef3(void 0);
+  const saved = activeId !== null && conversations.some((c) => c.id === activeId);
+  const target = saved ? activeId : null;
+  useEffect3(() => {
+    if (typeof window === "undefined") return;
+    const here = readConversationIdFromPath(window.location.pathname, prefix);
+    const previous = shownId.current;
+    shownId.current = target;
+    if (here === target) return;
+    if (target === null && here !== null && previous === void 0) return;
+    const path = target === null ? rootPath : `${prefix}${encodeURIComponent(target)}`;
+    const sameChat = previous === null && activeId !== null && target === activeId;
+    if (previous === void 0 || sameChat) window.history.replaceState(window.history.state, "", path);
+    else window.history.pushState(window.history.state, "", path);
+  }, [target, activeId, prefix, rootPath]);
+  useEffect3(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => {
+      const id = readConversationIdFromPath(window.location.pathname, prefix);
+      shownId.current = id;
+      onNavigateRef.current(id);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [prefix]);
+}
+
 // src/conversation/useCloudConversationLibrary.ts
-import { useCallback as useCallback2, useEffect as useEffect3, useState as useState3 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect4, useState as useState3 } from "react";
 var DEFAULT_RETRY_DELAYS_MS = [5e3, 15e3, 3e4, 6e4];
 var DEFAULT_SLOW_AFTER_MS = 4e3;
 function useCloudConversationLibrary({
@@ -1043,7 +1099,7 @@ function useCloudConversationLibrary({
   const active = enabled && scopeKey !== null;
   const settled = active && settledFor === scopeKey;
   const failed = active && !settled && failedFor === scopeKey;
-  useEffect3(() => {
+  useEffect4(() => {
     if (!active || settled) return;
     let cancelled = false;
     setSlow(false);
@@ -1072,7 +1128,7 @@ function useCloudConversationLibrary({
     };
   }, [active, settled, scopeKey, local, remote, attempt, slowAfterMs]);
   const [failures, setFailures] = useState3(0);
-  useEffect3(() => {
+  useEffect4(() => {
     if (!failed) return;
     const delay = retryDelaysMs[Math.min(failures, retryDelaysMs.length - 1)];
     const timer = setTimeout(() => {
@@ -1081,7 +1137,7 @@ function useCloudConversationLibrary({
     }, delay);
     return () => clearTimeout(timer);
   }, [failed, failures, retryDelaysMs]);
-  useEffect3(() => {
+  useEffect4(() => {
     if (settled) setFailures(0);
   }, [settled]);
   const retry = useCallback2(() => {
@@ -1095,6 +1151,7 @@ function useCloudConversationLibrary({
 }
 export {
   ConversationArchiveDialog,
+  DEFAULT_CONVERSATION_PATH_PREFIX,
   EphemeralConversationLibrary,
   FI_ARCHIVE_DIALOG_CLASS,
   IndexedDBConversationLibrary,
@@ -1102,8 +1159,11 @@ export {
   ensureArchiveDialogStyle,
   mergeConversationRecords,
   migrateConversationLibrary,
+  readConversationIdFromLocation,
+  readConversationIdFromPath,
   useCloudConversationLibrary,
   useConversationLibrary,
+  useConversationUrl,
   useIndexedDBConversationLibrary
 };
 //# sourceMappingURL=index.js.map
