@@ -1054,18 +1054,21 @@ function useConversationUrl({
   const onNavigateRef = useRef3(onNavigate);
   onNavigateRef.current = onNavigate;
   const shownId = useRef3(void 0);
+  const shownForActive = useRef3(null);
   const saved = activeId !== null && conversations.some((c) => c.id === activeId);
   const target = saved ? activeId : null;
   useEffect3(() => {
     if (typeof window === "undefined") return;
     const here = readConversationIdFromPath(window.location.pathname, prefix);
     const previous = shownId.current;
+    const previousActive = shownForActive.current;
     shownId.current = target;
+    shownForActive.current = activeId;
     if (here === target) return;
     if (target === null && here !== null && previous === void 0) return;
     const path = target === null ? rootPath : `${prefix}${encodeURIComponent(target)}`;
-    const sameChat = previous === null && activeId !== null && target === activeId;
-    if (previous === void 0 || sameChat) window.history.replaceState(window.history.state, "", path);
+    const firstSave = previous === null && previousActive === activeId;
+    if (previous === void 0 || firstSave) window.history.replaceState(window.history.state, "", path);
     else window.history.pushState(window.history.state, "", path);
   }, [target, activeId, prefix, rootPath]);
   useEffect3(() => {
