@@ -108,6 +108,22 @@ describe('<ComposerActionSlot>', () => {
     }
   });
 
+  it('states its shape at class specificity so an element reset cannot flatten it', () => {
+    // At zero specificity Tailwind's preflight `button { padding: 0 }` won: send
+    // rendered 18×18 and the call chip's outline hugged its label in og118.
+    render(<ComposerActionSlot icon={<svg />} />);
+    const css = sheet();
+    for (const decl of [
+      'padding: var(--fi-composer-action-padding, 0.5rem)',
+      'padding: var(--fi-composer-action-pill-padding, 0.3rem 0.65rem)',
+      'border-radius: var(--fi-composer-action-pill-radius, 999px)',
+      'display: inline-flex',
+    ]) {
+      const rule = css.split(decl)[0].split('\n').reverse().find((l) => l.includes('{'))!;
+      expect(rule).not.toContain(':where(');
+    }
+  });
+
   it('owns the shape and the touch minimum, and no colour at all', () => {
     render(<ComposerActionSlot icon={<svg />} />);
     const css = sheet();
