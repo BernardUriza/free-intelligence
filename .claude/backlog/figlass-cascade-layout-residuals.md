@@ -1,6 +1,6 @@
 # FIGLASS-CASCADE-LAYOUT-1 — lo que jsdom no ve: cascada, breakpoint y primer paint
 
-Status: **Proposed**
+Status: **In progress** — #1, #2, #5 y #6 Done 2026-10-09 (medidos en Chrome a 390×844 touch y en escritorio); quedan #3 (breakpoint 768) y #4 (primer paint)
 Proposed: 2026-10-09 by Claude (hallazgos IMPORTANT del /cruel-critic, [[figlass-review-2026-10-09]])
 
 ## What it is
@@ -27,4 +27,11 @@ La misma familia que el bug del padding: fi-glass da por hecha una cascada que e
 
 ## Status / next step
 
-Sin empezar. #1, #2 y #5 son de menos de una hora cada uno, con test y medición.
+Hecho el 2026-10-09 (test `theme/cascadeContract.test.ts`, 6 de 6 rojos sobre main):
+- **#1**: los slots del composer en `:where()`. En prod a 374px el área tenía `11.2px 13.6px 4px`; ahora el compacto de og118, `8px 8.8px 4.8px`.
+- **#2**: el centrado de `.fi-touch-target` pasa a `:where()` (el mínimo de 44 sigue siendo garantía) y las tarjetas declaran `align-items: stretch`. Al medir apareció que **el módulo `resource` usaba la clase sin inyectar su hoja**: `ensureResourceStyle` ahora la garantiza. Con viewport touch: `stretch`/`flex-start`, `min-height: 44px`.
+- **#5**: cursor `not-allowed` del Enviar deshabilitado, con especificidad de clase.
+- **#6**: se resolvió con #2, porque el `display` del touch target ya no empata con el `display:none` del rail-toggle.
+- **Hallazgo nuevo, también hecho**: en compacto el área no era el miembro flexible de la fila (el selector excluía `[data-fi-composer-slot]`) y sobraban 18px después de Enviar. Ahora el área llena la fila y el frame compacto lleva `padding: 0.25rem 0.3rem`: caja de 54px (tope 64), 6px a los lados, 5px arriba y abajo, overflow 0. Escritorio sin cambios.
+
+Quedan #3 (unificar el breakpoint 768) y #4 (layout shift antes del primer paint: medir con un trace antes de arreglar).
