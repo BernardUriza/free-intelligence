@@ -1,6 +1,6 @@
 # FIGLASS-CASCADE-LAYOUT-1 — lo que jsdom no ve: cascada, breakpoint y primer paint
 
-Status: **In progress** — #1, #2, #5 y #6 Done 2026-10-09 (medidos en Chrome a 390×844 touch y en escritorio); quedan #3 (breakpoint 768) y #4 (primer paint)
+Status: **In progress** — #1, #2, #4, #5 y #6 Done 2026-10-09 (medidos en Chrome a 390×844 touch y en escritorio); queda #3 (breakpoint 768)
 Proposed: 2026-10-09 by Claude (hallazgos IMPORTANT del /cruel-critic, [[figlass-review-2026-10-09]])
 
 ## What it is
@@ -34,4 +34,6 @@ Hecho el 2026-10-09 (test `theme/cascadeContract.test.ts`, 6 de 6 rojos sobre ma
 - **#6**: se resolvió con #2, porque el `display` del touch target ya no empata con el `display:none` del rail-toggle.
 - **Hallazgo nuevo, también hecho**: en compacto el área no era el miembro flexible de la fila (el selector excluía `[data-fi-composer-slot]`) y sobraban 18px después de Enviar. Ahora el área llena la fila y el frame compacto lleva `padding: 0.25rem 0.3rem`: caja de 54px (tope 64), 6px a los lados, 5px arriba y abajo, overflow 0. Escritorio sin cambios.
 
-Quedan #3 (unificar el breakpoint 768) y #4 (layout shift antes del primer paint: medir con un trace antes de arreglar).
+- **#4, también 2026-10-09**: se midió antes de tocar código. Sin throttling, prod dio CLS 0.00. Con CPU ×4 y Slow 4G, **CLS 0.29**, y lo que se movía eran el mic, Enviar y el ícono del menú: elementos cuyas hojas llegaban por `useEffect` después del paint. El HTML estático (9 KB) no trae el shell; la UI aparece en un commit de React, así que `useInsertionEffect` sí llega antes de ese paint. Las 11 inyecciones se movieron ahí. Local, mismo origen y mismas condiciones: **CLS 0.40 (main) → 0.01 (fix)**. Candado: `theme/stylesBeforePaint.test.ts`, rojo sobre main con los 11 archivos.
+
+Queda #3 (unificar el breakpoint 768).
