@@ -79,7 +79,7 @@ describe('<ComposerActionSlot>', () => {
     render(<ComposerActionSlot variant="primary" icon={<svg />} disabled />);
     expect(button().disabled).toBe(true);
     expect(button().className).toContain(FI_COMPOSER_ACTION_VARIANT_CLASS.primary);
-    const disabledRule = sheet().split(`.${FI_COMPOSER_ACTION_CLASS}:disabled)`)[1].split('}')[0];
+    const disabledRule = sheet().split(`.${FI_COMPOSER_ACTION_CLASS}:disabled {`)[1].split('}')[0];
     expect(disabledRule).toContain('cursor: not-allowed');
     expect(disabledRule).not.toContain('display');
     expect(disabledRule).not.toContain('padding');

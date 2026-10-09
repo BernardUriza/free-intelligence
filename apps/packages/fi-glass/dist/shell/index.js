@@ -33,10 +33,12 @@ function ensureTouchTargetStyle() {
       .${FI_TOUCH_TARGET_CLASS} {
         min-width: var(--fi-touch-target, 44px);
         min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        box-sizing: border-box;
       }
     }
   `;
