@@ -11,6 +11,47 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useEffect } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useEffect(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/shell/ChatFilePreview.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var FILE_ICONS = {
   "application/pdf": FileText,
@@ -40,6 +81,7 @@ function ChatFilePreview({
   onCancel
 }) {
   const FileIcon = getFileIcon(file);
+  useTouchTargetStyle();
   const isCompleted = status === "indexed";
   const isError = status === "error";
   const isUploading = status === "uploading";
@@ -53,36 +95,36 @@ function ChatFilePreview({
     /* @__PURE__ */ jsx("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx(Loader2, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx(AlertCircle, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+      `, children: isProcessing ? /* @__PURE__ */ jsx(Loader2, { className: "w-5 h-5 text-slate-300 animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx(CheckCircle, { className: "w-5 h-5 text-emerald-400" }) : isError ? /* @__PURE__ */ jsx(AlertCircle, { className: "w-5 h-5 text-red-400" }) : /* @__PURE__ */ jsx(FileIcon, { className: "w-5 h-5 text-slate-300" }) }),
     /* @__PURE__ */ jsxs("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+      /* @__PURE__ */ jsx("p", { className: "text-sm font-medium text-slate-100 truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 text-xs text-slate-400", children: [
         /* @__PURE__ */ jsx("span", { children: formatFileSize(file.size) }),
         isUploading && /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx("span", { children: "-" }),
-          /* @__PURE__ */ jsx("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+          /* @__PURE__ */ jsx("span", { className: "text-slate-300", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
         isAwaitingUser && /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx("span", { children: "-" }),
-          /* @__PURE__ */ jsx("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
+          /* @__PURE__ */ jsx("span", { className: "text-slate-300", children: "Elige c\xF3mo usarlo" })
         ] }),
         isProcessing && /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx("span", { children: "-" }),
-          /* @__PURE__ */ jsx("span", { className: "fi-text-primary", children: "Procesando..." })
+          /* @__PURE__ */ jsx("span", { className: "text-slate-300", children: "Procesando..." })
         ] }),
         isCompleted && /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx("span", { children: "-" }),
-          /* @__PURE__ */ jsx("span", { className: "chat-file-status-indexed", children: "Indexado" })
+          /* @__PURE__ */ jsx("span", { className: "text-emerald-400", children: "Indexado" })
         ] }),
         isError && error && /* @__PURE__ */ jsxs(Fragment, { children: [
           /* @__PURE__ */ jsx("span", { children: "-" }),
-          /* @__PURE__ */ jsx("span", { className: "fi-text-error truncate", title: error, children: error })
+          /* @__PURE__ */ jsx("span", { className: "text-red-400 truncate", title: error, children: error })
         ] })
       ] }),
       isUploading && /* @__PURE__ */ jsx("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx(
         "div",
         {
-          className: "fi-progress-bar duration-300",
+          className: "h-full rounded-full bg-slate-300 transition-[width] duration-300",
           style: { width: `${progress}%` }
         }
       ) })
@@ -92,7 +134,9 @@ function ChatFilePreview({
       {
         type: "button",
         onClick: onCancel,
-        className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
+        className: withTouchTarget(
+          "shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100"
+        ),
         "aria-label": "Cancelar",
         title: "Cancelar",
         children: /* @__PURE__ */ jsx(X, { className: "h-4 w-4" })
@@ -165,7 +209,7 @@ function clearMediaQueryCache() {
 }
 
 // src/shell/useEdgeSwipe.ts
-import { useEffect, useRef, useState } from "react";
+import { useEffect as useEffect2, useRef, useState } from "react";
 var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
 function useEdgeSwipe({
   enabled,
@@ -182,7 +226,7 @@ function useEdgeSwipe({
 }) {
   const [progress, setProgress] = useState(null);
   const gestureRef = useRef(null);
-  useEffect(() => {
+  useEffect2(() => {
     if (!enabled) {
       gestureRef.current = null;
       setProgress(null);
@@ -271,45 +315,6 @@ function useEdgeSwipe({
     axisSlop
   ]);
   return progress;
-}
-
-// src/shell/touchTarget.ts
-import { useEffect as useEffect2 } from "react";
-
-// src/theme/breakpoints.ts
-var FI_MOBILE_BREAKPOINT_PX = 768;
-var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
-var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
-
-// src/shell/touchTarget.ts
-var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
-var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
-function ensureTouchTargetStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = TOUCH_TARGET_STYLE_ID;
-  el.textContent = `
-    @media ${FI_TOUCH_QUERY} {
-      .${FI_TOUCH_TARGET_CLASS} {
-        min-width: var(--fi-touch-target, 44px);
-        min-height: var(--fi-touch-target, 44px);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-      }
-    }
-  `;
-  document.head.appendChild(el);
-}
-function useTouchTargetStyle() {
-  useEffect2(() => {
-    ensureTouchTargetStyle();
-  }, []);
-}
-function withTouchTarget(className) {
-  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
 export {
   ChatFilePreview,

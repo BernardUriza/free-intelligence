@@ -46,4 +46,22 @@ describe('<ChatFilePreview>', () => {
     render(<ChatFilePreview file={file()} status="selecting" onCancel={vi.fn()} />);
     expect(cancelButton()).not.toBeNull();
   });
+
+  it('uses no class that only another consumer defines', () => {
+    for (const status of ['selecting', 'uploading', 'error', 'indexed', 'processing'] as const) {
+      const { container, unmount } = render(
+        <ChatFilePreview file={file()} status={status} progress={40} error="x" onCancel={vi.fn()} />,
+      );
+      const classes = [...container.querySelectorAll('[class]')].flatMap((el) =>
+        (el.getAttribute('class') ?? '').split(/\s+/),
+      );
+      expect(classes.filter((c) => c.startsWith('fi-') && c !== 'fi-touch-target')).toEqual([]);
+      unmount();
+    }
+  });
+
+  it('gives the cancel button the framework touch target', () => {
+    render(<ChatFilePreview file={file()} status="selecting" onCancel={vi.fn()} />);
+    expect(cancelButton()!.className).toContain('fi-touch-target');
+  });
 });

@@ -91,10 +91,9 @@ var markdownStyles = {
   em: "italic text-slate-300",
   code: "px-1 py-0.5 bg-slate-800/80 rounded text-amber-300/90 font-mono text-[13px]",
   pre: "my-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700/30 overflow-x-auto text-[13px]",
-  ul: "my-2 ml-0.5 space-y-1.5",
-  ol: "my-2 ml-0.5 space-y-1.5 list-decimal list-inside",
-  li: "flex gap-1.5 text-slate-200",
-  bullet: "text-slate-500 select-none text-[10px] mt-1",
+  ul: "my-2 pl-5 space-y-1.5 list-disc marker:text-slate-500",
+  ol: "my-2 pl-5 space-y-1.5 list-decimal marker:text-slate-400",
+  li: "pl-0.5 text-slate-200",
   h1: "text-lg font-semibold text-white mt-4 mb-2",
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
@@ -200,10 +199,7 @@ var mdComponents = {
   pre: ({ children }) => /* @__PURE__ */ jsx2("pre", { className: markdownStyles.pre, children }),
   ul: ({ children }) => /* @__PURE__ */ jsx2("ul", { className: markdownStyles.ul, children }),
   ol: ({ children }) => /* @__PURE__ */ jsx2("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs2("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx2("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx2("span", { className: "flex-1", children })
-  ] }),
+  li: ({ children }) => /* @__PURE__ */ jsx2("li", { className: markdownStyles.li, children }),
   h1: ({ children }) => /* @__PURE__ */ jsx2("h1", { className: markdownStyles.h1, children }),
   h2: ({ children }) => /* @__PURE__ */ jsx2("h2", { className: markdownStyles.h2, children }),
   h3: ({ children }) => /* @__PURE__ */ jsx2("h3", { className: markdownStyles.h3, children }),
@@ -1355,23 +1351,37 @@ function ComposerImageChips({
             "aria-label": `${removeLabel}: ${draft.name}`,
             onClick: () => onRemove(draft.id),
             disabled,
+            "data-fi-image-remove": "",
             style: {
               position: "absolute",
-              top: "-0.375rem",
-              right: "-0.375rem",
-              width: "1.25rem",
-              height: "1.25rem",
+              top: "-0.75rem",
+              right: "-0.75rem",
+              width: "2.75rem",
+              height: "2.75rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "9999px",
               border: "none",
+              background: "transparent",
               cursor: disabled ? "default" : "pointer",
-              background: "rgba(0,0,0,0.65)",
-              color: "#fff",
               padding: 0
             },
-            children: /* @__PURE__ */ jsx14(X, { size: 12, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx14(
+              "span",
+              {
+                style: {
+                  width: "1.25rem",
+                  height: "1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "9999px",
+                  background: "rgba(0,0,0,0.65)",
+                  color: "#fff"
+                },
+                children: /* @__PURE__ */ jsx14(X, { size: 12, "aria-hidden": true })
+              }
+            )
           }
         )
       ] }, draft.id))
@@ -4920,6 +4930,7 @@ function ChatFilePreview({
   onCancel
 }) {
   const FileIcon = getFileIcon(file);
+  useTouchTargetStyle();
   const isCompleted = status === "indexed";
   const isError = status === "error";
   const isUploading = status === "uploading";
@@ -4933,36 +4944,36 @@ function ChatFilePreview({
     /* @__PURE__ */ jsx30("div", { className: `
         p-2 rounded-lg
         ${isError ? "bg-red-900/50" : isCompleted ? "bg-emerald-900/50" : "bg-slate-700"}
-      `, children: isProcessing ? /* @__PURE__ */ jsx30(Loader211, { className: "w-5 h-5 fi-text-primary animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx30(CheckCircle, { className: "w-5 h-5 fi-text-success" }) : isError ? /* @__PURE__ */ jsx30(AlertCircle4, { className: "w-5 h-5 fi-text-error" }) : /* @__PURE__ */ jsx30(FileIcon, { className: "w-5 h-5 fi-text" }) }),
+      `, children: isProcessing ? /* @__PURE__ */ jsx30(Loader211, { className: "w-5 h-5 text-slate-300 animate-spin" }) : isCompleted ? /* @__PURE__ */ jsx30(CheckCircle, { className: "w-5 h-5 text-emerald-400" }) : isError ? /* @__PURE__ */ jsx30(AlertCircle4, { className: "w-5 h-5 text-red-400" }) : /* @__PURE__ */ jsx30(FileIcon, { className: "w-5 h-5 text-slate-300" }) }),
     /* @__PURE__ */ jsxs21("div", { className: "flex-1 min-w-0", children: [
-      /* @__PURE__ */ jsx30("p", { className: "fi-title-sm-medium truncate", title: file.name, children: file.name }),
-      /* @__PURE__ */ jsxs21("div", { className: "flex items-center gap-2 fi-text-xs", children: [
+      /* @__PURE__ */ jsx30("p", { className: "text-sm font-medium text-slate-100 truncate", title: file.name, children: file.name }),
+      /* @__PURE__ */ jsxs21("div", { className: "flex items-center gap-2 text-xs text-slate-400", children: [
         /* @__PURE__ */ jsx30("span", { children: formatFileSize(file.size) }),
         isUploading && /* @__PURE__ */ jsxs21(Fragment6, { children: [
           /* @__PURE__ */ jsx30("span", { children: "-" }),
-          /* @__PURE__ */ jsx30("span", { className: "fi-text-primary", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
+          /* @__PURE__ */ jsx30("span", { className: "text-slate-300", children: progress < 100 ? `Subiendo... ${progress}%` : "Completado" })
         ] }),
         isAwaitingUser && /* @__PURE__ */ jsxs21(Fragment6, { children: [
           /* @__PURE__ */ jsx30("span", { children: "-" }),
-          /* @__PURE__ */ jsx30("span", { className: "fi-text-primary", children: "Elige c\xF3mo usarlo" })
+          /* @__PURE__ */ jsx30("span", { className: "text-slate-300", children: "Elige c\xF3mo usarlo" })
         ] }),
         isProcessing && /* @__PURE__ */ jsxs21(Fragment6, { children: [
           /* @__PURE__ */ jsx30("span", { children: "-" }),
-          /* @__PURE__ */ jsx30("span", { className: "fi-text-primary", children: "Procesando..." })
+          /* @__PURE__ */ jsx30("span", { className: "text-slate-300", children: "Procesando..." })
         ] }),
         isCompleted && /* @__PURE__ */ jsxs21(Fragment6, { children: [
           /* @__PURE__ */ jsx30("span", { children: "-" }),
-          /* @__PURE__ */ jsx30("span", { className: "chat-file-status-indexed", children: "Indexado" })
+          /* @__PURE__ */ jsx30("span", { className: "text-emerald-400", children: "Indexado" })
         ] }),
         isError && error && /* @__PURE__ */ jsxs21(Fragment6, { children: [
           /* @__PURE__ */ jsx30("span", { children: "-" }),
-          /* @__PURE__ */ jsx30("span", { className: "fi-text-error truncate", title: error, children: error })
+          /* @__PURE__ */ jsx30("span", { className: "text-red-400 truncate", title: error, children: error })
         ] })
       ] }),
       isUploading && /* @__PURE__ */ jsx30("div", { className: "mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden", children: /* @__PURE__ */ jsx30(
         "div",
         {
-          className: "fi-progress-bar duration-300",
+          className: "h-full rounded-full bg-slate-300 transition-[width] duration-300",
           style: { width: `${progress}%` }
         }
       ) })
@@ -4972,7 +4983,9 @@ function ChatFilePreview({
       {
         type: "button",
         onClick: onCancel,
-        className: "fi-btn-ghost fi-btn-sm fi-hover-bg",
+        className: withTouchTarget(
+          "shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100"
+        ),
         "aria-label": "Cancelar",
         title: "Cancelar",
         children: /* @__PURE__ */ jsx30(X2, { className: "h-4 w-4" })
@@ -7159,6 +7172,7 @@ function AgentSidebarItem({
       "aria-label": ariaLabel,
       onClick: () => interactive && onSelect(),
       onKeyDown: (e) => {
+        if (e.target !== e.currentTarget) return;
         if ((e.key === "Enter" || e.key === " ") && interactive) {
           e.preventDefault();
           onSelect();

@@ -70,10 +70,9 @@ declare const markdownStyles: {
     readonly em: "italic text-slate-300";
     readonly code: "px-1 py-0.5 bg-slate-800/80 rounded text-amber-300/90 font-mono text-[13px]";
     readonly pre: "my-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700/30 overflow-x-auto text-[13px]";
-    readonly ul: "my-2 ml-0.5 space-y-1.5";
-    readonly ol: "my-2 ml-0.5 space-y-1.5 list-decimal list-inside";
-    readonly li: "flex gap-1.5 text-slate-200";
-    readonly bullet: "text-slate-500 select-none text-[10px] mt-1";
+    readonly ul: "my-2 pl-5 space-y-1.5 list-disc marker:text-slate-500";
+    readonly ol: "my-2 pl-5 space-y-1.5 list-decimal marker:text-slate-400";
+    readonly li: "pl-0.5 text-slate-200";
     readonly h1: "text-lg font-semibold text-white mt-4 mb-2";
     readonly h2: "text-base font-semibold text-white mt-3 mb-1.5";
     readonly h3: "text-sm font-semibold text-slate-100 mt-2 mb-1";

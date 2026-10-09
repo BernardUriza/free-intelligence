@@ -3,9 +3,8 @@
 /**
  * fi-glass · ChatFilePreview — attachment preview (icon, name, size, progress,
  * cancel). Pure presentation driven by props; the upload STATE lives in the app
- * (useChatUpload). The only app coupling — `@/components/ui/button` for the
- * cancel X — is inlined as `<button class="fi-btn-ghost fi-btn-sm …">` (the exact
- * class output of `<Button variant="ghost" size="sm" icon={X}>`), render-diff safe.
+ * (useChatUpload). Every class is a Tailwind utility the consumer already scans
+ * fi-glass's dist for, or a fi-glass primitive: no class that only aurity defines.
  */
 
 import {
@@ -19,6 +18,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import type { UploadStatus } from './types';
+import { useTouchTargetStyle, withTouchTarget } from './touchTarget';
 
 export interface ChatFilePreviewProps {
   file: File;
@@ -59,6 +59,7 @@ export function ChatFilePreview({
   onCancel,
 }: ChatFilePreviewProps) {
   const FileIcon = getFileIcon(file);
+  useTouchTargetStyle();
 
   const isCompleted = status === 'indexed';
   const isError = status === 'error';
@@ -92,27 +93,27 @@ export function ChatFilePreview({
         }
       `}>
         {isProcessing ? (
-          <Loader2 className="w-5 h-5 fi-text-primary animate-spin" />
+          <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
         ) : isCompleted ? (
-          <CheckCircle className="w-5 h-5 fi-text-success" />
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
         ) : isError ? (
-          <AlertCircle className="w-5 h-5 fi-text-error" />
+          <AlertCircle className="w-5 h-5 text-red-400" />
         ) : (
-          <FileIcon className="w-5 h-5 fi-text" />
+          <FileIcon className="w-5 h-5 text-slate-300" />
         )}
       </div>
 
       {/* File Info */}
       <div className="flex-1 min-w-0">
-        <p className="fi-title-sm-medium truncate" title={file.name}>
+        <p className="text-sm font-medium text-slate-100 truncate" title={file.name}>
           {file.name}
         </p>
-        <div className="flex items-center gap-2 fi-text-xs">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
           <span>{formatFileSize(file.size)}</span>
           {isUploading && (
             <>
               <span>-</span>
-              <span className="fi-text-primary">
+              <span className="text-slate-300">
                 {progress < 100 ? `Subiendo... ${progress}%` : 'Completado'}
               </span>
             </>
@@ -120,25 +121,25 @@ export function ChatFilePreview({
           {isAwaitingUser && (
             <>
               <span>-</span>
-              <span className="fi-text-primary">Elige cómo usarlo</span>
+              <span className="text-slate-300">Elige cómo usarlo</span>
             </>
           )}
           {isProcessing && (
             <>
               <span>-</span>
-              <span className="fi-text-primary">Procesando...</span>
+              <span className="text-slate-300">Procesando...</span>
             </>
           )}
           {isCompleted && (
             <>
               <span>-</span>
-              <span className="chat-file-status-indexed">Indexado</span>
+              <span className="text-emerald-400">Indexado</span>
             </>
           )}
           {isError && error && (
             <>
               <span>-</span>
-              <span className="fi-text-error truncate" title={error}>
+              <span className="text-red-400 truncate" title={error}>
                 {error}
               </span>
             </>
@@ -149,7 +150,7 @@ export function ChatFilePreview({
         {isUploading && (
           <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
             <div
-              className="fi-progress-bar duration-300"
+              className="h-full rounded-full bg-slate-300 transition-[width] duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -162,7 +163,9 @@ export function ChatFilePreview({
         <button
           type="button"
           onClick={onCancel}
-          className="fi-btn-ghost fi-btn-sm fi-hover-bg"
+          className={withTouchTarget(
+            'shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100',
+          )}
           aria-label="Cancelar"
           title="Cancelar"
         >
