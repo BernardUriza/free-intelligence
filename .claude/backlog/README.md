@@ -34,10 +34,19 @@ Lo que estaba mintiendo:
   (`OG118-IOS-SWIFT62-1`, `OG118-BACKGROUND-1`), y cross-link entre la FUNCIÓN y la
   ANATOMÍA de la página de Proyectos.
 
+**/cruel-critic sobre fi-glass, 2026-10-09:** seis GRAVE entregados y verificados en
+app.og118.ai (#524–#527, tarjeta [FIGLASS-REVIEW-2026-10-09](figlass-review-2026-10-09.md));
+los IMPORTANT/MINOR quedan en cuatro tarjetas abiertas. G1+G2 (el turno que se perdía
+en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**.
+
 ## Abiertas
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [FIGLASS-PACKAGING-1 — subpaths sin consumidor, contrato de Tailwind sin declarar, tests que no fallan](figlass-packaging-dead-subpaths.md) | **Proposed** — `form`/`feedback`/`surface` (~945 LOC) con cero consumidores: **borrar o retomar lo decide Bernard**. El resto no espera decisión | 2026-10-09 |
+| [FIGLASS-CASCADE-LAYOUT-1 — cascada, breakpoint 768 y primer paint](figlass-cascade-layout-residuals.md) | **Proposed** — la familia del bug del padding: `glass-chat.css` le gana al padding compacto de og118, las tarjetas de Proyectos salen centradas en touch, iPad a 768 sale mitad y mitad, 13 hojas inyectadas después del primer paint | 2026-10-09 |
+| [FIGLASS-STATE-RESIDUALS-1 — lo que #526 no cerró](figlass-state-residuals.md) | **Proposed** — un append del servidor que el persist pisa durante un turno, el timeout que borra el texto, fugas del mic y de object URLs | 2026-10-09 |
+| [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Proposed** — Retry, "Ver más", selector de elemento, items de menú; rail-toggle 18×18 en composer angosto; drawer sin manejo de foco ni safe-area de abajo | 2026-10-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso
@@ -50,6 +59,7 @@ Lo que estaba mintiendo:
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [FIGLASS-REVIEW-2026-10-09 — /cruel-critic: los GRAVE que llegaron a producción](figlass-review-2026-10-09.md) | **Done 2026-10-09** — forma del composer contra el preflight (#524), teclado del sidebar + listas numeradas + upload sin estilos + quitar-imagen 44px (#525), el turno dueño de su chat en el swap local→nube (#526), acento por `--fi-accent` (#527). Residual: G1+G2 sin observar en un cold start real; Fénix sin redesplegar (pausado) | 2026-10-09 |
 | [OG118-BACKGROUND-1 — ejecución real en background (que "te aviso" sea verdad)](og118-real-background-execution.md) | **Done 2026-09-28** — recibo E2E en app.og118.ai: tool llamada, Job `og118-worker-2fjd0fa` Succeeded, mensaje `origin: background` pintado sin recargar y persistido (screenshot en `evidence/`). Antes hubo que rotar el token de AIRE (revocación masiva del 09-26). El React #185 del intento #3 no se reprodujo en 3 intentos; ocurrió con otra sesión conduciendo la misma pestaña | 2026-07-05 |
 | [B3-FIGLASS-RESOURCE-ADOPTION-1 — la página de Proyectos sigue siendo CSS de og118](b3-figlass-resource-adoption.md) | **Done 2026-09-10** — corte 1: `EditableSection` + `ResourceListSection` en fi-glass, `globals.css` **771 → 664**. Corte 2: **no quedaba anatomía por subir** — los otros tres consumidores ya componían fi-glass. La tarjeta se planteó mal el 09-09 (contó CSS que menciona `og-*` como si fuera anatomía); de las 163 líneas restantes, 57 propiedades son marca y las 41 de anatomía son envoltorios de un solo consumidor | 2026-09-09 |
 | [PERSONA-SSOT-2 — el personaje vive DOS veces, y el elemento que lo cita no lo lee](persona-ssot-el-personaje-vive-dos-veces.md) | **Done 2026-09-10** — el prompt de un elemento vive en discord-bot y punto. Vultur borrado, Reaper migrado (`e7e196b`), `fi-personas` eliminado y la capacidad local arrancada del código: el campo ya no existe, que es mejor candado que un validador. Verificado en vivo contra el persona-runner | 2026-09-09 |
