@@ -17,7 +17,7 @@
  * copies a class up, and it never edits this file.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 import { FI_MOBILE_QUERY, FI_TOUCH_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';
 import { ensureTouchTargetStyle } from '../shell/touchTarget';
@@ -405,7 +405,7 @@ export function ensureResourceStyle(): void {
 
 /** Ensure the resource-workspace stylesheet is present for the lifetime of the component. */
 export function useResourceStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureResourceStyle();
   }, []);
 }

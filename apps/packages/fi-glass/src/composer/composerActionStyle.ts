@@ -32,7 +32,7 @@
  * real specificity so no consumer can shrink a target to win space back.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 
 /** Base class for a composer control — compose it, never replace the consumer's class. */
 export const FI_COMPOSER_ACTION_CLASS = 'fi-composer-action';
@@ -123,7 +123,7 @@ export function ensureComposerActionStyle(): void {
 
 /** Ensure the composer-action stylesheet is present for the lifetime of a control. */
 export function useComposerActionStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureComposerActionStyle();
   }, []);
 }

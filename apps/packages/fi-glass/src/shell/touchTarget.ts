@@ -18,7 +18,7 @@
  * inherit the SAME framework minimum instead of authoring their own.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 import { FI_TOUCH_QUERY } from '../theme/breakpoints';
 
 export const FI_TOUCH_TARGET_CLASS = 'fi-touch-target';
@@ -52,7 +52,7 @@ export function ensureTouchTargetStyle(): void {
 
 /** Ensure the touch-target stylesheet is present for the lifetime of a control. */
 export function useTouchTargetStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureTouchTargetStyle();
   }, []);
 }

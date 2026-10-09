@@ -245,7 +245,7 @@ import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
 
 // src/shell/touchTarget.ts
-import { useEffect as useEffect2 } from "react";
+import { useInsertionEffect } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -277,7 +277,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect2(() => {
+  useInsertionEffect(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -324,10 +324,10 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3, useEffect as useEffect4, useRef as useRef2, useState as useState3 } from "react";
+import { memo as memo3, useEffect as useEffect2, useRef as useRef2, useState as useState3 } from "react";
 
 // src/messages/messageActionsStyle.ts
-import { useEffect as useEffect3 } from "react";
+import { useInsertionEffect as useInsertionEffect2 } from "react";
 var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
 var FI_MSG_FOOTER_CLASS = "fi-msg-footer";
 var FI_MSG_BADGE_CLASS = "fi-msg-badge";
@@ -375,7 +375,7 @@ function ensureMessageActionsStyle() {
   document.head.appendChild(el);
 }
 function useMessageActionsStyle() {
-  useEffect3(() => {
+  useInsertionEffect2(() => {
     ensureMessageActionsStyle();
   }, []);
 }
@@ -399,7 +399,7 @@ var MessageBubble = memo3(function MessageBubble2({
   const isUser = role === "user";
   const [actionsOpen, setActionsOpen] = useState3(false);
   const selfToken = useRef2({});
-  useEffect4(() => {
+  useEffect2(() => {
     if (!actionsOpen) return;
     const onOtherOpen = (e) => {
       if (e.detail !== selfToken.current) setActionsOpen(false);

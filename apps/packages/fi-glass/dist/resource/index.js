@@ -1,7 +1,7 @@
 'use client';
 
 // src/resource/resourceStyle.ts
-import { useEffect as useEffect2 } from "react";
+import { useInsertionEffect as useInsertionEffect2 } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -127,7 +127,7 @@ var glassTokens = {
 };
 
 // src/shell/touchTarget.ts
-import { useEffect } from "react";
+import { useInsertionEffect } from "react";
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
 var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
 function ensureTouchTargetStyle() {
@@ -529,7 +529,7 @@ function ensureResourceStyle() {
   document.head.appendChild(el);
 }
 function useResourceStyle() {
-  useEffect2(() => {
+  useInsertionEffect2(() => {
     ensureResourceStyle();
   }, []);
 }
@@ -801,7 +801,7 @@ function DocCardGrid({ children, emptyState, ariaLabel, className }) {
 }
 
 // src/resource/WorkspaceBreadcrumb.tsx
-import { Fragment as Fragment3, useEffect as useEffect3 } from "react";
+import { Fragment as Fragment3, useInsertionEffect as useInsertionEffect3 } from "react";
 import { jsx as jsx10, jsxs as jsxs9 } from "react/jsx-runtime";
 function WorkspaceBreadcrumb({
   crumbs,
@@ -810,7 +810,7 @@ function WorkspaceBreadcrumb({
   className
 }) {
   useResourceStyle();
-  useEffect3(() => ensureTouchTargetStyle(), []);
+  useInsertionEffect3(() => ensureTouchTargetStyle(), []);
   return /* @__PURE__ */ jsx10(
     "nav",
     {

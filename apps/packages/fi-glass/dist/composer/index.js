@@ -127,7 +127,7 @@ function Composer({
 }
 
 // src/shell/touchTarget.ts
-import { useEffect as useEffect2 } from "react";
+import { useInsertionEffect } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -141,7 +141,7 @@ function withTouchTarget(className) {
 }
 
 // src/composer/composerActionStyle.ts
-import { useEffect as useEffect3 } from "react";
+import { useInsertionEffect as useInsertionEffect2 } from "react";
 var FI_COMPOSER_ACTION_CLASS = "fi-composer-action";
 var FI_COMPOSER_ACTION_VARIANT_CLASS = {
   primary: "fi-composer-action--primary",
@@ -218,7 +218,7 @@ function ensureComposerActionStyle() {
   document.head.appendChild(el);
 }
 function useComposerActionStyle() {
-  useEffect3(() => {
+  useInsertionEffect2(() => {
     ensureComposerActionStyle();
   }, []);
 }
@@ -263,11 +263,11 @@ function ComposerActionSlot({
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect5, useId as useId2, useState as useState2 } from "react";
+import { useId as useId2, useState as useState2, useInsertionEffect as useInsertionEffect4 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect4 } from "react";
+import { useInsertionEffect as useInsertionEffect3 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
 var CSS2 = `
 /* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
@@ -448,7 +448,7 @@ function ensureComposerFrameStyle() {
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect5(() => {
+  useInsertionEffect4(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -773,7 +773,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect6, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect2, useRef as useRef4, useState as useState4 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 function ActionMenu({
@@ -791,13 +791,13 @@ function ActionMenu({
   const [open, setOpen] = useState4(false);
   const triggerRef = useRef4(null);
   const [position, setPosition] = useState4({ top: 0, left: 0 });
-  useEffect6(() => {
+  useEffect2(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect6(() => {
+  useEffect2(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
