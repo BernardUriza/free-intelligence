@@ -42,6 +42,7 @@ import {
   ItemActionSlot,
   FI_SECTION_TITLE_CLASS,
 } from 'fi-glass/agent';
+import type { CloudSyncStatus } from 'fi-glass/conversation';
 
 const TITLE_MAX = 60;
 const ACTION_ICON_SIZE = 14;
@@ -60,12 +61,27 @@ export interface Og118SidebarProps {
   onArchive: (id: string, archived: boolean) => void;
   /** Disable switching/new/delete while a turn streams (avoids cross-thread folds). */
   disabled?: boolean;
-  /** True when the server store is authoritative (signed in) — the storage note
-   * and delete-confirm copy must tell the truth about where the data lives. */
-  cloud?: boolean;
+  /** Where writes land right now — the storage note and delete-confirm copy must
+   * tell the truth about it, including while the account's server is still waking. */
+  sync?: { status: CloudSyncStatus; slow: boolean; onRetry: () => void };
   /** Account controls (e.g. the sign-out button) rendered in the sidebar footer,
    * next to the storage note — the layout home that replaced the floating pill. */
   accountSlot?: React.ReactNode;
+}
+
+export function syncNote(status: CloudSyncStatus, slow: boolean): string {
+  switch (status) {
+    case 'cloud':
+      return 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.';
+    case 'connecting':
+      return slow
+        ? 'Despertando el servidor — puede tardar hasta 30 s.'
+        : 'Conectando con tu cuenta…';
+    case 'unreachable':
+      return 'Sin conexión con tu cuenta. Lo nuevo se guarda en este navegador y se sube al reconectar.';
+    default:
+      return 'Guardado localmente en este navegador.';
+  }
 }
 
 export function shortTime(iso: string): string {
@@ -92,12 +108,13 @@ export function Og118Sidebar({
   onPin,
   onArchive,
   disabled = false,
-  cloud = false,
+  sync = { status: 'local', slow: false, onRetry: () => {} },
   accountSlot,
 }: Og118SidebarProps) {
   // B3-FIGLASS-MOBILE-2 — the "Nuevo chat" affordance inherits the framework 44×44
   // touch minimum; the rows inherit it from EditableResourceItem's action slots.
   useTouchTargetStyle();
+  const cloud = sync.status === 'cloud';
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -219,6 +236,9 @@ export function Og118Sidebar({
           {noResults && (
             <p className="og-sidebar-noresults">Sin resultados para «{query.trim()}».</p>
           )}
+          {sync.status === 'connecting' && conversations.length === 0 && (
+            <p className="og-sidebar-noresults og-sidebar-sync-connecting">Cargando tus chats…</p>
+          )}
           {pinned.length > 0 && (
             <>
               <span className="og-sidebar-group-label">Fijados</span>
@@ -262,11 +282,23 @@ export function Og118Sidebar({
       )}
 
       <div className="og-sidebar-foot">
-        <p className="og-sidebar-privacy">
-          {cloud
-            ? 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.'
-            : 'Guardado localmente en este navegador.'}
+        <p
+          className={`og-sidebar-privacy og-sidebar-sync-${sync.status}`}
+          role="status"
+          aria-live="polite"
+          data-ref="og118-sync-status"
+        >
+          {syncNote(sync.status, sync.slow)}
         </p>
+        {sync.status === 'unreachable' && (
+          <button
+            type="button"
+            className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-sync-retry`}
+            onClick={sync.onRetry}
+          >
+            Reintentar conexión
+          </button>
+        )}
         {accountSlot}
       </div>
     </aside>
