@@ -47,7 +47,7 @@ import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { SessionExpiredBanner, SignOutButton } from './AuthGate';
 import { Og118ProjectsSection } from './projects';
-import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
+import { Og118ElementSelector } from './Og118ElementSelector';
 import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
 import { useOg118ConversationSync } from '@/lib/useOg118ConversationSync';
 import { useOg118Projects } from '@/lib/useOg118Projects';
@@ -146,7 +146,6 @@ export function Og118AgentChat() {
   // here — same dismissable-banner pattern as voice errors, controlled string only.
   const [attachError, setAttachError] = useState<string | null>(null);
   const { turn } = conversation;
-  const activeElement = elements.elements.find((e) => e.slug === elements.selected);
 
   // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
   // in one consumer hook; it returns the render slots the surface distributes.
@@ -220,7 +219,6 @@ export function Og118AgentChat() {
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
-        <Og118ActiveElementStrip element={activeElement} />
         {proyectos && (
         <Og118ProjectsSection
           projects={projects.projects}
