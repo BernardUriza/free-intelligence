@@ -673,10 +673,10 @@ function TurnErrorBanner({
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect15, useState as useState13 } from "react";
+import { useEffect as useEffect10, useState as useState13 } from "react";
 
 // src/shell/touchTarget.ts
-import { useEffect as useEffect3 } from "react";
+import { useInsertionEffect } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -708,7 +708,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect3(() => {
+  useInsertionEffect(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -868,7 +868,7 @@ function useComposerImages(options = {}) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
-import { useCallback as useCallback3, useEffect as useEffect4, useRef as useRef3 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect3, useRef as useRef3 } from "react";
 function useComposerFocus(options) {
   const { isStreaming, isTranscribing } = options;
   const inputRef = useRef3(null);
@@ -881,12 +881,12 @@ function useComposerFocus(options) {
     el.focus();
   }, []);
   const wasStreaming = useRef3(false);
-  useEffect4(() => {
+  useEffect3(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
   const wasTranscribing = useRef3(false);
-  useEffect4(() => {
+  useEffect3(() => {
     if (wasTranscribing.current && !isTranscribing) refocusComposer();
     wasTranscribing.current = isTranscribing;
   }, [isTranscribing, refocusComposer]);
@@ -1292,7 +1292,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState5, useRef as useRef5, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useEffect as useEffect4 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1326,7 +1326,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef5(null);
   const animationFrameRef = useRef5(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect5(() => {
+  useEffect4(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1451,10 +1451,10 @@ function useSurfaceDictation(options) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerAppend.ts
-import { useEffect as useEffect6 } from "react";
+import { useEffect as useEffect5 } from "react";
 function useComposerAppend(options) {
   const { composerAppend, onComposerAppendConsumed, setInput } = options;
-  useEffect6(() => {
+  useEffect5(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -1680,7 +1680,7 @@ function normalizeStreamedMarkdown(content) {
 }
 
 // src/messages/CollapsibleText.tsx
-import { useEffect as useEffect7, useId, useRef as useRef7, useState as useState7 } from "react";
+import { useEffect as useEffect6, useId, useRef as useRef7, useState as useState7 } from "react";
 import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
@@ -1696,7 +1696,7 @@ function CollapsibleText({
   const contentRef = useRef7(null);
   const [expanded, setExpanded] = useState7(false);
   const [overflowing, setOverflowing] = useState7(false);
-  useEffect7(() => {
+  useEffect6(() => {
     const el = contentRef.current;
     if (!el) return;
     const measure = () => setOverflowing(el.scrollHeight > maxHeight + OVERFLOW_TOLERANCE_PX);
@@ -1852,10 +1852,10 @@ var CopyButton = memo2(function CopyButton2({
 });
 
 // src/messages/MessageBubble.tsx
-import { memo as memo3, useEffect as useEffect9, useRef as useRef8, useState as useState9 } from "react";
+import { memo as memo3, useEffect as useEffect7, useRef as useRef8, useState as useState9 } from "react";
 
 // src/messages/messageActionsStyle.ts
-import { useEffect as useEffect8 } from "react";
+import { useInsertionEffect as useInsertionEffect2 } from "react";
 var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
 var FI_MSG_FOOTER_CLASS = "fi-msg-footer";
 var FI_MSG_BADGE_CLASS = "fi-msg-badge";
@@ -1903,7 +1903,7 @@ function ensureMessageActionsStyle() {
   document.head.appendChild(el);
 }
 function useMessageActionsStyle() {
-  useEffect8(() => {
+  useInsertionEffect2(() => {
     ensureMessageActionsStyle();
   }, []);
 }
@@ -1927,7 +1927,7 @@ var MessageBubble = memo3(function MessageBubble2({
   const isUser = role === "user";
   const [actionsOpen, setActionsOpen] = useState9(false);
   const selfToken = useRef8({});
-  useEffect9(() => {
+  useEffect7(() => {
     if (!actionsOpen) return;
     const onOtherOpen = (e) => {
       if (e.detail !== selfToken.current) setActionsOpen(false);
@@ -2371,7 +2371,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
 // src/composer/AutoResizeTextarea.tsx
 import {
   forwardRef,
-  useEffect as useEffect10,
+  useEffect as useEffect8,
   useId as useId2,
   useImperativeHandle,
   useRef as useRef9,
@@ -2397,7 +2397,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
   const generatedId = useId2();
   const resolvedId = id ?? `fi-glass-composer-${generatedId}`;
   const resolvedName = name ?? resolvedId;
-  useEffect10(() => {
+  useEffect8(() => {
     if (!textareaRef.current) return;
     const textarea = textareaRef.current;
     textarea.rows = 1;
@@ -2495,7 +2495,7 @@ function Composer({
 }
 
 // src/composer/composerActionStyle.ts
-import { useEffect as useEffect11 } from "react";
+import { useInsertionEffect as useInsertionEffect3 } from "react";
 var FI_COMPOSER_ACTION_CLASS = "fi-composer-action";
 var FI_COMPOSER_ACTION_VARIANT_CLASS = {
   primary: "fi-composer-action--primary",
@@ -2572,7 +2572,7 @@ function ensureComposerActionStyle() {
   document.head.appendChild(el);
 }
 function useComposerActionStyle() {
-  useEffect11(() => {
+  useInsertionEffect3(() => {
     ensureComposerActionStyle();
   }, []);
 }
@@ -2581,11 +2581,11 @@ function withComposerAction(variant, className) {
 }
 
 // src/composer/ComposerFrame.tsx
-import { useEffect as useEffect13, useId as useId3, useState as useState11 } from "react";
+import { useId as useId3, useState as useState11, useInsertionEffect as useInsertionEffect5 } from "react";
 import { SlidersHorizontal } from "lucide-react";
 
 // src/agent/densityStyle.ts
-import { useEffect as useEffect12 } from "react";
+import { useInsertionEffect as useInsertionEffect4 } from "react";
 var DENSITY_STYLE_ID = "fi-density-style";
 var CSS3 = `
 /* B3-FIGLASS-TOKEN-LAYER-1 \u2014 the BASE scale sits on :root, not on
@@ -2653,7 +2653,7 @@ function ensureDensityStyle() {
   document.head.appendChild(el);
 }
 function useDensityStyle() {
-  useEffect12(() => {
+  useInsertionEffect4(() => {
     ensureDensityStyle();
   }, []);
 }
@@ -2771,7 +2771,7 @@ function ensureComposerFrameStyle() {
   document.head.appendChild(el);
 }
 function useComposerFrameStyle() {
-  useEffect13(() => {
+  useInsertionEffect5(() => {
     ensureComposerFrameStyle();
   }, []);
 }
@@ -2945,7 +2945,7 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment5, useEffect as useEffect14, useRef as useRef11, useState as useState12 } from "react";
+import { Fragment as Fragment5, useEffect as useEffect9, useRef as useRef11, useState as useState12 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment6, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
 function ActionMenu({
@@ -2963,13 +2963,13 @@ function ActionMenu({
   const [open, setOpen] = useState12(false);
   const triggerRef = useRef11(null);
   const [position, setPosition] = useState12({ top: 0, left: 0 });
-  useEffect14(() => {
+  useEffect9(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
-  useEffect14(() => {
+  useEffect9(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -3437,7 +3437,7 @@ function AgentConversationSurface(props) {
     onError: onImageAttachmentError
   });
   const restoreImages = images.restore;
-  useEffect15(() => {
+  useEffect10(() => {
     if (!unsentText && !unsentImages) return;
     if (unsentText) setInput((current) => current.trim() ? current : unsentText);
     if (imageAttachments && unsentImages && unsentImages.length > 0) {
@@ -3497,17 +3497,11 @@ function AgentConversationSurface(props) {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import {
-  useCallback as useCallback7,
-  useEffect as useEffect17,
-  useMemo,
-  useRef as useRef13,
-  useState as useState15
-} from "react";
+import { useCallback as useCallback7, useEffect as useEffect12, useMemo, useRef as useRef13, useState as useState15, useInsertionEffect as useInsertionEffect6 } from "react";
 import { Menu } from "lucide-react";
 
 // src/shell/useEdgeSwipe.ts
-import { useEffect as useEffect16, useRef as useRef12, useState as useState14 } from "react";
+import { useEffect as useEffect11, useRef as useRef12, useState as useState14 } from "react";
 var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
 function useEdgeSwipe({
   enabled,
@@ -3524,7 +3518,7 @@ function useEdgeSwipe({
 }) {
   const [progress, setProgress] = useState14(null);
   const gestureRef = useRef12(null);
-  useEffect16(() => {
+  useEffect11(() => {
     if (!enabled) {
       gestureRef.current = null;
       setProgress(null);
@@ -3684,10 +3678,10 @@ function AgentWorkspaceShell({
     fallbackWidth: numericSidebarWidth
   });
   const dragging = dragProgress !== null;
-  useEffect17(() => {
+  useEffect12(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect17(() => {
+  useEffect12(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -3700,7 +3694,7 @@ function AgentWorkspaceShell({
       document.body.style.overflow = prevOverflow;
     };
   }, [drawerMode, isOpen]);
-  useEffect17(() => {
+  useInsertionEffect6(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
   const api = useMemo(
@@ -3874,7 +3868,7 @@ import {
 } from "react";
 
 // src/agent/sidebarItemStyle.ts
-import { useEffect as useEffect18 } from "react";
+import { useInsertionEffect as useInsertionEffect7 } from "react";
 
 // src/theme/glass-tokens.generated.ts
 var glassTokens = {
@@ -4123,7 +4117,7 @@ function ensureSidebarItemStyle() {
   document.head.appendChild(el);
 }
 function useSidebarItemStyle() {
-  useEffect18(() => {
+  useInsertionEffect7(() => {
     ensureSidebarItemStyle();
   }, []);
 }
@@ -4314,7 +4308,7 @@ function EditableResourceItem({
 }
 
 // src/agent/sidebarSectionStyle.ts
-import { useEffect as useEffect19 } from "react";
+import { useInsertionEffect as useInsertionEffect8 } from "react";
 var FI_SIDEBAR_SECTION_CLASS = "fi-sidebar-section";
 var FI_SECTION_HEAD_CLASS = "fi-sidebar-section-head";
 var FI_SECTION_TITLE_CLASS = "fi-sidebar-section-title";
@@ -4374,7 +4368,7 @@ function ensureSidebarSectionStyle() {
   document.head.appendChild(el);
 }
 function useSidebarSectionStyle() {
-  useEffect19(() => {
+  useInsertionEffect8(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

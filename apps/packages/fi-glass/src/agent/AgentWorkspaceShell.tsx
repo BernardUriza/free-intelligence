@@ -36,15 +36,7 @@
  * preserved, so the change is visual-equivalent and consumers need no new CSS.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, useInsertionEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 import { useMediaQuery } from '../shell/useMediaQuery';
@@ -197,7 +189,7 @@ export function AgentWorkspaceShell({
     };
   }, [drawerMode, isOpen]);
 
-  useEffect(() => {
+  useInsertionEffect(() => {
     if (drawerMode) ensureToggleStyle();
   }, [drawerMode]);
 

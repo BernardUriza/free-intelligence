@@ -392,7 +392,7 @@ function VoiceMicButton({
 import { Volume2, Loader2 as Loader24, Play } from "lucide-react";
 
 // src/shell/touchTarget.ts
-import { useEffect } from "react";
+import { useInsertionEffect } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -424,7 +424,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -677,7 +677,7 @@ function createAudioPlayer(options = {}) {
 }
 
 // src/voice/useAudioPlayer.ts
-import { useEffect as useEffect2, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 function useAudioPlayer(opts = {}) {
   const cbRef = useRef(opts);
   cbRef.current = opts;
@@ -691,7 +691,7 @@ function useAudioPlayer(opts = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
-  useEffect2(() => () => controller.dispose(), [controller]);
+  useEffect(() => () => controller.dispose(), [controller]);
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getState,
@@ -715,7 +715,7 @@ function useAudioPlayer(opts = {}) {
 
 // src/voice/AudioPlayer.tsx
 import { Play as Play2, Pause, Square as Square2, Loader2 as Loader25, AlertCircle } from "lucide-react";
-import { useEffect as useEffect3 } from "react";
+import { useEffect as useEffect2 } from "react";
 import { jsx as jsx7, jsxs as jsxs5 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
@@ -730,7 +730,7 @@ function AudioPlayer({
 }) {
   const player = useAudioPlayer({ onError, onEnded });
   const { load, play, toggle, stop, isPlaying, isLoading, error, currentSrc } = player;
-  useEffect3(() => {
+  useEffect2(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -779,7 +779,7 @@ import {
   RotateCcw,
   RotateCw
 } from "lucide-react";
-import { useEffect as useEffect4 } from "react";
+import { useEffect as useEffect3, useInsertionEffect as useInsertionEffect2 } from "react";
 import { jsx as jsx8, jsxs as jsxs6 } from "react/jsx-runtime";
 var SCRUBBER_STYLE_ID = "fi-audio-scrubber-style";
 function ensureAudioScrubberStyle() {
@@ -884,7 +884,7 @@ function RichAudioPlayer({
     currentTime
   } = player;
   const sourceKey = source == null ? null : source instanceof Blob ? source : source.url;
-  useEffect4(() => {
+  useEffect3(() => {
     if (!source) return;
     load(source);
     if (autoPlay) void play();
@@ -892,7 +892,7 @@ function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect4(() => {
+  useInsertionEffect2(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct = duration > 0 ? Math.min(100, currentTime / duration * 100) : 0;
@@ -1513,7 +1513,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef4, useEffect as useEffect5 } from "react";
+import { useState as useState3, useRef as useRef4, useEffect as useEffect4 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1547,7 +1547,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef4(null);
   const animationFrameRef = useRef4(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect5(() => {
+  useEffect4(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1788,7 +1788,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect6 } from "react";
+import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect5 } from "react";
 
 // src/voice/durableRecordingMachine.ts
 function isQueueAtCapacity(artifacts, policy) {
@@ -1921,10 +1921,10 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef5([]);
   const rtcCtorRef = useRef5(null);
   const pauseOpRef = useRef5(Promise.resolve());
-  useEffect6(() => {
+  useEffect5(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect6(() => {
+  useEffect5(() => {
     store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
@@ -2175,7 +2175,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState6, useEffect as useEffect7, useCallback as useCallback5 } from "react";
+import { useState as useState6, useEffect as useEffect6, useCallback as useCallback5 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState6([]);
@@ -2189,7 +2189,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect7(() => {
+  useEffect6(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback5(
@@ -2298,7 +2298,7 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect8, useState as useState8 } from "react";
+import { useEffect as useEffect7, useState as useState8 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
@@ -2484,7 +2484,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState8(true);
-  useEffect8(() => {
+  useEffect7(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -2547,7 +2547,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState9, useEffect as useEffect9 } from "react";
+import { useState as useState9, useEffect as useEffect8 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2570,7 +2570,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState9(null);
-  useEffect9(() => {
+  useEffect8(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -2958,7 +2958,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback7, useEffect as useEffect10, useMemo as useMemo3, useRef as useRef6, useState as useState10 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect9, useMemo as useMemo3, useRef as useRef6, useState as useState10 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -3170,10 +3170,10 @@ function useResonanceCallLoop(params) {
   const cueApplyRef = useRef6(void 0);
   cueApplyRef.current = cueController?.applyTransition;
   const cueSeqRef = useRef6(0);
-  useEffect10(() => {
+  useEffect9(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect10(() => () => {
+  useEffect9(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState10("idle");
@@ -3260,7 +3260,7 @@ function useResonanceCallLoop(params) {
   const stateRef = useRef6(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect10(() => {
+  useEffect9(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -3284,7 +3284,7 @@ function useResonanceCallLoop(params) {
       t.current = void 0;
     }
   };
-  useEffect10(() => {
+  useEffect9(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -3306,7 +3306,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect10(() => () => {
+  useEffect9(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
     clearTimer(callTimer);

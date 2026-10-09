@@ -36,7 +36,7 @@
  */
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState, useInsertionEffect } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { withTouchTarget } from '../shell/touchTarget';
 import { ensureDensityStyle } from '../agent/densityStyle';
@@ -160,7 +160,7 @@ export function ensureComposerFrameStyle(): void {
 
 /** Ensure the composer-frame stylesheet is present for the lifetime of the component. */
 export function useComposerFrameStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureComposerFrameStyle();
   }, []);
 }

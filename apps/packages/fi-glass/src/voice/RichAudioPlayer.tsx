@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { FI_TOUCH_QUERY } from '../theme/breakpoints';
 import type { AudioSource } from '@free-intelligence/core';
-import { useEffect } from 'react';
+import { useEffect, useInsertionEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { useAudioPlayer } from './useAudioPlayer';
 import { FI_TOUCH_TARGET_CLASS, useTouchTargetStyle } from '../shell/touchTarget';
@@ -206,7 +206,7 @@ export function RichAudioPlayer({
   const hasSource = currentSrc !== null;
   const canSeek = hasSource && duration > 0;
   useTouchTargetStyle();
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureAudioScrubberStyle();
   }, []);
   const progressPct =

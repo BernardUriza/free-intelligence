@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 // src/shell/touchTarget.ts
-import { useEffect } from "react";
+import { useInsertionEffect } from "react";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -45,7 +45,7 @@ function ensureTouchTargetStyle() {
   document.head.appendChild(el);
 }
 function useTouchTargetStyle() {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureTouchTargetStyle();
   }, []);
 }
@@ -211,7 +211,7 @@ function clearMediaQueryCache() {
 }
 
 // src/shell/useEdgeSwipe.ts
-import { useEffect as useEffect2, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
 function useEdgeSwipe({
   enabled,
@@ -228,7 +228,7 @@ function useEdgeSwipe({
 }) {
   const [progress, setProgress] = useState(null);
   const gestureRef = useRef(null);
-  useEffect2(() => {
+  useEffect(() => {
     if (!enabled) {
       gestureRef.current = null;
       setProgress(null);

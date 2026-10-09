@@ -18,7 +18,7 @@
  * cannot express, which is exactly why it lives in an injected sheet.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 import { glassTokens } from '../theme/glass-tokens.generated';
 import { ensureDensityStyle } from './densityStyle';
 
@@ -162,7 +162,7 @@ export function ensureSidebarItemStyle(): void {
 
 /** Ensure the sidebar-item stylesheet is present for the lifetime of the component. */
 export function useSidebarItemStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureSidebarItemStyle();
   }, []);
 }

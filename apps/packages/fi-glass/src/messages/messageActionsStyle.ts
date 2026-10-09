@@ -17,7 +17,7 @@
  * keyboard/screen-reader flows are unchanged where they exist.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 
 export const FI_MSG_ACTIONS_CLASS = 'fi-msg-actions';
 export const FI_MSG_FOOTER_CLASS = 'fi-msg-footer';
@@ -72,7 +72,7 @@ export function ensureMessageActionsStyle(): void {
 
 /** Ensure the message-actions stylesheet is present for the component's lifetime. */
 export function useMessageActionsStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureMessageActionsStyle();
   }, []);
 }
