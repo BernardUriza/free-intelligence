@@ -68,6 +68,22 @@ describe('AutoResizeTextarea sizing', () => {
     expect(ta.style.height).toBe('20px'); // 1 row × 20px fallback line height
   });
 
+  it('an empty textarea never shows a scroll indicator for its wrapped placeholder', () => {
+    mockScrollHeight(72);
+    const { container } = render(
+      <AutoResizeTextarea value="" placeholder={'una pista larga '.repeat(6)} onChange={() => {}} />,
+    );
+    expect(container.querySelector('textarea')!.style.overflowY).toBe('hidden');
+  });
+
+  it('scrolls only once the content passes maxRows', () => {
+    mockDomScrollHeight();
+    const { container } = render(
+      <AutoResizeTextarea value={'línea\n'.repeat(10)} onChange={() => {}} maxRows={5} />,
+    );
+    expect(container.querySelector('textarea')!.style.overflowY).toBe('auto');
+  });
+
   it('grows with content up to maxRows and caps there', () => {
     mockDomScrollHeight();
     const { container } = render(

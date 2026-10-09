@@ -2143,6 +2143,7 @@ function TranscriptMessages({
   agentPanelProps,
   showCopyAction,
   renderHeader,
+  messageLocale,
   renderBadge,
   renderActions,
   resolveBubbleClass,
@@ -2161,7 +2162,7 @@ function TranscriptMessages({
           MessageBubble,
           {
             role: m.role,
-            header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
+            header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR, messageLocale),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
             actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx17(CopyButton, { content: m.content }) : void 0),
             isLatest: i === messages.length - 1,
@@ -2226,6 +2227,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     renderHeader,
     renderBadge,
     renderActions,
+    messageLocale,
     messageBubbleClassName,
     collapseMaxHeight,
     showMoreLabel,
@@ -2256,6 +2258,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
         "div",
         {
           ref: autoScroll ? stick.scrollRef : void 0,
+          className: "fi-transcript-scroll",
           style: { flex: 1, overflowY: "auto", padding: "var(--fi-transcript-pad, 1.25rem 1rem)" },
           children: /* @__PURE__ */ jsxs12(
             "div",
@@ -2274,6 +2277,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     agentPanelProps,
                     showCopyAction,
                     renderHeader,
+                    messageLocale,
                     renderBadge,
                     renderActions,
                     resolveBubbleClass,
@@ -2369,6 +2373,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
+    textarea.style.overflowY = value === "" || newRows < maxRows ? "hidden" : "auto";
     textarea.style.width = "100%";
   }, [value, maxRows]);
   const charCount = typeof value === "string" ? value.length : 0;
@@ -3577,6 +3582,10 @@ function ensureToggleStyle() {
     .fi-aws-toggle:focus-visible {
       outline: 2px solid var(--fi-accent, #34d399); outline-offset: 2px;
     }
+    /* The floating toggle has no header row of its own: the transcript reserves its height. */
+    .fi-aws-drawer .fi-transcript-scroll {
+      padding-top: calc(0.6rem + 44px + 0.5rem) !important;
+    }
   `;
   document.head.appendChild(el);
 }
@@ -3675,6 +3684,7 @@ function AgentWorkspaceShell({
     "fi-agent-workspace",
     `fi-visual-${visual}`,
     `fi-density-${density}`,
+    drawerMode ? "fi-aws-drawer" : null,
     className
   ].filter(Boolean).join(" ");
   const content = /* @__PURE__ */ jsxs20(

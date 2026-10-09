@@ -41,6 +41,7 @@ var AutoResizeTextarea = forwardRef(function AutoResizeTextarea2({
     setRows(newRows);
     textarea.rows = newRows;
     textarea.style.height = `${newRows * lineHeight}px`;
+    textarea.style.overflowY = value === "" || newRows < maxRows ? "hidden" : "auto";
     textarea.style.width = "100%";
   }, [value, maxRows]);
   const charCount = typeof value === "string" ? value.length : 0;
