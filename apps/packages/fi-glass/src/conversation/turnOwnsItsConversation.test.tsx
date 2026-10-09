@@ -142,6 +142,36 @@ describe('a turn owns its conversation across a library swap', () => {
     expect((await remote.get('Y'))?.messages).toHaveLength(1);
   });
 
+  it('a swap that merges an older cloud copy does not cut the turn in flight', async () => {
+    const local = await store(
+      rec('X', T1, [msg('user', 'antes'), msg('assistant', 'ok'), msg('user', 'offline', T1), msg('assistant', 'visto', T1)]),
+    );
+    const remote = await store(rec('X', T0, [msg('user', 'antes'), msg('assistant', 'ok')]));
+    const { hook, settle } = fakeAgent();
+    const h = mountComposed(hook, local);
+    await waitFor(() => expect(h.result.current.lib.activeId).toBe('X'));
+
+    await act(async () => {
+      h.result.current.conversation.send('¿sigue ahí?');
+    });
+    await act(async () => {
+      h.rerender({ library: remote });
+    });
+    await act(async () => {});
+
+    expect(hook.abort).not.toHaveBeenCalled();
+    settle('sí');
+    await act(async () => {
+      h.rerender({ library: remote });
+    });
+    await waitFor(async () => {
+      const saved = await remote.get('X');
+      expect(saved?.messages.map((m) => m.content)).toEqual([
+        'antes', 'ok', 'offline', 'visto', '¿sigue ahí?', 'sí',
+      ]);
+    });
+  });
+
   it('a turn started in a never-saved chat is not dragged to the cloud list[0]', async () => {
     const local = await store();
     const remote = await store(rec('Y', T1, [msg('user', 'otro chat')]));
