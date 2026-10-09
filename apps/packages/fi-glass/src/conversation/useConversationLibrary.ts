@@ -54,6 +54,15 @@ export interface UseConversationLibraryOptions {
   projectId?: string;
 }
 
+export type ConversationAction = 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
+
+export interface ConversationActionError {
+  action: ConversationAction;
+  conversationId: string;
+  message: string;
+  cause: unknown;
+}
+
 export interface ConversationLibraryState {
   /** False until the first hydration from storage finishes. */
   ready: boolean;
@@ -91,6 +100,11 @@ export interface ConversationLibraryState {
    * like `switchConversation` when a previously stored record is gone.
    */
   reloadActive: () => Promise<void>;
+  /** The last sidebar action that failed, kept until it succeeds, is retried or dismissed. */
+  actionError: ConversationActionError | null;
+  /** Re-run exactly the failed action. */
+  retryAction: () => void;
+  dismissActionError: () => void;
 }
 
 export function useConversationLibrary(
@@ -108,6 +122,43 @@ export function useConversationLibrary(
   const [activeRecord, setActiveRecord] = useState<ConversationRecord | null>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const [actionError, setActionError] = useState<ConversationActionError | null>(null);
+  const failedRun = useRef<(() => Promise<void>) | null>(null);
+
+  const guard = useCallback(async function guarded(
+    action: ConversationAction,
+    conversationId: string,
+    run: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await run();
+      setActionError((prev) =>
+        prev?.action === action && prev.conversationId === conversationId ? null : prev,
+      );
+    } catch (cause) {
+      failedRun.current = () => guarded(action, conversationId, run);
+      setActionError({
+        action,
+        conversationId,
+        message: cause instanceof Error && cause.message ? cause.message : String(cause),
+        cause,
+      });
+      throw cause;
+    }
+  }, []);
+
+  const retryAction = useCallback(() => {
+    const again = failedRun.current;
+    if (!again) return;
+    failedRun.current = null;
+    setActionError(null);
+    void again().catch(() => {});
+  }, []);
+
+  const dismissActionError = useCallback(() => {
+    failedRun.current = null;
+    setActionError(null);
+  }, []);
 
   const refresh = useCallback(async () => {
     setConversations(await library.list());
@@ -317,6 +368,27 @@ export function useConversationLibrary(
     [mutateMetadata, nowFn],
   );
 
+  const guardedSwitch = useCallback(
+    (id: string) => guard('switch', id, () => switchConversation(id)),
+    [guard, switchConversation],
+  );
+  const guardedDelete = useCallback(
+    (id: string) => guard('delete', id, () => deleteConversation(id)),
+    [guard, deleteConversation],
+  );
+  const guardedRename = useCallback(
+    (id: string, title: string) => guard('rename', id, () => renameConversation(id, title)),
+    [guard, renameConversation],
+  );
+  const guardedPin = useCallback(
+    (id: string, pinned: boolean) => guard('pin', id, () => pinConversation(id, pinned)),
+    [guard, pinConversation],
+  );
+  const guardedArchive = useCallback(
+    (id: string, archived: boolean) => guard('archive', id, () => archiveConversation(id, archived)),
+    [guard, archiveConversation],
+  );
+
   return {
     ready,
     conversations,
@@ -324,13 +396,16 @@ export function useConversationLibrary(
     activeMessages,
     activeRecord,
     newConversation,
-    switchConversation,
-    deleteConversation,
-    renameConversation,
-    pinConversation,
-    archiveConversation,
+    switchConversation: guardedSwitch,
+    deleteConversation: guardedDelete,
+    renameConversation: guardedRename,
+    pinConversation: guardedPin,
+    archiveConversation: guardedArchive,
     persist,
     refresh,
     reloadActive,
+    actionError,
+    retryAction,
+    dismissActionError,
   };
 }

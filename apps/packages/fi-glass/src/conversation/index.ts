@@ -24,6 +24,8 @@ export {
   useConversationLibrary,
   type UseConversationLibraryOptions,
   type ConversationLibraryState,
+  type ConversationAction,
+  type ConversationActionError,
 } from './useConversationLibrary';
 export { useIndexedDBConversationLibrary } from './useIndexedDBConversationLibrary';
 export {

@@ -580,6 +580,77 @@ function useAgentConversation(agent, options) {
   };
 }
 
+// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
+import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+function TurnErrorBanner({
+  error,
+  onRetry,
+  onDismiss,
+  className,
+  retryLabel = "Reintentar",
+  dismissLabel = "Descartar",
+  retryButtonClassName,
+  dismissButtonClassName
+}) {
+  return /* @__PURE__ */ jsxs5(
+    "div",
+    {
+      role: "alert",
+      className,
+      style: {
+        marginTop: "1rem",
+        padding: "0.75rem 1rem",
+        borderRadius: 10,
+        border: "1px solid rgba(248,113,113,0.35)",
+        background: "rgba(248,113,113,0.08)",
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.75rem"
+      },
+      children: [
+        /* @__PURE__ */ jsx5("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx5(
+          "button",
+          {
+            type: "button",
+            onClick: onRetry,
+            className: retryButtonClassName,
+            style: retryButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "transparent",
+              color: "#e2e8f0",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: retryLabel
+          }
+        ),
+        /* @__PURE__ */ jsx5(
+          "button",
+          {
+            type: "button",
+            onClick: onDismiss,
+            className: dismissButtonClassName,
+            style: dismissButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "#94a3b8",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: dismissLabel
+          }
+        )
+      ]
+    }
+  );
+}
+
 // src/agent/AgentConversationSurface.tsx
 import { useEffect as useEffect15, useState as useState13 } from "react";
 
@@ -803,7 +874,7 @@ function useComposerFocus(options) {
 import { useRef as useRef6 } from "react";
 
 // src/voice/AudioVisualizer.tsx
-import { jsx as jsx5 } from "react/jsx-runtime";
+import { jsx as jsx6 } from "react/jsx-runtime";
 var MIN_BAR_PCT = 4;
 function normalizeLevels(levels) {
   return levels.map(
@@ -838,7 +909,7 @@ function AudioVisualizer({
   if (variant === "pulse") {
     const peak = active && normalized.length ? Math.max(...normalized) : 0;
     const scale = 1 + peak;
-    return /* @__PURE__ */ jsx5(
+    return /* @__PURE__ */ jsx6(
       "div",
       {
         role: "img",
@@ -846,7 +917,7 @@ function AudioVisualizer({
         className,
         "data-fi-audio-visualizer": "pulse",
         "data-active": active ? "" : void 0,
-        children: /* @__PURE__ */ jsx5(
+        children: /* @__PURE__ */ jsx6(
           "span",
           {
             "data-fi-pulse-core": "",
@@ -862,7 +933,7 @@ function AudioVisualizer({
   }
   const count = barCount && barCount > 0 ? barCount : normalized.length;
   const bars = resampleLevels(normalized, count);
-  return /* @__PURE__ */ jsx5(
+  return /* @__PURE__ */ jsx6(
     "div",
     {
       role: "img",
@@ -873,7 +944,7 @@ function AudioVisualizer({
       style: { display: "inline-flex", alignItems: "flex-end" },
       children: bars.map((level, i) => {
         const pct = active ? Math.max(MIN_BAR_PCT, level * 100) : MIN_BAR_PCT;
-        return /* @__PURE__ */ jsx5(
+        return /* @__PURE__ */ jsx6(
           "span",
           {
             "data-fi-audio-bar": "",
@@ -889,7 +960,7 @@ function AudioVisualizer({
 
 // src/voice/ComposerMicSlot.tsx
 import { Mic, MicOff, Square, Loader2 as Loader22 } from "lucide-react";
-import { jsx as jsx6 } from "react/jsx-runtime";
+import { jsx as jsx7 } from "react/jsx-runtime";
 var ICON = "w-4 h-4";
 var BTN = "p-2 disabled:opacity-40";
 function ComposerMicSlot({
@@ -917,7 +988,7 @@ function ComposerMicSlot({
     else onStart?.();
   };
   const Icon = !available ? MicOff : busy ? Loader22 : recording ? Square : Mic;
-  return /* @__PURE__ */ jsx6("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx6(
+  return /* @__PURE__ */ jsx7("div", { className, "data-fi-mic-slot": "", "data-available": available ? "" : void 0, children: /* @__PURE__ */ jsx7(
     "button",
     {
       type: "button",
@@ -928,7 +999,7 @@ function ComposerMicSlot({
       "aria-label": label,
       title: !available ? unavailableLabel : void 0,
       className: btnClass,
-      children: /* @__PURE__ */ jsx6(
+      children: /* @__PURE__ */ jsx7(
         Icon,
         {
           className: busy ? `${iconClass} animate-spin` : iconClass,
@@ -1429,7 +1500,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
-import { jsx as jsx7 } from "react/jsx-runtime";
+import { jsx as jsx8 } from "react/jsx-runtime";
 var placement = {
   position: "absolute",
   bottom: 12,
@@ -1458,7 +1529,7 @@ function ScrollToBottomButton({
   iconClassName
 }) {
   useTouchTargetStyle();
-  return /* @__PURE__ */ jsx7(
+  return /* @__PURE__ */ jsx8(
     "button",
     {
       type: "button",
@@ -1466,7 +1537,7 @@ function ScrollToBottomButton({
       "aria-label": label,
       className: className ? `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS} ${className}` : `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS}`,
       style: className ? placement : { ...placement, ...skin },
-      children: /* @__PURE__ */ jsx7(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
+      children: /* @__PURE__ */ jsx8(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }
   );
 }
@@ -1585,7 +1656,7 @@ function normalizeStreamedMarkdown(content) {
 
 // src/messages/CollapsibleText.tsx
 import { useEffect as useEffect7, useId, useRef as useRef7, useState as useState7 } from "react";
-import { jsx as jsx8, jsxs as jsxs5 } from "react/jsx-runtime";
+import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
   children,
@@ -1612,8 +1683,8 @@ function CollapsibleText({
   }, [maxHeight]);
   const clamped = overflowing && !expanded;
   const mask = `linear-gradient(rgb(0,0,0) calc(100% - ${fadeHeight}px), transparent)`;
-  return /* @__PURE__ */ jsxs5("div", { className, children: [
-    /* @__PURE__ */ jsx8(
+  return /* @__PURE__ */ jsxs6("div", { className, children: [
+    /* @__PURE__ */ jsx9(
       "div",
       {
         id: contentId,
@@ -1627,7 +1698,7 @@ function CollapsibleText({
         children
       }
     ),
-    overflowing && /* @__PURE__ */ jsx8(
+    overflowing && /* @__PURE__ */ jsx9(
       "button",
       {
         type: "button",
@@ -1653,27 +1724,27 @@ function CollapsibleText({
 }
 
 // src/messages/MessageContent.tsx
-import { jsx as jsx9, jsxs as jsxs6 } from "react/jsx-runtime";
+import { jsx as jsx10, jsxs as jsxs7 } from "react/jsx-runtime";
 var mdComponents = {
-  p: ({ children }) => /* @__PURE__ */ jsx9("p", { className: markdownStyles.p, children }),
-  strong: ({ children }) => /* @__PURE__ */ jsx9("strong", { className: markdownStyles.strong, children }),
-  em: ({ children }) => /* @__PURE__ */ jsx9("em", { className: markdownStyles.em, children }),
-  code: ({ children }) => /* @__PURE__ */ jsx9("code", { className: markdownStyles.code, children }),
-  pre: ({ children }) => /* @__PURE__ */ jsx9("pre", { className: markdownStyles.pre, children }),
-  ul: ({ children }) => /* @__PURE__ */ jsx9("ul", { className: markdownStyles.ul, children }),
-  ol: ({ children }) => /* @__PURE__ */ jsx9("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs6("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx9("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx9("span", { className: "flex-1", children })
+  p: ({ children }) => /* @__PURE__ */ jsx10("p", { className: markdownStyles.p, children }),
+  strong: ({ children }) => /* @__PURE__ */ jsx10("strong", { className: markdownStyles.strong, children }),
+  em: ({ children }) => /* @__PURE__ */ jsx10("em", { className: markdownStyles.em, children }),
+  code: ({ children }) => /* @__PURE__ */ jsx10("code", { className: markdownStyles.code, children }),
+  pre: ({ children }) => /* @__PURE__ */ jsx10("pre", { className: markdownStyles.pre, children }),
+  ul: ({ children }) => /* @__PURE__ */ jsx10("ul", { className: markdownStyles.ul, children }),
+  ol: ({ children }) => /* @__PURE__ */ jsx10("ol", { className: markdownStyles.ol, children }),
+  li: ({ children }) => /* @__PURE__ */ jsxs7("li", { className: markdownStyles.li, children: [
+    /* @__PURE__ */ jsx10("span", { className: markdownStyles.bullet, children: "\u2022" }),
+    /* @__PURE__ */ jsx10("span", { className: "flex-1", children })
   ] }),
-  h1: ({ children }) => /* @__PURE__ */ jsx9("h1", { className: markdownStyles.h1, children }),
-  h2: ({ children }) => /* @__PURE__ */ jsx9("h2", { className: markdownStyles.h2, children }),
-  h3: ({ children }) => /* @__PURE__ */ jsx9("h3", { className: markdownStyles.h3, children }),
-  blockquote: ({ children }) => /* @__PURE__ */ jsx9("blockquote", { className: markdownStyles.blockquote, children }),
-  a: ({ href, children }) => /* @__PURE__ */ jsx9("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
+  h1: ({ children }) => /* @__PURE__ */ jsx10("h1", { className: markdownStyles.h1, children }),
+  h2: ({ children }) => /* @__PURE__ */ jsx10("h2", { className: markdownStyles.h2, children }),
+  h3: ({ children }) => /* @__PURE__ */ jsx10("h3", { className: markdownStyles.h3, children }),
+  blockquote: ({ children }) => /* @__PURE__ */ jsx10("blockquote", { className: markdownStyles.blockquote, children }),
+  a: ({ href, children }) => /* @__PURE__ */ jsx10("a", { href, className: markdownStyles.link, target: "_blank", rel: "noopener noreferrer", children })
 };
 function defaultRenderMarkdown(content) {
-  return /* @__PURE__ */ jsx9(ReactMarkdown, { remarkPlugins: [remarkGfm, remarkBreaks], components: mdComponents, children: normalizeStreamedMarkdown(content) });
+  return /* @__PURE__ */ jsx10(ReactMarkdown, { remarkPlugins: [remarkGfm, remarkBreaks], components: mdComponents, children: normalizeStreamedMarkdown(content) });
 }
 var MessageContent = memo(function MessageContent2({
   isUser,
@@ -1689,17 +1760,17 @@ var MessageContent = memo(function MessageContent2({
   const { content: styles } = messageStyles;
   const body = isUser ? (
     // User: plain text, preserve whitespace
-    /* @__PURE__ */ jsx9("p", { className: "whitespace-pre-wrap", children: content })
+    /* @__PURE__ */ jsx10("p", { className: "whitespace-pre-wrap", children: content })
   ) : (
     // Assistant: markdown (overridable)
     renderMarkdown(content)
   );
-  return /* @__PURE__ */ jsxs6(
+  return /* @__PURE__ */ jsxs7(
     "div",
     {
       className: `${styles.base} ${isUser ? styles.user : styles.assistant} ${styles.indent}`,
       children: [
-        collapsible && !isStreaming ? /* @__PURE__ */ jsx9(
+        collapsible && !isStreaming ? /* @__PURE__ */ jsx10(
           CollapsibleText,
           {
             maxHeight: collapsedMaxHeight,
@@ -1709,7 +1780,7 @@ var MessageContent = memo(function MessageContent2({
             children: body
           }
         ) : body,
-        isStreaming && /* @__PURE__ */ jsx9("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
+        isStreaming && /* @__PURE__ */ jsx10("span", { className: "inline-block w-1.5 h-4 bg-amber-400/80 ml-0.5 animate-pulse rounded-sm" })
       ]
     }
   );
@@ -1718,7 +1789,7 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback as useCallback6, useState as useState8 } from "react";
 import { Copy, Check } from "lucide-react";
-import { jsx as jsx10 } from "react/jsx-runtime";
+import { jsx as jsx11 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
   onError,
@@ -1746,14 +1817,14 @@ var CopyButton = memo2(function CopyButton2({
       onError?.(err);
     }
   }, [content, onError, resetMs]);
-  return /* @__PURE__ */ jsx10(
+  return /* @__PURE__ */ jsx11(
     "button",
     {
       onClick: handleCopy,
       className: `${FI_TOUCH_TARGET_CLASS} ${base} ${copied ? active : idle}`,
       title: copied ? copiedLabel : copyLabel,
       "aria-label": copied ? copiedLabel : `${copyLabel} mensaje`,
-      children: copied ? /* @__PURE__ */ jsx10(Check, { className: icon }) : /* @__PURE__ */ jsx10(Copy, { className: icon })
+      children: copied ? /* @__PURE__ */ jsx11(Check, { className: icon }) : /* @__PURE__ */ jsx11(Copy, { className: icon })
     }
   );
 });
@@ -1804,7 +1875,7 @@ function useMessageActionsStyle() {
 }
 
 // src/messages/MessageBubble.tsx
-import { jsx as jsx11, jsxs as jsxs7 } from "react/jsx-runtime";
+import { jsx as jsx12, jsxs as jsxs8 } from "react/jsx-runtime";
 var ACTIONS_OPEN_EVENT = "fi-msg-actions-open";
 var MessageBubble = memo3(function MessageBubble2({
   role,
@@ -1841,7 +1912,7 @@ var MessageBubble = memo3(function MessageBubble2({
       );
     }
   };
-  return /* @__PURE__ */ jsxs7(
+  return /* @__PURE__ */ jsxs8(
     "article",
     {
       className: `fi-msg-appear ${styles.base} ${styles.borderRadius} ${isUser ? styles.user : styles.assistant} ${className || ""}`,
@@ -1851,18 +1922,18 @@ var MessageBubble = memo3(function MessageBubble2({
       "data-fi-actions-open": actionsOpen || void 0,
       onClick: onBubbleClick,
       children: [
-        header && /* @__PURE__ */ jsx11("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
-        reasoning && /* @__PURE__ */ jsx11("div", { className: "mt-3 mb-3", children: reasoning }),
+        header && /* @__PURE__ */ jsx12("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
+        reasoning && /* @__PURE__ */ jsx12("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
-        badge && /* @__PURE__ */ jsx11("div", { className: "mt-2", children: badge }),
-        actions != null && actions !== false && /* @__PURE__ */ jsx11("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
+        badge && /* @__PURE__ */ jsx12("div", { className: "mt-2", children: badge }),
+        actions != null && actions !== false && /* @__PURE__ */ jsx12("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
       ]
     }
   );
 });
 
 // src/messages/MessageImages.tsx
-import { jsx as jsx12 } from "react/jsx-runtime";
+import { jsx as jsx13 } from "react/jsx-runtime";
 function MessageImages({
   images,
   className,
@@ -1870,13 +1941,13 @@ function MessageImages({
   altLabel = "Imagen adjunta"
 }) {
   if (!images || images.length === 0) return null;
-  return /* @__PURE__ */ jsx12(
+  return /* @__PURE__ */ jsx13(
     "div",
     {
       className,
       "data-fi-message-images": "",
       style: { display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" },
-      children: images.map((img, i) => /* @__PURE__ */ jsx12(
+      children: images.map((img, i) => /* @__PURE__ */ jsx13(
         "img",
         {
           src: `data:${img.mediaType};base64,${img.data}`,
@@ -1898,7 +1969,7 @@ function MessageImages({
 }
 
 // src/messages/MessageReactions.tsx
-import { jsx as jsx13 } from "react/jsx-runtime";
+import { jsx as jsx14 } from "react/jsx-runtime";
 var rowStyle = {
   display: "flex",
   flexWrap: "wrap",
@@ -1923,11 +1994,11 @@ function MessageReactions({
 }) {
   const chips = (reactions ?? []).map((r) => r.trim()).filter(Boolean);
   if (chips.length === 0) return null;
-  return /* @__PURE__ */ jsx13("div", { className, "data-fi-message-reactions": "", role: "list", "aria-label": ariaLabel, style: rowStyle, children: chips.map((emoji, i) => /* @__PURE__ */ jsx13("span", { role: "listitem", className: chipClassName, style: chipStyle, children: emoji }, `${emoji}-${i}`)) });
+  return /* @__PURE__ */ jsx14("div", { className, "data-fi-message-reactions": "", role: "list", "aria-label": ariaLabel, style: rowStyle, children: chips.map((emoji, i) => /* @__PURE__ */ jsx14("span", { role: "listitem", className: chipClassName, style: chipStyle, children: emoji }, `${emoji}-${i}`)) });
 }
 
 // src/messages/MessageAuthorHeader.tsx
-import { Fragment as Fragment2, jsx as jsx14, jsxs as jsxs8 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx15, jsxs as jsxs9 } from "react/jsx-runtime";
 var AVATAR = {
   width: 22,
   height: 22,
@@ -1957,8 +2028,8 @@ function MessageAuthorHeader({
   locale
 }) {
   const time = formatTime(timestamp, locale);
-  return /* @__PURE__ */ jsxs8(Fragment2, { children: [
-    /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsxs9(Fragment2, { children: [
+    /* @__PURE__ */ jsx15(
       "span",
       {
         "aria-hidden": true,
@@ -1971,8 +2042,8 @@ function MessageAuthorHeader({
         children: avatarToken(author)
       }
     ),
-    /* @__PURE__ */ jsx14("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
-    author.engine && /* @__PURE__ */ jsx14(
+    /* @__PURE__ */ jsx15("span", { "data-fi-author-name": "", style: { fontSize: 13, fontWeight: 500, color: "#cbd5e1" }, children: author.name }),
+    author.engine && /* @__PURE__ */ jsx15(
       "span",
       {
         "data-fi-author-engine": "",
@@ -1986,13 +2057,13 @@ function MessageAuthorHeader({
         children: author.engine
       }
     ),
-    time && /* @__PURE__ */ jsx14("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
+    time && /* @__PURE__ */ jsx15("span", { style: { fontSize: 11, color: "#64748b", fontVariantNumeric: "tabular-nums" }, children: time })
   ] });
 }
 function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
   const isUser = message.role === "user";
   const author = message.author ?? (isUser ? userAuthor : agentAuthor);
-  return /* @__PURE__ */ jsx14(
+  return /* @__PURE__ */ jsx15(
     MessageAuthorHeader,
     {
       author,
@@ -2004,13 +2075,13 @@ function defaultMessageHeader(message, agentAuthor, userAuthor, locale) {
 }
 
 // src/messages/MessageModelBadge.tsx
-import { jsx as jsx15, jsxs as jsxs9 } from "react/jsx-runtime";
+import { jsx as jsx16, jsxs as jsxs10 } from "react/jsx-runtime";
 function MessageModelBadge({
   model,
   title = "Generado por {model}",
   label = "Powered by"
 }) {
-  return /* @__PURE__ */ jsxs9(
+  return /* @__PURE__ */ jsxs10(
     "span",
     {
       "data-fi-model-badge": "",
@@ -2029,7 +2100,7 @@ function MessageModelBadge({
       children: [
         label,
         " ",
-        /* @__PURE__ */ jsx15("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
+        /* @__PURE__ */ jsx16("span", { style: { color: "var(--fi-accent, #34d399)" }, children: model })
       ]
     }
   );
@@ -2038,7 +2109,7 @@ function defaultMessageBadge(message) {
   if (message.role !== "assistant") return void 0;
   const model = message.trace?.model?.trim();
   if (!model) return void 0;
-  return /* @__PURE__ */ jsx15(MessageModelBadge, { model });
+  return /* @__PURE__ */ jsx16(MessageModelBadge, { model });
 }
 
 // src/agent/conversation-surface/persistedTraceTurn.ts
@@ -2061,7 +2132,7 @@ function persistedTraceTurn(message) {
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
-import { jsx as jsx16, jsxs as jsxs10 } from "react/jsx-runtime";
+import { jsx as jsx17, jsxs as jsxs11 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -2081,23 +2152,23 @@ function TranscriptMessages({
   showLessLabel,
   collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs10("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+  return /* @__PURE__ */ jsxs11("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
-      return /* @__PURE__ */ jsxs10(Fragment3, { children: [
-        traceTurn && /* @__PURE__ */ jsx16(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-        /* @__PURE__ */ jsxs10(
+      return /* @__PURE__ */ jsxs11(Fragment3, { children: [
+        traceTurn && /* @__PURE__ */ jsx17(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsxs11(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx16(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx17(CopyButton, { content: m.content }) : void 0),
             isLatest: i === messages.length - 1,
             className: resolveBubbleClass(m),
             children: [
-              /* @__PURE__ */ jsx16(MessageImages, { images: m.images }),
-              /* @__PURE__ */ jsx16(
+              /* @__PURE__ */ jsx17(MessageImages, { images: m.images }),
+              /* @__PURE__ */ jsx17(
                 MessageContent,
                 {
                   isUser: m.role === "user",
@@ -2109,100 +2180,29 @@ function TranscriptMessages({
                   collapseToggleClassName
                 }
               ),
-              /* @__PURE__ */ jsx16(MessageReactions, { reactions: m.reactions })
+              /* @__PURE__ */ jsx17(MessageReactions, { reactions: m.reactions })
             ]
           }
         )
       ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsxs10("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
-      /* @__PURE__ */ jsx16("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx16(AgentPanel, { turn, ...agentPanelProps }) }),
-      turn.text && /* @__PURE__ */ jsx16(
+    isStreaming && /* @__PURE__ */ jsxs11("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+      /* @__PURE__ */ jsx17("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx17(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx17(
         MessageBubble,
         {
           role: "assistant",
-          header: /* @__PURE__ */ jsx16(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          header: /* @__PURE__ */ jsx17(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
           className: resolveBubbleClass({
             role: "assistant",
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx16(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx17(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
   ] });
-}
-
-// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx17, jsxs as jsxs11 } from "react/jsx-runtime";
-function TurnErrorBanner({
-  error,
-  onRetry,
-  onDismiss,
-  className,
-  retryLabel = "Reintentar",
-  dismissLabel = "Descartar",
-  retryButtonClassName,
-  dismissButtonClassName
-}) {
-  return /* @__PURE__ */ jsxs11(
-    "div",
-    {
-      role: "alert",
-      className,
-      style: {
-        marginTop: "1rem",
-        padding: "0.75rem 1rem",
-        borderRadius: 10,
-        border: "1px solid rgba(248,113,113,0.35)",
-        background: "rgba(248,113,113,0.08)",
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: "0.75rem"
-      },
-      children: [
-        /* @__PURE__ */ jsx17("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx17(
-          "button",
-          {
-            type: "button",
-            onClick: onRetry,
-            className: retryButtonClassName,
-            style: retryButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "transparent",
-              color: "#e2e8f0",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
-            children: retryLabel
-          }
-        ),
-        /* @__PURE__ */ jsx17(
-          "button",
-          {
-            type: "button",
-            onClick: onDismiss,
-            className: dismissButtonClassName,
-            style: dismissButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: "#94a3b8",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
-            children: dismissLabel
-          }
-        )
-      ]
-    }
-  );
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
@@ -4384,6 +4384,7 @@ export {
   ScrollToBottomButton,
   SourcesPanel,
   StepsPanel,
+  TurnErrorBanner,
   classifyTool,
   defaultAgentIcons,
   ensureDensityStyle,

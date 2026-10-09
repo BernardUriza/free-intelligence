@@ -226,6 +226,37 @@ function useConversationLibrary(library, options = {}) {
   const [activeRecord, setActiveRecord] = useState(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const [actionError, setActionError] = useState(null);
+  const failedRun = useRef(null);
+  const guard = useCallback(async function guarded(action, conversationId, run) {
+    try {
+      await run();
+      setActionError(
+        (prev) => prev?.action === action && prev.conversationId === conversationId ? null : prev
+      );
+    } catch (cause) {
+      failedRun.current = () => guarded(action, conversationId, run);
+      setActionError({
+        action,
+        conversationId,
+        message: cause instanceof Error && cause.message ? cause.message : String(cause),
+        cause
+      });
+      throw cause;
+    }
+  }, []);
+  const retryAction = useCallback(() => {
+    const again = failedRun.current;
+    if (!again) return;
+    failedRun.current = null;
+    setActionError(null);
+    void again().catch(() => {
+    });
+  }, []);
+  const dismissActionError = useCallback(() => {
+    failedRun.current = null;
+    setActionError(null);
+  }, []);
   const refresh = useCallback(async () => {
     setConversations(await library.list());
   }, [library]);
@@ -388,6 +419,26 @@ function useConversationLibrary(library, options = {}) {
     async (id, archived) => mutateMetadata(id, () => conversationArchivePatch(archived, nowFn())),
     [mutateMetadata, nowFn]
   );
+  const guardedSwitch = useCallback(
+    (id) => guard("switch", id, () => switchConversation(id)),
+    [guard, switchConversation]
+  );
+  const guardedDelete = useCallback(
+    (id) => guard("delete", id, () => deleteConversation(id)),
+    [guard, deleteConversation]
+  );
+  const guardedRename = useCallback(
+    (id, title) => guard("rename", id, () => renameConversation(id, title)),
+    [guard, renameConversation]
+  );
+  const guardedPin = useCallback(
+    (id, pinned) => guard("pin", id, () => pinConversation(id, pinned)),
+    [guard, pinConversation]
+  );
+  const guardedArchive = useCallback(
+    (id, archived) => guard("archive", id, () => archiveConversation(id, archived)),
+    [guard, archiveConversation]
+  );
   return {
     ready,
     conversations,
@@ -395,14 +446,17 @@ function useConversationLibrary(library, options = {}) {
     activeMessages,
     activeRecord,
     newConversation,
-    switchConversation,
-    deleteConversation,
-    renameConversation,
-    pinConversation,
-    archiveConversation,
+    switchConversation: guardedSwitch,
+    deleteConversation: guardedDelete,
+    renameConversation: guardedRename,
+    pinConversation: guardedPin,
+    archiveConversation: guardedArchive,
     persist,
     refresh,
-    reloadActive
+    reloadActive,
+    actionError,
+    retryAction,
+    dismissActionError
   };
 }
 

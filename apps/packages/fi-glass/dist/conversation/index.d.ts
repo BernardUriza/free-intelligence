@@ -169,6 +169,13 @@ interface UseConversationLibraryOptions {
      */
     projectId?: string;
 }
+type ConversationAction = 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
+interface ConversationActionError {
+    action: ConversationAction;
+    conversationId: string;
+    message: string;
+    cause: unknown;
+}
 interface ConversationLibraryState {
     /** False until the first hydration from storage finishes. */
     ready: boolean;
@@ -206,6 +213,11 @@ interface ConversationLibraryState {
      * like `switchConversation` when a previously stored record is gone.
      */
     reloadActive: () => Promise<void>;
+    /** The last sidebar action that failed, kept until it succeeds, is retried or dismissed. */
+    actionError: ConversationActionError | null;
+    /** Re-run exactly the failed action. */
+    retryAction: () => void;
+    dismissActionError: () => void;
 }
 declare function useConversationLibrary(library: ConversationLibrary, options?: UseConversationLibraryOptions): ConversationLibraryState;
 
@@ -235,4 +247,4 @@ interface CloudConversationLibraryState {
  */
 declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
 
-export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
