@@ -48,7 +48,7 @@ declare const messageStyles: {
         readonly button: {
             readonly base: "p-1.5 rounded transition-colors duration-150";
             readonly idle: "hover:bg-slate-700 text-slate-300 hover:text-white";
-            readonly active: "bg-emerald-500/20 text-emerald-400";
+            readonly active: "bg-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_20%,transparent)] text-[color:var(--fi-accent,#34d399)]";
             readonly speaking: "bg-amber-500/20 text-amber-400";
         };
         readonly icon: "w-3.5 h-3.5";
@@ -77,7 +77,7 @@ declare const markdownStyles: {
     readonly h2: "text-base font-semibold text-white mt-3 mb-1.5";
     readonly h3: "text-sm font-semibold text-slate-100 mt-2 mb-1";
     readonly blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]";
-    readonly link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors";
+    readonly link: "text-[color:var(--fi-accent,#34d399)] hover:text-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_70%,white)] underline underline-offset-2 transition-colors";
 };
 
 interface MessageContentProps {

@@ -1418,6 +1418,11 @@ function useDictation(adapter, opts = {}) {
   };
 }
 
+// src/theme/accentClasses.ts
+var ACCENT_TEXT = "text-[color:var(--fi-accent,#34d399)]";
+var ACCENT_TEXT_LIGHT_HOVER = "hover:text-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_70%,white)]";
+var ACCENT_BG_SOFT = "bg-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_20%,transparent)]";
+
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
 function useSurfaceDictation(options) {
   const { voiceAdapter, input, setInput, onVoiceError } = options;
@@ -1621,7 +1626,7 @@ var messageStyles = {
       // to a ~26px target with a brighter idle tint, still secondary to the text.
       base: "p-1.5 rounded transition-colors duration-150",
       idle: "hover:bg-slate-700 text-slate-300 hover:text-white",
-      active: "bg-emerald-500/20 text-emerald-400",
+      active: `${ACCENT_BG_SOFT} ${ACCENT_TEXT}`,
       speaking: "bg-amber-500/20 text-amber-400"
     },
     icon: "w-3.5 h-3.5"
@@ -1652,10 +1657,8 @@ var markdownStyles = {
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
   blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]",
-  // B3-FIGLASS-VISUAL-1: links were amber-400, one shade off the amber-300 of
-  // inline `code` — you couldn't tell a clickable link from literal code.
-  // Emerald is the chat accent and reads unmistakably as "interactive".
-  link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors"
+  // The consumer's accent, not amber: amber-400 sat one shade off inline `code`.
+  link: `${ACCENT_TEXT} ${ACCENT_TEXT_LIGHT_HOVER} underline underline-offset-2 transition-colors`
 };
 
 // src/messages/MessageContent.tsx
