@@ -117,6 +117,10 @@ team at the counter), and the rules below were written for that. Today, measured
 - **Still online:** `www.serviciosfenix.com.mx` and `/app/` answer 200. A visitor's
   turn spends Fénix's own `ANTHROPIC_API_KEY`, which bills per use and does NOT show
   in the Azure cost above.
+- **The web has no deploy workflow:** `fenix-backend.yml` builds only the server. A
+  fi-glass fix merged to `main` does not reach `fenix-web` until someone redeploys that
+  SWA by hand — so "this protects Fénix's users" is never a reason to prioritise a
+  fi-glass change while it is paused.
 
 What still holds while it sits on og118's server (`create_app()` + its own door):
 a change in `apps/og118/server` still ships to `fenix-api` through
