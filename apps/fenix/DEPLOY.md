@@ -1,5 +1,13 @@
 # Despliegue de Fénix
 
+> **PAUSADO (verificado 2026-10-09).** Bernard pausó Fénix; el último cambio en
+> `apps/fenix` es del 2026-09-09. Sigue desplegado y en línea (portada y `/app/`
+> responden 200), pero sin tráfico real: 24 requests a `fenix-api` en 30 días.
+> Costo Azure: $0.40 USD en septiembre, $0.01 en octubre al día 9; `fenix-api`
+> escala a 0 (no a "1 réplica" como dice la tabla de abajo, que es del 6-ago).
+> Un turno de un visitante gasta la `ANTHROPIC_API_KEY` propia de Fénix, que no
+> aparece en el costo de Azure. Lo de abajo describe cómo quedó al pausarse.
+
 Estado al 6-ago-2026, verificado contra lo que está corriendo — no contra lo que
 debería estar. Lo anterior era un plan escrito el 30-jul; el tutor ya está en
 línea y atendiendo, así que este documento pasa a describir lo vivo.
