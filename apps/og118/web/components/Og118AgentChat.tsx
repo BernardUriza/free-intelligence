@@ -31,9 +31,10 @@ import {
   AgentConversationSurface,
   AgentWorkspaceShell,
   useAgentConversation,
+  TurnErrorBanner,
 } from 'fi-glass/agent';
 import { ComposerActionSlot } from 'fi-glass/composer';
-import { useConversationLibrary } from 'fi-glass/conversation';
+import { useConversationLibrary, type ConversationAction } from 'fi-glass/conversation';
 import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -77,6 +78,16 @@ const RESONANCE_LABEL: Record<string, string> = {
 function resonanceVisualizerActive(state: string): boolean {
   return state === 'listening' || state === 'speaking' || state === 'silence_hold';
 }
+
+const ACTION_ERROR_COPY: Record<ConversationAction, string> = {
+  switch: 'No se pudo abrir el chat. Revisa tu conexión.',
+  delete: 'No se pudo borrar el chat. Revisa tu conexión.',
+  rename: 'No se pudo renombrar el chat. Revisa tu conexión.',
+  pin: 'No se pudo fijar el chat. Revisa tu conexión.',
+  archive: 'No se pudo archivar el chat. Revisa tu conexión.',
+};
+
+function surfacedInBanner() {}
 
 export function Og118AgentChat() {
   // Identity-scoped local-first stores: each signed-in account gets its OWN
@@ -185,6 +196,14 @@ export function Og118AgentChat() {
   ) : null;
 
   // Attachment rejections reuse the same banner presentation (message + dismiss).
+  const actionErrorBanner = lib.actionError ? (
+    <TurnErrorBanner
+      error={{ message: ACTION_ERROR_COPY[lib.actionError.action] }}
+      onRetry={lib.retryAction}
+      onDismiss={lib.dismissActionError}
+    />
+  ) : null;
+
   const attachErrorBanner = attachError ? (
     <Og118VoiceErrorBanner message={attachError} onDismiss={() => setAttachError(null)} />
   ) : null;
@@ -242,30 +261,20 @@ export function Og118AgentChat() {
             shell.close();
           }}
           onSwitch={(id) => {
-            void lib.switchConversation(id).catch((e) =>
-              console.error('[og118] switch failed', e),
-            );
+            void lib.switchConversation(id).catch(surfacedInBanner);
             shell.close();
           }}
           onDelete={(id) =>
-            void lib.deleteConversation(id).catch((e) =>
-              console.error('[og118] delete failed', e),
-            )
+            void lib.deleteConversation(id).catch(surfacedInBanner)
           }
           onRename={(id, title) =>
-            void lib.renameConversation(id, title).catch((e) =>
-              console.error('[og118] rename failed', e),
-            )
+            void lib.renameConversation(id, title).catch(surfacedInBanner)
           }
           onPin={(id, pinned) =>
-            void lib.pinConversation(id, pinned).catch((e) =>
-              console.error('[og118] pin failed', e),
-            )
+            void lib.pinConversation(id, pinned).catch(surfacedInBanner)
           }
           onArchive={(id, archived) =>
-            void lib.archiveConversation(id, archived).catch((e) =>
-              console.error('[og118] archive failed', e),
-            )
+            void lib.archiveConversation(id, archived).catch(surfacedInBanner)
           }
           disabled={conversation.isStreaming}
           accountSlot={<SignOutButton />}
@@ -295,6 +304,7 @@ export function Og118AgentChat() {
               {authBanner}
               {voiceErrorBanner}
               {attachErrorBanner}
+              {actionErrorBanner}
               {composer.voiceBar}
               {composer.audioQueuePanel}
             </>

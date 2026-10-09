@@ -323,6 +323,31 @@ interface AgentConversation {
 declare function useAgentConversation(agent: AgentHook, options: UseAgentConversationOptions): AgentConversation;
 
 /**
+ * fi-glass · conversation-surface/TurnErrorBanner — recoverable turn-failure UI
+ * (B3-FIGLASS-8). Rendered when the conversation carries a turnError (a
+ * hung/timed-out or errored turn) INSTEAD of the zombie "thinking…" panel: the
+ * watchdog/error already dropped the surface out of streaming. Style/copy hooks
+ * are the consumer's; sensible defaults render without any.
+ */
+interface TurnErrorBannerProps {
+    /** Any recoverable failure with a displayable message: a failed turn, save or
+     *  sidebar action. One banner anatomy for every caller. */
+    error: {
+        message: string;
+    };
+    onRetry: () => void;
+    onDismiss: () => void;
+    className?: string;
+    /** Retry button copy. Default: "Reintentar". */
+    retryLabel?: string;
+    /** Dismiss button copy. Default: "Descartar". */
+    dismissLabel?: string;
+    retryButtonClassName?: string;
+    dismissButtonClassName?: string;
+}
+declare function TurnErrorBanner({ error, onRetry, onDismiss, className, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: TurnErrorBannerProps): react.JSX.Element;
+
+/**
  * fi-glass · conversation-surface/types — the public contract of
  * AgentConversationSurface. The props are the surface's documented API (every
  * slot/copy/style hook a consumer can inject).
@@ -872,4 +897,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceComposerProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceComposerProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, TurnErrorBanner, type TurnErrorBannerProps, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

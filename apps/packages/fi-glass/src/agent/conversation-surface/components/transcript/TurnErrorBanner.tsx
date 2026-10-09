@@ -8,12 +8,10 @@
  * are the consumer's; sensible defaults render without any.
  */
 
-import type { PersistError, TurnError } from '../../../useAgentConversation';
-
 export interface TurnErrorBannerProps {
-  /** Any recoverable failure with a displayable message — a failed TURN, or a
-   *  failed SAVE (PersistError). One banner anatomy, two callers. */
-  error: TurnError | PersistError;
+  /** Any recoverable failure with a displayable message: a failed turn, save or
+   *  sidebar action. One banner anatomy for every caller. */
+  error: { message: string };
   onRetry: () => void;
   onDismiss: () => void;
   className?: string;

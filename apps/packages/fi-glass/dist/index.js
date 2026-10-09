@@ -5714,6 +5714,77 @@ function useAgentConversation(agent, options) {
   };
 }
 
+// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
+import { jsx as jsx35, jsxs as jsxs26 } from "react/jsx-runtime";
+function TurnErrorBanner({
+  error,
+  onRetry,
+  onDismiss,
+  className,
+  retryLabel = "Reintentar",
+  dismissLabel = "Descartar",
+  retryButtonClassName,
+  dismissButtonClassName
+}) {
+  return /* @__PURE__ */ jsxs26(
+    "div",
+    {
+      role: "alert",
+      className,
+      style: {
+        marginTop: "1rem",
+        padding: "0.75rem 1rem",
+        borderRadius: 10,
+        border: "1px solid rgba(248,113,113,0.35)",
+        background: "rgba(248,113,113,0.08)",
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.75rem"
+      },
+      children: [
+        /* @__PURE__ */ jsx35("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        /* @__PURE__ */ jsx35(
+          "button",
+          {
+            type: "button",
+            onClick: onRetry,
+            className: retryButtonClassName,
+            style: retryButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "transparent",
+              color: "#e2e8f0",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: retryLabel
+          }
+        ),
+        /* @__PURE__ */ jsx35(
+          "button",
+          {
+            type: "button",
+            onClick: onDismiss,
+            className: dismissButtonClassName,
+            style: dismissButtonClassName ? void 0 : {
+              padding: "0.35rem 0.75rem",
+              borderRadius: 8,
+              border: "none",
+              background: "transparent",
+              color: "#94a3b8",
+              fontSize: "0.8rem",
+              cursor: "pointer"
+            },
+            children: dismissLabel
+          }
+        )
+      ]
+    }
+  );
+}
+
 // src/agent/AgentConversationSurface.tsx
 import { useEffect as useEffect24, useState as useState21 } from "react";
 
@@ -5793,7 +5864,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 // src/agent/ScrollToBottomButton.tsx
 import { ChevronDown } from "lucide-react";
-import { jsx as jsx35 } from "react/jsx-runtime";
+import { jsx as jsx36 } from "react/jsx-runtime";
 var placement = {
   position: "absolute",
   bottom: 12,
@@ -5822,7 +5893,7 @@ function ScrollToBottomButton({
   iconClassName
 }) {
   useTouchTargetStyle();
-  return /* @__PURE__ */ jsx35(
+  return /* @__PURE__ */ jsx36(
     "button",
     {
       type: "button",
@@ -5830,7 +5901,7 @@ function ScrollToBottomButton({
       "aria-label": label,
       className: className ? `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS} ${className}` : `fi-scroll-to-bottom ${FI_TOUCH_TARGET_CLASS}`,
       style: className ? placement : { ...placement, ...skin },
-      children: /* @__PURE__ */ jsx35(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
+      children: /* @__PURE__ */ jsx36(ChevronDown, { size: 16, className: iconClassName, "aria-hidden": true })
     }
   );
 }
@@ -5858,7 +5929,7 @@ function persistedTraceTurn(message) {
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptMessages.tsx
-import { jsx as jsx36, jsxs as jsxs26 } from "react/jsx-runtime";
+import { jsx as jsx37, jsxs as jsxs27 } from "react/jsx-runtime";
 function TranscriptMessages({
   messages,
   turn,
@@ -5878,23 +5949,23 @@ function TranscriptMessages({
   showLessLabel,
   collapseToggleClassName
 }) {
-  return /* @__PURE__ */ jsxs26("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+  return /* @__PURE__ */ jsxs27("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
     messages.map((m, i) => {
       const traceTurn = showPersistedTrace && m.role === "assistant" ? persistedTraceTurn(m) : null;
-      return /* @__PURE__ */ jsxs26(Fragment8, { children: [
-        traceTurn && /* @__PURE__ */ jsx36(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
-        /* @__PURE__ */ jsxs26(
+      return /* @__PURE__ */ jsxs27(Fragment8, { children: [
+        traceTurn && /* @__PURE__ */ jsx37(AgentPanel, { turn: traceTurn, ...agentPanelProps }),
+        /* @__PURE__ */ jsxs27(
           MessageBubble,
           {
             role: m.role,
             header: renderHeader ? renderHeader(m) : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR),
             badge: renderBadge ? renderBadge(m) : defaultMessageBadge(m),
-            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx36(CopyButton, { content: m.content }) : void 0),
+            actions: renderActions?.(m) ?? (showCopyAction ? /* @__PURE__ */ jsx37(CopyButton, { content: m.content }) : void 0),
             isLatest: i === messages.length - 1,
             className: resolveBubbleClass(m),
             children: [
-              /* @__PURE__ */ jsx36(MessageImages, { images: m.images }),
-              /* @__PURE__ */ jsx36(
+              /* @__PURE__ */ jsx37(MessageImages, { images: m.images }),
+              /* @__PURE__ */ jsx37(
                 MessageContent,
                 {
                   isUser: m.role === "user",
@@ -5906,100 +5977,29 @@ function TranscriptMessages({
                   collapseToggleClassName
                 }
               ),
-              /* @__PURE__ */ jsx36(MessageReactions, { reactions: m.reactions })
+              /* @__PURE__ */ jsx37(MessageReactions, { reactions: m.reactions })
             ]
           }
         )
       ] }, `${m.timestamp}-${i}`);
     }),
-    isStreaming && /* @__PURE__ */ jsxs26("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
-      /* @__PURE__ */ jsx36("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx36(AgentPanel, { turn, ...agentPanelProps }) }),
-      turn.text && /* @__PURE__ */ jsx36(
+    isStreaming && /* @__PURE__ */ jsxs27("div", { style: { display: "flex", flexDirection: "column", gap: "var(--fi-transcript-gap, 1rem)" }, children: [
+      /* @__PURE__ */ jsx37("div", { "data-fi-live-trace": "", style: { position: "sticky", top: 0, zIndex: 1 }, children: /* @__PURE__ */ jsx37(AgentPanel, { turn, ...agentPanelProps }) }),
+      turn.text && /* @__PURE__ */ jsx37(
         MessageBubble,
         {
           role: "assistant",
-          header: /* @__PURE__ */ jsx36(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
+          header: /* @__PURE__ */ jsx37(MessageAuthorHeader, { author: turn.author ?? agentAuthor }),
           className: resolveBubbleClass({
             role: "assistant",
             content: turn.text,
             timestamp: ""
           }),
-          children: /* @__PURE__ */ jsx36(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
+          children: /* @__PURE__ */ jsx37(MessageContent, { isUser: false, content: turn.text, isStreaming: true })
         }
       )
     ] })
   ] });
-}
-
-// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx37, jsxs as jsxs27 } from "react/jsx-runtime";
-function TurnErrorBanner({
-  error,
-  onRetry,
-  onDismiss,
-  className,
-  retryLabel = "Reintentar",
-  dismissLabel = "Descartar",
-  retryButtonClassName,
-  dismissButtonClassName
-}) {
-  return /* @__PURE__ */ jsxs27(
-    "div",
-    {
-      role: "alert",
-      className,
-      style: {
-        marginTop: "1rem",
-        padding: "0.75rem 1rem",
-        borderRadius: 10,
-        border: "1px solid rgba(248,113,113,0.35)",
-        background: "rgba(248,113,113,0.08)",
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: "0.75rem"
-      },
-      children: [
-        /* @__PURE__ */ jsx37("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx37(
-          "button",
-          {
-            type: "button",
-            onClick: onRetry,
-            className: retryButtonClassName,
-            style: retryButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "transparent",
-              color: "#e2e8f0",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
-            children: retryLabel
-          }
-        ),
-        /* @__PURE__ */ jsx37(
-          "button",
-          {
-            type: "button",
-            onClick: onDismiss,
-            className: dismissButtonClassName,
-            style: dismissButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: "#94a3b8",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
-            children: dismissLabel
-          }
-        )
-      ]
-    }
-  );
 }
 
 // src/agent/conversation-surface/components/transcript/TranscriptRegion.tsx
@@ -8472,6 +8472,7 @@ export {
   SpeakButton,
   StatusText,
   StepsPanel,
+  TurnErrorBanner,
   VoiceMicButton,
   WorkspaceBreadcrumb,
   WorkspaceDetailLayout,
