@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { shortTime } from '../Og118Sidebar';
+import { shortTime, syncNote } from '../Og118Sidebar';
 
 describe('shortTime', () => {
   it('formats in Spanish (es-MX), not the browser locale', () => {
@@ -30,5 +30,21 @@ describe('shortTime', () => {
 
   it('returns empty string for an invalid date', () => {
     expect(shortTime('garbage')).toBe('');
+  });
+});
+
+describe('syncNote', () => {
+  it('never claims "local" while a signed-in account is still reaching its server', () => {
+    expect(syncNote('connecting', false)).not.toMatch(/localmente/);
+    expect(syncNote('connecting', true)).toMatch(/Despertando el servidor/);
+  });
+
+  it('says where writes land when the account server is unreachable', () => {
+    expect(syncNote('unreachable', false)).toMatch(/se guarda en este navegador y se sube al reconectar/);
+  });
+
+  it('keeps the cloud and local copy for the settled states', () => {
+    expect(syncNote('cloud', false)).toMatch(/Sincronizado en tu cuenta/);
+    expect(syncNote('local', false)).toBe('Guardado localmente en este navegador.');
   });
 });

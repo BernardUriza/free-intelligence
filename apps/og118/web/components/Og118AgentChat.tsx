@@ -88,8 +88,9 @@ export function Og118AgentChat() {
   // CONV-CLOUD-1: signed-in ⇒ the server conversation store is authoritative
   // (after a one-time local→cloud migration); unauthenticated/bearer stays on
   // the identity-scoped IndexedDB exactly as before.
-  const { library: conversationLibrary, cloud: conversationsCloud } =
-    useOg118ConversationLibrary(userId, tokenReady);
+  const conversationStore = useOg118ConversationLibrary(userId, tokenReady);
+  const conversationLibrary = conversationStore.library;
+  const conversationsCloud = conversationStore.status === 'cloud';
   const audioQueueStore = useAudioQueueStore(userId);
   // Projects is resolved BEFORE the library so a conversation born while a
   // project is active is STAMPED with it (`projectId`) — that stamp is the only
@@ -231,7 +232,11 @@ export function Og118AgentChat() {
         <Og118Sidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
-          cloud={conversationsCloud}
+          sync={{
+            status: conversationStore.status,
+            slow: conversationStore.slow,
+            onRetry: conversationStore.retry,
+          }}
           onNew={() => {
             lib.newConversation();
             shell.close();

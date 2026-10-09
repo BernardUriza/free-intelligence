@@ -377,6 +377,29 @@ body {
   font-size: 0.7rem;
   color: #475569;
 }
+.og-sidebar-sync-connecting {
+  color: #94a3b8;
+  animation: og-sync-pulse 1.6s ease-in-out infinite;
+}
+.og-sidebar-sync-unreachable {
+  color: #fbbf24;
+}
+@keyframes og-sync-pulse {
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-sidebar-sync-connecting { animation: none; }
+}
+.og-sidebar-sync-retry {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
 /* CONV-SEARCH-1: the sidebar chat search. */
 .og-sidebar-search {
   margin: 0.15rem 0.5rem 0;
