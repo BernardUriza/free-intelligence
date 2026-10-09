@@ -3,8 +3,8 @@
 // Pick many chats and archive them at once, on the native <dialog> (focus trap, Escape,
 // backdrop for free). Archive is reversible, so everything but pinned starts selected.
 
-import { useEffect, useInsertionEffect, useRef, useState, type ReactNode } from 'react';
-import type { ConversationSummary } from '@free-intelligence/core';
+import { useEffect, useInsertionEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { organizeConversationSummaries, type ConversationSummary } from '@free-intelligence/core';
 import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';
 import { ensureTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
@@ -194,7 +194,7 @@ const initialSelection = (conversations: ConversationSummary[]) =>
 
 export function ConversationArchiveDialog({
   open,
-  conversations,
+  conversations: given,
   onArchive,
   onClose,
   renderMeta,
@@ -204,6 +204,10 @@ export function ConversationArchiveDialog({
     ensureArchiveDialogStyle();
   }, []);
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const conversations = useMemo(() => {
+    const { pinned, active, archived } = organizeConversationSummaries(given);
+    return [...pinned, ...active, ...archived];
+  }, [given]);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [selected, setSelected] = useState<Set<string>>(() => initialSelection(conversations));
   const [busy, setBusy] = useState(false);

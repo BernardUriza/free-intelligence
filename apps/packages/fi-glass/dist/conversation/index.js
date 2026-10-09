@@ -593,7 +593,8 @@ function useIndexedDBConversationLibrary(identityKey, options = {}) {
 }
 
 // src/conversation/ConversationArchiveDialog.tsx
-import { useEffect as useEffect2, useInsertionEffect as useInsertionEffect2, useRef as useRef2, useState as useState2 } from "react";
+import { useEffect as useEffect2, useInsertionEffect as useInsertionEffect2, useMemo as useMemo2, useRef as useRef2, useState as useState2 } from "react";
+import { organizeConversationSummaries } from "@free-intelligence/core";
 
 // src/theme/breakpoints.ts
 var FI_MOBILE_BREAKPOINT_PX = 768;
@@ -902,7 +903,7 @@ function ensureArchiveDialogStyle() {
 var initialSelection = (conversations) => new Set(conversations.filter((c) => !c.pinnedAt).map((c) => c.id));
 function ConversationArchiveDialog({
   open,
-  conversations,
+  conversations: given,
   onArchive,
   onClose,
   renderMeta,
@@ -912,6 +913,10 @@ function ConversationArchiveDialog({
     ensureArchiveDialogStyle();
   }, []);
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const conversations = useMemo2(() => {
+    const { pinned, active, archived } = organizeConversationSummaries(given);
+    return [...pinned, ...active, ...archived];
+  }, [given]);
   const dialogRef = useRef2(null);
   const [selected, setSelected] = useState2(() => initialSelection(conversations));
   const [busy, setBusy] = useState2(false);
