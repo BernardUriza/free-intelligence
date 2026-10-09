@@ -54,12 +54,7 @@ const mdComponents: Partial<Components> = {
   pre: ({ children }) => <pre className={markdownStyles.pre}>{children}</pre>,
   ul: ({ children }) => <ul className={markdownStyles.ul}>{children}</ul>,
   ol: ({ children }) => <ol className={markdownStyles.ol}>{children}</ol>,
-  li: ({ children }) => (
-    <li className={markdownStyles.li}>
-      <span className={markdownStyles.bullet}>•</span>
-      <span className="flex-1">{children}</span>
-    </li>
-  ),
+  li: ({ children }) => <li className={markdownStyles.li}>{children}</li>,
   h1: ({ children }) => <h1 className={markdownStyles.h1}>{children}</h1>,
   h2: ({ children }) => <h2 className={markdownStyles.h2}>{children}</h2>,
   h3: ({ children }) => <h3 className={markdownStyles.h3}>{children}</h3>,

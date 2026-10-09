@@ -247,6 +247,7 @@ export function AgentSidebarItem({
       aria-label={ariaLabel}
       onClick={() => interactive && onSelect()}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
         if ((e.key === 'Enter' || e.key === ' ') && interactive) {
           e.preventDefault();
           onSelect();

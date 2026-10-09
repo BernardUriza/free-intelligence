@@ -709,23 +709,37 @@ function ComposerImageChips({
             "aria-label": `${removeLabel}: ${draft.name}`,
             onClick: () => onRemove(draft.id),
             disabled,
+            "data-fi-image-remove": "",
             style: {
               position: "absolute",
-              top: "-0.375rem",
-              right: "-0.375rem",
-              width: "1.25rem",
-              height: "1.25rem",
+              top: "-0.75rem",
+              right: "-0.75rem",
+              width: "2.75rem",
+              height: "2.75rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "9999px",
               border: "none",
+              background: "transparent",
               cursor: disabled ? "default" : "pointer",
-              background: "rgba(0,0,0,0.65)",
-              color: "#fff",
               padding: 0
             },
-            children: /* @__PURE__ */ jsx5(X, { size: 12, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx5(
+              "span",
+              {
+                style: {
+                  width: "1.25rem",
+                  height: "1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "9999px",
+                  background: "rgba(0,0,0,0.65)",
+                  color: "#fff"
+                },
+                children: /* @__PURE__ */ jsx5(X, { size: 12, "aria-hidden": true })
+              }
+            )
           }
         )
       ] }, draft.id))

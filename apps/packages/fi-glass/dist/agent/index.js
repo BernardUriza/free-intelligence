@@ -1624,10 +1624,9 @@ var markdownStyles = {
   em: "italic text-slate-300",
   code: "px-1 py-0.5 bg-slate-800/80 rounded text-amber-300/90 font-mono text-[13px]",
   pre: "my-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700/30 overflow-x-auto text-[13px]",
-  ul: "my-2 ml-0.5 space-y-1.5",
-  ol: "my-2 ml-0.5 space-y-1.5 list-decimal list-inside",
-  li: "flex gap-1.5 text-slate-200",
-  bullet: "text-slate-500 select-none text-[10px] mt-1",
+  ul: "my-2 pl-5 space-y-1.5 list-disc marker:text-slate-500",
+  ol: "my-2 pl-5 space-y-1.5 list-decimal marker:text-slate-400",
+  li: "pl-0.5 text-slate-200",
   h1: "text-lg font-semibold text-white mt-4 mb-2",
   h2: "text-base font-semibold text-white mt-3 mb-1.5",
   h3: "text-sm font-semibold text-slate-100 mt-2 mb-1",
@@ -1733,10 +1732,7 @@ var mdComponents = {
   pre: ({ children }) => /* @__PURE__ */ jsx10("pre", { className: markdownStyles.pre, children }),
   ul: ({ children }) => /* @__PURE__ */ jsx10("ul", { className: markdownStyles.ul, children }),
   ol: ({ children }) => /* @__PURE__ */ jsx10("ol", { className: markdownStyles.ol, children }),
-  li: ({ children }) => /* @__PURE__ */ jsxs7("li", { className: markdownStyles.li, children: [
-    /* @__PURE__ */ jsx10("span", { className: markdownStyles.bullet, children: "\u2022" }),
-    /* @__PURE__ */ jsx10("span", { className: "flex-1", children })
-  ] }),
+  li: ({ children }) => /* @__PURE__ */ jsx10("li", { className: markdownStyles.li, children }),
   h1: ({ children }) => /* @__PURE__ */ jsx10("h1", { className: markdownStyles.h1, children }),
   h2: ({ children }) => /* @__PURE__ */ jsx10("h2", { className: markdownStyles.h2, children }),
   h3: ({ children }) => /* @__PURE__ */ jsx10("h3", { className: markdownStyles.h3, children }),
@@ -2859,23 +2855,37 @@ function ComposerImageChips({
             "aria-label": `${removeLabel}: ${draft.name}`,
             onClick: () => onRemove(draft.id),
             disabled,
+            "data-fi-image-remove": "",
             style: {
               position: "absolute",
-              top: "-0.375rem",
-              right: "-0.375rem",
-              width: "1.25rem",
-              height: "1.25rem",
+              top: "-0.75rem",
+              right: "-0.75rem",
+              width: "2.75rem",
+              height: "2.75rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "9999px",
               border: "none",
+              background: "transparent",
               cursor: disabled ? "default" : "pointer",
-              background: "rgba(0,0,0,0.65)",
-              color: "#fff",
               padding: 0
             },
-            children: /* @__PURE__ */ jsx22(X, { size: 12, "aria-hidden": true })
+            children: /* @__PURE__ */ jsx22(
+              "span",
+              {
+                style: {
+                  width: "1.25rem",
+                  height: "1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "9999px",
+                  background: "rgba(0,0,0,0.65)",
+                  color: "#fff"
+                },
+                children: /* @__PURE__ */ jsx22(X, { size: 12, "aria-hidden": true })
+              }
+            )
           }
         )
       ] }, draft.id))
@@ -4206,6 +4216,7 @@ function AgentSidebarItem({
       "aria-label": ariaLabel,
       onClick: () => interactive && onSelect(),
       onKeyDown: (e) => {
+        if (e.target !== e.currentTarget) return;
         if ((e.key === "Enter" || e.key === " ") && interactive) {
           e.preventDefault();
           onSelect();
