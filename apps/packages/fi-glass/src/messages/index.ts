@@ -12,6 +12,8 @@ export {
   ensureMessageActionsStyle,
   useMessageActionsStyle,
   FI_MSG_ACTIONS_CLASS,
+  FI_MSG_BADGE_CLASS,
+  FI_MSG_FOOTER_CLASS,
 } from './messageActionsStyle';
 // OG118-IMAGE-UPLOAD-1: the images attached to a message, rendered in its bubble.
 export { MessageImages, type MessageImagesProps } from './MessageImages';

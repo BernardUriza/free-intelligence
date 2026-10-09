@@ -20,7 +20,12 @@
 
 import { memo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { messageStyles } from './styles';
-import { FI_MSG_ACTIONS_CLASS, useMessageActionsStyle } from './messageActionsStyle';
+import {
+  FI_MSG_ACTIONS_CLASS,
+  FI_MSG_BADGE_CLASS,
+  FI_MSG_FOOTER_CLASS,
+  useMessageActionsStyle,
+} from './messageActionsStyle';
 
 /** Broadcast channel for the touch actions-reveal: opening one bubble's actions
  * closes every other open bubble (one contextual toolbar at a time). */
@@ -107,10 +112,13 @@ export const MessageBubble = memo(function MessageBubble({
 
       {children}
 
-      {badge && <div className="mt-2">{badge}</div>}
-
-      {actions != null && actions !== false && (
-        <div className={FI_MSG_ACTIONS_CLASS}>{actions}</div>
+      {(badge || (actions != null && actions !== false)) && (
+        <div className={FI_MSG_FOOTER_CLASS}>
+          {badge && <div className={FI_MSG_BADGE_CLASS}>{badge}</div>}
+          {actions != null && actions !== false && (
+            <div className={FI_MSG_ACTIONS_CLASS}>{actions}</div>
+          )}
+        </div>
       )}
     </article>
   );

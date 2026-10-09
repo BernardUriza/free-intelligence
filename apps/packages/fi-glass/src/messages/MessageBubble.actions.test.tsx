@@ -70,4 +70,25 @@ describe('MessageBubble — actions reveal', () => {
     expect(m.hasAttribute('data-fi-actions-open')).toBe(false);
     expect(m.querySelector('.fi-msg-actions')).toBeNull();
   });
+
+  it('badge and actions share ONE footer row instead of stacking two', () => {
+    render(
+      <MessageBubble role="assistant" ariaLabel="pie" badge={<span>modelo</span>} actions={<span>copiar</span>}>
+        <p>respuesta</p>
+      </MessageBubble>,
+    );
+    const footer = article('pie').querySelector(':scope > .fi-msg-footer')!;
+    expect(footer).not.toBeNull();
+    expect(footer.querySelector(':scope > .fi-msg-badge')?.textContent).toBe('modelo');
+    expect(footer.querySelector(':scope > .fi-msg-actions')?.textContent).toBe('copiar');
+  });
+
+  it('a bubble with neither badge nor actions renders no footer', () => {
+    render(
+      <MessageBubble role="user" ariaLabel="vacio">
+        <p>nada</p>
+      </MessageBubble>,
+    );
+    expect(article('vacio').querySelector('.fi-msg-footer')).toBeNull();
+  });
 });

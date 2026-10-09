@@ -174,6 +174,8 @@ interface MessageBubbleProps {
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
 
 declare const FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+declare const FI_MSG_FOOTER_CLASS = "fi-msg-footer";
+declare const FI_MSG_BADGE_CLASS = "fi-msg-badge";
 /** Inject the idempotent message-actions stylesheet (no-op on the server / if present). */
 declare function ensureMessageActionsStyle(): void;
 /** Ensure the message-actions stylesheet is present for the component's lifetime. */
@@ -266,4 +268,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, MessageReactions, type MessageReactionsProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, FI_MSG_BADGE_CLASS, FI_MSG_FOOTER_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, MessageReactions, type MessageReactionsProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };
