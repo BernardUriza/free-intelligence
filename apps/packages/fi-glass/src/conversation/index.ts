@@ -30,6 +30,13 @@ export {
 } from './useConversationLibrary';
 export { useIndexedDBConversationLibrary } from './useIndexedDBConversationLibrary';
 export {
+  ConversationArchiveDialog,
+  ensureArchiveDialogStyle,
+  FI_ARCHIVE_DIALOG_CLASS,
+  type ConversationArchiveDialogLabels,
+  type ConversationArchiveDialogProps,
+} from './ConversationArchiveDialog';
+export {
   useCloudConversationLibrary,
   type CloudSyncStatus,
   type CloudConversationLibraryState,

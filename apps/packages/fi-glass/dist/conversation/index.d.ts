@@ -1,4 +1,6 @@
 import { ConversationLibrary, ConversationSummary, ConversationRecord, ConversationMetadataPatch, ChatMessage } from '@free-intelligence/core';
+import * as react from 'react';
+import { ReactNode } from 'react';
 
 /**
  * EphemeralConversationLibrary — conversations that die with the tab.
@@ -215,6 +217,12 @@ interface ConversationLibraryState {
      * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
     archiveConversation: (id: string, archived: boolean) => Promise<void>;
     /**
+     * Archive many conversations at once (the "clean up my sidebar" gesture). Never
+     * throws: resolves with the ids that could NOT be archived, so the caller keeps
+     * them selected and says so. One list refresh for the whole batch.
+     */
+    archiveConversations: (ids: string[]) => Promise<string[]>;
+    /**
      * Persist a conversation's messages (no-op for an empty thread). `conversationId`
      * is the conversation the thread BELONGS to (default: the active one); a write
      * that lands after the user moved elsewhere saves that conversation and leaves
@@ -246,6 +254,33 @@ declare function useConversationLibrary(library: ConversationLibrary, options?: 
 
 declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
 
+interface ConversationArchiveDialogLabels {
+    title: string;
+    selectAll: string;
+    selectNone: string;
+    cancel: string;
+    /** The confirm button for `n` selected chats. */
+    archive: (n: number) => string;
+    /** Shown after a partial failure: `failed` chats out of `total` could not be archived. */
+    failed: (failed: number, total: number) => string;
+    empty: string;
+}
+interface ConversationArchiveDialogProps {
+    open: boolean;
+    /** The candidates: pass the chats that are NOT archived yet. */
+    conversations: ConversationSummary[];
+    /** Archive these ids; resolve with the ids that failed (see `archiveConversations`). */
+    onArchive: (ids: string[]) => Promise<string[]>;
+    onClose: () => void;
+    /** Secondary line per row (e.g. a formatted date). Omit for title only. */
+    renderMeta?: (conversation: ConversationSummary) => ReactNode;
+    labels?: Partial<ConversationArchiveDialogLabels>;
+}
+declare const FI_ARCHIVE_DIALOG_CLASS = "fi-archive-dialog";
+/** Inject the idempotent archive-dialog stylesheet (no-op on the server / if already present). */
+declare function ensureArchiveDialogStyle(): void;
+declare function ConversationArchiveDialog({ open, conversations, onArchive, onClose, renderMeta, labels: labelOverrides, }: ConversationArchiveDialogProps): react.JSX.Element;
+
 type CloudSyncStatus = 'local' | 'connecting' | 'cloud' | 'unreachable';
 interface UseCloudConversationLibraryOptions {
     local: ConversationLibrary;
@@ -270,4 +305,4 @@ interface CloudConversationLibraryState {
  */
 declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
 
-export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, mergeConversationRecords, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, ConversationArchiveDialog, type ConversationArchiveDialogLabels, type ConversationArchiveDialogProps, type ConversationLibraryState, EphemeralConversationLibrary, FI_ARCHIVE_DIALOG_CLASS, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, ensureArchiveDialogStyle, mergeConversationRecords, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };

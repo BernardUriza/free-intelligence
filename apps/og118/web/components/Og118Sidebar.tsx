@@ -42,7 +42,7 @@ import {
   ItemActionSlot,
   FI_SECTION_TITLE_CLASS,
 } from 'fi-glass/agent';
-import type { CloudSyncStatus } from 'fi-glass/conversation';
+import { ConversationArchiveDialog, type CloudSyncStatus } from 'fi-glass/conversation';
 
 const TITLE_MAX = 60;
 const ACTION_ICON_SIZE = 14;
@@ -59,6 +59,8 @@ export interface Og118SidebarProps {
   onPin: (id: string, pinned: boolean) => void;
   /** Archive (`true`) / unarchive (`false`) a conversation. */
   onArchive: (id: string, archived: boolean) => void;
+  /** Archive many at once; resolves with the ids that failed. Omit to hide the bulk action. */
+  onArchiveMany?: (ids: string[]) => Promise<string[]>;
   /** Disable switching/new/delete while a turn streams (avoids cross-thread folds). */
   disabled?: boolean;
   /** Where writes land right now — the storage note and delete-confirm copy must
@@ -126,6 +128,7 @@ export function Og118Sidebar({
   onRename,
   onPin,
   onArchive,
+  onArchiveMany,
   disabled = false,
   sync = { status: 'local', slow: false, onRetry: () => {} },
   accountSlot,
@@ -136,6 +139,8 @@ export function Og118Sidebar({
   const cloud = sync.status === 'cloud';
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState('');
+  const [archivingMany, setArchivingMany] = useState(false);
+  const archivable = conversations.filter((c) => !c.archivedAt);
 
   const searching = query.trim() !== '';
   const { pinned, active, archived } = organizeConversationSummaries(
@@ -236,14 +241,27 @@ export function Og118Sidebar({
           </span>
         }
         actionSlot={
-          <button
-            className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-new`}
-            onClick={onNew}
-            disabled={disabled}
-            aria-label="Nuevo chat"
-          >
-            + Nuevo chat
-          </button>
+          <span className="og-sidebar-head-actions">
+            {onArchiveMany && archivable.length > 0 && (
+              <button
+                className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-archive-many`}
+                onClick={() => setArchivingMany(true)}
+                disabled={disabled}
+                aria-label="Archivar chats"
+                title="Archivar chats"
+              >
+                <Archive size={16} />
+              </button>
+            )}
+            <button
+              className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-new`}
+              onClick={onNew}
+              disabled={disabled}
+              aria-label="Nuevo chat"
+            >
+              + Nuevo chat
+            </button>
+          </span>
         }
       >
         {conversations.length > 0 && (
@@ -325,6 +343,15 @@ export function Og118Sidebar({
         )}
         {accountSlot}
       </div>
+      {onArchiveMany && (
+        <ConversationArchiveDialog
+          open={archivingMany}
+          conversations={archivable}
+          onArchive={onArchiveMany}
+          onClose={() => setArchivingMany(false)}
+          renderMeta={(c) => shortTime(c.updatedAt)}
+        />
+      )}
     </aside>
   );
 }

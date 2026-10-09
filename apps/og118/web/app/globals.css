@@ -441,6 +441,30 @@ body {
   opacity: 0.4;
   cursor: not-allowed;
 }
+.og-sidebar-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.og-sidebar-archive-many {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.og-sidebar-archive-many:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+.og-sidebar-archive-many:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .og-sidebar-list {
   flex: 1;
   overflow-y: auto;

@@ -276,6 +276,7 @@ export function Og118AgentChat() {
           onArchive={(id, archived) =>
             void lib.archiveConversation(id, archived).catch(surfacedInBanner)
           }
+          onArchiveMany={lib.archiveConversations}
           disabled={conversation.isStreaming}
           accountSlot={<SignOutButton />}
         />

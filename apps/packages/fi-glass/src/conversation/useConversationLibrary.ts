@@ -39,6 +39,10 @@ import {
 } from '@free-intelligence/core';
 import { mergeConversationRecords } from './migrateConversationLibrary';
 
+// Enough to finish a sidebar of ~50 chats in a few round trips without opening
+// fifty requests against a cold-starting API at once.
+const ARCHIVE_BATCH_CONCURRENCY = 4;
+
 export interface UseConversationLibraryOptions {
   /** Mint a new conversation id. Default: `crypto.randomUUID`. Injectable for tests. */
   idFactory?: () => string;
@@ -91,6 +95,12 @@ export interface ConversationLibraryState {
   /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
    * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
   archiveConversation: (id: string, archived: boolean) => Promise<void>;
+  /**
+   * Archive many conversations at once (the "clean up my sidebar" gesture). Never
+   * throws: resolves with the ids that could NOT be archived, so the caller keeps
+   * them selected and says so. One list refresh for the whole batch.
+   */
+  archiveConversations: (ids: string[]) => Promise<string[]>;
   /**
    * Persist a conversation's messages (no-op for an empty thread). `conversationId`
    * is the conversation the thread BELONGS to (default: the active one); a write
@@ -425,6 +435,44 @@ export function useConversationLibrary(
     [mutateMetadata, nowFn],
   );
 
+  const archiveConversations = useCallback(
+    async (ids: string[]): Promise<string[]> => {
+      const pending = [...new Set(ids)];
+      const failed: string[] = [];
+      const archiveOne = async (id: string) => {
+        const patch = conversationArchivePatch(true, nowFn());
+        try {
+          if (library.patch) {
+            if (!(await library.patch(id, patch))) failed.push(id);
+            return;
+          }
+          const record = await library.get(id);
+          if (!record) {
+            failed.push(id);
+            return;
+          }
+          await library.put(applyConversationMetadataPatch(record, patch));
+        } catch {
+          failed.push(id);
+        }
+      };
+      for (let i = 0; i < pending.length; i += ARCHIVE_BATCH_CONCURRENCY) {
+        await Promise.all(pending.slice(i, i + ARCHIVE_BATCH_CONCURRENCY).map(archiveOne));
+      }
+      const active = activeIdRef.current;
+      if (active && pending.includes(active) && !failed.includes(active)) {
+        const record = await library.get(active).catch(() => null);
+        if (record && activeIdRef.current === active) {
+          setActiveRecord(record);
+          setActiveMessages(record.messages);
+        }
+      }
+      await refresh().catch(() => undefined);
+      return failed;
+    },
+    [library, nowFn, refresh],
+  );
+
   const guardedSwitch = useCallback(
     (id: string) => guard('switch', id, () => switchConversation(id)),
     [guard, switchConversation],
@@ -458,6 +506,7 @@ export function useConversationLibrary(
     renameConversation: guardedRename,
     pinConversation: guardedPin,
     archiveConversation: guardedArchive,
+    archiveConversations,
     persist,
     claimActive,
     refresh,
