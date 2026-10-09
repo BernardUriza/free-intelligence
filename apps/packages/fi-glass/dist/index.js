@@ -5545,7 +5545,8 @@ function AgentPanel({
 import { useCallback as useCallback10, useEffect as useEffect21, useReducer, useRef as useRef14, useState as useState20 } from "react";
 import {
   applyConversationEvent,
-  initialConversationState
+  initialConversationState,
+  foldAssistantTurn
 } from "@free-intelligence/core";
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
@@ -5566,6 +5567,7 @@ function useAgentConversation(agent, options) {
     initialMessages,
     seedVersion,
     onMessagesChange,
+    onTurnStart,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError
   } = options;
@@ -5588,16 +5590,18 @@ function useAgentConversation(agent, options) {
   userAuthorRef.current = userAuthor;
   const onMessagesChangeRef = useRef14(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
+  const onTurnStartRef = useRef14(onTurnStart);
+  onTurnStartRef.current = onTurnStart;
   const [persistError, setPersistError] = useState20(null);
   const unsaved = useRef14(null);
-  const runPersist = useCallback10(async (thread) => {
+  const runPersist = useCallback10(async (thread, conversationId2) => {
     if (!onMessagesChangeRef.current) return;
     try {
-      await onMessagesChangeRef.current(thread);
+      await onMessagesChangeRef.current(thread, conversationId2);
       unsaved.current = null;
       setPersistError(null);
     } catch (cause) {
-      unsaved.current = thread;
+      unsaved.current = { thread, conversationId: conversationId2 };
       setPersistError({
         message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
         cause
@@ -5605,10 +5609,10 @@ function useAgentConversation(agent, options) {
     }
   }, []);
   const retryPersist = useCallback10(() => {
-    const thread = unsaved.current;
-    if (!thread) return;
+    const failed = unsaved.current;
+    if (!failed) return;
     setPersistError(null);
-    void runPersist(thread);
+    void runPersist(failed.thread, failed.conversationId);
   }, [runPersist]);
   const dismissPersistError = useCallback10(() => setPersistError(null), []);
   const clearUnsent = useCallback10(() => dispatch({ type: "clear_unsent" }), []);
@@ -5623,6 +5627,11 @@ function useAgentConversation(agent, options) {
   const mounted = useRef14(false);
   const hydratedFor = useRef14(conversationId);
   const awaitResolver = useRef14(null);
+  const abandonAwaited = useCallback10((reason) => {
+    const r = awaitResolver.current;
+    awaitResolver.current = null;
+    r?.reject(new Error(reason));
+  }, []);
   const send = useCallback10(
     (text, images) => {
       const t = text.trim();
@@ -5635,6 +5644,7 @@ function useAgentConversation(agent, options) {
         author: userAuthorRef.current,
         controlled
       });
+      onTurnStartRef.current?.(hydratedFor.current ?? void 0);
       void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
     },
     [agent, controlled]
@@ -5645,11 +5655,12 @@ function useAgentConversation(agent, options) {
       if (!t) return Promise.resolve("");
       if (agent.isStreaming) return Promise.reject(new Error("a turn is already streaming"));
       return new Promise((resolve, reject) => {
+        abandonAwaited("superseded by a newer turn");
         awaitResolver.current = { resolve, reject };
         send(t);
       });
     },
-    [agent.isStreaming, send]
+    [agent.isStreaming, send, abandonAwaited]
   );
   const stop = useCallback10(() => {
     if (!agentRef.current.isStreaming) return;
@@ -5703,12 +5714,21 @@ function useAgentConversation(agent, options) {
       return;
     }
     if (controlledRef.current) return;
-    const switched = hydratedFor.current !== conversationId;
+    const origin = hydratedFor.current;
+    const switched = origin !== conversationId;
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
       if (convoRef.current.pending) return;
       if (sameThread(seed, convoRef.current.messages)) return;
+    }
+    if (convoRef.current.pending) {
+      const live = agentRef.current.turn;
+      const said = live.text !== "" || live.reactions.length > 0;
+      const thread = said ? [...convoRef.current.messages, foldAssistantTurn(live, authorRef.current)] : convoRef.current.messages;
+      agentRef.current.abort?.();
+      abandonAwaited("the conversation changed before the turn finished");
+      void runPersist(thread, origin ?? void 0);
     }
     dispatch({ type: "hydrate", messages: seed });
     if (switched) agent.reset?.();
@@ -5719,12 +5739,13 @@ function useAgentConversation(agent, options) {
       dispatch({ type: "persist_skip_consumed" });
       return;
     }
-    void runPersist(messages);
+    void runPersist(messages, hydratedFor.current ?? void 0);
   }, [messages]);
   const newConversation = useCallback10(() => {
+    abandonAwaited("a new conversation was started");
     dispatch({ type: "hydrate", messages: [] });
     agent.reset?.();
-  }, [agent, controlled]);
+  }, [agent, controlled, abandonAwaited]);
   return {
     messages: externalMessages ?? messages,
     turn: agent.turn,

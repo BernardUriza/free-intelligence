@@ -185,22 +185,55 @@ var RemoteConversationLibrary = class _RemoteConversationLibrary {
 };
 
 // src/conversation/migrateConversationLibrary.ts
+import {
+  deriveConversationPreview,
+  resolveConversationTitle
+} from "@free-intelligence/core";
+function messageKey(message) {
+  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
+}
+function mergeConversationRecords(target, source) {
+  const known = new Set(target.messages.map(messageKey));
+  const missing = source.messages.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  const messages = [...target.messages, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
+  return {
+    ...target,
+    messages,
+    title: resolveConversationTitle(messages, target),
+    preview: deriveConversationPreview(messages),
+    updatedAt: source.updatedAt > target.updatedAt ? source.updatedAt : target.updatedAt
+  };
+}
 async function migrateConversationLibrary(source, target) {
   const [sourceList, targetList] = await Promise.all([source.list(), target.list()]);
-  const existing = new Set(targetList.map((summary) => summary.id));
+  const existing = new Map(targetList.map((summary) => [summary.id, summary]));
   let migrated = 0;
+  let merged = 0;
   let skipped = 0;
   for (const summary of sourceList) {
-    if (existing.has(summary.id)) {
+    const theirs = existing.get(summary.id);
+    if (theirs && summary.updatedAt <= theirs.updatedAt) {
       skipped += 1;
       continue;
     }
     const record = await source.get(summary.id);
     if (!record) continue;
-    await target.put(record);
-    migrated += 1;
+    if (!theirs) {
+      await target.put(record);
+      migrated += 1;
+      continue;
+    }
+    const current = await target.get(summary.id);
+    const next = current ? mergeConversationRecords(current, record) : record;
+    if (next === current) {
+      skipped += 1;
+      continue;
+    }
+    await target.put(next);
+    merged += 1;
   }
-  return { migrated, skipped };
+  return { migrated, merged, skipped };
 }
 
 // src/conversation/useConversationLibrary.ts
@@ -211,8 +244,8 @@ import {
   conversationPinPatch,
   conversationRenamePatch,
   CONVERSATION_SCHEMA_VERSION,
-  deriveConversationPreview,
-  resolveConversationTitle,
+  deriveConversationPreview as deriveConversationPreview2,
+  resolveConversationTitle as resolveConversationTitle2,
   sanitizeConversationMessage
 } from "@free-intelligence/core";
 function useConversationLibrary(library, options = {}) {
@@ -226,6 +259,10 @@ function useConversationLibrary(library, options = {}) {
   const [activeRecord, setActiveRecord] = useState(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const activeRecordRef = useRef(activeRecord);
+  activeRecordRef.current = activeRecord;
+  const claimedId = useRef(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [actionError, setActionError] = useState(null);
   const failedRun = useRef(null);
   const guard = useCallback(async function guarded(action, conversationId, run) {
@@ -262,22 +299,47 @@ function useConversationLibrary(library, options = {}) {
   }, [library]);
   useEffect(() => {
     let cancelled = false;
+    const isCurrent = (id) => !cancelled && activeIdRef.current === id;
+    const adopt = (id, record) => {
+      setActiveId(id);
+      setActiveMessages(record?.messages ?? []);
+      setActiveRecord(record);
+    };
     void (async () => {
+      const current = activeIdRef.current;
       try {
         const list = await library.list();
         if (cancelled) return;
         setConversations(list);
+        const previous = activeRecordRef.current;
+        if (current && list.some((summary) => summary.id === current)) {
+          const stored = await library.get(current);
+          if (!isCurrent(current) || !stored) return;
+          const carried = previous?.id === current ? mergeConversationRecords(stored, previous) : stored;
+          if (carried !== stored) await library.put(carried);
+          if (isCurrent(current)) adopt(current, carried);
+          return;
+        }
+        if (current && claimedId.current === current) {
+          if (previous?.id === current) await library.put(previous);
+          return;
+        }
         if (list.length > 0) {
           const record = await library.get(list[0].id);
-          if (cancelled) return;
-          setActiveId(list[0].id);
-          setActiveMessages(record?.messages ?? []);
-          setActiveRecord(record ?? null);
-        } else {
-          setActiveId(idFactory());
-          setActiveMessages([]);
-          setActiveRecord(null);
+          if (isCurrent(current)) adopt(list[0].id, record ?? null);
+        } else if (isCurrent(current) && (current === null || previous !== null)) {
+          adopt(idFactory(), null);
         }
+      } catch (cause) {
+        if (cancelled) return;
+        failedRun.current = async () => setLoadAttempt((n) => n + 1);
+        setActionError({
+          action: "load",
+          conversationId: current ?? "",
+          message: cause instanceof Error && cause.message ? cause.message : String(cause),
+          cause
+        });
+        if (activeIdRef.current === null) adopt(idFactory(), null);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -285,7 +347,10 @@ function useConversationLibrary(library, options = {}) {
     return () => {
       cancelled = true;
     };
-  }, [library]);
+  }, [library, loadAttempt]);
+  const claimActive = useCallback((conversationId) => {
+    claimedId.current = conversationId ?? activeIdRef.current;
+  }, []);
   const newConversation = useCallback(() => {
     setActiveId(idFactory());
     setActiveMessages([]);
@@ -324,22 +389,23 @@ function useConversationLibrary(library, options = {}) {
     await refresh();
   }, [library, activeId, activeRecord, refresh]);
   const persist = useCallback(
-    async (messages) => {
+    async (messages, conversationId) => {
       if (messages.length === 0) return;
-      const id = activeId ?? idFactory();
+      const id = conversationId ?? activeIdRef.current ?? idFactory();
       const now = nowFn();
-      const prevForTitle = activeRecord?.id === id ? activeRecord : void 0;
+      const held = activeRecordRef.current;
+      const prevForTitle = held?.id === id ? held : id === activeIdRef.current ? void 0 : await library.get(id) ?? void 0;
       const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
       const bornIn = prevForTitle ? prevForTitle.projectId : projectId;
       const record = {
         id,
-        title: resolveConversationTitle(clean, prevForTitle),
+        title: resolveConversationTitle2(clean, prevForTitle),
         titleCustom: prevForTitle?.titleCustom,
         createdAt,
         updatedAt: now,
         messages: clean,
-        preview: deriveConversationPreview(clean),
+        preview: deriveConversationPreview2(clean),
         // Organization flags ride along for the SINGLE-WRITER (IndexedDB) store,
         // where nothing else preserves them. A shared store ignores what a put
         // says about them and keeps its own — a device with a stale copy is not
@@ -350,12 +416,14 @@ function useConversationLibrary(library, options = {}) {
         schemaVersion: CONVERSATION_SCHEMA_VERSION
       };
       await library.put(record);
-      setActiveId(id);
-      setActiveMessages(record.messages);
-      setActiveRecord(record);
+      if (activeIdRef.current === id || activeIdRef.current === null) {
+        setActiveId(id);
+        setActiveMessages(record.messages);
+        setActiveRecord(record);
+      }
       await refresh();
     },
-    [activeId, activeRecord, idFactory, nowFn, library, refresh, projectId]
+    [idFactory, nowFn, library, refresh, projectId]
   );
   const deleteConversation = useCallback(
     async (id) => {
@@ -452,6 +520,7 @@ function useConversationLibrary(library, options = {}) {
     pinConversation: guardedPin,
     archiveConversation: guardedArchive,
     persist,
+    claimActive,
     refresh,
     reloadActive,
     actionError,
@@ -557,6 +626,7 @@ export {
   EphemeralConversationLibrary,
   IndexedDBConversationLibrary,
   RemoteConversationLibrary,
+  mergeConversationRecords,
   migrateConversationLibrary,
   useCloudConversationLibrary,
   useConversationLibrary,

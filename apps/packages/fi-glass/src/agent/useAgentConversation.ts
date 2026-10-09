@@ -171,8 +171,17 @@ export interface UseAgentConversationOptions {
    * save (a 413 for an oversized record, a dead network, a 500) died as an
    * unhandled rejection — the user saw the thread on screen, believed it was
    * saved, and lost it on reload. Silence is the one thing persistence may never do.
+   *
+   * `conversationId` is the conversation the thread belongs to — the one the
+   * turn was SENT in, not whatever is active when the write happens.
    */
-  onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
+  onMessagesChange?: (messages: ChatMessage[], conversationId?: string) => void | Promise<void>;
+  /**
+   * Called when a turn is sent, with the conversation it was sent in — the
+   * signal a library needs to keep that conversation active across a store
+   * swap before its first save (og118 passes `lib.claimActive`).
+   */
+  onTurnStart?: (conversationId: string | undefined) => void;
   /**
    * Idle watchdog in ms: if the live turn's state does not change for this long
    * while streaming, the turn is declared failed (timeout). Measured since the
@@ -276,6 +285,7 @@ export function useAgentConversation(
     initialMessages,
     seedVersion,
     onMessagesChange,
+    onTurnStart,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError,
   } = options;
@@ -316,21 +326,23 @@ export function useAgentConversation(
   userAuthorRef.current = userAuthor;
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
+  const onTurnStartRef = useRef(onTurnStart);
+  onTurnStartRef.current = onTurnStart;
   const [persistError, setPersistError] = useState<PersistError | null>(null);
-  // The thread whose save failed, kept so retryPersist can re-attempt exactly it
-  // (not whatever the thread has become since).
-  const unsaved = useRef<ChatMessage[] | null>(null);
+  // The thread whose save failed and the conversation it belongs to, kept so
+  // retryPersist re-attempts exactly it (not whatever the thread has become since).
+  const unsaved = useRef<{ thread: ChatMessage[]; conversationId?: string } | null>(null);
 
   // The ONE place the persist hook is called. Awaits it and turns a rejection
   // into visible state — never a discarded promise (see `onMessagesChange`).
-  const runPersist = useCallback(async (thread: ChatMessage[]) => {
+  const runPersist = useCallback(async (thread: ChatMessage[], conversationId?: string) => {
     if (!onMessagesChangeRef.current) return;
     try {
-      await onMessagesChangeRef.current(thread);
+      await onMessagesChangeRef.current(thread, conversationId);
       unsaved.current = null;
       setPersistError(null);
     } catch (cause) {
-      unsaved.current = thread;
+      unsaved.current = { thread, conversationId };
       setPersistError({
         message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
         cause,
@@ -339,10 +351,10 @@ export function useAgentConversation(
   }, []);
 
   const retryPersist = useCallback(() => {
-    const thread = unsaved.current;
-    if (!thread) return;
+    const failed = unsaved.current;
+    if (!failed) return;
     setPersistError(null);
-    void runPersist(thread);
+    void runPersist(failed.thread, failed.conversationId);
   }, [runPersist]);
 
   const dismissPersistError = useCallback(() => setPersistError(null), []);
@@ -378,6 +390,11 @@ export function useAgentConversation(
   // so a voice turn produces exactly one user + one assistant capsule. The
   // settled turn's text resolves this; a failed/timed-out turn rejects it.
   const awaitResolver = useRef<{ resolve: (t: string) => void; reject: (e: unknown) => void } | null>(null);
+  const abandonAwaited = useCallback((reason: string) => {
+    const r = awaitResolver.current;
+    awaitResolver.current = null;
+    r?.reject(new Error(reason));
+  }, []);
 
   const send = useCallback(
     (text: string, images?: MessageImage[]) => {
@@ -393,6 +410,7 @@ export function useAgentConversation(
         author: userAuthorRef.current,
         controlled,
       });
+      onTurnStartRef.current?.(hydratedFor.current ?? undefined);
       // Hand the transport the confirmed thread (prior turns, NOT this message) so
       // a storeless backend can replay it for continuity. The transport that needs
       // it forwards it; one that doesn't ignores `meta`. messagesRef is the thread
@@ -412,11 +430,12 @@ export function useAgentConversation(
       if (!t) return Promise.resolve('');
       if (agent.isStreaming) return Promise.reject(new Error('a turn is already streaming'));
       return new Promise<string>((resolve, reject) => {
+        abandonAwaited('superseded by a newer turn');
         awaitResolver.current = { resolve, reject };
         send(t);
       });
     },
-    [agent.isStreaming, send],
+    [agent.isStreaming, send, abandonAwaited],
   );
 
   const stop = useCallback(() => {
@@ -495,7 +514,8 @@ export function useAgentConversation(
     // Controlled mode: the consumer owns the thread + persistence, so a
     // conversationId change never re-hydrates an internal array.
     if (controlledRef.current) return;
-    const switched = hydratedFor.current !== conversationId;
+    const origin = hydratedFor.current;
+    const switched = origin !== conversationId;
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
@@ -504,6 +524,18 @@ export function useAgentConversation(
       if (convoRef.current.pending) return;
       // The consumer's own persist echoes back as a bump; same thread, no work.
       if (sameThread(seed, convoRef.current.messages)) return;
+    }
+    if (convoRef.current.pending) {
+      // The turn belongs to the conversation it was sent in: stop it there and
+      // save what it has, never fold it into the one being opened.
+      const live = agentRef.current.turn;
+      const said = live.text !== '' || live.reactions.length > 0;
+      const thread = said
+        ? [...convoRef.current.messages, foldAssistantTurn(live, authorRef.current)]
+        : convoRef.current.messages;
+      agentRef.current.abort?.();
+      abandonAwaited('the conversation changed before the turn finished');
+      void runPersist(thread, origin ?? undefined);
     }
     dispatch({ type: 'hydrate', messages: seed });
     if (switched) agent.reset?.();
@@ -519,7 +551,7 @@ export function useAgentConversation(
       dispatch({ type: 'persist_skip_consumed' });
       return;
     }
-    void runPersist(messages);
+    void runPersist(messages, hydratedFor.current ?? undefined);
     // onMessagesChange is read via latest closure; depend only on messages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
@@ -527,9 +559,10 @@ export function useAgentConversation(
   const newConversation = useCallback(() => {
     // Controlled mode: the consumer owns the thread, so clearing the internal
     // array is a no-op for what's shown; still reset the live turn/session.
+    abandonAwaited('a new conversation was started');
     dispatch({ type: 'hydrate', messages: [] });
     agent.reset?.();
-  }, [agent, controlled]);
+  }, [agent, controlled, abandonAwaited]);
 
   return {
     messages: externalMessages ?? messages,

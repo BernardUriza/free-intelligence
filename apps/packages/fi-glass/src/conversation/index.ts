@@ -17,6 +17,7 @@ export {
   type RemoteConversationLibraryOptions,
 } from './RemoteConversationLibrary';
 export {
+  mergeConversationRecords,
   migrateConversationLibrary,
   type MigrateConversationsResult,
 } from './migrateConversationLibrary';
