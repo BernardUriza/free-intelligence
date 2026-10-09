@@ -57,6 +57,12 @@ export interface UseConversationLibraryOptions {
    * under whatever happens to be active right now.
    */
   projectId?: string;
+  /**
+   * The conversation the URL names, for a routed shell (`/c/<id>`). A string opens
+   * that conversation; `null` starts a fresh one. When set, the library never
+   * falls back to "the most recent" on its own — the address decides what is open.
+   */
+  initialActiveId?: string | null;
 }
 
 /** `load` = the store could not be read (mount, store swap, or its retry). */
@@ -137,10 +143,13 @@ export function useConversationLibrary(
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => new Date().toISOString());
   const { projectId } = options;
+  const routed = options.initialActiveId !== undefined;
 
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    routed ? options.initialActiveId ?? idFactory() : null,
+  );
   const [activeMessages, setActiveMessages] = useState<ChatMessage[]>([]);
   const [activeRecord, setActiveRecord] = useState<ConversationRecord | null>(null);
   const activeIdRef = useRef(activeId);
@@ -221,9 +230,15 @@ export function useConversationLibrary(
           if (previous?.id === current) await library.put(previous);
           return;
         }
-        if (list.length > 0) {
-          const record = await library.get(list[0].id);
-          if (isCurrent(current)) adopt(list[0].id, record ?? null);
+        if (routed) {
+          if (isCurrent(current) && current === null) adopt(idFactory(), null);
+          return;
+        }
+        // An archived chat is put away on purpose: it is never what opens by default.
+        const recent = list.find((summary) => !summary.archivedAt);
+        if (recent) {
+          const record = await library.get(recent.id);
+          if (isCurrent(current)) adopt(recent.id, record ?? null);
         } else if (isCurrent(current) && (current === null || previous !== null)) {
           adopt(idFactory(), null);
         }
