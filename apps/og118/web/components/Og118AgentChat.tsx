@@ -34,7 +34,12 @@ import {
   TurnErrorBanner,
 } from 'fi-glass/agent';
 import { ComposerActionSlot } from 'fi-glass/composer';
-import { useConversationLibrary, type ConversationAction } from 'fi-glass/conversation';
+import {
+  readConversationIdFromLocation,
+  useConversationLibrary,
+  useConversationUrl,
+  type ConversationAction,
+} from 'fi-glass/conversation';
 import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -114,8 +119,17 @@ export function Og118AgentChat() {
   // the rendered surface below.
   const proyectos = proyectosActivos();
   const projects = useOg118Projects(userId, tokenReady);
+  // The address decides which chat is open: `/c/<id>` that one, `/` a fresh one.
+  const [routedId] = useState(() => readConversationIdFromLocation());
   const lib = useConversationLibrary(conversationLibrary, {
     projectId: projects.activeProjectId ?? undefined,
+    initialActiveId: routedId,
+  });
+  useConversationUrl({
+    activeId: lib.activeId,
+    conversations: lib.conversations,
+    onNavigate: (id) =>
+      id ? void lib.switchConversation(id).catch(surfacedInBanner) : lib.newConversation(),
   });
   const elements = useOg118Elements(userId);
   const upload = useOg118ProjectUpload();
