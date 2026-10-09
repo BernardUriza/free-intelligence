@@ -20,19 +20,28 @@
 import { useEffect } from 'react';
 
 export const FI_MSG_ACTIONS_CLASS = 'fi-msg-actions';
+export const FI_MSG_FOOTER_CLASS = 'fi-msg-footer';
+export const FI_MSG_BADGE_CLASS = 'fi-msg-badge';
 
 const MESSAGE_ACTIONS_STYLE_ID = 'fi-msg-actions-style';
 
 const CSS = `
-.${FI_MSG_ACTIONS_CLASS} {
+.${FI_MSG_FOOTER_CLASS} {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
   margin-top: 0.25rem;
+}
+.${FI_MSG_BADGE_CLASS} {
+  min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
   .${FI_MSG_ACTIONS_CLASS} {
     opacity: 0;
     transition: opacity 0.15s ease;
   }
-  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  article:hover > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
   .${FI_MSG_ACTIONS_CLASS}:focus-within {
     opacity: 1;
   }
@@ -41,9 +50,12 @@ const CSS = `
   .${FI_MSG_ACTIONS_CLASS} {
     display: none;
   }
-  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
-  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
+  article[data-fi-last-message] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS} {
     display: block;
+  }
+  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})) {
+    display: none;
   }
 }
 `;

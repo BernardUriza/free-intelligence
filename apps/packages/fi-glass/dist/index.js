@@ -343,17 +343,26 @@ import { memo as memo3, useEffect as useEffect4, useRef as useRef2, useState as 
 // src/messages/messageActionsStyle.ts
 import { useEffect as useEffect3 } from "react";
 var FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+var FI_MSG_FOOTER_CLASS = "fi-msg-footer";
+var FI_MSG_BADGE_CLASS = "fi-msg-badge";
 var MESSAGE_ACTIONS_STYLE_ID = "fi-msg-actions-style";
 var CSS = `
-.${FI_MSG_ACTIONS_CLASS} {
+.${FI_MSG_FOOTER_CLASS} {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
   margin-top: 0.25rem;
+}
+.${FI_MSG_BADGE_CLASS} {
+  min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
   .${FI_MSG_ACTIONS_CLASS} {
     opacity: 0;
     transition: opacity 0.15s ease;
   }
-  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  article:hover > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
   .${FI_MSG_ACTIONS_CLASS}:focus-within {
     opacity: 1;
   }
@@ -362,9 +371,12 @@ var CSS = `
   .${FI_MSG_ACTIONS_CLASS} {
     display: none;
   }
-  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
-  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
+  article[data-fi-last-message] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS} {
     display: block;
+  }
+  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})) {
+    display: none;
   }
 }
 `;
@@ -433,8 +445,10 @@ var MessageBubble = memo3(function MessageBubble2({
         header && /* @__PURE__ */ jsx4("div", { className: "flex items-center gap-1.5 mb-0.5", children: header }),
         reasoning && /* @__PURE__ */ jsx4("div", { className: "mt-3 mb-3", children: reasoning }),
         children,
-        badge && /* @__PURE__ */ jsx4("div", { className: "mt-2", children: badge }),
-        actions != null && actions !== false && /* @__PURE__ */ jsx4("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
+        (badge || actions != null && actions !== false) && /* @__PURE__ */ jsxs3("div", { className: FI_MSG_FOOTER_CLASS, children: [
+          badge && /* @__PURE__ */ jsx4("div", { className: FI_MSG_BADGE_CLASS, children: badge }),
+          actions != null && actions !== false && /* @__PURE__ */ jsx4("div", { className: FI_MSG_ACTIONS_CLASS, children: actions })
+        ] })
       ]
     }
   );
@@ -8430,6 +8444,8 @@ export {
   FI_METER_LABEL_CLASS,
   FI_METER_TRACK_CLASS,
   FI_MSG_ACTIONS_CLASS,
+  FI_MSG_BADGE_CLASS,
+  FI_MSG_FOOTER_CLASS,
   FI_NOTE_CLASS,
   FI_NOTE_INLINE_CLASS,
   FI_PANEL_CLASS,
