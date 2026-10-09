@@ -211,4 +211,28 @@ declare function useConversationLibrary(library: ConversationLibrary, options?: 
 
 declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
 
-export { type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+type CloudSyncStatus = 'local' | 'connecting' | 'cloud' | 'unreachable';
+interface UseCloudConversationLibraryOptions {
+    local: ConversationLibrary;
+    remote: ConversationLibrary;
+    enabled: boolean;
+    scopeKey: string | null;
+    retryDelaysMs?: readonly number[];
+    slowAfterMs?: number;
+}
+interface CloudConversationLibraryState {
+    library: ConversationLibrary;
+    status: CloudSyncStatus;
+    slow: boolean;
+    retry: () => void;
+}
+/**
+ * Hands a shell its conversation store while the cloud one is reached: local until the
+ * local→cloud migration settles, then remote; an unreachable server retries with backoff.
+ *
+ * @returns `status` tells the UI the truth about where writes land right now; `slow` flips
+ * when connecting outlasts `slowAfterMs` (a scale-to-zero cold start); `retry` reconnects now.
+ */
+declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
+
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };

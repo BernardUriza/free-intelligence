@@ -429,11 +429,82 @@ function useIndexedDBConversationLibrary(identityKey, options = {}) {
     [identityKey, storeName]
   );
 }
+
+// src/conversation/useCloudConversationLibrary.ts
+import { useCallback as useCallback2, useEffect as useEffect2, useState as useState2 } from "react";
+var DEFAULT_RETRY_DELAYS_MS = [5e3, 15e3, 3e4, 6e4];
+var DEFAULT_SLOW_AFTER_MS = 4e3;
+function useCloudConversationLibrary({
+  local,
+  remote,
+  enabled,
+  scopeKey,
+  retryDelaysMs = DEFAULT_RETRY_DELAYS_MS,
+  slowAfterMs = DEFAULT_SLOW_AFTER_MS
+}) {
+  const [settledFor, setSettledFor] = useState2(null);
+  const [failedFor, setFailedFor] = useState2(null);
+  const [attempt, setAttempt] = useState2(0);
+  const [slow, setSlow] = useState2(false);
+  const active = enabled && scopeKey !== null;
+  const settled = active && settledFor === scopeKey;
+  const failed = active && !settled && failedFor === scopeKey;
+  useEffect2(() => {
+    if (!active || settled) return;
+    let cancelled = false;
+    setSlow(false);
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setSlow(true);
+    }, slowAfterMs);
+    void (async () => {
+      try {
+        await migrateConversationLibrary(local, remote);
+        await migrateConversationLibrary(local, remote);
+        if (cancelled) return;
+        setFailedFor(null);
+        setSettledFor(scopeKey);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("fi-glass: cloud conversation store unreachable, staying local", error);
+        setFailedFor(scopeKey);
+      } finally {
+        clearTimeout(slowTimer);
+        if (!cancelled) setSlow(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      clearTimeout(slowTimer);
+    };
+  }, [active, settled, scopeKey, local, remote, attempt, slowAfterMs]);
+  const [failures, setFailures] = useState2(0);
+  useEffect2(() => {
+    if (!failed) return;
+    const delay = retryDelaysMs[Math.min(failures, retryDelaysMs.length - 1)];
+    const timer = setTimeout(() => {
+      setFailures((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [failed, failures, retryDelaysMs]);
+  useEffect2(() => {
+    if (settled) setFailures(0);
+  }, [settled]);
+  const retry = useCallback2(() => {
+    setFailedFor(null);
+    setFailures(0);
+    setAttempt((n) => n + 1);
+  }, []);
+  if (!active) return { library: local, status: "local", slow: false, retry };
+  if (settled) return { library: remote, status: "cloud", slow: false, retry };
+  return { library: local, status: failed ? "unreachable" : "connecting", slow, retry };
+}
 export {
   EphemeralConversationLibrary,
   IndexedDBConversationLibrary,
   RemoteConversationLibrary,
   migrateConversationLibrary,
+  useCloudConversationLibrary,
   useConversationLibrary,
   useIndexedDBConversationLibrary
 };

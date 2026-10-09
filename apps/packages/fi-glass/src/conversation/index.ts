@@ -26,3 +26,9 @@ export {
   type ConversationLibraryState,
 } from './useConversationLibrary';
 export { useIndexedDBConversationLibrary } from './useIndexedDBConversationLibrary';
+export {
+  useCloudConversationLibrary,
+  type CloudSyncStatus,
+  type CloudConversationLibraryState,
+  type UseCloudConversationLibraryOptions,
+} from './useCloudConversationLibrary';
