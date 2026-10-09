@@ -135,23 +135,34 @@ declare class RemoteConversationLibrary implements ConversationLibrary {
 }
 
 /**
- * migrateConversationLibrary — one-time local→cloud transcript migration.
+ * migrateConversationLibrary — local→cloud transcript migration.
  *
  * When a shell flips from a local library (IndexedDB) to a remote one (the
  * account signed in and the cloud store is now authoritative), the transcripts
- * that already live in the browser must not be stranded. This copies every
- * source record the target does not already have — target wins on id collision
- * (the cloud copy may be newer, written from another device), and the source is
- * left intact (never destructive: the local data remains a fallback until the
- * user clears it). Idempotent: a second run finds nothing to copy.
+ * that already live in the browser must not be stranded. A record the target
+ * lacks is copied. A record BOTH have is merged when the source was written
+ * after the target: the shell writes locally while the cloud store is still
+ * connecting, so skipping the collision lost exactly those turns. The merge is
+ * a union of messages (target metadata wins); nothing is ever removed, and the
+ * source is left intact. Idempotent: a second run finds nothing to write.
  */
 
 interface MigrateConversationsResult {
     /** How many records were copied into the target. */
     migrated: number;
-    /** How many source records were skipped because the target already had them. */
+    /** How many existing target records gained messages only the source had. */
+    merged: number;
+    /** How many source records needed no write (the target already had everything). */
     skipped: number;
 }
+/**
+ * Union of two copies of the same conversation: every message of `target`,
+ * plus the ones only `source` has, ordered by timestamp (stable for ties).
+ * `target` keeps its title, flags and project.
+ *
+ * @returns `target` itself (same reference) when `source` adds nothing.
+ */
+declare function mergeConversationRecords(target: ConversationRecord, source: ConversationRecord): ConversationRecord;
 declare function migrateConversationLibrary(source: ConversationLibrary, target: ConversationLibrary): Promise<MigrateConversationsResult>;
 
 interface UseConversationLibraryOptions {
@@ -169,7 +180,8 @@ interface UseConversationLibraryOptions {
      */
     projectId?: string;
 }
-type ConversationAction = 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
+/** `load` = the store could not be read (mount, store swap, or its retry). */
+type ConversationAction = 'load' | 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
 interface ConversationActionError {
     action: ConversationAction;
     conversationId: string;
@@ -202,8 +214,19 @@ interface ConversationLibraryState {
     /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
      * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
     archiveConversation: (id: string, archived: boolean) => Promise<void>;
-    /** Persist the active conversation's messages (no-op for an empty thread). */
-    persist: (messages: ChatMessage[]) => Promise<void>;
+    /**
+     * Persist a conversation's messages (no-op for an empty thread). `conversationId`
+     * is the conversation the thread BELONGS to (default: the active one); a write
+     * that lands after the user moved elsewhere saves that conversation and leaves
+     * the active one alone.
+     */
+    persist: (messages: ChatMessage[], conversationId?: string | null) => Promise<void>;
+    /**
+     * Mark a conversation (default: the active one) as holding the user's work —
+     * a turn was sent in it. A store swap then keeps it active even before its
+     * first save, instead of moving the user to the new store's most recent.
+     */
+    claimActive: (conversationId?: string | null) => void;
     /** Re-read the summary list from storage. */
     refresh: () => Promise<void>;
     /**
@@ -247,4 +270,4 @@ interface CloudConversationLibraryState {
  */
 declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
 
-export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, mergeConversationRecords, migrateConversationLibrary, useCloudConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };

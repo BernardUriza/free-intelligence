@@ -229,8 +229,17 @@ interface UseAgentConversationOptions {
      * save (a 413 for an oversized record, a dead network, a 500) died as an
      * unhandled rejection — the user saw the thread on screen, believed it was
      * saved, and lost it on reload. Silence is the one thing persistence may never do.
+     *
+     * `conversationId` is the conversation the thread belongs to — the one the
+     * turn was SENT in, not whatever is active when the write happens.
      */
-    onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
+    onMessagesChange?: (messages: ChatMessage[], conversationId?: string) => void | Promise<void>;
+    /**
+     * Called when a turn is sent, with the conversation it was sent in — the
+     * signal a library needs to keep that conversation active across a store
+     * swap before its first save (og118 passes `lib.claimActive`).
+     */
+    onTurnStart?: (conversationId: string | undefined) => void;
     /**
      * Idle watchdog in ms: if the live turn's state does not change for this long
      * while streaming, the turn is declared failed (timeout). Measured since the
