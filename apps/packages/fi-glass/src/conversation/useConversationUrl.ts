@@ -47,6 +47,7 @@ export function useConversationUrl({
   const onNavigateRef = useRef(onNavigate);
   onNavigateRef.current = onNavigate;
   const shownId = useRef<string | null | undefined>(undefined);
+  const shownForActive = useRef<string | null>(null);
 
   const saved = activeId !== null && conversations.some((c) => c.id === activeId);
   const target = saved ? activeId : null;
@@ -55,12 +56,15 @@ export function useConversationUrl({
     if (typeof window === 'undefined') return;
     const here = readConversationIdFromPath(window.location.pathname, prefix);
     const previous = shownId.current;
+    const previousActive = shownForActive.current;
     shownId.current = target;
+    shownForActive.current = activeId;
     if (here === target) return;
     if (target === null && here !== null && previous === undefined) return;
     const path = target === null ? rootPath : `${prefix}${encodeURIComponent(target)}`;
-    const sameChat = previous === null && activeId !== null && target === activeId;
-    if (previous === undefined || sameChat) window.history.replaceState(window.history.state, '', path);
+    // Replace only when the SAME chat just got its first save; opening another one is navigation.
+    const firstSave = previous === null && previousActive === activeId;
+    if (previous === undefined || firstSave) window.history.replaceState(window.history.state, '', path);
     else window.history.pushState(window.history.state, '', path);
   }, [target, activeId, prefix, rootPath]);
 

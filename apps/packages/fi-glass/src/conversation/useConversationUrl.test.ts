@@ -36,6 +36,15 @@ describe('useConversationUrl', () => {
     expect(window.history.length).toBe(length);
   });
 
+  it('from a fresh chat at /, opening a saved chat pushes history so Back returns to /', () => {
+    const { rerender } = mount({ activeId: 'fresh', conversations: [chat('a')] });
+    expect(window.location.pathname).toBe('/');
+    const length = window.history.length;
+    rerender({ activeId: 'a', conversations: [chat('a')] });
+    expect(window.location.pathname).toBe('/c/a');
+    expect(window.history.length).toBe(length + 1);
+  });
+
   it('pushes history when switching chats and goes back to / for a new one', () => {
     const { rerender } = mount({ activeId: 'a', conversations: [chat('a'), chat('b')] });
     expect(window.location.pathname).toBe('/c/a');
