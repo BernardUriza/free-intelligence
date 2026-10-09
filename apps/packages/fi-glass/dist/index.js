@@ -8277,140 +8277,6 @@ function WorkspaceBreadcrumb({
     }
   );
 }
-
-// src/surface/surfaceStyle.ts
-import { useEffect as useEffect31 } from "react";
-var FI_PANEL_CLASS = "fi-panel";
-var FI_PANEL_TITLE_CLASS = "fi-panel-title";
-var FI_NOTE_CLASS = "fi-note";
-var FI_LITERAL_CLASS = "fi-literal";
-var FI_DATA_TABLE_CLASS = "fi-data-table";
-var FI_LITERAL_INLINE_CLASS = "fi-literal-inline";
-var FI_NOTE_INLINE_CLASS = "fi-note-inline";
-var SURFACE_STYLE_ID = "fi-surface-style";
-var CSS8 = `
-.${FI_PANEL_CLASS} {
-  background: var(--glass-chat-surface, ${glassTokens.surface});
-  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
-  border-radius: var(--glass-chat-radius, ${glassTokens.radius});
-  padding: 1rem 1.5rem;
-  margin-block-end: 1rem;
-  box-shadow: var(--glass-chat-shadow, ${glassTokens.shadow});
-}
-.${FI_PANEL_TITLE_CLASS} {
-  margin: 0 0 0.5rem;
-  font-size: ${glassTokens.itemMetaSize};
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--glass-chat-accent-text, ${glassTokens.accentText});
-}
-/* Actions inside a panel breathe on their own; outside one, the form layer
-   already spaces them. Scoped here so the form layer stays panel-agnostic. */
-.${FI_PANEL_CLASS} .fi-form-actions {
-  margin-block-start: 1rem;
-}
-.${FI_NOTE_CLASS} {
-  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
-  font-size: ${glassTokens.itemSubtitleSize};
-}
-/* Server-rendered text shown VERBATIM \u2014 a privacy preview, a streamed draft.
-   pre-wrap because the whole point is that nothing gets reflowed away. */
-.${FI_LITERAL_CLASS} {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 13px;
-  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
-  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
-  border-radius: 10px;
-  padding: 0.75rem;
-  white-space: pre-wrap;
-}
-/* The inline twins: a verbatim fragment quoted MID-SENTENCE (a cited phrase
-   from a source document) and a muted aside that must not break the line.
-   Block Literal/Note render <pre>/<p>; these render <span>, because a block
-   element inside a paragraph is invalid HTML and React will say so. */
-.${FI_LITERAL_INLINE_CLASS} {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 0.92em;
-  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
-  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
-  border-radius: 6px;
-  padding: 0 0.3rem;
-  white-space: pre-wrap;
-}
-.${FI_NOTE_INLINE_CLASS} {
-  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
-  font-size: ${glassTokens.itemSubtitleSize};
-}
-.${FI_DATA_TABLE_CLASS} {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: ${glassTokens.itemSubtitleSize};
-}
-.${FI_DATA_TABLE_CLASS} th,
-.${FI_DATA_TABLE_CLASS} td {
-  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
-  padding: 6px 8px;
-  text-align: left;
-}
-.${FI_DATA_TABLE_CLASS} th {
-  background: var(--glass-chat-bubble-assistant, ${glassTokens.bubbleAssistant});
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
-}
-`;
-function ensureSurfaceStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(SURFACE_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = SURFACE_STYLE_ID;
-  el.textContent = CSS8;
-  document.head.appendChild(el);
-}
-function useSurfaceStyle() {
-  useEffect31(() => {
-    ensureSurfaceStyle();
-  }, []);
-}
-
-// src/surface/Surface.tsx
-import { jsx as jsx57, jsxs as jsxs45 } from "react/jsx-runtime";
-function join(base, extra) {
-  return extra ? `${base} ${extra}` : base;
-}
-function Panel({ children, title, className }) {
-  useSurfaceStyle();
-  return /* @__PURE__ */ jsxs45("section", { className: join(FI_PANEL_CLASS, className), children: [
-    title ? /* @__PURE__ */ jsx57("h2", { className: FI_PANEL_TITLE_CLASS, children: title }) : null,
-    children
-  ] });
-}
-function Note({ children, inline = false, className }) {
-  useSurfaceStyle();
-  if (inline) {
-    return /* @__PURE__ */ jsx57("span", { className: join(FI_NOTE_INLINE_CLASS, className), children });
-  }
-  return /* @__PURE__ */ jsx57("p", { className: join(FI_NOTE_CLASS, className), children });
-}
-function Literal({ children, live = false, inline = false, className }) {
-  useSurfaceStyle();
-  if (inline) {
-    return /* @__PURE__ */ jsx57("span", { className: join(FI_LITERAL_INLINE_CLASS, className), children });
-  }
-  return /* @__PURE__ */ jsx57("pre", { className: join(FI_LITERAL_CLASS, className), "aria-live": live ? "polite" : void 0, children });
-}
-function DataTable({ head, rows, rowHeader = false, className }) {
-  useSurfaceStyle();
-  if (!rows.length) return null;
-  return /* @__PURE__ */ jsxs45("table", { className: join(FI_DATA_TABLE_CLASS, className), children: [
-    head ? /* @__PURE__ */ jsx57("thead", { children: /* @__PURE__ */ jsx57("tr", { children: head.map((celda, i) => /* @__PURE__ */ jsx57("th", { children: celda }, i)) }) }) : null,
-    /* @__PURE__ */ jsx57("tbody", { children: rows.map((fila) => /* @__PURE__ */ jsx57("tr", { children: fila.cells.map(
-      (celda, i) => rowHeader && i === 0 ? /* @__PURE__ */ jsx57("th", { scope: "row", children: celda }, i) : /* @__PURE__ */ jsx57("td", { children: celda }, i)
-    ) }, fila.key)) })
-  ] });
-}
 export {
   AUDIO_QUEUE_DEFAULTS,
   ActionMenu,
@@ -8443,7 +8309,6 @@ export {
   DEFAULT_MAX_IMAGES,
   DEFAULT_TURN_TIMEOUT_MS,
   DEFAULT_VAD_CONFIG,
-  DataTable,
   DestructiveActionSlot,
   DocCard,
   DocCardGrid,
@@ -8458,7 +8323,6 @@ export {
   FI_COMPOSER_ACTION_CLASS,
   FI_COMPOSER_ACTION_LABEL_CLASS,
   FI_COMPOSER_ACTION_VARIANT_CLASS,
-  FI_DATA_TABLE_CLASS,
   FI_DETAIL_CLASS,
   FI_DETAIL_MAIN_CLASS,
   FI_DETAIL_RAIL_CLASS,
@@ -8483,8 +8347,6 @@ export {
   FI_LIST_ROW_CLASS,
   FI_LIST_ROW_META_CLASS,
   FI_LIST_ROW_TITLE_CLASS,
-  FI_LITERAL_CLASS,
-  FI_LITERAL_INLINE_CLASS,
   FI_METER_CLASS,
   FI_METER_FILL_CLASS,
   FI_METER_LABEL_CLASS,
@@ -8492,10 +8354,6 @@ export {
   FI_MSG_ACTIONS_CLASS,
   FI_MSG_BADGE_CLASS,
   FI_MSG_FOOTER_CLASS,
-  FI_NOTE_CLASS,
-  FI_NOTE_INLINE_CLASS,
-  FI_PANEL_CLASS,
-  FI_PANEL_TITLE_CLASS,
   FI_RAIL_PANEL_CLASS,
   FI_RAIL_PANEL_HEAD_CLASS,
   FI_RAIL_PANEL_TITLE_CLASS,
@@ -8511,7 +8369,6 @@ export {
   FI_SIDEBAR_SECTION_CLASS,
   FI_TOUCH_TARGET_CLASS,
   ItemActionSlot,
-  Literal,
   MessageAuthorHeader,
   MessageBubble,
   MessageContent,
@@ -8519,8 +8376,6 @@ export {
   MessageList,
   MessageModelBadge,
   MessageReactions,
-  Note,
-  Panel,
   PersonaSelector,
   PlanChecklist,
   PulseRings,
@@ -8568,7 +8423,6 @@ export {
   ensureResourceStyle,
   ensureSidebarItemStyle,
   ensureSidebarSectionStyle,
-  ensureSurfaceStyle,
   ensureTouchTargetStyle,
   filterByQuery,
   formatArtifactDuration,
@@ -8616,7 +8470,6 @@ export {
   useResourceStyle,
   useSidebarItemStyle,
   useSidebarSectionStyle,
-  useSurfaceStyle,
   useTouchTargetStyle,
   useVoice,
   withComposerAction,

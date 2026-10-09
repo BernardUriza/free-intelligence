@@ -55,18 +55,6 @@
     "./resource": {
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
-    },
-    "./surface": {
-      "types": "./dist/surface/index.d.ts",
-      "import": "./dist/surface/index.js"
-    },
-    "./form": {
-      "types": "./dist/form/index.d.ts",
-      "import": "./dist/form/index.js"
-    },
-    "./feedback": {
-      "types": "./dist/feedback/index.d.ts",
-      "import": "./dist/feedback/index.js"
     }
   },
   "files": [
