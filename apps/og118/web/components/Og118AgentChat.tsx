@@ -80,6 +80,7 @@ function resonanceVisualizerActive(state: string): boolean {
 }
 
 const ACTION_ERROR_COPY: Record<ConversationAction, string> = {
+  load: 'No se pudieron cargar tus chats. Revisa tu conexión.',
   switch: 'No se pudo abrir el chat. Revisa tu conexión.',
   delete: 'No se pudo borrar el chat. Revisa tu conexión.',
   rename: 'No se pudo renombrar el chat. Revisa tu conexión.',
@@ -130,6 +131,7 @@ export function Og118AgentChat() {
     // re-seeds from lib.activeMessages instead of waiting for a reload.
     seedVersion: lib.activeRecord?.updatedAt,
     onMessagesChange: lib.persist,
+    onTurnStart: lib.claimActive,
     // 401 is og118's own error class — the token-gate banner (needsAuth) handles
     // it, and a blind retry would just 401 again. Claim it so the framework's
     // generic recoverable banner does not double up. Everything else (timeouts,

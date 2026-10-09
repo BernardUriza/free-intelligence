@@ -283,6 +283,7 @@ export function useOg118Agent(
   // NOT touch it — nulling it here would break the active thread's continuity.
   // Used by the conversation layer's hydration and the auth banner's dismiss.
   const reset = useCallback(() => {
+    abortRef.current?.abort();
     setTurn(initialAgentTurnState());
   }, []);
 
