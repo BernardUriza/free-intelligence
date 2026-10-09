@@ -19,7 +19,6 @@ commands/colored-coagent.md
 commands/commands-menu.md
 commands/consolas.md
 commands/continue-fresh.md
-commands/copy-to-cdb.md
 commands/cruel-critic.md
 commands/css-to-tailwind.md
 commands/cut.md
@@ -35,6 +34,7 @@ commands/purge-github.md
 commands/refresh-memory.md
 commands/rename-transcript.md
 commands/resume-context.md
+commands/save-context.md
 commands/schizo-modernizer.md
 commands/submissive-modularizer.md
 commands/susurramelo.md
@@ -43,10 +43,13 @@ commands/ultra-lord.md
 commands/ux-polish.md
 commands/validate-claims.md
 commands/work.md
+skills/arbor/
 skills/coagent/
 skills/devto-publish/
 skills/exchange-coagent/
+skills/gemini/
 skills/histerical-search/
+skills/legal/
 skills/new-consumer/
 skills/register-rule/
 constitution.capabilities.json
