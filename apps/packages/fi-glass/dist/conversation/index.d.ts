@@ -279,7 +279,7 @@ interface ConversationArchiveDialogProps {
 declare const FI_ARCHIVE_DIALOG_CLASS = "fi-archive-dialog";
 /** Inject the idempotent archive-dialog stylesheet (no-op on the server / if already present). */
 declare function ensureArchiveDialogStyle(): void;
-declare function ConversationArchiveDialog({ open, conversations, onArchive, onClose, renderMeta, labels: labelOverrides, }: ConversationArchiveDialogProps): react.JSX.Element;
+declare function ConversationArchiveDialog({ open, conversations: given, onArchive, onClose, renderMeta, labels: labelOverrides, }: ConversationArchiveDialogProps): react.JSX.Element;
 
 type CloudSyncStatus = 'local' | 'connecting' | 'cloud' | 'unreachable';
 interface UseCloudConversationLibraryOptions {

@@ -38,13 +38,13 @@ describe('<ConversationArchiveDialog>', () => {
   });
 
   it('selects all, archives the selection and closes on full success', async () => {
-    const onArchive = vi.fn(async () => []);
+    const onArchive = vi.fn(async (_ids: string[]): Promise<string[]> => []);
     const onClose = vi.fn();
     render(<ConversationArchiveDialog open conversations={chats} onArchive={onArchive} onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: 'Seleccionar todos' }));
     fireEvent.click(screen.getByRole('button', { name: 'Archivar 3 chats' }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(onArchive).toHaveBeenCalledWith(['a', 'b', 'fijado']);
+    expect([...onArchive.mock.calls[0][0]].sort()).toEqual(['a', 'b', 'fijado']);
   });
 
   it('on a partial failure stays open with only the failed chats selected', async () => {
@@ -68,5 +68,13 @@ describe('<ConversationArchiveDialog>', () => {
     fireEvent(document.querySelector('dialog')!, new Event('cancel', { cancelable: true }));
     expect(onClose).toHaveBeenCalled();
     expect(onArchive).not.toHaveBeenCalled();
+  });
+
+  it('lists pinned chats first, like the sidebar, whatever order it was given', () => {
+    const LATER = '2026-10-09T13:00:00.000Z';
+    const given = [{ ...chat('viejo'), updatedAt: NOW }, chat('fijado', NOW), { ...chat('nuevo'), updatedAt: LATER }];
+    render(<ConversationArchiveDialog open conversations={given} onArchive={vi.fn()} onClose={vi.fn()} />);
+    const titles = [...document.querySelectorAll('.fi-archive-dialog-row-title')].map((el) => el.textContent);
+    expect(titles).toEqual(['Chat fijado', 'Chat nuevo', 'Chat viejo']);
   });
 });
