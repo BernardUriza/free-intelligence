@@ -1,6 +1,6 @@
 # FIGLASS-PACKAGING-1 — subpaths sin consumidor, el contrato de Tailwind sin declarar, tests que no fallan
 
-Status: **Proposed**
+Status: **In progress** — #1 Done 2026-10-09 (Bernard eligió borrar: `form`/`feedback`/`surface` fuera de src, dist, exports y tsup; 1,479 líneas; recuperables desde `ac499410`). #2–#6 abiertos
 Proposed: 2026-10-09 by Claude (hallazgos IMPORTANT del /cruel-critic, [[figlass-review-2026-10-09]])
 
 ## What it is
@@ -25,4 +25,4 @@ Proposed: 2026-10-09 by Claude (hallazgos IMPORTANT del /cruel-critic, [[figlass
 
 ## Status / next step
 
-#2, #3 y #4 sin empezar y sin decisión pendiente. #1 espera a Bernard.
+#1 hecho: grep previo sin consumidores (monorepo, python-bot, masterdomgdl, activist-os; el único import raíz era `ActionMenu` en aurity); después del borrado el grep de referencias vivas da cero, fi-glass 633/633, og118 128/128, og118-web y fenix-web compilan, y los 20 errores de `tsc` de aurity son los de dominio que ya existían (ninguno toca fi-glass). #2, #3 y #4 sin empezar y sin decisión pendiente.

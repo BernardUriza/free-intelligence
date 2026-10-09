@@ -43,7 +43,6 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [FIGLASS-PACKAGING-1 — subpaths sin consumidor, contrato de Tailwind sin declarar, tests que no fallan](figlass-packaging-dead-subpaths.md) | **Proposed** — `form`/`feedback`/`surface` (~945 LOC) con cero consumidores: **borrar o retomar lo decide Bernard**. El resto no espera decisión | 2026-10-09 |
 | [FIGLASS-CASCADE-LAYOUT-1 — cascada, breakpoint 768 y primer paint](figlass-cascade-layout-residuals.md) | **Proposed** — la familia del bug del padding: `glass-chat.css` le gana al padding compacto de og118, las tarjetas de Proyectos salen centradas en touch, iPad a 768 sale mitad y mitad, 13 hojas inyectadas después del primer paint | 2026-10-09 |
 | [FIGLASS-STATE-RESIDUALS-1 — lo que #526 no cerró](figlass-state-residuals.md) | **Proposed** — un append del servidor que el persist pisa durante un turno, el timeout que borra el texto, fugas del mic y de object URLs | 2026-10-09 |
 | [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Proposed** — Retry, "Ver más", selector de elemento, items de menú; rail-toggle 18×18 en composer angosto; drawer sin manejo de foco ni safe-area de abajo | 2026-10-09 |
@@ -53,6 +52,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [FIGLASS-PACKAGING-1 — subpaths sin consumidor, contrato de Tailwind sin declarar, tests que no fallan](figlass-packaging-dead-subpaths.md) | **In progress** — #1 Done 2026-10-09: Bernard eligió borrar `form`/`feedback`/`surface` (1,479 líneas, grep de referencias vivas en cero, recuperables desde `ac499410`). Siguen el contrato de Tailwind, las devDeps de test y los tests que no pueden fallar | 2026-10-09 |
 | [OG118-IOS-1 — cliente nativo de iPhone (SwiftUI)](og118-ios-tracer.md) | **In progress** (re-verificado EN VIVO 2026-09-09) — build + install + launch + login en pantalla, corridos hoy. Falta la vuelta de chat real; el átomo es la contraseña de Auth0. Ojo: la Mac no tiene dispositivos de simulador creados, hay que crear uno | 2026-08-12 |
 
 ## Entregadas
