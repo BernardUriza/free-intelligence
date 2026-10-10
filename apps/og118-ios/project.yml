@@ -16,6 +16,8 @@ targets:
     sources:
       - Sources
       - Resources/Assets.xcassets
+      - path: Resources/Sounds
+        buildPhase: resources
     configFiles:
       Debug: Config.xcconfig
       Release: Config.xcconfig
