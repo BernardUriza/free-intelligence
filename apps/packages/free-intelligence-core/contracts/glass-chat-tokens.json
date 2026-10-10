@@ -246,6 +246,26 @@
       "hex": "#ffffff",
       "alpha": 0.18,
       "description": "white/18. El borde de la tarjeta de arranque (Og118StartScreen)."
+    },
+    "resonanceBorder": {
+      "hex": "#34d399",
+      "alpha": 0.35,
+      "description": "El borde esmeralda del botón Llamar (.og-resonance-call-btn en globals.css de og118)."
+    },
+    "resonanceActiveFill": {
+      "hex": "#dc2626",
+      "alpha": 0.28,
+      "description": "El relleno rojo del botón en llamada, «Colgar» (.og-resonance-call-btn-active)."
+    },
+    "resonanceActiveBorder": {
+      "hex": "#f87171",
+      "alpha": 0.5,
+      "description": "El borde de .og-resonance-call-btn-active; su texto es stopText (#fee2e2)."
+    },
+    "voiceBar": {
+      "hex": "#34d399",
+      "alpha": 0.45,
+      "description": "Cada barra del ecualizador de la llamada (.og-voice-bar-bar: esmeralda a 0.45)."
     }
   },
   "dimensions": {

@@ -717,6 +717,14 @@ var glassTokens = {
   modelBadgeBorder: "rgba(255, 255, 255, 0.1)",
   /** white/18. El borde de la tarjeta de arranque (Og118StartScreen). */
   startCardBorder: "rgba(255, 255, 255, 0.18)",
+  /** El borde esmeralda del botón Llamar (.og-resonance-call-btn en globals.css de og118). */
+  resonanceBorder: "rgba(52, 211, 153, 0.35)",
+  /** El relleno rojo del botón en llamada, «Colgar» (.og-resonance-call-btn-active). */
+  resonanceActiveFill: "rgba(220, 38, 38, 0.28)",
+  /** El borde de .og-resonance-call-btn-active; su texto es stopText (#fee2e2). */
+  resonanceActiveBorder: "rgba(248, 113, 113, 0.5)",
+  /** Cada barra del ecualizador de la llamada (.og-voice-bar-bar: esmeralda a 0.45). */
+  voiceBar: "rgba(52, 211, 153, 0.45)",
   /** --glass-chat-radius (rounded-2xl): la esquina del composer y las superficies grandes. */
   radius: "16px",
   /** La esquina de la fila del sidebar (sidebarItemStyle.ts). */
