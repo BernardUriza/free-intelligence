@@ -80,6 +80,18 @@ simulador. Falta: un turno con foto contra el servidor vivo (requiere login).
 
 ## Resonance en iPhone — 2026-10-10
 
+**Revisión del hilo principal (mismo día), antes de mergear:** al tocar Llamar en
+el simulador la app se CONGELABA. `sample` mostró el hilo principal atorado en
+`AVAudioSession.setActive` (el `ResonanceCallModel` es `@MainActor`, así que el
+`Task` que abre el micrófono corría ahí). El dictado y la lectura tenían la misma
+llamada en el mismo hilo. Arreglo de raíz: `ColaDeAudio` — toda activación de
+sesión y `engine.start` en una cola serial, con límite de 8 s que falla con
+nombre («El audio del teléfono no respondió…») y cuelga. Los errores de voz
+pasaron al aviso sobre el composer: dentro del hilo, la tarjeta de inicio los
+tapaba y la falla era muda. El TTS ahora pide `voice: "nova"` como la web.
+El HAL del simulador de esta Mac no responde a `setActive`; la vuelta de audio
+real sólo se puede probar en el iPhone.
+
 Puerto 1:1 del modo llamada de la web. Lo que se construyó:
 
 | Pieza iOS | Puerto de (web) |
