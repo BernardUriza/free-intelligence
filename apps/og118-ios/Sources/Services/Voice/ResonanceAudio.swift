@@ -27,11 +27,9 @@ final class ResonanceMicrophone {
     func abrir() async throws {
         if abierto { return }
         guard await pedirPermiso() else { throw VoiceError.sinPermiso }
-        let sesion = AVAudioSession.sharedInstance()
-        try sesion.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetoothHFP])
-        try sesion.setActive(true)
+        try await ColaDeAudio.activar(.playAndRecord, modo: .voiceChat, opciones: [.defaultToSpeaker, .allowBluetoothHFP])
         let entrada = motor.inputNode
-        try entrada.setVoiceProcessingEnabled(true)
+        try await ColaDeAudio.ejecutar(limite: ColaDeAudio.limiteDeActivacion) { try entrada.setVoiceProcessingEnabled(true) }
         let formato = entrada.outputFormat(forBus: 0)
         entrada.installTap(onBus: 0, bufferSize: 1024, format: formato) { [weak self] buffer, _ in
             guard let canal = buffer.floatChannelData?[0] else { return }
@@ -39,8 +37,11 @@ final class ResonanceMicrophone {
             let copia = Self.mono(buffer)
             Task { @MainActor in self?.recibir(muestras, copia: copia) }
         }
-        motor.prepare()
-        try motor.start()
+        let motor = self.motor
+        try await ColaDeAudio.ejecutar(limite: ColaDeAudio.limiteDeActivacion) {
+            motor.prepare()
+            try motor.start()
+        }
         abierto = true
     }
 
@@ -54,7 +55,7 @@ final class ResonanceMicrophone {
         bandas = []
         analizador.reset()
         ventana = []
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ColaDeAudio.desactivar()
     }
 
     func empezarSegmento() throws {

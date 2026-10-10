@@ -84,8 +84,11 @@ struct ContentView: View {
                 .id(chat.conversationID)
                 .animation(aparicion, value: chat.conversationID)
                 .animation(aparicion, value: chat.messages.isEmpty)
+                if let error = voz.errorMessage {
+                    aviso(error) { voz.errorMessage = nil }.transition(.opacity)
+                }
                 if let error = adjuntos.error {
-                    avisoDeAdjunto(error).transition(.opacity)
+                    aviso(error) { adjuntos.error = nil }.transition(.opacity)
                 }
                 composer
             }
@@ -137,15 +140,15 @@ struct ContentView: View {
         }
     }
 
-    /// El rechazo de una imagen reusa el banner de error de voz de la web:
-    /// mensaje y ✕ para descartarlo, sin tapar el composer.
-    private func avisoDeAdjunto(_ texto: String) -> some View {
+    /// `Og118VoiceErrorBanner`: voz y adjuntos avisan sobre el composer, visible
+    /// aunque el hilo esté vacío — dentro del hilo, la tarjeta de inicio lo tapaba.
+    private func aviso(_ texto: String, descartar: @escaping () -> Void) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(texto)
                 .font(.footnote)
                 .foregroundStyle(Theme.danger)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button { adjuntos.error = nil } label: {
+            Button(action: descartar) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.textMuted)

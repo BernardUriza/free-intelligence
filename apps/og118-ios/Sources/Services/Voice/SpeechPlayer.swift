@@ -10,10 +10,9 @@ final class SpeechPlayer: NSObject, ObservableObject {
 
     private var player: AVAudioPlayer?
 
-    func reproducir(_ audio: Data, id: String) throws {
+    func reproducir(_ audio: Data, id: String) async throws {
         detener()
-        try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-        try AVAudioSession.sharedInstance().setActive(true)
+        try await ColaDeAudio.activar(.playback, modo: .spokenAudio)
         let reproductor = try AVAudioPlayer(data: audio)
         reproductor.delegate = self
         reproductor.play()

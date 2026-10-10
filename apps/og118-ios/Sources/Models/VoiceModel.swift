@@ -69,7 +69,7 @@ final class VoiceModel: ObservableObject {
             defer { sintetizando = nil }
             do {
                 let (audio, _) = try await servicio.synthesize(text: texto)
-                try reproductor.reproducir(audio, id: id)
+                try await reproductor.reproducir(audio, id: id)
             } catch {
                 errorMessage = error.localizedDescription
             }
