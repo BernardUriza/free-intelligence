@@ -8,6 +8,7 @@ struct ContentView: View {
     @StateObject private var conversations: ConversationsModel
     @StateObject private var catalog: CatalogModel
     @StateObject private var voz: VoiceModel
+    @StateObject private var llamada: ResonanceCallModel
     @ObservedObject var diagnostico: TurnDiagnostics
     @State private var draft = ""
     @StateObject private var adjuntos = AdjuntosModel()
@@ -22,11 +23,12 @@ struct ContentView: View {
         reduceMotion ? nil : .easeOut(duration: 0.3)
     }
 
-    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, diagnostico: TurnDiagnostics) {
+    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, llamada: ResonanceCallModel, diagnostico: TurnDiagnostics) {
         _chat = StateObject(wrappedValue: chat)
         _conversations = StateObject(wrappedValue: conversations)
         _catalog = StateObject(wrappedValue: catalog)
         _voz = StateObject(wrappedValue: voz)
+        _llamada = StateObject(wrappedValue: llamada)
         self.diagnostico = diagnostico
     }
 
@@ -187,7 +189,8 @@ struct ContentView: View {
             onDictar: { voz.alternarDictado { texto in
                 draft = draft.isEmpty ? texto : draft + " " + texto
             } },
-            onOpenContext: { showingContext = true }
+            onOpenContext: { showingContext = true },
+            llamada: llamada
         )
     }
 }
