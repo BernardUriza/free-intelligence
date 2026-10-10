@@ -130,6 +130,9 @@ sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 
 ## Lo que falta para la primera corrida
 
+**2026-10-10: ya corre en el iPhone 15 físico** (Apple ID gratis, perfil de 7
+días). Comandos y el átomo de "Confiar" en `.claude/backlog/og118-ios-tracer.md`.
+
 Xcode 26.6 está instalado (vía `xcodes`, sin la App Store) y el proyecto
 **compila, arranca y pinta el login en el simulador** — verificado el
 2026-08-23. Lo que falta es la vuelta completa del tracer bullet, y se presume

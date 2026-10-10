@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (re-verificado EN VIVO 2026-09-09) — compila, instala, arranca y pinta el login en un simulador recién creado. Sigue faltando la vuelta completa del tracer; el átomo es la contraseña de Auth0
+Status: **In progress** (EN VIVO 2026-10-10) — ya está INSTALADA EN EL iPHONE 15 físico, firmada con el Apple ID gratis. El launch lo niega iOS hasta que Bernard confíe en el desarrollador en el teléfono; luego el átomo es la contraseña de Auth0
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -57,6 +57,34 @@ nada: Xcode se instaló con `xcodes`, sin la Store.
 Si la app pasa de tracer bullet a algo que se usa, hay que decidir la cuenta de
 Apple Developer ($99/año): sin ella la app recaduca cada 7 días en el teléfono.
 No bloquea nada para empezar.
+
+## En el teléfono físico — 2026-10-10
+
+El teléfono ya no es "paso posterior": el iPhone 15 (`iPhone15,4`, CoreDevice id
+`C71FE5EA-605B-57B9-BD3B-E385BE80E568`) está **pareado** y la Mac tiene identidad
+`Apple Development: bernarduriza@icloud.com`, equipo `7L36T9PTFN` (cuenta GRATIS).
+`project.yml` ya declara ese equipo, así que no hay flags a mano:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer
+cd apps/og118-ios && xcodegen generate
+xcodebuild -project OG118.xcodeproj -scheme OG118 -configuration Debug \
+  -destination "id=C71FE5EA-605B-57B9-BD3B-E385BE80E568" \
+  -derivedDataPath /tmp/og118-dd -allowProvisioningUpdates build
+xcrun devicectl device install app --device C71FE5EA-605B-57B9-BD3B-E385BE80E568 \
+  /tmp/og118-dd/Build/Products/Debug-iphoneos/og118.app
+xcrun devicectl device process launch --device C71FE5EA-605B-57B9-BD3B-E385BE80E568 com.bernard.og118
+```
+
+Corrido hoy: **BUILD SUCCEEDED** → install OK → launch **negado** por iOS
+(`profile has not been explicitly trusted by the user`). Eso es el átomo de la
+primera vez, no un bug: en el teléfono, Ajustes → General → VPN y gestión de
+dispositivos → `Apple Development: bernarduriza@icloud.com` → Confiar.
+
+**El perfil gratis caduca a los 7 días** (éste: creado 2026-10-10, vence
+2026-10-17 13:32). Al caducar la app deja de abrir; se reinstala corriendo los
+tres comandos de arriba. Los $99 lo suben a un año — sigue siendo decisión de
+Bernard.
 
 ## Verificación en vivo — 2026-09-09
 
