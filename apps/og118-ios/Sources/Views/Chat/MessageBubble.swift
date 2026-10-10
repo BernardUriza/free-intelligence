@@ -9,7 +9,7 @@ struct MarkdownText: View {
     let raw: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(Array(bloques.enumerated()), id: \.offset) { _, bloque in
                 render(bloque)
             }
@@ -77,8 +77,9 @@ struct MarkdownText: View {
 
     private func parrafo(_ texto: String) -> some View {
         Text(enLinea(texto))
-            .font(.body)
-            .foregroundStyle(Theme.textBody)
+            .font(.system(size: 16))
+            .lineSpacing(5)
+            .foregroundStyle(Theme.textAssistant)
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
             .tint(Theme.accent)
@@ -267,96 +268,138 @@ struct AuthorHeader: View {
     }
 }
 
+/// La píldora `MessageModelBadge` de fi-glass: «Powered by» y el modelo que de
+/// verdad contestó, en el acento.
+struct ModelBadge: View {
+    let model: String
+
+    var body: some View {
+        (Text("Powered by ").foregroundStyle(Theme.textMuted)
+            + Text(model).foregroundStyle(Theme.accent))
+            .font(.system(size: 11))
+            .lineLimit(1)
+            .padding(.vertical, 2)
+            .padding(.horizontal, 8)
+            .background(Theme.modelBadgeFill, in: Capsule())
+            .overlay(Capsule().stroke(Theme.modelBadgeBorder, lineWidth: 1))
+            .accessibilityLabel("Generado por \(model)")
+    }
+}
+
+/// Burbuja de ancho completo y radio uniforme, como la web en móvil: og118 es
+/// una IA, no un mensajero — el rol se lee por el tinte, no por el lado.
 struct MessageBubble: View {
     let role: ChatMessage.Role
     let text: String
     let author: String?
     var timestamp: String?
-    var leyendo: Bool = false
-    var sintetizando: Bool = false
+    var model: String?
+    var mostrarAcciones = false
+    var leyendo = false
+    var sintetizando = false
     var onLeer: (() -> Void)?
+    var onTocar: (() -> Void)?
+
+    @State private var copiado = false
 
     private var esUsuario: Bool { role == .user }
 
-    /// Geometría de `glass-chat-bubble-*`: 16 pt de radio con la esquina
-    /// inferior del lado del hablante cortada a 4.
-    private var forma: UnevenRoundedRectangle {
-        UnevenRoundedRectangle(
-            topLeadingRadius: 16,
-            bottomLeadingRadius: esUsuario ? 16 : 4,
-            bottomTrailingRadius: esUsuario ? 4 : 16,
-            topTrailingRadius: 16
-        )
-    }
-
-    /// Escuchar la respuesta. Segundo toque detiene; mientras sintetiza el
-    /// servidor, el control queda ocupado en vez de aceptar otra petición.
-    private func botonLeer(_ accion: @escaping () -> Void) -> some View {
-        Button(action: accion) {
-            HStack(spacing: 5) {
-                if sintetizando {
-                    ProgressView().scaleEffect(0.6).tint(Theme.textFaint)
-                } else {
-                    Image(systemName: leyendo ? "stop.fill" : "speaker.wave.2")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                Text(leyendo ? "Detener" : "Escuchar").font(.caption2)
-            }
-            .foregroundStyle(leyendo ? Theme.accent : Theme.textFaint)
-            .frame(minHeight: 28)
-        }
-        .disabled(sintetizando)
-        .padding(.top, 2)
+    private var forma: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Theme.bubbleRadiusCompact)
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if esUsuario { Spacer(minLength: 48) }
-            VStack(alignment: .leading, spacing: 7) {
-                AuthorHeader(
-                    esUsuario: esUsuario,
-                    nombre: esUsuario ? "Tú" : (author ?? "og118"),
-                    timestamp: timestamp
-                )
-                if esUsuario {
-                    Text(text)
-                        .font(.body)
-                        .foregroundStyle(Theme.text)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    MarkdownText(raw: text)
-                        .accessibilityIdentifier("respuesta")
-                    if let onLeer {
-                        botonLeer(onLeer)
-                    }
-                }
-            }
-            .padding(.vertical, 11)
-            .padding(.horizontal, 14)
-            .background(esUsuario ? Theme.bubbleUser : Theme.bubbleAssistant)
-            .clipShape(forma)
-            .overlay(
-                forma.stroke(
-                    esUsuario ? Theme.bubbleUserBorder : Theme.bubbleBorder,
-                    lineWidth: 1
-                )
+        VStack(alignment: .leading, spacing: 4) {
+            AuthorHeader(
+                esUsuario: esUsuario,
+                nombre: esUsuario ? "Tú" : (author ?? "og118"),
+                timestamp: timestamp
             )
-            .contextMenu {
-                Button {
-                    UIPasteboard.general.string = text
-                } label: {
-                    Label("Copiar", systemImage: "doc.on.doc")
+            if esUsuario {
+                Text(text)
+                    .font(.system(size: 16))
+                    .lineSpacing(5)
+                    .foregroundStyle(Theme.textBody)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                MarkdownText(raw: text)
+                    .accessibilityIdentifier("respuesta")
+                pie
+            }
+        }
+        .padding(.vertical, Theme.bubblePadV)
+        .padding(.horizontal, Theme.bubblePadH)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(esUsuario ? Theme.bubbleUser : Theme.bubbleAssistant, in: forma)
+        .overlay(forma.stroke(esUsuario ? Theme.bubbleUserBorder : Theme.bubbleBorder, lineWidth: 1))
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 4)
+        .contentShape(forma)
+        .onTapGesture { onTocar?() }
+        .contextMenu {
+            Button(action: copiar) {
+                Label("Copiar", systemImage: "doc.on.doc")
+            }
+            if let onLeer {
+                Button(action: onLeer) {
+                    Label(leyendo ? "Detener" : "Escuchar", systemImage: leyendo ? "stop.fill" : "speaker.wave.2")
                 }
-                if let onLeer {
-                    Button(action: onLeer) {
-                        Label(leyendo ? "Detener" : "Escuchar", systemImage: leyendo ? "stop.fill" : "speaker.wave.2")
+            }
+        }
+    }
+
+    /// `fi-msg-footer`: la píldora del modelo siempre; copiar y escuchar sólo en
+    /// el último mensaje o en el que se tocó, como `messageActionsStyle` en touch.
+    @ViewBuilder
+    private var pie: some View {
+        if model != nil || mostrarAcciones {
+            HStack(spacing: 8) {
+                if let model { ModelBadge(model: model) }
+                if mostrarAcciones {
+                    accion(copiado ? "checkmark" : "doc.on.doc", etiqueta: "Copiar mensaje", accion: copiar)
+                    if let onLeer {
+                        Button(action: onLeer) {
+                            Group {
+                                if sintetizando {
+                                    ProgressView().scaleEffect(0.6).tint(Theme.textFaint)
+                                } else {
+                                    Image(systemName: leyendo ? "stop.fill" : "speaker.wave.2")
+                                        .font(.system(size: 14))
+                                }
+                            }
+                            .foregroundStyle(leyendo ? Theme.accent : Theme.textMuted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                        }
+                        .disabled(sintetizando)
+                        .accessibilityLabel(leyendo ? "Detener lectura" : "Escuchar mensaje")
                     }
                 }
             }
-            if !esUsuario { Spacer(minLength: 24) }
+            .frame(minHeight: 26)
+            .padding(.top, 6)
+            .transition(.opacity)
         }
-        .frame(maxWidth: .infinity, alignment: esUsuario ? .trailing : .leading)
+    }
+
+    private func accion(_ icono: String, etiqueta: String, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Image(systemName: icono)
+                .font(.system(size: 14))
+                .foregroundStyle(copiado ? Theme.accent : Theme.textMuted)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(etiqueta)
+    }
+
+    private func copiar() {
+        UIPasteboard.general.string = text
+        copiado = true
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            copiado = false
+        }
     }
 }
 

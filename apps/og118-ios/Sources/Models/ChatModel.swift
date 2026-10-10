@@ -5,6 +5,7 @@ final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: ChatMessage.Autor?
+    private var liveModel: String?
     @Published private(set) var plan = TurnPlan()
     /// El texto del turno que se puede volver a intentar. Existe porque un turno
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
@@ -115,6 +116,7 @@ final class ChatModel: ObservableObject {
         messages = []
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
         errorMessage = nil
         // Sin esto, un turno fallido en el chat A dejaba su texto en
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
@@ -133,6 +135,7 @@ final class ChatModel: ObservableObject {
         messages = []
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
         errorMessage = nil
         // Sin esto, un turno fallido en el chat A dejaba su texto en
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
@@ -171,6 +174,7 @@ final class ChatModel: ObservableObject {
     private func lanzarTurno(_ texto: String, history: [ChatMessage]) {
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
         plan = TurnPlan()
         herramientas = []
         errorMessage = nil
@@ -205,6 +209,7 @@ final class ChatModel: ObservableObject {
         isStreaming = false
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
     }
 
     private func apply(_ event: StreamEvent) {
@@ -215,8 +220,9 @@ final class ChatModel: ObservableObject {
             liveText += delta
         case .author(let id, let name):
             liveAuthor = ChatMessage.Autor(id: id, nombre: name)
-        case .result(let text, _):
+        case .result(let text, let model):
             if !text.isEmpty { liveText = text }
+            if let model, !model.isEmpty { liveModel = model }
         case .failure(let message):
             errorMessage = message
         case .plan(let etiquetas):
@@ -268,12 +274,14 @@ final class ChatModel: ObservableObject {
                     role: .assistant,
                     content: liveText,
                     author: liveAuthor,
-                    timestamp: now()
+                    timestamp: now(),
+                    model: liveModel
                 )
             )
         }
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
         save()
     }
 

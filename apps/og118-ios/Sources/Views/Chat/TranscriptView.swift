@@ -10,21 +10,32 @@ struct TranscriptView: View {
     let aparicion: Animation?
 
     @State private var alFondo = true
+    @State private var tocado: UUID?
+
+    private var ultimoAsistente: UUID? {
+        chat.messages.last(where: { $0.role == .assistant })?.id
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(chat.messages) { message in
                         MessageBubble(
                             role: message.role,
                             text: message.content,
                             author: message.author?.nombre,
                             timestamp: message.timestamp,
+                            model: message.model,
+                            mostrarAcciones: !chat.isStreaming
+                                && (message.id == ultimoAsistente || message.id == tocado),
                             leyendo: voz.reproductor.hablando == message.id.uuidString,
                             sintetizando: voz.sintetizando == message.id.uuidString,
                             onLeer: message.role == .assistant
                                 ? { voz.alternarLectura(de: message.content, id: message.id.uuidString) }
+                                : nil,
+                            onTocar: message.role == .assistant
+                                ? { withAnimation(aparicion) { tocado = tocado == message.id ? nil : message.id } }
                                 : nil
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -87,7 +98,7 @@ struct TranscriptView: View {
                     centinelaDeFondo
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, 14)
+                .padding(.top, 60)
                 .animation(aparicion, value: chat.messages.count)
                 .animation(aparicion, value: chat.isStreaming)
             }
@@ -95,12 +106,11 @@ struct TranscriptView: View {
             // forma continua. Reemplaza el truco de GeometryReader+PreferenceKey,
             // que no dispara en el primer layout y no ve los content insets.
             .onScrollGeometryChange(for: Bool.self) { geo in
-                let fin = geo.contentOffset.y + geo.containerSize.height
-                let total = geo.contentSize.height + geo.contentInsets.bottom
-                return fin >= total - 40
+                geo.visibleRect.maxY >= geo.contentSize.height - 40
             } action: { _, estaAlFondo in
                 if estaAlFondo != alFondo { alFondo = estaAlFondo }
             }
+            .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .overlay(alignment: .bottom) {
                 if !alFondo {
