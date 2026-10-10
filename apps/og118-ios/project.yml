@@ -22,6 +22,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118
+        DEVELOPMENT_TEAM: 7L36T9PTFN
+        CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: og118
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
