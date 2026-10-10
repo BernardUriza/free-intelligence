@@ -38,6 +38,7 @@ targets:
       properties:
         OG118Auth0ClientID: $(OG118_AUTH0_CLIENT_ID)
         NSMicrophoneUsageDescription: og118 usa el micrófono para dictarle tus mensajes.
+        NSCameraUsageDescription: og118 usa la cámara para que le mandes una foto en el chat.
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:

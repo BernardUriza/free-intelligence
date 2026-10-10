@@ -294,6 +294,7 @@ struct MessageBubble: View {
     let author: String?
     var timestamp: String?
     var model: String?
+    var imagenes: [MessageImage] = []
     var mostrarAcciones = false
     var leyendo = false
     var sintetizando = false
@@ -315,13 +316,19 @@ struct MessageBubble: View {
                 nombre: esUsuario ? "Tú" : (author ?? "og118"),
                 timestamp: timestamp
             )
+            if !imagenes.isEmpty {
+                ImagenesDelMensaje(imagenes: imagenes)
+                    .padding(.vertical, 4)
+            }
             if esUsuario {
+                if !text.isEmpty {
                 Text(text)
                     .font(.system(size: 16))
                     .lineSpacing(5)
                     .foregroundStyle(Theme.textBody)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                }
             } else {
                 MarkdownText(raw: text)
                     .accessibilityIdentifier("respuesta")

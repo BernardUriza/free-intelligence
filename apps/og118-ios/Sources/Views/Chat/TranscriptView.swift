@@ -27,6 +27,7 @@ struct TranscriptView: View {
                             author: message.author?.nombre,
                             timestamp: message.timestamp,
                             model: message.model,
+                            imagenes: message.images,
                             mostrarAcciones: !chat.isStreaming
                                 && (message.id == ultimoAsistente || message.id == tocado),
                             leyendo: voz.reproductor.hablando == message.id.uuidString,

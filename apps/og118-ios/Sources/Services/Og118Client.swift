@@ -20,19 +20,32 @@ enum Og118Error: LocalizedError {
     }
 }
 
-private struct ChatRequest: Encodable {
+struct ChatRequest: Encodable {
     let message: String
     let sessionID: String
     let history: [ChatMessage]
     let corpusID: String?
     let element: String?
+    let images: [ImagenDelTurno]?
 
     enum CodingKeys: String, CodingKey {
         case message
         case history
         case element
+        case images
         case sessionID = "session_id"
         case corpusID = "corpus_id"
+    }
+}
+
+/// El `ChatImage` del servidor: en el cable es `media_type`, no el `mediaType` del record.
+struct ImagenDelTurno: Encodable {
+    let mediaType: String
+    let data: String
+
+    enum CodingKeys: String, CodingKey {
+        case data
+        case mediaType = "media_type"
     }
 }
 
@@ -70,7 +83,8 @@ struct Og118Client {
         sessionID: String,
         history: [ChatMessage],
         corpusID: String?,
-        element: String?
+        element: String?,
+        images: [MessageImage] = []
     ) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -96,7 +110,10 @@ struct Og118Client {
                             sessionID: sessionID,
                             history: history,
                             corpusID: corpusID,
-                            element: element
+                            element: element,
+                            images: images.isEmpty
+                                ? nil
+                                : images.map { ImagenDelTurno(mediaType: $0.mediaType, data: $0.data) }
                         )
                     )
 
