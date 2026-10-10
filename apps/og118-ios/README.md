@@ -150,9 +150,9 @@ completo. El simulador no necesita cuenta de desarrollador ni firma.
 sin barra de encabezado, burbujas de ancho completo con radio 14, píldora
 «Powered by» desde `trace.model`, composer de una fila con el riel detrás del
 toggle, y el drawer lateral con «+ Nuevo chat» y «Salir · correo». Toda medida
-nueva entró al contrato de tokens, no a Swift a mano. Lo que la web tiene y el
-iPhone todavía no: adjuntar archivos y la llamada por voz (Resonance), por eso
-el riel no muestra esos botones.
+nueva entró al contrato de tokens, no a Swift a mano. El riel es «+ · selector ·
+llamar» como la web: adjuntar imágenes y la llamada por voz (Resonance, puerto
+1:1 de fi-glass en `ResonanceCall.swift`; ver `.claude/backlog/og118-ios-tracer.md`).
 
 | Archivo | Responsabilidad |
 |---|---|
