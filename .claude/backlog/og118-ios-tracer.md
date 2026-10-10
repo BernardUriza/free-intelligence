@@ -58,6 +58,14 @@ Si la app pasa de tracer bullet a algo que se usa, hay que decidir la cuenta de
 Apple Developer ($99/año): sin ella la app recaduca cada 7 días en el teléfono.
 No bloquea nada para empezar.
 
+## La UI calca la web — 2026-10-10
+
+Por orden de Bernard ("que sea el mismo UI de web"): medido en vivo con
+`getComputedStyle` sobre app.og118.ai a 390px y comparado contra screenshots del
+simulador. Lo que falta para paridad completa son FUNCIONES, no estilo: adjuntar
+(el «+» del riel) y la llamada Resonance. El "Powered by" exigió arreglar un
+camino de datos: el teléfono no escribía `trace.model` en sus turnos.
+
 ## En el teléfono físico — 2026-10-10
 
 El teléfono ya no es "paso posterior": el iPhone 15 (`iPhone15,4`, CoreDevice id

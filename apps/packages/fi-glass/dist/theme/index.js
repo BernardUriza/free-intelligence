@@ -12,7 +12,7 @@ var glassTheme = {
 
 // src/theme/glass-tokens.generated.ts
 var glassTokens = {
-  /** slate-950. --glass-chat-body y --glass-chat-bg-from del preset. OJO: og118 web re-tinta --glass-chat-bg-from a #0a0e16 (--og-bg-deep en globals.css); el iPhone hoy pinta el default del preset, no el re-tint — divergencia heredada, documentada, no resuelta aquí. */
+  /** slate-950. --glass-chat-body y --glass-chat-bg-from del preset; og118 lo re-tiñe en consumers.og118 y el iPhone ya compone esa capa. */
   bgDeep: "#020617",
   /** slate-900. --glass-chat-bg-mid, el centro del barrido diagonal del fondo. */
   bgMid: "#0f172a",
@@ -30,7 +30,7 @@ var glassTokens = {
   danger: "#f87171",
   /** --glass-chat-text, el texto primario sobre el vidrio. */
   text: "#ffffff",
-  /** slate-200. El color de body en og118 y content.user en messages/styles.ts. La web pinta al asistente un paso más claro (slate-100, text-slate-100); el iPhone usa este mismo para ambos lados — matiz heredado. */
+  /** slate-200. El color de body en og118 y content.user en messages/styles.ts; el asistente usa textAssistant, un paso más claro, en la web y en el iPhone. */
   textBody: "#e2e8f0",
   /** slate-400. --glass-chat-text-muted: placeholders y subtítulos. */
   textMuted: "#94a3b8",
@@ -106,6 +106,18 @@ var glassTokens = {
   stopBorder: "rgba(248, 113, 113, 0.6)",
   /** red-100. Texto de .og-stop-btn. */
   stopText: "#fee2e2",
+  /** slate-100. content.assistant en messages/styles.ts: el cuerpo del asistente va un paso más claro que el del usuario. */
+  textAssistant: "#f1f5f9",
+  /** El relleno del botón flotante que abre el drawer (.fi-aws-toggle en AgentWorkspaceShell.tsx). */
+  menuButtonFill: "rgba(10, 14, 22, 0.55)",
+  /** El borde de .fi-aws-toggle. */
+  menuButtonBorder: "rgba(255, 255, 255, 0.14)",
+  /** slate-900/50. El relleno de la píldora «Powered by» (MessageModelBadge.tsx). */
+  modelBadgeFill: "rgba(15, 23, 42, 0.5)",
+  /** white/10. El borde de MessageModelBadge. */
+  modelBadgeBorder: "rgba(255, 255, 255, 0.1)",
+  /** white/18. El borde de la tarjeta de arranque (Og118StartScreen). */
+  startCardBorder: "rgba(255, 255, 255, 0.18)",
   /** --glass-chat-radius (rounded-2xl): la esquina del composer y las superficies grandes. */
   radius: "16px",
   /** La esquina de la fila del sidebar (sidebarItemStyle.ts). */
@@ -122,9 +134,19 @@ var glassTokens = {
   itemSubtitleSize: "0.75rem",
   /** Tipografía de la hora/meta de la fila. */
   itemMetaSize: "0.68rem",
+  /** El radio de las burbujas en móvil (glass-chat.css, max-width 768px): ancho completo, sin cola. */
+  bubbleRadiusCompact: "14px",
+  /** Padding vertical de la burbuja en móvil (max-md:py-2.5 en messages/styles.ts). */
+  bubblePadV: "10px",
+  /** Padding horizontal de la burbuja en móvil (max-md:px-3.5). */
+  bubblePadH: "14px",
+  /** La esquina de .fi-aws-toggle y del botón de enviar (.og-send-btn). */
+  menuButtonRadius: "10px",
+  /** El ancho del drawer de conversaciones en móvil (useEdgeSwipe.ts). */
+  drawerWidth: "280px",
   /** --glass-chat-shadow (≈ shadow-2xl). Sólo la web: en SwiftUI la elevación se compone distinto. */
   shadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-  /** --glass-chat-watermark-opacity. Sólo la web: el watermark es del shell web. */
+  /** --glass-chat-watermark-opacity. La marca de agua de og118 detrás del hilo: la web y el iPhone la pintan con la misma opacidad. */
   watermarkOpacity: "0.08"
 };
 

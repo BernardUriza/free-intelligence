@@ -23,6 +23,9 @@ struct ChatMessage: Identifiable, Encodable {
 
     var author: Autor?
     var timestamp: String?
+    /// El modelo que produjo la respuesta: alimenta la píldora «Powered by» y
+    /// viaja en `trace.model`, igual que lo persiste la web.
+    var model: String?
 
     enum CodingKeys: String, CodingKey {
         case role

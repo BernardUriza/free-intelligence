@@ -1,58 +1,49 @@
 import SwiftUI
 
-/// La tarjeta de arranque de la web (`Og118StartScreen`): casilla del
-/// oganesón, wordmark, y el mismo copy sobre vidrio.
+/// `Og118StartScreen` de la web: la casilla del oganesón, el wordmark y el copy
+/// en español, arriba del hilo y no centrada — así cae en app.og118.ai.
 struct StartCard: View {
     var body: some View {
-        VStack {
-            Spacer()
-            VStack(spacing: 14) {
-                VStack(spacing: 2) {
-                    Text("118")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Theme.textMuted)
-                    Text("Og")
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(Theme.accent)
-                    Text("Oganesson")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.textMuted)
-                }
-                .frame(width: 88, height: 88)
-                .background(Color.white.opacity(0.04))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Theme.accent.opacity(0.35), lineWidth: 1)
-                )
-                .shadow(color: Theme.accent.opacity(0.15), radius: 16, y: 8)
-
-                Wordmark(size: 30)
-
-                Text("Og · 118 · Oganesson — synthetic, the heaviest known, the end of the table.")
-                    .font(.footnote)
+        ScrollView {
+            VStack(spacing: 0) {
+                Image("OgTile")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 156)
+                    .accessibilityLabel("Oganesón, elemento 118")
+                Wordmark(size: 26, weight: .regular)
+                    .tracking(-0.5)
+                    .padding(.top, 16)
+                Text("Og · 118 · Oganesón: sintético, el más pesado que se conoce, el final de la tabla.")
+                    .font(.system(size: 14))
                     .foregroundStyle(Theme.textMuted)
-                    .multilineTextAlignment(.center)
-
-                Text("A personal thinking companion on the Free Intelligence substrate. Glass-box by design — you see the reasoning, not just the answer.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.authorName)
-                    .multilineTextAlignment(.center)
                     .lineSpacing(3)
+                    .padding(.top, 4)
+                Text("Un compañero para pensar, sobre el sustrato de Free Intelligence. Caja de cristal por diseño: ves el razonamiento, no sólo la respuesta.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.authorName)
+                    .lineSpacing(6)
+                    .padding(.top, 16)
+                Text("Escribe abajo o dicta con el micrófono.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.textMuted)
+                    .lineSpacing(3)
+                    .padding(.top, 24)
             }
-            .padding(.vertical, 34)
-            .padding(.horizontal, 26)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 24)
+            .padding(.horizontal, 18)
             .frame(maxWidth: .infinity)
-            .background(Theme.bgMid.opacity(0.55))
-            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .background(Theme.bgMid.opacity(0.55), in: RoundedRectangle(cornerRadius: Theme.radius))
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Theme.radius)
+                    .stroke(Theme.startCardBorder, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.45), radius: 30, y: 20)
-            .padding(.horizontal, 20)
-            Spacer()
+            .padding(.horizontal, 12)
+            .padding(.top, 60)
         }
-        .frame(maxWidth: .infinity)
+        .scrollBounceBehavior(.basedOnSize)
     }
 }

@@ -173,6 +173,40 @@ private func persisteAlCerrarElTurno() async {
 }
 
 @MainActor
+private func elModeloViajaDeIdaYVuelta() async {
+    print("el modelo que contestó se escribe en trace.model y se lee de vuelta")
+    var guardados: [ConversationRecord] = []
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.text("hola"), .result(text: "hola", model: "claude-sonnet-4-5"), .done]),
+        persist: { guardados.append($0) },
+        restore: { _ in nil },
+        now: { "2026-10-10T21:00:00Z" }
+    )
+    model.send("pregunta")
+    await settle()
+
+    expect(model.messages.last?.model == "claude-sonnet-4-5", "la burbuja sabe qué modelo la escribió")
+    guard let r = guardados.last else { return expect(false, "se guardó el turno") }
+    expect(r.messages.last?.trace?.model == "claude-sonnet-4-5", "y viaja en trace.model, donde la web lo lee")
+    expect(r.messages.first?.trace == nil, "el mensaje del usuario no inventa trace")
+    let releido = try? JSONDecoder().decode(ConversationRecord.self, from: JSONEncoder().encode(r))
+    expect(releido?.chatMessages.last?.model == "claude-sonnet-4-5", "y al reabrir el hilo vuelve a la burbuja")
+}
+
+@MainActor
+private func elCorreoSaleDelIdToken() {
+    print("el pie del drawer lee el correo del id_token")
+    let payload = Data(#"{"email":"bernard@ejemplo.mx","sub":"auth0|1"}"#.utf8)
+        .base64EncodedString()
+        .replacingOccurrences(of: "=", with: "")
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+    expect(Auth.correo(deIdToken: "cabeza.\(payload).firma") == "bernard@ejemplo.mx", "base64url sin relleno se decodifica")
+    expect(Auth.correo(deIdToken: "no-es-jwt") == nil, "un token mal formado no truena, devuelve nil")
+}
+
+@MainActor
 private func restauraElHiloAlArrancar() async {
     print("al arrancar recupera el hilo del servidor")
     let previo = ConversationRecord.from(
@@ -516,6 +550,8 @@ struct Harness {
         await elHistorialViajaSinElTurnoNuevo()
         derivacionesIgualesQueCore()
         await persisteAlCerrarElTurno()
+        await elModeloViajaDeIdaYVuelta()
+        elCorreoSaleDelIdToken()
         await restauraElHiloAlArrancar()
         await elIdDeConversacionEsElSessionID()
         await cambiarDeHiloNoMezclaMensajes()

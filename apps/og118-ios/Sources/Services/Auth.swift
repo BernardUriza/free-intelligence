@@ -51,11 +51,13 @@ struct TokenResponse: Decodable {
     let accessToken: String
     let refreshToken: String?
     let expiresIn: Int?
+    var idToken: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
+        case idToken = "id_token"
     }
 }
 
@@ -133,6 +135,10 @@ struct AuthDependencies {
 final class Auth: NSObject, ObservableObject {
     @Published private(set) var isSignedIn = false
     @Published private(set) var storageWarning: String?
+    /// El correo del id_token, para el «Salir · correo» del drawer. Se recuerda
+    /// entre lanzamientos para no pintar el pie vacío mientras viaja el refresh.
+    @Published private(set) var email: String? = UserDefaults.standard.string(forKey: Auth.emailKey)
+    private static let emailKey = "og118.email"
 
     private let deps: AuthDependencies
     private var accessToken: String?
@@ -194,6 +200,8 @@ final class Auth: NSObject, ObservableObject {
         refreshToken = nil
         expiresAt = nil
         deps.keychainDelete()
+        email = nil
+        UserDefaults.standard.removeObject(forKey: Self.emailKey)
         isSignedIn = false
     }
 
@@ -207,7 +215,26 @@ final class Auth: NSObject, ObservableObject {
                 : "No se pudo guardar la sesión en el Keychain: al reabrir la app habrá que iniciar sesión otra vez."
         }
         expiresAt = Date().addingTimeInterval(TimeInterval(decoded.expiresIn ?? 3600))
+        if let correo = decoded.idToken.flatMap(Self.correo(deIdToken:)) {
+            email = correo
+            UserDefaults.standard.set(correo, forKey: Self.emailKey)
+        }
         isSignedIn = true
+    }
+
+    /// Sin validar firma a propósito: el token llegó por TLS directo de Auth0 y
+    /// el correo sólo se pinta, no autoriza nada.
+    static func correo(deIdToken token: String) -> String? {
+        let partes = token.split(separator: ".")
+        guard partes.count >= 2 else { return nil }
+        var base64 = String(partes[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        guard let datos = Data(base64Encoded: base64),
+              let claims = try? JSONSerialization.jsonObject(with: datos) as? [String: Any]
+        else { return nil }
+        return claims["email"] as? String
     }
 
     private func authorize(clientID: String, verifier: String) async throws -> URL {

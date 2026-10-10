@@ -146,6 +146,14 @@ completo. El simulador no necesita cuenta de desarrollador ni firma.
 
 ## Anatomía
 
+**Paridad con la web móvil (2026-10-10):** la UI calca app.og118.ai a 390pt —
+sin barra de encabezado, burbujas de ancho completo con radio 14, píldora
+«Powered by» desde `trace.model`, composer de una fila con el riel detrás del
+toggle, y el drawer lateral con «+ Nuevo chat» y «Salir · correo». Toda medida
+nueva entró al contrato de tokens, no a Swift a mano. Lo que la web tiene y el
+iPhone todavía no: adjuntar archivos y la llamada por voz (Resonance), por eso
+el riel no muestra esos botones.
+
 | Archivo | Responsabilidad |
 |---|---|
 | `Config.swift` | hosts, audience, scheme del callback |
@@ -154,8 +162,10 @@ completo. El simulador no necesita cuenta de desarrollador ni firma.
 | `StreamEvent.swift` | frames nativos de fi-runner → eventos tipados |
 | `ChatModel.swift` | un turno vivo, el fold a transcript y la persistencia |
 | `ConversationRecord.swift` | el record de `/conversations` + las derivaciones de core |
-| `ContentView.swift` | login, transcript, composer y hoja de conversaciones |
-| `Theme.swift` | los tokens de og118 (`--og-bg-deep`, `--og-accent`) traducidos a SwiftUI |
+| `ContentView.swift` | login o conversación: botón flotante (sin barra), marca de agua, hilo, composer y el drawer |
+| `ConversationsDrawer.swift` | el sidebar de app.og118.ai como panel lateral de 280pt (swipe desde el borde para abrir) |
+| `ShellChrome.swift` | `MenuButton` (`.fi-aws-toggle`) y `Watermark` (`watermark-og118.svg`) |
+| `Theme.swift` | helpers y composición; los VALORES vienen de `Generated/Theme.generated.swift`, derivado del contrato `glass-chat-tokens.json` |
 
 El parser corta por línea en blanco y toma las líneas `data:`, igual que
 `useOg118Agent.ts`. El `session_id` lo manda el cliente y es estable por sesión

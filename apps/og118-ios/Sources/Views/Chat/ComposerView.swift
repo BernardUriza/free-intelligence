@@ -17,13 +17,11 @@ struct AtomicBadge: View {
     }
 }
 
-/// La caja frosted de la web (`ComposerFrame` + `.glass-chat-composer`):
-/// textarea arriba y el riel de controles abajo — chip de Elemento a la
-/// izquierda, enviar/detener a la derecha. El chip vive aquí y no en el
-/// header por paridad con COMPOSER-SWITCH-1: afecta el próximo turno, así
-/// que va junto al input.
+/// `ComposerFrame` compacto de la web: UNA fila (riel, texto, mic, enviar) y el
+/// riel `footer-start` detrás del toggle de disclosure, que abre una fila debajo.
 struct ComposerView: View {
     @FocusState private var tecladoActivo: Bool
+    @State private var rielAbierto = false
     @Binding var draft: String
     let isStreaming: Bool
     let elementoActivo: Element?
@@ -40,8 +38,8 @@ struct ComposerView: View {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming
     }
 
-    /// Al enviar, el teclado se baja: dejarlo arriba tapa media conversación
-    /// justo cuando llega la respuesta que el usuario quiere leer.
+    /// El teclado se baja al enviar: arriba tapa media conversación justo
+    /// cuando llega la respuesta que el usuario quiere leer.
     private func enviar() {
         guard puedeEnviar else { return }
         tecladoActivo = false
@@ -50,22 +48,25 @@ struct ComposerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            TextField("Pregúntale a og118…", text: $draft, axis: .vertical)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 6) {
+                toggleRiel
+                TextField(
+                    "",
+                    text: $draft,
+                    prompt: Text("Pregúntale a og118").foregroundStyle(Theme.textMuted),
+                    axis: .vertical
+                )
                 .accessibilityIdentifier("composer")
                 .focused($tecladoActivo)
                 .submitLabel(.send)
                 .onSubmit(enviar)
                 .lineLimit(1...6)
                 .textFieldStyle(.plain)
-                .font(.body)
+                .font(.system(size: 16))
                 .foregroundStyle(Theme.text)
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-            HStack(spacing: 8) {
-                chipElemento
-                Spacer(minLength: 8)
+                .padding(.vertical, 10)
+                .frame(minHeight: 44)
                 botonDictar
                 if isStreaming {
                     botonDetener
@@ -73,30 +74,49 @@ struct ComposerView: View {
                     botonEnviar
                 }
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 6)
-            .padding(.bottom, 5)
+            if rielAbierto {
+                riel.transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(4)
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.radius))
+        .background(.ultraThinMaterial.opacity(0.25), in: RoundedRectangle(cornerRadius: Theme.radius))
         .overlay(
-            RoundedRectangle(cornerRadius: 16).stroke(Theme.surfaceBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.radius).stroke(Theme.surfaceBorder, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.5), radius: 25, x: 0, y: 12)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
         .padding(.top, 6)
+        .animation(aparicion, value: rielAbierto)
     }
 
-    /// El folder marca que hay proyecto activo alimentando el turno.
-    private var chipElemento: some View {
+    private var toggleRiel: some View {
+        Button {
+            rielAbierto.toggle()
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(rielAbierto ? Theme.textBody : Theme.textFaint)
+                .frame(width: 44, height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(rielAbierto ? Color.white.opacity(0.06) : .clear)
+                )
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Más opciones")
+        .accessibilityValue(rielAbierto ? "abierto" : "cerrado")
+    }
+
+    /// El selector de Elemento vive en el riel: afecta el próximo turno, así
+    /// que va junto al input (COMPOSER-SWITCH-1).
+    private var riel: some View {
         Button(action: onOpenContext) {
-            HStack(spacing: 6) {
-                if let elemento = elementoActivo {
-                    AtomicBadge(elemento: elemento, activo: true)
-                }
+            HStack(spacing: 8) {
+                AtomicBadge(elemento: elementoActivo, activo: elementoActivo != nil)
                 Text(elementoActivo?.displayName ?? "og118 (base)")
-                    .font(.subheadline)
+                    .font(.system(size: 14))
                     .foregroundStyle(Theme.textBody)
                     .lineLimit(1)
                 if tieneProyecto {
@@ -109,66 +129,63 @@ struct ComposerView: View {
                     .foregroundStyle(Theme.textMuted)
             }
             .padding(.horizontal, 10)
-            .frame(minHeight: 34)
-            .background(Theme.chipFill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10).stroke(Theme.chipBorder, lineWidth: 1)
-            )
+            .frame(height: 38)
+            .background(Theme.chipFill, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.chipBorder, lineWidth: 1))
         }
         .frame(minHeight: 44)
-        .frame(maxWidth: 200, alignment: .leading)
+        .padding(.leading, 52)
+        .padding(.bottom, 2)
+        .accessibilityLabel("Seleccionar elemento")
         .contentTransition(.opacity)
         .animation(aparicion, value: elementoActivo?.token)
-        .animation(aparicion, value: tieneProyecto)
     }
 
-    /// Dictado: un toque graba, otro toque transcribe y llena el composer.
-    /// Mientras transcribe queda ocupado para no encimar dos peticiones.
+    /// Un toque graba, otro transcribe y llena el composer; mientras
+    /// transcribe queda ocupado para no encimar dos peticiones.
     private var botonDictar: some View {
         Button(action: onDictar) {
             Group {
                 if transcribiendo {
                     ProgressView().scaleEffect(0.7).tint(Theme.textMuted)
                 } else {
-                    Image(systemName: grabando ? "stop.circle.fill" : "mic.fill")
-                        .font(.system(size: 15, weight: .semibold))
+                    Image(systemName: grabando ? "stop.circle.fill" : "mic")
+                        .font(.system(size: 18, weight: .regular))
                         .foregroundStyle(grabando ? Theme.stopFill : Theme.textMuted)
                 }
             }
-            .frame(width: 34, height: 34)
+            .frame(width: 44, height: 44)
             .background {
                 if grabando {
-                    Circle().stroke(Theme.stopBorder, lineWidth: 1)
+                    Circle().stroke(Theme.stopBorder, lineWidth: 1).padding(5)
                 }
             }
+            .contentShape(Rectangle())
         }
-        .frame(width: 44, height: 44)
         .disabled(transcribiendo)
-        .accessibilityLabel(grabando ? "Detener y transcribir" : "Dictar")
+        .accessibilityLabel(grabando ? "Detener y transcribir" : "Iniciar dictado por voz")
     }
 
-    /// El `og-send-btn` de la web: cuadrado redondeado con el gradiente
-    /// esmeralda; deshabilitado queda como contorno para no perder la forma.
+    /// `.og-send-btn`: deshabilitado es contorno (conserva la forma en el estado
+    /// que más se ve); con texto, el gradiente esmeralda.
     private var botonEnviar: some View {
         Button {
             enviar()
         } label: {
-            Image(systemName: "arrow.up")
-                .font(.system(size: 15, weight: .semibold))
+            Image(systemName: "paperplane")
+                .font(.system(size: 18, weight: .regular))
                 .foregroundStyle(puedeEnviar ? Theme.sendText : Theme.textMuted)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)
                 .background {
                     if puedeEnviar {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Theme.menuButtonRadius)
                             .fill(Theme.sendGradient)
                             .shadow(color: Theme.accentDeep.opacity(0.25), radius: 5, y: 2)
                     } else {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: Theme.menuButtonRadius)
                             .stroke(Theme.sendDisabledBorder, lineWidth: 1)
                     }
                 }
-                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
         .disabled(!puedeEnviar)
@@ -179,17 +196,17 @@ struct ComposerView: View {
     private var botonDetener: some View {
         Button(action: onStop) {
             Image(systemName: "stop.fill")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.stopText)
-                .frame(width: 34, height: 34)
+                .frame(width: 44, height: 44)
                 .background(
-                    RoundedRectangle(cornerRadius: 10).fill(Theme.stopFill)
+                    RoundedRectangle(cornerRadius: Theme.menuButtonRadius).fill(Theme.stopFill)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10).stroke(Theme.stopBorder, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: Theme.menuButtonRadius).stroke(Theme.stopBorder, lineWidth: 1)
                 )
-                .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
+        .accessibilityLabel("Detener respuesta")
     }
 }

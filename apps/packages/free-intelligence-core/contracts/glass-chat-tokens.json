@@ -5,7 +5,7 @@
   "colors": {
     "bgDeep": {
       "hex": "#020617",
-      "description": "slate-950. --glass-chat-body y --glass-chat-bg-from del preset. OJO: og118 web re-tinta --glass-chat-bg-from a #0a0e16 (--og-bg-deep en globals.css); el iPhone hoy pinta el default del preset, no el re-tint — divergencia heredada, documentada, no resuelta aquí."
+      "description": "slate-950. --glass-chat-body y --glass-chat-bg-from del preset; og118 lo re-tiñe en consumers.og118 y el iPhone ya compone esa capa."
     },
     "bgMid": {
       "hex": "#0f172a",
@@ -41,7 +41,7 @@
     },
     "textBody": {
       "hex": "#e2e8f0",
-      "description": "slate-200. El color de body en og118 y content.user en messages/styles.ts. La web pinta al asistente un paso más claro (slate-100, text-slate-100); el iPhone usa este mismo para ambos lados — matiz heredado."
+      "description": "slate-200. El color de body en og118 y content.user en messages/styles.ts; el asistente usa textAssistant, un paso más claro, en la web y en el iPhone."
     },
     "textMuted": {
       "hex": "#94a3b8",
@@ -217,6 +217,35 @@
     "stopText": {
       "hex": "#fee2e2",
       "description": "red-100. Texto de .og-stop-btn."
+    },
+    "textAssistant": {
+      "hex": "#f1f5f9",
+      "description": "slate-100. content.assistant en messages/styles.ts: el cuerpo del asistente va un paso más claro que el del usuario."
+    },
+    "menuButtonFill": {
+      "hex": "#0a0e16",
+      "alpha": 0.55,
+      "description": "El relleno del botón flotante que abre el drawer (.fi-aws-toggle en AgentWorkspaceShell.tsx)."
+    },
+    "menuButtonBorder": {
+      "hex": "#ffffff",
+      "alpha": 0.14,
+      "description": "El borde de .fi-aws-toggle."
+    },
+    "modelBadgeFill": {
+      "hex": "#0f172a",
+      "alpha": 0.5,
+      "description": "slate-900/50. El relleno de la píldora «Powered by» (MessageModelBadge.tsx)."
+    },
+    "modelBadgeBorder": {
+      "hex": "#ffffff",
+      "alpha": 0.1,
+      "description": "white/10. El borde de MessageModelBadge."
+    },
+    "startCardBorder": {
+      "hex": "#ffffff",
+      "alpha": 0.18,
+      "description": "white/18. El borde de la tarjeta de arranque (Og118StartScreen)."
     }
   },
   "dimensions": {
@@ -251,6 +280,26 @@
     "itemMetaSize": {
       "rem": 0.68,
       "description": "Tipografía de la hora/meta de la fila."
+    },
+    "bubbleRadiusCompact": {
+      "px": 14,
+      "description": "El radio de las burbujas en móvil (glass-chat.css, max-width 768px): ancho completo, sin cola."
+    },
+    "bubblePadV": {
+      "px": 10,
+      "description": "Padding vertical de la burbuja en móvil (max-md:py-2.5 en messages/styles.ts)."
+    },
+    "bubblePadH": {
+      "px": 14,
+      "description": "Padding horizontal de la burbuja en móvil (max-md:px-3.5)."
+    },
+    "menuButtonRadius": {
+      "px": 10,
+      "description": "La esquina de .fi-aws-toggle y del botón de enviar (.og-send-btn)."
+    },
+    "drawerWidth": {
+      "px": 280,
+      "description": "El ancho del drawer de conversaciones en móvil (useEdgeSwipe.ts)."
     }
   },
   "css": {
@@ -260,7 +309,8 @@
     },
     "watermarkOpacity": {
       "value": "0.08",
-      "description": "--glass-chat-watermark-opacity. Sólo la web: el watermark es del shell web."
+      "description": "--glass-chat-watermark-opacity. La marca de agua de og118 detrás del hilo: la web y el iPhone la pintan con la misma opacidad.",
+      "swift": "Double"
     }
   },
   "consumers": {

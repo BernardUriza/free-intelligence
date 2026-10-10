@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// El orquestador: decide entre login y conversación, arma la pantalla del
-/// chat (header + hilo/tarjeta + composer) y presenta las dos hojas. La
-/// carne vive en SignInView, TranscriptView, StartCard, ComposerView,
-/// ConversationsSheet y ContextSheet.
+/// El orquestador: login o conversación (hilo/tarjeta + composer bajo un botón
+/// flotante, sin barra, como app.og118.ai), el drawer y la hoja de contexto.
 struct ContentView: View {
     @EnvironmentObject private var auth: Auth
     @StateObject private var chat: ChatModel
@@ -12,7 +10,8 @@ struct ContentView: View {
     @StateObject private var voz: VoiceModel
     @ObservedObject var diagnostico: TurnDiagnostics
     @State private var draft = ""
-    @State private var showingConversations = false
+    @State private var drawerAbierto = false
+    @GestureState private var arrastre: CGFloat = 0
     @State private var showingContext = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -45,7 +44,7 @@ struct ContentView: View {
                         } else if SondaDeTurno.fotoPedida() {
                             // Abre la hoja de chats y la fotografía: el e2e de
                             // la lista sin depender de que un humano mire.
-                            showingConversations = true
+                            drawerAbierto = true
                             try? await Task.sleep(nanoseconds: 1_500_000_000)
                             CapturaDePantalla.emitir("lista-cargando")
                             try? await Task.sleep(nanoseconds: 12_000_000_000)
@@ -55,9 +54,6 @@ struct ContentView: View {
                             await SondaDeTurno.correr(chat)
                         }
                         #endif
-                    }
-                    .sheet(isPresented: $showingConversations) {
-                        ConversationsSheet(chat: chat, conversations: conversations)
                     }
                     .sheet(isPresented: $showingContext) {
                         ContextSheet(chat: chat, catalog: catalog)
@@ -72,45 +68,71 @@ struct ContentView: View {
     }
 
     private var conversation: some View {
-        VStack(spacing: 0) {
-            encabezado
-            ZStack {
-                if chat.messages.isEmpty && !chat.isStreaming {
-                    StartCard().transition(.opacity)
-                } else {
-                    TranscriptView(chat: chat, voz: voz, diagnostico: diagnostico, aparicion: aparicion).transition(.opacity)
+        ZStack(alignment: .topLeading) {
+            Watermark()
+            VStack(spacing: 0) {
+                ZStack {
+                    if chat.messages.isEmpty && !chat.isStreaming {
+                        StartCard().transition(.opacity)
+                    } else {
+                        TranscriptView(chat: chat, voz: voz, diagnostico: diagnostico, aparicion: aparicion).transition(.opacity)
+                    }
                 }
+                .id(chat.conversationID)
+                .animation(aparicion, value: chat.conversationID)
+                .animation(aparicion, value: chat.messages.isEmpty)
+                composer
             }
-            .id(chat.conversationID)
-            .animation(aparicion, value: chat.conversationID)
-            .animation(aparicion, value: chat.messages.isEmpty)
-            composer
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            MenuButton { abrirDrawer(true) }
+                .padding(.leading, 10)
+                .padding(.top, 4)
+            bordeDeApertura
+            drawer
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var encabezado: some View {
-        HStack(spacing: 4) {
-            Button { showingConversations = true } label: {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Theme.textMuted)
-                    .frame(width: 44, height: 44)
-            }
-            Spacer(minLength: 0)
-            Wordmark(size: 16)
-            Spacer(minLength: 0)
-            Button { chat.startNew() } label: {
-                Image(systemName: "square.and.pencil")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Theme.textMuted)
-                    .frame(width: 44, height: 44)
-            }
+    /// `useEdgeSwipe` de la web: arrastrar desde el borde izquierdo abre el
+    /// drawer, y arrastrarlo hacia la izquierda lo cierra.
+    private var bordeDeApertura: some View {
+        Color.clear
+            .frame(width: 16)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 12).onEnded { gesto in
+                    if gesto.translation.width > 60 { abrirDrawer(true) }
+                }
+            )
+            .allowsHitTesting(!drawerAbierto)
+    }
+
+    @ViewBuilder
+    private var drawer: some View {
+        if drawerAbierto {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture { abrirDrawer(false) }
+                .transition(.opacity)
+                .accessibilityLabel("Cerrar conversaciones")
+            ConversationsDrawer(chat: chat, conversations: conversations) { abrirDrawer(false) }
+                .frame(width: Theme.drawerWidth)
+                .frame(maxHeight: .infinity)
+                .shadow(color: .black.opacity(0.55), radius: 40)
+                .offset(x: min(0, arrastre))
+                .gesture(
+                    DragGesture(minimumDistance: 12)
+                        .updating($arrastre) { gesto, estado, _ in estado = gesto.translation.width }
+                        .onEnded { gesto in
+                            if gesto.translation.width < -70 { abrirDrawer(false) }
+                        }
+                )
+                .transition(.move(edge: .leading))
         }
-        .padding(.horizontal, 6)
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(Theme.surfaceBorder).frame(height: 0.5)
-        }
+    }
+
+    private func abrirDrawer(_ abrir: Bool) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { drawerAbierto = abrir }
     }
 
     private var elementoActivo: Element? {

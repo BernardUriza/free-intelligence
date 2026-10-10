@@ -116,7 +116,8 @@ extension ConversationRecord {
                 role: PersistedMessageRole(rawValue: mensaje.role.rawValue) ?? .user,
                 content: mensaje.content,
                 timestamp: mensaje.timestamp,
-                author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) }
+                author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) },
+                trace: mensaje.model.map { MessageTrace(model: $0) }
             )
         }
     }
@@ -155,7 +156,8 @@ extension ConversationRecord {
                 author: persisted.author.map {
                     ChatMessage.Autor(id: $0.id, nombre: $0.name)
                 },
-                timestamp: persisted.timestamp
+                timestamp: persisted.timestamp,
+                model: persisted.trace?.model
             )
         }
     }
