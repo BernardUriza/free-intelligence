@@ -123,6 +123,14 @@ extension Theme {
     static let modelBadgeBorder = Color(hex: 0xFFFFFF).opacity(0.1)
     /// white/18. El borde de la tarjeta de arranque (Og118StartScreen).
     static let startCardBorder = Color(hex: 0xFFFFFF).opacity(0.18)
+    /// El borde esmeralda del botón Llamar (.og-resonance-call-btn en globals.css de og118).
+    static let resonanceBorder = Color(hex: 0x34D399).opacity(0.35)
+    /// El relleno rojo del botón en llamada, «Colgar» (.og-resonance-call-btn-active).
+    static let resonanceActiveFill = Color(hex: 0xDC2626).opacity(0.28)
+    /// El borde de .og-resonance-call-btn-active; su texto es stopText (#fee2e2).
+    static let resonanceActiveBorder = Color(hex: 0xF87171).opacity(0.5)
+    /// Cada barra del ecualizador de la llamada (.og-voice-bar-bar: esmeralda a 0.45).
+    static let voiceBar = Color(hex: 0x34D399).opacity(0.45)
 
     /// --glass-chat-radius (rounded-2xl): la esquina del composer y las superficies grandes. (16px)
     static let radius: CGFloat = 16

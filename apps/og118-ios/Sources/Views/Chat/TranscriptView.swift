@@ -61,12 +61,6 @@ struct TranscriptView: View {
                             )
                         }
                     }
-                    if let error = voz.errorMessage {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(Theme.danger)
-                            .padding(.horizontal, 14)
-                    }
                     if let error = chat.errorMessage {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(error)

@@ -22,9 +22,7 @@ final class AudioRecorder: ObservableObject {
     func empezar() async throws {
         guard await pedirPermiso() else { throw VoiceError.sinPermiso }
 
-        let sesion = AVAudioSession.sharedInstance()
-        try sesion.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-        try sesion.setActive(true)
+        try await ColaDeAudio.activar(.playAndRecord, modo: .spokenAudio, opciones: [.defaultToSpeaker])
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("og118-\(UUID().uuidString).m4a")
@@ -47,7 +45,7 @@ final class AudioRecorder: ObservableObject {
         recorder?.stop()
         recorder = nil
         grabando = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ColaDeAudio.desactivar()
         guard let url = destino else { return nil }
         destino = nil
         defer { try? FileManager.default.removeItem(at: url) }
@@ -60,7 +58,7 @@ final class AudioRecorder: ObservableObject {
         grabando = false
         if let url = destino { try? FileManager.default.removeItem(at: url) }
         destino = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ColaDeAudio.desactivar()
     }
 }
 #endif

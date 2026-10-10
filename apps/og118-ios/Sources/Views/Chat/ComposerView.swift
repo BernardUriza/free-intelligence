@@ -37,6 +37,7 @@ struct ComposerView: View {
     let transcribiendo: Bool
     let onDictar: () -> Void
     let onOpenContext: () -> Void
+    @ObservedObject var llamada: ResonanceCallModel
 
     private var puedeEnviar: Bool {
         (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming
@@ -53,6 +54,10 @@ struct ComposerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if llamada.activa {
+                ResonanceCallBar(estado: llamada.estado, bandas: llamada.bandas, etiqueta: llamada.etiqueta)
+                    .transition(.opacity)
+            }
             if !adjuntos.isEmpty {
                 ChipsDeAdjuntos(borradores: adjuntos, deshabilitado: isStreaming, onQuitar: onQuitarAdjunto)
                     .transition(.opacity)
@@ -84,6 +89,8 @@ struct ComposerView: View {
             }
             if rielAbierto {
                 riel.transition(.opacity.combined(with: .move(edge: .top)))
+            } else if llamada.activa {
+                botonLlamar.padding(.bottom, 2).transition(.opacity)
             }
         }
         .padding(4)
@@ -98,6 +105,13 @@ struct ComposerView: View {
         .padding(.top, 6)
         .animation(aparicion, value: rielAbierto)
         .animation(aparicion, value: adjuntos.count)
+        .animation(aparicion, value: llamada.activa)
+    }
+
+    /// En llamada el botón sobrevive al riel cerrado (`keepWhenRailCollapses`
+    /// en la web): colgar nunca queda escondido detrás de un toggle.
+    private var botonLlamar: some View {
+        ResonanceCallButton(activa: llamada.activa) { llamada.alternar() }
     }
 
     private var toggleRiel: some View {
@@ -124,6 +138,7 @@ struct ComposerView: View {
         HStack(spacing: 8) {
             AdjuntarMenu(lugaresLibres: lugaresLibres, onArchivos: onArchivos)
             selectorDeElemento
+            botonLlamar
         }
         .padding(.bottom, 2)
     }

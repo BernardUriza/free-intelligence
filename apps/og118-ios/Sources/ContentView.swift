@@ -8,6 +8,7 @@ struct ContentView: View {
     @StateObject private var conversations: ConversationsModel
     @StateObject private var catalog: CatalogModel
     @StateObject private var voz: VoiceModel
+    @StateObject private var llamada: ResonanceCallModel
     @ObservedObject var diagnostico: TurnDiagnostics
     @State private var draft = ""
     @StateObject private var adjuntos = AdjuntosModel()
@@ -22,11 +23,12 @@ struct ContentView: View {
         reduceMotion ? nil : .easeOut(duration: 0.3)
     }
 
-    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, diagnostico: TurnDiagnostics) {
+    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, llamada: ResonanceCallModel, diagnostico: TurnDiagnostics) {
         _chat = StateObject(wrappedValue: chat)
         _conversations = StateObject(wrappedValue: conversations)
         _catalog = StateObject(wrappedValue: catalog)
         _voz = StateObject(wrappedValue: voz)
+        _llamada = StateObject(wrappedValue: llamada)
         self.diagnostico = diagnostico
     }
 
@@ -82,8 +84,11 @@ struct ContentView: View {
                 .id(chat.conversationID)
                 .animation(aparicion, value: chat.conversationID)
                 .animation(aparicion, value: chat.messages.isEmpty)
+                if let error = voz.errorMessage {
+                    aviso(error) { voz.errorMessage = nil }.transition(.opacity)
+                }
                 if let error = adjuntos.error {
-                    avisoDeAdjunto(error).transition(.opacity)
+                    aviso(error) { adjuntos.error = nil }.transition(.opacity)
                 }
                 composer
             }
@@ -135,15 +140,15 @@ struct ContentView: View {
         }
     }
 
-    /// El rechazo de una imagen reusa el banner de error de voz de la web:
-    /// mensaje y ✕ para descartarlo, sin tapar el composer.
-    private func avisoDeAdjunto(_ texto: String) -> some View {
+    /// `Og118VoiceErrorBanner`: voz y adjuntos avisan sobre el composer, visible
+    /// aunque el hilo esté vacío — dentro del hilo, la tarjeta de inicio lo tapaba.
+    private func aviso(_ texto: String, descartar: @escaping () -> Void) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(texto)
                 .font(.footnote)
                 .foregroundStyle(Theme.danger)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Button { adjuntos.error = nil } label: {
+            Button(action: descartar) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.textMuted)
@@ -187,7 +192,8 @@ struct ContentView: View {
             onDictar: { voz.alternarDictado { texto in
                 draft = draft.isEmpty ? texto : draft + " " + texto
             } },
-            onOpenContext: { showingContext = true }
+            onOpenContext: { showingContext = true },
+            llamada: llamada
         )
     }
 }

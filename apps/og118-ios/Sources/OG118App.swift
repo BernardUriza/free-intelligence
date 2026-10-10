@@ -18,11 +18,14 @@ private struct RootView: View {
     var body: some View {
         let diag = TurnDiagnostics()
         let client = Og118Client(accessToken: { try await auth.token() }, diagnostico: diag)
+        let chat = ChatModel(client: client)
+        let voz = VoiceModel(client: client)
         return ContentView(
-            chat: ChatModel(client: client),
+            chat: chat,
             conversations: ConversationsModel(client: client),
             catalog: CatalogModel(client: client),
-            voz: VoiceModel(client: client),
+            voz: voz,
+            llamada: ResonanceCallModel(chat: chat, client: client) { voz.errorMessage = $0 },
             diagnostico: diag
         )
     }
