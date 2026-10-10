@@ -10,6 +10,7 @@ struct ContentView: View {
     @StateObject private var voz: VoiceModel
     @ObservedObject var diagnostico: TurnDiagnostics
     @State private var draft = ""
+    @StateObject private var adjuntos = AdjuntosModel()
     @State private var drawerAbierto = false
     @GestureState private var arrastre: CGFloat = 0
     @State private var showingContext = false
@@ -81,6 +82,9 @@ struct ContentView: View {
                 .id(chat.conversationID)
                 .animation(aparicion, value: chat.conversationID)
                 .animation(aparicion, value: chat.messages.isEmpty)
+                if let error = adjuntos.error {
+                    avisoDeAdjunto(error).transition(.opacity)
+                }
                 composer
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -131,6 +135,28 @@ struct ContentView: View {
         }
     }
 
+    /// El rechazo de una imagen reusa el banner de error de voz de la web:
+    /// mensaje y ✕ para descartarlo, sin tapar el composer.
+    private func avisoDeAdjunto(_ texto: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(texto)
+                .font(.footnote)
+                .foregroundStyle(Theme.danger)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button { adjuntos.error = nil } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.textMuted)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Descartar aviso")
+        }
+        .padding(.leading, 14)
+        .background(Theme.danger.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.danger.opacity(0.3), lineWidth: 1))
+        .padding(.horizontal, 12)
+    }
+
     private func abrirDrawer(_ abrir: Bool) {
         withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) { drawerAbierto = abrir }
     }
@@ -147,7 +173,14 @@ struct ContentView: View {
             elementoActivo: elementoActivo,
             tieneProyecto: chat.corpusID != nil,
             aparicion: aparicion,
-            onSend: { chat.send($0) },
+            adjuntos: adjuntos.borradores,
+            lugaresLibres: adjuntos.lugaresLibres,
+            onArchivos: { archivos in Task { await adjuntos.agregar(archivos) } },
+            onQuitarAdjunto: { adjuntos.quitar($0) },
+            onSend: { texto in
+                chat.send(texto, images: adjuntos.imagenes)
+                adjuntos.vaciar()
+            },
             onStop: { chat.cancel() },
             grabando: voz.grabando,
             transcribiendo: voz.transcribiendo,

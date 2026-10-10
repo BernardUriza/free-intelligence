@@ -20,7 +20,8 @@ final class ChatModel: ObservableObject {
         _ sessionID: String,
         _ history: [ChatMessage],
         _ corpusID: String?,
-        _ element: String?
+        _ element: String?,
+        _ images: [MessageImage]
     ) -> AsyncThrowingStream<StreamEvent, Error>
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
@@ -155,23 +156,25 @@ final class ChatModel: ObservableObject {
         baseRecord = record
     }
 
-    func send(_ text: String) {
+    /// Un envío de sólo imagen es válido —la foto ES el mensaje—, como en la web.
+    func send(_ text: String, images: [MessageImage] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isStreaming else { return }
+        guard !trimmed.isEmpty || !images.isEmpty, !isStreaming else { return }
 
         let history = messages
-        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now()))
-        lanzarTurno(trimmed, history: history)
+        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now(), images: images))
+        lanzarTurno(trimmed, images: images, history: history)
     }
 
     /// Repite el turno muerto. El mensaje del usuario YA está en el hilo, así
     /// que reintentar no vuelve a agregarlo: sólo rehace la parte que falló.
     func reintentar() {
         guard let texto = reintentable, !isStreaming else { return }
-        lanzarTurno(texto, history: Array(messages.dropLast()))
+        let imagenes = messages.last(where: { $0.role == .user })?.images ?? []
+        lanzarTurno(texto, images: imagenes, history: Array(messages.dropLast()))
     }
 
-    private func lanzarTurno(_ texto: String, history: [ChatMessage]) {
+    private func lanzarTurno(_ texto: String, images: [MessageImage], history: [ChatMessage]) {
         liveText = ""
         liveAuthor = nil
         liveModel = nil
@@ -184,7 +187,7 @@ final class ChatModel: ObservableObject {
 
         turn = Task {
             do {
-                for try await event in stream(texto, conversationID, history, corpusID, element) {
+                for try await event in stream(texto, conversationID, history, corpusID, element, images) {
                     apply(event)
                 }
             } catch is CancellationError {

@@ -27,6 +27,10 @@ struct ComposerView: View {
     let elementoActivo: Element?
     let tieneProyecto: Bool
     let aparicion: Animation?
+    let adjuntos: [AdjuntosModel.Borrador]
+    let lugaresLibres: Int
+    let onArchivos: ([AdjuntosModel.Archivo]) -> Void
+    let onQuitarAdjunto: (UUID) -> Void
     let onSend: (String) -> Void
     let onStop: () -> Void
     let grabando: Bool
@@ -35,7 +39,7 @@ struct ComposerView: View {
     let onOpenContext: () -> Void
 
     private var puedeEnviar: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming
+        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming
     }
 
     /// El teclado se baja al enviar: arriba tapa media conversación justo
@@ -49,6 +53,10 @@ struct ComposerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if !adjuntos.isEmpty {
+                ChipsDeAdjuntos(borradores: adjuntos, deshabilitado: isStreaming, onQuitar: onQuitarAdjunto)
+                    .transition(.opacity)
+            }
             HStack(alignment: .bottom, spacing: 6) {
                 toggleRiel
                 TextField(
@@ -89,6 +97,7 @@ struct ComposerView: View {
         .padding(.bottom, 8)
         .padding(.top, 6)
         .animation(aparicion, value: rielAbierto)
+        .animation(aparicion, value: adjuntos.count)
     }
 
     private var toggleRiel: some View {
@@ -112,6 +121,14 @@ struct ComposerView: View {
     /// El selector de Elemento vive en el riel: afecta el próximo turno, así
     /// que va junto al input (COMPOSER-SWITCH-1).
     private var riel: some View {
+        HStack(spacing: 8) {
+            AdjuntarMenu(lugaresLibres: lugaresLibres, onArchivos: onArchivos)
+            selectorDeElemento
+        }
+        .padding(.bottom, 2)
+    }
+
+    private var selectorDeElemento: some View {
         Button(action: onOpenContext) {
             HStack(spacing: 8) {
                 AtomicBadge(elemento: elementoActivo, activo: elementoActivo != nil)
@@ -134,8 +151,6 @@ struct ComposerView: View {
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.chipBorder, lineWidth: 1))
         }
         .frame(minHeight: 44)
-        .padding(.leading, 52)
-        .padding(.bottom, 2)
         .accessibilityLabel("Seleccionar elemento")
         .contentTransition(.opacity)
         .animation(aparicion, value: elementoActivo?.token)

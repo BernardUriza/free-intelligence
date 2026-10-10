@@ -66,6 +66,18 @@ simulador. Lo que falta para paridad completa son FUNCIONES, no estilo: adjuntar
 (el «+» del riel) y la llamada Resonance. El "Powered by" exigió arreglar un
 camino de datos: el teléfono no escribía `trace.model` en sus turnos.
 
+## Adjuntar imágenes en iPhone — 2026-10-10
+
+Paridad con `useComposerImages` de fi-glass: jpeg/png/webp/gif, máximo 4, lo
+chico viaja tal cual y lo demás (HEIC de la cámara incluido) se reduce a JPEG
+0.85 con lado de 2048 vía ImageIO; techo de 4 MiB de base64. Entradas: Fotos,
+Cámara y Archivos (las tres de Safari). Viaja como `images[{media_type,data}]`
+en `/chat/stream`, se guarda en el record como `images[{mediaType,data}]`, no se
+re-sube en `history`, y el reintento la vuelve a mandar. Probado: arnés (con
+fotos reales generadas y un control de que la grande sí rebasa el umbral), el
+Pydantic real de `app.py` aceptando el JSON de Swift, y el flujo con clics en el
+simulador. Falta: un turno con foto contra el servidor vivo (requiere login).
+
 ## En el teléfono físico — 2026-10-10
 
 El teléfono ya no es "paso posterior": el iPhone 15 (`iPhone15,4`, CoreDevice id

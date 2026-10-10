@@ -26,6 +26,9 @@ struct ChatMessage: Identifiable, Encodable {
     /// El modelo que produjo la respuesta: alimenta la píldora «Powered by» y
     /// viaja en `trace.model`, igual que lo persiste la web.
     var model: String?
+    /// Las imágenes que el usuario adjuntó al turno. No viajan en `history`
+    /// (CodingKeys): una imagen ya enviada no se re-sube en silencio.
+    var images: [MessageImage] = []
 
     enum CodingKeys: String, CodingKey {
         case role
