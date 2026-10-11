@@ -22,11 +22,11 @@ COOLDOWN_S = float(os.environ.get("AIRE_CREDENTIAL_COOLDOWN_S", "3600"))
 RESET_MARGIN_S = 60.0
 RESET_HORIZON_S = 8 * 86400.0
 # Each arrived as the TEXT of a zero-usage "successful" turn: Max 5h `session` (09-03), card
-# at $0 (09-08), token `revoked` (09-28), the org's `monthly spend` cap (10-08, the canary).
+# at $0 (09-08), token `revoked` (09-28), `monthly spend` (10-08), org OAuth `disabled` (10-10).
 LIMIT_PHRASE = re.compile(
     r"hit your (weekly|usage|session|org'?s monthly spend) limit|usage limit.*resets"
-    r"|credit balance is too low|rate_limit_error"
-    r"|oauth access token has been revoked|authentication_error",
+    r"|credit balance is too low|rate_limit_error|disabled claude subscription access"
+    r"|oauth access token has been revoked|authentication_error|permission_error",
     re.IGNORECASE)
 # "resets Aug 10, 8pm (UTC)" (weekly) and "resets 11:20pm (UTC)" (session).
 RESET_AT = re.compile(
