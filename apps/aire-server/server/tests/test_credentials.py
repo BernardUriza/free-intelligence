@@ -82,6 +82,15 @@ def test_limit_hit_needs_both_the_phrase_and_zero_usage():
     assert not limit_hit(None, ZERO_USAGE)
 
 
+def test_an_org_that_disabled_oauth_burns_the_slot():
+    """Live 2026-10-10 13:26Z (canary, then og118 on the iPhone): vegdevida's org turned
+    OAuth off; the API answers 403 permission_error and the CLI prints this as the reply."""
+    cli_text = ("Your organization has disabled Claude subscription access for Claude Code"
+                " · Use an Anthropic API key instead, or ask your admin to enable access")
+    assert limit_hit(cli_text, ZERO_USAGE)
+    assert limit_hit('{"type":"error","error":{"type":"permission_error"}}', ZERO_USAGE)
+
+
 def test_a_dead_card_burns_the_metered_slot_too():
     # The live text of 2026-09-08 (discord-bot KQL `text_preview`): the card at
     # $0 answered as prose with zero usage, and the slot never cooled.
