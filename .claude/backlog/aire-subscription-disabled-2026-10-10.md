@@ -1,6 +1,6 @@
 # AIRE-SUB-DISABLED-1 — la org de vegdevida apagó el OAuth y el rotor no lo reconocía como falla
 
-Status: In progress — remedio 1 (el rotor reconoce el error) en PR; falta la decisión de Bernard sobre la cuenta
+Status: In progress — remedio 1 VIVO y verificado (PR #542, `257569e1`, deploy 18:0x CST; turno real del iPhone 18:09 contestó `PONG`). Falta la decisión de Bernard sobre el respaldo: hoy la cadena vive sobre UNA cuenta OAuth
 Proposed: 2026-10-10 by Claude (diagnóstico sólo-lectura pedido por Bernard)
 
 ## Qué se observó
