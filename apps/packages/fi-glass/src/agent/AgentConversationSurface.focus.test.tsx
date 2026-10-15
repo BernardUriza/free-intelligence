@@ -49,6 +49,8 @@ const makeConversation = (over: Partial<AgentConversation> = {}): AgentConversat
     turn: idleTurn,
     isStreaming: false,
     turnError: null,
+    turnNotice: null,
+    dismissNotice: () => {},
     send: () => {},
     retry: () => {},
     dismissError: () => {},

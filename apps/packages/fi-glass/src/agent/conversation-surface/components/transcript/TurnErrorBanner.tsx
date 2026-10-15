@@ -6,14 +6,21 @@
  * hung/timed-out or errored turn) INSTEAD of the zombie "thinking…" panel: the
  * watchdog/error already dropped the surface out of streaming. Style/copy hooks
  * are the consumer's; sensible defaults render without any.
+ *
+ * The same anatomy carries a waiting NOTICE (`tone="info"`, no retry): a turn
+ * the engine released without its answer (OG118-EXTERNAL-TURN-1) is not a
+ * failure, so it reads as status, never as an alert.
  */
 
 export interface TurnErrorBannerProps {
   /** Any recoverable failure with a displayable message: a failed turn, save or
    *  sidebar action. One banner anatomy for every caller. */
   error: { message: string };
-  onRetry: () => void;
+  /** Absent for a notice: there is nothing to retry. */
+  onRetry?: () => void;
   onDismiss: () => void;
+  /** `error` (default) is an alert in red; `info` is a status in blue. */
+  tone?: 'error' | 'info';
   className?: string;
   /** Retry button copy. Default: "Reintentar". */
   retryLabel?: string;
@@ -23,72 +30,67 @@ export interface TurnErrorBannerProps {
   dismissButtonClassName?: string;
 }
 
+const TONES = {
+  error: { border: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)', text: '#fca5a5' },
+  info: { border: 'rgba(96,165,250,0.35)', background: 'rgba(96,165,250,0.08)', text: '#93c5fd' },
+} as const;
+
+const BUTTON_STYLE = {
+  padding: '0.35rem 0.75rem',
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.2)',
+  background: 'transparent',
+  color: '#e2e8f0',
+  fontSize: '0.8rem',
+  cursor: 'pointer',
+} as const;
+
 export function TurnErrorBanner({
   error,
   onRetry,
   onDismiss,
+  tone = 'error',
   className,
   retryLabel = 'Reintentar',
   dismissLabel = 'Descartar',
   retryButtonClassName,
   dismissButtonClassName,
 }: TurnErrorBannerProps) {
+  const colors = TONES[tone];
   return (
     <div
-      role="alert"
+      role={tone === 'info' ? 'status' : 'alert'}
       className={className}
       style={{
         marginTop: '1rem',
         padding: '0.75rem 1rem',
         borderRadius: 10,
-        border: '1px solid rgba(248,113,113,0.35)',
-        background: 'rgba(248,113,113,0.08)',
+        border: `1px solid ${colors.border}`,
+        background: colors.background,
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: '0.75rem',
       }}
     >
-      <span style={{ color: '#fca5a5', fontSize: '0.85rem', flex: 1, minWidth: 0 }}>
+      <span style={{ color: colors.text, fontSize: '0.85rem', flex: 1, minWidth: 0 }}>
         {error.message}
       </span>
-      <button
-        type="button"
-        onClick={onRetry}
-        className={retryButtonClassName}
-        style={
-          retryButtonClassName
-            ? undefined
-            : {
-                padding: '0.35rem 0.75rem',
-                borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'transparent',
-                color: '#e2e8f0',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }
-        }
-      >
-        {retryLabel}
-      </button>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className={retryButtonClassName}
+          style={retryButtonClassName ? undefined : BUTTON_STYLE}
+        >
+          {retryLabel}
+        </button>
+      )}
       <button
         type="button"
         onClick={onDismiss}
         className={dismissButtonClassName}
-        style={
-          dismissButtonClassName
-            ? undefined
-            : {
-                padding: '0.35rem 0.75rem',
-                borderRadius: 8,
-                border: 'none',
-                background: 'transparent',
-                color: '#94a3b8',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }
-        }
+        style={dismissButtonClassName ? undefined : { ...BUTTON_STYLE, opacity: 0.7 }}
       >
         {dismissLabel}
       </button>

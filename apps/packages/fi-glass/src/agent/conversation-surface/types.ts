@@ -276,6 +276,8 @@ export interface ImageAttachmentProps {
  */
 export interface TurnErrorProps {
   errorClassName?: string;
+  /** Class for the waiting notice of a deferred turn. Falls back to `errorClassName`. */
+  noticeClassName?: string;
   /** Retry button copy. Default: "Reintentar". */
   retryLabel?: string;
   /** Dismiss button copy. Default: "Descartar". */

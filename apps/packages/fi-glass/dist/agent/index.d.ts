@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, TurnNotice, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 import { b as ComposerAction } from '../ComposerActions-HOiu1DmD.js';
 
@@ -276,6 +276,14 @@ interface AgentConversation {
     /** A recoverable failure of the last turn (timeout/stream), or null. */
     turnError: TurnError | null;
     /**
+     * The last turn settled WITHOUT its answer because the engine is still working
+     * (`deferred`): the answer lands in the thread out of band. A shell shows this
+     * as a waiting notice, never as an error — there is nothing to retry.
+     */
+    turnNotice: TurnNotice | null;
+    /** Clear the waiting notice. */
+    dismissNotice: () => void;
+    /**
      * The thread could not be SAVED (the turn itself succeeded), or null. A shell
      * MUST surface this: the alternative is a user who trusts a thread that is not
      * there. Recover with {@link retryPersist}.
@@ -337,6 +345,10 @@ declare function useAgentConversation(agent: AgentHook, options: UseAgentConvers
  * hung/timed-out or errored turn) INSTEAD of the zombie "thinking…" panel: the
  * watchdog/error already dropped the surface out of streaming. Style/copy hooks
  * are the consumer's; sensible defaults render without any.
+ *
+ * The same anatomy carries a waiting NOTICE (`tone="info"`, no retry): a turn
+ * the engine released without its answer (OG118-EXTERNAL-TURN-1) is not a
+ * failure, so it reads as status, never as an alert.
  */
 interface TurnErrorBannerProps {
     /** Any recoverable failure with a displayable message: a failed turn, save or
@@ -344,8 +356,11 @@ interface TurnErrorBannerProps {
     error: {
         message: string;
     };
-    onRetry: () => void;
+    /** Absent for a notice: there is nothing to retry. */
+    onRetry?: () => void;
     onDismiss: () => void;
+    /** `error` (default) is an alert in red; `info` is a status in blue. */
+    tone?: 'error' | 'info';
     className?: string;
     /** Retry button copy. Default: "Reintentar". */
     retryLabel?: string;
@@ -354,7 +369,7 @@ interface TurnErrorBannerProps {
     retryButtonClassName?: string;
     dismissButtonClassName?: string;
 }
-declare function TurnErrorBanner({ error, onRetry, onDismiss, className, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: TurnErrorBannerProps): react.JSX.Element;
+declare function TurnErrorBanner({ error, onRetry, onDismiss, tone, className, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: TurnErrorBannerProps): react.JSX.Element;
 
 /**
  * fi-glass · conversation-surface/types — the public contract of
@@ -619,6 +634,8 @@ interface ImageAttachmentProps {
  */
 interface TurnErrorProps {
     errorClassName?: string;
+    /** Class for the waiting notice of a deferred turn. Falls back to `errorClassName`. */
+    noticeClassName?: string;
     /** Retry button copy. Default: "Reintentar". */
     retryLabel?: string;
     /** Dismiss button copy. Default: "Descartar". */

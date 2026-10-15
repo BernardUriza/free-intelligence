@@ -73,6 +73,7 @@ import {
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
+import type { TurnNotice } from '@free-intelligence/core';
 
 /** The speaker on the user's side when the app names no other. */
 export const DEFAULT_USER_AUTHOR: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
@@ -219,6 +220,14 @@ export interface AgentConversation {
   /** A recoverable failure of the last turn (timeout/stream), or null. */
   turnError: TurnError | null;
   /**
+   * The last turn settled WITHOUT its answer because the engine is still working
+   * (`deferred`): the answer lands in the thread out of band. A shell shows this
+   * as a waiting notice, never as an error — there is nothing to retry.
+   */
+  turnNotice: TurnNotice | null;
+  /** Clear the waiting notice. */
+  dismissNotice: () => void;
+  /**
    * The thread could not be SAVED (the turn itself succeeded), or null. A shell
    * MUST surface this: the alternative is a user who trusts a thread that is not
    * there. Recover with {@link retryPersist}.
@@ -313,6 +322,7 @@ export function useAgentConversation(
   convoRef.current = convo;
   const messages = convo.messages;
   const turnError = convo.failure;
+  const turnNotice = convo.notice;
   const timedOut = convo.timedOut;
   // Read the latest controlled flag inside effects without re-arming them on it.
   const controlledRef = useRef(controlled);
@@ -449,6 +459,7 @@ export function useAgentConversation(
   }, [send]);
 
   const dismissError = useCallback(() => dispatch({ type: 'dismiss_failure' }), []);
+  const dismissNotice = useCallback(() => dispatch({ type: 'dismiss_notice' }), []);
 
   // Fold the finished turn once it stops streaming. Effect-based on purpose: the
   // transport hook owns the turn lifecycle, the conversation only observes it.
@@ -570,6 +581,8 @@ export function useAgentConversation(
     author,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
+    turnNotice,
+    dismissNotice,
     persistError,
     retryPersist,
     dismissPersistError,
