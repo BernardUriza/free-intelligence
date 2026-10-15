@@ -48,12 +48,18 @@ del motor con dos turnos del usuario iguales.
   termine."); fi-glass lo pinta como `role="status"` con el mismo banner de fallo en tono info y sin
   Reintentar; se limpia al recargar el hilo, al mandar otro mensaje o al descartarlo. og118 web sólo
   mapea el frame. core 1.6.0, fi-glass 1.8.0.
-- **Convergencia al contrato de eventos** (Art. 6): el externo sigue siendo single-shot. Que
-  persona-runner emita el turno como stream (SSE) y og118 lo reenvíe como el path local mataría la
-  espera viva como concepto. Es trabajo en server-bot, no en og118.
-- **Idempotencia en el motor** (mismo `channel_id` + mismo `user_text` en N minutos = devolver el
-  turno guardado) sigue siendo deseable para el *Reintentar* de un error real, pero dejó de ser
-  urgente: el corte ya no produce error.
+- ~~**Convergencia al contrato de eventos**~~ Hecho (PR #548 server-bot + el PR de og118 del
+  mismo día, plan `sparkling-waddling-feigenbaum`): og118 deja el `/v1/turn` síncrono (legacy según
+  `robustness.md`) y monta el turno en el **boleto**: `POST /v1/turn/jobs` + `GET …/jobs/{id}/events`
+  (SSE con cada `tool_call` real de AIRE, `id` secuencial, reanudable) + poll `GET …/jobs/{id}?wait_s=50`.
+  Los verbos se pintan en el `StepsPanel` de fi-glass sin tocar core, fi-glass ni og118 web. El texto
+  sigue llegando completo en `result` (los marcadores de la persona se recortan sobre el texto final).
+- ~~**Idempotencia en el motor**~~ Hecha por construcción: el `job_id` se deriva de (conversación,
+  posición en el hilo, texto), así que el reintento del cliente cae en `ticket_reused` y el turno no
+  corre dos veces.
+- **OG118-EXTERNAL-TURN-2 — texto en vivo** (fase 2, tarjeta propia): `include_partial_messages` en
+  AIRE para deltas de texto, filtro de retención de sufijo en persona-runner para los marcadores
+  (`[REACT:]`, GIFs) y `on_event` upstream en fi-runner 0.24 para retirar el tap local.
 
 ## La decisión que era de Bernard, y ya no hace falta
 
@@ -63,5 +69,7 @@ caliente sólo compraría latencia, y eso se decide por costo cuando haya usuari
 
 ## Status / next step
 
-In progress. Siguiente paso: recibo E2E en app.og118.ai tras el deploy del segundo PR. Evidencia del
-origen: logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC (`az containerapp logs show`).
+In progress. Siguiente paso: recibo E2E en app.og118.ai tras el deploy del PR de og118 (que va después
+del de persona-runner): un turno de Yodo con sus `tool_call` pintándose en vivo; el mismo texto dos veces →
+`ticket_reused` en el runner; un turno que pase 150 s → aviso + entrega por sync. Evidencia del origen:
+logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC (`az containerapp logs show`).
