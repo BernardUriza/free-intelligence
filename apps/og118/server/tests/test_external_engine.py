@@ -313,3 +313,14 @@ async def test_non_json_body_yields_error(monkeypatch) -> None:
         external_engine.stream_external_turn(persona_id="vultur", user_text="hi", session_uuid="s", user_id="u")
     )
     assert evs == [{"type": "error", "message": "external engine returned a non-JSON body"}]
+
+
+LOST_TURN_2026_10_15_S = 125
+ACA_INGRESS_REQUEST_TIMEOUT_S = 240
+
+
+def test_read_budget_covers_the_engine_ceiling_plus_its_cold_start() -> None:
+    budget = external_engine._TIMEOUT.read
+    assert budget == external_engine.ENGINE_TURN_CEILING_S + external_engine.ENGINE_COLD_START_S
+    assert budget > LOST_TURN_2026_10_15_S
+    assert budget < ACA_INGRESS_REQUEST_TIMEOUT_S
