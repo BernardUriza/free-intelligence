@@ -13,6 +13,10 @@ final class ChatModel: ObservableObject {
     @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
     @Published private(set) var isRestoring = false
+    /// El hilo acepta turnos sólo cuando ya se sabe qué hay en el servidor:
+    /// escribir sobre un restore fallido reemplazaba la conversación entera.
+    @Published private(set) var hiloListo: Bool
+    @Published private(set) var cargaFallida: String?
     @Published var errorMessage: String?
 
     typealias Stream = (
@@ -51,6 +55,7 @@ final class ChatModel: ObservableObject {
     private var turn: Task<Void, Never>?
     private var saveChain: Task<Void, Never>?
     private var framesDelTurno = 0
+    private var esperabaRecord = false
 
     init(
         conversationID: String = ConversationIdentity.current(),
@@ -69,6 +74,7 @@ final class ChatModel: ObservableObject {
         self.restore = restore
         self.now = now
         self.createdAt = now()
+        self.hiloListo = restore == nil
     }
 
     convenience init(client: Og118Client) {
@@ -85,13 +91,21 @@ final class ChatModel: ObservableObject {
     /// chat que no carga se ve idéntico a uno vacío — el mismo silencio que ya
     /// nos costó horas con la lista.
     func restoreThread(esperabaRecord: Bool = false) async {
-        guard let restore, messages.isEmpty, !isRestoring else { return }
+        guard let restore else {
+            hiloListo = true
+            return
+        }
+        guard !isRestoring, !hiloListo else { return }
+        self.esperabaRecord = esperabaRecord
         isRestoring = true
+        cargaFallida = nil
         defer { isRestoring = false }
         do {
             guard let record = try await restore(conversationID) else {
                 if esperabaRecord {
-                    errorMessage = "Esta conversación no está en tu cuenta."
+                    cargaFallida = "Esta conversación no está en tu cuenta."
+                } else {
+                    hiloListo = true
                 }
                 return
             }
@@ -104,40 +118,43 @@ final class ChatModel: ObservableObject {
             if messages.isEmpty, !record.messages.isEmpty {
                 errorMessage = "Llegaron \(record.messages.count) mensajes que esta versión no supo leer."
             }
+            hiloListo = true
         } catch {
-            errorMessage = error.localizedDescription
+            cargaFallida = error.localizedDescription
         }
     }
 
+    func reintentarCarga() {
+        Task { await restoreThread(esperabaRecord: esperabaRecord) }
+    }
+
     func open(_ id: String) async {
-        guard id != conversationID else { return }
+        if id == conversationID {
+            if !hiloListo { await restoreThread(esperabaRecord: true) }
+            return
+        }
         cancel()
         conversationID = id
         ConversationIdentity.set(id, defaults: defaults)
-        messages = []
-        liveText = ""
-        liveAuthor = nil
-        liveModel = nil
-        errorMessage = nil
-        // Sin esto, un turno fallido en el chat A dejaba su texto en
-        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
-        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
-        reintentable = nil
-        plan = TurnPlan()
-        herramientas = []
-        createdAt = now()
-        baseRecord = nil
+        reiniciarHilo()
+        hiloListo = false
         await restoreThread(esperabaRecord: true)
     }
 
     func startNew() {
         cancel()
         conversationID = ConversationIdentity.fresh(defaults: defaults)
+        reiniciarHilo()
+        hiloListo = true
+    }
+
+    private func reiniciarHilo() {
         messages = []
         liveText = ""
         liveAuthor = nil
         liveModel = nil
         errorMessage = nil
+        cargaFallida = nil
         // Sin esto, un turno fallido en el chat A dejaba su texto en
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
         // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
@@ -159,7 +176,7 @@ final class ChatModel: ObservableObject {
     /// Un envío de sólo imagen es válido —la foto ES el mensaje—, como en la web.
     func send(_ text: String, images: [MessageImage] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty || !images.isEmpty, !isStreaming else { return }
+        guard hiloListo, !trimmed.isEmpty || !images.isEmpty, !isStreaming else { return }
 
         let history = messages
         messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now(), images: images))
@@ -292,23 +309,40 @@ final class ChatModel: ObservableObject {
     /// resuelven last-write-wins en el servidor, así que un snapshot viejo que
     /// llegue tarde borraría el turno más reciente.
     private func save() {
-        guard let persist, !messages.isEmpty else { return }
-        let record = ConversationRecord.from(
-            id: conversationID,
-            messages: messages,
-            createdAt: createdAt,
-            now: now(),
-            base: baseRecord
-        )
-        baseRecord = record
+        guard let persist, hiloListo, !messages.isEmpty else { return }
+        let locales = messages
+        let base = baseRecord
+        let id = conversationID
+        let creado = createdAt
         let previous = saveChain
         saveChain = Task { [weak self] in
             await previous?.value
+            guard let self else { return }
+            let vivo = await self.releer(id)
+            let record = ConversationRecord.fusionar(
+                id: id, locales: locales, base: base, vivo: vivo, createdAt: creado, now: self.now()
+            )
+            self.adoptarFusion(record, locales: locales)
             do {
                 try await persist(record)
             } catch {
-                await MainActor.run { self?.errorMessage = error.localizedDescription }
+                self.errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    /// El PUT es reemplazo total y otro escritor (la web, el drawer) pudo
+    /// cambiar el hilo mientras tanto: se relee antes de escribir.
+    private func releer(_ id: String) async -> ConversationRecord? {
+        guard let restore else { return nil }
+        return try? await restore(id)
+    }
+
+    private func adoptarFusion(_ record: ConversationRecord, locales: [ChatMessage]) {
+        guard record.id == conversationID else { return }
+        baseRecord = record
+        if record.messages.count > locales.count, messages.map(\.id) == locales.map(\.id) {
+            messages = record.chatMessages
         }
     }
 }

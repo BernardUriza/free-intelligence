@@ -24,6 +24,7 @@ struct ComposerView: View {
     @State private var rielAbierto = false
     @Binding var draft: String
     let isStreaming: Bool
+    let hiloListo: Bool
     let elementoActivo: Element?
     let tieneProyecto: Bool
     let aparicion: Animation?
@@ -41,7 +42,7 @@ struct ComposerView: View {
     @ObservedObject var llamada: ResonanceCallModel
 
     private var puedeEnviar: Bool {
-        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming
+        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming && hiloListo
     }
 
     /// El teclado se baja al enviar: arriba tapa media conversación justo

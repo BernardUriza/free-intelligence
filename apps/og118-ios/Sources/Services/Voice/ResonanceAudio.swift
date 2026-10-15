@@ -15,6 +15,10 @@ final class ResonanceMicrophone {
     private var segmento: AVAudioFile?
     private var segmentoURL: URL?
     private var abierto = false
+    private var observadores: [NSObjectProtocol] = []
+    /// El micrófono se perdió (otra app tomó el audio, se desconectó la ruta):
+    /// la llamada debe enterarse y colgar con nombre, no quedarse «Escuchando…».
+    var alPerderElAudio: ((String) -> Void)?
 
     func pedirPermiso() async -> Bool {
         await withCheckedContinuation { continuation in
@@ -30,6 +34,14 @@ final class ResonanceMicrophone {
         try await ColaDeAudio.activar(.playAndRecord, modo: .voiceChat, opciones: [.defaultToSpeaker, .allowBluetoothHFP])
         let entrada = motor.inputNode
         try await ColaDeAudio.ejecutar(limite: ColaDeAudio.limiteDeActivacion) { try entrada.setVoiceProcessingEnabled(true) }
+        instalarTap()
+        try await arrancarMotor()
+        abierto = true
+        observar()
+    }
+
+    private func instalarTap() {
+        let entrada = motor.inputNode
         let formato = entrada.outputFormat(forBus: 0)
         entrada.installTap(onBus: 0, bufferSize: 1024, format: formato) { [weak self] buffer, _ in
             guard let canal = buffer.floatChannelData?[0] else { return }
@@ -37,16 +49,59 @@ final class ResonanceMicrophone {
             let copia = Self.mono(buffer)
             Task { @MainActor in self?.recibir(muestras, copia: copia) }
         }
+    }
+
+    private func arrancarMotor() async throws {
         let motor = self.motor
         try await ColaDeAudio.ejecutar(limite: ColaDeAudio.limiteDeActivacion) {
             motor.prepare()
             try motor.start()
         }
-        abierto = true
+    }
+
+    private func observar() {
+        let centro = NotificationCenter.default
+        observadores = [
+            centro.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] nota in
+                let crudo = nota.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                guard crudo.flatMap(AVAudioSession.InterruptionType.init) == .began else { return }
+                Task { @MainActor in self?.perder("Otra app tomó el audio del teléfono.") }
+            },
+            centro.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] nota in
+                let crudo = nota.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+                let razon = crudo.flatMap(AVAudioSession.RouteChangeReason.init)
+                guard razon == .oldDeviceUnavailable || razon == .newDeviceAvailable else { return }
+                Task { @MainActor in await self?.reconectar() }
+            },
+            centro.addObserver(forName: .AVAudioEngineConfigurationChange, object: motor, queue: .main) { [weak self] _ in
+                Task { @MainActor in await self?.reconectar() }
+            }
+        ]
+    }
+
+    /// Un cambio de ruta (AirPods, altavoz) detiene el motor; se vuelve a
+    /// armar con el formato nuevo o, si no arranca, la llamada se entera.
+    private func reconectar() async {
+        guard abierto, !motor.isRunning else { return }
+        motor.inputNode.removeTap(onBus: 0)
+        instalarTap()
+        do {
+            try await arrancarMotor()
+        } catch {
+            perder("El micrófono se desconectó.")
+        }
+    }
+
+    private func perder(_ motivo: String) {
+        guard abierto else { return }
+        cerrar()
+        alPerderElAudio?(motivo)
     }
 
     func cerrar() {
         guard abierto else { return }
+        observadores.forEach(NotificationCenter.default.removeObserver)
+        observadores = []
         motor.inputNode.removeTap(onBus: 0)
         motor.stop()
         abierto = false

@@ -160,6 +160,7 @@ private func persisteAlCerrarElTurno() async {
         restore: { _ in nil },
         now: { "2026-08-12T21:00:00Z" }
     )
+    await model.restoreThread()
     model.send("pregunta")
     await settle()
 
@@ -185,6 +186,7 @@ private func elModeloViajaDeIdaYVuelta() async {
         restore: { _ in nil },
         now: { "2026-10-10T21:00:00Z" }
     )
+    await model.restoreThread()
     model.send("pregunta")
     await settle()
 
@@ -267,6 +269,7 @@ private func cambiarDeHiloNoMezclaMensajes() async {
         restore: { id in id == "hilo-b" ? otro : nil },
         now: { "2026-08-12T21:00:00Z" }
     )
+    await model.restoreThread()
     model.send("hola A")
     await settle()
     expect(model.messages.count == 2, "el hilo A tiene su par")
@@ -367,6 +370,7 @@ private func cancelarNoPersisteRespuestaAMedias() async {
         restore: { _ in nil },
         now: { "2026-08-12T22:00:00Z" }
     )
+    await model.restoreThread()
     model.send("pregunta larga")
     try? await Task.sleep(nanoseconds: 60_000_000)
     model.cancel()
@@ -404,6 +408,7 @@ private func losGuardadosNoSePisan() async {
         restore: { _ in nil },
         now: { "2026-08-12T22:00:00Z" }
     )
+    await model.restoreThread()
     model.send("uno")
     await settle()
     model.send("dos")
@@ -630,6 +635,7 @@ private func laImagenViajaYSePersiste() async {
         restore: { _ in nil },
         now: { "2026-10-10T22:00:00Z" }
     )
+    await model.restoreThread()
     model.send("   ", images: [foto])
     await settle()
     expect(imagenesEnviadas.first?.first?.data == foto.data, "un envío de SÓLO imagen sale (la foto es el mensaje)")
@@ -671,6 +677,7 @@ private func reintentarConservaLaImagen() async {
         },
         restore: { _ in nil }
     )
+    await model.restoreThread()
     model.send("mira", images: [foto])
     await settle()
     expect(model.reintentable != nil, "el 503 deja el turno reintentable")
@@ -939,6 +946,7 @@ private func cambiarDeChatNoArrastraElReintento() async {
         stream: canned([]),
         restore: { _ in nil }
     )
+    await model.restoreThread()
     model.send("mensaje de A")
     await settle()
     expect(model.reintentable == "mensaje de A", "A dejó su reintento pendiente")

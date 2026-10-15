@@ -144,6 +144,9 @@ final class Auth: NSObject, ObservableObject {
     private var accessToken: String?
     private var refreshToken: String?
     private var expiresAt: Date?
+    /// Al arrancar, varios callers piden token a la vez con el access vencido:
+    /// comparten UN refresh, o cada uno quemaría el mismo refresh_token.
+    private var refrescando: Task<String, Error>?
 
     init(deps: AuthDependencies = .live) {
         self.deps = deps
@@ -177,22 +180,28 @@ final class Auth: NSObject, ObservableObject {
         if let accessToken, let expiresAt, expiresAt > Date().addingTimeInterval(60) {
             return accessToken
         }
+        if let refrescando { return try await refrescando.value }
         guard let refreshToken else {
             signOut()
             throw AuthError.notSignedIn
         }
-        do {
-            try await requestToken(body: [
-                "grant_type": "refresh_token",
-                "client_id": Config.auth0ClientID,
-                "refresh_token": refreshToken
-            ])
-        } catch {
-            if (error as? AuthError)?.revokesSession == true { signOut() }
-            throw error
+        let tarea = Task<String, Error> {
+            defer { refrescando = nil }
+            do {
+                try await requestToken(body: [
+                    "grant_type": "refresh_token",
+                    "client_id": Config.auth0ClientID,
+                    "refresh_token": refreshToken
+                ])
+            } catch {
+                if (error as? AuthError)?.revokesSession == true { signOut() }
+                throw error
+            }
+            guard let accessToken else { throw AuthError.notSignedIn }
+            return accessToken
         }
-        guard let accessToken else { throw AuthError.notSignedIn }
-        return accessToken
+        refrescando = tarea
+        return try await tarea.value
     }
 
     func signOut() {
