@@ -8,6 +8,8 @@ client-facing error message.
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 
@@ -319,8 +321,93 @@ LOST_TURN_2026_10_15_S = 125
 ACA_INGRESS_REQUEST_TIMEOUT_S = 240
 
 
-def test_read_budget_covers_the_engine_ceiling_plus_its_cold_start() -> None:
-    budget = external_engine._TIMEOUT.read
-    assert budget == external_engine.ENGINE_TURN_CEILING_S + external_engine.ENGINE_COLD_START_S
-    assert budget > LOST_TURN_2026_10_15_S
-    assert budget < ACA_INGRESS_REQUEST_TIMEOUT_S
+def test_live_wait_covers_the_engine_ceiling_plus_its_cold_start() -> None:
+    live = external_engine.LIVE_WAIT_S
+    assert live == external_engine.ENGINE_TURN_CEILING_S + external_engine.ENGINE_COLD_START_S
+    assert live > LOST_TURN_2026_10_15_S
+    assert live < ACA_INGRESS_REQUEST_TIMEOUT_S
+    assert external_engine._TIMEOUT.read >= live
+
+
+def _slow_client_factory(delay_s: float, resp: _FakeResp):
+    class _SlowClient:
+        def __init__(self, *a, **k) -> None: ...
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a) -> bool:
+            return False
+
+        async def post(self, url, json, headers):
+            await asyncio.sleep(delay_s)
+            return resp
+
+    return _SlowClient
+
+
+def _late_turn(**overrides):
+    kwargs = dict(persona_id="insult", user_text="hola", session_uuid="c", user_id="u", live_wait_s=0.05)
+    kwargs.update(overrides)
+    return external_engine.stream_external_turn(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_an_answer_within_the_live_wait_streams_as_before(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx, "AsyncClient", _slow_client_factory(0.01, _FakeResp(200, {"text": "a tiempo"}))
+    )
+    evs = await _collect(_late_turn(live_wait_s=1.0))
+    assert [e["type"] for e in evs] == ["text", "result"]
+    assert evs[0]["text"] == "a tiempo"
+
+
+@pytest.mark.asyncio
+async def test_a_late_answer_lands_in_the_thread_instead_of_being_dropped(monkeypatch) -> None:
+    """The 2026-10-15 loss: the engine finished at 125s, og118 had cut at 95s."""
+    _configure(monkeypatch)
+    monkeypatch.setattr(
+        external_engine.httpx,
+        "AsyncClient",
+        _slow_client_factory(0.2, _FakeResp(200, {"text": "llegué tarde", "reactions": ["🔥"]})),
+    )
+    delivered: list[dict] = []
+
+    async def deliver(message: dict) -> None:
+        delivered.append(message)
+
+    evs = await _collect(_late_turn(deliver_late=deliver))
+    assert evs == []
+    await asyncio.sleep(0.4)
+    assert len(delivered) == 1
+    assert delivered[0]["role"] == "assistant"
+    assert delivered[0]["content"] == "llegué tarde"
+    assert delivered[0]["reactions"] == ["🔥"]
+    assert delivered[0]["timestamp"].endswith("Z")
+
+
+@pytest.mark.asyncio
+async def test_a_late_failure_is_delivered_as_a_visible_note(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(external_engine.httpx, "AsyncClient", _slow_client_factory(0.2, _FakeResp(502, {})))
+    delivered: list[dict] = []
+
+    async def deliver(message: dict) -> None:
+        delivered.append(message)
+
+    assert await _collect(_late_turn(deliver_late=deliver)) == []
+    await asyncio.sleep(0.4)
+    assert delivered[0]["role"] == "assistant"
+    assert "502" in delivered[0]["content"]
+    assert "Vuelve a mandar" in delivered[0]["content"]
+    assert "SECRET-TOKEN" not in delivered[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_without_a_thread_to_deliver_to_the_cut_is_an_error(monkeypatch) -> None:
+    _configure(monkeypatch)
+    monkeypatch.setattr(external_engine.httpx, "AsyncClient", _slow_client_factory(0.5, _FakeResp(200, {"text": "x"})))
+    evs = await _collect(_late_turn(deliver_late=None))
+    assert len(evs) == 1 and evs[0]["type"] == "error"
+    assert evs[0]["message"].startswith("external engine took longer than")

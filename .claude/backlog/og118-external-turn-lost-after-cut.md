@@ -1,6 +1,6 @@
 # OG118-EXTERNAL-TURN-1 — el turno externo se produce y se tira: el proxy corta, el motor termina solo, y Reintentar lo corre dos veces
 
-Status: **Proposed**
+Status: **In progress** — dos PRs el mismo día; Done cuando haya recibo E2E en app.og118.ai (un turno de Yodo que pase la espera viva y aparezca en el hilo sin recargar)
 Proposed: 2026-10-15 by Claude (dogfood: Bernard reportó "está tardando mucho" en `og118.ai/c/d2742db6…`)
 
 ## Qué pasó (recibo, UTC 2026-10-15)
@@ -15,39 +15,50 @@ Proposed: 2026-10-15 by Claude (dogfood: Bernard reportó "está tardando mucho"
 | 19:45:11 | persona-runner | `turn_pipeline_completed`, 1135 chars + 6 reacciones — **nadie la escuchó** |
 | 19:46:06 | persona-runner | extrae 3 facts a la memoria del usuario a partir de ese turno |
 
-La respuesta existe en el motor (se guardó por el pipeline `runner`), og118 ya la había descartado,
-y si Bernard pulsa *Reintentar* el motor corre el MISMO texto otra vez: doble gasto, doble escritura
-de memoria, y el hilo del motor queda con dos turnos del usuario iguales.
+La respuesta existía en el motor (se guardó por el pipeline `runner`), og118 ya la había descartado,
+y un *Reintentar* corría el MISMO texto otra vez: doble gasto, doble escritura de memoria, y el hilo
+del motor con dos turnos del usuario iguales.
 
-## Lo que se hizo hoy (PR de este mismo día)
+## Lo que se hizo (2026-10-15)
 
-El presupuesto de lectura del proxy pasó de 95 s a 150 s: el techo del motor (90 s) **más** el arranque
-en frío que corre ANTES de que el reloj del motor empiece. El comentario anterior ("95 > 90, así siempre
-corta el motor") comparaba dos relojes que no arrancan juntos. Eso evita ESTE caso; no evita el de un
-turno agéntico que legítimamente pase de 150 s, y no recupera la respuesta ya producida.
+1. **PR #545 — la espera viva cuenta el arranque en frío.** De 95 s a 150 s: el techo del motor (90 s)
+   **más** el arranque que corre ANTES de que el reloj del motor empiece. El comentario anterior
+   ("95 > 90, así siempre corta el motor") comparaba dos relojes que no arrancan juntos.
+2. **Segundo PR — pasada la espera viva, la respuesta no se tira.** `stream_external_turn` corre el
+   `POST /v1/turn` como task; a los 150 s suelta al cliente con un turno vacío (fi-glass no dobla
+   burbuja cuando no hay texto ni reacciones) y el task sigue. Al terminar, `deliver_late` escribe en
+   el record el par mensaje-del-usuario → respuesta con `origin: background`, por
+   `ConversationStore.append_late_turn` — el mismo camino que el worker de OG118-BACKGROUND-1, y la
+   misma protección (`_keep_background_messages`) contra el `PUT` viejo del cliente. El sync de 15 s
+   del cliente (`useOg118ConversationSync`) recarga el record y pinta el par. Si la conversación nunca
+   se persistió (primer turno), el record se crea alrededor del par en vez de perderlo. Si el motor
+   falla tarde, aterriza una nota visible con la razón, no el silencio. Sin hilo donde entregar
+   (bearer legacy, sin conversation id) el corte sigue siendo un `error`.
 
-## Qué falta (lo que esta tarjeta propone)
+   Ya no hay *Reintentar* que correr dos veces en el caso del corte: el usuario no ve error.
 
-1. **El corte no debe tirar el turno.** Opciones por costo: (a) el proxy, al cortar, deja al cliente un
-   `turn_id` y el motor expone `GET /v1/turn/{id}` para recoger la respuesta tardía; (b) el motor emite
-   el turno como stream (SSE) y og118 lo reenvía, como ya hace con el path local — el ping del
-   heartbeat deja de ser la única señal de vida.
-2. **Reintentar debe ser idempotente** en el motor: mismo `channel_id` + mismo `user_text` dentro de N
-   minutos = devolver el turno ya guardado, no correr otro.
-3. **Ruta canónica (Art. 6):** el path local ya es un stream de eventos (`runner.py` → `_with_heartbeat`);
-   el externo es la excepción single-shot documentada en `external_engine.py`. La forma correcta es
-   que el externo converja al mismo contrato de eventos, no un tercer mecanismo.
+## Qué queda
 
-## La decisión que es de Bernard
+- **Recibo E2E en producción** (cierra la tarjeta): un turno de Yodo que pase los 150 s y aparezca en
+  el hilo por el sync. Reproducible dejando dormir `persona-runner` (cooldown 300 s) y mandando un
+  mensaje largo.
+- **Señal en la UI mientras llega.** Entre el turno vacío y el sync hay hasta 15 s sin nada en
+  pantalla. Un aviso efímero de fi-glass ("sigue escribiendo, aparecerá aquí") necesita un evento de
+  stream nuevo y rebuild de `dist/`; se decide con Bernard si vale la pena o si el gap es aceptable.
+- **Convergencia al contrato de eventos** (Art. 6): el externo sigue siendo single-shot. Que
+  persona-runner emita el turno como stream (SSE) y og118 lo reenvíe como el path local mataría la
+  espera viva como concepto. Es trabajo en server-bot, no en og118.
+- **Idempotencia en el motor** (mismo `channel_id` + mismo `user_text` en N minutos = devolver el
+  turno guardado) sigue siendo deseable para el *Reintentar* de un error real, pero dejó de ser
+  urgente: el corte ya no produce error.
 
-- **`persona-runner` con `minReplicas: 1`** quita los 26 s de arranque y el prewarm de 12 s, pero es un
-  contenedor de 2 vCPU / 4 Gi encendido 24/7 en ACA (gasto nuevo, del orden de cien dólares al mes
-  antes del grant gratuito). Hoy está en 0 con cooldown de 300 s.
-- Si no se paga eso, el fix es el punto 1: aceptar que el primer turno tras 5 min de silencio tarda
-  más de un minuto y hacer que la UI lo diga y lo espere sin perder la respuesta.
+## La decisión que era de Bernard, y ya no hace falta
+
+`persona-runner` con `minReplicas: 1` (2 vCPU / 4 Gi 24/7, del orden de cien dólares al mes) quitaba los
+38 s de arranque. Con la entrega tardía el arranque en frío deja de perder respuestas; la réplica
+caliente sólo compraría latencia, y eso se decide por costo cuando haya usuarios que la paguen.
 
 ## Status / next step
 
-Proposed. Siguiente paso: Bernard elige entre pagar la réplica caliente o el punto 1 (a/b); el 2 va en
-cualquier caso. Evidencia: logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC
-(`az containerapp logs show`).
+In progress. Siguiente paso: recibo E2E en app.og118.ai tras el deploy del segundo PR. Evidencia del
+origen: logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC (`az containerapp logs show`).
