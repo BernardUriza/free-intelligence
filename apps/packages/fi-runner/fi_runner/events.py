@@ -40,7 +40,7 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 
 
 class ToolCallPayload(BaseModel):
@@ -308,13 +308,27 @@ class PingEvent(BaseModel):
     A client's idle watchdog cannot tell "the model is thinking" from "the
     backend hung" — both look like silence. And silence is normal here: a turn
     proxied to an external engine emits NOTHING until the whole answer lands
-    (up to 95s), while a local turn can think far longer than a token gap.
+    (up to the proxy's live wait), while a local turn can think far longer
+    than a token gap.
     Without this frame the client kills healthy turns and throws away what the
     user wrote. The ping carries nothing; its arrival IS the signal."""
 
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["ping"] = "ping"
+
+
+class DeferredEvent(BaseModel):
+    """The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).
+
+    A proxied engine kept working past the stream's live wait. The answer lands
+    in the conversation record out of band, so the stream ends after this frame
+    with no text: the client folds no bubble and shows a waiting notice until
+    the thread refreshes. Carries nothing; its arrival is the signal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["deferred"] = "deferred"
 
 
 class DoneEvent(BaseModel):
@@ -343,6 +357,7 @@ AgentStreamEvent = Annotated[
         PlanRejectedEvent,
         ErrorEvent,
         PingEvent,
+        DeferredEvent,
         DoneEvent,
     ],
     Field(discriminator="type"),
@@ -412,6 +427,7 @@ __all__ = [
     "AgentStreamEvent",
     "AgentStreamEventAdapter",
     "PingEvent",
+    "DeferredEvent",
     "DoneEvent",
     "ElementEvent",
     "ElementPayload",
