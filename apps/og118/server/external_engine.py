@@ -2,33 +2,39 @@
 
 When an element binds to an external FI engine — the already-running Vultur
 runner for Oxígeno, the Insult runner for Yodo — og118 does NOT run a local turn.
-It proxies the user text to that engine's `POST /v1/turn` and surfaces the
-answer. The engine owns its own persona (selected by `persona_id`) and threads
-context in a long-lived session keyed by `channel_id` — its `session_uuid` field
-is accepted for schema compat but IGNORED (persona_runner v3.9.31+). So og118
-sends the og118 conversation id AS `channel_id` (one og118 thread ⇒ one engine
-session; a shared constant would pool every user's conversations into ONE Claude
-session — cross-account context bleed) and replays the capped client history so
-the engine can seed a FRESH session (reaped idle slot, replica restart, element
-switched mid-conversation) with the thread it never saw. This is single-shot
-(the engine returns one LLMResponse, not an FI event stream), so an external
-element shows NO glass-box plan/step trace — that is the documented trade of
-reusing a live engine instead of copying it.
+It hands the user text to that engine and surfaces the answer. The engine owns
+its own persona (selected by `persona_id`) and threads context in a long-lived
+session keyed by `channel_id` — its `session_uuid` field is accepted for schema
+compat but IGNORED (persona_runner v3.9.31+). So og118 sends the og118
+conversation id AS `channel_id` (one og118 thread ⇒ one engine session; a shared
+constant would pool every user's conversations into ONE Claude session —
+cross-account context bleed) and replays the capped client history so the engine
+can seed a FRESH session (reaped idle slot, replica restart, element switched
+mid-conversation) with the thread it never saw.
 
-OG118-EXTERNAL-TURN-1: the live turn waits `LIVE_WAIT_S` for that single shot.
-Past it, og118 releases the client WITHOUT cancelling the engine: the request
-keeps running here and, when the engine answers, the answer lands in the
-conversation record through `deliver_late` (the background worker's own path,
-`ConversationStore.append_late_turn`), where the client's 15s sync paints it.
-Before this, the cut threw the engine's finished answer away and the user's
-retry ran the same turn twice on the engine.
+OG118-EXTERNAL-TURN-1 (2026-10-15): the turn rides the engine's TICKET, never one
+long request. `POST /v1/turn/jobs` with a `job_id` derived from the turn (so the
+client's retry of the same text collides into the same job: one run, one memory
+write); `GET /v1/turn/jobs/{id}/events` streams each `tool_call` the engine makes
+as it makes it (the glass-box steps fi-glass already paints); `GET /v1/turn/jobs/{id}`
+long-polls the result (≤50s per request, well under the 240s ingress cap). Text
+still arrives whole in `result` — the engine strips the persona's markers from the
+final text, so only the verbs are live for now.
+
+The live stream waits `LIVE_WAIT_S`. Past it, og118 releases the client with a
+`deferred` frame WITHOUT abandoning the ticket: the poll goes on here and the
+answer lands in the conversation record through `deliver_late`
+(`ConversationStore.append_late_turn`), where the client's 15s sync paints it.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
 import os
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
@@ -44,7 +50,14 @@ RUNNER_TOKEN = os.getenv("OG118_EXTERNAL_RUNNER_TOKEN", "")
 ENGINE_TURN_CEILING_S = 90.0
 ENGINE_COLD_START_S = 60.0
 LIVE_WAIT_S = ENGINE_TURN_CEILING_S + ENGINE_COLD_START_S
-_TIMEOUT = httpx.Timeout(LIVE_WAIT_S * 2, connect=10.0)
+# Per-request reads: the runner's long-poll ceiling (persona_core.tickets.MAX_WAIT_S)
+# and its events stream, which pings every 15s. Nothing here approaches the ingress' 240s.
+POLL_WAIT_S = 50.0
+EVENTS_READ_S = 60.0
+JOB_DEADLINE_S = 600.0
+POLL_TRANSIENT_RETRIES = 3
+_TIMEOUT = httpx.Timeout(POLL_WAIT_S + 10.0, connect=10.0)
+_EVENTS_TIMEOUT = httpx.Timeout(EVENTS_READ_S, connect=10.0)
 
 LateDelivery = Callable[[dict], Awaitable[None]]
 _LATE_TASKS: set[asyncio.Task] = set()
@@ -59,6 +72,16 @@ _HISTORY_ROLES = frozenset({"user", "assistant"})
 
 def is_configured() -> bool:
     return bool(RUNNER_URL and RUNNER_TOKEN)
+
+
+def turn_job_id(session_uuid: str | None, user_text: str, history: list[dict] | None) -> str:
+    """The ticket id of THIS turn: the thread, its position and the text. A retry
+    of the same send maps to the same job — the runner reuses the ticket instead
+    of running the turn twice. Without a thread there is nothing to retry into."""
+    if not session_uuid:
+        return uuid.uuid4().hex
+    seed = f"{session_uuid}\n{len(history or [])}\n{user_text}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:32]
 
 
 def cap_history(history: list[dict] | None) -> list[dict]:
@@ -107,6 +130,32 @@ def outbound_reactions(data: dict) -> list[str]:
     return [str(r).strip() for r in (data.get("reactions") or []) if str(r).strip()]
 
 
+def outbound_events(data: dict) -> list[dict]:
+    """The engine's finished turn as og118 stream events: `text` + `result`, or a
+    single secret-free `error` when it came back empty."""
+    text = render_outbound(data)
+    reactions = outbound_reactions(data)
+    if not text and not reactions:
+        # server-bot F5 names why a turn came back empty ("markers_only",
+        # "brain_empty"); an engine predating it says nothing.
+        reason = str(data.get("empty_reason") or "").strip()
+        detail = f" ({reason})" if reason else ""
+        return [{"type": "error", "message": f"external engine returned an empty answer{detail}"}]
+    events: list[dict] = []
+    if text:
+        events.append({"type": "text", "text": text})
+    # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
+    # with a `result` so that provenance reaches the client the same way the local
+    # path delivers it. The text is repeated (the reducer replaces, never appends);
+    # the persona's reactions ride here structured: a reaction-only turn is a
+    # settled turn with empty text and a gesture, not an error.
+    result: dict = {"text": text, "model": data.get("model")}
+    if reactions:
+        result["reactions"] = reactions
+    events.append({"type": "result", "result": result})
+    return events
+
+
 def late_message(events: list[dict]) -> dict:
     """The engine's late turn as the assistant message the thread stores: the
     answer with its reactions, or a visible note naming why there is none."""
@@ -134,85 +183,123 @@ def late_message(events: list[dict]) -> dict:
     return message
 
 
-async def _turn_events(payload: dict, headers: dict) -> list[dict]:
-    """One `POST /v1/turn`, rendered as og118 stream events: `text` + `result`
-    on an answer, a single secret-free `error` on any failure."""
+def _error(message: str) -> dict:
+    return {"type": "error", "message": message}
+
+
+async def _submit(client: httpx.AsyncClient, payload: dict, headers: dict) -> str | dict:
+    """Open the ticket. Returns the job id, or the one `error` event to emit."""
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.post(f"{RUNNER_URL}/v1/turn", json=payload, headers=headers)
+        resp = await client.post(f"{RUNNER_URL}/v1/turn/jobs", json=payload, headers=headers)
     except httpx.HTTPError as exc:
-        return [{"type": "error", "message": f"external engine unreachable: {type(exc).__name__}"}]
-
-    if resp.status_code != 200:
-        return [{"type": "error", "message": f"external engine returned {resp.status_code}"}]
-
+        return _error(f"external engine unreachable: {type(exc).__name__}")
+    if resp.status_code != 202:
+        return _error(f"external engine returned {resp.status_code}")
     try:
-        data = resp.json()
+        job_id = str(resp.json().get("job_id") or "")
     except ValueError:
-        return [{"type": "error", "message": "external engine returned a non-JSON body"}]
-
-    text = render_outbound(data)
-    reactions = outbound_reactions(data)
-    if not text and not reactions:
-        # server-bot F5 names why a turn came back empty ("markers_only",
-        # "brain_empty"); an engine predating it says nothing.
-        reason = str(data.get("empty_reason") or "").strip()
-        detail = f" ({reason})" if reason else ""
-        return [{"type": "error", "message": f"external engine returned an empty answer{detail}"}]
-
-    events: list[dict] = []
-    if text:
-        events.append({"type": "text", "text": text})
-    # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
-    # with a `result` so that provenance reaches the client the same way the local
-    # path delivers it — the answer says what produced it, on both routes. The text
-    # is repeated (the reducer replaces, never appends), and usage/session stay out:
-    # the frontend has no use for them and they are not the UI's business. The
-    # persona's reactions ride here structured: a reaction-only turn is a settled
-    # turn with empty text and a gesture, not an error.
-    result: dict = {"text": text, "model": data.get("model")}
-    if reactions:
-        result["reactions"] = reactions
-    events.append({"type": "result", "result": result})
-    return events
+        return _error("external engine returned a non-JSON body")
+    return job_id or _error("external engine accepted the turn without a job_id")
 
 
-def _deliver_when_done(task: asyncio.Task, deliver_late: LateDelivery) -> None:
+async def _sse_blocks(lines: AsyncIterator[str]) -> AsyncIterator[tuple[int | None, str | None, dict]]:
+    event_id: int | None = None
+    event: str | None = None
+    data: list[str] = []
+    async for raw in lines:
+        line = raw.rstrip("\r")
+        if line == "":
+            if data:
+                try:
+                    parsed = json.loads("\n".join(data))
+                except ValueError:
+                    parsed = {}
+                yield event_id, event, parsed if isinstance(parsed, dict) else {}
+            event_id, event, data = None, None, []
+        elif line.startswith("id:"):
+            value = line[3:].strip()
+            event_id = int(value) if value.isdigit() else event_id
+        elif line.startswith("event:"):
+            event = line[6:].strip()
+        elif line.startswith("data:"):
+            data.append(line[5:].lstrip())
+
+
+async def _tail_events(client: httpx.AsyncClient, job_url: str, headers: dict, frames: asyncio.Queue) -> None:
+    """Follow the ticket's event log, reconnecting from the last id, until `done`.
+    Only `tool_call` frames are forwarded; the result travels by the poll."""
+    cursor = 0
+    while True:
+        try:
+            async with client.stream(
+                "GET", f"{job_url}/events", headers={**headers, "Last-Event-ID": str(cursor)}, timeout=_EVENTS_TIMEOUT
+            ) as resp:
+                if resp.status_code != 200:
+                    return
+                async for event_id, event, data in _sse_blocks(resp.aiter_lines()):
+                    if event == "done":
+                        return
+                    if event_id is not None:
+                        cursor = event_id
+                    if data.get("type") == "tool_call":
+                        await frames.put(data)
+        except httpx.HTTPError:
+            pass
+        await asyncio.sleep(1.0)
+
+
+async def _poll_once(client: httpx.AsyncClient, job_url: str, headers: dict) -> dict | list[dict]:
+    """One long-poll of the ticket: the body, or the terminal `error` events."""
+    resp = await client.get(job_url, params={"wait_s": POLL_WAIT_S}, headers=headers)
+    if resp.status_code == 404:
+        return [_error("external engine lost the turn (runner restarted)")]
+    if resp.status_code != 200:
+        return [_error(f"external engine returned {resp.status_code}")]
+    try:
+        body = resp.json()
+    except ValueError:
+        return [_error("external engine returned a non-JSON body")]
+    return body if isinstance(body, dict) else [_error("external engine returned a non-JSON body")]
+
+
+async def _poll_result(client: httpx.AsyncClient, job_url: str, headers: dict) -> list[dict]:
+    """Ask the ticket in short requests until the turn is done (or the runner's
+    own 600s deadline passes). A poll that drops is asked again; the turn lives."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + JOB_DEADLINE_S
+    failures = 0
+    while loop.time() < deadline:
+        try:
+            got = await _poll_once(client, job_url, headers)
+        except httpx.HTTPError as exc:
+            failures += 1
+            if failures >= POLL_TRANSIENT_RETRIES:
+                return [_error(f"external engine unreachable: {type(exc).__name__}")]
+            await asyncio.sleep(1.0)
+            continue
+        failures = 0
+        if isinstance(got, list):
+            return got
+        if got.get("status") == "done":
+            return outbound_events(got.get("response") or {})
+    return [_error(f"external engine did not finish within {JOB_DEADLINE_S:.0f}s")]
+
+
+def _deliver_when_done(task: asyncio.Task, deliver_late: LateDelivery, aclose: Callable[[], Awaitable[None]]) -> None:
     async def finish() -> None:
         try:
             await deliver_late(late_message(await task))
         except Exception:
             log.exception("late external turn was not delivered")
+        finally:
+            await aclose()
 
     late = asyncio.create_task(finish())
     _LATE_TASKS.add(late)
     late.add_done_callback(_LATE_TASKS.discard)
 
 
-async def stream_external_turn(
-    *,
-    persona_id: str,
-    user_text: str,
-    session_uuid: str | None,
-    user_id: str | None,
-    history: list[dict] | None = None,
-    deliver_late: LateDelivery | None = None,
-    live_wait_s: float = LIVE_WAIT_S,
-) -> AsyncIterator[dict]:
-    """Proxy one turn to the external engine and yield og118 stream events.
-
-    Yields og118-native event dicts (the same shape the local runner emits, so the
-    frontend hook maps them unchanged): a single `text` event with the full answer,
-    then `done`. On any failure yields a single secret-free `error` event.
-
-    Past `live_wait_s` the live stream ends with a single `deferred` frame (the
-    client folds no bubble and shows a waiting notice) and the engine call goes
-    on; `deliver_late` receives the finished assistant message.
-    Without a `deliver_late` (no thread to land in) the cut is an `error`."""
-    if not is_configured():
-        yield {"type": "error", "message": "external engine not configured (OG118_EXTERNAL_RUNNER_URL/TOKEN unset)"}
-        return
-
+def _payload(*, persona_id: str, user_text: str, session_uuid: str | None, user_id: str | None, history) -> dict:
     payload: dict = {
         # The engine's continuity key is channel_id (one long-lived SDK session
         # per channel — persona_runner ignores session_uuid). og118's conversation
@@ -224,6 +311,7 @@ async def stream_external_turn(
         # Which surface emitted `user_id`: the engine resolves (surface, id) to
         # its canonical principal before it reads memory (server-bot F2).
         "surface": "og118",
+        "job_id": turn_job_id(session_uuid, user_text, history),
     }
     if session_uuid:
         payload["session_uuid"] = session_uuid
@@ -239,18 +327,74 @@ async def stream_external_turn(
     capped = cap_history(history)
     if capped:
         payload["history"] = capped
+    return payload
 
-    headers = {"Authorization": f"Bearer {RUNNER_TOKEN}", "Content-Type": "application/json"}
-    task = asyncio.create_task(_turn_events(payload, headers))
-    try:
-        events = await asyncio.wait_for(asyncio.shield(task), live_wait_s)
-    except asyncio.TimeoutError:
-        if deliver_late is None:
-            task.cancel()
-            yield {"type": "error", "message": f"external engine took longer than {live_wait_s:.0f}s"}
-            return
-        _deliver_when_done(task, deliver_late)
-        yield {"type": "deferred"}
+
+async def stream_external_turn(
+    *,
+    persona_id: str,
+    user_text: str,
+    session_uuid: str | None,
+    user_id: str | None,
+    history: list[dict] | None = None,
+    deliver_late: LateDelivery | None = None,
+    live_wait_s: float = LIVE_WAIT_S,
+) -> AsyncIterator[dict]:
+    """Run one turn on the external engine's ticket and yield og118 stream events.
+
+    Yields og118-native event dicts (the same shape the local runner emits, so the
+    frontend hook maps them unchanged): each `tool_call` as the engine makes it,
+    then `text` + `result` when the ticket is done. On any failure yields a single
+    secret-free `error` event.
+
+    Past `live_wait_s` the live stream ends with a single `deferred` frame (the
+    client folds no bubble and shows a waiting notice) and the poll goes on;
+    `deliver_late` receives the finished assistant message. Without a
+    `deliver_late` (no thread to land in) the cut is an `error`."""
+    if not is_configured():
+        yield _error("external engine not configured (OG118_EXTERNAL_RUNNER_URL/TOKEN unset)")
         return
-    for event in events:
-        yield event
+    headers = {"Authorization": f"Bearer {RUNNER_TOKEN}", "Content-Type": "application/json"}
+    client = httpx.AsyncClient(timeout=_TIMEOUT)
+    submitted = await _submit(
+        client,
+        _payload(persona_id=persona_id, user_text=user_text, session_uuid=session_uuid, user_id=user_id, history=history),
+        headers,
+    )
+    if isinstance(submitted, dict):
+        await client.aclose()
+        yield submitted
+        return
+    job_url = f"{RUNNER_URL}/v1/turn/jobs/{submitted}"
+    frames: asyncio.Queue = asyncio.Queue()
+    tail = asyncio.create_task(_tail_events(client, job_url, headers, frames))
+    result = asyncio.create_task(_poll_result(client, job_url, headers))
+    detached = False
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + live_wait_s
+    try:
+        while True:
+            getter = asyncio.create_task(frames.get())
+            done, _ = await asyncio.wait({getter, result}, timeout=max(0.0, deadline - loop.time()), return_when=asyncio.FIRST_COMPLETED)
+            if getter in done:
+                yield getter.result()
+                continue
+            getter.cancel()
+            if result in done:
+                while not frames.empty():
+                    yield frames.get_nowait()
+                for event in result.result():
+                    yield event
+                return
+            if deliver_late is None:
+                yield _error(f"external engine took longer than {live_wait_s:.0f}s")
+                return
+            detached = True
+            _deliver_when_done(result, deliver_late, client.aclose)
+            yield {"type": "deferred"}
+            return
+    finally:
+        tail.cancel()
+        if not detached:
+            result.cancel()
+            await client.aclose()

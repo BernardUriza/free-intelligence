@@ -589,8 +589,8 @@ async def chat_stream(
                 }
             )
         # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
-        # og118's runner. Proxy the turn and surface the answer (single-shot, no
-        # local plan/step trace). og118's session_id keys the engine's context.
+        # og118's runner. The turn rides the engine's ticket: its tool_call frames
+        # stream live, its text lands whole. og118's session_id keys the engine's context.
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
@@ -639,8 +639,8 @@ async def chat_stream(
                 yield _sse({"type": "done"})
                 return
             user_id = None if principal.is_legacy_bearer else principal.sub
-            # Single-shot proxy: silent until the whole answer lands, so the heartbeat
-            # keeps the browser's 60s watchdog from discarding the user's message.
+            # The ticket proxy: the engine's tool_call frames arrive live from its event
+            # log; the heartbeat covers the silences so the browser's 60s watchdog holds.
             entregar_tarde = (
                 _late_delivery(principal.sub, req.session_id, req.message) if user_id and req.session_id else None
             )
