@@ -1,6 +1,6 @@
 # OG118-EXTERNAL-TURN-1 — el turno externo se produce y se tira: el proxy corta, el motor termina solo, y Reintentar lo corre dos veces
 
-Status: **In progress** — tres PRs el mismo día (presupuesto, entrega tardía, aviso en la UI); Done cuando haya recibo E2E en app.og118.ai (un turno de Yodo que pase la espera viva, muestre el aviso y aparezca en el hilo sin recargar)
+Status: **Done 2026-10-15** — recibo E2E en app.og118.ai: `evidence/og118-external-turn-1-live-verbs-prod-2026-10-15.jpg` (Yodo, "1 step · WebSearch" pintado en vivo como ACTIVE a los 18 s y persistido como DONE sobre la respuesta). Seis PRs en el día: #545, #546, #547, #548, #549, #550
 Proposed: 2026-10-15 by Claude (dogfood: Bernard reportó "está tardando mucho" en `og118.ai/c/d2742db6…`)
 
 ## Qué pasó (recibo, UTC 2026-10-15)
@@ -67,9 +67,21 @@ del motor con dos turnos del usuario iguales.
 38 s de arranque. Con la entrega tardía el arranque en frío deja de perder respuestas; la réplica
 caliente sólo compraría latencia, y eso se decide por costo cuando haya usuarios que la paguen.
 
-## Status / next step
+## Recibo E2E (2026-10-15, UTC)
 
-In progress. Siguiente paso: recibo E2E en app.og118.ai tras el deploy del PR de og118 (que va después
-del de persona-runner): un turno de Yodo con sus `tool_call` pintándose en vivo; el mismo texto dos veces →
-`ticket_reused` en el runner; un turno que pase 150 s → aviso + entrega por sync. Evidencia del origen:
-logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC (`az containerapp logs show`).
+| Hora | Qué se observó |
+|------|----------------|
+| 23:16:11 | primer turno de prueba en una conversación nueva con Yodo (`a84c0bf0…`), runner en frío |
+| 23:16:45 | `ticket_submitted` con el `job_id` derivado por og118; `POST /v1/turn/jobs` 202; `GET …/events` abierto un segundo después |
+| 23:17:35 | respuesta con 6 reacciones en ~84 s (26 s de arranque incluidos); el runner llamó `ToolSearch` y `WebSearch`… **pero el panel no los pintó**: la bitácora nacía en `turn_via_aire`, ~10 s después del alta con `pipeline: runner`, y el tail recibió `done` → #550 |
+| 23:35:02 | segundo turno tras desplegar #550 (`persona-runner--0000283`) |
+| 23:35:22 | **"1 step · WebSearch · ACTIVE"** en pantalla mientras el turno corría (texto del DOM capturado a los 18 s) |
+| 23:35:34 | `agent_runner_turn_complete`; poll 200; la respuesta cita Archaeology Magazine; el panel persiste "1 step · WebSearch · DONE" sobre la burbuja (screenshot) |
+
+Lo que este recibo NO prueba, dicho con todas sus letras:
+- **`ticket_reused` en vivo.** El `job_id` incluye la posición en el hilo, así que sólo colisiona el *reintento* del mismo envío (fi-glass tras un error, con el mensaje optimista revertido), no un segundo envío manual del mismo texto. Está cubierto por tests unitarios (`test_the_job_id_is_the_turn_not_the_attempt`, `test_the_same_job_id_posted_twice_runs_one_turn`); no se forzó un error real en producción para verlo.
+- **La ruta diferida (>150 s) en producción.** Sigue cubierta por tests; hoy ningún turno real pasó de 84 s.
+
+Observación colateral, fuera de alcance: durante el primer turno de una conversación **nueva** el cliente pidió `GET /conversations/{id}` unas 30 veces en 85 s y recibió 404 en todas (el record no existe hasta que el turno se asienta). Es ruido y costo de un poll sobre un id que aún no se persistió; va a `FIGLASS-STATE-RESIDUALS-1`.
+
+Evidencia del origen: logs de `persona-runner` y `og118-api` del 2026-10-15 19:42–19:46 UTC (`az containerapp logs show`).
