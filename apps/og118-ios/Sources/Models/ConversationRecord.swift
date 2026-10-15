@@ -111,16 +111,50 @@ extension ConversationRecord {
     ) -> [PersistedMessage] {
         let previos = base?.messages ?? []
         return messages.enumerated().map { indice, mensaje in
-            if indice < previos.count { return previos[indice] }
-            return PersistedMessage(
-                role: PersistedMessageRole(rawValue: mensaje.role.rawValue) ?? .user,
-                content: mensaje.content,
-                timestamp: mensaje.timestamp,
-                author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) },
-                images: mensaje.images.isEmpty ? nil : mensaje.images,
-                trace: mensaje.model.map { MessageTrace(model: $0) }
-            )
+            indice < previos.count ? previos[indice] : persistido(mensaje)
         }
+    }
+
+    private static func persistido(_ mensaje: ChatMessage) -> PersistedMessage {
+        PersistedMessage(
+            role: PersistedMessageRole(rawValue: mensaje.role.rawValue) ?? .user,
+            content: mensaje.content,
+            timestamp: mensaje.timestamp,
+            author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) },
+            images: mensaje.images.isEmpty ? nil : mensaje.images,
+            trace: mensaje.model.map { MessageTrace(model: $0) }
+        )
+    }
+
+    /// El record VIVO manda (título, pin, archivado y los mensajes que otro
+    /// cliente agregó); el teléfono sólo le suma los turnos posteriores a `base`.
+    static func fusionar(
+        id: String,
+        locales: [ChatMessage],
+        base: ConversationRecord?,
+        vivo: ConversationRecord?,
+        createdAt: String,
+        now: String
+    ) -> ConversationRecord {
+        guard let vivo else {
+            return from(id: id, messages: locales, createdAt: createdAt, now: now, base: base)
+        }
+        let previos = base?.messages.count ?? 0
+        let nuevos = Array(locales.dropFirst(min(previos, locales.count)))
+        let todos = vivo.chatMessages + nuevos
+        let customTitle = vivo.titleCustom == true ? vivo.title : nil
+        return ConversationRecord(
+            id: id,
+            title: customTitle ?? ConversationSchema.title(todos),
+            titleCustom: vivo.titleCustom,
+            createdAt: vivo.createdAt,
+            updatedAt: now,
+            messages: vivo.messages + nuevos.map(persistido),
+            preview: ConversationSchema.preview(todos),
+            pinnedAt: vivo.pinnedAt,
+            archivedAt: vivo.archivedAt,
+            schemaVersion: ConversationSchema.version
+        )
     }
 
     static func from(

@@ -24,6 +24,7 @@ struct ComposerView: View {
     @State private var rielAbierto = false
     @Binding var draft: String
     let isStreaming: Bool
+    let hiloListo: Bool
     let elementoActivo: Element?
     let tieneProyecto: Bool
     let aparicion: Animation?
@@ -33,6 +34,7 @@ struct ComposerView: View {
     let onQuitarAdjunto: (UUID) -> Void
     let onSend: (String) -> Void
     let onStop: () -> Void
+    let preparando: Bool
     let grabando: Bool
     let transcribiendo: Bool
     let onDictar: () -> Void
@@ -40,7 +42,7 @@ struct ComposerView: View {
     @ObservedObject var llamada: ResonanceCallModel
 
     private var puedeEnviar: Bool {
-        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming
+        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !adjuntos.isEmpty) && !isStreaming && hiloListo
     }
 
     /// El teclado se baja al enviar: arriba tapa media conversación justo
@@ -182,6 +184,7 @@ struct ComposerView: View {
                     Image(systemName: grabando ? "stop.circle.fill" : "mic")
                         .font(.system(size: 18, weight: .regular))
                         .foregroundStyle(grabando ? Theme.stopFill : Theme.textMuted)
+                        .opacity(preparando ? 0.4 : 1)
                 }
             }
             .frame(width: 44, height: 44)
@@ -192,7 +195,7 @@ struct ComposerView: View {
             }
             .contentShape(Rectangle())
         }
-        .disabled(transcribiendo)
+        .disabled(transcribiendo || preparando)
         .accessibilityLabel(grabando ? "Detener y transcribir" : "Iniciar dictado por voz")
     }
 

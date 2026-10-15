@@ -75,7 +75,7 @@ struct ContentView: View {
             Watermark()
             VStack(spacing: 0) {
                 ZStack {
-                    if chat.messages.isEmpty && !chat.isStreaming {
+                    if chat.messages.isEmpty && !chat.isStreaming && !chat.isRestoring && chat.cargaFallida == nil {
                         StartCard().transition(.opacity)
                     } else {
                         TranscriptView(chat: chat, voz: voz, diagnostico: diagnostico, aparicion: aparicion).transition(.opacity)
@@ -175,6 +175,7 @@ struct ContentView: View {
         ComposerView(
             draft: $draft,
             isStreaming: chat.isStreaming,
+            hiloListo: chat.hiloListo,
             elementoActivo: elementoActivo,
             tieneProyecto: chat.corpusID != nil,
             aparicion: aparicion,
@@ -187,6 +188,7 @@ struct ContentView: View {
                 adjuntos.vaciar()
             },
             onStop: { chat.cancel() },
+            preparando: voz.preparando,
             grabando: voz.grabando,
             transcribiendo: voz.transcribiendo,
             onDictar: { voz.alternarDictado { texto in

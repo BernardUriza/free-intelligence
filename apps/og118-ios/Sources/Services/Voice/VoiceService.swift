@@ -89,6 +89,14 @@ struct VoiceService {
         return (data, tipo)
     }
 
+    /// El API se apaga a los 5 min sin tráfico y tarda 20–30 s en volver: se le
+    /// pega a `/health` mientras el usuario habla, para que el audio no espere.
+    func despertar() async {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent("health"))
+        request.timeoutInterval = 45
+        _ = try? await URLSession.shared.data(for: request)
+    }
+
     func transcribe(audio: Data, mime: String = VoiceLimits.recordingMime) async throws -> String {
         guard !audio.isEmpty else { throw VoiceError.sinGrabacion }
         guard audio.count <= VoiceLimits.maxAudioBytes else {

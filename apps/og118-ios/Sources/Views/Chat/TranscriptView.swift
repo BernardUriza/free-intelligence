@@ -11,6 +11,7 @@ struct TranscriptView: View {
 
     @State private var alFondo = true
     @State private var tocado: UUID?
+    @State private var esperaLarga = false
 
     private var ultimoAsistente: UUID? {
         chat.messages.last(where: { $0.role == .assistant })?.id
@@ -20,6 +21,27 @@ struct TranscriptView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
+                    if chat.isRestoring {
+                        HStack(spacing: 8) {
+                            ProgressView().tint(Theme.accent)
+                            Text(esperaLarga
+                                ? "El servidor estaba dormido; la conversación tarda unos segundos."
+                                : "Cargando la conversación…")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textMuted)
+                        .padding(.horizontal, 14)
+                        .transition(.opacity)
+                    }
+                    if let falla = chat.cargaFallida {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(falla)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.danger)
+                            botonSecundario("Reintentar carga", icono: "arrow.clockwise") { chat.reintentarCarga() }
+                        }
+                        .padding(.horizontal, 14)
+                    }
                     ForEach(chat.messages) { message in
                         MessageBubble(
                             role: message.role,
@@ -67,16 +89,7 @@ struct TranscriptView: View {
                                 .font(.footnote)
                                 .foregroundStyle(Theme.danger)
                             if chat.reintentable != nil {
-                                Button { chat.reintentar() } label: {
-                                    Label("Reintentar", systemImage: "arrow.clockwise")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(Theme.text)
-                                        .padding(.horizontal, 14)
-                                        .frame(height: 34)
-                                        .background(Theme.surface, in: Capsule())
-                                        .overlay(Capsule().stroke(Theme.surfaceBorder, lineWidth: 1))
-                                }
-                                .frame(minHeight: 44)
+                                botonSecundario("Reintentar", icono: "arrow.clockwise") { chat.reintentar() }
                             }
                         }
                         .padding(.horizontal, 14)
@@ -118,6 +131,12 @@ struct TranscriptView: View {
             .onChange(of: chat.messages.count) { _, _ in
                 irAlFondo(proxy, animado: true)
             }
+            .task(id: chat.isRestoring) {
+                esperaLarga = false
+                guard chat.isRestoring else { return }
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                if chat.isRestoring { esperaLarga = true }
+            }
             .onChange(of: chat.liveText) { _, _ in
                 // Sólo persigue el stream si el usuario NO se fue a leer arriba:
                 // arrastrarlo de vuelta mientras lee es peor que no seguirlo.
@@ -139,6 +158,19 @@ struct TranscriptView: View {
         } else {
             proxy.scrollTo("fondo", anchor: .bottom)
         }
+    }
+
+    private func botonSecundario(_ titulo: String, icono: String, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Label(titulo, systemImage: icono)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(Theme.surfaceBorder, lineWidth: 1))
+        }
+        .frame(minHeight: 44)
     }
 
     private func botonAlFondo(_ accion: @escaping () -> Void) -> some View {

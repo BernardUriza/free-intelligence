@@ -38,6 +38,11 @@ final class ResonanceCallModel: NSObject, ObservableObject {
             self?.cues.aplicar(ResonanceCuePolicy.acciones(previo: previo, siguiente: siguiente, evento: evento))
             self?.alCambiar(siguiente)
         }
+        microfono.alPerderElAudio = { [weak self] motivo in
+            guard let self, controlador.activa else { return }
+            alFallar("\(motivo) La llamada se colgó.")
+            controlador.fallaFatal()
+        }
     }
 
     convenience init(chat: ChatModel, client: Og118Client, alFallar: @escaping (String) -> Void) {
@@ -123,6 +128,7 @@ final class ResonanceCallModel: NSObject, ObservableObject {
             Task {
                 do {
                     try await microfono.abrir()
+                    guard controlador.activa else { return microfono.cerrar() }
                     try microfono.empezarSegmento()
                 } catch {
                     alFallar(ResonancePolicy.mensajeDeFallo(fase: .mic, error: error, fatal: true))
