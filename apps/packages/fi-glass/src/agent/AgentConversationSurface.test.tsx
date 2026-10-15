@@ -40,6 +40,8 @@ const makeConversation = (msgs: ChatMessage[] = messages): AgentConversation =>
     author: { id: 'og118', name: 'og118', symbol: 'og' },
     isStreaming: false,
     turnError: null,
+    turnNotice: null,
+    dismissNotice: () => {},
     send: () => {},
     sendAndAwait: () => Promise.resolve(''),
     retry: () => {},

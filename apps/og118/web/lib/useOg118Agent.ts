@@ -149,6 +149,10 @@ function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
       // slow-but-healthy turn is not killed (and the user's message not thrown
       // away) just because the backend had nothing to say yet.
       return { type: 'ping' };
+    case 'deferred':
+      // The engine kept working past the live wait; the answer lands in the thread
+      // out of band (OG118-EXTERNAL-TURN-1). The shell shows a waiting notice.
+      return { type: 'deferred' };
     case 'done':
       return { type: 'done' };
     default:

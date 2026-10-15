@@ -39,6 +39,8 @@ export interface TranscriptRegionProps {
     | 'author'
     | 'isStreaming'
     | 'turnError'
+    | 'turnNotice'
+    | 'dismissNotice'
     | 'retry'
     | 'dismissError'
     | 'persistError'
@@ -56,6 +58,8 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
     author,
     isStreaming,
     turnError,
+    turnNotice,
+    dismissNotice,
     retry,
     dismissError,
     persistError,
@@ -75,6 +79,7 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
     showLessLabel,
     collapseToggleClassName,
     errorClassName,
+    noticeClassName,
     retryButtonClassName,
     dismissButtonClassName,
     scrollToBottomClassName,
@@ -159,6 +164,19 @@ export function TranscriptRegion({ surface, conversation, contentInset }: Transc
               retryLabel={retryLabel}
               dismissLabel={dismissLabel}
               retryButtonClassName={retryButtonClassName}
+              dismissButtonClassName={dismissButtonClassName}
+            />
+          )}
+
+          {/* OG118-EXTERNAL-TURN-1: the engine released the turn without its answer;
+              it lands in the thread out of band. Status, not alert: nothing to retry. */}
+          {turnNotice && !turnError && (
+            <TurnErrorBanner
+              error={turnNotice}
+              tone="info"
+              onDismiss={dismissNotice}
+              className={noticeClassName ?? errorClassName}
+              dismissLabel={dismissLabel}
               dismissButtonClassName={dismissButtonClassName}
             />
           )}

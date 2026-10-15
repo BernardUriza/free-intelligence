@@ -231,3 +231,12 @@ describe('result.reactions — the speaker\'s gesture on the turn (server-bot F5
     expect(s.reactions).toEqual(['👀', '🔥']);
   });
 });
+
+describe('deferred — released without its answer', () => {
+  it('marks the turn and lets it settle empty on done', () => {
+    const s = applyAgentEvent(initialAgentTurnState(), { type: 'deferred' });
+    expect(s.deferred).toBe(true);
+    expect(s.text).toBe('');
+    expect(applyAgentEvent(s, { type: 'done' }).status).toBe('done');
+  });
+});

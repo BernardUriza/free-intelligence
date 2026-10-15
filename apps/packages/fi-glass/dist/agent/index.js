@@ -415,6 +415,7 @@ function useAgentConversation(agent, options) {
   convoRef.current = convo;
   const messages = convo.messages;
   const turnError = convo.failure;
+  const turnNotice = convo.notice;
   const timedOut = convo.timedOut;
   const controlledRef = useRef(controlled);
   controlledRef.current = controlled;
@@ -505,6 +506,7 @@ function useAgentConversation(agent, options) {
     if (last) send(last.text, last.images);
   }, [send]);
   const dismissError = useCallback(() => dispatch({ type: "dismiss_failure" }), []);
+  const dismissNotice = useCallback(() => dispatch({ type: "dismiss_notice" }), []);
   useEffect2(() => {
     if (agent.isStreaming || !convoRef.current.pending) return;
     if (agent.turn.status === "error") {
@@ -586,6 +588,8 @@ function useAgentConversation(agent, options) {
     author,
     isStreaming: agent.isStreaming && !timedOut,
     turnError,
+    turnNotice,
+    dismissNotice,
     persistError,
     retryPersist,
     dismissPersistError,
@@ -603,49 +607,56 @@ function useAgentConversation(agent, options) {
 
 // src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+var TONES = {
+  error: { border: "rgba(248,113,113,0.35)", background: "rgba(248,113,113,0.08)", text: "#fca5a5" },
+  info: { border: "rgba(96,165,250,0.35)", background: "rgba(96,165,250,0.08)", text: "#93c5fd" }
+};
+var BUTTON_STYLE = {
+  padding: "0.35rem 0.75rem",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.2)",
+  background: "transparent",
+  color: "#e2e8f0",
+  fontSize: "0.8rem",
+  cursor: "pointer"
+};
 function TurnErrorBanner({
   error,
   onRetry,
   onDismiss,
+  tone = "error",
   className,
   retryLabel = "Reintentar",
   dismissLabel = "Descartar",
   retryButtonClassName,
   dismissButtonClassName
 }) {
+  const colors = TONES[tone];
   return /* @__PURE__ */ jsxs5(
     "div",
     {
-      role: "alert",
+      role: tone === "info" ? "status" : "alert",
       className,
       style: {
         marginTop: "1rem",
         padding: "0.75rem 1rem",
         borderRadius: 10,
-        border: "1px solid rgba(248,113,113,0.35)",
-        background: "rgba(248,113,113,0.08)",
+        border: `1px solid ${colors.border}`,
+        background: colors.background,
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
         gap: "0.75rem"
       },
       children: [
-        /* @__PURE__ */ jsx5("span", { style: { color: "#fca5a5", fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        /* @__PURE__ */ jsx5(
+        /* @__PURE__ */ jsx5("span", { style: { color: colors.text, fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        onRetry && /* @__PURE__ */ jsx5(
           "button",
           {
             type: "button",
             onClick: onRetry,
             className: retryButtonClassName,
-            style: retryButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.2)",
-              background: "transparent",
-              color: "#e2e8f0",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
+            style: retryButtonClassName ? void 0 : BUTTON_STYLE,
             children: retryLabel
           }
         ),
@@ -655,15 +666,7 @@ function TurnErrorBanner({
             type: "button",
             onClick: onDismiss,
             className: dismissButtonClassName,
-            style: dismissButtonClassName ? void 0 : {
-              padding: "0.35rem 0.75rem",
-              borderRadius: 8,
-              border: "none",
-              background: "transparent",
-              color: "#94a3b8",
-              fontSize: "0.8rem",
-              cursor: "pointer"
-            },
+            style: dismissButtonClassName ? void 0 : { ...BUTTON_STYLE, opacity: 0.7 },
             children: dismissLabel
           }
         )
@@ -2163,6 +2166,7 @@ function persistedTraceTurn(message) {
     meta: null,
     author: message.author ?? null,
     heartbeats: 0,
+    deferred: false,
     status: "done"
   };
 }
@@ -2251,6 +2255,8 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     author,
     isStreaming,
     turnError,
+    turnNotice,
+    dismissNotice,
     retry,
     dismissError,
     persistError,
@@ -2270,6 +2276,7 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
     showLessLabel,
     collapseToggleClassName,
     errorClassName,
+    noticeClassName,
     retryButtonClassName,
     dismissButtonClassName,
     scrollToBottomClassName,
@@ -2334,6 +2341,17 @@ function TranscriptRegion({ surface, conversation, contentInset }) {
                     retryLabel,
                     dismissLabel,
                     retryButtonClassName,
+                    dismissButtonClassName
+                  }
+                ),
+                turnNotice && !turnError && /* @__PURE__ */ jsx18(
+                  TurnErrorBanner,
+                  {
+                    error: turnNotice,
+                    tone: "info",
+                    onDismiss: dismissNotice,
+                    className: noticeClassName ?? errorClassName,
+                    dismissLabel,
                     dismissButtonClassName
                   }
                 ),
@@ -3411,6 +3429,8 @@ function AgentConversationSurface(props) {
     author,
     isStreaming,
     turnError,
+    turnNotice,
+    dismissNotice,
     persistError,
     retryPersist,
     dismissPersistError,
@@ -3464,6 +3484,8 @@ function AgentConversationSurface(props) {
           author,
           isStreaming,
           turnError,
+          turnNotice,
+          dismissNotice,
           retry,
           dismissError,
           persistError,

@@ -9,6 +9,7 @@ function initialAgentTurnState() {
     meta: null,
     author: null,
     heartbeats: 0,
+    deferred: false,
     status: "thinking"
   };
 }
@@ -114,6 +115,8 @@ function applyAgentEvent(state, event) {
       return { ...state, author: event.author };
     case "ping":
       return { ...state, heartbeats: state.heartbeats + 1 };
+    case "deferred":
+      return { ...state, deferred: true };
     case "meta":
       return { ...state, meta: event.meta };
     case "error":
@@ -163,11 +166,18 @@ function foldAssistantTurn(turn, defaultAuthor) {
 }
 
 // src/agent/conversation-state.ts
+function deferredNotice(author) {
+  return {
+    kind: "deferred",
+    message: `${author.name} sigue escribiendo. Su respuesta aparecer\xE1 aqu\xED en cuanto termine.`
+  };
+}
 function initialConversationState(seed = []) {
   return {
     messages: seed,
     pending: false,
     failure: null,
+    notice: null,
     timedOut: false,
     unsent: { text: null, images: null },
     lastSent: null,
@@ -199,6 +209,7 @@ function applyConversationEvent(state, event) {
         ...state,
         pending: true,
         failure: null,
+        notice: null,
         timedOut: false,
         // A new send supersedes any draft still waiting to be recovered.
         unsent: NO_DRAFT,
@@ -215,7 +226,9 @@ function applyConversationEvent(state, event) {
     case "turn_settled": {
       if (!state.pending) return state;
       const base = { ...state, pending: false };
-      if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) return base;
+      if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) {
+        return event.turn.deferred ? { ...base, notice: deferredNotice(event.turn.author ?? event.author) } : base;
+      }
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
@@ -245,6 +258,8 @@ function applyConversationEvent(state, event) {
     }
     case "dismiss_failure":
       return state.failure === null ? state : { ...state, failure: null, timedOut: false };
+    case "dismiss_notice":
+      return state.notice === null ? state : { ...state, notice: null };
     case "clear_unsent":
       return state.unsent.text === null && state.unsent.images === null ? state : { ...state, unsent: NO_DRAFT };
     case "hydrate":

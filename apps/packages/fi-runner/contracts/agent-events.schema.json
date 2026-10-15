@@ -1,5 +1,18 @@
 {
   "$defs": {
+    "DeferredEvent": {
+      "additionalProperties": false,
+      "description": "The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).\n\nA proxied engine kept working past the stream's live wait. The answer lands\nin the conversation record out of band, so the stream ends after this frame\nwith no text: the client folds no bubble and shows a waiting notice until\nthe thread refreshes. Carries nothing; its arrival is the signal.",
+      "properties": {
+        "type": {
+          "const": "deferred",
+          "default": "deferred",
+          "type": "string"
+        }
+      },
+      "title": "DeferredEvent",
+      "type": "object"
+    },
     "DoneEvent": {
       "additionalProperties": false,
       "description": "Last frame of a healthy stream.",
@@ -145,7 +158,7 @@
     },
     "PingEvent": {
       "additionalProperties": false,
-      "description": "A sign of life while the turn is QUIET.\n\nA client's idle watchdog cannot tell \"the model is thinking\" from \"the\nbackend hung\" \u2014 both look like silence. And silence is normal here: a turn\nproxied to an external engine emits NOTHING until the whole answer lands\n(up to 95s), while a local turn can think far longer than a token gap.\nWithout this frame the client kills healthy turns and throws away what the\nuser wrote. The ping carries nothing; its arrival IS the signal.",
+      "description": "A sign of life while the turn is QUIET.\n\nA client's idle watchdog cannot tell \"the model is thinking\" from \"the\nbackend hung\" \u2014 both look like silence. And silence is normal here: a turn\nproxied to an external engine emits NOTHING until the whole answer lands\n(up to the proxy's live wait), while a local turn can think far longer\nthan a token gap.\nWithout this frame the client kills healthy turns and throws away what the\nuser wrote. The ping carries nothing; its arrival IS the signal.",
       "properties": {
         "type": {
           "const": "ping",
@@ -851,6 +864,7 @@
   },
   "discriminator": {
     "mapping": {
+      "deferred": "#/$defs/DeferredEvent",
       "done": "#/$defs/DoneEvent",
       "element": "#/$defs/ElementEvent",
       "error": "#/$defs/ErrorEvent",
@@ -921,11 +935,14 @@
       "$ref": "#/$defs/PingEvent"
     },
     {
+      "$ref": "#/$defs/DeferredEvent"
+    },
+    {
       "$ref": "#/$defs/DoneEvent"
     }
   ],
   "title": "AgentStreamEvent",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-schema-version": "1.0.0",
+  "x-schema-version": "1.1.0",
   "description": "The fi-runner agent stream contract. Generated from fi_runner/events.py \u2014 do not edit by hand."
 }

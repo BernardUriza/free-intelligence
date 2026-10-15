@@ -22,6 +22,7 @@ const turn = (over: Partial<AgentTurnState> = {}): AgentTurnState => ({
   meta: null,
   author: null,
   heartbeats: 0,
+  deferred: false,
   reactions: [],
   status: 'thinking',
   ...over,
@@ -132,7 +133,7 @@ describe('<TranscriptMessages> authorship — the bubble names WHO spoke', () =>
       <TranscriptMessages
         {...base}
         turn={turn({ author: null,
-  heartbeats: 0, text: 'hola' })}
+  heartbeats: 0, deferred: false, text: 'hola' })}
         isStreaming
         messages={[]}
       />,

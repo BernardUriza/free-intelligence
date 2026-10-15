@@ -230,3 +230,47 @@ describe('a reaction-only turn is an answer (server-bot F5)', () => {
     expect(s.messages).toHaveLength(1);
   });
 });
+
+describe('a deferred turn — the engine kept working past the live wait', () => {
+  const YODO: MessageAuthor = { id: 'yodo', name: 'Yodo', symbol: 'I' };
+  const deferredTurn = (author: MessageAuthor | null): AgentTurnState => ({
+    ...initialAgentTurnState(),
+    author,
+    deferred: true,
+    status: 'done',
+  });
+  const settle = (s: ConversationState, author: MessageAuthor | null) =>
+    applyConversationEvent(s, { type: 'turn_settled', turn: deferredTurn(author), author: AGENT, controlled: false });
+
+  it('folds no bubble, keeps the user message on screen and raises a notice naming the speaker', () => {
+    const s = settle(send(initialConversationState(), 'un mensaje largo'), YODO);
+    expect(s.messages.map((m) => m.role)).toEqual(['user']);
+    expect(s.pending).toBe(false);
+    expect(s.failure).toBeNull();
+    expect(s.notice).toEqual({
+      kind: 'deferred',
+      message: 'Yodo sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.',
+    });
+    expect(s.skipPersist).toBe(true);
+  });
+
+  it('names the default author when the backend announced none', () => {
+    const s = settle(send(initialConversationState(), 'hola'), null);
+    expect(s.notice?.message.startsWith('og118 sigue escribiendo')).toBe(true);
+  });
+
+  it('the notice clears on reload, on the next send, and on dismiss', () => {
+    const s = settle(send(initialConversationState(), 'hola'), YODO);
+    expect(applyConversationEvent(s, { type: 'hydrate', messages: [] }).notice).toBeNull();
+    expect(send(s, 'otra cosa').notice).toBeNull();
+    expect(applyConversationEvent(s, { type: 'dismiss_notice' }).notice).toBeNull();
+  });
+
+  it('an empty turn that was NOT deferred raises nothing', () => {
+    const empty: AgentTurnState = { ...initialAgentTurnState(), status: 'done' };
+    const s = applyConversationEvent(send(initialConversationState(), 'hola'), {
+      type: 'turn_settled', turn: empty, author: AGENT, controlled: false,
+    });
+    expect(s.notice).toBeNull();
+  });
+});

@@ -245,6 +245,8 @@ type AgentStreamEvent$1 = {
 } | {
     type: 'ping';
 } | {
+    type: 'deferred';
+} | {
     type: 'done';
 };
 
@@ -311,6 +313,12 @@ interface AgentTurnState {
      * wrote. A counter, not a timestamp — the reducer stays pure.
      */
     heartbeats: number;
+    /**
+     * True once the backend released this turn WITHOUT an answer because the
+     * engine was still working (`deferred` frame). The answer arrives in the
+     * thread out of band; the turn settles empty and a shell shows a waiting notice.
+     */
+    deferred: boolean;
     status: AgentTurnStatus;
     errorMessage?: string;
 }
@@ -493,6 +501,15 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
  * a clock read — same discipline as the turn reducer's heartbeat counter.
  */
 
+/**
+ * A turn that settled WITHOUT its answer because the engine is still working
+ * (`AgentTurnState.deferred`). Not a failure: nothing to retry, the answer lands
+ * in the thread out of band and the shell shows this until the thread refreshes.
+ */
+interface TurnNotice {
+    kind: 'deferred';
+    message: string;
+}
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 interface TurnFailure {
     kind: 'stream' | 'timeout';
@@ -515,6 +532,8 @@ interface ConversationState {
     pending: boolean;
     /** A recoverable turn failure the shell renders instead of a zombie panel. */
     failure: TurnFailure | null;
+    /** The last turn was released without its answer; shown until the thread refreshes. */
+    notice: TurnNotice | null;
     /** True once a turn timed out; keeps the watchdog from re-arming on it. */
     timedOut: boolean;
     /** What a failed turn handed back, for the shell to restore. */
@@ -565,6 +584,8 @@ type ConversationEvent =
     controlled: boolean;
 } | {
     type: 'dismiss_failure';
+} | {
+    type: 'dismiss_notice';
 }
 /** The shell restored `unsent` into its composer. */
  | {
@@ -693,7 +714,7 @@ interface AgentHook {
 /**
  * The fi-runner agent stream contract. Generated from fi_runner/events.py — do not edit by hand.
  */
-type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | PingEvent | DoneEvent;
+type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | PingEvent | DeferredEvent | DoneEvent;
 /**
  * First frame of every stream. Carries the id a UI keys concurrent turns on.
  */
@@ -892,12 +913,24 @@ interface ErrorEvent {
  * A client's idle watchdog cannot tell "the model is thinking" from "the
  * backend hung" — both look like silence. And silence is normal here: a turn
  * proxied to an external engine emits NOTHING until the whole answer lands
- * (up to 95s), while a local turn can think far longer than a token gap.
+ * (up to the proxy's live wait), while a local turn can think far longer
+ * than a token gap.
  * Without this frame the client kills healthy turns and throws away what the
  * user wrote. The ping carries nothing; its arrival IS the signal.
  */
 interface PingEvent {
     type?: 'ping';
+}
+/**
+ * The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).
+ *
+ * A proxied engine kept working past the stream's live wait. The answer lands
+ * in the conversation record out of band, so the stream ends after this frame
+ * with no text: the client folds no bubble and shows a waiting notice until
+ * the thread refreshes. Carries nothing; its arrival is the signal.
+ */
+interface DeferredEvent {
+    type?: 'deferred';
 }
 /**
  * Last frame of a healthy stream.
@@ -1185,4 +1218,4 @@ declare function conversationToMarkdown(record: ConversationRecord, options?: Co
  */
 declare function conversationFileName(record: ConversationRecord): string;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationMetadataPatch, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, applyConversationMetadataPatch, conversationArchivePatch, conversationFileName, conversationPinPatch, conversationRenamePatch, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationMetadataPatch, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type TurnNotice, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, applyConversationMetadataPatch, conversationArchivePatch, conversationFileName, conversationPinPatch, conversationRenamePatch, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };

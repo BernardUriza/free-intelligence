@@ -1,6 +1,6 @@
 # OG118-EXTERNAL-TURN-1 — el turno externo se produce y se tira: el proxy corta, el motor termina solo, y Reintentar lo corre dos veces
 
-Status: **In progress** — dos PRs el mismo día; Done cuando haya recibo E2E en app.og118.ai (un turno de Yodo que pase la espera viva y aparezca en el hilo sin recargar)
+Status: **In progress** — tres PRs el mismo día (presupuesto, entrega tardía, aviso en la UI); Done cuando haya recibo E2E en app.og118.ai (un turno de Yodo que pase la espera viva, muestre el aviso y aparezca en el hilo sin recargar)
 Proposed: 2026-10-15 by Claude (dogfood: Bernard reportó "está tardando mucho" en `og118.ai/c/d2742db6…`)
 
 ## Qué pasó (recibo, UTC 2026-10-15)
@@ -42,9 +42,12 @@ del motor con dos turnos del usuario iguales.
 - **Recibo E2E en producción** (cierra la tarjeta): un turno de Yodo que pase los 150 s y aparezca en
   el hilo por el sync. Reproducible dejando dormir `persona-runner` (cooldown 300 s) y mandando un
   mensaje largo.
-- **Señal en la UI mientras llega.** Entre el turno vacío y el sync hay hasta 15 s sin nada en
-  pantalla. Un aviso efímero de fi-glass ("sigue escribiendo, aparecerá aquí") necesita un evento de
-  stream nuevo y rebuild de `dist/`; se decide con Bernard si vale la pena o si el gap es aceptable.
+- ~~**Señal en la UI mientras llega.**~~ Hecho el mismo día (tercer PR): el contrato gana el frame
+  `deferred` (`fi_runner/events.py` → schema → TS → Swift), core lo reduce a `turn.deferred` y la
+  conversación levanta un `notice` ("Yodo sigue escribiendo. Su respuesta aparecerá aquí en cuanto
+  termine."); fi-glass lo pinta como `role="status"` con el mismo banner de fallo en tono info y sin
+  Reintentar; se limpia al recargar el hilo, al mandar otro mensaje o al descartarlo. og118 web sólo
+  mapea el frame. core 1.6.0, fi-glass 1.8.0.
 - **Convergencia al contrato de eventos** (Art. 6): el externo sigue siendo single-shot. Que
   persona-runner emita el turno como stream (SSE) y og118 lo reenvíe como el path local mataría la
   espera viva como concepto. Es trabajo en server-bot, no en og118.

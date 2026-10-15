@@ -32,6 +32,7 @@ export type AgentStreamEvent =
   | PlanRejectedEvent
   | ErrorEvent
   | PingEvent
+  | DeferredEvent
   | DoneEvent;
 
 /**
@@ -232,12 +233,24 @@ export interface ErrorEvent {
  * A client's idle watchdog cannot tell "the model is thinking" from "the
  * backend hung" — both look like silence. And silence is normal here: a turn
  * proxied to an external engine emits NOTHING until the whole answer lands
- * (up to 95s), while a local turn can think far longer than a token gap.
+ * (up to the proxy's live wait), while a local turn can think far longer
+ * than a token gap.
  * Without this frame the client kills healthy turns and throws away what the
  * user wrote. The ping carries nothing; its arrival IS the signal.
  */
 export interface PingEvent {
   type?: 'ping';
+}
+/**
+ * The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).
+ *
+ * A proxied engine kept working past the stream's live wait. The answer lands
+ * in the conversation record out of band, so the stream ends after this frame
+ * with no text: the client folds no bubble and shows a waiting notice until
+ * the thread refreshes. Carries nothing; its arrival is the signal.
+ */
+export interface DeferredEvent {
+  type?: 'deferred';
 }
 /**
  * Last frame of a healthy stream.
