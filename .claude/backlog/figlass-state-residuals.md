@@ -19,6 +19,10 @@ Todo verificado leyendo el código, ninguno reproducido en navegador:
 - #1: la misma regla de #526, que el hilo en vuelo es la fuente. Si llega un `seedVersion` con un turno pendiente, fusiona por (role, timestamp, content) con `mergeConversationRecords` en vez de descartar.
 - #2: un solo predicado de "puede enviar", el de `useAgentConversation`; el composer lo consume y no recalcula.
 - #3–#4: las fugas se arreglan con `useEffect` de limpieza; `AudioDraftPlayer` ya revoca bien y sirve de patrón.
+- #5 (2026-10-15, visto en el E2E de OG118-EXTERNAL-TURN-1): en una conversación **nueva**, durante el
+  primer turno el cliente pide `GET /conversations/{id}` unas 30 veces en 85 s y recibe 404 en todas,
+  porque el record no existe hasta que el turno se asienta. Es un poll sobre un id que aún no se
+  persistió: o no se pollea mientras no haya record, o el 404 se recuerda hasta el primer persist.
 
 ## The decision that's the owner's
 
