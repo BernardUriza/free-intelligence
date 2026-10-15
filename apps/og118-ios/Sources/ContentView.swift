@@ -187,6 +187,7 @@ struct ContentView: View {
                 adjuntos.vaciar()
             },
             onStop: { chat.cancel() },
+            preparando: voz.preparando,
             grabando: voz.grabando,
             transcribiendo: voz.transcribiendo,
             onDictar: { voz.alternarDictado { texto in
