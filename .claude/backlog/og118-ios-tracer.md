@@ -164,6 +164,37 @@ Verificado en el simulador: `TEST SUCCEEDED` (5/5) y `BUILD SUCCEEDED` para el
 iPhone. **No verificado en el teléfono**: estaba bloqueado y sin cable al
 compilar; la build con el arreglo está lista para `devicectl device install`.
 
+## Revisión de sistema (`/cruel-critic`) — 2026-10-15
+
+Lectura completa de `apps/og118-ios` + `app.py` + contratos generados, trazando
+flujos (arranque → restore, turno → fold → PUT, Auth0, dictado, Resonance, drawer).
+Arreglado en el mismo PR #544, con tests que la mutación tumba:
+
+| # | Era | Arreglo |
+|---|---|---|
+| 1 | **CRITICAL** — un restore fallido (cold start, red) dejaba `messages` vacío con el error INVISIBLE (StartCard tapa `TranscriptView`); escribir ahí hacía `PUT` de reemplazo total con `baseRecord == nil` → **la conversación del servidor se borraba**. | `ChatModel.hiloListo` / `cargaFallida`: `send` y `save` no corren hasta que el restore terminó; el error se pinta aunque el hilo esté vacío, con «Reintentar carga»; «Cargando la conversación…» y el aviso de servidor dormido a los 4 s. |
+| 5 | **GRAVE** — tras una carga fallida, tocar el mismo chat en el drawer no hacía nada (`guard id != conversationID`). | `open()` del mismo id reintenta el restore. |
+| 2 | **GRAVE** — `Auth.token()` no coalescía: al arrancar, restore + catálogo + drawer disparaban N refreshes concurrentes con el mismo refresh (con rotación + reuse-detection en Auth0 eso revoca la familia → deslogueo). | Un solo `Task` de refresh compartido; los callers esperan el mismo resultado. Test con tres callers concurrentes → un intercambio. **La config de rotación del tenant NO se verificó**; el código ya era incorrecto sin ella. |
+| 3 | **GRAVE** — `ResonanceMicrophone` sin observar interrupciones ni cambios de ruta/configuración: una notificación, una llamada o los AirPods mataban el engine y la barra decía «Escuchando…» 300 s. | Observadores de `interruptionNotification`, `routeChangeNotification` y `AVAudioEngineConfigurationChange`: reconecta el motor con el formato nuevo o cuelga con nombre («Otra app tomó el audio…»). |
+| 4 | **GRAVE** — colgar mientras `abrir()` esperaba dejaba el engine arrancado sin dueño (mic encendido). | `.openMic` re-checa `controlador.activa` tras el `await` y cierra si ya no hay llamada. |
+| 6 | **GRAVE** — PUT de reemplazo total sin relectura: lo que otro cliente (web, drawer) agregó o fijó se perdía; `preservando` alineaba por índice y tiraba los mensajes del servidor más allá del conteo local. | `save()` relee el record vivo antes de escribir y `ConversationRecord.fusionar` suma sólo los turnos nuevos sobre el vivo (título/pin/archivado del vivo mandan); el hilo local adopta lo que llegó de fuera. Ventana residual: dos PUT que se cruzan en los ms entre relectura y escritura. |
+
+Verificación: arnés macOS 239/239; unit tests en simulador 13/13 (8 nuevos:
+`HiloTests`, `AuthTests`, `DictadoTests`); mutaciones probadas: quitar el gate de
+`send` → ✘ en `HiloTests.swift:60`; quitar el refresh compartido → ✘ «intercambios 3 == 1»;
+`BUILD SUCCEEDED` para iPhone. **En el teléfono: sin verificar** (bloqueado, sin cable).
+
+### Deuda que la revisión dejó nombrada (IMPORTANT, no bloquea)
+
+- `Og118Client`: un 401 reusa el access cacheado hasta `expiresAt` y dice «inicia sesión otra vez» sin forzar refresh ni desloguear.
+- Cold start: `loadConversation`/`saveConversation`/el POST del stream no pasan por `ArranqueEnFrio`; el stream no tiene copy de «Despertando el servidor».
+- `VoiceService.authorize` manda sin `Authorization` si el access viene vacío (el mismo bug que `Og118Client` ya mató).
+- `AudioRecorder.empezar` ignora el `Bool` de `record()`.
+- `GET /projects` 404 en cada arranque y `catalog.errorMessage` no se pinta; la web lo gatea con `og118Flags`.
+- Tres dueños del `AVAudioSession` (dictado `spokenAudio`, llamada `voiceChat`, lectura `playback`) sin arbitraje: dictar en llamada apaga la cancelación de eco.
+- El SSE es tarea foreground: cambiar de app >30 s corta el turno y «Reintentar» lo vuelve a cobrar.
+- **Decisión de Bernard:** `UIBackgroundModes: audio` para que la llamada sobreviva al bloqueo de pantalla. Hoy no está declarado.
+
 ## En el teléfono físico — 2026-10-10
 
 El teléfono ya no es "paso posterior": el iPhone 15 (`iPhone15,4`, CoreDevice id
