@@ -132,6 +132,38 @@ llamada el botón queda visible aunque el riel esté cerrado (`keepWhenRailColla
 y `ResonanceCallBar` ocupa el encabezado de la caja. Los fallos de la llamada caen
 al mismo banner de voz que el dictado (`voz.errorMessage`).
 
+## El dictado — 2026-10-15
+
+Bernard: *"el mic no se activaba automáticamente, le daba click y se quedaba
+pensando como si no hubiera internet"*. Dos causas, las dos con recibo:
+
+1. **El mic SÍ grababa, pero la pantalla no se enteraba.** `VoiceModel.grabando`
+   era una propiedad calculada que leía `AudioRecorder.grabando`, otro
+   `ObservableObject` anidado; la vista observa a `VoiceModel`, y un cambio en el
+   objeto anidado no se publica. Resultado: toque → graba en silencio con el
+   icono apagado → segundo toque → detiene y sube → spinner. El estado del
+   dictado ahora vive en `VoiceModel` (`preparando` / `grabando` /
+   `transcribiendo`), con micrófono y red inyectados (`DictadoDependencias`) y
+   tres tests en `UnitTests/DictadoTests.swift` que recorren los estados sin
+   micrófono. Mutación: quitar `grabando = true` tumba el test en la aserción
+   exacta. Mientras el micrófono se prepara, los toques se ignoran: antes, dos
+   toques rápidos abrían dos grabadoras y la primera quedaba en disco.
+2. **La transcripción pasa por DOS servidores dormidos.** `og118-api` se apaga a
+   los ~5 min sin tráfico (Log Analytics: arranque 00:14:17Z, última petición
+   00:14:25Z, apagado 00:19:48Z; `/health` tardó 32 s dormido) y el gateway
+   `sus.bernarduriza.com` (`susurro-gateway`, `insult-rg`, también
+   `minReplicas: 0`) tardó 11.6 s en contestar su raíz y 30 s+ en `/health`.
+   En 14 días **ni una petición a `/stt/transcribe` llegó a `og118-api`**: las
+   que Bernard intentó murieron en el teléfono o esperando el arranque. Ahora el
+   tap del mic dispara `GET /health` al API mientras él habla, para que el audio
+   no pague ese arranque. El gateway sigue frío: despertarlo necesita un
+   endpoint del servidor (`/stt/warm`) o `minReplicas: 1`, y eso es decisión de
+   gasto de Bernard (og118-api 1 vCPU/2 GiB ≈ USD 21/mes prendido).
+
+Verificado en el simulador: `TEST SUCCEEDED` (5/5) y `BUILD SUCCEEDED` para el
+iPhone. **No verificado en el teléfono**: estaba bloqueado y sin cable al
+compilar; la build con el arreglo está lista para `devicectl device install`.
+
 ## En el teléfono físico — 2026-10-10
 
 El teléfono ya no es "paso posterior": el iPhone 15 (`iPhone15,4`, CoreDevice id
