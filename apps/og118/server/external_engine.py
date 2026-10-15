@@ -205,8 +205,9 @@ async def stream_external_turn(
     frontend hook maps them unchanged): a single `text` event with the full answer,
     then `done`. On any failure yields a single secret-free `error` event.
 
-    Past `live_wait_s` the live stream ends empty (the client folds no bubble) and
-    the engine call goes on; `deliver_late` receives the finished assistant message.
+    Past `live_wait_s` the live stream ends with a single `deferred` frame (the
+    client folds no bubble and shows a waiting notice) and the engine call goes
+    on; `deliver_late` receives the finished assistant message.
     Without a `deliver_late` (no thread to land in) the cut is an `error`."""
     if not is_configured():
         yield {"type": "error", "message": "external engine not configured (OG118_EXTERNAL_RUNNER_URL/TOKEN unset)"}
@@ -249,6 +250,7 @@ async def stream_external_turn(
             yield {"type": "error", "message": f"external engine took longer than {live_wait_s:.0f}s"}
             return
         _deliver_when_done(task, deliver_late)
+        yield {"type": "deferred"}
         return
     for event in events:
         yield event

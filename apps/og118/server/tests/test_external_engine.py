@@ -378,7 +378,7 @@ async def test_a_late_answer_lands_in_the_thread_instead_of_being_dropped(monkey
         delivered.append(message)
 
     evs = await _collect(_late_turn(deliver_late=deliver))
-    assert evs == []
+    assert evs == [{"type": "deferred"}]
     await asyncio.sleep(0.4)
     assert len(delivered) == 1
     assert delivered[0]["role"] == "assistant"
@@ -396,7 +396,7 @@ async def test_a_late_failure_is_delivered_as_a_visible_note(monkeypatch) -> Non
     async def deliver(message: dict) -> None:
         delivered.append(message)
 
-    assert await _collect(_late_turn(deliver_late=deliver)) == []
+    assert await _collect(_late_turn(deliver_late=deliver)) == [{"type": "deferred"}]
     await asyncio.sleep(0.4)
     assert delivered[0]["role"] == "assistant"
     assert "502" in delivered[0]["content"]
