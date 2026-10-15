@@ -19,14 +19,18 @@ Dos formas de pedir el mismo turno:
 
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from persona_core.tickets import LedgerRow
 from persona_runner.api.turn_pipeline import serve_turn
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
-from persona_runner.engine import principal_identity, turn_jobs
+from persona_runner.engine import principal_identity, turn_events, turn_jobs
 
 router = APIRouter()
 
@@ -60,6 +64,46 @@ async def submit_turn_job(req: TurnRequest, authorization: str | None = Header(d
     req = await principal_identity.apply(req)
     job = await turn_jobs.submit(req, runner=serve_turn)
     return TurnJobAccepted(job_id=job.ticket_id)
+
+
+def _sse(event: str | None, data: dict | None, event_id: int | None = None) -> str:
+    head = (f"id: {event_id}\n" if event_id is not None else "") + (f"event: {event}\n" if event else "")
+    return f"{head}data: {json.dumps(data or {}, ensure_ascii=False)}\n\n"
+
+
+async def _job_events(log: turn_events.TurnEventLog | None, after: int) -> AsyncIterator[str]:
+    if log is not None:
+        async for frame in log.tail(after):
+            if frame is None:
+                yield ": ping\n\n"
+                continue
+            yield _sse(None, {k: v for k, v in frame.items() if k != "id"}, event_id=frame["id"])
+    yield _sse("done", {})
+
+
+@router.get("/v1/turn/jobs/{job_id}/events")
+async def turn_job_events(
+    job_id: str,
+    authorization: str | None = Header(default=None),
+    after: int = Query(default=0, ge=0),
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+) -> StreamingResponse:
+    """La bitácora del boleto como SSE: cada `tool_call` del turno con su `id`
+    secuencial, desde el cursor (`Last-Event-ID` o `?after=`) y luego en vivo;
+    `: ping` cada 15 s de silencio; `event: done` cuando el turno cerró la
+    bitácora (el RESULTADO se recoge con el poll del boleto, no aquí). Un job
+    que este proceso conoce pero sin bitácora (terminó antes, o vive en la
+    fila) cierra de inmediato; un id desconocido es 404 como en el poll."""
+    check_auth(authorization)
+    log = turn_events.get_log(job_id)
+    if log is None and await turn_jobs.lookup(job_id, runner=serve_turn) is None:
+        raise HTTPException(status_code=404, detail=f"unknown turn job {job_id!r}")
+    cursor = int(last_event_id) if last_event_id and last_event_id.isdigit() else after
+    return StreamingResponse(
+        _job_events(log, cursor),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 def _from_row(job_id: str, row: LedgerRow) -> TurnJobStatus:

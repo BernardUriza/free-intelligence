@@ -61,9 +61,10 @@ from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocum
 from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
-from persona_runner.engine import aire_principal, aire_topic, auth_failure
+from persona_runner.engine import aire_principal, aire_topic, auth_failure, turn_events
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
+from persona_runner.engine.turn_tap import run_turn_tapped, wire_tool_call
 
 log = structlog.get_logger()
 
@@ -525,8 +526,13 @@ async def turn_via_aire(req: TurnRequest) -> TurnResponse:
     base_id = base_persona_id(req.persona_id)
     casita = chat_casita_for(base_id, req.channel_id)
     state = casita_state(casita)
-    async with state.lock:
-        return await _run_turn(req, base_id, casita, state)
+    if req.job_id:
+        turn_events.open_log(req.job_id)
+    try:
+        async with state.lock:
+            return await _run_turn(req, base_id, casita, state)
+    finally:
+        turn_events.close_log(req.job_id)
 
 
 async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaState) -> TurnResponse:
@@ -584,7 +590,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             remote_specs = []  # no identity, no memory tools — never a guessed user
 
     async def send_turn():
-        return await backend.run_turn(
+        return await run_turn_tapped(
+            backend,
+            on_event=lambda ev: turn_events.emit(req.job_id, wire_tool_call(ev)),
             system_prompt=load_persona(req.persona_id),
             user_message=framed,
             mcp_servers=remote_specs,
