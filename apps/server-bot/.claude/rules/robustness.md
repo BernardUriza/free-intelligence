@@ -54,6 +54,7 @@ recibe y el cliente pregunta por él en requests **cortas** (poll ≤ 50 s).
 |---|---|---|---|
 | gateway → runner | `POST /v1/turn/jobs` → 202 `job_id` | `GET /v1/turn/jobs/{id}?wait_s=` | `first_turn_timeout_s` = 600 s (gateway) |
 | host → gateway | `POST /invite` con `wait+ticket` → 202 `turn_id` | `GET /invite/turns/{id}?wait_s=` | `SUMMON_WAIT_BUDGET_S` = 660 s (host, por encima del gateway para que sea el gateway quien declare el fallo) |
+| og118 → runner (status en vivo, 2026-10-15) | el mismo `POST /v1/turn/jobs`, con `job_id` derivado del turno (idempotente ante el reintento del cliente) | `GET /v1/turn/jobs/{id}/events` (SSE: un `tool_call` por herramienta conforme AIRE la invoca, `id` secuencial, reanudable con `Last-Event-ID`, `event: done` al cerrar; el RESULTADO sigue saliendo por el poll del boleto) | `LIVE_WAIT_S` = 150 s en vivo; pasado eso, og118 suelta al cliente (`deferred`) y sigue el poll hasta los 600 s del boleto |
 
 - **Ningún read timeout de request puede acercarse a 240 s.** Un número ≥ 240 en
   un `httpx.Timeout` de estas costuras es el bug, aunque "se vea generoso": el
