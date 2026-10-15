@@ -6,8 +6,8 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "299a125277ba59cb50f0d178d6db10dcda746182"
-tree = "sha256:586ffd222f887c29106d9d4d3a44a5cb47884b4201b9813e312cce13a4752fcc"
+rev = "91f7e8ae5df61ad57731127bbe9547761dc502bc"
+tree = "sha256:99b3047a072cc0f1c55b56ebf599ac2a6b4b94b1df26316036628e995599b720"
 
 [repo]
 id = "free-intelligence"
@@ -19,10 +19,9 @@ surfaces_tree = "sha256:b32af896871a7887132b2a4b2d2a106d44ad4ac670a680b777817c4b
 entries = [
   { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
   { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
-  { id = "never-print-secret-bearing-file", from = "core", event = "PreToolUse", matcher = "Bash" },
   { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
 ]
-tree = "sha256:fc4c4f53208b5f8451ca4317f3539cddcb6940a86cf29280b4cf17689c0a9cb4"
+tree = "sha256:2e336f5bc8fb9fe30b6a9a63875dd8fe2cb23a6e14813f5075169f26ae251117"
 
 [resolution]
 gates = ["core", "bernard"]
@@ -30,12 +29,12 @@ policy = ["repo", "bernard", "core"]
 methodology = []
 
 [lock]
-canonical_sha256 = "2428caf30a88aeb6f983a838fc384ec90900bbaa44acb75f9841dc80956c8108"
+canonical_sha256 = "6acb5476b45f0be3d1f486bf9974bd6fed2e8aaf8bb7242e23566b999b346e0e"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "20104fd76283e3598de464572f43d3b593374273"
-tree = "sha256:b2000dc6fb26076161888b81fa50fe410662e44cf34e5dbd5d31d1b3d13fff73"
+rev = "7f6eeaf94e2b27f5149ca54c92fdde2d59467301"
+tree = "sha256:31906e1c64b1d52b4b497a98e39b862f14cafdf74a71cd037acfe0a887934a67"
