@@ -26,6 +26,23 @@ import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
 import { makeUserMessage, foldAssistantTurn } from './transcript';
 
+/**
+ * A turn that settled WITHOUT its answer because the engine is still working
+ * (`AgentTurnState.deferred`). Not a failure: nothing to retry, the answer lands
+ * in the thread out of band and the shell shows this until the thread refreshes.
+ */
+export interface TurnNotice {
+  kind: 'deferred';
+  message: string;
+}
+
+export function deferredNotice(author: MessageAuthor): TurnNotice {
+  return {
+    kind: 'deferred',
+    message: `${author.name} sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.`,
+  };
+}
+
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 export interface TurnFailure {
   kind: 'stream' | 'timeout';
@@ -50,6 +67,8 @@ export interface ConversationState {
   pending: boolean;
   /** A recoverable turn failure the shell renders instead of a zombie panel. */
   failure: TurnFailure | null;
+  /** The last turn was released without its answer; shown until the thread refreshes. */
+  notice: TurnNotice | null;
   /** True once a turn timed out; keeps the watchdog from re-arming on it. */
   timedOut: boolean;
   /** What a failed turn handed back, for the shell to restore. */
@@ -85,6 +104,7 @@ export type ConversationEvent =
   /** The idle watchdog fired. Time as an event keeps the reducer pure. */
   | { type: 'turn_timeout'; controlled: boolean }
   | { type: 'dismiss_failure' }
+  | { type: 'dismiss_notice' }
   /** The shell restored `unsent` into its composer. */
   | { type: 'clear_unsent' }
   /** Load a different conversation (or start a fresh one). */
@@ -102,6 +122,7 @@ export function initialConversationState(seed: ChatMessage[] = []): Conversation
     messages: seed,
     pending: false,
     failure: null,
+    notice: null,
     timedOut: false,
     unsent: { text: null, images: null },
     lastSent: null,
@@ -153,6 +174,7 @@ export function applyConversationEvent(
         ...state,
         pending: true,
         failure: null,
+        notice: null,
         timedOut: false,
         // A new send supersedes any draft still waiting to be recovered.
         unsent: NO_DRAFT,
@@ -174,7 +196,11 @@ export function applyConversationEvent(
       // turn it mapped from its transport. A turn that said nothing AND made no
       // gesture folds nothing; a reaction-only turn (empty text, `reactions`
       // set — server-bot F5) IS an answer and gets its bubble.
-      if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) return base;
+      if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) {
+        return event.turn.deferred
+          ? { ...base, notice: deferredNotice(event.turn.author ?? event.author) }
+          : base;
+      }
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
@@ -209,6 +235,9 @@ export function applyConversationEvent(
 
     case 'dismiss_failure':
       return state.failure === null ? state : { ...state, failure: null, timedOut: false };
+
+    case 'dismiss_notice':
+      return state.notice === null ? state : { ...state, notice: null };
 
     case 'clear_unsent':
       return state.unsent.text === null && state.unsent.images === null

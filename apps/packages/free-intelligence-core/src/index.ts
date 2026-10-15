@@ -37,6 +37,7 @@ export type {
   ConversationState,
   ConversationEvent,
   TurnFailure,
+  TurnNotice,
   UnsentDraft,
 } from './agent/conversation-state';
 export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
