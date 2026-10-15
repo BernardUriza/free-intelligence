@@ -526,13 +526,8 @@ async def turn_via_aire(req: TurnRequest) -> TurnResponse:
     base_id = base_persona_id(req.persona_id)
     casita = chat_casita_for(base_id, req.channel_id)
     state = casita_state(casita)
-    if req.job_id:
-        turn_events.open_log(req.job_id)
-    try:
-        async with state.lock:
-            return await _run_turn(req, base_id, casita, state)
-    finally:
-        turn_events.close_log(req.job_id)
+    async with state.lock:
+        return await _run_turn(req, base_id, casita, state)
 
 
 async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaState) -> TurnResponse:

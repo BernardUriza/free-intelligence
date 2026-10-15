@@ -49,15 +49,13 @@ def _tool(name: str, tool_id: str) -> dict:
 
 
 async def _tool_heavy_turn(req: TurnRequest) -> TurnResponse:
-    turn_events.open_log(req.job_id)
-    try:
-        turn_events.emit(req.job_id, _tool("mcp__memory__recall", "t1"))
-        await asyncio.sleep(0.05)
-        turn_events.emit(req.job_id, _tool("WebSearch", "t2"))
-        await asyncio.sleep(0.15)
-        return TurnResponse(text="listo", model="claude-opus-4-7", stop_reason="end_turn")
-    finally:
-        turn_events.close_log(req.job_id)
+    """The brain only EMITS; the ticket owns the log's lifetime (`turn_jobs.submit`)."""
+    await asyncio.sleep(0.05)
+    turn_events.emit(req.job_id, _tool("mcp__memory__recall", "t1"))
+    await asyncio.sleep(0.05)
+    turn_events.emit(req.job_id, _tool("WebSearch", "t2"))
+    await asyncio.sleep(0.15)
+    return TurnResponse(text="listo", model="claude-opus-4-7", stop_reason="end_turn")
 
 
 def _read_sse(client: TestClient, job_id: str, **kw) -> list[tuple[str | None, str | None, dict]]:
@@ -126,18 +124,23 @@ def test_unknown_job_is_404_and_no_token_is_401(client):
     assert client.get("/v1/turn/jobs/job-yodo-1/events").status_code == 401
 
 
-def test_turn_via_aire_opens_the_log_before_the_turn_and_closes_it_after(monkeypatch):
-    seen: dict[str, object] = {}
+def test_a_client_that_connects_before_the_brain_starts_still_gets_the_verbs(client, monkeypatch):
+    """og118 2026-10-15: with `pipeline: runner` the brain runs ~10s after the
+    ticket opens (guardian, memory, framing first). A tail that connected in that
+    window found no log and got `done` at once. The log must be born with the
+    ticket, so the FIRST frame is still delivered to an early subscriber."""
 
-    async def fake_run_turn(req, base_id, casita, state):
-        log = turn_events.get_log(req.job_id)
-        seen["open_during"] = log is not None and not log.closed
-        turn_events.emit(req.job_id, _tool("WebSearch", "t9"))
-        return TurnResponse(text="ok")
+    async def late_brain(req: TurnRequest) -> TurnResponse:
+        await asyncio.sleep(0.4)
+        turn_events.emit(req.job_id, _tool("WebSearch", "t1"))
+        return TurnResponse(text="tarde pero con verbos")
 
-    monkeypatch.setattr(aire_route, "_run_turn", fake_run_turn)
-    req = TurnRequest.model_validate(REQ)
-    asyncio.run(aire_route.turn_via_aire(req))
+    monkeypatch.setattr(aire_route, "turn_via_aire", late_brain)
+    client.post("/v1/turn/jobs", json=REQ, headers=HEADERS)
     log = turn_events.get_log("job-yodo-1")
-    assert seen["open_during"] is True
-    assert log is not None and log.closed and len(log) == 1
+    assert log is not None and not log.closed and len(log) == 0, "open and empty before the brain runs"
+
+    events = _read_sse(client, "job-yodo-1")
+    assert [e[2].get("tool", {}).get("name") for e in events[:-1]] == ["WebSearch"]
+    assert events[-1][1] == "done"
+    assert turn_events.get_log("job-yodo-1").closed
