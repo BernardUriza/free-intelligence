@@ -14,22 +14,40 @@ switched mid-conversation) with the thread it never saw. This is single-shot
 (the engine returns one LLMResponse, not an FI event stream), so an external
 element shows NO glass-box plan/step trace — that is the documented trade of
 reusing a live engine instead of copying it.
+
+OG118-EXTERNAL-TURN-1: the live turn waits `LIVE_WAIT_S` for that single shot.
+Past it, og118 releases the client WITHOUT cancelling the engine: the request
+keeps running here and, when the engine answers, the answer lands in the
+conversation record through `deliver_late` (the background worker's own path,
+`ConversationStore.append_late_turn`), where the client's 15s sync paints it.
+Before this, the cut threw the engine's finished answer away and the user's
+retry ran the same turn twice on the engine.
 """
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 import httpx
 
+from conversations import utc_now_iso
+
+log = logging.getLogger("og118.external_engine")
+
 RUNNER_URL = os.getenv("OG118_EXTERNAL_RUNNER_URL", "").rstrip("/")
 RUNNER_TOKEN = os.getenv("OG118_EXTERNAL_RUNNER_TOKEN", "")
-# Read budget = the engine's TURN_TIMEOUT_S (90s) + the cold start that runs BEFORE
+# Live wait = the engine's TURN_TIMEOUT_S (90s) + the cold start that runs BEFORE
 # its clock starts (measured 2026-10-15: 26s boot + 8s pipeline + 12s embeddings).
 ENGINE_TURN_CEILING_S = 90.0
 ENGINE_COLD_START_S = 60.0
-_TIMEOUT = httpx.Timeout(ENGINE_TURN_CEILING_S + ENGINE_COLD_START_S, connect=10.0)
+LIVE_WAIT_S = ENGINE_TURN_CEILING_S + ENGINE_COLD_START_S
+_TIMEOUT = httpx.Timeout(LIVE_WAIT_S * 2, connect=10.0)
+
+LateDelivery = Callable[[dict], Awaitable[None]]
+_LATE_TASKS: set[asyncio.Task] = set()
 
 # Same caps fi_runner applies to client-replayed history on the local path
 # (Runner.client_history_max_messages/_chars). The external path bypasses
@@ -89,6 +107,88 @@ def outbound_reactions(data: dict) -> list[str]:
     return [str(r).strip() for r in (data.get("reactions") or []) if str(r).strip()]
 
 
+def late_message(events: list[dict]) -> dict:
+    """The engine's late turn as the assistant message the thread stores: the
+    answer with its reactions, or a visible note naming why there is none."""
+    result = next((e for e in events if e.get("type") == "result"), None)
+    if result is None:
+        error = next((e for e in events if e.get("type") == "error"), None)
+        reason = error["message"] if error else "sin respuesta"
+        return {
+            "role": "assistant",
+            "content": (
+                f"og118: el motor de este elemento no entregó respuesta ({reason}). "
+                "Vuelve a mandar el mensaje."
+            ),
+            "timestamp": utc_now_iso(),
+        }
+    payload = result.get("result") or {}
+    message: dict = {
+        "role": "assistant",
+        "content": str(payload.get("text") or ""),
+        "timestamp": utc_now_iso(),
+    }
+    reactions = list(payload.get("reactions") or [])
+    if reactions:
+        message["reactions"] = reactions
+    return message
+
+
+async def _turn_events(payload: dict, headers: dict) -> list[dict]:
+    """One `POST /v1/turn`, rendered as og118 stream events: `text` + `result`
+    on an answer, a single secret-free `error` on any failure."""
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            resp = await client.post(f"{RUNNER_URL}/v1/turn", json=payload, headers=headers)
+    except httpx.HTTPError as exc:
+        return [{"type": "error", "message": f"external engine unreachable: {type(exc).__name__}"}]
+
+    if resp.status_code != 200:
+        return [{"type": "error", "message": f"external engine returned {resp.status_code}"}]
+
+    try:
+        data = resp.json()
+    except ValueError:
+        return [{"type": "error", "message": "external engine returned a non-JSON body"}]
+
+    text = render_outbound(data)
+    reactions = outbound_reactions(data)
+    if not text and not reactions:
+        # server-bot F5 names why a turn came back empty ("markers_only",
+        # "brain_empty"); an engine predating it says nothing.
+        reason = str(data.get("empty_reason") or "").strip()
+        detail = f" ({reason})" if reason else ""
+        return [{"type": "error", "message": f"external engine returned an empty answer{detail}"}]
+
+    events: list[dict] = []
+    if text:
+        events.append({"type": "text", "text": text})
+    # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
+    # with a `result` so that provenance reaches the client the same way the local
+    # path delivers it — the answer says what produced it, on both routes. The text
+    # is repeated (the reducer replaces, never appends), and usage/session stay out:
+    # the frontend has no use for them and they are not the UI's business. The
+    # persona's reactions ride here structured: a reaction-only turn is a settled
+    # turn with empty text and a gesture, not an error.
+    result: dict = {"text": text, "model": data.get("model")}
+    if reactions:
+        result["reactions"] = reactions
+    events.append({"type": "result", "result": result})
+    return events
+
+
+def _deliver_when_done(task: asyncio.Task, deliver_late: LateDelivery) -> None:
+    async def finish() -> None:
+        try:
+            await deliver_late(late_message(await task))
+        except Exception:
+            log.exception("late external turn was not delivered")
+
+    late = asyncio.create_task(finish())
+    _LATE_TASKS.add(late)
+    late.add_done_callback(_LATE_TASKS.discard)
+
+
 async def stream_external_turn(
     *,
     persona_id: str,
@@ -96,12 +196,18 @@ async def stream_external_turn(
     session_uuid: str | None,
     user_id: str | None,
     history: list[dict] | None = None,
+    deliver_late: LateDelivery | None = None,
+    live_wait_s: float = LIVE_WAIT_S,
 ) -> AsyncIterator[dict]:
     """Proxy one turn to the external engine and yield og118 stream events.
 
     Yields og118-native event dicts (the same shape the local runner emits, so the
     frontend hook maps them unchanged): a single `text` event with the full answer,
-    then `done`. On any failure yields a single secret-free `error` event."""
+    then `done`. On any failure yields a single secret-free `error` event.
+
+    Past `live_wait_s` the live stream ends empty (the client folds no bubble) and
+    the engine call goes on; `deliver_late` receives the finished assistant message.
+    Without a `deliver_late` (no thread to land in) the cut is an `error`."""
     if not is_configured():
         yield {"type": "error", "message": "external engine not configured (OG118_EXTERNAL_RUNNER_URL/TOKEN unset)"}
         return
@@ -134,42 +240,15 @@ async def stream_external_turn(
         payload["history"] = capped
 
     headers = {"Authorization": f"Bearer {RUNNER_TOKEN}", "Content-Type": "application/json"}
+    task = asyncio.create_task(_turn_events(payload, headers))
     try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.post(f"{RUNNER_URL}/v1/turn", json=payload, headers=headers)
-    except httpx.HTTPError as exc:
-        yield {"type": "error", "message": f"external engine unreachable: {type(exc).__name__}"}
+        events = await asyncio.wait_for(asyncio.shield(task), live_wait_s)
+    except asyncio.TimeoutError:
+        if deliver_late is None:
+            task.cancel()
+            yield {"type": "error", "message": f"external engine took longer than {live_wait_s:.0f}s"}
+            return
+        _deliver_when_done(task, deliver_late)
         return
-
-    if resp.status_code != 200:
-        yield {"type": "error", "message": f"external engine returned {resp.status_code}"}
-        return
-
-    try:
-        data = resp.json()
-    except ValueError:
-        yield {"type": "error", "message": "external engine returned a non-JSON body"}
-        return
-
-    text = render_outbound(data)
-    reactions = outbound_reactions(data)
-    if not text and not reactions:
-        # server-bot F5 names why a turn came back empty ("markers_only",
-        # "brain_empty"); an engine predating it says nothing.
-        reason = str(data.get("empty_reason") or "").strip()
-        detail = f" ({reason})" if reason else ""
-        yield {"type": "error", "message": f"external engine returned an empty answer{detail}"}
-        return
-    if text:
-        yield {"type": "text", "text": text}
-    # The engine reports the model it ran (e.g. claude-sonnet-4-6). Settle the turn
-    # with a `result` so that provenance reaches the client the same way the local
-    # path delivers it — the answer says what produced it, on both routes. The text
-    # is repeated (the reducer replaces, never appends), and usage/session stay out:
-    # the frontend has no use for them and they are not the UI's business. The
-    # persona's reactions ride here structured: a reaction-only turn is a settled
-    # turn with empty text and a gesture, not an error.
-    result: dict = {"text": text, "model": data.get("model")}
-    if reactions:
-        result["reactions"] = reactions
-    yield {"type": "result", "result": result}
+    for event in events:
+        yield event

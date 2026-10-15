@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
@@ -37,7 +37,7 @@ from fi_runner import MAX_OWNER_INSTRUCTIONS_CHARS
 from fi_core.rag import NothingToIndex
 from fi_runner.aire_corpus import AireCorpusError
 from fi_runner.rag_store import RagStoreClient
-from conversations import ConversationStore, valid_conversation_id
+from conversations import ConversationStore, utc_now_iso, valid_conversation_id
 from projects import ProjectRegistry
 from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, build_runner
 from mcp_background import router as mcp_background_router
@@ -483,6 +483,19 @@ async def _with_heartbeat(
         pump_task.cancel()
 
 
+def _late_delivery(owner: str, conversation_id: str, user_text: str) -> Callable[[dict], Awaitable[None]]:
+    """OG118-EXTERNAL-TURN-1: the external engine's answer outlived the live turn.
+    It lands in the record the way a background job's does (the user's message
+    rides along, since an unsettled turn is never persisted by the client), and
+    the client's 15s conversation sync paints it."""
+    user_copy = {"role": "user", "content": user_text, "timestamp": utc_now_iso()}
+
+    async def entregar(assistant_message: dict) -> None:
+        get_conversation_store().append_late_turn(owner, conversation_id, user_copy, assistant_message)
+
+    return entregar
+
+
 def _sse(event: dict) -> str:
     payload = {k: _to_jsonable(v) for k, v in event.items()}
     return f"data: {json.dumps(payload, default=str)}\n\n"
@@ -626,9 +639,11 @@ async def chat_stream(
                 yield _sse({"type": "done"})
                 return
             user_id = None if principal.is_legacy_bearer else principal.sub
-            # The proxy is single-shot: it yields NOTHING until the whole answer
-            # lands (up to 95s). Without a sign of life the browser's watchdog
-            # killed the turn at 60s and threw away the user's message.
+            # Single-shot proxy: silent until the whole answer lands, so the heartbeat
+            # keeps the browser's 60s watchdog from discarding the user's message.
+            entregar_tarde = (
+                _late_delivery(principal.sub, req.session_id, req.message) if user_id and req.session_id else None
+            )
             async for ev in _with_heartbeat(
                 stream_external_turn(
                     persona_id=element.engine_binding.persona_id,
@@ -636,6 +651,7 @@ async def chat_stream(
                     session_uuid=req.session_id,
                     user_id=user_id,
                     history=history,
+                    deliver_late=entregar_tarde,
                 )
             ):
                 yield _sse(ev)

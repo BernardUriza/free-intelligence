@@ -21,6 +21,7 @@ import json
 import os
 import re
 import threading
+import time
 from pathlib import Path
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -45,6 +46,11 @@ def valid_conversation_id(conversation_id: str) -> bool:
     """True for filesystem-safe ids (UUIDs qualify). Anything else — path
     separators, dots, empty — is rejected before it ever touches a Path."""
     return bool(_ID_RE.match(conversation_id))
+
+
+def utc_now_iso() -> str:
+    """The timestamp shape the client writes on its own messages."""
+    return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
 
 
 class ConversationStore:
@@ -191,6 +197,48 @@ class ConversationStore:
             merged["preview"] = (marcado.get("content") or "")[:160]
             self._write(path, merged)
             return merged
+
+    LATE_USER_LOOKBACK = 6
+
+    def append_late_turn(
+        self, owner: str, conversation_id: str, user_message: dict, assistant_message: dict
+    ) -> dict:
+        """An external engine's answer that arrived after the live turn was
+        released (OG118-EXTERNAL-TURN-1): the user's message — unless the client
+        already persisted it — and the answer, both marked ``background`` so a
+        stale client ``PUT`` reinserts them instead of erasing them. A
+        conversation with no record yet (a first turn is never persisted before
+        it settles) is created around the pair rather than losing it."""
+        path = self._record_path(owner, conversation_id)
+        marcado = {**assistant_message, "origin": self.BACKGROUND_ORIGIN}
+        with self._lock:
+            stored = self._read(path) or self._fresh_record(conversation_id, user_message)
+            messages = list(stored.get("messages") or [])
+            if not self._holds_user_message(messages, user_message):
+                messages.append({**user_message, "origin": self.BACKGROUND_ORIGIN})
+            messages.append(marcado)
+            merged = {
+                **stored,
+                "messages": messages,
+                "updatedAt": marcado.get("timestamp") or stored.get("updatedAt"),
+                "preview": (marcado.get("content") or "")[:160],
+            }
+            self._write(path, merged)
+            return merged
+
+    @classmethod
+    def _holds_user_message(cls, messages: list[dict], user_message: dict) -> bool:
+        content = (user_message.get("content") or "").strip()
+        return any(
+            m.get("role") == "user" and (m.get("content") or "").strip() == content
+            for m in messages[-cls.LATE_USER_LOOKBACK :]
+        )
+
+    @staticmethod
+    def _fresh_record(conversation_id: str, user_message: dict) -> dict:
+        now = user_message.get("timestamp") or utc_now_iso()
+        title = (user_message.get("content") or "")[:60].strip() or "Conversación"
+        return {"id": conversation_id, "title": title, "createdAt": now, "updatedAt": now, "messages": []}
 
     def patch_metadata(self, owner: str, conversation_id: str, patch: dict) -> dict | None:
         """Merge a metadata delta into a stored record. ``None`` if absent.
