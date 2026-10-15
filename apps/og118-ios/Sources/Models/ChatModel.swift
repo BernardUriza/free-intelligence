@@ -335,7 +335,7 @@ final class ChatModel: ObservableObject {
     /// cambiar el hilo mientras tanto: se relee antes de escribir.
     private func releer(_ id: String) async -> ConversationRecord? {
         guard let restore else { return nil }
-        return try? await restore(id)
+        return try? await ArranqueEnFrio.conReintento { _ in try await restore(id) }
     }
 
     private func adoptarFusion(_ record: ConversationRecord, locales: [ChatMessage]) {
