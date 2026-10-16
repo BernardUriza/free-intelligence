@@ -1,39 +1,17 @@
 """The turn-loop event drainer (copied from fi-runner). Types via
 `type(m).__name__` (defensive across SDK versions); a tool's RESULT returns as a
-`ToolResultBlock` inside a USER message, paired by `tool_use_id`."""
+`ToolResultBlock` inside a USER message, paired by `tool_use_id`. Text streams
+token by token from the SDK's partial messages (`deltas.py`); the complete block
+still feeds the result."""
 
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from .billing import _usage, turn_cost, turn_tokens  # noqa: F401 — re-exported for the door and the ledger
 from .contract import ToolCall, TurnResult
-
-
-def _usage(event: dict[str, Any]) -> dict[str, Any] | None:
-    """A `result` comes in TWO shapes — SDK dataclass and flattened dict; reading
-    only the first billed an invited key (#32d) nothing (silent $0). Both here."""
-    result = event.get("result")
-    usage = getattr(result, "usage", None) or (result.get("usage") if isinstance(result, dict) else None)
-    return usage if isinstance(usage, dict) else None
-
-
-def turn_cost(event: dict[str, Any]) -> float:
-    """The dollars a `result` reports (0.0 when absent), off the drained stream."""
-    usage = _usage(event)
-    cost = usage.get("total_cost_usd") if usage else None
-    return float(cost) if cost else 0.0
-
-
-def turn_tokens(event: dict[str, Any]) -> dict[str, int]:
-    """The cache breakdown for aire_spend: cache_read ≫ cache_creation is warm,
-    the inverse a cold re-cache; empty (→ null) when the turn reports no usage."""
-    usage = _usage(event)
-    if not usage:
-        return {}
-    return {"cache_read": int(usage.get("cache_read_input_tokens") or 0),
-            "cache_creation": int(usage.get("cache_creation_input_tokens") or 0),
-            "input_tokens": int(usage.get("input_tokens") or 0)}
+from .deltas import LiveText
 
 
 @dataclass
@@ -48,7 +26,8 @@ class _State:
     tools: list[ToolCall] = field(default_factory=list)
     by_id: dict[str, int] = field(default_factory=dict)
     start_ts: dict[str, float] = field(default_factory=dict)
-    answer_from: int = 0  #: índice en `parts` donde empieza la respuesta (ver contract.TurnResult)
+    answer_from: int = 0  #: index into `parts` where the answer starts (see contract.TurnResult)
+    live: LiveText = field(default_factory=LiveText)
 
 
 def _tokens_spent(usage: dict[str, Any] | None) -> bool:
@@ -72,7 +51,7 @@ def _bank_streamed(message: Any, st: _State) -> None:
             st.streamed[k] = st.streamed.get(k, 0) + v
 
 
-def _on_assistant(content: list, st: _State) -> list[dict[str, Any]]:
+def _on_assistant(content: list, st: _State, *, main: bool = True) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
     for block in content:
         btype = type(block).__name__
@@ -80,7 +59,9 @@ def _on_assistant(content: list, st: _State) -> list[dict[str, Any]]:
             text = getattr(block, "text", "") or ""
             if text:
                 st.parts.append(text)
-                events.append({"type": "text", "text": text})
+                unsaid = st.live.settle(text, main=main)
+                if unsaid:
+                    events.append({"type": "text", "text": unsaid})
         elif btype == "ToolUseBlock":
             st.answer_from = len(st.parts)  # lo dicho hasta aquí fue camino, no respuesta
             tc = ToolCall(name=getattr(block, "name", "") or "",
@@ -134,10 +115,14 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
     async for message in client.receive_response():
         kind = type(message).__name__
         content = getattr(message, "content", None)
-        if kind == "AssistantMessage" and isinstance(content, list):
+        if kind == "StreamEvent":
+            delta = st.live.on_stream_event(getattr(message, "event", None) or {})
+            if delta:
+                yield {"type": "text", "text": delta}
+        elif kind == "AssistantMessage" and isinstance(content, list):
             st.model = getattr(message, "model", None) or st.model
             _bank_streamed(message, st)
-            for event in _on_assistant(content, st):
+            for event in _on_assistant(content, st, main=getattr(message, "parent_tool_use_id", None) is None):
                 yield event
         elif kind == "UserMessage" and isinstance(content, list):
             _on_user(content, st)
