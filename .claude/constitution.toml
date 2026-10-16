@@ -1,0 +1,12 @@
+profile = "personal"
+repo_id = "free-intelligence"
+
+[core]
+id = "agent-constitution"
+repo = "https://github.com/BernardUriza/agent-constitution.git"
+rev = "main"
+
+[[overlay]]
+id = "bernard"
+repo = "https://github.com/BernardUriza/constitution-bernard.git"
+rev = "main"
