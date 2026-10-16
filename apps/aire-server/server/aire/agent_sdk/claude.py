@@ -37,6 +37,10 @@ def build_options(birth: Birth) -> ClaudeAgentOptions:
     (they ARE the engine's policy); this is the backend seam that reaches them.
     Imported late: options.py imports this package for the primitives above."""
     from ..engine.options import build_options as _build
-    return _build(birth.session_store, birth.project, birth.cwd, birth.session_uuid,
-                  birth.spec, birth.resuming, credential_env=birth.credential_env,
-                  metered=birth.metered)
+    options = _build(birth.session_store, birth.project, birth.cwd, birth.session_uuid,
+                     birth.spec, birth.resuming, credential_env=birth.credential_env,
+                     metered=birth.metered)
+    # A Claude-only capability, so it is set at the Claude seam, not in the modes
+    # dial: token deltas arrive as StreamEvents and `engine/deltas.py` dedupes them.
+    options.include_partial_messages = True
+    return options
