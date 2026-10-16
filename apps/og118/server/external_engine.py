@@ -225,9 +225,12 @@ async def _sse_blocks(lines: AsyncIterator[str]) -> AsyncIterator[tuple[int | No
             data.append(line[5:].lstrip())
 
 
+_LIVE_FRAMES = frozenset({"tool_call", "text"})
+
+
 async def _tail_events(client: httpx.AsyncClient, job_url: str, headers: dict, frames: asyncio.Queue) -> None:
     """Follow the ticket's event log, reconnecting from the last id, until `done`.
-    Only `tool_call` frames are forwarded; the result travels by the poll."""
+    `tool_call` and `text` frames are forwarded live; the result travels by the poll."""
     cursor = 0
     while True:
         try:
@@ -241,7 +244,7 @@ async def _tail_events(client: httpx.AsyncClient, job_url: str, headers: dict, f
                         return
                     if event_id is not None:
                         cursor = event_id
-                    if data.get("type") == "tool_call":
+                    if data.get("type") in _LIVE_FRAMES:
                         await frames.put(data)
         except httpx.HTTPError:
             pass
@@ -283,6 +286,15 @@ async def _poll_result(client: httpx.AsyncClient, job_url: str, headers: dict) -
         if got.get("status") == "done":
             return outbound_events(got.get("response") or {})
     return [_error(f"external engine did not finish within {JOB_DEADLINE_S:.0f}s")]
+
+
+def _settle(events: list[dict], streamed_text: bool) -> list[dict]:
+    """The ticket's final events for the live stream. When the text already
+    streamed as deltas, the whole-text `text` event would be APPENDED by the
+    reducer and double the answer; only `result` goes out — it replaces."""
+    if not streamed_text:
+        return events
+    return [e for e in events if e.get("type") != "text"]
 
 
 def _deliver_when_done(task: asyncio.Task, deliver_late: LateDelivery, aclose: Callable[[], Awaitable[None]]) -> None:
@@ -343,8 +355,9 @@ async def stream_external_turn(
     """Run one turn on the external engine's ticket and yield og118 stream events.
 
     Yields og118-native event dicts (the same shape the local runner emits, so the
-    frontend hook maps them unchanged): each `tool_call` as the engine makes it,
-    then `text` + `result` when the ticket is done. On any failure yields a single
+    frontend hook maps them unchanged): each `tool_call` as the engine makes it
+    and the answer's text as it is written (OG118-EXTERNAL-TURN-2), then `result`
+    when the ticket is done (plus the whole `text` when nothing streamed). On any failure yields a single
     secret-free `error` event.
 
     Past `live_wait_s` the live stream ends with a single `deferred` frame (the
@@ -370,6 +383,7 @@ async def stream_external_turn(
     tail = asyncio.create_task(_tail_events(client, job_url, headers, frames))
     result = asyncio.create_task(_poll_result(client, job_url, headers))
     detached = False
+    streamed_text = False
     loop = asyncio.get_running_loop()
     deadline = loop.time() + live_wait_s
     try:
@@ -377,13 +391,17 @@ async def stream_external_turn(
             getter = asyncio.create_task(frames.get())
             done, _ = await asyncio.wait({getter, result}, timeout=max(0.0, deadline - loop.time()), return_when=asyncio.FIRST_COMPLETED)
             if getter in done:
-                yield getter.result()
+                frame = getter.result()
+                streamed_text = streamed_text or frame.get("type") == "text"
+                yield frame
                 continue
             getter.cancel()
             if result in done:
                 while not frames.empty():
-                    yield frames.get_nowait()
-                for event in result.result():
+                    frame = frames.get_nowait()
+                    streamed_text = streamed_text or frame.get("type") == "text"
+                    yield frame
+                for event in _settle(result.result(), streamed_text):
                     yield event
                 return
             if deliver_late is None:
