@@ -1,5 +1,6 @@
 """El tap del stream de AIRE: la misma corrida que `AIREBackend.run_turn`, con
-una llamada por cada `tool_call` en el instante en que pasa.
+un frame por cada `tool_call` en el instante en que pasa y el texto en vivo,
+ya sin marcadores (`live_text.MarkerFilter`).
 
 fi-runner 0.23 llega desde conda (`environment.yml`), no desde el monorepo, y
 su `run_turn` drena `run_turn_stream` sin avisarle a nadie. Hasta que una
@@ -17,6 +18,8 @@ import structlog
 from fi_runner import AIREBackend
 from fi_runner.backend import BackendError, TurnResult
 from fi_runner.backends.aire import AIREDoorError
+
+from persona_runner.engine.live_text import MarkerFilter
 
 __all__ = ["run_turn_tapped", "wire_tool_call"]
 
@@ -38,16 +41,27 @@ def wire_tool_call(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _emit_text(on_event: Callable[[dict[str, Any]], None], text: str) -> None:
+    if text:
+        on_event({"type": "text", "text": text})
+
+
 async def run_turn_tapped(
     backend: AIREBackend, *, on_event: Callable[[dict[str, Any]], None], **kwargs: Any
 ) -> TurnResult:
+    """Drena el turno y reporta, ya en forma de contrato, cada `tool_call` y
+    cada pedazo de texto publicable; devuelve el `result` como `run_turn`."""
     result: TurnResult | None = None
+    live = MarkerFilter()
     try:
         async for event in backend.run_turn_stream(**kwargs):
             kind = event.get("type")
             if kind == "tool_call":
-                on_event(event)
+                on_event(wire_tool_call(event))
+            elif kind == "text":
+                _emit_text(on_event, live.feed(event.get("text") or ""))
             elif kind == "result":
+                _emit_text(on_event, live.flush())
                 result = event["result"]
     except AIREDoorError as exc:
         if exc.code != "budget_exhausted" or result is None or not result.text:
