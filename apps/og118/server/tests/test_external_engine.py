@@ -405,11 +405,44 @@ async def test_an_events_stream_the_runner_refuses_does_not_break_the_turn(monke
 
 
 @pytest.mark.asyncio
-async def test_frames_other_than_tool_calls_are_not_forwarded(monkeypatch) -> None:
+async def test_live_text_streams_and_the_final_text_is_not_appended_twice(monkeypatch) -> None:
+    """OG118-EXTERNAL-TURN-2: the engine's text arrives as deltas on the event log.
+    The reducer APPENDS `text` events and REPLACES on `result`, so once deltas
+    streamed, the whole-text event must stay out — only `result` settles."""
     _configure(monkeypatch)
     _install(
         monkeypatch,
-        _runner({"text": "ok"}, events=[*_sse(1, {"type": "text", "text": "[REACT:🔥] crudo"}), *DONE_LINES], poll_delay_s=0.05),
+        _runner(
+            {"text": "Chale, qué coraje.", "model": "m", "reactions": ["🔥"]},
+            events=[*_sse(1, TOOL_B), *_sse(2, {"type": "text", "text": "Chale, "}), *_sse(3, {"type": "text", "text": "qué coraje."}), *DONE_LINES],
+            poll_delay_s=0.1,
+        ),
+    )
+    evs = await _collect(_turn())
+    assert evs == [
+        TOOL_B,
+        {"type": "text", "text": "Chale, "},
+        {"type": "text", "text": "qué coraje."},
+        {"type": "result", "result": {"text": "Chale, qué coraje.", "model": "m", "reactions": ["🔥"]}},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_without_live_text_the_whole_text_still_arrives_once(monkeypatch) -> None:
+    """An engine that streams no text (older runner, a reaction-only turn) keeps
+    the `text` + `result` pair exactly as before."""
+    _configure(monkeypatch)
+    _install(monkeypatch, _runner({"text": "entero"}, events=[*_sse(1, TOOL_A), *DONE_LINES], poll_delay_s=0.05))
+    evs = await _collect(_turn())
+    assert evs == [TOOL_A, {"type": "text", "text": "entero"}, {"type": "result", "result": {"text": "entero", "model": None}}]
+
+
+@pytest.mark.asyncio
+async def test_frames_outside_the_live_set_are_not_forwarded(monkeypatch) -> None:
+    _configure(monkeypatch)
+    _install(
+        monkeypatch,
+        _runner({"text": "ok"}, events=[*_sse(1, {"type": "ping"}), *_sse(2, {"type": "result", "result": {"text": "no"}}), *DONE_LINES], poll_delay_s=0.05),
     )
     evs = await _collect(_turn())
     assert [e["type"] for e in evs] == ["text", "result"]
