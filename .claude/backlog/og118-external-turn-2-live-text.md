@@ -1,6 +1,6 @@
 # OG118-EXTERNAL-TURN-2 — el texto del elemento externo aparece mientras se escribe
 
-Status: **In progress** — tres PRs en cadena el 2026-10-15; Done con recibo E2E en app.og118.ai (la respuesta de Yodo creciendo por tokens, sin que un `[REACT:` se asome)
+Status: **Done 2026-10-15** — recibo E2E en app.og118.ai. La prueba del streaming es la serie de longitudes del DOM muestreada a 1 Hz (abajo); el screenshot `evidence/og118-external-turn-2-live-text-prod-2026-10-15.jpg` es el estado ASENTADO del cuarto turno (la captura llegó ~2 s tarde: cinco párrafos se escribieron en ~12 s), útil para ver que no quedó marcador ni duplicado. Con el runner en frío, la respuesta de Yodo creció en la burbuja viva de 0 a 2,643 caracteres en ~10 s (muestreo del DOM a 1 Hz: 201 → 488 → 805 → 1129 → 1336 → 1600 → 1895 → 2146 → 2251 → 2643), ningún `[REACT:`/`[GIF:` visible en ninguna muestra, y al asentar la primera oración aparece UNA vez (sin duplicado) con seis reacciones como chips. PRs #552 (AIRE), #553 (persona-runner), #554 (og118)
 Proposed: 2026-10-15 by Bernard ("que venga directamente desde el LLM, que sirve AIRE"; autorizada la fase 2 completa el mismo día)
 
 ## What it is
