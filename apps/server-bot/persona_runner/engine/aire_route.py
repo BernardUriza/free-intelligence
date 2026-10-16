@@ -64,7 +64,7 @@ from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest
 from persona_runner.engine import aire_principal, aire_topic, auth_failure, turn_events
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
-from persona_runner.engine.turn_tap import run_turn_tapped, wire_tool_call
+from persona_runner.engine.turn_tap import run_turn_tapped
 
 log = structlog.get_logger()
 
@@ -587,7 +587,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     async def send_turn():
         return await run_turn_tapped(
             backend,
-            on_event=lambda ev: turn_events.emit(req.job_id, wire_tool_call(ev)),
+            on_event=lambda ev: turn_events.emit(req.job_id, ev),
             system_prompt=load_persona(req.persona_id),
             user_message=framed,
             mcp_servers=remote_specs,
