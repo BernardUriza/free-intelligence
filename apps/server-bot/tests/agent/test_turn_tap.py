@@ -30,7 +30,7 @@ def _tool(name: str, tool_id: str) -> dict:
 
 
 async def test_each_tool_call_reaches_the_tap_and_the_result_comes_back():
-    seen: list[str] = []
+    seen: list[dict] = []
     backend = _Backend(
         [
             _tool("mcp__memory__recall", "a"),
@@ -39,9 +39,11 @@ async def test_each_tool_call_reaches_the_tap_and_the_result_comes_back():
             {"type": "result", "result": TurnResult(text="hola")},
         ]
     )
-    result = await run_turn_tapped(backend, on_event=lambda ev: seen.append(ev["tool"].name))
+    result = await run_turn_tapped(backend, on_event=seen.append)
     assert result.text == "hola"
-    assert seen == ["mcp__memory__recall", "WebSearch"]
+    assert [e["type"] for e in seen] == ["tool_call", "text", "tool_call"]
+    assert [e["tool"]["name"] for e in seen if e["type"] == "tool_call"] == ["mcp__memory__recall", "WebSearch"]
+    assert seen[1] == {"type": "text", "text": "pensando"}
 
 
 async def test_budget_exhausted_after_a_result_with_text_keeps_the_answer():
@@ -74,3 +76,19 @@ def test_the_wire_frame_names_the_tool_and_never_carries_its_input():
         "tool": {"name": "mcp__memory__recall", "id": "a", "server": None, "is_error": None},
     }
     assert "secreto" not in str(frame)
+
+
+async def test_live_text_reaches_the_tap_without_markers_even_when_they_split_across_deltas():
+    seen: list[dict] = []
+    backend = _Backend(
+        [
+            {"type": "text", "text": "Chale, qué coraje "},
+            {"type": "text", "text": "[REA"},
+            {"type": "text", "text": "CT:🔥] eso es fraude"},
+            {"type": "text", "text": " [GIF: facepalm]"},
+            {"type": "result", "result": TurnResult(text="Chale, qué coraje [REACT:🔥] eso es fraude [GIF: facepalm]")},
+        ]
+    )
+    await run_turn_tapped(backend, on_event=seen.append)
+    assert "".join(e["text"] for e in seen if e["type"] == "text") == "Chale, qué coraje  eso es fraude "
+    assert not any("[" in e["text"] for e in seen if e["type"] == "text")
