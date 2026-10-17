@@ -6,6 +6,10 @@ final class ChatModel: ObservableObject {
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: ChatMessage.Autor?
     private var liveModel: String?
+    private var liveReactions: [String] = []
+    private var turnoDiferido = false
+    /// El motor sigue trabajando tras cerrar el stream: se avisa, no se acusa.
+    @Published private(set) var avisoDeEspera: String?
     @Published private(set) var plan = TurnPlan()
     /// El texto del turno que se puede volver a intentar. Existe porque un turno
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
@@ -29,6 +33,7 @@ final class ChatModel: ObservableObject {
     ) -> AsyncThrowingStream<StreamEvent, Error>
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
+    typealias Pausa = () async -> Void
 
     @Published private(set) var conversationID: String
 
@@ -46,6 +51,7 @@ final class ChatModel: ObservableObject {
     private let persist: Persist?
     private let restore: Restore?
     private let now: () -> String
+    private let pausa: Pausa
     private let defaults: UserDefaults
     private var createdAt: String
     /// El record tal como llegó del servidor: al persistir se arrastran sus
@@ -53,6 +59,7 @@ final class ChatModel: ObservableObject {
     /// reemplazo completo.
     private var baseRecord: ConversationRecord?
     private var turn: Task<Void, Never>?
+    private var espera: Task<Void, Never>?
     private var saveChain: Task<Void, Never>?
     private var framesDelTurno = 0
     private var esperabaRecord = false
@@ -63,6 +70,7 @@ final class ChatModel: ObservableObject {
         persist: Persist? = nil,
         restore: Restore? = nil,
         now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) },
+        pausa: @escaping Pausa = { try? await Task.sleep(nanoseconds: 3_000_000_000) },
         defaults: UserDefaults = .standard
     ) {
         self.conversationID = conversationID
@@ -73,6 +81,7 @@ final class ChatModel: ObservableObject {
         self.persist = persist
         self.restore = restore
         self.now = now
+        self.pausa = pausa
         self.createdAt = now()
         self.hiloListo = restore == nil
     }
@@ -149,10 +158,14 @@ final class ChatModel: ObservableObject {
     }
 
     private func reiniciarHilo() {
+        espera?.cancel()
+        espera = nil
+        avisoDeEspera = nil
         messages = []
         liveText = ""
         liveAuthor = nil
         liveModel = nil
+        liveReactions = []
         errorMessage = nil
         cargaFallida = nil
         // Sin esto, un turno fallido en el chat A dejaba su texto en
@@ -195,6 +208,9 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         liveModel = nil
+        liveReactions = []
+        turnoDiferido = false
+        avisoDeEspera = nil
         plan = TurnPlan()
         herramientas = []
         errorMessage = nil
@@ -230,6 +246,7 @@ final class ChatModel: ObservableObject {
         liveText = ""
         liveAuthor = nil
         liveModel = nil
+        liveReactions = []
     }
 
     private func apply(_ event: StreamEvent) {
@@ -240,9 +257,10 @@ final class ChatModel: ObservableObject {
             liveText += delta
         case .author(let id, let name):
             liveAuthor = ChatMessage.Autor(id: id, nombre: name)
-        case .result(let text, let model):
+        case .result(let text, let model, let reactions):
             if !text.isEmpty { liveText = text }
             if let model, !model.isEmpty { liveModel = model }
+            if !reactions.isEmpty { liveReactions = reactions }
         case .failure(let message):
             errorMessage = message
         case .plan(let etiquetas):
@@ -261,6 +279,8 @@ final class ChatModel: ObservableObject {
             plan.cancelar()
         case .planClosed(let desenlace):
             plan.cerrarPlan(desenlace)
+        case .deferred:
+            turnoDiferido = true
         case .toolCall(let nombre, let servidor, let esError):
             let etiqueta = servidor.map { "\($0)/\(nombre)" } ?? nombre
             herramientas.append(esError ? "\(etiqueta) ✗" : etiqueta)
@@ -281,28 +301,59 @@ final class ChatModel: ObservableObject {
         // que uno pensando: silencio. Ahora se declara, y con el conteo de
         // frames, que es lo que separa "el servidor no contestó" de "contestó
         // puros frames que no traían texto".
-        if liveText.isEmpty, errorMessage == nil {
-            errorMessage = framesDelTurno == 0
-                ? "El servidor cerró el turno sin mandar un solo frame."
-                : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
+        if liveText.isEmpty, liveReactions.isEmpty, errorMessage == nil {
+            if turnoDiferido {
+                let quien = liveAuthor?.nombre ?? "og118"
+                avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
+            } else {
+                errorMessage = framesDelTurno == 0
+                    ? "El servidor cerró el turno sin mandar un solo frame."
+                    : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
+            }
         }
         if errorMessage != nil { reintentable = enviado }
 
-        if !liveText.isEmpty {
+        // Una reacción sin texto ES respuesta (server-bot F5): el fold de core
+        // hace lo mismo — sólo un turno sin palabra NI gesto no deja burbuja.
+        if !liveText.isEmpty || !liveReactions.isEmpty {
             messages.append(
                 ChatMessage(
                     role: .assistant,
                     content: liveText,
                     author: liveAuthor,
                     timestamp: now(),
-                    model: liveModel
+                    model: liveModel,
+                    reactions: liveReactions
                 )
             )
         }
         liveText = ""
         liveAuthor = nil
         liveModel = nil
+        liveReactions = []
         save()
+        if turnoDiferido { esperarRespuestaDiferida() }
+    }
+
+    /// La respuesta de un turno diferido aterriza en el record del servidor,
+    /// no en el stream: se relee el hilo hasta que crezca, con tope.
+    private func esperarRespuestaDiferida() {
+        guard let restore else { return }
+        let id = conversationID
+        let esperados = messages.count
+        espera?.cancel()
+        espera = Task { [weak self] in
+            for _ in 0..<40 {
+                await self?.pausa()
+                guard let self, !Task.isCancelled, self.conversationID == id else { return }
+                guard self.messages.count == esperados else { return }
+                guard let record = try? await restore(id), record.messages.count > esperados else { continue }
+                self.baseRecord = record
+                self.messages = record.chatMessages
+                self.avisoDeEspera = nil
+                return
+            }
+        }
     }
 
     /// Los guardados van encadenados: dos PUT concurrentes al mismo id se

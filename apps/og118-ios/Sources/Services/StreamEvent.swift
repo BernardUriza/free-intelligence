@@ -12,7 +12,7 @@ enum StreamEvent {
     case text(String)
     case author(id: String, name: String)
     case toolCall(name: String, server: String?, isError: Bool)
-    case result(text: String, model: String?)
+    case result(text: String, model: String?, reactions: [String])
     case done
     case failure(String)
     case plan([String])
@@ -27,6 +27,9 @@ enum StreamEvent {
     case planAmended(TurnPlan.Enmienda)
     case planCancelled
     case planClosed(TurnPlan.Desenlace)
+    /// El turno se soltó antes de que existiera su respuesta: llega al hilo
+    /// fuera de banda. No es error y no hay nada que reintentar.
+    case deferred
     /// Un frame que el contrato declara pero esta pantalla todavía no usa, o uno
     /// que este build no conoce. Se muestra en la bitácora en vez de perderse.
     case unmapped(String)
@@ -63,7 +66,11 @@ extension StreamEvent {
                 isError: herramienta.isError ?? false
             )
         case .result(let resultado):
-            return .result(text: resultado.text ?? "", model: resultado.model)
+            return .result(
+                text: resultado.text ?? "",
+                model: resultado.model,
+                reactions: resultado.reactions ?? []
+            )
         case .plan(let datos):
             return .plan(datos.steps)
         case .stepStarted(let datos):
@@ -98,6 +105,8 @@ extension StreamEvent {
             return .planClosed(.completado)
         case .planFailed:
             return .planClosed(.fallido)
+        case .deferred:
+            return .deferred
         case .desconocido(let tipo):
             return .unmapped(tipo)
         }

@@ -50,6 +50,7 @@ struct TranscriptView: View {
                             timestamp: message.timestamp,
                             model: message.model,
                             imagenes: message.images,
+                            reacciones: message.reactions,
                             mostrarAcciones: !chat.isStreaming
                                 && (message.id == ultimoAsistente || message.id == tocado),
                             leyendo: voz.reproductor.hablando == message.id.uuidString,
@@ -93,6 +94,13 @@ struct TranscriptView: View {
                             }
                         }
                         .padding(.horizontal, 14)
+                    }
+                    if let aviso = chat.avisoDeEspera {
+                        Text(aviso)
+                            .font(.footnote)
+                            .foregroundStyle(Theme.textMuted)
+                            .padding(.horizontal, 14)
+                            .accessibilityIdentifier("aviso-de-espera")
                     }
                     if let bitacora = diagnostico.resumen {
                         Text(bitacora)

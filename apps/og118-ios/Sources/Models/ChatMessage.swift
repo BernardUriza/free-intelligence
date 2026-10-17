@@ -29,6 +29,9 @@ struct ChatMessage: Identifiable, Encodable {
     /// Las imágenes que el usuario adjuntó al turno. No viajan en `history`
     /// (CodingKeys): una imagen ya enviada no se re-sube en silencio.
     var images: [MessageImage] = []
+    /// El gesto del que habló (emoji sobre el turno): un campo del contrato,
+    /// nunca texto. Un mensaje puede ser SÓLO reacciones.
+    var reactions: [String] = []
 
     enum CodingKeys: String, CodingKey {
         case role
