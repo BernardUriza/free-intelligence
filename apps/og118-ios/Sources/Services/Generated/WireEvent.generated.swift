@@ -190,6 +190,7 @@ struct TurnResultPayload: Decodable {
     let model: String?
     let guardOutcomes: JSONValor?
     let toolCalls: [ToolCallPayload]?
+    let reactions: [String]?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -198,6 +199,7 @@ struct TurnResultPayload: Decodable {
         case model
         case guardOutcomes = "guard_outcomes"
         case toolCalls = "tool_calls"
+        case reactions
     }
 }
 

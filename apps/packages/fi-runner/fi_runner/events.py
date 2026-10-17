@@ -40,7 +40,7 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 
 
 class ToolCallPayload(BaseModel):
@@ -66,6 +66,10 @@ class TurnResultPayload(BaseModel):
     ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
     fallback), so a UI shows the answer's real provenance instead of guessing at
     the configured default.
+
+    ``reactions`` are the emoji the speaker put ON the turn (an engine with a
+    reaction channel, like a Discord persona). A gesture, not content: a turn
+    with empty ``text`` and reactions is a settled answer, not an empty one.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -76,6 +80,7 @@ class TurnResultPayload(BaseModel):
     model: str | None = None
     guard_outcomes: dict[str, Any] = Field(default_factory=dict)
     tool_calls: list[ToolCallPayload] = Field(default_factory=list)
+    reactions: list[str] = Field(default_factory=list)
 
 
 class ElementPayload(BaseModel):

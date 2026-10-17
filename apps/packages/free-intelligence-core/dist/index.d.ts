@@ -782,6 +782,10 @@ interface ResultEvent {
  * ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
  * fallback), so a UI shows the answer's real provenance instead of guessing at
  * the configured default.
+ *
+ * ``reactions`` are the emoji the speaker put ON the turn (an engine with a
+ * reaction channel, like a Discord persona). A gesture, not content: a turn
+ * with empty ``text`` and reactions is a settled answer, not an empty one.
  */
 interface TurnResultPayload {
     text: string;
@@ -794,6 +798,7 @@ interface TurnResultPayload {
         [k: string]: unknown;
     };
     tool_calls?: ToolCallPayload[];
+    reactions?: string[];
 }
 /**
  * The agent declared its plan. ``steps`` is the checklist a UI renders.
