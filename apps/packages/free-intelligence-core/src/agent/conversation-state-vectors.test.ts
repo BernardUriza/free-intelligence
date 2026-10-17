@@ -24,6 +24,8 @@ interface Op {
   reactions?: string[];
   deferred?: boolean;
   message?: string;
+  /** Text the transport streamed before failing; core reverts regardless. */
+  partialText?: string;
   messages?: ChatMessage[];
 }
 interface Vector {

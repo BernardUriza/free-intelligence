@@ -71,6 +71,26 @@
       }
     },
     {
+      "name": "un error a mitad del turno revierte aunque ya hubiera texto parcial",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed",
+          "partialText": "parcial",
+          "message": "boom"
+        }
+      ],
+      "expect": {
+        "messages": [],
+        "failure": "stream",
+        "unsentText": "hola",
+        "lastSentText": "hola"
+      }
+    },
+    {
       "name": "descartar la falla no borra el borrador",
       "ops": [
         {
