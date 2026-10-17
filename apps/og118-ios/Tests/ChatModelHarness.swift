@@ -1186,8 +1186,8 @@ private func elTurnoVacioSeDeclara() async {
     let model = ChatModel(stream: canned([]))
     model.send("hola")
     await settle()
-    expect(model.errorMessage?.contains("sin mandar un solo frame") == true,
-           "cero frames se nombra como tal")
+    expect(model.errorMessage == Copy.turnEmpty, "el silencio se declara con la frase del contrato")
+    expect(model.herramientas.contains("sin un solo frame"), "y la bitácora dice que no llegó un solo frame")
     expect(model.reintentable == "hola", "el mensaje queda listo para reintentar")
     expect(model.messages.isEmpty, "la burbuja optimista se revierte (hubo \(model.messages.count))")
     expect(model.borradorNoEnviado?.texto == "hola", "y el texto vuelve al composer")
@@ -1195,8 +1195,8 @@ private func elTurnoVacioSeDeclara() async {
     let conFrames = ChatModel(stream: canned([.open, .stepStarted(0), .done]))
     conFrames.send("hola")
     await settle()
-    expect(conFrames.errorMessage?.contains("3 frames") == true,
-           "con frames pero sin texto, se dice cuántos llegaron")
+    expect(conFrames.errorMessage == Copy.turnEmpty, "con frames pero sin texto, la misma frase")
+    expect(conFrames.herramientas.contains("3 frames sin texto"), "y la bitácora dice cuántos llegaron")
 }
 
 @MainActor
@@ -1450,7 +1450,7 @@ private func laEsperaDiferidaNoEsEterna() async {
     await model.restoreThread()
     model.send("¿y entonces?")
     await settle()
-    expect(model.avisoDeEspera == "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.",
+    expect(model.avisoDeEspera == Copy.turnDeferredTimeout,
            "tras agotar los reintentos el aviso cambia (\(model.avisoDeEspera ?? "nil"))")
     expect(model.errorMessage == nil, "y sigue sin ser un error")
 }

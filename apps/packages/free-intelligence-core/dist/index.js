@@ -252,6 +252,22 @@ function takeSseFrames(buffer) {
   return { payloads, rest };
 }
 
+// src/copy.generated.ts
+var COPY = {
+  /** Título de un hilo sin mensaje de usuario usable (deriveConversationTitle). */
+  conversationDefaultTitle: "New chat",
+  /** Aviso (no error) de un turno diferido: el motor sigue trabajando tras cerrar el stream. */
+  turnDeferredNotice: (author) => "{author} sigue escribiendo. Su respuesta aparecer\xE1 aqu\xED en cuanto termine.".split("{author}").join(author),
+  /** El aviso cuando la relectura acotada del hilo se agotó sin que llegara la respuesta diferida. */
+  turnDeferredTimeout: "La respuesta tard\xF3 m\xE1s de lo normal. Vuelve a abrir este chat para verla.",
+  /** Falla genérica del transporte o del motor, cuando no trae mensaje propio. */
+  turnFailed: "La respuesta fall\xF3. Intenta de nuevo.",
+  /** El watchdog de inactividad cerró el turno. */
+  turnTimeout: "La respuesta tard\xF3 demasiado. Intenta de nuevo.",
+  /** El turno cerró sin texto, sin reacción y sin deferred: el silencio es una falla. */
+  turnEmpty: "La respuesta lleg\xF3 vac\xEDa. Intenta de nuevo."
+};
+
 // src/agent/transcript.ts
 function makeUserMessage(text, author, images) {
   return {
@@ -293,7 +309,7 @@ function foldAssistantTurn(turn, defaultAuthor) {
 function deferredNotice(author) {
   return {
     kind: "deferred",
-    message: `${author.name} sigue escribiendo. Su respuesta aparecer\xE1 aqu\xED en cuanto termine.`
+    message: COPY.turnDeferredNotice(author.name)
   };
 }
 function initialConversationState(seed = []) {
@@ -357,7 +373,7 @@ function applyConversationEvent(state, event) {
         if (event.controlled || event.stopped) return base;
         return {
           ...revertOptimistic(base, false),
-          failure: { kind: "empty", message: "La respuesta lleg\xF3 vac\xEDa. Intenta de nuevo." }
+          failure: { kind: "empty", message: COPY.turnEmpty }
         };
       }
       return {
@@ -375,7 +391,7 @@ function applyConversationEvent(state, event) {
         ...reverted,
         failure: {
           kind: "stream",
-          message: event.message || "La respuesta fall\xF3. Intenta de nuevo."
+          message: event.message || COPY.turnFailed
         }
       };
     }
@@ -384,7 +400,7 @@ function applyConversationEvent(state, event) {
       return {
         ...revertOptimistic({ ...state, pending: false }, event.controlled),
         timedOut: true,
-        failure: { kind: "timeout", message: "La respuesta tard\xF3 demasiado. Intenta de nuevo." }
+        failure: { kind: "timeout", message: COPY.turnTimeout }
       };
     }
     case "dismiss_failure":
@@ -428,7 +444,7 @@ function conversationFileName(record) {
 
 // src/conversation/helpers.ts
 var CONVERSATION_SCHEMA_VERSION = 1;
-var DEFAULT_TITLE = "New chat";
+var DEFAULT_TITLE = COPY.conversationDefaultTitle;
 var TITLE_MAX = 60;
 var PREVIEW_MAX = 120;
 function truncate(text, max) {
@@ -578,6 +594,7 @@ function organizeConversationSummaries(summaries) {
 }
 export {
   CONVERSATION_SCHEMA_VERSION,
+  COPY,
   applyAgentEvent,
   applyConversationEvent,
   applyConversationMetadataPatch,

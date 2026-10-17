@@ -332,9 +332,8 @@ final class ChatModel: ObservableObject {
         if errorMessage != nil || (!contesto && !turnoDiferido) {
             tipoDeFalla = errorMessage == nil ? .vacio : .transporte
             if errorMessage == nil {
-                errorMessage = framesDelTurno == 0
-                    ? "El servidor cerró el turno sin mandar un solo frame."
-                    : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
+                errorMessage = Copy.turnEmpty
+                herramientas.append(framesDelTurno == 0 ? "sin un solo frame" : "\(framesDelTurno) frames sin texto")
             }
             revertir(enviado)
             limpiarTurnoVivo()
@@ -342,7 +341,7 @@ final class ChatModel: ObservableObject {
         }
         if !contesto, turnoDiferido {
             let quien = liveAuthor?.nombre ?? "og118"
-            avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
+            avisoDeEspera = Copy.turnDeferredNotice(author: quien)
         }
 
         if contesto {
@@ -397,7 +396,7 @@ final class ChatModel: ObservableObject {
                 return
             }
             guard let self, !Task.isCancelled, self.conversationID == id, self.messages.count == esperados else { return }
-            self.avisoDeEspera = "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla."
+            self.avisoDeEspera = Copy.turnDeferredTimeout
         }
     }
 

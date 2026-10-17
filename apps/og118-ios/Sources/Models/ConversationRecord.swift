@@ -64,7 +64,7 @@ enum ConversationSchema {
     static func fecha(_ iso: String) -> Date? {
         formatoISOFraccional.date(from: iso) ?? formatoISOPlano.date(from: iso)
     }
-    static let defaultTitle = "New chat"
+    static let defaultTitle = Copy.conversationDefaultTitle
     static let titleMax = 60
     static let previewMax = 120
 
