@@ -162,8 +162,8 @@ declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPan
 type AppHandledError = (turn: AgentTurnState) => boolean;
 /** A recoverable failure of the in-flight turn, surfaced for retry/dismiss. */
 interface TurnError {
-    /** `timeout` = the idle watchdog fired; `stream` = the transport reported error. */
-    kind: 'timeout' | 'stream';
+    /** `timeout` = the idle watchdog fired; `stream` = the transport reported error; `empty` = it settled saying nothing. */
+    kind: 'timeout' | 'stream' | 'empty';
     /** Human-readable, app-displayable reason. */
     message: string;
 }
