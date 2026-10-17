@@ -742,6 +742,8 @@ struct Harness {
         await unTurnoDiferidoEsperaSinAcusarError()
         await laEsperaDiferidaNoEsEterna()
         await losVectoresDelTurnoSeCumplen()
+        await losVectoresDeDerivacionesSeCumplen()
+        await losVectoresDelHiloSeCumplen()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -1106,9 +1108,11 @@ private func elParserLeeUnTurnoDeVerdad() {
     // aquí y no en el teléfono de Bernard.
     let ruta = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
-        .appendingPathComponent("Fixtures/turno-real.sse")
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/fixtures/turno-real.sse")
     guard let crudo = try? String(contentsOf: ruta, encoding: .utf8) else {
-        expect(false, "la captura real existe en Tests/Fixtures/turno-real.sse")
+        expect(false, "la captura real existe en core/contracts/fixtures/turno-real.sse")
         return
     }
 
@@ -1185,7 +1189,8 @@ private func elTurnoVacioSeDeclara() async {
     expect(model.errorMessage?.contains("sin mandar un solo frame") == true,
            "cero frames se nombra como tal")
     expect(model.reintentable == "hola", "el mensaje queda listo para reintentar")
-    expect(model.messages.count == 1, "y NO se inventa una burbuja de asistente")
+    expect(model.messages.isEmpty, "la burbuja optimista se revierte (hubo \(model.messages.count))")
+    expect(model.borradorNoEnviado?.texto == "hola", "y el texto vuelve al composer")
 
     let conFrames = ChatModel(stream: canned([.open, .stepStarted(0), .done]))
     conFrames.send("hola")
@@ -1453,7 +1458,7 @@ private func laEsperaDiferidaNoEsEterna() async {
 // MARK: - contracts/agent-turn.vectors.json — la máquina del turno como contrato
 
 private func canonico(_ objeto: Any) -> String {
-    guard let datos = try? JSONSerialization.data(withJSONObject: objeto, options: [.sortedKeys]) else {
+    guard let datos = try? JSONSerialization.data(withJSONObject: objeto, options: [.sortedKeys, .fragmentsAllowed]) else {
         return "<no-json>"
     }
     return String(decoding: datos, as: UTF8.self)
@@ -1536,5 +1541,161 @@ private func losVectoresDelTurnoSeCumplen() async {
         let actual = canonico(proyeccionDelTurno(model))
         let esperado = canonico(vector["expect"] ?? NSNull())
         expect(actual == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(actual)")
+    }
+}
+
+// MARK: - contracts/conversation-derivations.vectors.json
+
+private func contrato(_ nombre: String) -> [[String: Any]]? {
+    let ruta = URL(fileURLWithPath: #filePath).absoluteURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/\(nombre)")
+    guard let datos = try? Data(contentsOf: ruta),
+          let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let vectores = raiz["vectors"] as? [[String: Any]], !vectores.isEmpty else {
+        expect(false, "el contrato existe y trae vectores: \(ruta.path)")
+        return nil
+    }
+    return vectores
+}
+
+private func mensajes(_ crudos: Any?) -> [ChatMessage] {
+    (crudos as? [[String: Any]] ?? []).compactMap { m in
+        guard let rol = ChatMessage.Role(rawValue: m["role"] as? String ?? "") else { return nil }
+        return ChatMessage(role: rol, content: m["content"] as? String ?? "")
+    }
+}
+
+@MainActor
+private func losVectoresDeDerivacionesSeCumplen() async {
+    print("conversation-derivations.vectors.json: título, preview, rename y sidebar como en core")
+    guard let vectores = contrato("conversation-derivations.vectors.json") else { return }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let entrada = vector["input"] as? [String: Any] ?? [:]
+        var actual: Any = NSNull()
+        switch vector["kind"] as? String {
+        case "title":
+            actual = ConversationSchema.title(mensajes(entrada["messages"]))
+        case "preview":
+            actual = ConversationSchema.preview(mensajes(entrada["messages"]))
+        case "rename":
+            let base = entrada["record"] as? [String: Any] ?? [:]
+            var record = ConversationRecord.from(
+                id: "c", messages: mensajes(base["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+            )
+            record.title = base["title"] as? String ?? record.title
+            record.titleCustom = (base["titleCustom"] as? Bool) == true ? true : nil
+            let r = record
+            let modelo = ConversationsModel(list: { [] }, load: { _ in r }, save: { _ in })
+            let guardado = await modelo.rename("c", to: entrada["newTitle"] as? String ?? "")
+            actual = ["title": guardado?.title ?? "", "titleCustom": guardado?.titleCustom == true] as [String: Any]
+        case "organize":
+            let datos = (try? JSONSerialization.data(withJSONObject: entrada["summaries"] ?? [])) ?? Data()
+            let lista = (try? JSONDecoder().decode([ConversationSummary].self, from: datos)) ?? []
+            let modelo = ConversationsModel(list: { lista })
+            await modelo.refresh()
+            actual = [
+                "pinned": modelo.pinned.map(\.id),
+                "active": modelo.active.map(\.id),
+                "archived": modelo.archived.map(\.id)
+            ] as [String: Any]
+        default:
+            break
+        }
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        let visto = canonico(actual)
+        expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
+    }
+}
+
+// MARK: - contracts/conversation-state.vectors.json
+
+private func eventosDeDesenlace(_ op: [String: Any]) -> [StreamEvent] {
+    let texto = op["text"] as? String ?? ""
+    let reacciones = op["reactions"] as? [String] ?? []
+    var eventos: [StreamEvent] = [.open]
+    if !texto.isEmpty { eventos.append(.text(texto)) }
+    if !reacciones.isEmpty { eventos.append(.result(text: "", model: nil, reactions: reacciones)) }
+    if op["deferred"] as? Bool == true { eventos.append(.deferred) }
+    eventos.append(.done)
+    return eventos
+}
+
+@MainActor
+private func proyeccionDelHilo(_ model: ChatModel) -> [String: Any] {
+    [
+        "messages": model.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] },
+        "failure": model.errorMessage == nil ? NSNull() : "stream",
+        "unsentText": model.borradorNoEnviado?.texto ?? NSNull(),
+        "lastSentText": model.ultimoEnvio?.texto ?? NSNull()
+    ]
+}
+
+@MainActor
+private func losVectoresDelHiloSeCumplen() async {
+    print("conversation-state.vectors.json: envío, fold, falla, reintento e hidratación como en core")
+    guard let vectores = contrato("conversation-state.vectors.json") else { return }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let ops = vector["ops"] as? [[String: Any]] ?? []
+        var cola: [[StreamEvent]?] = []
+        let stream: ChatModel.Stream = { _, _, _, _, _, _ in
+            let siguiente: [StreamEvent]? = cola.isEmpty ? [] : cola.removeFirst()
+            return AsyncThrowingStream { c in
+                guard let eventos = siguiente else {
+                    c.finish(throwing: Og118Error.unauthorized)
+                    return
+                }
+                for e in eventos { c.yield(e) }
+                c.finish()
+            }
+        }
+        var semilla: ConversationRecord?
+        if let primero = ops.first, primero["op"] as? String == "hydrate" {
+            semilla = ConversationRecord.from(
+                id: "v", messages: mensajes(primero["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+            )
+        }
+        let registro = semilla
+        let model = ChatModel(
+            conversationID: "v",
+            stream: stream,
+            persist: { _ in },
+            restore: { _ in registro },
+            pausa: {}
+        )
+        await model.restoreThread()
+        var i = 0
+        while i < ops.count {
+            let op = ops[i]
+            switch op["op"] as? String ?? "" {
+            case "send", "retry":
+                if i + 1 < ops.count, let sig = ops[i + 1]["op"] as? String, sig == "settled" || sig == "failed" {
+                    cola.append(sig == "failed" ? nil : eventosDeDesenlace(ops[i + 1]))
+                    i += 1
+                } else {
+                    cola.append([])
+                }
+                if op["op"] as? String == "send" {
+                    model.send(op["text"] as? String ?? "")
+                } else {
+                    model.reintentar()
+                }
+                await settle()
+            case "dismiss_failure":
+                model.errorMessage = nil
+            case "clear_unsent":
+                model.borradorRestaurado()
+            default:
+                break
+            }
+            i += 1
+        }
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        let visto = canonico(proyeccionDelHilo(model))
+        expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
     }
 }

@@ -240,6 +240,18 @@ function fromWireEvent(frame) {
   }
 }
 
+// src/agent/sse.ts
+function takeSseFrames(buffer) {
+  const frames = buffer.split("\n\n");
+  const rest = frames.pop() ?? "";
+  const payloads = [];
+  for (const frame of frames) {
+    const data = frame.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim());
+    if (data.length > 0) payloads.push(data.join("\n"));
+  }
+  return { payloads, rest };
+}
+
 // src/agent/transcript.ts
 function makeUserMessage(text, author, images) {
   return {
@@ -582,6 +594,7 @@ export {
   sanitizeConversationMessage,
   setConversationArchived,
   setConversationPinned,
-  summarizeConversation
+  summarizeConversation,
+  takeSseFrames
 };
 //# sourceMappingURL=index.js.map

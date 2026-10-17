@@ -1,0 +1,285 @@
+{
+  "$comment": "Contrato de COMPORTAMIENTO de las derivaciones de conversación (título, preview, rename, agrupado del sidebar). Escrito a mano; core (src/conversation/derivations-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen. Longitudes en caracteres ASCII a propósito: JS cuenta UTF-16 y Swift grafemas.",
+  "version": 1,
+  "vectors": [
+    {
+      "name": "título: primer mensaje de usuario con contenido, saltando asistente y vacíos",
+      "kind": "title",
+      "input": {
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "hola"
+          },
+          {
+            "role": "user",
+            "content": "   "
+          },
+          {
+            "role": "user",
+            "content": "¿Qué es FI?"
+          },
+          {
+            "role": "assistant",
+            "content": "x"
+          }
+        ]
+      },
+      "expect": "¿Qué es FI?"
+    },
+    {
+      "name": "título: sin mensaje de usuario usable cae a New chat",
+      "kind": "title",
+      "input": {
+        "messages": [
+          {
+            "role": "assistant",
+            "content": "solo el asistente habló"
+          },
+          {
+            "role": "user",
+            "content": "  \n "
+          }
+        ]
+      },
+      "expect": "New chat"
+    },
+    {
+      "name": "título: a 60 trunca a 59 con elipsis",
+      "kind": "title",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra"
+          }
+        ]
+      },
+      "expect": "palabra palabra palabra palabra palabra palabra palabra pal…"
+    },
+    {
+      "name": "título: colapsa espacios y saltos",
+      "kind": "title",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hola\n\n  mundo   x  "
+          }
+        ]
+      },
+      "expect": "hola mundo x"
+    },
+    {
+      "name": "preview: último mensaje con contenido de cualquier rol",
+      "kind": "preview",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "a"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          },
+          {
+            "role": "user",
+            "content": "   "
+          }
+        ]
+      },
+      "expect": "respuesta"
+    },
+    {
+      "name": "preview: sin contenido es cadena vacía",
+      "kind": "preview",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": " "
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          }
+        ]
+      },
+      "expect": ""
+    },
+    {
+      "name": "preview: a 120 trunca a 119 con elipsis",
+      "kind": "preview",
+      "input": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "q"
+          },
+          {
+            "role": "assistant",
+            "content": "palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra"
+          }
+        ]
+      },
+      "expect": "palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra…"
+    },
+    {
+      "name": "rename: un título se guarda tal cual, colapsado y marcado custom",
+      "kind": "rename",
+      "input": {
+        "record": {
+          "title": "New chat",
+          "titleCustom": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "tema original"
+            },
+            {
+              "role": "assistant",
+              "content": "r"
+            }
+          ]
+        },
+        "newTitle": "  Mi   chat  "
+      },
+      "expect": {
+        "title": "Mi chat",
+        "titleCustom": true
+      }
+    },
+    {
+      "name": "rename: a 60 corta en seco, sin elipsis — es texto del usuario, no un derivado",
+      "kind": "rename",
+      "input": {
+        "record": {
+          "title": "New chat",
+          "titleCustom": false,
+          "messages": [
+            {
+              "role": "user",
+              "content": "tema original"
+            },
+            {
+              "role": "assistant",
+              "content": "r"
+            }
+          ]
+        },
+        "newTitle": "palabra palabra palabra palabra palabra palabra palabra palabra palabra palabra"
+      },
+      "expect": {
+        "title": "palabra palabra palabra palabra palabra palabra palabra pala",
+        "titleCustom": true
+      }
+    },
+    {
+      "name": "rename: vacío regresa al título derivado y quita la marca custom",
+      "kind": "rename",
+      "input": {
+        "record": {
+          "title": "Custom",
+          "titleCustom": true,
+          "messages": [
+            {
+              "role": "user",
+              "content": "tema original"
+            },
+            {
+              "role": "assistant",
+              "content": "r"
+            }
+          ]
+        },
+        "newTitle": "   "
+      },
+      "expect": {
+        "title": "tema original",
+        "titleCustom": false
+      }
+    },
+    {
+      "name": "sidebar: fijados (último fijado primero), activos (más reciente primero), archivados (último archivado primero); archivado gana a fijado",
+      "kind": "organize",
+      "input": {
+        "summaries": [
+          {
+            "id": "a",
+            "title": "a",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-10T00:00:00Z",
+            "preview": "",
+            "pinnedAt": "2026-01-02T00:00:00Z"
+          },
+          {
+            "id": "b",
+            "title": "b",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-03-01T00:00:00Z",
+            "preview": ""
+          },
+          {
+            "id": "c",
+            "title": "c",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-02-01T00:00:00Z",
+            "preview": ""
+          },
+          {
+            "id": "d",
+            "title": "d",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-20T00:00:00Z",
+            "preview": "",
+            "archivedAt": "2026-01-05T00:00:00Z"
+          },
+          {
+            "id": "e",
+            "title": "e",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-04-01T00:00:00Z",
+            "preview": "",
+            "pinnedAt": "2026-01-09T00:00:00Z",
+            "archivedAt": "2026-01-07T00:00:00Z"
+          },
+          {
+            "id": "f",
+            "title": "f",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-11T00:00:00Z",
+            "preview": "",
+            "pinnedAt": "2026-01-03T00:00:00Z"
+          }
+        ]
+      },
+      "expect": {
+        "pinned": [
+          "f",
+          "a"
+        ],
+        "active": [
+          "b",
+          "c"
+        ],
+        "archived": [
+          "e",
+          "d"
+        ]
+      }
+    },
+    {
+      "name": "sidebar: vacío es tres listas vacías",
+      "kind": "organize",
+      "input": {
+        "summaries": []
+      },
+      "expect": {
+        "pinned": [],
+        "active": [],
+        "archived": []
+      }
+    }
+  ]
+}

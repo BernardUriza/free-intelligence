@@ -197,5 +197,11 @@ struct ContentView: View {
             onOpenContext: { showingContext = true },
             llamada: llamada
         )
+        .onChange(of: chat.borradorNoEnviado?.texto) { _, _ in
+            guard let borrador = chat.borradorNoEnviado else { return }
+            draft = borrador.texto
+            adjuntos.restaurar(borrador.imagenes)
+            chat.borradorRestaurado()
+        }
     }
 }

@@ -32,6 +32,7 @@ import {
   type AgentStreamEvent,
   type AgentTurnState,
   fromWireEvent,
+  takeSseFrames,
 } from '@free-intelligence/core';
 import { authHeaders, AUTH401 } from './og118Token';
 import { proyectosActivos } from './og118Flags';
@@ -129,12 +130,10 @@ export function useOg118Agent(
         const { value, done } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split('\n\n');
-        buffer = frames.pop() ?? '';
-        for (const frame of frames) {
-          const line = frame.split('\n').find((l) => l.startsWith('data:'));
-          if (!line) continue;
-          const ev = JSON.parse(line.slice(5).trim());
+        const corte = takeSseFrames(buffer);
+        buffer = corte.rest;
+        for (const payload of corte.payloads) {
+          const ev = JSON.parse(payload);
           // DD-002C: do NOT latch the backend's per-turn session_id. The stable
           // client UUID (set in send()) is the conversation_store's key; with
           // history replay the backend runs session-less (backend_session_id=None),
