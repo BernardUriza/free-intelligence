@@ -128,6 +128,118 @@ function applyAgentEvent(state, event) {
   }
 }
 
+// src/agent/wire-map.ts
+function rec(v) {
+  return v && typeof v === "object" ? v : {};
+}
+function str(v, fallback = "") {
+  return v == null ? fallback : String(v);
+}
+function nullableStr(v) {
+  return typeof v === "string" && v.trim() ? v : null;
+}
+function fromWireEvent(frame) {
+  const ev = rec(frame);
+  const data = rec(ev.data);
+  switch (ev.type) {
+    case "open":
+      return { type: "open" };
+    case "text":
+      return { type: "text", delta: str(ev.text) };
+    case "element": {
+      const el = rec(ev.element);
+      const id = str(el.id);
+      if (!id) return null;
+      return {
+        type: "author",
+        author: {
+          id,
+          name: str(el.name) || str(el.label) || id,
+          symbol: el.symbol ?? null,
+          engine: el.engine ?? null
+        }
+      };
+    }
+    case "tool_call": {
+      const t = rec(ev.tool ?? ev.call);
+      return {
+        type: "tool_call",
+        call: {
+          id: t.id ?? null,
+          name: str(t.name),
+          server: t.server ?? null,
+          isError: t.is_error ?? t.isError ?? null
+        }
+      };
+    }
+    case "plan":
+      return { type: "plan", steps: (data.steps ?? []).map((s) => str(s)) };
+    case "plan_rejected":
+      return {
+        type: "plan_rejected",
+        rejection: {
+          reason: str(data.reason),
+          matched: data.matched ?? [],
+          guard: data.guard ?? null
+        }
+      };
+    case "step_started":
+      return { type: "step_started", index: Number(data.step_index ?? -1) };
+    case "step_done": {
+      const raw = str(data.status, "done");
+      const status = raw === "failed" ? "failed" : raw === "cancelled" ? "cancelled" : "done";
+      return {
+        type: "step_done",
+        index: Number(data.step_index ?? -1),
+        status,
+        summary: data.summary ? str(data.summary) : void 0,
+        error: data.error ? str(data.error) : void 0
+      };
+    }
+    case "step_noted":
+      return { type: "step_noted", index: Number(data.step_index ?? -1), note: str(data.note) };
+    case "plan_amended":
+      return { type: "plan_amended", action: data.action === "replan" ? "replan" : "insert" };
+    case "plan_cancelled":
+      return { type: "plan_cancelled", reason: data.reason ? str(data.reason) : void 0 };
+    case "plan_completed":
+      return {
+        type: "plan_completed",
+        completedCount: Number(data.completed_count ?? 0),
+        failedCount: Number(data.failed_count ?? 0),
+        cancelledCount: Number(data.cancelled_count ?? 0)
+      };
+    case "plan_failed":
+      return {
+        type: "plan_failed",
+        completedCount: Number(data.completed_count ?? 0),
+        failedCount: Number(data.failed_count ?? 0),
+        cancelledCount: Number(data.cancelled_count ?? 0)
+      };
+    case "result": {
+      const r = rec(ev.result);
+      const model = nullableStr(r.model);
+      const reactions = Array.isArray(r.reactions) ? r.reactions.map((x) => str(x).trim()).filter(Boolean) : [];
+      return {
+        type: "result",
+        text: str(r.text),
+        ...model ? { meta: { model } } : {},
+        ...reactions.length > 0 ? { reactions } : {}
+      };
+    }
+    case "error":
+      return { type: "error", message: str(ev.message, "error") };
+    case "ping":
+      return { type: "ping" };
+    case "deferred":
+      return { type: "deferred" };
+    case "done":
+      return { type: "done" };
+    default:
+      return null;
+  }
+}
+
 // src/agent/transcript.ts
 function makeUserMessage(text, author, images) {
   return {
@@ -460,6 +572,7 @@ export {
   deriveConversationTitle,
   filterConversationSummaries,
   foldAssistantTurn,
+  fromWireEvent,
   initialAgentTurnState,
   initialConversationState,
   makeUserMessage,

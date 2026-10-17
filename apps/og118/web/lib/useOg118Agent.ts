@@ -3,7 +3,7 @@
 /**
  * useOg118Agent — og118's implementation of core's AgentHook (the TRANSPORT).
  *
- * Maps fi-runner's NATIVE stream onto core's AgentStreamEvent union, then feeds
+ * Reads the SSE frames and hands each one to core's `fromWireEvent`, then feeds
  * the pure `applyAgentEvent` reducer (Berkelio) to build the live AgentTurnState.
  * This hook owns ONE live turn — the conversation transcript is NOT here. The
  * visible thread (user message, assistant fold, transcript) is the framework's
@@ -31,134 +31,12 @@ import {
   type AgentSendMeta,
   type AgentStreamEvent,
   type AgentTurnState,
+  fromWireEvent,
 } from '@free-intelligence/core';
 import { authHeaders, AUTH401 } from './og118Token';
 import { proyectosActivos } from './og118Flags';
 
 const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
-
-/** fi-runner native frame → core AgentStreamEvent (or null to drop). */
-function mapEvent(ev: Record<string, unknown>): AgentStreamEvent | null {
-  const data = (ev.data ?? {}) as Record<string, unknown>;
-  switch (ev.type) {
-    case 'open':
-      return { type: 'open' };
-    case 'text':
-      return { type: 'text', delta: String(ev.text ?? '') };
-    case 'element': {
-      // WHO is answering. The backend has always emitted this frame; this mapper
-      // used to DROP it (default → null), so every bubble fell back to the app's
-      // own name and an answer from the Yodo element was rendered as "og118".
-      const el = (ev.element ?? {}) as Record<string, unknown>;
-      const id = String(el.id ?? '');
-      if (!id) return null;
-      const label = String(el.label ?? '');
-      return {
-        type: 'author',
-        author: {
-          id,
-          // `label` is the composed "53 · I · Yodo"; prefer the plain name.
-          name: String(el.name ?? '') || label || id,
-          symbol: (el.symbol as string | null) ?? null,
-          engine: (el.engine as string | null) ?? null,
-        },
-      };
-    }
-    case 'tool_call': {
-      const t = (ev.tool ?? ev.call ?? {}) as Record<string, unknown>;
-      return {
-        type: 'tool_call',
-        call: {
-          id: (t.id as string | null) ?? null,
-          name: String(t.name ?? ''),
-          server: (t.server as string | null) ?? null,
-          isError: (t.is_error as boolean | null) ?? (t.isError as boolean | null) ?? null,
-        },
-      };
-    }
-    case 'plan':
-      return { type: 'plan', steps: ((data.steps as string[]) ?? []).map(String) };
-    case 'plan_rejected':
-      return {
-        type: 'plan_rejected',
-        rejection: {
-          reason: String(data.reason ?? ''),
-          matched: (data.matched as Array<{ index: number; label: string }>) ?? [],
-          guard: (data.guard as string | null) ?? null,
-        },
-      };
-    case 'step_started':
-      return { type: 'step_started', index: Number(data.step_index ?? -1) };
-    case 'step_done': {
-      // core v1.1.0 models 'cancelled' natively — no longer folded to failed.
-      const raw = String(data.status ?? 'done');
-      const status = raw === 'failed' ? 'failed' : raw === 'cancelled' ? 'cancelled' : 'done';
-      return {
-        type: 'step_done',
-        index: Number(data.step_index ?? -1),
-        status,
-        summary: data.summary ? String(data.summary) : undefined,
-        error: data.error ? String(data.error) : undefined,
-      };
-    }
-    // --- Plan revision & lifecycle (core v1.1.0) ---
-    case 'step_noted':
-      return { type: 'step_noted', index: Number(data.step_index ?? -1), note: String(data.note ?? '') };
-    case 'plan_amended':
-      return { type: 'plan_amended', action: data.action === 'replan' ? 'replan' : 'insert' };
-    case 'plan_cancelled':
-      return { type: 'plan_cancelled', reason: data.reason ? String(data.reason) : undefined };
-    case 'plan_completed':
-      return {
-        type: 'plan_completed',
-        completedCount: Number(data.completed_count ?? 0),
-        failedCount: Number(data.failed_count ?? 0),
-        cancelledCount: Number(data.cancelled_count ?? 0),
-      };
-    case 'plan_failed':
-      return {
-        type: 'plan_failed',
-        completedCount: Number(data.completed_count ?? 0),
-        failedCount: Number(data.failed_count ?? 0),
-        cancelledCount: Number(data.cancelled_count ?? 0),
-      };
-    case 'result': {
-      // The settled turn carries WHICH model produced it (fi-runner stamps the
-      // model that actually ran — the retry loop may have escalated). It lands
-      // in the turn's meta, the fold persists it in the trace, and fi-glass
-      // renders the provenance chip. Previously dropped: the chip never showed.
-      const r = (ev.result ?? {}) as Record<string, unknown>;
-      const model = typeof r.model === 'string' && r.model.trim() ? r.model : null;
-      // The persona's reactions (server-bot F5: the engine returns its whole
-      // OutboundTurn, and the og118 server forwards `reactions` on the result).
-      // A gesture on the turn, rendered by fi-glass as chips — never text.
-      const reactions = Array.isArray(r.reactions)
-        ? r.reactions.map((x) => String(x).trim()).filter(Boolean)
-        : [];
-      return {
-        type: 'result',
-        text: String(r.text ?? ''),
-        ...(model ? { meta: { model } } : {}),
-        ...(reactions.length > 0 ? { reactions } : {}),
-      };
-    }
-    case 'error':
-      return { type: 'error', message: String(ev.message ?? 'error') };
-    case 'ping':
-      // Sign of life while the turn is quiet — it re-arms the idle watchdog so a
-      // slow-but-healthy turn is not killed (and the user's message not thrown
-      // away) just because the backend had nothing to say yet.
-      return { type: 'ping' };
-    case 'deferred':
-      // The engine kept working past the live wait; the answer lands in the thread
-      // out of band (OG118-EXTERNAL-TURN-1). The shell shows a waiting notice.
-      return { type: 'deferred' };
-    case 'done':
-      return { type: 'done' };
-    default:
-      return null;
-  }
-}
 
 export function useOg118Agent(
   sessionId: string | null,
@@ -262,7 +140,7 @@ export function useOg118Agent(
           // history replay the backend runs session-less (backend_session_id=None),
           // so its result.session_id is irrelevant. Overwriting it here would make
           // turn B load an empty history → the model loses the thread.
-          apply(mapEvent(ev));
+          apply(fromWireEvent(ev));
         }
       }
     } catch (err) {

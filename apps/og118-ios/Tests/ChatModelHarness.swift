@@ -741,6 +741,7 @@ struct Harness {
         await unaReaccionSolaEsRespuesta()
         await unTurnoDiferidoEsperaSinAcusarError()
         await laEsperaDiferidaNoEsEterna()
+        await losVectoresDelTurnoSeCumplen()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -1447,4 +1448,93 @@ private func laEsperaDiferidaNoEsEterna() async {
     expect(model.avisoDeEspera == "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.",
            "tras agotar los reintentos el aviso cambia (\(model.avisoDeEspera ?? "nil"))")
     expect(model.errorMessage == nil, "y sigue sin ser un error")
+}
+
+// MARK: - contracts/agent-turn.vectors.json — la máquina del turno como contrato
+
+private func canonico(_ objeto: Any) -> String {
+    guard let datos = try? JSONSerialization.data(withJSONObject: objeto, options: [.sortedKeys]) else {
+        return "<no-json>"
+    }
+    return String(decoding: datos, as: UTF8.self)
+}
+
+@MainActor
+private func proyeccionDelTurno(_ model: ChatModel) -> [String: Any] {
+    let ultimo = model.messages.last(where: { $0.role == .assistant })
+    let p = model.plan
+    var plan: Any = NSNull()
+    if !(p.vacio && p.rechazo == nil && p.enmienda == nil && p.desenlace == nil) {
+        let pasos: [[String: Any]] = p.pasos.map { paso in
+            let estado: String = switch paso.estado {
+            case .pendiente: "pending"
+            case .corriendo: "running"
+            case .hecho: "done"
+            case .fallido: "failed"
+            case .cancelado: "cancelled"
+            }
+            let detalle: Any = paso.detalle ?? NSNull()
+            return [
+                "label": paso.etiqueta,
+                "status": estado,
+                "summary": paso.estado == .hecho ? detalle : NSNull(),
+                "error": paso.estado == .hecho ? NSNull() : detalle,
+                "note": paso.nota ?? NSNull()
+            ]
+        }
+        let rechazo: Any = p.rechazo.map {
+            ["reason": $0.razon, "matched": $0.etiquetas, "guard": $0.guardia ?? NSNull()] as [String: Any]
+        } ?? NSNull()
+        let desenlace: Any = p.desenlace.map { d -> String in
+            switch d {
+            case .completado: "completed"
+            case .fallido: "failed"
+            case .cancelado: "cancelled"
+            }
+        } ?? NSNull()
+        plan = [
+            "steps": pasos,
+            "rejection": rechazo,
+            "amended": p.enmienda?.rawValue ?? NSNull(),
+            "outcome": desenlace
+        ] as [String: Any]
+    }
+    return [
+        "text": ultimo?.content ?? "",
+        "status": model.errorMessage == nil ? "done" : "error",
+        "deferred": model.avisoDeEspera != nil,
+        "reactions": ultimo?.reactions ?? [],
+        "author": ultimo?.author.map { ["id": $0.id, "name": $0.nombre] as [String: Any] } ?? NSNull(),
+        "plan": plan
+    ]
+}
+
+@MainActor
+private func losVectoresDelTurnoSeCumplen() async {
+    print("agent-turn.vectors.json: la máquina del turno obedece el mismo contrato que core")
+    let ruta = URL(fileURLWithPath: #filePath).absoluteURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/agent-turn.vectors.json")
+    guard let datos = try? Data(contentsOf: ruta),
+          let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let vectores = raiz["vectors"] as? [[String: Any]], !vectores.isEmpty else {
+        expect(false, "el contrato existe y trae vectores: \(ruta.path)")
+        return
+    }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let frames = vector["events"] as? [[String: Any]] ?? []
+        let eventos = frames.compactMap { frame -> StreamEvent? in
+            guard let d = try? JSONSerialization.data(withJSONObject: frame) else { return nil }
+            return StreamEvent.decode(d)
+        }
+        let model = ChatModel(stream: canned(eventos))
+        model.send("vector")
+        await settle()
+        let actual = canonico(proyeccionDelTurno(model))
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        expect(actual == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(actual)")
+    }
 }

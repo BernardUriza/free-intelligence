@@ -261,6 +261,7 @@ final class ChatModel: ObservableObject {
             if !text.isEmpty { liveText = text }
             if let model, !model.isEmpty { liveModel = model }
             if !reactions.isEmpty { liveReactions = reactions }
+            plan.cerrarAbiertos()
         case .failure(let message):
             errorMessage = message
         case .plan(let etiquetas):

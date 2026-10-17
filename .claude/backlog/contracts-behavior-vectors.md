@@ -1,6 +1,6 @@
 # CONTRACTS-BEHAVIOR-1 — lo que iOS todavía transcribe a mano de core es COMPORTAMIENTO, no formas
 
-Status: **Proposed** — corte 0 entregado (ver abajo); los cortes 1–3 esperan el go
+Status: **In progress** — cortes 0 y 1 entregados 2026-10-17 (ver abajo); cortes 2–3 pendientes
 Proposed: 2026-10-17 by Bernard (dirección: *"seguir sacando contratos comunes entre
 la app nativa y la web; fi-glass debería ayudar"*) — diseño: Claude
 
@@ -36,6 +36,17 @@ Divergencias reales entre la web y el teléfono, invisibles para el riel actual:
    a 59. El mismo título renombrado se guarda distinto según el dispositivo.
 4. **Falla del turno**: la web revierte la burbuja optimista y devuelve el borrador
    al composer; iOS deja la burbuja y ofrece *Reintentar*. Es producto, no bug.
+5. **Un plan nuevo no limpiaba el rechazo anterior** en Swift; core sí (`plan`
+   re-declara y borra `rejection`). La encontró el vector, no la lectura.
+6. **Turno vacío** (ni texto, ni reacción, ni `deferred`): core lo cierra en
+   silencio y la web no pinta nada; iOS lo declara error ("N frames pero ninguno
+   traía texto") y ofrece *Reintentar*. Producto: los vectores lo esquivan
+   mandando siempre un `text`.
+
+Y una capa reusable atrapada en el consumidor (DD-002-LESSON otra vez): el
+mapeo cable → evento de core (`mapEvent`) vivía en `useOg118Agent.ts` sin
+exportar, así que ni core podía verificar sus propios vectores de punta a punta.
+Corte 1 lo subió a core como `fromWireEvent` y borró la copia de og118-web.
 
 Y dos huecos del riel mismo, cerrados en el corte 0:
 
@@ -81,4 +92,16 @@ aviso + relectura acotada del hilo; `test_stream_contract.py` valida cada frame
 de `/chat/stream` contra el schema; el PR gate corre los ocho `check:` de deriva
 y compila + corre el arnés de iOS en `macos-15`.
 
-**Siguiente:** corte 1 en cuanto haya go.
+**Corte 1 — entregado 2026-10-17** (rama `bernarduriza/contracts-turn-vectors`):
+`contracts/agent-turn.vectors.json`, 22 vectores escritos a mano (plan, pasos,
+rechazo, enmienda, cancelación, desenlaces, text/result, autor, reacciones,
+`deferred`, error, ping). core los corre en `src/agent/turn-vectors.test.ts`
+pasando los frames por `fromWireEvent` (nuevo en core 1.7.0; og118-web importa y
+su `mapEvent` murió) y conformó a los 22 sin tocar el reducer. El arnés de iOS
+los re-ejecuta contra `ChatModel` + `TurnPlan` y conformó tras tres arreglos:
+barrido de `step_started`, cierre de abiertos en `result`, y `declarar` limpia
+el rechazo (divergencias 1, 2 y 5). El PR gate ahora corre también el vitest de
+core y de og118-web, que no corrían en ningún workflow.
+
+**Siguiente:** corte 2 (derivaciones de conversación) — necesita la decisión 3
+(rename). Corte 3 (fixture SSE compartido) no necesita nada.

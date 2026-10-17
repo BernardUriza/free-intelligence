@@ -32,6 +32,7 @@ export type {
   AgentTurnState,
 } from './agent/state';
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
+export { fromWireEvent } from './agent/wire-map';
 export { initialConversationState, applyConversationEvent } from './agent/conversation-state';
 export type {
   ConversationState,
