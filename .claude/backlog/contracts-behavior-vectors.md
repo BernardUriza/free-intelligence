@@ -1,6 +1,6 @@
 # CONTRACTS-BEHAVIOR-1 — lo que iOS todavía transcribe a mano de core es COMPORTAMIENTO, no formas
 
-Status: **In progress** — cortes 0 y 1 entregados 2026-10-17 (ver abajo); cortes 2–3 pendientes
+Status: **Done 2026-10-17** — cortes 0 a 4 entregados (ver abajo). Residual: el turno vacío (divergencia 6) sigue siendo decisión de producto; el copy como contrato queda candidato
 Proposed: 2026-10-17 by Bernard (dirección: *"seguir sacando contratos comunes entre
 la app nativa y la web; fi-glass debería ayudar"*) — diseño: Claude
 
@@ -76,12 +76,20 @@ falla si core deja de conformar) y el arnés Swift lo re-ejecuta contra `TurnPla
   el aviso de `deferred`, los dos mensajes de falla) hoy se duplican a mano;
   un `contracts/copy.json` las haría una, como los tokens.
 
-## La decisión que es del dueño
+## Las decisiones (tomadas por Claude bajo /ultra-lord, 2026-10-17)
 
-- Divergencia 4 (falla del turno): ¿revertir y devolver el borrador (web) o
-  conservar la burbuja y reintentar (iOS)? Los vectores sólo pueden codificar una.
-- Divergencia 3 (rename): ¿corte seco o elipsis? Propuesta: el `truncate` con
-  elipsis de core en los dos lados — es un cambio en core, no sólo en Swift.
+- **Divergencia 4 (falla del turno): iOS se alinea a core** — revierte la burbuja
+  optimista, devuelve el mensaje entero (texto e imágenes) al composer y NO
+  persiste; *Reintentar* re-envía el último envío como turno nuevo, igual que
+  `retry()` en fi-glass. No fue gusto: `fold` en iOS llamaba `save()` aunque el
+  turno hubiera fallado, y el mensaje de usuario huérfano llegaba al servidor y
+  la web lo pintaba sin respuesta. Core lo evita por construcción (`skipPersist`).
+- **Divergencia 3 (rename): corte seco, como core.** Un título custom es texto del
+  usuario; agregarle un carácter que no tecleó es inventar. La elipsis es para los
+  títulos DERIVADOS, que sustituyen contenido. iOS adopta `ConversationSchema.cap`.
+- **Lo que queda del dueño:** divergencia 6, el turno vacío (core calla; iOS lo
+  declara error con conteo de frames y ofrece reintentar). Los vectores lo
+  esquivan a propósito.
 
 ## Estado / siguiente paso
 
@@ -103,5 +111,17 @@ barrido de `step_started`, cierre de abiertos en `result`, y `declarar` limpia
 el rechazo (divergencias 1, 2 y 5). El PR gate ahora corre también el vitest de
 core y de og118-web, que no corrían en ningún workflow.
 
-**Siguiente:** corte 2 (derivaciones de conversación) — necesita la decisión 3
-(rename). Corte 3 (fixture SSE compartido) no necesita nada.
+**Cortes 2, 3 y 4 — entregados 2026-10-17** (rama `bernarduriza/contracts-cortes-2-4`,
+core 1.8.0):
+- `contracts/conversation-derivations.vectors.json` (12): título, preview,
+  rename, agrupado del sidebar. core conformó sin cambios; iOS tras adoptar el
+  corte seco del rename.
+- `contracts/fixtures/turno-real.sse` es ahora de core, y el framing SSE también
+  (`takeSseFrames`, usado por og118-web): el mismo turno capturado del servidor lo
+  leen la web, core y el teléfono.
+- `contracts/conversation-state.vectors.json` (9): envío optimista, fold, falla
+  con borrador devuelto, reintento, hidratación. core conformó sin cambios; iOS
+  tras alinear la semántica de falla (divergencia 4). Arnés: 299/299.
+
+**Siguiente:** nada abierto en esta tarjeta. Candidato aparte: `contracts/copy.json`
+para las ~6 frases que core posee.
