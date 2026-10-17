@@ -160,6 +160,8 @@ jobs:
           pnpm --filter @free-intelligence/core check:swift-record
           pnpm --filter @free-intelligence/core check:theme-tokens
           pnpm --filter @free-intelligence/core check:swift-theme
+          pnpm --filter @free-intelligence/core check:copy
+          pnpm --filter @free-intelligence/core check:swift-copy
           pnpm --filter @free-intelligence/core check:glass-css
           pnpm --filter @free-intelligence/core check:og118-css
 
