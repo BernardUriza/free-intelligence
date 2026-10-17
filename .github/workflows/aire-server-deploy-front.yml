@@ -21,7 +21,7 @@ permissions:
   packages: write
 
 env:
-  RG: insult-rg
+  RG: og118-rg
   # Monorepo namespace since 2026-10-08 (the old aire-server/front package belongs
   # to the retired repo and this GITHUB_TOKEN cannot push to it).
   IMAGE: ghcr.io/bernarduriza/free-intelligence/aire-front
