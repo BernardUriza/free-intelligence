@@ -22,6 +22,9 @@ final class ChatModel: ObservableObject {
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
     @Published private(set) var reintentable: String?
     @Published private(set) var borradorNoEnviado: BorradorNoEnviado?
+    /// Lo que el turno alcanzó a decir, se haya plegado o revertido: es la
+    /// bitácora del turno (core: `AgentTurnState.text`), no el hilo.
+    private(set) var textoDelUltimoTurno = ""
     private(set) var ultimoEnvio: BorradorNoEnviado?
     @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
@@ -316,14 +319,12 @@ final class ChatModel: ObservableObject {
         guard isStreaming else { return }
         isStreaming = false
         let contesto = !liveText.isEmpty || !liveReactions.isEmpty
+        textoDelUltimoTurno = liveText
 
-        if !contesto, turnoDiferido, errorMessage == nil {
-            let quien = liveAuthor?.nombre ?? "og118"
-            avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
-        }
-        if !contesto, !turnoDiferido {
-            // Un turno sin palabra ni gesto se declara con el conteo de frames:
-            // es lo que separa "no contestó" de "contestó puro frame sin texto".
+        // Un error revierte aunque ya hubiera texto parcial: la web hace lo
+        // mismo (`turn_failed` siempre revierte). Un turno sin palabra ni gesto
+        // se declara con el conteo de frames.
+        if errorMessage != nil || (!contesto && !turnoDiferido) {
             if errorMessage == nil {
                 errorMessage = framesDelTurno == 0
                     ? "El servidor cerró el turno sin mandar un solo frame."
@@ -332,6 +333,10 @@ final class ChatModel: ObservableObject {
             revertir(enviado)
             limpiarTurnoVivo()
             return
+        }
+        if !contesto, turnoDiferido {
+            let quien = liveAuthor?.nombre ?? "og118"
+            avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
         }
 
         if contesto {

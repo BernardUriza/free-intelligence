@@ -1505,7 +1505,7 @@ private func proyeccionDelTurno(_ model: ChatModel) -> [String: Any] {
         ] as [String: Any]
     }
     return [
-        "text": ultimo?.content ?? "",
+        "text": model.textoDelUltimoTurno,
         "status": model.errorMessage == nil ? "done" : "error",
         "deferred": model.avisoDeEspera != nil,
         "reactions": ultimo?.reactions ?? [],
@@ -1624,6 +1624,13 @@ private func eventosDeDesenlace(_ op: [String: Any]) -> [StreamEvent] {
     return eventos
 }
 
+/// Sin texto parcial la falla es un transporte que truena (nil = throw); con
+/// texto parcial es un frame `error` a mitad del turno, que también revierte.
+private func eventosDeFalla(_ op: [String: Any]) -> [StreamEvent]? {
+    guard let parcial = op["partialText"] as? String, !parcial.isEmpty else { return nil }
+    return [.open, .text(parcial), .failure(op["message"] as? String ?? "error"), .done]
+}
+
 @MainActor
 private func proyeccionDelHilo(_ model: ChatModel) -> [String: Any] {
     [
@@ -1674,7 +1681,7 @@ private func losVectoresDelHiloSeCumplen() async {
             switch op["op"] as? String ?? "" {
             case "send", "retry":
                 if i + 1 < ops.count, let sig = ops[i + 1]["op"] as? String, sig == "settled" || sig == "failed" {
-                    cola.append(sig == "failed" ? nil : eventosDeDesenlace(ops[i + 1]))
+                    cola.append(sig == "failed" ? eventosDeFalla(ops[i + 1]) : eventosDeDesenlace(ops[i + 1]))
                     i += 1
                 } else {
                     cola.append([])
