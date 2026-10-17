@@ -78,6 +78,16 @@ enum ConversationSchema {
         return cut.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) + "…"
     }
 
+    /// El tope de un título CUSTOM: texto del usuario, colapsado y cortado en
+    /// seco a `titleMax`, sin elipsis — igual que `conversationRenamePatch` en core.
+    static func cap(_ text: String) -> String {
+        let collapsed = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+        return String(collapsed.prefix(titleMax))
+    }
+
     static func title(_ messages: [ChatMessage]) -> String {
         let firstUser = messages.first {
             $0.role == .user && !$0.content.trimmingCharacters(in: .whitespaces).isEmpty

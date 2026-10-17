@@ -48,4 +48,9 @@ final class AdjuntosModel: ObservableObject {
     func vaciar() {
         borradores = []
     }
+
+    /// Las imágenes de un turno que falló vuelven al composer con el texto.
+    func restaurar(_ imagenes: [MessageImage]) {
+        borradores = imagenes.map { Borrador(imagen: $0, nombre: "imagen") }
+    }
 }

@@ -1,5 +1,12 @@
 import Foundation
 
+/// Lo que un turno fallido devuelve al composer: el mensaje ENTERO (texto e
+/// imágenes), como `unsent` en core. Devolver sólo el texto perdía las fotos.
+struct BorradorNoEnviado {
+    let texto: String
+    let imagenes: [MessageImage]
+}
+
 @MainActor
 final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
@@ -14,6 +21,8 @@ final class ChatModel: ObservableObject {
     /// El texto del turno que se puede volver a intentar. Existe porque un turno
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
     @Published private(set) var reintentable: String?
+    @Published private(set) var borradorNoEnviado: BorradorNoEnviado?
+    private(set) var ultimoEnvio: BorradorNoEnviado?
     @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
     @Published private(set) var isRestoring = false
@@ -172,6 +181,8 @@ final class ChatModel: ObservableObject {
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
         // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
         reintentable = nil
+        borradorNoEnviado = nil
+        ultimoEnvio = nil
         plan = TurnPlan()
         herramientas = []
         createdAt = now()
@@ -191,17 +202,24 @@ final class ChatModel: ObservableObject {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard hiloListo, !trimmed.isEmpty || !images.isEmpty, !isStreaming else { return }
 
+        borradorNoEnviado = nil
+        ultimoEnvio = BorradorNoEnviado(texto: trimmed, imagenes: images)
         let history = messages
         messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now(), images: images))
         lanzarTurno(trimmed, images: images, history: history)
     }
 
-    /// Repite el turno muerto. El mensaje del usuario YA está en el hilo, así
-    /// que reintentar no vuelve a agregarlo: sólo rehace la parte que falló.
+    /// El shell ya puso el borrador en el composer: se consume, como
+    /// `clear_unsent` en core.
+    func borradorRestaurado() {
+        borradorNoEnviado = nil
+    }
+
+    /// Reintentar re-envía el último envío como un turno nuevo — la burbuja
+    /// revertida vuelve con él — igual que `retry()` en fi-glass.
     func reintentar() {
-        guard let texto = reintentable, !isStreaming else { return }
-        let imagenes = messages.last(where: { $0.role == .user })?.images ?? []
-        lanzarTurno(texto, images: imagenes, history: Array(messages.dropLast()))
+        guard let ultimo = ultimoEnvio, !isStreaming else { return }
+        send(ultimo.texto, images: ultimo.imagenes)
     }
 
     private func lanzarTurno(_ texto: String, images: [MessageImage], history: [ChatMessage]) {
@@ -297,26 +315,26 @@ final class ChatModel: ObservableObject {
     private func fold(_ enviado: String) {
         guard isStreaming else { return }
         isStreaming = false
+        let contesto = !liveText.isEmpty || !liveReactions.isEmpty
 
-        // Un turno que cierra sin una sola palabra se veía EXACTAMENTE igual
-        // que uno pensando: silencio. Ahora se declara, y con el conteo de
-        // frames, que es lo que separa "el servidor no contestó" de "contestó
-        // puros frames que no traían texto".
-        if liveText.isEmpty, liveReactions.isEmpty, errorMessage == nil {
-            if turnoDiferido {
-                let quien = liveAuthor?.nombre ?? "og118"
-                avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
-            } else {
+        if !contesto, turnoDiferido, errorMessage == nil {
+            let quien = liveAuthor?.nombre ?? "og118"
+            avisoDeEspera = "\(quien) sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine."
+        }
+        if !contesto, !turnoDiferido {
+            // Un turno sin palabra ni gesto se declara con el conteo de frames:
+            // es lo que separa "no contestó" de "contestó puro frame sin texto".
+            if errorMessage == nil {
                 errorMessage = framesDelTurno == 0
                     ? "El servidor cerró el turno sin mandar un solo frame."
                     : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
             }
+            revertir(enviado)
+            limpiarTurnoVivo()
+            return
         }
-        if errorMessage != nil { reintentable = enviado }
 
-        // Una reacción sin texto ES respuesta (server-bot F5): el fold de core
-        // hace lo mismo — sólo un turno sin palabra NI gesto no deja burbuja.
-        if !liveText.isEmpty || !liveReactions.isEmpty {
+        if contesto {
             messages.append(
                 ChatMessage(
                     role: .assistant,
@@ -328,12 +346,25 @@ final class ChatModel: ObservableObject {
                 )
             )
         }
+        limpiarTurnoVivo()
+        save()
+        if turnoDiferido { esperarRespuestaDiferida() }
+    }
+
+    /// Un turno fallido no deja un mensaje de usuario huérfano, ni en pantalla
+    /// ni en el servidor: la burbuja optimista se revierte y el mensaje vuelve
+    /// al composer (core: `unsent`). Persistirla dejaba a la web un hilo cojo.
+    private func revertir(_ enviado: String) {
+        if messages.last?.role == .user { messages.removeLast() }
+        borradorNoEnviado = ultimoEnvio ?? BorradorNoEnviado(texto: enviado, imagenes: [])
+        reintentable = enviado
+    }
+
+    private func limpiarTurnoVivo() {
         liveText = ""
         liveAuthor = nil
         liveModel = nil
         liveReactions = []
-        save()
-        if turnoDiferido { esperarRespuestaDiferida() }
     }
 
     /// La respuesta de un turno diferido aterriza en el record del servidor,
