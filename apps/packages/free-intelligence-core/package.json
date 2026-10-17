@@ -1,6 +1,6 @@
 {
   "name": "@free-intelligence/core",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "sideEffects": false,
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
@@ -35,6 +35,10 @@
     "check:record-types": "node scripts/gen-record-types.mjs --check",
     "gen:swift-theme": "node scripts/gen-swift-theme.mjs",
     "check:swift-theme": "node scripts/gen-swift-theme.mjs --check",
+    "gen:copy": "node scripts/gen-copy.mjs",
+    "check:copy": "node scripts/gen-copy.mjs --check",
+    "gen:swift-copy": "node scripts/gen-swift-copy.mjs",
+    "check:swift-copy": "node scripts/gen-swift-copy.mjs --check",
     "gen:theme-tokens": "node scripts/gen-theme-tokens.mjs",
     "check:theme-tokens": "node scripts/gen-theme-tokens.mjs --check",
     "check:glass-css": "node scripts/check-glass-css.mjs",

@@ -1,0 +1,31 @@
+{
+  "$comment": "Las frases que el SUBSTRATO posee: lo que core dice en sus reducers y derivaciones y que cada superficie (web vía TS, iPhone vía Swift) repetía a mano. Escrito a mano; copy.generated.ts y Copy.generated.swift derivan de aquí (pnpm gen:copy / gen:swift-copy). Un {param} entre llaves es un hueco que la superficie rellena. El copy de BOTONES y chrome (p. ej. el label 'New chat' del botón) es de fi-glass, no de aquí.",
+  "version": 1,
+  "strings": {
+    "conversation.defaultTitle": {
+      "text": "New chat",
+      "description": "Título de un hilo sin mensaje de usuario usable (deriveConversationTitle)."
+    },
+    "turn.deferredNotice": {
+      "text": "{author} sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.",
+      "params": ["author"],
+      "description": "Aviso (no error) de un turno diferido: el motor sigue trabajando tras cerrar el stream."
+    },
+    "turn.deferredTimeout": {
+      "text": "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.",
+      "description": "El aviso cuando la relectura acotada del hilo se agotó sin que llegara la respuesta diferida."
+    },
+    "turn.failed": {
+      "text": "La respuesta falló. Intenta de nuevo.",
+      "description": "Falla genérica del transporte o del motor, cuando no trae mensaje propio."
+    },
+    "turn.timeout": {
+      "text": "La respuesta tardó demasiado. Intenta de nuevo.",
+      "description": "El watchdog de inactividad cerró el turno."
+    },
+    "turn.empty": {
+      "text": "La respuesta llegó vacía. Intenta de nuevo.",
+      "description": "El turno cerró sin texto, sin reacción y sin deferred: el silencio es una falla."
+    }
+  }
+}

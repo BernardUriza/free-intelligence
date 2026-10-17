@@ -34,6 +34,7 @@ export type {
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
 export { fromWireEvent } from './agent/wire-map';
 export { takeSseFrames } from './agent/sse';
+export { COPY } from './copy.generated';
 export { initialConversationState, applyConversationEvent } from './agent/conversation-state';
 export type {
   ConversationState,

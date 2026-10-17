@@ -25,6 +25,7 @@ import type { ChatMessage, MessageImage } from '../chat/message';
 import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
 import { makeUserMessage, foldAssistantTurn } from './transcript';
+import { COPY } from '../copy.generated';
 
 /**
  * A turn that settled WITHOUT its answer because the engine is still working
@@ -39,7 +40,7 @@ export interface TurnNotice {
 export function deferredNotice(author: MessageAuthor): TurnNotice {
   return {
     kind: 'deferred',
-    message: `${author.name} sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.`,
+    message: COPY.turnDeferredNotice(author.name),
   };
 }
 
@@ -207,7 +208,7 @@ export function applyConversationEvent(
         // left the user's message hanging with no sign of what happened.
         return {
           ...revertOptimistic(base, false),
-          failure: { kind: 'empty', message: 'La respuesta llegó vacía. Intenta de nuevo.' },
+          failure: { kind: 'empty', message: COPY.turnEmpty },
         };
       }
       return {
@@ -228,7 +229,7 @@ export function applyConversationEvent(
         ...reverted,
         failure: {
           kind: 'stream',
-          message: event.message || 'La respuesta falló. Intenta de nuevo.',
+          message: event.message || COPY.turnFailed,
         },
       };
     }
@@ -238,7 +239,7 @@ export function applyConversationEvent(
       return {
         ...revertOptimistic({ ...state, pending: false }, event.controlled),
         timedOut: true,
-        failure: { kind: 'timeout', message: 'La respuesta tardó demasiado. Intenta de nuevo.' },
+        failure: { kind: 'timeout', message: COPY.turnTimeout },
       };
     }
 
