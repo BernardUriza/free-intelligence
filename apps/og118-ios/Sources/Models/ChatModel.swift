@@ -353,6 +353,8 @@ final class ChatModel: ObservableObject {
                 self.avisoDeEspera = nil
                 return
             }
+            guard let self, !Task.isCancelled, self.conversationID == id, self.messages.count == esperados else { return }
+            self.avisoDeEspera = "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla."
         }
     }
 

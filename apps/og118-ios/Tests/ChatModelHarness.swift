@@ -740,6 +740,7 @@ struct Harness {
         resonanceElNucleoDeLaLlamada()
         await unaReaccionSolaEsRespuesta()
         await unTurnoDiferidoEsperaSinAcusarError()
+        await laEsperaDiferidaNoEsEterna()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -1428,4 +1429,22 @@ private func unTurnoDiferidoEsperaSinAcusarError() async {
     expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
     expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
     expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
+}
+
+@MainActor
+private func laEsperaDiferidaNoEsEterna() async {
+    print("deferred: si la respuesta nunca llega, el aviso lo dice en vez de mentir 'sigue escribiendo'")
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.open, .deferred, .done]),
+        persist: { _ in },
+        restore: { _ in nil },
+        pausa: {}
+    )
+    await model.restoreThread()
+    model.send("¿y entonces?")
+    await settle()
+    expect(model.avisoDeEspera == "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.",
+           "tras agotar los reintentos el aviso cambia (\(model.avisoDeEspera ?? "nil"))")
+    expect(model.errorMessage == nil, "y sigue sin ser un error")
 }
