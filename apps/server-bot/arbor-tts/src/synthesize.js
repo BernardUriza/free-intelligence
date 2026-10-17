@@ -89,6 +89,17 @@ export class ArborTTS {
     }
   }
 
+  /**
+   * Close and forget the reused page. It is always OURS (made by _getPage), so closing it is safe
+   * even in CDP mode; only the user's own tabs are off limits. Dropping it without closing left one
+   * ghost tab per take in the user's Chrome (videopipe `agua`, 2026-10-17: seven of them).
+   */
+  async _dropPage() {
+    const page = this.page;
+    this.page = null;
+    if (page && !page.isClosed()) await page.close().catch(() => {});
+  }
+
   /** Return the single reused page, creating it once if missing/closed. */
   async _getPage() {
     if (this.page && !this.page.isClosed()) return this.page;
@@ -103,7 +114,7 @@ export class ArborTTS {
     // on a dead CDP socket.
     if (this.context && this.browser && this.browser.isConnected()) return;
     this.context = null;
-    this.page = null;
+    this.page = null; // its browser is gone: nothing left to close
     if (this.cdpUrl) {
       this.browser = await chromium.connectOverCDP(this.cdpUrl, { timeout: 15000 });
       // connectOverCDP sends Browser.setDownloadBehavior allowAndName on the DEFAULT context (once,
@@ -150,7 +161,7 @@ export class ArborTTS {
         // A hung/failed request must NOT wedge the queue. Drop the cached page
         // so the next request opens a fresh one; launch() reconnects if the
         // browser itself died. The queue then moves on instead of hanging.
-        this.page = null;
+        await this._dropPage();
         throw e;
       }
     };
@@ -171,18 +182,20 @@ export class ArborTTS {
     if (this.lastConversationUrl) {
       try {
         return await this._attempt(text, voice, format, this.lastConversationUrl);
-      } catch {
+      } catch (e) {
         // Reuse failed: drop the saved conversation AND the page (it may be
         // crashed/stale after a Chrome restart), then retry in a fresh chat.
+        // Say so: a silent fallback opened a new chat per take unnoticed.
+        console.error(`arbor-tts: reusing ${this.lastConversationUrl} failed (${e?.message ?? e}); opening a new chat`);
         this.lastConversationUrl = null;
-        this.page = null;
+        await this._dropPage();
       }
     }
     try {
       return await this._attempt(text, voice, format, this.gptUrl);
     } catch (e) {
       // Leave no crashed/stale page cached for the next request.
-      this.page = null;
+      await this._dropPage();
       throw e;
     }
   }
@@ -321,7 +334,8 @@ export class ArborTTS {
 
   async close() {
     // In CDP mode we are a guest in the user's browser: never close their
-    // context/tabs — just drop the CDP connection.
+    // context or their tabs — only the one tab we opened, then drop the CDP connection.
+    await this._dropPage();
     if (!this._cdp && this.context) await this.context.close().catch(() => {});
     if (this._browserCdp) await this._browserCdp.send("Browser.setDownloadBehavior", { behavior: "default" }).catch(() => {});
     this._browserCdp = null;
