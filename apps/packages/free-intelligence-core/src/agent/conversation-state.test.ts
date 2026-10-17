@@ -164,7 +164,7 @@ describe('the fold', () => {
     ).toBe(s);
   });
 
-  it('an empty-text settle closes the turn without folding a blank message', () => {
+  it('an empty-text settle is a failure: the turn reverts and the draft comes back', () => {
     let s = send(initialConversationState(), 'hola');
     s = applyConversationEvent(s, {
       type: 'turn_settled',
@@ -172,7 +172,32 @@ describe('the fold', () => {
       author: AGENT,
       controlled: false,
     });
+    expect(s.messages).toHaveLength(0);
+    expect(s.pending).toBe(false);
+    expect(s.failure?.kind).toBe('empty');
+    expect(s.unsent.text).toBe('hola');
+    expect(s.lastSent?.text).toBe('hola');
+  });
+
+  it('a user stop that settles empty keeps the message and raises nothing', () => {
+    let s = send(initialConversationState(), 'hola');
+    s = applyConversationEvent(s, {
+      type: 'turn_settled', turn: settledTurn(''), author: AGENT, controlled: false, stopped: true,
+    });
     expect(s.messages).toHaveLength(1);
+    expect(s.failure).toBeNull();
+    expect(s.pending).toBe(false);
+  });
+
+  it('a controlled shell gets no revert and no failure for an empty settle', () => {
+    let s = applyConversationEvent(initialConversationState(), { type: 'send', text: 'hola', author: USER, controlled: true });
+    s = applyConversationEvent(s, {
+      type: 'turn_settled',
+      turn: settledTurn(''),
+      author: AGENT,
+      controlled: true,
+    });
+    expect(s.failure).toBeNull();
     expect(s.pending).toBe(false);
   });
 });
@@ -224,10 +249,11 @@ describe('a reaction-only turn is an answer (server-bot F5)', () => {
     expect(s.skipPersist).toBe(false);
   });
 
-  it('a turn with neither text nor reactions still folds nothing', () => {
+  it('a turn with neither text nor reactions folds nothing and fails as empty', () => {
     let s = send(initialConversationState(), 'hola');
     s = applyConversationEvent(s, { type: 'turn_settled', turn: settledTurn(''), author: AGENT, controlled: false });
-    expect(s.messages).toHaveLength(1);
+    expect(s.messages).toHaveLength(0);
+    expect(s.failure?.kind).toBe('empty');
   });
 });
 
@@ -266,11 +292,12 @@ describe('a deferred turn — the engine kept working past the live wait', () =>
     expect(applyConversationEvent(s, { type: 'dismiss_notice' }).notice).toBeNull();
   });
 
-  it('an empty turn that was NOT deferred raises nothing', () => {
+  it('an empty turn that was NOT deferred raises no notice — it fails instead', () => {
     const empty: AgentTurnState = { ...initialAgentTurnState(), status: 'done' };
     const s = applyConversationEvent(send(initialConversationState(), 'hola'), {
       type: 'turn_settled', turn: empty, author: AGENT, controlled: false,
     });
     expect(s.notice).toBeNull();
+    expect(s.failure?.kind).toBe('empty');
   });
 });
