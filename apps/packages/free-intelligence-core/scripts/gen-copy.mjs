@@ -28,7 +28,7 @@ for (const e of entradas) {
   } else {
     const firma = e.params.map((p) => `${p}: string`).join(', ');
     let cuerpo = literal(e.texto);
-    for (const p of e.params) cuerpo = `${cuerpo}.replace('{${p}}', ${p})`;
+    for (const p of e.params) cuerpo = `${cuerpo}.split('{${p}}').join(${p})`;
     lineas.push(`  ${e.nombre}: (${firma}): string => ${cuerpo},`);
   }
 }

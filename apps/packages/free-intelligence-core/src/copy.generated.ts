@@ -7,7 +7,7 @@ export const COPY = {
   /** Título de un hilo sin mensaje de usuario usable (deriveConversationTitle). */
   conversationDefaultTitle: 'New chat',
   /** Aviso (no error) de un turno diferido: el motor sigue trabajando tras cerrar el stream. */
-  turnDeferredNotice: (author: string): string => '{author} sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.'.replace('{author}', author),
+  turnDeferredNotice: (author: string): string => '{author} sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.'.split('{author}').join(author),
   /** El aviso cuando la relectura acotada del hilo se agotó sin que llegara la respuesta diferida. */
   turnDeferredTimeout: 'La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.',
   /** Falla genérica del transporte o del motor, cuando no trae mensaje propio. */

@@ -25,7 +25,7 @@ for (const e of entradas) {
   } else {
     const firma = e.params.map((p) => `${p}: String`).join(', ');
     let cuerpo = literal(e.texto);
-    for (const p of e.params) cuerpo = cuerpo.replace(`{${p}}`, `\\(${p})`);
+    for (const p of e.params) cuerpo = cuerpo.replaceAll(`{${p}}`, `\\(${p})`);
     lineas.push(`    static func ${e.nombre}(${firma}) -> String {`);
     lineas.push(`        ${cuerpo}`);
     lineas.push('    }');
