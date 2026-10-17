@@ -1,0 +1,269 @@
+{
+  "$comment": "Contrato de COMPORTAMIENTO del hilo alrededor de un turno: envío optimista, fold, falla con borrador devuelto, reintento, hidratación. Escrito a mano; core (src/agent/conversation-state-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen. Lo que NO está aquí a propósito: el turno VACÍO (core calla, iOS lo declara error) — decisión de producto pendiente.",
+  "version": 1,
+  "vectors": [
+    {
+      "name": "un turno que contesta deja usuario + asistente",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "settled",
+          "text": "respuesta"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hola"
+      }
+    },
+    {
+      "name": "un turno que falla revierte la burbuja y devuelve el borrador",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed",
+          "message": "se cayó"
+        }
+      ],
+      "expect": {
+        "messages": [],
+        "failure": "stream",
+        "unsentText": "hola",
+        "lastSentText": "hola"
+      }
+    },
+    {
+      "name": "el shell consume el borrador al restaurarlo en el composer",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed"
+        },
+        {
+          "op": "clear_unsent"
+        }
+      ],
+      "expect": {
+        "messages": [],
+        "failure": "stream",
+        "unsentText": null,
+        "lastSentText": "hola"
+      }
+    },
+    {
+      "name": "descartar la falla no borra el borrador",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed"
+        },
+        {
+          "op": "dismiss_failure"
+        }
+      ],
+      "expect": {
+        "messages": [],
+        "failure": null,
+        "unsentText": "hola",
+        "lastSentText": "hola"
+      }
+    },
+    {
+      "name": "reintentar re-envía el último envío y el turno bueno limpia todo",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed"
+        },
+        {
+          "op": "retry"
+        },
+        {
+          "op": "settled",
+          "text": "ahora sí"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "ahora sí"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hola"
+      }
+    },
+    {
+      "name": "un envío nuevo supera al borrador pendiente",
+      "ops": [
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "failed"
+        },
+        {
+          "op": "send",
+          "text": "otro"
+        },
+        {
+          "op": "settled",
+          "text": "r"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "otro"
+          },
+          {
+            "role": "assistant",
+            "content": "r"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "otro"
+      }
+    },
+    {
+      "name": "una reacción sola deja su burbuja",
+      "ops": [
+        {
+          "op": "send",
+          "text": "mira"
+        },
+        {
+          "op": "settled",
+          "text": "",
+          "reactions": [
+            "🔥"
+          ]
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "mira"
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "mira"
+      }
+    },
+    {
+      "name": "deferred no deja burbuja ni falla",
+      "ops": [
+        {
+          "op": "send",
+          "text": "¿y?"
+        },
+        {
+          "op": "settled",
+          "text": "",
+          "deferred": true
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "¿y?"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "¿y?"
+      }
+    },
+    {
+      "name": "un hilo hidratado conserva lo previo y agrega el turno",
+      "ops": [
+        {
+          "op": "hydrate",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté"
+            }
+          ]
+        },
+        {
+          "op": "send",
+          "text": "hoy"
+        },
+        {
+          "op": "settled",
+          "text": "sí"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "user",
+            "content": "hoy"
+          },
+          {
+            "role": "assistant",
+            "content": "sí"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hoy"
+      }
+    }
+  ]
+}
