@@ -141,6 +141,45 @@ jobs:
           pnpm --filter fi-glass type-check
           pnpm --filter og118-web type-check
 
+      - name: Contracts — every generated consumer matches its schema
+        # The schema is the source; wire.generated.ts, WireEvent.generated.swift,
+        # record.generated.ts, ConversationRecord.generated.swift, the theme and
+        # the CSS all derive from it. These checks existed and ran nowhere: a
+        # regenerated file nobody committed shipped a stale contract in silence.
+        run: |
+          pnpm --filter @free-intelligence/core check:events
+          pnpm --filter @free-intelligence/core check:swift-events
+          pnpm --filter @free-intelligence/core check:record-types
+          pnpm --filter @free-intelligence/core check:swift-record
+          pnpm --filter @free-intelligence/core check:theme-tokens
+          pnpm --filter @free-intelligence/core check:swift-theme
+          pnpm --filter @free-intelligence/core check:glass-css
+          pnpm --filter @free-intelligence/core check:og118-css
+
+  # ============================================================
+  # iOS: the native consumer of the same contracts. Nothing compiled Swift in
+  # CI, so a regenerated enum case (`deferred`, 2026-10) broke the app on main
+  # for days without a single red light. The harness runs the turn logic for
+  # real (fold, persistence, SSE parsing) without Xcode's project or a signing
+  # identity — the recipe in apps/og118-ios/README.md.
+  # ============================================================
+  ios-harness:
+    name: "iOS: Harness"
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile and run the ChatModel harness
+        working-directory: apps/og118-ios
+        run: |
+          SDK=$(xcrun --show-sdk-path --sdk macosx)
+          swiftc -DDEBUG -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
+            Sources/Models/*.swift Sources/Services/*.swift Sources/Services/Generated/*.swift \
+            Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift
+          /tmp/og118-harness
+
   # ============================================================
   # AI GATEKEEPER: BAIR inline runner. The reusable-workflow approach
   # (uses: BernardUriza/.github/...@main) kept tripping startup_failure
@@ -223,7 +262,7 @@ jobs:
   gate-status:
     name: "PR Gate Status"
     runs-on: ubuntu-latest
-    needs: [backend-compiles, backend-tests, lint-report, frontend-types, ai-gatekeep]
+    needs: [backend-compiles, backend-tests, lint-report, frontend-types, ios-harness, ai-gatekeep]
     if: always()
 
     steps:
@@ -260,6 +299,13 @@ jobs:
             echo "❌ Frontend type errors - BLOCKING merge" >> $GITHUB_STEP_SUMMARY
           fi
 
+          # Check the iOS harness (BLOCKING)
+          if [[ "${{ needs.ios-harness.result }}" == "success" ]]; then
+            echo "✅ iOS harness green (og118-ios compiles and its turn logic holds)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ iOS harness failed - BLOCKING merge" >> $GITHUB_STEP_SUMMARY
+          fi
+
           # Check AI Gatekeeper (only for PRs, skipped for push to dev/main)
           AI_RESULT="${{ needs.ai-gatekeep.result }}"
           if [[ "$AI_RESULT" == "success" ]]; then
@@ -279,11 +325,13 @@ jobs:
           BACKEND_OK="${{ needs.backend-compiles.result }}"
           LINT_OK="${{ needs.lint-report.result }}"
           TYPES_OK="${{ needs.frontend-types.result }}"
+          IOS_OK="${{ needs.ios-harness.result }}"
           AI_OK="${{ needs.ai-gatekeep.result }}"
 
           if [[ "$BACKEND_OK" != "success" ]] || \
              [[ "$LINT_OK" != "success" ]] || \
              [[ "$TYPES_OK" != "success" ]] || \
+             [[ "$IOS_OK" != "success" ]] || \
              [[ "$AI_OK" != "success" && "$AI_OK" != "skipped" ]]; then
             echo "❌ **PR Gate FAILED** - Fix issues before merging" >> $GITHUB_STEP_SUMMARY
             exit 1
