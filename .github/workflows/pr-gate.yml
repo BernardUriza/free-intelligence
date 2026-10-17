@@ -141,6 +141,13 @@ jobs:
           pnpm --filter fi-glass type-check
           pnpm --filter og118-web type-check
 
+      - name: Unit tests of the substrate and the app that ships
+        # core's 130+ vitest cases (reducers, derivations, the turn vectors) and
+        # og118-web's ran on nobody's machine but the author's: no workflow called them.
+        run: |
+          pnpm --filter @free-intelligence/core test
+          pnpm --filter og118-web test
+
       - name: Contracts — every generated consumer matches its schema
         # The schema is the source; wire.generated.ts, WireEvent.generated.swift,
         # record.generated.ts, ConversationRecord.generated.swift, the theme and
