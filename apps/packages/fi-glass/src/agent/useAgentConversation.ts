@@ -89,8 +89,8 @@ export type AppHandledError = (turn: AgentTurnState) => boolean;
 
 /** A recoverable failure of the in-flight turn, surfaced for retry/dismiss. */
 export interface TurnError {
-  /** `timeout` = the idle watchdog fired; `stream` = the transport reported error. */
-  kind: 'timeout' | 'stream';
+  /** `timeout` = the idle watchdog fired; `stream` = the transport reported error; `empty` = it settled saying nothing. */
+  kind: 'timeout' | 'stream' | 'empty';
   /** Human-readable, app-displayable reason. */
   message: string;
 }
@@ -326,6 +326,8 @@ export function useAgentConversation(
   const timedOut = convo.timedOut;
   // Read the latest controlled flag inside effects without re-arming them on it.
   const controlledRef = useRef(controlled);
+  // Set by stop(): an empty settle after a user stop is a choice, not an empty answer.
+  const stoppedRef = useRef(false);
   controlledRef.current = controlled;
   // The fold runs from an effect whose deps must not include the author (a new
   // object literal every render would re-fire it). Refs keep both identities
@@ -450,6 +452,7 @@ export function useAgentConversation(
 
   const stop = useCallback(() => {
     if (!agentRef.current.isStreaming) return;
+    stoppedRef.current = true;
     agentRef.current.abort?.();
   }, []);
 
@@ -487,7 +490,9 @@ export function useAgentConversation(
       turn: agent.turn,
       author: authorRef.current,
       controlled: controlledRef.current,
+      stopped: stoppedRef.current,
     });
+    stoppedRef.current = false;
     // Settle any awaited (sendAndAwait) turn with the assistant's final text.
     const resolver = awaitResolver.current;
     awaitResolver.current = null;

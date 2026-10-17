@@ -23,6 +23,8 @@ interface Op {
   text?: string;
   reactions?: string[];
   deferred?: boolean;
+  /** The user stopped the turn; an empty settle is then not a failure. */
+  stopped?: boolean;
   message?: string;
   /** Text the transport streamed before failing; core reverts regardless. */
   partialText?: string;
@@ -63,6 +65,7 @@ function aplicar(state: ConversationState, op: Op): ConversationState {
         },
         author: AGENTE,
         controlled: false,
+        stopped: op.stopped ?? false,
       });
     case 'failed':
       return applyConversationEvent(state, { type: 'turn_failed', message: op.message, controlled: false });

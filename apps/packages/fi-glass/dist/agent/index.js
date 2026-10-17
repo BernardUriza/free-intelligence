@@ -418,6 +418,7 @@ function useAgentConversation(agent, options) {
   const turnNotice = convo.notice;
   const timedOut = convo.timedOut;
   const controlledRef = useRef(controlled);
+  const stoppedRef = useRef(false);
   controlledRef.current = controlled;
   const authorRef = useRef(author);
   authorRef.current = author;
@@ -499,6 +500,7 @@ function useAgentConversation(agent, options) {
   );
   const stop = useCallback(() => {
     if (!agentRef.current.isStreaming) return;
+    stoppedRef.current = true;
     agentRef.current.abort?.();
   }, []);
   const retry = useCallback(() => {
@@ -526,8 +528,10 @@ function useAgentConversation(agent, options) {
       type: "turn_settled",
       turn: agent.turn,
       author: authorRef.current,
-      controlled: controlledRef.current
+      controlled: controlledRef.current,
+      stopped: stoppedRef.current
     });
+    stoppedRef.current = false;
     const resolver = awaitResolver.current;
     awaitResolver.current = null;
     resolver?.resolve(finalText);

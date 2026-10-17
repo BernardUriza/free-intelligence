@@ -545,7 +545,8 @@ interface TurnNotice {
 }
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 interface TurnFailure {
-    kind: 'stream' | 'timeout';
+    /** `empty` = the turn settled with no text, no reaction and no deferral: silence is a failure. */
+    kind: 'stream' | 'timeout' | 'empty';
     message: string;
 }
 /**
@@ -594,11 +595,13 @@ type ConversationEvent =
     controlled: boolean;
 }
 /** The transport finished cleanly. Folds the assistant turn in. */
+/** `stopped`: the USER ended the turn; an empty settle is then a choice, not a failure. */
  | {
     type: 'turn_settled';
     turn: AgentTurnState;
     author: MessageAuthor;
     controlled: boolean;
+    stopped?: boolean;
 }
 /**
  * The transport reported failure. `appHandled` means the app renders its own

@@ -25,6 +25,9 @@ final class ChatModel: ObservableObject {
     /// Lo que el turno alcanzó a decir, se haya plegado o revertido: es la
     /// bitácora del turno (core: `AgentTurnState.text`), no el hilo.
     private(set) var textoDelUltimoTurno = ""
+    enum TipoDeFalla { case transporte, vacio }
+    /// Qué falló: el transporte/el motor, o un turno que cerró sin decir nada.
+    private(set) var tipoDeFalla: TipoDeFalla?
     private(set) var ultimoEnvio: BorradorNoEnviado?
     @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
@@ -184,6 +187,7 @@ final class ChatModel: ObservableObject {
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
         // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
         reintentable = nil
+        tipoDeFalla = nil
         borradorNoEnviado = nil
         ultimoEnvio = nil
         plan = TurnPlan()
@@ -236,6 +240,7 @@ final class ChatModel: ObservableObject {
         herramientas = []
         errorMessage = nil
         reintentable = nil
+        tipoDeFalla = nil
         framesDelTurno = 0
         isStreaming = true
 
@@ -325,6 +330,7 @@ final class ChatModel: ObservableObject {
         // mismo (`turn_failed` siempre revierte). Un turno sin palabra ni gesto
         // se declara con el conteo de frames.
         if errorMessage != nil || (!contesto && !turnoDiferido) {
+            tipoDeFalla = errorMessage == nil ? .vacio : .transporte
             if errorMessage == nil {
                 errorMessage = framesDelTurno == 0
                     ? "El servidor cerró el turno sin mandar un solo frame."

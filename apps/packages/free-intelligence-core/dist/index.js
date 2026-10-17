@@ -351,7 +351,14 @@ function applyConversationEvent(state, event) {
       if (!state.pending) return state;
       const base = { ...state, pending: false };
       if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) {
-        return event.turn.deferred ? { ...base, notice: deferredNotice(event.turn.author ?? event.author) } : base;
+        if (event.turn.deferred) {
+          return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
+        }
+        if (event.controlled || event.stopped) return base;
+        return {
+          ...revertOptimistic(base, false),
+          failure: { kind: "empty", message: "La respuesta lleg\xF3 vac\xEDa. Intenta de nuevo." }
+        };
       }
       return {
         ...base,

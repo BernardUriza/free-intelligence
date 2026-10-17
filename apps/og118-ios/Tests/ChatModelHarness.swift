@@ -1624,18 +1624,28 @@ private func eventosDeDesenlace(_ op: [String: Any]) -> [StreamEvent] {
     return eventos
 }
 
-/// Sin texto parcial la falla es un transporte que truena (nil = throw); con
-/// texto parcial es un frame `error` a mitad del turno, que también revierte.
-private func eventosDeFalla(_ op: [String: Any]) -> [StreamEvent]? {
-    guard let parcial = op["partialText"] as? String, !parcial.isEmpty else { return nil }
-    return [.open, .text(parcial), .failure(op["message"] as? String ?? "error"), .done]
+/// Cómo termina el stream de un vector: con frames, tronando el transporte, o
+/// colgado hasta que el usuario lo para (`stopped`).
+private enum DesenlaceDelTurno {
+    case eventos([StreamEvent])
+    case falla
+    case colgado
+}
+
+/// Sin texto parcial la falla es un transporte que truena; con texto parcial es
+/// un frame `error` a mitad del turno, que también revierte.
+private func desenlace(_ op: [String: Any], falla: Bool) -> DesenlaceDelTurno {
+    if op["stopped"] as? Bool == true { return .colgado }
+    guard falla else { return .eventos(eventosDeDesenlace(op)) }
+    guard let parcial = op["partialText"] as? String, !parcial.isEmpty else { return .falla }
+    return .eventos([.open, .text(parcial), .failure(op["message"] as? String ?? "error"), .done])
 }
 
 @MainActor
 private func proyeccionDelHilo(_ model: ChatModel) -> [String: Any] {
     [
         "messages": model.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] },
-        "failure": model.errorMessage == nil ? NSNull() : "stream",
+        "failure": model.errorMessage == nil ? NSNull() : (model.tipoDeFalla == .vacio ? "empty" : "stream"),
         "unsentText": model.borradorNoEnviado?.texto ?? NSNull(),
         "lastSentText": model.ultimoEnvio?.texto ?? NSNull()
     ]
@@ -1648,16 +1658,19 @@ private func losVectoresDelHiloSeCumplen() async {
     for vector in vectores {
         let nombre = vector["name"] as? String ?? "?"
         let ops = vector["ops"] as? [[String: Any]] ?? []
-        var cola: [[StreamEvent]?] = []
+        var cola: [DesenlaceDelTurno] = []
         let stream: ChatModel.Stream = { _, _, _, _, _, _ in
-            let siguiente: [StreamEvent]? = cola.isEmpty ? [] : cola.removeFirst()
+            let siguiente: DesenlaceDelTurno = cola.isEmpty ? .eventos([]) : cola.removeFirst()
             return AsyncThrowingStream { c in
-                guard let eventos = siguiente else {
+                switch siguiente {
+                case .falla:
                     c.finish(throwing: Og118Error.unauthorized)
-                    return
+                case .colgado:
+                    c.yield(.open)
+                case .eventos(let eventos):
+                    for e in eventos { c.yield(e) }
+                    c.finish()
                 }
-                for e in eventos { c.yield(e) }
-                c.finish()
             }
         }
         var semilla: ConversationRecord?
@@ -1680,11 +1693,13 @@ private func losVectoresDelHiloSeCumplen() async {
             let op = ops[i]
             switch op["op"] as? String ?? "" {
             case "send", "retry":
+                var parado = false
                 if i + 1 < ops.count, let sig = ops[i + 1]["op"] as? String, sig == "settled" || sig == "failed" {
-                    cola.append(sig == "failed" ? eventosDeFalla(ops[i + 1]) : eventosDeDesenlace(ops[i + 1]))
+                    parado = ops[i + 1]["stopped"] as? Bool == true
+                    cola.append(desenlace(ops[i + 1], falla: sig == "failed"))
                     i += 1
                 } else {
-                    cola.append([])
+                    cola.append(.eventos([]))
                 }
                 if op["op"] as? String == "send" {
                     model.send(op["text"] as? String ?? "")
@@ -1692,6 +1707,10 @@ private func losVectoresDelHiloSeCumplen() async {
                     model.reintentar()
                 }
                 await settle()
+                if parado {
+                    model.cancel()
+                    await settle()
+                }
             case "dismiss_failure":
                 model.errorMessage = nil
             case "clear_unsent":

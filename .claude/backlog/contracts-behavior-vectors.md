@@ -1,6 +1,6 @@
 # CONTRACTS-BEHAVIOR-1 — lo que iOS todavía transcribe a mano de core es COMPORTAMIENTO, no formas
 
-Status: **Done 2026-10-17** — cortes 0 a 4 entregados (ver abajo). Residual: el turno vacío (divergencia 6) sigue siendo decisión de producto; el copy como contrato queda candidato
+Status: **Done 2026-10-17** — cortes 0 a 5 entregados (ver abajo). Sin residuales: el turno vacío se decidió en el framework (corte 5). El copy como contrato es tarjeta aparte
 Proposed: 2026-10-17 by Bernard (dirección: *"seguir sacando contratos comunes entre
 la app nativa y la web; fi-glass debería ayudar"*) — diseño: Claude
 
@@ -87,9 +87,13 @@ falla si core deja de conformar) y el arnés Swift lo re-ejecuta contra `TurnPla
 - **Divergencia 3 (rename): corte seco, como core.** Un título custom es texto del
   usuario; agregarle un carácter que no tecleó es inventar. La elipsis es para los
   títulos DERIVADOS, que sustituyen contenido. iOS adopta `ConversationSchema.cap`.
-- **Lo que queda del dueño:** divergencia 6, el turno vacío (core calla; iOS lo
-  declara error con conteo de frames y ofrece reintentar). Los vectores lo
-  esquivan a propósito.
+- **Divergencia 6 (turno vacío): la conducta correcta era la de iOS, y se subió al
+  framework.** Un turno que cierra sin texto, sin reacción y sin `deferred` dejaba
+  a la web muda con el mensaje colgado — la clase DD-002 ("no pasó nada"). core lo
+  trata como falla `kind: 'empty'` (revierte, devuelve el borrador, Reintentar); la
+  web hereda el banner. Un STOP del usuario no es falla: el hook lo marca
+  (`stopped`) y el mensaje se queda. iOS sólo expone el tipo de falla. Dos vectores
+  nuevos en el contrato del hilo (11 en total).
 
 ## Estado / siguiente paso
 
@@ -123,5 +127,9 @@ core 1.8.0):
   con borrador devuelto, reintento, hidratación. core conformó sin cambios; iOS
   tras alinear la semántica de falla (divergencia 4). Arnés: 299/299.
 
-**Siguiente:** nada abierto en esta tarjeta. Candidato aparte: `contracts/copy.json`
-para las ~6 frases que core posee.
+**Corte 5 — entregado 2026-10-17** (rama `bernarduriza/contracts-empty-turn`, core
+1.9.0, fi-glass 1.9.0): el turno vacío es falla en el framework; el stop del
+usuario no. Arnés 302/302; fi-glass 659; core 167.
+
+**Siguiente:** nada abierto en esta tarjeta. El copy como contrato va en
+`CONTRACTS-COPY-1`.

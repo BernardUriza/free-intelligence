@@ -45,7 +45,8 @@ export function deferredNotice(author: MessageAuthor): TurnNotice {
 
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 export interface TurnFailure {
-  kind: 'stream' | 'timeout';
+  /** `empty` = the turn settled with no text, no reaction and no deferral: silence is a failure. */
+  kind: 'stream' | 'timeout' | 'empty';
   message: string;
 }
 
@@ -94,7 +95,8 @@ export type ConversationEvent =
       controlled: boolean;
     }
   /** The transport finished cleanly. Folds the assistant turn in. */
-  | { type: 'turn_settled'; turn: AgentTurnState; author: MessageAuthor; controlled: boolean }
+  /** `stopped`: the USER ended the turn; an empty settle is then a choice, not a failure. */
+  | { type: 'turn_settled'; turn: AgentTurnState; author: MessageAuthor; controlled: boolean; stopped?: boolean }
   /**
    * The transport reported failure. `appHandled` means the app renders its own
    * banner for this error class (e.g. a 401 token gate), so the generic
@@ -197,9 +199,16 @@ export function applyConversationEvent(
       // gesture folds nothing; a reaction-only turn (empty text, `reactions`
       // set — server-bot F5) IS an answer and gets its bubble.
       if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) {
-        return event.turn.deferred
-          ? { ...base, notice: deferredNotice(event.turn.author ?? event.author) }
-          : base;
+        if (event.turn.deferred) {
+          return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
+        }
+        if (event.controlled || event.stopped) return base;
+        // Silence is not an answer: a turn that said nothing and made no gesture
+        // left the user's message hanging with no sign of what happened.
+        return {
+          ...revertOptimistic(base, false),
+          failure: { kind: 'empty', message: 'La respuesta llegó vacía. Intenta de nuevo.' },
+        };
       }
       return {
         ...base,
