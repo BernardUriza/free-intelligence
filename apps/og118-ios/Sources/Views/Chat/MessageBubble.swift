@@ -295,6 +295,7 @@ struct MessageBubble: View {
     var timestamp: String?
     var model: String?
     var imagenes: [MessageImage] = []
+    var reacciones: [String] = []
     var mostrarAcciones = false
     var leyendo = false
     var sintetizando = false
@@ -332,6 +333,9 @@ struct MessageBubble: View {
             } else {
                 MarkdownText(raw: text)
                     .accessibilityIdentifier("respuesta")
+                if !reacciones.isEmpty {
+                    ReaccionesDelMensaje(reacciones: reacciones)
+                }
                 pie
             }
         }
@@ -427,5 +431,25 @@ struct TypingIndicator: View {
                 fase = .pi * 2
             }
         }
+    }
+}
+
+/// Las reacciones como chips bajo el cuerpo, igual que `MessageReactions` en
+/// fi-glass: un gesto sobre el mensaje, nunca texto dentro de él.
+private struct ReaccionesDelMensaje: View {
+    let reacciones: [String]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(reacciones.enumerated()), id: \.offset) { _, reaccion in
+                Text(reaccion)
+                    .font(.system(size: 14))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Theme.bubbleBorder, in: Capsule())
+            }
+        }
+        .padding(.top, 2)
+        .accessibilityIdentifier("reacciones")
     }
 }

@@ -805,7 +805,7 @@
     },
     "TurnResultPayload": {
       "additionalProperties": false,
-      "description": "The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.\n\n``model`` is the model that ACTUALLY ran (the retry loop may escalate to the\nfallback), so a UI shows the answer's real provenance instead of guessing at\nthe configured default.",
+      "description": "The settled result of a turn, mirroring :class:`fi_runner.backend.TurnResult`.\n\n``model`` is the model that ACTUALLY ran (the retry loop may escalate to the\nfallback), so a UI shows the answer's real provenance instead of guessing at\nthe configured default.\n\n``reactions`` are the emoji the speaker put ON the turn (an engine with a\nreaction channel, like a Discord persona). A gesture, not content: a turn\nwith empty ``text`` and reactions is a settled answer, not an empty one.",
       "properties": {
         "text": {
           "type": "string"
@@ -851,6 +851,12 @@
         "tool_calls": {
           "items": {
             "$ref": "#/$defs/ToolCallPayload"
+          },
+          "type": "array"
+        },
+        "reactions": {
+          "items": {
+            "type": "string"
           },
           "type": "array"
         }
@@ -943,6 +949,6 @@
   ],
   "title": "AgentStreamEvent",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "x-schema-version": "1.1.0",
+  "x-schema-version": "1.2.0",
   "description": "The fi-runner agent stream contract. Generated from fi_runner/events.py \u2014 do not edit by hand."
 }

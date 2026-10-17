@@ -43,6 +43,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [CONTRACTS-BEHAVIOR-1 — lo que iOS transcribe a mano de core es comportamiento, no formas](contracts-behavior-vectors.md) | **Proposed** — corte 0 entregado 2026-10-17 (`reactions` al riel, `deferred` compilando, 8 `check:` + arnés iOS en el PR gate); cortes 1–3 (vectores de conformidad) esperan el go. Dos decisiones del dueño adentro | 2026-10-17 |
 | [FIGLASS-STATE-RESIDUALS-1 — lo que #526 no cerró](figlass-state-residuals.md) | **Proposed** — un append del servidor que el persist pisa durante un turno, el timeout que borra el texto, fugas del mic y de object URLs | 2026-10-09 |
 | [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Proposed** — Retry, "Ver más", selector de elemento, items de menú; rail-toggle 18×18 en composer angosto; drawer sin manejo de foco ni safe-area de abajo | 2026-10-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |

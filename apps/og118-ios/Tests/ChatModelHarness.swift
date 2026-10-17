@@ -52,7 +52,7 @@ private func autorSeCongelaPorMensaje() async {
 private func elResultadoGanaALosDeltas() async {
     print("el frame result reemplaza el texto acumulado")
     let model = ChatModel(stream: canned([
-        .text("parcial"), .result(text: "definitivo", model: "sonnet"), .done
+        .text("parcial"), .result(text: "definitivo", model: "sonnet", reactions: []), .done
     ]))
     model.send("x")
     await settle()
@@ -181,7 +181,7 @@ private func elModeloViajaDeIdaYVuelta() async {
     var guardados: [ConversationRecord] = []
     let model = ChatModel(
         conversationID: "abc-123",
-        stream: canned([.text("hola"), .result(text: "hola", model: "claude-sonnet-4-5"), .done]),
+        stream: canned([.text("hola"), .result(text: "hola", model: "claude-sonnet-4-5", reactions: []), .done]),
         persist: { guardados.append($0) },
         restore: { _ in nil },
         now: { "2026-10-10T21:00:00Z" }
@@ -738,6 +738,9 @@ struct Harness {
         await laEnmiendaViveEntreElAnuncioYElPlanNuevo()
         losFramesDelPlanYaNoSonBasura()
         resonanceElNucleoDeLaLlamada()
+        await unaReaccionSolaEsRespuesta()
+        await unTurnoDiferidoEsperaSinAcusarError()
+        await laEsperaDiferidaNoEsEterna()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -1135,7 +1138,7 @@ private func elParserLeeUnTurnoDeVerdad() {
         switch e {
         case .open: abrio = true
         case .text(let t): texto = t
-        case .result(let t, let m): resultado = t; modelo = m
+        case .result(let t, let m, _): resultado = t; modelo = m
         case .done: cerro = true
         default: break
         }
@@ -1359,4 +1362,89 @@ private func resonanceElNucleoDeLaLlamada() {
            "las bandas se recortan a 1")
     expect(ResonancePolicy.etiqueta(.speaking, oyendo: false) == "Hablando — puedes interrumpir"
            && ResonancePolicy.etiqueta(.listening, oyendo: true) == "Te oigo", "las etiquetas son las de la web")
+}
+
+// MARK: - reactions: el campo del contrato que el teléfono no veía
+
+@MainActor
+private func unaReaccionSolaEsRespuesta() async {
+    print("un turno con reacción y sin texto es una respuesta, no un error")
+    var guardados: [ConversationRecord] = []
+    let model = ChatModel(
+        stream: canned([.open, .result(text: "", model: nil, reactions: ["🔥", "👀"]), .done]),
+        persist: { guardados.append($0) },
+        restore: { _ in nil }
+    )
+    await model.restoreThread()
+    model.send("mira esto")
+    await settle()
+
+    expect(model.errorMessage == nil, "no acusa 'frames sin texto'")
+    expect(model.reintentable == nil, "ni ofrece reintentar")
+    expect(model.messages.count == 2, "la reacción deja su burbuja (hubo \(model.messages.count))")
+    expect(model.messages.last?.reactions == ["🔥", "👀"], "con las reacciones del contrato")
+    expect(model.messages.last?.content == "", "y sin inventar texto")
+    guard let r = guardados.last else { return expect(false, "se guardó el turno") }
+    expect(r.messages.last?.reactions == ["🔥", "👀"], "y se persisten donde la web las lee")
+    let releido = try? JSONDecoder().decode(ConversationRecord.self, from: JSONEncoder().encode(r))
+    expect(releido?.chatMessages.last?.reactions == ["🔥", "👀"], "y vuelven al reabrir el hilo")
+}
+
+// MARK: - deferred: el frame que rompió la compilación en main sin que nadie lo viera
+
+@MainActor
+private func unTurnoDiferidoEsperaSinAcusarError() async {
+    print("deferred: el motor sigue trabajando, no es un error, y la respuesta llega al hilo")
+    var tardio: ConversationRecord?
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.open, .author(id: "53", name: "Yodo"), .deferred, .done]),
+        persist: { _ in },
+        restore: { _ in tardio },
+        now: { "2026-10-17T12:00:00Z" },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    await model.restoreThread()
+    model.send("¿y entonces?")
+    await settle()
+
+    expect(model.errorMessage == nil, "no acusa error")
+    expect(model.reintentable == nil, "no ofrece reintentar: no hay nada que rehacer")
+    expect(model.messages.count == 1, "no inventa una burbuja vacía (hubo \(model.messages.count))")
+    expect(
+        model.avisoDeEspera == "Yodo sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.",
+        "avisa con la frase de core, con el autor del turno (\(model.avisoDeEspera ?? "nil"))"
+    )
+
+    tardio = ConversationRecord.from(
+        id: "abc-123",
+        messages: [
+            ChatMessage(role: .user, content: "¿y entonces?"),
+            ChatMessage(role: .assistant, content: "llegué tarde", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
+        ],
+        createdAt: "2026-10-17T12:00:00Z",
+        now: "2026-10-17T12:00:09Z"
+    )
+    await settle()
+    expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
+    expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
+    expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
+}
+
+@MainActor
+private func laEsperaDiferidaNoEsEterna() async {
+    print("deferred: si la respuesta nunca llega, el aviso lo dice en vez de mentir 'sigue escribiendo'")
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.open, .deferred, .done]),
+        persist: { _ in },
+        restore: { _ in nil },
+        pausa: {}
+    )
+    await model.restoreThread()
+    model.send("¿y entonces?")
+    await settle()
+    expect(model.avisoDeEspera == "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.",
+           "tras agotar los reintentos el aviso cambia (\(model.avisoDeEspera ?? "nil"))")
+    expect(model.errorMessage == nil, "y sigue sin ser un error")
 }

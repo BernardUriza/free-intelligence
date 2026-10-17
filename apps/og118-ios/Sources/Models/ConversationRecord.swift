@@ -122,7 +122,8 @@ extension ConversationRecord {
             timestamp: mensaje.timestamp,
             author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) },
             images: mensaje.images.isEmpty ? nil : mensaje.images,
-            trace: mensaje.model.map { MessageTrace(model: $0) }
+            trace: mensaje.model.map { MessageTrace(model: $0) },
+            reactions: mensaje.reactions.isEmpty ? nil : mensaje.reactions
         )
     }
 
@@ -193,7 +194,8 @@ extension ConversationRecord {
                 },
                 timestamp: persisted.timestamp,
                 model: persisted.trace?.model,
-                images: persisted.images ?? []
+                images: persisted.images ?? [],
+                reactions: persisted.reactions ?? []
             )
         }
     }
