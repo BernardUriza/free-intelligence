@@ -43,7 +43,6 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Proposed** — Retry, "Ver más", selector de elemento, items de menú; rail-toggle 18×18 en composer angosto; drawer sin manejo de foco ni safe-area de abajo | 2026-10-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso
@@ -60,6 +59,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Done 2026-10-19** — Retry, "Mostrar más", trigger de elemento, items de menú y filas a 44 (medido en Chrome a 374); rail-toggle 18→44 en composer angosto; acciones del sidebar visibles donde miden 44; drawer `role=dialog`+`aria-modal` con foco que entra y vuelve al toggle, página `inert`, safe-area de abajo/izquierda en fi-glass (parche de og118 borrado); acciones por mensaje alcanzables con teclado en touch; popovers dentro de 320 | 2026-10-09 |
 | [CONTRACTS-COPY-1 — las frases que el substrato posee se declaran una vez](contracts-copy.md) | **Done 2026-10-17** — `contracts/copy.json` → `COPY` (TS) + `enum Copy` (Swift), seis frases, params validados, `check:copy` + `check:swift-copy` en el PR gate; el conteo de frames del turno vacío pasa a la bitácora | 2026-10-17 |
 | [CONTRACTS-BEHAVIOR-1 — lo que iOS transcribe a mano de core es comportamiento, no formas](contracts-behavior-vectors.md) | **Done 2026-10-17** — cortes 0–4: `reactions` al riel, `deferred` compilando, 8 `check:` + vitest + arnés iOS en el PR gate; tres contratos de comportamiento (turno 22, derivaciones 12, hilo 11) conformados por core y por iOS; `fromWireEvent` y `takeSseFrames` subieron a core con el fixture SSE; iOS alineado a core en rename y en falla del turno; el turno vacío es falla en el framework y el stop del usuario no. Sin residuales | 2026-10-17 |
 | [OG118-EXTERNAL-TURN-2 — el texto del elemento externo aparece mientras se escribe](og118-external-turn-2-live-text.md) | **Done 2026-10-15** — #552 AIRE emite deltas por token (`include_partial_messages` + dedupe del bloque completo), #553 persona-runner reenvía `text` a la bitácora tras el filtro de marcadores, #554 og118 lo streamea sin duplicar el texto final. Recibo: la respuesta de Yodo creció 0 → 2,643 chars en ~10 s en la burbuja viva, sin marcadores, sin duplicado (`evidence/og118-external-turn-2-live-text-prod-2026-10-15.jpg`) | 2026-10-15 |
