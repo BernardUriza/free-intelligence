@@ -113,7 +113,7 @@ describe('useAgentConversation — seedVersion', () => {
     expect(result.current.messages).toHaveLength(1);
   });
 
-  it('skips the re-seed while a turn is streaming (optimistic message stays)', async () => {
+  it('merges the re-seed while a turn is streaming (optimistic message stays, nothing persisted yet)', async () => {
     const { hook, state } = makeFakeAgent();
     const { result, rerender, onMessagesChange } = mount(hook, {
       conversationId: 'c1',
@@ -133,8 +133,35 @@ describe('useAgentConversation — seedVersion', () => {
     await act(async () => {
       rerender({ conversationId: 'c1', initialMessages: seed1, seedVersion: T1 });
     });
-    expect(result.current.messages.map((x) => x.content)).toEqual(['hola', '¿ya está?']);
+    expect(result.current.messages.map((x) => x.content)).toEqual(['hola', 'reporte listo', '¿ya está?']);
     expect(onMessagesChange).not.toHaveBeenCalled();
+  });
+
+  it('a server append that lands mid-turn survives the fold and is saved with it', async () => {
+    const { hook, state } = makeFakeAgent();
+    const { result, rerender, onMessagesChange } = mount(hook, {
+      conversationId: 'c1',
+      initialMessages: seed0,
+      seedVersion: T0,
+    });
+    await act(async () => {
+      await result.current.send('¿ya está?');
+    });
+    await act(async () => {
+      rerender({ conversationId: 'c1', initialMessages: seed0, seedVersion: T0 });
+    });
+    await act(async () => {
+      rerender({ conversationId: 'c1', initialMessages: seed1, seedVersion: T1 });
+    });
+    state.turn = { ...thinkingTurn, text: 'casi', status: 'done' };
+    state.isStreaming = false;
+    await act(async () => {
+      rerender({ conversationId: 'c1', initialMessages: seed1, seedVersion: T1 });
+    });
+    const thread = ['hola', 'reporte listo', '¿ya está?', 'casi'];
+    expect(result.current.messages.map((x) => x.content)).toEqual(thread);
+    const saved = onMessagesChange.mock.calls.at(-1)?.[0] as ChatMessage[];
+    expect(saved.map((x) => x.content)).toEqual(thread);
   });
 
   it('the consumer’s own persist echo (same thread, new version) is a no-op', async () => {

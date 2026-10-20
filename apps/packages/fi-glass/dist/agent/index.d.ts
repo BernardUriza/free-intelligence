@@ -312,10 +312,17 @@ interface AgentConversation {
      * into the composer.
      */
     clearUnsent: () => void;
+    /**
+     * Whether {@link send} would accept a turn right now — the ONE predicate a
+     * composer gates on. It follows the transport, not {@link isStreaming}: after a
+     * watchdog timeout the transport may still be busy, and `send` would refuse.
+     */
+    canSend: boolean;
     /** Send a message: pushes it optimistically, then drives the agent turn.
      * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
-     * (empty text, ≥1 image) is valid — the picture IS the message. */
-    send: (text: string, images?: MessageImage[]) => void;
+     * (empty text, ≥1 image) is valid — the picture IS the message.
+     * @returns whether the turn went out; a shell clears its composer only on `true`. */
+    send: (text: string, images?: MessageImage[]) => boolean;
     /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
     sendAndAwait: (text: string) => Promise<string>;
     /**

@@ -65,6 +65,11 @@ export interface ComposerImages {
   drafts: ComposerImageDraft[];
   /** Validate + encode picked/dropped/pasted files into drafts. */
   addFiles: (files: Iterable<File>) => Promise<void>;
+  /**
+   * A picked image is still being read/downscaled. A shell holds the send until
+   * it is false, so the picture goes with THIS message and not the next one.
+   */
+  encoding: boolean;
   /** Detach one image. */
   remove: (id: string) => void;
   /** Detach all (called by the surface after a send). */
@@ -138,57 +143,68 @@ export function useComposerImages(options: UseComposerImagesOptions = {}): Compo
   draftsRef.current = drafts;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const [pendingEncodes, setPendingEncodes] = useState(0);
+  // Bumped by clear()/restore(): an encode started before them belongs to a message already gone.
+  const generation = useRef(0);
 
   const addFiles = useCallback(
     async (files: Iterable<File>) => {
-      // Count locally: setDrafts is async, so the ref alone would let one big
-      // batch blow past the cap (each file seeing the pre-batch length).
-      let count = draftsRef.current.length;
-      for (const file of files) {
-        if (!(COMPOSER_IMAGE_MEDIA_TYPES as readonly string[]).includes(file.type)) {
-          onErrorRef.current?.(
-            'Solo imágenes JPEG, PNG, WebP o GIF.',
-          );
-          continue;
-        }
-        if (count >= maxImages) {
-          onErrorRef.current?.(`Máximo ${maxImages} imágenes por mensaje.`);
-          return;
-        }
-        let dataUrl: string;
-        try {
-          if (file.size <= PASSTHROUGH_BYTES) {
-            dataUrl = await readAsDataUrl(file);
-          } else {
-            const scaled = await downscale(file);
-            if (!scaled) {
-              onErrorRef.current?.(
-                `La imagen "${file.name}" es muy grande y no se pudo reducir aquí. Usa una más pequeña.`,
-              );
-              continue;
-            }
-            dataUrl = scaled;
+      const born = generation.current;
+      setPendingEncodes((n) => n + 1);
+      try {
+        // Count locally: setDrafts is async, so the ref alone would let one big
+        // batch blow past the cap (each file seeing the pre-batch length).
+        let count = draftsRef.current.length;
+        for (const file of files) {
+          if (born !== generation.current) return;
+          if (!(COMPOSER_IMAGE_MEDIA_TYPES as readonly string[]).includes(file.type)) {
+            onErrorRef.current?.(
+              'Solo imágenes JPEG, PNG, WebP o GIF.',
+            );
+            continue;
           }
-        } catch {
-          onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
-          continue;
+          if (count >= maxImages) {
+            onErrorRef.current?.(`Máximo ${maxImages} imágenes por mensaje.`);
+            return;
+          }
+          let dataUrl: string;
+          try {
+            if (file.size <= PASSTHROUGH_BYTES) {
+              dataUrl = await readAsDataUrl(file);
+            } else {
+              const scaled = await downscale(file);
+              if (!scaled) {
+                onErrorRef.current?.(
+                  `La imagen "${file.name}" es muy grande y no se pudo reducir aquí. Usa una más pequeña.`,
+                );
+                continue;
+              }
+              dataUrl = scaled;
+            }
+          } catch {
+            onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
+            continue;
+          }
+          const parts = splitDataUrl(dataUrl);
+          if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
+            onErrorRef.current?.(
+              `La imagen "${file.name}" sigue siendo muy pesada después de reducirla.`,
+            );
+            continue;
+          }
+          const draft: ComposerImageDraft = {
+            id: `img-${++nextDraftId}`,
+            mediaType: parts.mediaType,
+            data: parts.data,
+            dataUrl,
+            name: file.name || 'imagen',
+          };
+          if (born !== generation.current) return;
+          count += 1;
+          setDrafts((prev) => (prev.length >= maxImages ? prev : [...prev, draft]));
         }
-        const parts = splitDataUrl(dataUrl);
-        if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
-          onErrorRef.current?.(
-            `La imagen "${file.name}" sigue siendo muy pesada después de reducirla.`,
-          );
-          continue;
-        }
-        const draft: ComposerImageDraft = {
-          id: `img-${++nextDraftId}`,
-          mediaType: parts.mediaType,
-          data: parts.data,
-          dataUrl,
-          name: file.name || 'imagen',
-        };
-        count += 1;
-        setDrafts((prev) => (prev.length >= maxImages ? prev : [...prev, draft]));
+      } finally {
+        setPendingEncodes((n) => n - 1);
       }
     },
     [maxImages],
@@ -198,10 +214,14 @@ export function useComposerImages(options: UseComposerImagesOptions = {}): Compo
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
 
-  const clear = useCallback(() => setDrafts([]), []);
+  const clear = useCallback(() => {
+    generation.current += 1;
+    setDrafts([]);
+  }, []);
 
   const restore = useCallback(
     (images: MessageImage[]) => {
+      generation.current += 1;
       setDrafts(
         images.slice(0, maxImages).map((image) => ({
           id: `img-${++nextDraftId}`,
@@ -238,5 +258,14 @@ export function useComposerImages(options: UseComposerImagesOptions = {}): Compo
     [addFiles],
   );
 
-  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
+  return {
+    drafts,
+    addFiles,
+    encoding: pendingEncodes > 0,
+    remove,
+    clear,
+    restore,
+    toMessageImages,
+    handlePaste,
+  };
 }

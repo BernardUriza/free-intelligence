@@ -198,4 +198,33 @@ describe('useVoice single-flight (B3-VOICE-FIGLASS-6)', () => {
     expect(revoke).toHaveBeenCalledWith(firstUrl);
     revoke.mockRestore();
   });
+
+  it('close() revokes the clip it was showing (FIGLASS-STATE-RESIDUALS-1 #4)', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const { adapter, finish } = makeAdapter();
+    const voice = mountVoice(adapter);
+
+    await act(async () => { void voice.current!.generateAudio('uno'); });
+    await act(async () => { finish(); });
+    const url = voice.current!.audioUrl;
+    expect(url).toMatch(/^blob:/);
+
+    act(() => voice.current!.close());
+    expect(revoke).toHaveBeenCalledWith(url);
+    revoke.mockRestore();
+  });
+
+  it('unmounting revokes the clip still open', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    const { adapter, finish } = makeAdapter();
+    const voice = mountVoice(adapter);
+
+    await act(async () => { void voice.current!.generateAudio('uno'); });
+    await act(async () => { finish(); });
+    const url = voice.current!.audioUrl;
+
+    cleanup();
+    expect(revoke).toHaveBeenCalledWith(url);
+    revoke.mockRestore();
+  });
 });

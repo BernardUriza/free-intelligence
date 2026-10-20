@@ -2,7 +2,7 @@
 
 // B3-VOICE-FIGLASS-9 — Single audio artifact row in the queue panel.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Mic,
   PauseCircle,
@@ -66,30 +66,45 @@ export function AudioQueueItem({
   className = '',
 }: AudioQueueItemProps) {
   const [playing, setPlaying] = useState(false);
-  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+  // The clip being played and its object URL: released on end, error or unmount.
+  const clipRef = useRef<{ el: HTMLAudioElement; url: string } | null>(null);
+
+  const releaseClip = useCallback(() => {
+    const clip = clipRef.current;
+    clipRef.current = null;
+    if (!clip) return;
+    clip.el.pause();
+    URL.revokeObjectURL(clip.url);
+  }, []);
+
+  useEffect(() => releaseClip, [artifact.id, releaseClip]);
 
   const handlePlay = useCallback(async () => {
     if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
+    const clip = clipRef.current;
+    if (clip && playing) {
+      clip.el.pause();
       setPlaying(false);
+      return;
+    }
+    if (clip) {
+      setPlaying(true);
+      clip.el.play().catch(() => setPlaying(false));
       return;
     }
     const url = await onGetPlaybackUrl(artifact.id);
     if (!url) return;
     const el = new Audio(url);
-    setAudioEl(el);
+    clipRef.current = { el, url };
     setPlaying(true);
     el.play().catch(() => setPlaying(false));
-    el.addEventListener('ended', () => {
+    const finished = () => {
       setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-    el.addEventListener('error', () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+      if (clipRef.current?.el === el) releaseClip();
+    };
+    el.addEventListener('ended', finished);
+    el.addEventListener('error', finished);
+  }, [artifact.id, onGetPlaybackUrl, playing, releaseClip]);
 
   const canTranscribe =
     artifact.state === 'queued' || artifact.state === 'saved';

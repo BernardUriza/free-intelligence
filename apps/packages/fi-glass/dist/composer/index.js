@@ -576,54 +576,64 @@ function useComposerImages(options = {}) {
   draftsRef.current = drafts;
   const onErrorRef = useRef2(onError);
   onErrorRef.current = onError;
+  const [pendingEncodes, setPendingEncodes] = useState3(0);
+  const generation = useRef2(0);
   const addFiles = useCallback(
     async (files) => {
-      let count = draftsRef.current.length;
-      for (const file of files) {
-        if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
-          onErrorRef.current?.(
-            "Solo im\xE1genes JPEG, PNG, WebP o GIF."
-          );
-          continue;
-        }
-        if (count >= maxImages) {
-          onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
-          return;
-        }
-        let dataUrl;
-        try {
-          if (file.size <= PASSTHROUGH_BYTES) {
-            dataUrl = await readAsDataUrl(file);
-          } else {
-            const scaled = await downscale(file);
-            if (!scaled) {
-              onErrorRef.current?.(
-                `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
-              );
-              continue;
-            }
-            dataUrl = scaled;
+      const born = generation.current;
+      setPendingEncodes((n) => n + 1);
+      try {
+        let count = draftsRef.current.length;
+        for (const file of files) {
+          if (born !== generation.current) return;
+          if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
+            onErrorRef.current?.(
+              "Solo im\xE1genes JPEG, PNG, WebP o GIF."
+            );
+            continue;
           }
-        } catch {
-          onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
-          continue;
+          if (count >= maxImages) {
+            onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
+            return;
+          }
+          let dataUrl;
+          try {
+            if (file.size <= PASSTHROUGH_BYTES) {
+              dataUrl = await readAsDataUrl(file);
+            } else {
+              const scaled = await downscale(file);
+              if (!scaled) {
+                onErrorRef.current?.(
+                  `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
+                );
+                continue;
+              }
+              dataUrl = scaled;
+            }
+          } catch {
+            onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
+            continue;
+          }
+          const parts = splitDataUrl(dataUrl);
+          if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
+            onErrorRef.current?.(
+              `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
+            );
+            continue;
+          }
+          const draft = {
+            id: `img-${++nextDraftId}`,
+            mediaType: parts.mediaType,
+            data: parts.data,
+            dataUrl,
+            name: file.name || "imagen"
+          };
+          if (born !== generation.current) return;
+          count += 1;
+          setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
         }
-        const parts = splitDataUrl(dataUrl);
-        if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
-          onErrorRef.current?.(
-            `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
-          );
-          continue;
-        }
-        const draft = {
-          id: `img-${++nextDraftId}`,
-          mediaType: parts.mediaType,
-          data: parts.data,
-          dataUrl,
-          name: file.name || "imagen"
-        };
-        count += 1;
-        setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
+      } finally {
+        setPendingEncodes((n) => n - 1);
       }
     },
     [maxImages]
@@ -631,9 +641,13 @@ function useComposerImages(options = {}) {
   const remove = useCallback((id) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
-  const clear = useCallback(() => setDrafts([]), []);
+  const clear = useCallback(() => {
+    generation.current += 1;
+    setDrafts([]);
+  }, []);
   const restore = useCallback(
     (images) => {
+      generation.current += 1;
       setDrafts(
         images.slice(0, maxImages).map((image) => ({
           id: `img-${++nextDraftId}`,
@@ -667,7 +681,16 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
+  return {
+    drafts,
+    addFiles,
+    encoding: pendingEncodes > 0,
+    remove,
+    clear,
+    restore,
+    toMessageImages,
+    handlePaste
+  };
 }
 
 // src/composer/ComposerImageAttachments.tsx

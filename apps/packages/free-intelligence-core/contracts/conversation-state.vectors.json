@@ -1,5 +1,5 @@
 {
-  "$comment": "Contrato de COMPORTAMIENTO del hilo alrededor de un turno: envío optimista, fold, falla con borrador devuelto, reintento, hidratación, y el turno VACÍO como falla (el silencio no es respuesta). Escrito a mano; core (src/agent/conversation-state-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen.",
+  "$comment": "Contrato de COMPORTAMIENTO del hilo alrededor de un turno: envío optimista, fold, falla con borrador devuelto, reintento, hidratación, y el turno VACÍO como falla (el silencio no es respuesta). `saved` (opcional) es el último hilo que el shell guardó: un vector que lo declara obliga a todo conformer a medirlo. Escrito a mano; core (src/agent/conversation-state-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen.",
   "version": 1,
   "vectors": [
     {
@@ -326,7 +326,13 @@
         ],
         "failure": null,
         "unsentText": null,
-        "lastSentText": "hola"
+        "lastSentText": "hola",
+        "saved": [
+          {
+            "role": "user",
+            "content": "hola"
+          }
+        ]
       }
     }
   ]

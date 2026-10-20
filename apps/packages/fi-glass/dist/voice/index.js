@@ -1128,9 +1128,12 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback, useRef as useRef2, useState } from "react";
+import { useCallback, useEffect as useEffect4, useRef as useRef2, useState } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
+}
+function revokeIfBlob(url) {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
 }
 var TTS_CACHE_MAX_CLIPS = 8;
 var clipKey = (text, voice) => `${voice}\0${text}`;
@@ -1145,6 +1148,9 @@ function useVoice(adapter, opts = {}) {
   const [currentText, setCurrentText] = useState("");
   const inFlight = useRef2(false);
   const clipCache = useRef2(/* @__PURE__ */ new Map());
+  const audioUrlRef = useRef2(audioUrl);
+  audioUrlRef.current = audioUrl;
+  useEffect4(() => () => revokeIfBlob(audioUrlRef.current), []);
   const synthesizeCached = useCallback(
     async (text, voice) => {
       const cache = clipCache.current;
@@ -1188,7 +1194,7 @@ function useVoice(adapter, opts = {}) {
       setVoiceName(getVoiceDisplayName(voice));
       setIsOpen(true);
       setAudioUrl((prev) => {
-        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        revokeIfBlob(prev);
         return null;
       });
       const isHit = clipCache.current.has(clipKey(text, voice));
@@ -1214,7 +1220,7 @@ function useVoice(adapter, opts = {}) {
       setCurrentVoice(newVoice);
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      revokeIfBlob(audioUrl);
       setAudioUrl(null);
       try {
         const src = await synthesizeCached(currentText, newVoice);
@@ -1230,6 +1236,7 @@ function useVoice(adapter, opts = {}) {
   );
   const close = useCallback(() => {
     setIsOpen(false);
+    revokeIfBlob(audioUrlRef.current);
     setAudioUrl(null);
     setIsLoading(false);
     setCurrentText("");
@@ -1513,7 +1520,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState3, useRef as useRef4, useEffect as useEffect4 } from "react";
+import { useState as useState3, useRef as useRef4, useEffect as useEffect5 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -1547,7 +1554,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef4(null);
   const animationFrameRef = useRef4(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect4(() => {
+  useEffect5(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -1788,7 +1795,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect5 } from "react";
+import { useState as useState5, useRef as useRef5, useCallback as useCallback4, useEffect as useEffect6 } from "react";
 
 // src/voice/durableRecordingMachine.ts
 function isQueueAtCapacity(artifacts, policy) {
@@ -1921,10 +1928,12 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef5([]);
   const rtcCtorRef = useRef5(null);
   const pauseOpRef = useRef5(Promise.resolve());
-  useEffect5(() => {
+  const startingRef = useRef5(false);
+  const attemptRef = useRef5(0);
+  useEffect6(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect5(() => {
+  useEffect6(() => {
     store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
@@ -1944,6 +1953,21 @@ function useDurableRecording(opts) {
       setCurrentStream(null);
     }
   }, []);
+  useEffect6(
+    () => () => {
+      attemptRef.current += 1;
+      stopTimer();
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      try {
+        recorder?.stopRecording(() => {
+        });
+      } catch {
+      }
+      releaseStream();
+    },
+    [stopTimer, releaseStream]
+  );
   const updateArtifact = useCallback4(
     (patch) => {
       const prev = artifactRef.current;
@@ -1970,6 +1994,10 @@ function useDurableRecording(opts) {
   }, []);
   const startRecording = useCallback4(async () => {
     if (artifact?.state === "recording" || artifact?.state === "paused") return;
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const attempt = ++attemptRef.current;
+    let micTimeout;
     setIsStarting(true);
     try {
       const stored = await store.list();
@@ -1980,20 +2008,30 @@ function useDurableRecording(opts) {
         );
         return;
       }
-      const timeoutPromise = new Promise(
-        (_, reject) => setTimeout(
+      const timeoutPromise = new Promise((_, reject) => {
+        micTimeout = setTimeout(
           () => reject(new Error("Permiso de micr\xF3fono expirado (15s).")),
           MIC_TIMEOUT_MS
-        )
-      );
+        );
+      });
       const audioConstraints = deviceId ? { deviceId: { exact: deviceId } } : true;
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
-        timeoutPromise
-      ]);
+      const request = navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      void request.then((granted) => {
+        if (attempt !== attemptRef.current) granted.getTracks().forEach((t) => t.stop());
+      }).catch(() => {
+      });
+      let stream;
+      try {
+        stream = await Promise.race([request, timeoutPromise]);
+      } catch (err) {
+        attemptRef.current += 1;
+        throw err;
+      }
+      if (attempt !== attemptRef.current) return;
       streamRef.current = stream;
       setCurrentStream(stream);
       rtcCtorRef.current = await loadRecordRTC();
+      if (attempt !== attemptRef.current) return;
       segmentsRef.current = [];
       pauseOpRef.current = Promise.resolve();
       setPausedPreviewBlob(null);
@@ -2021,6 +2059,8 @@ function useDurableRecording(opts) {
       releaseStream();
       onError?.(err instanceof Error ? err.message : "No se pudo iniciar la grabaci\xF3n.");
     } finally {
+      clearTimeout(micTimeout);
+      startingRef.current = false;
       setIsStarting(false);
     }
   }, [artifact, store, policy, deviceId, onError, releaseStream, startNewRecorderSegment]);
@@ -2175,7 +2215,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState6, useEffect as useEffect6, useCallback as useCallback5 } from "react";
+import { useState as useState6, useEffect as useEffect7, useCallback as useCallback5 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState6([]);
@@ -2189,7 +2229,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect6(() => {
+  useEffect7(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback5(
@@ -2298,11 +2338,11 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect7, useState as useState8 } from "react";
+import { useEffect as useEffect9, useState as useState8 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState7, useCallback as useCallback6 } from "react";
+import { useState as useState7, useCallback as useCallback6, useEffect as useEffect8, useRef as useRef6 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -2356,29 +2396,41 @@ function AudioQueueItem({
   className = ""
 }) {
   const [playing, setPlaying] = useState7(false);
-  const [audioEl, setAudioEl] = useState7(null);
+  const clipRef = useRef6(null);
+  const releaseClip = useCallback6(() => {
+    const clip = clipRef.current;
+    clipRef.current = null;
+    if (!clip) return;
+    clip.el.pause();
+    URL.revokeObjectURL(clip.url);
+  }, []);
+  useEffect8(() => releaseClip, [artifact.id, releaseClip]);
   const handlePlay = useCallback6(async () => {
     if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
+    const clip = clipRef.current;
+    if (clip && playing) {
+      clip.el.pause();
       setPlaying(false);
+      return;
+    }
+    if (clip) {
+      setPlaying(true);
+      clip.el.play().catch(() => setPlaying(false));
       return;
     }
     const url = await onGetPlaybackUrl(artifact.id);
     if (!url) return;
     const el = new Audio(url);
-    setAudioEl(el);
+    clipRef.current = { el, url };
     setPlaying(true);
     el.play().catch(() => setPlaying(false));
-    el.addEventListener("ended", () => {
+    const finished = () => {
       setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-    el.addEventListener("error", () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+      if (clipRef.current?.el === el) releaseClip();
+    };
+    el.addEventListener("ended", finished);
+    el.addEventListener("error", finished);
+  }, [artifact.id, onGetPlaybackUrl, playing, releaseClip]);
   const canTranscribe = artifact.state === "queued" || artifact.state === "saved";
   const canRetry = artifact.state === "failed";
   const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && artifact.state !== "recording" && artifact.state !== "paused";
@@ -2484,7 +2536,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState8(true);
-  useEffect7(() => {
+  useEffect9(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -2547,7 +2599,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState9, useEffect as useEffect8 } from "react";
+import { useState as useState9, useEffect as useEffect10 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx13, jsxs as jsxs9 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -2570,7 +2622,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState9(null);
-  useEffect8(() => {
+  useEffect10(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -2958,7 +3010,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback7, useEffect as useEffect9, useMemo as useMemo3, useRef as useRef6, useState as useState10 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect11, useMemo as useMemo3, useRef as useRef7, useState as useState10 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -3158,7 +3210,7 @@ function useResonanceCallLoop(params) {
     debug = false,
     onEvent
   } = params;
-  const getAudioLevelRef = useRef6(getAudioLevel);
+  const getAudioLevelRef = useRef7(getAudioLevel);
   getAudioLevelRef.current = getAudioLevel;
   const cueEnabled = audioCues?.enabled ?? false;
   const cuePlayer = useMemo3(
@@ -3167,19 +3219,19 @@ function useResonanceCallLoop(params) {
     [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
   );
   const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
-  const cueApplyRef = useRef6(void 0);
+  const cueApplyRef = useRef7(void 0);
   cueApplyRef.current = cueController?.applyTransition;
-  const cueSeqRef = useRef6(0);
-  useEffect9(() => {
+  const cueSeqRef = useRef7(0);
+  useEffect11(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect9(() => () => {
+  useEffect11(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState10("idle");
   const [lastTranscript, setLastTranscript] = useState10();
   const [lastAssistantText, setLastAssistantText] = useState10();
-  const adaptersRef = useRef6(adapters);
+  const adaptersRef = useRef7(adapters);
   adaptersRef.current = adapters;
   const pushDebug = useCallback7(
     (record) => {
@@ -3257,10 +3309,10 @@ function useResonanceCallLoop(params) {
     });
     return ctrl;
   }, [pushDebug]);
-  const stateRef = useRef6(state);
+  const stateRef = useRef7(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect9(() => {
+  useEffect11(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -3275,16 +3327,16 @@ function useResonanceCallLoop(params) {
       gate.reset();
     };
   }, [enabled, gate, controller, bargeInPolicy]);
-  const autoResumeTimer = useRef6(void 0);
-  const sleepTimer = useRef6(void 0);
-  const callTimer = useRef6(void 0);
+  const autoResumeTimer = useRef7(void 0);
+  const sleepTimer = useRef7(void 0);
+  const callTimer = useRef7(void 0);
   const clearTimer = (t) => {
     if (t.current) {
       clearTimeout(t.current);
       t.current = void 0;
     }
   };
-  useEffect9(() => {
+  useEffect11(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -3306,7 +3358,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect9(() => () => {
+  useEffect11(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
     clearTimer(callTimer);

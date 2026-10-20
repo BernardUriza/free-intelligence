@@ -382,9 +382,31 @@ import {
   initialConversationState,
   foldAssistantTurn
 } from "@free-intelligence/core";
+
+// src/conversation/migrateConversationLibrary.ts
+import {
+  deriveConversationPreview,
+  resolveConversationTitle
+} from "@free-intelligence/core";
+function messageKey(message) {
+  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
+}
+function mergeConversationMessages(target, source) {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
+}
+
+// src/agent/useAgentConversation.ts
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
+function applyThreadEvent(state, event) {
+  if (event.type !== "merge_seed") return applyConversationEvent(state, event);
+  const messages = mergeConversationMessages(state.messages, event.messages);
+  return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+}
 function sameThread(a, b) {
   if (a.length !== b.length) return false;
   return a.every((m, i) => {
@@ -407,7 +429,7 @@ function useAgentConversation(agent, options) {
   } = options;
   const controlled = externalMessages !== void 0;
   const [convo, dispatch] = useReducer(
-    applyConversationEvent,
+    applyThreadEvent,
     void 0,
     () => initialConversationState(initialMessages ?? [])
   );
@@ -472,7 +494,7 @@ function useAgentConversation(agent, options) {
     (text, images) => {
       const t = text.trim();
       const imgs = images && images.length > 0 ? images : void 0;
-      if (!t && !imgs || agent.isStreaming) return;
+      if (!t && !imgs || agent.isStreaming) return false;
       dispatch({
         type: "send",
         text: t,
@@ -482,6 +504,7 @@ function useAgentConversation(agent, options) {
       });
       onTurnStartRef.current?.(hydratedFor.current ?? void 0);
       void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
+      return true;
     },
     [agent, controlled]
   );
@@ -493,7 +516,7 @@ function useAgentConversation(agent, options) {
       return new Promise((resolve, reject) => {
         abandonAwaited("superseded by a newer turn");
         awaitResolver.current = { resolve, reject };
-        send(t);
+        if (!send(t)) abandonAwaited("the turn could not be sent");
       });
     },
     [agent.isStreaming, send, abandonAwaited]
@@ -559,7 +582,10 @@ function useAgentConversation(agent, options) {
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
-      if (convoRef.current.pending) return;
+      if (convoRef.current.pending) {
+        dispatch({ type: "merge_seed", messages: seed });
+        return;
+      }
       if (sameThread(seed, convoRef.current.messages)) return;
     }
     if (convoRef.current.pending) {
@@ -591,6 +617,7 @@ function useAgentConversation(agent, options) {
     turn: agent.turn,
     author,
     isStreaming: agent.isStreaming && !timedOut,
+    canSend: !agent.isStreaming,
     turnError,
     turnNotice,
     dismissNotice,
@@ -780,54 +807,64 @@ function useComposerImages(options = {}) {
   draftsRef.current = drafts;
   const onErrorRef = useRef2(onError);
   onErrorRef.current = onError;
+  const [pendingEncodes, setPendingEncodes] = useState3(0);
+  const generation = useRef2(0);
   const addFiles = useCallback2(
     async (files) => {
-      let count = draftsRef.current.length;
-      for (const file of files) {
-        if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
-          onErrorRef.current?.(
-            "Solo im\xE1genes JPEG, PNG, WebP o GIF."
-          );
-          continue;
-        }
-        if (count >= maxImages) {
-          onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
-          return;
-        }
-        let dataUrl;
-        try {
-          if (file.size <= PASSTHROUGH_BYTES) {
-            dataUrl = await readAsDataUrl(file);
-          } else {
-            const scaled = await downscale(file);
-            if (!scaled) {
-              onErrorRef.current?.(
-                `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
-              );
-              continue;
-            }
-            dataUrl = scaled;
+      const born = generation.current;
+      setPendingEncodes((n) => n + 1);
+      try {
+        let count = draftsRef.current.length;
+        for (const file of files) {
+          if (born !== generation.current) return;
+          if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
+            onErrorRef.current?.(
+              "Solo im\xE1genes JPEG, PNG, WebP o GIF."
+            );
+            continue;
           }
-        } catch {
-          onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
-          continue;
+          if (count >= maxImages) {
+            onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
+            return;
+          }
+          let dataUrl;
+          try {
+            if (file.size <= PASSTHROUGH_BYTES) {
+              dataUrl = await readAsDataUrl(file);
+            } else {
+              const scaled = await downscale(file);
+              if (!scaled) {
+                onErrorRef.current?.(
+                  `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
+                );
+                continue;
+              }
+              dataUrl = scaled;
+            }
+          } catch {
+            onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
+            continue;
+          }
+          const parts = splitDataUrl(dataUrl);
+          if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
+            onErrorRef.current?.(
+              `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
+            );
+            continue;
+          }
+          const draft = {
+            id: `img-${++nextDraftId}`,
+            mediaType: parts.mediaType,
+            data: parts.data,
+            dataUrl,
+            name: file.name || "imagen"
+          };
+          if (born !== generation.current) return;
+          count += 1;
+          setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
         }
-        const parts = splitDataUrl(dataUrl);
-        if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
-          onErrorRef.current?.(
-            `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
-          );
-          continue;
-        }
-        const draft = {
-          id: `img-${++nextDraftId}`,
-          mediaType: parts.mediaType,
-          data: parts.data,
-          dataUrl,
-          name: file.name || "imagen"
-        };
-        count += 1;
-        setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
+      } finally {
+        setPendingEncodes((n) => n - 1);
       }
     },
     [maxImages]
@@ -835,9 +872,13 @@ function useComposerImages(options = {}) {
   const remove = useCallback2((id) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
-  const clear = useCallback2(() => setDrafts([]), []);
+  const clear = useCallback2(() => {
+    generation.current += 1;
+    setDrafts([]);
+  }, []);
   const restore = useCallback2(
     (images) => {
+      generation.current += 1;
       setDrafts(
         images.slice(0, maxImages).map((image) => ({
           id: `img-${++nextDraftId}`,
@@ -871,7 +912,16 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
+  return {
+    drafts,
+    addFiles,
+    encoding: pendingEncodes > 0,
+    remove,
+    clear,
+    restore,
+    toMessageImages,
+    handlePaste
+  };
 }
 
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
@@ -3439,6 +3489,7 @@ function AgentConversationSurface(props) {
     retryPersist,
     dismissPersistError,
     send,
+    canSend,
     stop,
     retry,
     dismissError,
@@ -3471,11 +3522,12 @@ function AgentConversationSurface(props) {
   }, [unsentText, unsentImages, imageAttachments, restoreImages, clearUnsent]);
   const onSend = () => {
     const t = input.trim();
+    if (imageAttachments && images.encoding) return;
     const attached = imageAttachments ? images.toMessageImages() : [];
     if (!t && attached.length === 0) return;
+    if (!send(t, attached.length > 0 ? attached : void 0)) return;
     setInput("");
     images.clear();
-    send(t, attached.length > 0 ? attached : void 0);
   };
   return /* @__PURE__ */ jsxs19("div", { style: rootStyle, children: [
     /* @__PURE__ */ jsx28(
@@ -3507,7 +3559,7 @@ function AgentConversationSurface(props) {
           input,
           setInput,
           onSend,
-          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !isStreaming,
+          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !(imageAttachments && images.encoding) && canSend,
           inputRef,
           dictation,
           isStreaming,

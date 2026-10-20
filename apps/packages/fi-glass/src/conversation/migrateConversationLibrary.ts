@@ -34,6 +34,22 @@ function messageKey(message: ChatMessage): string {
 }
 
 /**
+ * Union of two copies of one thread by (role, timestamp, content): every message
+ * of `target` plus the ones only `source` has, ordered by timestamp (stable for ties).
+ *
+ * @returns `target` itself (same reference) when `source` adds nothing.
+ */
+export function mergeConversationMessages(target: ChatMessage[], source: ChatMessage[]): ChatMessage[] {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing]
+    .map((message, order) => ({ message, order }))
+    .sort((a, b) => (a.message.timestamp ?? '').localeCompare(b.message.timestamp ?? '') || a.order - b.order)
+    .map(({ message }) => message);
+}
+
+/**
  * Union of two copies of the same conversation: every message of `target`,
  * plus the ones only `source` has, ordered by timestamp (stable for ties).
  * `target` keeps its title, flags and project.
@@ -44,13 +60,8 @@ export function mergeConversationRecords(
   target: ConversationRecord,
   source: ConversationRecord,
 ): ConversationRecord {
-  const known = new Set(target.messages.map(messageKey));
-  const missing = source.messages.filter((m) => !known.has(messageKey(m)));
-  if (missing.length === 0) return target;
-  const messages = [...target.messages, ...missing]
-    .map((message, order) => ({ message, order }))
-    .sort((a, b) => (a.message.timestamp ?? '').localeCompare(b.message.timestamp ?? '') || a.order - b.order)
-    .map(({ message }) => message);
+  const messages = mergeConversationMessages(target.messages, source.messages);
+  if (messages === target.messages) return target;
   return {
     ...target,
     messages,

@@ -367,3 +367,61 @@ describe('useDurableRecording — cancel', () => {
     expect(trackStopCalls).toBeGreaterThan(0);
   });
 });
+
+describe('useDurableRecording — no loose microphone (FIGLASS-STATE-RESIDUALS-1 #3)', () => {
+  function deferredStreams() {
+    const pending: Array<(s: MediaStream) => void> = [];
+    const getUserMedia = vi.fn(
+      () => new Promise<MediaStream>((resolve) => pending.push(resolve)),
+    );
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    return { pending, getUserMedia };
+  }
+
+  it('unmounting while recording stops the mic', async () => {
+    const { result, unmount } = renderHook(() => useDurableRecording({ store: makeFakeStore() }));
+    await act(async () => { await result.current.startRecording(); });
+    expect(result.current.artifact?.state).toBe('recording');
+    unmount();
+    expect(trackStopCalls).toBe(1);
+  });
+
+  it('a permission granted after the 15s timeout does not leave an ownerless stream', async () => {
+    vi.useFakeTimers();
+    try {
+      const { pending } = deferredStreams();
+      const onError = vi.fn();
+      const { result } = renderHook(() => useDurableRecording({ store: makeFakeStore(), onError }));
+      let start!: Promise<void>;
+      await act(async () => {
+        start = result.current.startRecording();
+        await vi.advanceTimersByTimeAsync(15_000);
+        await start;
+      });
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('15s'));
+      await act(async () => {
+        pending[0](makeFakeStream());
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(trackStopCalls).toBe(1);
+      expect(result.current.artifact).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a double tap on the mic never leaves a second stream running', async () => {
+    const { pending, getUserMedia } = deferredStreams();
+    const { result } = renderHook(() => useDurableRecording({ store: makeFakeStore() }));
+    await act(async () => {
+      const first = result.current.startRecording();
+      const second = result.current.startRecording();
+      await Promise.resolve();
+      await Promise.resolve();
+      pending.forEach((resolve) => resolve(makeFakeStream()));
+      await Promise.all([first, second]);
+    });
+    act(() => result.current.cancelRecording());
+    expect(trackStopCalls).toBe(getUserMedia.mock.calls.length);
+  });
+});

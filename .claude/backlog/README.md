@@ -43,7 +43,6 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [FIGLASS-STATE-RESIDUALS-1 — lo que #526 no cerró](figlass-state-residuals.md) | **Proposed** — un append del servidor que el persist pisa durante un turno, el timeout que borra el texto, fugas del mic y de object URLs | 2026-10-09 |
 | [FIGLASS-TOUCH-A11Y-1 — targets menores a 44 y el foco del drawer](figlass-touch-a11y-residuals.md) | **Proposed** — Retry, "Ver más", selector de elemento, items de menú; rail-toggle 18×18 en composer angosto; drawer sin manejo de foco ni safe-area de abajo | 2026-10-09 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
@@ -51,6 +50,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [FIGLASS-STATE-RESIDUALS-1 — lo que #526 no cerró](figlass-state-residuals.md) | **In progress** — 2026-10-19: los seis bugs arreglados con test rojo→verde (append a medio turno fusionado, `canSend` único, mic sin fugas, object URLs revocados, imagen en vuelo retenida, Stop guarda la pregunta en core + iOS). Abierto: el poll de 404 de ~3 s (llamador no identificado; el arreglo propuesto rompería la entrega tardía). Nada observado en vivo | 2026-10-09 |
 | [FIGLASS-CASCADE-LAYOUT-1 — cascada, breakpoint 768 y primer paint](figlass-cascade-layout-residuals.md) | **In progress** — Done 2026-10-09: padding compacto del composer, tarjetas que ya no se centran en touch (y el módulo `resource` que no cargaba la hoja de touch), cursor del Enviar deshabilitado, la fila compacta que no se llenaba, y las 11 hojas a `useInsertionEffect` (CLS con throttling 0.40 → 0.01). Queda el breakpoint 768 | 2026-10-09 |
 | [FIGLASS-PACKAGING-1 — subpaths sin consumidor, contrato de Tailwind sin declarar, tests que no fallan](figlass-packaging-dead-subpaths.md) | **In progress** — #1 Done 2026-10-09: Bernard eligió borrar `form`/`feedback`/`surface` (1,479 líneas, grep de referencias vivas en cero, recuperables desde `ac499410`). Siguen el contrato de Tailwind, las devDeps de test y los tests que no pueden fallar | 2026-10-09 |
 | [AIRE-SUB-DISABLED-1 — la org de vegdevida apagó el OAuth y el rotor no lo reconocía](aire-subscription-disabled-2026-10-10.md) | **In progress** 2026-10-10 — primario vegdevida da 403 `oauth_not_allowed_for_organization` desde 07:26 CST; el error llegaba como respuesta a og118, BAIR y el canary. El rotor ya lo reconoce (#542, desplegado; turno real 18:09 contestó). Hoy la cadena vive sólo sobre bernardurizadev: falta decidir el respaldo | 2026-10-10 |

@@ -1227,54 +1227,64 @@ function useComposerImages(options = {}) {
   draftsRef.current = drafts;
   const onErrorRef = useRef4(onError);
   onErrorRef.current = onError;
+  const [pendingEncodes, setPendingEncodes] = useState6(0);
+  const generation = useRef4(0);
   const addFiles = useCallback2(
     async (files) => {
-      let count = draftsRef.current.length;
-      for (const file of files) {
-        if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
-          onErrorRef.current?.(
-            "Solo im\xE1genes JPEG, PNG, WebP o GIF."
-          );
-          continue;
-        }
-        if (count >= maxImages) {
-          onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
-          return;
-        }
-        let dataUrl;
-        try {
-          if (file.size <= PASSTHROUGH_BYTES) {
-            dataUrl = await readAsDataUrl(file);
-          } else {
-            const scaled = await downscale(file);
-            if (!scaled) {
-              onErrorRef.current?.(
-                `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
-              );
-              continue;
-            }
-            dataUrl = scaled;
+      const born = generation.current;
+      setPendingEncodes((n) => n + 1);
+      try {
+        let count = draftsRef.current.length;
+        for (const file of files) {
+          if (born !== generation.current) return;
+          if (!COMPOSER_IMAGE_MEDIA_TYPES.includes(file.type)) {
+            onErrorRef.current?.(
+              "Solo im\xE1genes JPEG, PNG, WebP o GIF."
+            );
+            continue;
           }
-        } catch {
-          onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
-          continue;
+          if (count >= maxImages) {
+            onErrorRef.current?.(`M\xE1ximo ${maxImages} im\xE1genes por mensaje.`);
+            return;
+          }
+          let dataUrl;
+          try {
+            if (file.size <= PASSTHROUGH_BYTES) {
+              dataUrl = await readAsDataUrl(file);
+            } else {
+              const scaled = await downscale(file);
+              if (!scaled) {
+                onErrorRef.current?.(
+                  `La imagen "${file.name}" es muy grande y no se pudo reducir aqu\xED. Usa una m\xE1s peque\xF1a.`
+                );
+                continue;
+              }
+              dataUrl = scaled;
+            }
+          } catch {
+            onErrorRef.current?.(`No se pudo leer la imagen "${file.name}".`);
+            continue;
+          }
+          const parts = splitDataUrl(dataUrl);
+          if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
+            onErrorRef.current?.(
+              `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
+            );
+            continue;
+          }
+          const draft = {
+            id: `img-${++nextDraftId}`,
+            mediaType: parts.mediaType,
+            data: parts.data,
+            dataUrl,
+            name: file.name || "imagen"
+          };
+          if (born !== generation.current) return;
+          count += 1;
+          setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
         }
-        const parts = splitDataUrl(dataUrl);
-        if (!parts || parts.data.length > MAX_ENCODED_CHARS) {
-          onErrorRef.current?.(
-            `La imagen "${file.name}" sigue siendo muy pesada despu\xE9s de reducirla.`
-          );
-          continue;
-        }
-        const draft = {
-          id: `img-${++nextDraftId}`,
-          mediaType: parts.mediaType,
-          data: parts.data,
-          dataUrl,
-          name: file.name || "imagen"
-        };
-        count += 1;
-        setDrafts((prev) => prev.length >= maxImages ? prev : [...prev, draft]);
+      } finally {
+        setPendingEncodes((n) => n - 1);
       }
     },
     [maxImages]
@@ -1282,9 +1292,13 @@ function useComposerImages(options = {}) {
   const remove = useCallback2((id) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
   }, []);
-  const clear = useCallback2(() => setDrafts([]), []);
+  const clear = useCallback2(() => {
+    generation.current += 1;
+    setDrafts([]);
+  }, []);
   const restore = useCallback2(
     (images) => {
+      generation.current += 1;
       setDrafts(
         images.slice(0, maxImages).map((image) => ({
           id: `img-${++nextDraftId}`,
@@ -1318,7 +1332,16 @@ function useComposerImages(options = {}) {
     },
     [addFiles]
   );
-  return { drafts, addFiles, remove, clear, restore, toMessageImages, handlePaste };
+  return {
+    drafts,
+    addFiles,
+    encoding: pendingEncodes > 0,
+    remove,
+    clear,
+    restore,
+    toMessageImages,
+    handlePaste
+  };
 }
 
 // src/composer/ComposerImageAttachments.tsx
@@ -2689,9 +2712,12 @@ function ComposerMicSlot({
 }
 
 // src/voice/useVoice.ts
-import { useCallback as useCallback3, useRef as useRef8, useState as useState8 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect8, useRef as useRef8, useState as useState8 } from "react";
 function toUrl(src) {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
+}
+function revokeIfBlob(url) {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
 }
 var TTS_CACHE_MAX_CLIPS = 8;
 var clipKey = (text, voice) => `${voice}\0${text}`;
@@ -2706,6 +2732,9 @@ function useVoice(adapter, opts = {}) {
   const [currentText, setCurrentText] = useState8("");
   const inFlight = useRef8(false);
   const clipCache = useRef8(/* @__PURE__ */ new Map());
+  const audioUrlRef = useRef8(audioUrl);
+  audioUrlRef.current = audioUrl;
+  useEffect8(() => () => revokeIfBlob(audioUrlRef.current), []);
   const synthesizeCached = useCallback3(
     async (text, voice) => {
       const cache = clipCache.current;
@@ -2749,7 +2778,7 @@ function useVoice(adapter, opts = {}) {
       setVoiceName(getVoiceDisplayName(voice));
       setIsOpen(true);
       setAudioUrl((prev) => {
-        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        revokeIfBlob(prev);
         return null;
       });
       const isHit = clipCache.current.has(clipKey(text, voice));
@@ -2775,7 +2804,7 @@ function useVoice(adapter, opts = {}) {
       setCurrentVoice(newVoice);
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      revokeIfBlob(audioUrl);
       setAudioUrl(null);
       try {
         const src = await synthesizeCached(currentText, newVoice);
@@ -2791,6 +2820,7 @@ function useVoice(adapter, opts = {}) {
   );
   const close = useCallback3(() => {
     setIsOpen(false);
+    revokeIfBlob(audioUrlRef.current);
     setAudioUrl(null);
     setIsLoading(false);
     setCurrentText("");
@@ -3074,7 +3104,7 @@ function useRecorder(config) {
 }
 
 // src/voice/useAudioAnalysis.ts
-import { useState as useState10, useRef as useRef10, useEffect as useEffect8 } from "react";
+import { useState as useState10, useRef as useRef10, useEffect as useEffect9 } from "react";
 var AUDIO_CONFIG = { SILENCE_THRESHOLD: 2, AUDIO_GAIN: 2.5 };
 function frequencyDataToBands(data, bandCount, gain) {
   if (bandCount <= 0 || data.length === 0) return new Array(Math.max(0, bandCount)).fill(0);
@@ -3108,7 +3138,7 @@ function useAudioAnalysis(stream, config) {
   const audioContextRef = useRef10(null);
   const animationFrameRef = useRef10(null);
   const isSilent = audioLevel < silenceThreshold;
-  useEffect8(() => {
+  useEffect9(() => {
     if (!stream || !isActive) {
       setAudioLevel(0);
       setBands([]);
@@ -3349,7 +3379,7 @@ function useAudioQueueStore(identityKey, options = {}) {
 }
 
 // src/voice/useDurableRecording.ts
-import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect9 } from "react";
+import { useState as useState12, useRef as useRef11, useCallback as useCallback6, useEffect as useEffect10 } from "react";
 
 // src/voice/durableRecordingMachine.ts
 function isQueueAtCapacity(artifacts, policy) {
@@ -3482,10 +3512,12 @@ function useDurableRecording(opts) {
   const segmentsRef = useRef11([]);
   const rtcCtorRef = useRef11(null);
   const pauseOpRef = useRef11(Promise.resolve());
-  useEffect9(() => {
+  const startingRef = useRef11(false);
+  const attemptRef = useRef11(0);
+  useEffect10(() => {
     artifactRef.current = artifact;
   }, [artifact]);
-  useEffect9(() => {
+  useEffect10(() => {
     store.list().then((stored) => setIsAtCapacity(isQueueAtCapacity(stored, policy))).catch(() => {
     });
   }, [store, policy]);
@@ -3505,6 +3537,21 @@ function useDurableRecording(opts) {
       setCurrentStream(null);
     }
   }, []);
+  useEffect10(
+    () => () => {
+      attemptRef.current += 1;
+      stopTimer();
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      try {
+        recorder?.stopRecording(() => {
+        });
+      } catch {
+      }
+      releaseStream();
+    },
+    [stopTimer, releaseStream]
+  );
   const updateArtifact = useCallback6(
     (patch) => {
       const prev = artifactRef.current;
@@ -3531,6 +3578,10 @@ function useDurableRecording(opts) {
   }, []);
   const startRecording = useCallback6(async () => {
     if (artifact?.state === "recording" || artifact?.state === "paused") return;
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const attempt = ++attemptRef.current;
+    let micTimeout;
     setIsStarting(true);
     try {
       const stored = await store.list();
@@ -3541,20 +3592,30 @@ function useDurableRecording(opts) {
         );
         return;
       }
-      const timeoutPromise = new Promise(
-        (_, reject) => setTimeout(
+      const timeoutPromise = new Promise((_, reject) => {
+        micTimeout = setTimeout(
           () => reject(new Error("Permiso de micr\xF3fono expirado (15s).")),
           MIC_TIMEOUT_MS
-        )
-      );
+        );
+      });
       const audioConstraints = deviceId ? { deviceId: { exact: deviceId } } : true;
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
-        timeoutPromise
-      ]);
+      const request = navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      void request.then((granted) => {
+        if (attempt !== attemptRef.current) granted.getTracks().forEach((t) => t.stop());
+      }).catch(() => {
+      });
+      let stream;
+      try {
+        stream = await Promise.race([request, timeoutPromise]);
+      } catch (err) {
+        attemptRef.current += 1;
+        throw err;
+      }
+      if (attempt !== attemptRef.current) return;
       streamRef.current = stream;
       setCurrentStream(stream);
       rtcCtorRef.current = await loadRecordRTC();
+      if (attempt !== attemptRef.current) return;
       segmentsRef.current = [];
       pauseOpRef.current = Promise.resolve();
       setPausedPreviewBlob(null);
@@ -3582,6 +3643,8 @@ function useDurableRecording(opts) {
       releaseStream();
       onError?.(err instanceof Error ? err.message : "No se pudo iniciar la grabaci\xF3n.");
     } finally {
+      clearTimeout(micTimeout);
+      startingRef.current = false;
       setIsStarting(false);
     }
   }, [artifact, store, policy, deviceId, onError, releaseStream, startNewRecorderSegment]);
@@ -3736,7 +3799,7 @@ function useDurableRecording(opts) {
 }
 
 // src/voice/useAudioQueue.ts
-import { useState as useState13, useEffect as useEffect10, useCallback as useCallback7 } from "react";
+import { useState as useState13, useEffect as useEffect11, useCallback as useCallback7 } from "react";
 function useAudioQueue(opts) {
   const { store, adapter, onTranscribed, onError } = opts;
   const [artifacts, setArtifacts] = useState13([]);
@@ -3750,7 +3813,7 @@ function useAudioQueue(opts) {
     }
     setIsLoading(false);
   }, [store]);
-  useEffect10(() => {
+  useEffect11(() => {
     loadFromStore();
   }, [loadFromStore]);
   const patchLocal = useCallback7(
@@ -3859,11 +3922,11 @@ function useAudioQueue(opts) {
 }
 
 // src/voice/AudioQueuePanel.tsx
-import { useEffect as useEffect11, useState as useState15 } from "react";
+import { useEffect as useEffect13, useState as useState15 } from "react";
 import { Loader2 as Loader29, Trash2 as Trash22, Info } from "lucide-react";
 
 // src/voice/AudioQueueItem.tsx
-import { useState as useState14, useCallback as useCallback8 } from "react";
+import { useState as useState14, useCallback as useCallback8, useEffect as useEffect12, useRef as useRef12 } from "react";
 import {
   Mic as Mic3,
   PauseCircle,
@@ -3907,29 +3970,41 @@ function AudioQueueItem({
   className = ""
 }) {
   const [playing, setPlaying] = useState14(false);
-  const [audioEl, setAudioEl] = useState14(null);
+  const clipRef = useRef12(null);
+  const releaseClip = useCallback8(() => {
+    const clip = clipRef.current;
+    clipRef.current = null;
+    if (!clip) return;
+    clip.el.pause();
+    URL.revokeObjectURL(clip.url);
+  }, []);
+  useEffect12(() => releaseClip, [artifact.id, releaseClip]);
   const handlePlay = useCallback8(async () => {
     if (!onGetPlaybackUrl) return;
-    if (playing && audioEl) {
-      audioEl.pause();
+    const clip = clipRef.current;
+    if (clip && playing) {
+      clip.el.pause();
       setPlaying(false);
+      return;
+    }
+    if (clip) {
+      setPlaying(true);
+      clip.el.play().catch(() => setPlaying(false));
       return;
     }
     const url = await onGetPlaybackUrl(artifact.id);
     if (!url) return;
     const el = new Audio(url);
-    setAudioEl(el);
+    clipRef.current = { el, url };
     setPlaying(true);
     el.play().catch(() => setPlaying(false));
-    el.addEventListener("ended", () => {
+    const finished = () => {
       setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-    el.addEventListener("error", () => {
-      setPlaying(false);
-      URL.revokeObjectURL(url);
-    });
-  }, [artifact.id, onGetPlaybackUrl, playing, audioEl]);
+      if (clipRef.current?.el === el) releaseClip();
+    };
+    el.addEventListener("ended", finished);
+    el.addEventListener("error", finished);
+  }, [artifact.id, onGetPlaybackUrl, playing, releaseClip]);
   const canTranscribe = artifact.state === "queued" || artifact.state === "saved";
   const canRetry = artifact.state === "failed";
   const canPlay = !!onGetPlaybackUrl && artifact.size > 0 && artifact.state !== "recording" && artifact.state !== "paused";
@@ -4035,7 +4110,7 @@ function AudioQueuePanel({
     getPlaybackUrl
   } = queue;
   const [showNotice, setShowNotice] = useState15(true);
-  useEffect11(() => {
+  useEffect13(() => {
     if (!privacyNoticeMs) return;
     const t = setTimeout(() => setShowNotice(false), privacyNoticeMs);
     return () => clearTimeout(t);
@@ -4098,7 +4173,7 @@ function AudioQueuePanel({
 }
 
 // src/voice/AudioDraftPlayer.tsx
-import { useState as useState16, useEffect as useEffect12 } from "react";
+import { useState as useState16, useEffect as useEffect14 } from "react";
 import { Play as Play5, Trash2 as Trash23, Loader2 as Loader210, RotateCcw as RotateCcw3, ArrowUp } from "lucide-react";
 import { jsx as jsx29, jsxs as jsxs20 } from "react/jsx-runtime";
 function AudioDraftPlayer({
@@ -4121,7 +4196,7 @@ function AudioDraftPlayer({
   const isFailed = artifact.state === "failed";
   const hasBlob = artifact.size > 0 && !isSaving && !isPaused;
   const [playbackUrl, setPlaybackUrl] = useState16(null);
-  useEffect12(() => {
+  useEffect14(() => {
     if (!onGetPlaybackUrl || !hasBlob) {
       setPlaybackUrl(null);
       return;
@@ -4509,7 +4584,7 @@ function createResonanceVadGate(config = DEFAULT_VAD_CONFIG) {
 }
 
 // src/voice/useResonanceCallLoop.ts
-import { useCallback as useCallback9, useEffect as useEffect13, useMemo as useMemo3, useRef as useRef12, useState as useState17 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect15, useMemo as useMemo3, useRef as useRef13, useState as useState17 } from "react";
 
 // src/voice/resonanceCuePolicy.ts
 function resonanceCuePolicy(input) {
@@ -4709,7 +4784,7 @@ function useResonanceCallLoop(params) {
     debug = false,
     onEvent
   } = params;
-  const getAudioLevelRef = useRef12(getAudioLevel);
+  const getAudioLevelRef = useRef13(getAudioLevel);
   getAudioLevelRef.current = getAudioLevel;
   const cueEnabled = audioCues?.enabled ?? false;
   const cuePlayer = useMemo3(
@@ -4718,19 +4793,19 @@ function useResonanceCallLoop(params) {
     [cueEnabled, audioCues?.assets.thinking, audioCues?.assets.crystalline, audioCues?.assets.ready, audioCues?.volume]
   );
   const cueController = useMemo3(() => cuePlayer ? createResonanceCueController(cuePlayer) : null, [cuePlayer]);
-  const cueApplyRef = useRef12(void 0);
+  const cueApplyRef = useRef13(void 0);
   cueApplyRef.current = cueController?.applyTransition;
-  const cueSeqRef = useRef12(0);
-  useEffect13(() => {
+  const cueSeqRef = useRef13(0);
+  useEffect15(() => {
     void cuePlayer?.preload();
   }, [cuePlayer]);
-  useEffect13(() => () => {
+  useEffect15(() => () => {
     cuePlayer?.dispose();
   }, [cuePlayer]);
   const [state, setState] = useState17("idle");
   const [lastTranscript, setLastTranscript] = useState17();
   const [lastAssistantText, setLastAssistantText] = useState17();
-  const adaptersRef = useRef12(adapters);
+  const adaptersRef = useRef13(adapters);
   adaptersRef.current = adapters;
   const pushDebug = useCallback9(
     (record) => {
@@ -4808,10 +4883,10 @@ function useResonanceCallLoop(params) {
     });
     return ctrl;
   }, [pushDebug]);
-  const stateRef = useRef12(state);
+  const stateRef = useRef13(state);
   stateRef.current = state;
   const gate = useMemo3(() => createResonanceVadGate(vadConfig), [vadConfig]);
-  useEffect13(() => {
+  useEffect15(() => {
     if (!enabled) return void 0;
     const id = setInterval(() => {
       const s = stateRef.current;
@@ -4826,16 +4901,16 @@ function useResonanceCallLoop(params) {
       gate.reset();
     };
   }, [enabled, gate, controller, bargeInPolicy]);
-  const autoResumeTimer = useRef12(void 0);
-  const sleepTimer = useRef12(void 0);
-  const callTimer = useRef12(void 0);
+  const autoResumeTimer = useRef13(void 0);
+  const sleepTimer = useRef13(void 0);
+  const callTimer = useRef13(void 0);
   const clearTimer = (t) => {
     if (t.current) {
       clearTimeout(t.current);
       t.current = void 0;
     }
   };
-  useEffect13(() => {
+  useEffect15(() => {
     if (!enabled) return void 0;
     if (state === "silence_hold") {
       if (!autoResumeTimer.current) {
@@ -4857,7 +4932,7 @@ function useResonanceCallLoop(params) {
     }
     return void 0;
   }, [enabled, state, controller, silencePolicy, sleepPolicy]);
-  useEffect13(() => () => {
+  useEffect15(() => () => {
     clearTimer(autoResumeTimer);
     clearTimer(sleepTimer);
     clearTimer(callTimer);
@@ -5069,7 +5144,7 @@ function clearMediaQueryCache() {
 }
 
 // src/shell/useEdgeSwipe.ts
-import { useEffect as useEffect14, useRef as useRef13, useState as useState18 } from "react";
+import { useEffect as useEffect16, useRef as useRef14, useState as useState18 } from "react";
 var clamp01 = (n) => n < 0 ? 0 : n > 1 ? 1 : n;
 function useEdgeSwipe({
   enabled,
@@ -5085,8 +5160,8 @@ function useEdgeSwipe({
   axisSlop = 8
 }) {
   const [progress, setProgress] = useState18(null);
-  const gestureRef = useRef13(null);
-  useEffect14(() => {
+  const gestureRef = useRef14(null);
+  useEffect16(() => {
     if (!enabled) {
       gestureRef.current = null;
       setProgress(null);
@@ -5350,7 +5425,7 @@ function PlanChecklist({
 }
 
 // src/agent/StepsPanel.tsx
-import { useEffect as useEffect15, useState as useState19 } from "react";
+import { useEffect as useEffect17, useState as useState19 } from "react";
 import { jsx as jsx32, jsxs as jsxs23 } from "react/jsx-runtime";
 function StepsPanel({
   steps,
@@ -5370,7 +5445,7 @@ function StepsPanel({
   const [openOverride, setOpenOverride] = useState19(null);
   const open = openOverride ?? live;
   const [elapsed, setElapsed] = useState19(0);
-  useEffect15(() => {
+  useEffect17(() => {
     if (!live || !enableSlowBanner) {
       setElapsed(0);
       return;
@@ -5553,15 +5628,37 @@ function AgentPanel({
 }
 
 // src/agent/useAgentConversation.ts
-import { useCallback as useCallback10, useEffect as useEffect16, useReducer, useRef as useRef14, useState as useState20 } from "react";
+import { useCallback as useCallback10, useEffect as useEffect18, useReducer, useRef as useRef15, useState as useState20 } from "react";
 import {
   applyConversationEvent,
   initialConversationState,
   foldAssistantTurn
 } from "@free-intelligence/core";
+
+// src/conversation/migrateConversationLibrary.ts
+import {
+  deriveConversationPreview,
+  resolveConversationTitle
+} from "@free-intelligence/core";
+function messageKey(message) {
+  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
+}
+function mergeConversationMessages(target, source) {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
+}
+
+// src/agent/useAgentConversation.ts
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
+function applyThreadEvent(state, event) {
+  if (event.type !== "merge_seed") return applyConversationEvent(state, event);
+  const messages = mergeConversationMessages(state.messages, event.messages);
+  return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+}
 function sameThread(a, b) {
   if (a.length !== b.length) return false;
   return a.every((m, i) => {
@@ -5584,29 +5681,29 @@ function useAgentConversation(agent, options) {
   } = options;
   const controlled = externalMessages !== void 0;
   const [convo, dispatch] = useReducer(
-    applyConversationEvent,
+    applyThreadEvent,
     void 0,
     () => initialConversationState(initialMessages ?? [])
   );
-  const convoRef = useRef14(convo);
+  const convoRef = useRef15(convo);
   convoRef.current = convo;
   const messages = convo.messages;
   const turnError = convo.failure;
   const turnNotice = convo.notice;
   const timedOut = convo.timedOut;
-  const controlledRef = useRef14(controlled);
-  const stoppedRef = useRef14(false);
+  const controlledRef = useRef15(controlled);
+  const stoppedRef = useRef15(false);
   controlledRef.current = controlled;
-  const authorRef = useRef14(author);
+  const authorRef = useRef15(author);
   authorRef.current = author;
-  const userAuthorRef = useRef14(userAuthor);
+  const userAuthorRef = useRef15(userAuthor);
   userAuthorRef.current = userAuthor;
-  const onMessagesChangeRef = useRef14(onMessagesChange);
+  const onMessagesChangeRef = useRef15(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
-  const onTurnStartRef = useRef14(onTurnStart);
+  const onTurnStartRef = useRef15(onTurnStart);
   onTurnStartRef.current = onTurnStart;
   const [persistError, setPersistError] = useState20(null);
-  const unsaved = useRef14(null);
+  const unsaved = useRef15(null);
   const runPersist = useCallback10(async (thread, conversationId2) => {
     if (!onMessagesChangeRef.current) return;
     try {
@@ -5629,17 +5726,17 @@ function useAgentConversation(agent, options) {
   }, [runPersist]);
   const dismissPersistError = useCallback10(() => setPersistError(null), []);
   const clearUnsent = useCallback10(() => dispatch({ type: "clear_unsent" }), []);
-  const messagesRef = useRef14(messages);
+  const messagesRef = useRef15(messages);
   messagesRef.current = externalMessages ?? messages;
-  const agentRef = useRef14(agent);
+  const agentRef = useRef15(agent);
   agentRef.current = agent;
-  const appHandledRef = useRef14(isAppHandledError);
+  const appHandledRef = useRef15(isAppHandledError);
   appHandledRef.current = isAppHandledError;
-  const initialRef = useRef14(initialMessages);
+  const initialRef = useRef15(initialMessages);
   initialRef.current = initialMessages;
-  const mounted = useRef14(false);
-  const hydratedFor = useRef14(conversationId);
-  const awaitResolver = useRef14(null);
+  const mounted = useRef15(false);
+  const hydratedFor = useRef15(conversationId);
+  const awaitResolver = useRef15(null);
   const abandonAwaited = useCallback10((reason) => {
     const r = awaitResolver.current;
     awaitResolver.current = null;
@@ -5649,7 +5746,7 @@ function useAgentConversation(agent, options) {
     (text, images) => {
       const t = text.trim();
       const imgs = images && images.length > 0 ? images : void 0;
-      if (!t && !imgs || agent.isStreaming) return;
+      if (!t && !imgs || agent.isStreaming) return false;
       dispatch({
         type: "send",
         text: t,
@@ -5659,6 +5756,7 @@ function useAgentConversation(agent, options) {
       });
       onTurnStartRef.current?.(hydratedFor.current ?? void 0);
       void agent.send(t, { history: messagesRef.current, ...imgs ? { images: imgs } : {} });
+      return true;
     },
     [agent, controlled]
   );
@@ -5670,7 +5768,7 @@ function useAgentConversation(agent, options) {
       return new Promise((resolve, reject) => {
         abandonAwaited("superseded by a newer turn");
         awaitResolver.current = { resolve, reject };
-        send(t);
+        if (!send(t)) abandonAwaited("the turn could not be sent");
       });
     },
     [agent.isStreaming, send, abandonAwaited]
@@ -5686,7 +5784,7 @@ function useAgentConversation(agent, options) {
   }, [send]);
   const dismissError = useCallback10(() => dispatch({ type: "dismiss_failure" }), []);
   const dismissNotice = useCallback10(() => dispatch({ type: "dismiss_notice" }), []);
-  useEffect16(() => {
+  useEffect18(() => {
     if (agent.isStreaming || !convoRef.current.pending) return;
     if (agent.turn.status === "error") {
       const r = awaitResolver.current;
@@ -5713,7 +5811,7 @@ function useAgentConversation(agent, options) {
     awaitResolver.current = null;
     resolver?.resolve(finalText);
   }, [agent.isStreaming, agent.turn]);
-  useEffect16(() => {
+  useEffect18(() => {
     if (turnTimeoutMs <= 0) return;
     if (!agent.isStreaming || !convoRef.current.pending || timedOut) return;
     const timer = setTimeout(() => {
@@ -5725,7 +5823,7 @@ function useAgentConversation(agent, options) {
     }, turnTimeoutMs);
     return () => clearTimeout(timer);
   }, [agent.isStreaming, agent.turn, timedOut, turnTimeoutMs]);
-  useEffect16(() => {
+  useEffect18(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
@@ -5736,7 +5834,10 @@ function useAgentConversation(agent, options) {
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
-      if (convoRef.current.pending) return;
+      if (convoRef.current.pending) {
+        dispatch({ type: "merge_seed", messages: seed });
+        return;
+      }
       if (sameThread(seed, convoRef.current.messages)) return;
     }
     if (convoRef.current.pending) {
@@ -5750,7 +5851,7 @@ function useAgentConversation(agent, options) {
     dispatch({ type: "hydrate", messages: seed });
     if (switched) agent.reset?.();
   }, [conversationId, seedVersion]);
-  useEffect16(() => {
+  useEffect18(() => {
     if (controlledRef.current) return;
     if (convoRef.current.skipPersist) {
       dispatch({ type: "persist_skip_consumed" });
@@ -5768,6 +5869,7 @@ function useAgentConversation(agent, options) {
     turn: agent.turn,
     author,
     isStreaming: agent.isStreaming && !timedOut,
+    canSend: !agent.isStreaming,
     turnError,
     turnNotice,
     dismissNotice,
@@ -5857,13 +5959,13 @@ function TurnErrorBanner({
 }
 
 // src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect19, useState as useState21 } from "react";
+import { useEffect as useEffect21, useState as useState21 } from "react";
 
 // src/agent/conversation-surface/hooks/useComposerFocus.ts
-import { useCallback as useCallback11, useEffect as useEffect17, useRef as useRef15 } from "react";
+import { useCallback as useCallback11, useEffect as useEffect19, useRef as useRef16 } from "react";
 function useComposerFocus(options) {
   const { isStreaming, isTranscribing } = options;
-  const inputRef = useRef15(null);
+  const inputRef = useRef16(null);
   const refocusComposer = useCallback11(() => {
     const el = inputRef.current;
     if (!el || el.disabled) return;
@@ -5872,13 +5974,13 @@ function useComposerFocus(options) {
     if (isOtherTextEntry) return;
     el.focus();
   }, []);
-  const wasStreaming = useRef15(false);
-  useEffect17(() => {
+  const wasStreaming = useRef16(false);
+  useEffect19(() => {
     if (wasStreaming.current && !isStreaming) refocusComposer();
     wasStreaming.current = isStreaming;
   }, [isStreaming, refocusComposer]);
-  const wasTranscribing = useRef15(false);
-  useEffect17(() => {
+  const wasTranscribing = useRef16(false);
+  useEffect19(() => {
     if (wasTranscribing.current && !isTranscribing) refocusComposer();
     wasTranscribing.current = isTranscribing;
   }, [isTranscribing, refocusComposer]);
@@ -5886,11 +5988,11 @@ function useComposerFocus(options) {
 }
 
 // src/agent/conversation-surface/hooks/useSurfaceDictation.ts
-import { useRef as useRef16 } from "react";
+import { useRef as useRef17 } from "react";
 function useSurfaceDictation(options) {
   const { voiceAdapter, input, setInput, onVoiceError } = options;
   const micAvailable = typeof voiceAdapter?.transcribe === "function";
-  const baseInputRef = useRef16("");
+  const baseInputRef = useRef17("");
   const dictation = useDictation(voiceAdapter, {
     onTranscriptUpdate: (full) => {
       const base = baseInputRef.current;
@@ -5912,10 +6014,10 @@ function useSurfaceDictation(options) {
 }
 
 // src/agent/conversation-surface/hooks/useComposerAppend.ts
-import { useEffect as useEffect18 } from "react";
+import { useEffect as useEffect20 } from "react";
 function useComposerAppend(options) {
   const { composerAppend, onComposerAppendConsumed, setInput } = options;
-  useEffect18(() => {
+  useEffect20(() => {
     if (!composerAppend) return;
     setInput((prev) => prev ? `${prev} ${composerAppend}` : composerAppend);
     onComposerAppendConsumed?.();
@@ -6510,6 +6612,7 @@ function AgentConversationSurface(props) {
     retryPersist,
     dismissPersistError,
     send,
+    canSend,
     stop,
     retry,
     dismissError,
@@ -6532,7 +6635,7 @@ function AgentConversationSurface(props) {
     onError: onImageAttachmentError
   });
   const restoreImages = images.restore;
-  useEffect19(() => {
+  useEffect21(() => {
     if (!unsentText && !unsentImages) return;
     if (unsentText) setInput((current) => current.trim() ? current : unsentText);
     if (imageAttachments && unsentImages && unsentImages.length > 0) {
@@ -6542,11 +6645,12 @@ function AgentConversationSurface(props) {
   }, [unsentText, unsentImages, imageAttachments, restoreImages, clearUnsent]);
   const onSend = () => {
     const t = input.trim();
+    if (imageAttachments && images.encoding) return;
     const attached = imageAttachments ? images.toMessageImages() : [];
     if (!t && attached.length === 0) return;
+    if (!send(t, attached.length > 0 ? attached : void 0)) return;
     setInput("");
     images.clear();
-    send(t, attached.length > 0 ? attached : void 0);
   };
   return /* @__PURE__ */ jsxs31("div", { style: rootStyle, children: [
     /* @__PURE__ */ jsx42(
@@ -6578,7 +6682,7 @@ function AgentConversationSurface(props) {
           input,
           setInput,
           onSend,
-          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !isStreaming,
+          canSend: (input.trim().length > 0 || imageAttachments && images.drafts.length > 0) && !(imageAttachments && images.encoding) && canSend,
           inputRef,
           dictation,
           isStreaming,
@@ -6594,7 +6698,7 @@ function AgentConversationSurface(props) {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { useCallback as useCallback12, useEffect as useEffect20, useMemo as useMemo4, useRef as useRef17, useState as useState22, useInsertionEffect as useInsertionEffect7 } from "react";
+import { useCallback as useCallback12, useEffect as useEffect22, useMemo as useMemo4, useRef as useRef18, useState as useState22, useInsertionEffect as useInsertionEffect7 } from "react";
 import { Menu } from "lucide-react";
 import { jsx as jsx43, jsxs as jsxs32 } from "react/jsx-runtime";
 var TOGGLE_STYLE_ID = "fi-aws-toggle-style";
@@ -6645,8 +6749,8 @@ function AgentWorkspaceShell({
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState22(false);
-  const rootRef = useRef17(null);
-  const panelRef = useRef17(null);
+  const rootRef = useRef18(null);
+  const panelRef = useRef18(null);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
   const open = useCallback12(() => setIsOpen(true), []);
@@ -6664,10 +6768,10 @@ function AgentWorkspaceShell({
     fallbackWidth: numericSidebarWidth
   });
   const dragging = dragProgress !== null;
-  useEffect20(() => {
+  useEffect22(() => {
     if (!drawerMode && isOpen) setIsOpen(false);
   }, [drawerMode, isOpen]);
-  useEffect20(() => {
+  useEffect22(() => {
     if (!drawerMode || !isOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -6849,7 +6953,7 @@ function AgentWorkspaceShell({
 // src/agent/AgentSidebarItem.tsx
 import {
   useCallback as useCallback13,
-  useRef as useRef18,
+  useRef as useRef19,
   useState as useState23
 } from "react";
 
@@ -7175,7 +7279,7 @@ function DestructiveActionSlot(props) {
 function useInlineRename(value, onRename, { maxLength, emptyPolicy = "revert" } = {}) {
   const [editing, setEditing] = useState23(false);
   const [draft, setDraft] = useState23("");
-  const cancelledRef = useRef18(false);
+  const cancelledRef = useRef19(false);
   const start = useCallback13(() => {
     cancelledRef.current = false;
     setDraft(value);
@@ -7439,9 +7543,9 @@ function AgentSidebarSection({
 // src/persona-selector/PersonaSelector.tsx
 import {
   useCallback as useCallback14,
-  useEffect as useEffect21,
+  useEffect as useEffect23,
   useId as useId4,
-  useRef as useRef19,
+  useRef as useRef20,
   useState as useState24
 } from "react";
 import { createPortal as createPortal2 } from "react-dom";
@@ -7473,13 +7577,13 @@ function PersonaSelector({
 }) {
   const [isOpen, setIsOpen] = useState24(false);
   const [position, setPosition] = useState24({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef19(null);
-  const contentRef = useRef19(null);
+  const triggerRef = useRef20(null);
+  const contentRef = useRef20(null);
   const reactId = useId4();
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
   const close = useCallback14(() => setIsOpen(false), []);
-  useEffect21(() => {
+  useEffect23(() => {
     if (!isOpen) return;
     const handle = (event) => {
       const target = event.target;
@@ -7491,7 +7595,7 @@ function PersonaSelector({
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
-  useEffect21(() => {
+  useEffect23(() => {
     if (!isOpen) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
@@ -7511,7 +7615,7 @@ function PersonaSelector({
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
-  useEffect21(() => {
+  useEffect23(() => {
     if (!isOpen) return;
     const raf = requestAnimationFrame(() => {
       const content2 = contentRef.current;

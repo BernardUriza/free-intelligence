@@ -91,3 +91,56 @@ describe('useComposerImages', () => {
     expect(result.current.handlePaste(textOnly)).toBe(false);
   });
 });
+
+describe('useComposerImages — an encode in flight (FIGLASS-STATE-RESIDUALS-1 #5)', () => {
+  function slowReader() {
+    const release: Array<() => void> = [];
+    const Real = globalThis.FileReader;
+    class SlowReader extends Real {
+      readAsDataURL(blob: Blob) {
+        release.push(() => super.readAsDataURL(blob));
+      }
+    }
+    vi.stubGlobal('FileReader', SlowReader);
+    return release;
+  }
+
+  it('reports encoding while a picked image is still being read', async () => {
+    const release = slowReader();
+    try {
+      const { result } = renderHook(() => useComposerImages());
+      let adding!: Promise<void>;
+      act(() => {
+        adding = result.current.addFiles([pngFile()]);
+      });
+      expect(result.current.encoding).toBe(true);
+      await act(async () => {
+        release.forEach((go) => go());
+        await adding;
+      });
+      expect(result.current.encoding).toBe(false);
+      expect(result.current.drafts).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('an encode that finishes after clear() never lands on the next message', async () => {
+    const release = slowReader();
+    try {
+      const { result } = renderHook(() => useComposerImages());
+      let adding!: Promise<void>;
+      act(() => {
+        adding = result.current.addFiles([pngFile()]);
+      });
+      act(() => result.current.clear());
+      await act(async () => {
+        release.forEach((go) => go());
+        await adding;
+      });
+      expect(result.current.drafts).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

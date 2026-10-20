@@ -370,7 +370,8 @@ function applyConversationEvent(state, event) {
         if (event.turn.deferred) {
           return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
         }
-        if (event.controlled || event.stopped) return base;
+        if (event.controlled) return base;
+        if (event.stopped) return { ...base, messages: [...state.messages], skipPersist: false };
         return {
           ...revertOptimistic(base, false),
           failure: { kind: "empty", message: COPY.turnEmpty }
