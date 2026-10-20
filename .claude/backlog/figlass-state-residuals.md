@@ -53,3 +53,14 @@ record alrededor del par cuando no existe, y el cliente sólo lo ve si sigue pid
 Siguiente paso: captura de red real (DevTools) en app.og118.ai durante el primer turno de una
 conversación nueva para nombrar al llamador; si es el web, el arreglo es dejar de pedir mientras
 el turno está vivo, no mientras no haya record.
+
+**Captura 2026-10-19 18:26 CST, app.og118.ai en `30c0f91`, elemento base og118, chat nuevo
+`24379fd6…`:** cero 404. Secuencia: `POST /chat/stream` → `PUT /conversations/{id}` 200 al
+asentarse → `GET` 200 después. El patrón no sale en un turno interno: sólo se vio con un elemento
+externo (Yodo, ~85 s). En el web el único camino a `GET /conversations/{id}` sobre el chat activo es
+`reloadActive`, vía `useOg118ConversationSync` (intervalo de 15 s **más cada `focus` y
+`visibilitychange`**), y sólo corre con `conversation.isStreaming` en falso: el caso de un turno
+externo que cerró el stream como `deferred` antes de que exista el record. Ahí la 404 es la espera de
+la respuesta tardía, no un bug. Que los ~3 s fueran eventos de `focus` del conductor CDP del E2E es
+hipótesis sin probar. Para cerrarla: la misma captura con un elemento externo y sin tocar la pestaña
+mientras corre.
