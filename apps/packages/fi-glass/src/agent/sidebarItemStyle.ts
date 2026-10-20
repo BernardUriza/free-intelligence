@@ -21,6 +21,7 @@
 import { useInsertionEffect } from 'react';
 import { glassTokens } from '../theme/glass-tokens.generated';
 import { ensureDensityStyle } from './densityStyle';
+import { FI_TOUCH_QUERY } from '../theme/breakpoints';
 
 export const FI_SIDEBAR_ITEM_CLASS = 'fi-sidebar-item';
 export const FI_ITEM_BODY_CLASS = 'fi-sidebar-item-body';
@@ -109,7 +110,9 @@ const CSS = `
 .${FI_ITEM_ACTION_DANGER_CLASS}:hover:not(:disabled) {
   color: var(--fi-sidebar-item-danger, ${glassTokens.danger});
 }
-@media (pointer: coarse) {
+/* Same gate as the 44px minimum: a narrow window with a mouse got 44px actions it
+   could not see, and they ate the title. Sized and revealed under one query. */
+@media ${FI_TOUCH_QUERY} {
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
   }

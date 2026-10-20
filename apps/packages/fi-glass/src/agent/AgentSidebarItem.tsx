@@ -31,7 +31,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { withTouchTarget } from '../shell/touchTarget';
+import { useTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
 import {
   FI_SIDEBAR_ITEM_CLASS,
   FI_ITEM_BODY_CLASS,
@@ -73,6 +73,7 @@ export function ItemActionSlot({
   className,
   children,
 }: ItemActionSlotProps) {
+  useTouchTargetStyle();
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className),
   );

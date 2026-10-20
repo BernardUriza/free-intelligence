@@ -36,7 +36,7 @@
  * preserved, so the change is visual-equivalent and consumers need no new CSS.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, useInsertionEffect } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, useInsertionEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 import { useMediaQuery } from '../shell/useMediaQuery';
@@ -145,8 +145,10 @@ export function AgentWorkspaceShell({
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState(false);
+  const panelId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const panelRef = useRef<HTMLElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const toggleRef = useRef<HTMLButtonElement | null>(null);
 
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
@@ -187,6 +189,25 @@ export function AgentWorkspaceShell({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
+  }, [drawerMode, isOpen]);
+
+  // A modal drawer owns focus: the dialog itself takes it on open (never a search
+  // input, which would raise the phone keyboard) and the toggle gets it back on close.
+  const wasOpenRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!drawerMode) {
+      wasOpenRef.current = false;
+      return;
+    }
+    if (isOpen && !wasOpenRef.current) {
+      panelRef.current?.focus();
+    } else if (!isOpen && wasOpenRef.current) {
+      const active = document.activeElement;
+      if (!active || active === document.body || panelRef.current?.contains(active)) {
+        toggleRef.current?.focus();
+      }
+    }
+    wasOpenRef.current = isOpen;
   }, [drawerMode, isOpen]);
 
   useInsertionEffect(() => {
@@ -252,6 +273,7 @@ export function AgentWorkspaceShell({
       data-fi-visual={visual}
       data-fi-density={density}
       className={rootClassName}
+      inert={drawerMode && isOpen ? true : undefined}
       style={hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: '100%', ...style } : { ...rootStyle, ...style }}
     >
       {header != null && <header data-fi-slot="header">{header}</header>}
@@ -302,6 +324,8 @@ export function AgentWorkspaceShell({
         // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
         boxSizing: 'border-box',
         paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
       }
     : {
         width: widthCss,
@@ -310,6 +334,9 @@ export function AgentWorkspaceShell({
         flexDirection: 'column',
         containerType: 'inline-size',
         containerName: 'fi-sidebar',
+        boxSizing: 'border-box',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
       };
 
   return (
@@ -319,16 +346,28 @@ export function AgentWorkspaceShell({
       data-fi-drawer-dragging={dragging ? '' : undefined}
       style={{ display: 'flex', height: '100dvh', position: 'relative', overflowX: 'hidden' }}
     >
-      <nav
-        ref={panelRef}
-        data-fi-slot="sidebar"
-        aria-label={toggleLabel}
-        style={sidebarContainerStyle}
-        aria-hidden={drawerMode ? !isOpen : undefined}
-        inert={drawerMode && !isOpen ? true : undefined}
-      >
-        {sidebarNode}
-      </nav>
+      {drawerMode ? (
+        <div
+          ref={panelRef}
+          id={panelId}
+          data-fi-slot="sidebar"
+          role="dialog"
+          aria-modal="true"
+          aria-label={toggleLabel}
+          tabIndex={-1}
+          style={{ ...sidebarContainerStyle, outline: 'none' }}
+          aria-hidden={!isOpen}
+          inert={!isOpen ? true : undefined}
+        >
+          <nav aria-label={toggleLabel} style={{ display: 'contents' }}>
+            {sidebarNode}
+          </nav>
+        </div>
+      ) : (
+        <nav data-fi-slot="sidebar" aria-label={toggleLabel} style={sidebarContainerStyle}>
+          {sidebarNode}
+        </nav>
+      )}
 
       {drawerMode && (
         <div
@@ -346,13 +385,16 @@ export function AgentWorkspaceShell({
         />
       )}
 
-      {drawerMode && !isOpen && (
+      {drawerMode && (
         <button
+          ref={toggleRef}
           type="button"
           className="fi-aws-toggle"
           onClick={open}
           aria-label={toggleLabel}
           aria-expanded={isOpen}
+          aria-controls={panelId}
+          inert={isOpen ? true : undefined}
           style={{
             position: 'absolute',
             // The wrapper is full-bleed (100dvh, no top inset) so a bare `top`
@@ -364,7 +406,7 @@ export function AgentWorkspaceShell({
             top: 'calc(0.6rem + env(safe-area-inset-top, 0px))',
             left: 'calc(0.6rem + env(safe-area-inset-left, 0px))',
             zIndex: 30,
-            opacity: dragging ? 1 - dragProgress : 1,
+            opacity: dragging ? 1 - dragProgress : isOpen ? 0 : 1,
             transition: dragging ? 'none' : 'opacity 0.24s ease',
           }}
         >

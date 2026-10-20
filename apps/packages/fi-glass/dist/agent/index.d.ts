@@ -346,17 +346,6 @@ interface AgentConversation {
 }
 declare function useAgentConversation(agent: AgentHook, options: UseAgentConversationOptions): AgentConversation;
 
-/**
- * fi-glass · conversation-surface/TurnErrorBanner — recoverable turn-failure UI
- * (B3-FIGLASS-8). Rendered when the conversation carries a turnError (a
- * hung/timed-out or errored turn) INSTEAD of the zombie "thinking…" panel: the
- * watchdog/error already dropped the surface out of streaming. Style/copy hooks
- * are the consumer's; sensible defaults render without any.
- *
- * The same anatomy carries a waiting NOTICE (`tone="info"`, no retry): a turn
- * the engine released without its answer (OG118-EXTERNAL-TURN-1) is not a
- * failure, so it reads as status, never as an alert.
- */
 interface TurnErrorBannerProps {
     /** Any recoverable failure with a displayable message: a failed turn, save or
      *  sidebar action. One banner anatomy for every caller. */

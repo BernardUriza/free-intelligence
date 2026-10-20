@@ -136,6 +136,33 @@ var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
 
 // src/shell/touchTarget.ts
 var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useInsertionEffect(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
 function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
@@ -210,6 +237,7 @@ var CSS = `
 }
 `;
 function ensureComposerActionStyle() {
+  ensureTouchTargetStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
   const el = document.createElement("style");
@@ -407,9 +435,13 @@ var CSS3 = `
     flex: 1 1 0%;
     min-width: 0;
   }
+  /* The viewport-gated touch sheet cannot see a narrow composer on a wide screen,
+     where this toggle measured 18x18: the container grants the minimum instead. */
   .fi-composer-rail-toggle {
     display: inline-flex;
     order: -1;
+    min-width: var(--fi-touch-target, 44px);
+    min-height: var(--fi-touch-target, 44px);
   }
   [data-fi-composer-slot="footer-start"] {
     flex: 1 1 100%;
@@ -440,6 +472,7 @@ var CSS3 = `
 `;
 function ensureComposerFrameStyle() {
   ensureDensityStyle();
+  ensureTouchTargetStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
@@ -796,9 +829,10 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment2, useEffect as useEffect2, useRef as useRef4, useState as useState4 } from "react";
+import { Fragment as Fragment2, useEffect as useEffect2, useLayoutEffect, useRef as useRef4, useState as useState4 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
+var VIEWPORT_MARGIN_PX = 8;
 function ActionMenu({
   actions,
   trigger,
@@ -811,8 +845,10 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
+  useTouchTargetStyle();
   const [open, setOpen] = useState4(false);
   const triggerRef = useRef4(null);
+  const menuRef = useRef4(null);
   const [position, setPosition] = useState4({ top: 0, left: 0 });
   useEffect2(() => {
     if (open && triggerRef.current) {
@@ -820,6 +856,13 @@ function ActionMenu({
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) return;
+    const { width } = menuRef.current.getBoundingClientRect();
+    const maxLeft = window.innerWidth - VIEWPORT_MARGIN_PX - width;
+    const left = Math.max(VIEWPORT_MARGIN_PX, Math.min(position.left, maxLeft));
+    if (left !== position.left) setPosition((p) => ({ ...p, left }));
+  }, [open, position.left]);
   useEffect2(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -861,6 +904,7 @@ function ActionMenu({
         /* @__PURE__ */ jsx6(
           "div",
           {
+            ref: menuRef,
             role: "menu",
             "data-fi-action-menu": "",
             className: menuClassName,
@@ -870,6 +914,7 @@ function ActionMenu({
               left: position.left,
               // Grow UPWARD from the anchor — the composer is at the bottom.
               transform: "translateY(-100%)",
+              maxWidth: `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
               zIndex: 9999,
               ...menuClassName ? {} : {
                 minWidth: "13rem",
@@ -891,10 +936,11 @@ function ActionMenu({
                     setOpen(false);
                     action.onSelect();
                   },
-                  className: action.className ?? itemClassName,
+                  className: withTouchTarget(action.className ?? itemClassName),
                   style: action.className ?? itemClassName ? void 0 : {
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "flex-start",
                     gap: "0.6rem",
                     width: "100%",
                     padding: "0.5rem 0.65rem",

@@ -38,6 +38,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
+import { useTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
 
 export interface PersonaSlotContext {
   /** Whether the persona this slot renders is the selected one. */
@@ -96,6 +97,7 @@ const TRIGGER_DEFAULT =
   'flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors';
 const CONTENT_BASE =
   'rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg';
+const VIEWPORT_MARGIN_PX = 8;
 const ITEM_BASE = 'cursor-pointer rounded-lg px-3 py-2 text-left transition-all';
 
 export function PersonaSelector<T>({
@@ -119,6 +121,7 @@ export function PersonaSelector<T>({
   contentClassName = '',
   ariaLabel,
 }: PersonaSelectorProps<T>) {
+  useTouchTargetStyle();
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -163,9 +166,11 @@ export function PersonaSelector<T>({
       if (!el) return;
       const height = el.offsetHeight;
       const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < height && rect.top > height) {
-        setPosition({ top: rect.top + window.scrollY - height - 4, left, width });
-      }
+      const top =
+        spaceBelow < height && rect.top > height ? rect.top + window.scrollY - height - 4 : baseTop;
+      const maxLeft = window.innerWidth - VIEWPORT_MARGIN_PX - el.getBoundingClientRect().width;
+      const clampedLeft = Math.max(VIEWPORT_MARGIN_PX, Math.min(left, maxLeft));
+      if (top !== baseTop || clampedLeft !== left) setPosition({ top, left: clampedLeft, width });
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
@@ -246,7 +251,8 @@ export function PersonaSelector<T>({
         position: 'fixed',
         top: `${position.top}px`,
         left: `${position.left}px`,
-        minWidth: `${position.width}px`,
+        minWidth: `min(${position.width}px, calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px))`,
+        maxWidth: `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
         zIndex: 9999,
       }}
       className={`${CONTENT_BASE} ${contentClassName}`.trim()}
@@ -319,7 +325,7 @@ export function PersonaSelector<T>({
         aria-expanded={isOpen}
         aria-controls={isOpen ? contentId : undefined}
         aria-label={ariaLabel}
-        className={triggerClassName ?? TRIGGER_DEFAULT}
+        className={withTouchTarget(triggerClassName ?? TRIGGER_DEFAULT)}
       >
         {triggerInner}
         <ChevronDown

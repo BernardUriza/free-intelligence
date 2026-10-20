@@ -10,9 +10,53 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check } from "lucide-react";
+
+// src/shell/touchTarget.ts
+import { useInsertionEffect } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useInsertionEffect(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/persona-selector/PersonaSelector.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var TRIGGER_DEFAULT = "flex w-full items-center justify-between rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm transition-colors";
 var CONTENT_BASE = "rounded-md border border-slate-700 bg-slate-800 p-1 shadow-lg";
+var VIEWPORT_MARGIN_PX = 8;
 var ITEM_BASE = "cursor-pointer rounded-lg px-3 py-2 text-left transition-all";
 function PersonaSelector({
   personas,
@@ -35,6 +79,7 @@ function PersonaSelector({
   contentClassName = "",
   ariaLabel
 }) {
+  useTouchTargetStyle();
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef(null);
@@ -69,9 +114,10 @@ function PersonaSelector({
       if (!el) return;
       const height = el.offsetHeight;
       const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < height && rect.top > height) {
-        setPosition({ top: rect.top + window.scrollY - height - 4, left, width });
-      }
+      const top = spaceBelow < height && rect.top > height ? rect.top + window.scrollY - height - 4 : baseTop;
+      const maxLeft = window.innerWidth - VIEWPORT_MARGIN_PX - el.getBoundingClientRect().width;
+      const clampedLeft = Math.max(VIEWPORT_MARGIN_PX, Math.min(left, maxLeft));
+      if (top !== baseTop || clampedLeft !== left) setPosition({ top, left: clampedLeft, width });
     });
     return () => cancelAnimationFrame(raf);
   }, [isOpen]);
@@ -131,7 +177,8 @@ function PersonaSelector({
         position: "fixed",
         top: `${position.top}px`,
         left: `${position.left}px`,
-        minWidth: `${position.width}px`,
+        minWidth: `min(${position.width}px, calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px))`,
+        maxWidth: `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
         zIndex: 9999
       },
       className: `${CONTENT_BASE} ${contentClassName}`.trim(),
@@ -194,7 +241,7 @@ function PersonaSelector({
         "aria-expanded": isOpen,
         "aria-controls": isOpen ? contentId : void 0,
         "aria-label": ariaLabel,
-        className: triggerClassName ?? TRIGGER_DEFAULT,
+        className: withTouchTarget(triggerClassName ?? TRIGGER_DEFAULT),
         children: [
           triggerInner,
           /* @__PURE__ */ jsx(

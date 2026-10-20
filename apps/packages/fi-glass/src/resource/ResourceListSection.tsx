@@ -20,6 +20,7 @@ import {
   FI_LIST_ROW_TITLE_CLASS,
   useResourceStyle,
 } from './resourceStyle';
+import { withTouchTarget } from '../shell/touchTarget';
 
 export interface ResourceListSectionProps {
   /** Un string se envuelve en `<h2>`; un nodo se usa tal cual. */
@@ -82,7 +83,7 @@ export function ResourceListRow({ title, meta, onSelect, className }: ResourceLi
     <li>
       <button
         type="button"
-        className={className ? `${FI_LIST_ROW_CLASS} ${className}` : FI_LIST_ROW_CLASS}
+        className={withTouchTarget(className ? `${FI_LIST_ROW_CLASS} ${className}` : FI_LIST_ROW_CLASS)}
         onClick={onSelect}
       >
         <span className={FI_LIST_ROW_TITLE_CLASS}>{title}</span>
