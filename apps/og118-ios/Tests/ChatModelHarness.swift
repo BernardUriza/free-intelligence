@@ -27,6 +27,15 @@ private func settle() async {
     try? await Task.sleep(nanoseconds: 120_000_000)
 }
 
+/// Lo que depende de un poll se espera por su condición, no por un sueño fijo: un runner cargado no cumple los 120 ms.
+@MainActor
+private func esperar(tope: UInt64 = 3_000_000_000, _ hecho: () -> Bool) async {
+    let fin = DispatchTime.now().uptimeNanoseconds + tope
+    while !hecho(), DispatchTime.now().uptimeNanoseconds < fin {
+        try? await Task.sleep(nanoseconds: 10_000_000)
+    }
+}
+
 @MainActor
 private func autorSeCongelaPorMensaje() async {
     print("el autor queda pegado al mensaje, no al turno")
@@ -1435,7 +1444,7 @@ private func unTurnoDiferidoEsperaSinAcusarError() async {
         createdAt: "2026-10-17T12:00:00Z",
         now: "2026-10-17T12:00:09Z"
     )
-    await settle()
+    await esperar { model.messages.count == 2 && model.avisoDeEspera == nil }
     expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
     expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
     expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
