@@ -49,12 +49,17 @@ extension ChatMessage {
     /// core `mergeConversationMessages`: todo `destino` más lo que sólo `fuente`
     /// tiene, ordenado por timestamp (estable en empates); nil si no agrega nada.
     static func unir(_ destino: [ChatMessage], _ fuente: [ChatMessage]) -> [ChatMessage]? {
-        let conocidos = Set(destino.map(\.claveDeHilo))
-        let faltan = fuente.filter { !conocidos.contains($0.claveDeHilo) }
+        unir(destino, fuente, mensaje: { $0 })
+    }
+
+    /// La misma regla sobre lo que acompaña al mensaje (p. ej. su copia persistida).
+    static func unir<T>(_ destino: [T], _ fuente: [T], mensaje: (T) -> ChatMessage) -> [T]? {
+        let conocidos = Set(destino.map { mensaje($0).claveDeHilo })
+        let faltan = fuente.filter { !conocidos.contains(mensaje($0).claveDeHilo) }
         guard !faltan.isEmpty else { return nil }
         return (destino + faltan).enumerated()
             .sorted { a, b in
-                let ta = a.element.timestamp ?? "", tb = b.element.timestamp ?? ""
+                let ta = mensaje(a.element).timestamp ?? "", tb = mensaje(b.element).timestamp ?? ""
                 return ta != tb ? ta < tb : a.offset < b.offset
             }
             .map(\.element)

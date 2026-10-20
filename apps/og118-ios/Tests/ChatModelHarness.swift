@@ -1707,7 +1707,7 @@ private func losVectoresDelHiloSeCumplen() async {
                 id: "v", messages: mensajes(primero["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
             )
         }
-        let registro = semilla
+        var registro = semilla
         var guardado: ConversationRecord?
         let model = ChatModel(
             conversationID: "v",
@@ -1722,6 +1722,10 @@ private func losVectoresDelHiloSeCumplen() async {
             case "hydrate":
                 expect(indice == 0, "\(nombre): hydrate sólo abre el vector (el arnés lo restaura)")
             case "merge_seed":
+                // La semilla ES la copia del servidor: el save la relee antes del PUT.
+                registro = ConversationRecord.from(
+                    id: "v", messages: mensajes(op["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+                )
                 model.unirHiloDelServidor(mensajes(op["messages"]))
             case "dismiss_failure":
                 model.errorMessage = nil
@@ -1813,4 +1817,6 @@ private func elAppendDelServidorNoSeDuplicaAlGuardar() async {
     let contenidos = guardado?.messages.map(\.content) ?? []
     expect(contenidos.filter { $0 == "listo el reporte" }.count == 1, "el worker queda UNA vez en lo guardado (\(contenidos))")
     expect(contenidos.contains("hola") && contenidos.last == "respuesta", "y el turno se guarda completo (\(contenidos))")
+    expect(contenidos == ["ayer", "te contesté", "hola", "listo el reporte", "respuesta"],
+           "y en el orden del hilo, como lo guarda la web (\(contenidos))")
 }

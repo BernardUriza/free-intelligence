@@ -139,6 +139,7 @@ extension ConversationRecord {
 
     /// El record VIVO manda (título, pin, archivado y los mensajes que otro
     /// cliente agregó); el teléfono sólo le suma los turnos posteriores a `base`.
+    /// El orden es el de core: el hilo local, y lo que sólo trae el vivo entra por timestamp.
     static func fusionar(
         id: String,
         locales: [ChatMessage],
@@ -151,9 +152,14 @@ extension ConversationRecord {
             return from(id: id, messages: locales, createdAt: createdAt, now: now, base: base)
         }
         let previos = base?.messages.count ?? 0
-        let enVivo = Set(vivo.chatMessages.map(\.claveDeHilo))
-        let nuevos = locales.dropFirst(min(previos, locales.count)).filter { !enVivo.contains($0.claveDeHilo) }
-        let todos = vivo.chatMessages + nuevos
+        let delVivo = Array(zip(vivo.chatMessages, vivo.messages))
+        let porClave = Dictionary(delVivo.map { ($0.0.claveDeHilo, $0) }, uniquingKeysWith: { primero, _ in primero })
+        let propios = locales.enumerated().compactMap { indice, mensaje -> (ChatMessage, PersistedMessage)? in
+            if let delServidor = porClave[mensaje.claveDeHilo] { return delServidor }
+            return indice < previos ? nil : (mensaje, persistido(mensaje))
+        }
+        let hilo = ChatMessage.unir(propios, delVivo, mensaje: \.0) ?? propios
+        let todos = hilo.map(\.0)
         let customTitle = vivo.titleCustom == true ? vivo.title : nil
         return ConversationRecord(
             id: id,
@@ -161,7 +167,7 @@ extension ConversationRecord {
             titleCustom: vivo.titleCustom,
             createdAt: vivo.createdAt,
             updatedAt: now,
-            messages: vivo.messages + nuevos.map(persistido),
+            messages: hilo.map(\.1),
             preview: ConversationSchema.preview(todos),
             pinnedAt: vivo.pinnedAt,
             archivedAt: vivo.archivedAt,
