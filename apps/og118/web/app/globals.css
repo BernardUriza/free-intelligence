@@ -483,7 +483,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.6rem 0.85rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.6rem 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .og-sidebar-privacy {
