@@ -3,7 +3,12 @@ import {
 } from "../chunk-EBUEQEPO.js";
 import {
   glassTokens
-} from "../chunk-ES44X65O.js";
+} from "../chunk-LO4SF24V.js";
+import {
+  FI_MOBILE_BREAKPOINT_PX,
+  FI_MOBILE_QUERY,
+  FI_TOUCH_QUERY
+} from "../chunk-HJ2CVNCV.js";
 
 // src/theme/glass-chat-preset.ts
 var glassChatPreset = {
@@ -27,6 +32,9 @@ var glassChatPreset = {
   radius: glassTokens.radius
 };
 export {
+  FI_MOBILE_BREAKPOINT_PX,
+  FI_MOBILE_QUERY,
+  FI_TOUCH_QUERY,
   glassChatPreset,
   glassTheme
 };

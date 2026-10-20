@@ -20,11 +20,11 @@ export const messageStyles = {
     padding: 'px-4',
   },
 
-  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (the canonical ≤768 query) the row tightens to
   // ~10px/14px padding so content dominates the viewport; desktop keeps the
   // original 12px/16px.
   message: {
-    base: 'group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150',
+    base: 'group relative py-3 px-4 -mx-4 [@media(max-width:768px)]:py-2.5 [@media(max-width:768px)]:px-3.5 [@media(max-width:768px)]:-mx-3.5 transition-colors duration-150',
     user: 'bg-transparent hover:bg-white/[0.02]',
     assistant: 'bg-white/[0.02] hover:bg-white/[0.04]',
     borderRadius: 'rounded-lg',
@@ -49,10 +49,10 @@ export const messageStyles = {
   // and drop the 2rem avatar indent — the header row already attributes the
   // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: 'text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]',
+    base: 'text-[14px] leading-relaxed [@media(max-width:768px)]:text-[16px] [@media(max-width:768px)]:leading-[1.5]',
     user: 'text-slate-200',
     assistant: 'text-slate-100',
-    indent: 'pl-8 max-md:pl-0', // Align with avatar (desktop only)
+    indent: 'pl-8 [@media(max-width:768px)]:pl-0', // Align with avatar (desktop only)
   },
 
   // Actions toolbar

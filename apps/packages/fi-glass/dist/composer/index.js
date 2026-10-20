@@ -18,8 +18,9 @@ import {
   useComposerImages,
   useImagePicker,
   withComposerAction
-} from "../chunk-T3S6OND5.js";
-import "../chunk-BR2MRETO.js";
+} from "../chunk-VR5XNHGN.js";
+import "../chunk-SMPLGG7E.js";
+import "../chunk-HJ2CVNCV.js";
 export {
   AutoResizeTextarea,
   COMPOSER_IMAGE_ACCEPT,
