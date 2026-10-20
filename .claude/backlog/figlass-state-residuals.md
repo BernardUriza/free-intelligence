@@ -66,3 +66,11 @@ externo que cerró el stream como `deferred` antes de que exista el record. Ahí
 la respuesta tardía, no un bug. Que los ~3 s fueran eventos de `focus` del conductor CDP del E2E es
 hipótesis sin probar. Para cerrarla: la misma captura con un elemento externo y sin tocar la pestaña
 mientras corre.
+
+**Abierto — iOS y web guardan el hilo fusionado en distinto orden (2026-10-19, visto en #565).**
+La web guarda el hilo unido ordenado por timestamp (`mergeConversationMessages` de core); iOS
+(`ConversationRecord.fusionar`) guarda primero el orden del record vivo y agrega los mensajes
+locales nuevos al final. Si el mensaje del worker es más nuevo que el del usuario, los dos clientes
+persisten órdenes distintos. Los vectores de `conversation-state` comparan qué se guarda, no en qué
+orden. Para cerrarlo: un vector con un append del servidor más nuevo que el envío, que exija el
+orden de `saved`, rojo en el arnés iOS antes de alinear `fusionar` a core.
