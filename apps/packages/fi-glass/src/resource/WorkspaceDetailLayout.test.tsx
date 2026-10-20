@@ -10,6 +10,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { WorkspaceDetailLayout } from './WorkspaceDetailLayout';
+import { declared } from '../test-utils/cssRules';
 
 afterEach(cleanup);
 
@@ -67,11 +68,10 @@ describe('the mobile stacking rule', () => {
     const { FI_MOBILE_QUERY } = await import('../theme/breakpoints');
     ensureResourceStyle();
 
-    const css = document.getElementById('fi-resource-style')?.textContent ?? '';
-    const mobileBlock = css.slice(css.indexOf(`@media ${FI_MOBILE_QUERY}`));
-
-    expect(mobileBlock).toContain('flex-direction: column');
-    expect(mobileBlock).toContain('width: 100%');
+    expect(declared('fi-resource-style', '.fi-workspace-detail', 'flex-direction', FI_MOBILE_QUERY)).toBe(
+      'column',
+    );
+    expect(declared('fi-resource-style', '.fi-workspace-rail', 'width', FI_MOBILE_QUERY)).toBe('100%');
   });
 
   it('injects the stylesheet exactly once no matter how many primitives mount', () => {
