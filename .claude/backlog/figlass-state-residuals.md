@@ -42,6 +42,8 @@ Nada de esto se ha observado en vivo en app.og118.ai: son pruebas unitarias/jsdo
 | 5 | fi-glass `useComposerImages.encoding` + generación que `clear()`/`restore()` invalidan; el surface retiene el envío hasta que la imagen está lista y la manda con ESTE mensaje | `useComposerImages.test.tsx` › *reports encoding while…*; *an encode that finishes after clear() never lands on the next message*; `AgentConversationSurface.sendGate.test.tsx` › *holds the send until the picked image is ready…* |
 | 6 | **core** `conversation-state.ts` (`turn_settled` con `stopped` devuelve hilo nuevo con `skipPersist:false`) + iOS `ChatModel.cancel()` (tenía el mismo bug) | vector *parar el turno es una decisión…* ahora declara `saved` (campo opcional por vector; quien lo declara obliga a TS y a iOS a medirlo): rojo en `conversation-state-vectors.test.ts` y en el arnés iOS (`1 FALLARON`); hook: `useAgentConversation.test.tsx` › *saves the question when stopped before the first token* (rojo contra el dist viejo de core). El test iOS de cancelar ahora exige guardar la pregunta sola, sin la respuesta a medias |
 
+**#1 ahora vive en core (2026-10-19):** la transición es `merge_seed` de `applyConversationEvent` (core 1.11.0, `mergeConversationMessages` exportado de core) con sus vectores en `contracts/conversation-state.vectors.json`; fi-glass volvió a un solo reducer y iOS la conforma con `ChatModel.unirHiloDelServidor`.
+
 **Abierto — el poll de 404 de #5 (no se tocó, a propósito).** No encontré en el código del web al
 llamador con cadencia de ~3 s: los únicos `GET /conversations/{id}` del cliente salen de
 `RemoteConversationLibrary.get`, y sus llamadores (`useConversationLibrary`: carga, switch,
