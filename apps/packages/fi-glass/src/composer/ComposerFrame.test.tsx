@@ -12,6 +12,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { ComposerFrame } from './ComposerFrame';
+import { declared } from '../test-utils/cssRules';
 
 const frame = () => document.querySelector('[data-fi-composer-frame]');
 const slot = (name: string) =>
@@ -151,9 +152,9 @@ describe('<ComposerFrame> slots', () => {
         <textarea aria-label="body" />
       </ComposerFrame>
     );
-    const css = document.getElementById('fi-composer-frame-style')!.textContent!;
-    expect(css).toContain('[data-fi-composer-slot="footer-start"]');
-    expect(css).toContain('margin-right: auto');
+    expect(
+      declared('fi-composer-frame-style', '[data-fi-composer-slot="footer-start"]', 'margin-right'),
+    ).toBe('auto');
   });
 
   it('injects the tokenized stylesheet once', () => {
