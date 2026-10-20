@@ -22,7 +22,7 @@ export default defineConfig({
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },
-  splitting: false,
+  splitting: true,
   treeshake: false,
   sourcemap: true,
   clean: true,
