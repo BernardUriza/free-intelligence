@@ -142,9 +142,9 @@ export const glassTokens = {
   itemMetaSize: '0.68rem',
   /** El radio de las burbujas en móvil (glass-chat.css, max-width 768px): ancho completo, sin cola. */
   bubbleRadiusCompact: '14px',
-  /** Padding vertical de la burbuja en móvil (max-md:py-2.5 en messages/styles.ts). */
+  /** Padding vertical de la burbuja en móvil (py-2.5 bajo la query canónica ≤768 en messages/styles.ts). */
   bubblePadV: '10px',
-  /** Padding horizontal de la burbuja en móvil (max-md:px-3.5). */
+  /** Padding horizontal de la burbuja en móvil (px-3.5 bajo la misma query). */
   bubblePadH: '14px',
   /** La esquina de .fi-aws-toggle y del botón de enviar (.og-send-btn). */
   menuButtonRadius: '10px',

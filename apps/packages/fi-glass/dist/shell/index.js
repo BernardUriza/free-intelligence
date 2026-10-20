@@ -1,6 +1,6 @@
 import {
   ChatFilePreview
-} from "../chunk-L7GECRTI.js";
+} from "../chunk-JK3NSWFZ.js";
 import {
   clearMediaQueryCache,
   useBreakpoints,
@@ -12,7 +12,8 @@ import {
   ensureTouchTargetStyle,
   useTouchTargetStyle,
   withTouchTarget
-} from "../chunk-BR2MRETO.js";
+} from "../chunk-SMPLGG7E.js";
+import "../chunk-HJ2CVNCV.js";
 export {
   ChatFilePreview,
   FI_TOUCH_TARGET_CLASS,

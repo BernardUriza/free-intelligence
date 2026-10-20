@@ -21,7 +21,7 @@ declare const messageStyles: {
         readonly padding: "px-4";
     };
     readonly message: {
-        readonly base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150";
+        readonly base: "group relative py-3 px-4 -mx-4 [@media(max-width:768px)]:py-2.5 [@media(max-width:768px)]:px-3.5 [@media(max-width:768px)]:-mx-3.5 transition-colors duration-150";
         readonly user: "bg-transparent hover:bg-white/[0.02]";
         readonly assistant: "bg-white/[0.02] hover:bg-white/[0.04]";
         readonly borderRadius: "rounded-lg";
@@ -38,10 +38,10 @@ declare const messageStyles: {
         readonly time: "text-[11px] text-slate-500 tabular-nums";
     };
     readonly content: {
-        readonly base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]";
+        readonly base: "text-[14px] leading-relaxed [@media(max-width:768px)]:text-[16px] [@media(max-width:768px)]:leading-[1.5]";
         readonly user: "text-slate-200";
         readonly assistant: "text-slate-100";
-        readonly indent: "pl-8 max-md:pl-0";
+        readonly indent: "pl-8 [@media(max-width:768px)]:pl-0";
     };
     readonly actions: {
         readonly container: "\n      absolute top-2 right-2\n      flex items-center gap-0.5\n      opacity-0 group-hover:opacity-100\n      transition-opacity duration-150\n      bg-slate-800/95 backdrop-blur-sm rounded-md p-0.5\n      border border-slate-700/50 shadow-lg\n    ";

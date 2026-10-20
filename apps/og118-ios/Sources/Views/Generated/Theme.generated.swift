@@ -150,9 +150,9 @@ extension Theme {
     static let itemMetaSize: CGFloat = 11
     /// El radio de las burbujas en móvil (glass-chat.css, max-width 768px): ancho completo, sin cola. (14px)
     static let bubbleRadiusCompact: CGFloat = 14
-    /// Padding vertical de la burbuja en móvil (max-md:py-2.5 en messages/styles.ts). (10px)
+    /// Padding vertical de la burbuja en móvil (py-2.5 bajo la query canónica ≤768 en messages/styles.ts). (10px)
     static let bubblePadV: CGFloat = 10
-    /// Padding horizontal de la burbuja en móvil (max-md:px-3.5). (14px)
+    /// Padding horizontal de la burbuja en móvil (px-3.5 bajo la misma query). (14px)
     static let bubblePadH: CGFloat = 14
     /// La esquina de .fi-aws-toggle y del botón de enviar (.og-send-btn). (10px)
     static let menuButtonRadius: CGFloat = 10

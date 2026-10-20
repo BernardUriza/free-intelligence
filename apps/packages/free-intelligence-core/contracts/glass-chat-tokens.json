@@ -307,11 +307,11 @@
     },
     "bubblePadV": {
       "px": 10,
-      "description": "Padding vertical de la burbuja en móvil (max-md:py-2.5 en messages/styles.ts)."
+      "description": "Padding vertical de la burbuja en móvil (py-2.5 bajo la query canónica ≤768 en messages/styles.ts)."
     },
     "bubblePadH": {
       "px": 14,
-      "description": "Padding horizontal de la burbuja en móvil (max-md:px-3.5)."
+      "description": "Padding horizontal de la burbuja en móvil (px-3.5 bajo la misma query)."
     },
     "menuButtonRadius": {
       "px": 10,
