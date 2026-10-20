@@ -24,7 +24,7 @@
 import type { ChatMessage, MessageImage } from '../chat/message';
 import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
-import { makeUserMessage, foldAssistantTurn } from './transcript';
+import { makeUserMessage, foldAssistantTurn, mergeConversationMessages } from './transcript';
 import { COPY } from '../copy.generated';
 
 /**
@@ -112,6 +112,11 @@ export type ConversationEvent =
   | { type: 'clear_unsent' }
   /** Load a different conversation (or start a fresh one). */
   | { type: 'hydrate'; messages: ChatMessage[] }
+  /**
+   * The server's copy of THIS thread arrived (a worker appended mid-turn). It is
+   * unioned into the live thread; the pending turn is untouched and the merge is not a confirmed turn.
+   */
+  | { type: 'merge_seed'; messages: ChatMessage[] }
   /**
    * The shell CONSUMED the skip: it saw `skipPersist` and declined to persist
    * this change. One-shot — the flag clears so the NEXT confirmed change
@@ -258,6 +263,11 @@ export function applyConversationEvent(
 
     case 'hydrate':
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
+
+    case 'merge_seed': {
+      const messages = mergeConversationMessages(state.messages, event.messages);
+      return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+    }
 
     case 'persist_skip_consumed':
       return state.skipPersist ? { ...state, skipPersist: false } : state;

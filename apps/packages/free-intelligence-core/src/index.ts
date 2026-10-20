@@ -43,7 +43,7 @@ export type {
   TurnNotice,
   UnsentDraft,
 } from './agent/conversation-state';
-export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
+export { makeUserMessage, foldAssistantTurn, mergeConversationMessages } from './agent/transcript';
 export type { AgentHook, AgentSendMeta } from './agent/hook';
 
 // The RAW WIRE frames, generated from the fi-runner contract (the SSOT lives in
