@@ -73,7 +73,8 @@ import {
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
-import type { TurnNotice } from '@free-intelligence/core';
+import type { ConversationEvent, ConversationState, TurnNotice } from '@free-intelligence/core';
+import { mergeConversationMessages } from '../conversation/migrateConversationLibrary';
 
 /** The speaker on the user's side when the app names no other. */
 export const DEFAULT_USER_AUTHOR: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
@@ -114,6 +115,15 @@ const DEFAULT_PERSIST_ERROR =
 
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
+
+/** A server seed that lands mid-turn joins the live thread instead of being dropped; the pending turn is untouched. */
+type ThreadEvent = ConversationEvent | { type: 'merge_seed'; messages: ChatMessage[] };
+
+function applyThreadEvent(state: ConversationState, event: ThreadEvent): ConversationState {
+  if (event.type !== 'merge_seed') return applyConversationEvent(state, event);
+  const messages = mergeConversationMessages(state.messages, event.messages);
+  return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+}
 
 /** Same visible thread by (role, content, timestamp) — cheaper than a deep equal, and what a reload would show. */
 function sameThread(a: ChatMessage[], b: ChatMessage[]): boolean {
@@ -256,10 +266,17 @@ export interface AgentConversation {
    * into the composer.
    */
   clearUnsent: () => void;
+  /**
+   * Whether {@link send} would accept a turn right now — the ONE predicate a
+   * composer gates on. It follows the transport, not {@link isStreaming}: after a
+   * watchdog timeout the transport may still be busy, and `send` would refuse.
+   */
+  canSend: boolean;
   /** Send a message: pushes it optimistically, then drives the agent turn.
    * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
-   * (empty text, ≥1 image) is valid — the picture IS the message. */
-  send: (text: string, images?: MessageImage[]) => void;
+   * (empty text, ≥1 image) is valid — the picture IS the message.
+   * @returns whether the turn went out; a shell clears its composer only on `true`. */
+  send: (text: string, images?: MessageImage[]) => boolean;
   /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
   sendAndAwait: (text: string) => Promise<string>;
   /**
@@ -310,7 +327,7 @@ export function useAgentConversation(
   // binding: refs that dodge stale closures, the effects that observe the
   // transport, the timer, and the persistence I/O.
   const [convo, dispatch] = useReducer(
-    applyConversationEvent,
+    applyThreadEvent,
     undefined,
     () => initialConversationState(initialMessages ?? []),
   );
@@ -414,7 +431,7 @@ export function useAgentConversation(
       const imgs = images && images.length > 0 ? images : undefined;
       // An image-only send is valid (the picture IS the message); a truly empty
       // send is still a no-op.
-      if ((!t && !imgs) || agent.isStreaming) return;
+      if ((!t && !imgs) || agent.isStreaming) return false;
       dispatch({
         type: 'send',
         text: t,
@@ -429,6 +446,7 @@ export function useAgentConversation(
       // BEFORE the optimistic push above (same render's state), so the current
       // message is never duplicated into history.
       void agent.send(t, { history: messagesRef.current, ...(imgs ? { images: imgs } : {}) });
+      return true;
     },
     [agent, controlled],
   );
@@ -444,7 +462,7 @@ export function useAgentConversation(
       return new Promise<string>((resolve, reject) => {
         abandonAwaited('superseded by a newer turn');
         awaitResolver.current = { resolve, reject };
-        send(t);
+        if (!send(t)) abandonAwaited('the turn could not be sent');
       });
     },
     [agent.isStreaming, send, abandonAwaited],
@@ -535,9 +553,11 @@ export function useAgentConversation(
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
-      // A seed bump mid-turn would drop the optimistic message under the fold;
-      // the next poll picks the change up once the turn settles.
-      if (convoRef.current.pending) return;
+      // Mid-turn the live thread is the source; merge the seed in or the next persist overwrites it.
+      if (convoRef.current.pending) {
+        dispatch({ type: 'merge_seed', messages: seed });
+        return;
+      }
       // The consumer's own persist echoes back as a bump; same thread, no work.
       if (sameThread(seed, convoRef.current.messages)) return;
     }
@@ -585,6 +605,7 @@ export function useAgentConversation(
     turn: agent.turn,
     author,
     isStreaming: agent.isStreaming && !timedOut,
+    canSend: !agent.isStreaming,
     turnError,
     turnNotice,
     dismissNotice,

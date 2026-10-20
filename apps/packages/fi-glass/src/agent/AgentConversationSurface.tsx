@@ -78,6 +78,7 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
     retryPersist,
     dismissPersistError,
     send,
+    canSend,
     stop,
     retry,
     dismissError,
@@ -129,11 +130,12 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
 
   const onSend = () => {
     const t = input.trim();
+    if (imageAttachments && images.encoding) return;
     const attached = imageAttachments ? images.toMessageImages() : [];
     if (!t && attached.length === 0) return;
+    if (!send(t, attached.length > 0 ? attached : undefined)) return;
     setInput('');
     images.clear();
-    send(t, attached.length > 0 ? attached : undefined);
   };
 
   return (
@@ -164,7 +166,8 @@ export function AgentConversationSurface(props: AgentConversationSurfaceProps) {
           onSend,
           canSend:
             (input.trim().length > 0 || (imageAttachments && images.drafts.length > 0)) &&
-            !isStreaming,
+            !(imageAttachments && images.encoding) &&
+            canSend,
           inputRef,
           dictation,
           isStreaming,

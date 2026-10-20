@@ -200,6 +200,20 @@ describe('useAgentConversation — user stop (COMPOSER-FOOTER-ZONES-1)', () => {
     expect(msgs.filter((m) => m.role === 'assistant')).toHaveLength(0);
     expect(ref.current!.turnError).toBeNull();
   });
+
+  it('saves the question when stopped before the first token (FIGLASS-STATE-RESIDUALS-1 #6)', () => {
+    const { hook, state } = makeFakeAgent();
+    const onMessagesChange = vi.fn();
+    const { ref, rerender } = mountConversation(hook, { onMessagesChange });
+    act(() => { ref.current!.send('hola'); });
+    rerender();
+    act(() => { ref.current!.stop!(); });
+    state.isStreaming = false;
+    rerender();
+
+    const saved = onMessagesChange.mock.calls.at(-1)?.[0] as ChatMessage[] | undefined;
+    expect(saved?.map((m) => [m.role, m.content])).toEqual([['user', 'hola']]);
+  });
 });
 
 describe('useAgentConversation — turn failure recovery (B3-FIGLASS-8)', () => {
