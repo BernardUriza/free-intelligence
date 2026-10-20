@@ -67,10 +67,23 @@ la respuesta tardía, no un bug. Que los ~3 s fueran eventos de `focus` del cond
 hipótesis sin probar. Para cerrarla: la misma captura con un elemento externo y sin tocar la pestaña
 mientras corre.
 
-**Abierto — iOS y web guardan el hilo fusionado en distinto orden (2026-10-19, visto en #565).**
-La web guarda el hilo unido ordenado por timestamp (`mergeConversationMessages` de core); iOS
-(`ConversationRecord.fusionar`) guarda primero el orden del record vivo y agrega los mensajes
-locales nuevos al final. Si el mensaje del worker es más nuevo que el del usuario, los dos clientes
-persisten órdenes distintos. Los vectores de `conversation-state` comparan qué se guarda, no en qué
-orden. Para cerrarlo: un vector con un append del servidor más nuevo que el envío, que exija el
-orden de `saved`, rojo en el arnés iOS antes de alinear `fusionar` a core.
+**Hecho 2026-10-19 — iOS y web guardaban el hilo fusionado en distinto orden (visto en #565).**
+La web guarda el hilo de `conversation-state` (envío optimista, `merge_seed` ordenado por timestamp con
+`mergeConversationMessages`, fold al final); iOS (`ConversationRecord.fusionar`) guardaba el record vivo
+primero y los mensajes locales nuevos al final, así que un mensaje del worker más nuevo que el envío
+quedaba ANTES de la pregunta en lo que guardaba el teléfono.
+
+- Vector nuevo en `contracts/conversation-state.vectors.json`: *un append del servidor más nuevo que el
+  envío se guarda en el orden del hilo, no al final del record* (worker en `2999-…`, declara `saved`).
+  Los dos conformers comparan `saved` en orden (vitest `toEqual` sobre arrays; el arnés compara el JSON
+  canónico con arrays en orden). El arnés iOS ahora hace que `merge_seed` actualice la copia del
+  servidor que `restore` devuelve: es lo que el save relee antes del PUT, y sin eso el vector no podía
+  ver el bug.
+- **Rojo** en el arnés iOS antes del fix (`1 FALLARON`: `saved` = ayer, te contesté, *el reporte…*,
+  hola, respuesta); verde en core desde el primer momento (core es la referencia).
+- Fix: `fusionar` arma el hilo con la regla de core reusando `ChatMessage.unir` (generalizado a pares
+  mensaje/persistido): orden del hilo local, y lo que sólo trae el vivo entra por timestamp, estable;
+  los mensajes del vivo se re-escriben verbatim. `elAppendDelServidorNoSeDuplicaAlGuardar` sigue verde y
+  ahora además exige el orden completo (*y en el orden del hilo, como lo guarda la web*).
+- Verde: arnés iOS `TODO VERDE` (receta de `pr-gate.yml`), core `vitest run` 174/174, `tsc --noEmit`.
+  Core src no cambió (sólo el JSON del contrato): sin rebuild de dist.

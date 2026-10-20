@@ -433,6 +433,103 @@
       }
     },
     {
+      "name": "un append del servidor más nuevo que el envío se guarda en el orden del hilo, no al final del record",
+      "ops": [
+        {
+          "op": "hydrate",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            }
+          ]
+        },
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "merge_seed",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "el reporte que pediste ya quedó",
+              "timestamp": "2999-01-01T00:00:00.000Z"
+            }
+          ]
+        },
+        {
+          "op": "settled",
+          "text": "respuesta"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "el reporte que pediste ya quedó"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hola",
+        "saved": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "el reporte que pediste ya quedó"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ]
+      }
+    },
+    {
       "name": "una semilla del servidor sin nada nuevo no duplica ni cambia el hilo",
       "ops": [
         {
