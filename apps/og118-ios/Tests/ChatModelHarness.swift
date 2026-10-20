@@ -377,7 +377,10 @@ private func cancelarNoPersisteRespuestaAMedias() async {
     await settle()
 
     expect(model.messages.filter { $0.role == .assistant }.isEmpty, "no queda respuesta a medias")
-    expect(guardados.isEmpty, "y NO se persistió nada del turno cancelado")
+    expect(
+        guardados.last?.messages.map(\.content) == ["pregunta larga"],
+        "lo guardado es la pregunta sola, sin la respuesta a medias"
+    )
 
     model.send("segunda")
     await settle()
@@ -1641,14 +1644,21 @@ private func desenlace(_ op: [String: Any], falla: Bool) -> DesenlaceDelTurno {
     return .eventos([.open, .text(parcial), .failure(op["message"] as? String ?? "error"), .done])
 }
 
+/// `saved` sólo se proyecta cuando el vector lo declara; entonces se mide, nunca se salta.
 @MainActor
-private func proyeccionDelHilo(_ model: ChatModel) -> [String: Any] {
-    [
+private func proyeccionDelHilo(_ model: ChatModel, guardado: ConversationRecord?, esperado: Any?) -> [String: Any] {
+    var proyeccion: [String: Any] = [
         "messages": model.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] },
         "failure": model.errorMessage == nil ? NSNull() : (model.tipoDeFalla == .vacio ? "empty" : "stream"),
         "unsentText": model.borradorNoEnviado?.texto ?? NSNull(),
         "lastSentText": model.ultimoEnvio?.texto ?? NSNull()
     ]
+    if (esperado as? [String: Any])?["saved"] != nil {
+        proyeccion["saved"] = guardado.map { r in
+            r.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] }
+        } ?? NSNull()
+    }
+    return proyeccion
 }
 
 @MainActor
@@ -1680,10 +1690,11 @@ private func losVectoresDelHiloSeCumplen() async {
             )
         }
         let registro = semilla
+        var guardado: ConversationRecord?
         let model = ChatModel(
             conversationID: "v",
             stream: stream,
-            persist: { _ in },
+            persist: { guardado = $0 },
             restore: { _ in registro },
             pausa: {}
         )
@@ -1720,8 +1731,9 @@ private func losVectoresDelHiloSeCumplen() async {
             }
             i += 1
         }
+        await settle()
         let esperado = canonico(vector["expect"] ?? NSNull())
-        let visto = canonico(proyeccionDelHilo(model))
+        let visto = canonico(proyeccionDelHilo(model, guardado: guardado, esperado: vector["expect"]))
         expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
     }
 }

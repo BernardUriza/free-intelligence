@@ -78,12 +78,32 @@ function aplicar(state: ConversationState, op: Op): ConversationState {
   }
 }
 
-function proyectar(s: ConversationState) {
+interface Corrida {
+  state: ConversationState;
+  saved: ChatMessage[] | null;
+}
+
+/** The shell's persist effect: a changed thread is saved unless the state says skip (consumed once). */
+function aplicarComoShell(corrida: Corrida, op: Op): Corrida {
+  const next = aplicar(corrida.state, op);
+  if (next.messages === corrida.state.messages) return { ...corrida, state: next };
+  if (next.skipPersist) {
+    return { ...corrida, state: applyConversationEvent(next, { type: 'persist_skip_consumed' }) };
+  }
+  return { state: next, saved: next.messages };
+}
+
+const rolYTexto = (m: ChatMessage) => ({ role: m.role, content: m.content });
+
+function proyectar({ state: s, saved }: Corrida, expected: unknown) {
   return {
-    messages: s.messages.map((m) => ({ role: m.role, content: m.content })),
+    messages: s.messages.map(rolYTexto),
     failure: s.failure?.kind ?? null,
     unsentText: s.unsent.text,
     lastSentText: s.lastSent?.text ?? null,
+    ...(expected && typeof expected === 'object' && 'saved' in expected
+      ? { saved: saved ? saved.map(rolYTexto) : null }
+      : {}),
   };
 }
 
@@ -94,8 +114,8 @@ describe('conversation-state.vectors.json', () => {
   });
   for (const v of contrato.vectors) {
     it(v.name, () => {
-      const estado = v.ops.reduce(aplicar, initialConversationState());
-      expect(proyectar(estado)).toEqual(v.expect);
+      const corrida = v.ops.reduce(aplicarComoShell, { state: initialConversationState(), saved: null });
+      expect(proyectar(corrida, v.expect)).toEqual(v.expect);
     });
   }
 });

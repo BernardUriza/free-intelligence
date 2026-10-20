@@ -257,10 +257,13 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// Parar no es fallar: la pregunta se queda en pantalla, y por eso se guarda.
     func cancel() {
+        let estabaEnVuelo = isStreaming
         turn?.cancel()
         turn = nil
         discardLiveTurn()
+        if estabaEnVuelo { save() }
     }
 
     /// Un turno cancelado NO deja respuesta. Persistir el texto a medias lo

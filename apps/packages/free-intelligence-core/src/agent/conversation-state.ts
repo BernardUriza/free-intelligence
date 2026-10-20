@@ -203,7 +203,9 @@ export function applyConversationEvent(
         if (event.turn.deferred) {
           return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
         }
-        if (event.controlled || event.stopped) return base;
+        if (event.controlled) return base;
+        // A stop leaves the question on screen, so it is saved: a fresh array lets a thread-keyed shell see it.
+        if (event.stopped) return { ...base, messages: [...state.messages], skipPersist: false };
         // Silence is not an answer: a turn that said nothing and made no gesture
         // left the user's message hanging with no sign of what happened.
         return {
