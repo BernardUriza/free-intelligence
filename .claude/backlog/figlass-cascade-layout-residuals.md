@@ -51,4 +51,5 @@ Hecho el 2026-10-09 (test `theme/cascadeContract.test.ts`, 6 de 6 rojos sobre ma
 | 768.8 | fix | no | sidebar 280px | 14px | 32px | 12px 16px |
 
   Evidencia: `evidence/figlass-cascade-layout-3-{before-768,after-767,after-768,after-769}-2026-10-19.jpg`.
+- **Producción** (app.og118.ai, build `29c0e50`, Chrome a zoom 100%, conversación real): 390 touch → drawer, 16px, indent 0, fila `10px 14px`, texto a 336px; 767 → drawer, 16px, 0; **768 → drawer, 16px, 0, `10px 14px`**; 769 → sidebar 280px, 14px, 32px, `12px 16px`. Evidencia: `evidence/figlass-cascade-layout-3-prod-{390,768}-2026-10-19.jpg`.
 - Abierto: aurity (Tailwind v4, legado) no escanea el dist de fi-glass en absoluto; no se ejecuta ni despliega.
