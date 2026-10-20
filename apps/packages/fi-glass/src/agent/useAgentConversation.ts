@@ -73,8 +73,7 @@ import {
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
-import type { ConversationEvent, ConversationState, TurnNotice } from '@free-intelligence/core';
-import { mergeConversationMessages } from '../conversation/migrateConversationLibrary';
+import type { TurnNotice } from '@free-intelligence/core';
 
 /** The speaker on the user's side when the app names no other. */
 export const DEFAULT_USER_AUTHOR: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
@@ -115,15 +114,6 @@ const DEFAULT_PERSIST_ERROR =
 
 /** Default idle watchdog: a turn with no state change for this long is hung. */
 export const DEFAULT_TURN_TIMEOUT_MS = 60_000;
-
-/** A server seed that lands mid-turn joins the live thread instead of being dropped; the pending turn is untouched. */
-type ThreadEvent = ConversationEvent | { type: 'merge_seed'; messages: ChatMessage[] };
-
-function applyThreadEvent(state: ConversationState, event: ThreadEvent): ConversationState {
-  if (event.type !== 'merge_seed') return applyConversationEvent(state, event);
-  const messages = mergeConversationMessages(state.messages, event.messages);
-  return messages === state.messages ? state : { ...state, messages, skipPersist: true };
-}
 
 /** Same visible thread by (role, content, timestamp) — cheaper than a deep equal, and what a reload would show. */
 function sameThread(a: ChatMessage[], b: ChatMessage[]): boolean {
@@ -327,7 +317,7 @@ export function useAgentConversation(
   // binding: refs that dodge stale closures, the effects that observe the
   // transport, the timer, and the persistence I/O.
   const [convo, dispatch] = useReducer(
-    applyThreadEvent,
+    applyConversationEvent,
     undefined,
     () => initialConversationState(initialMessages ?? []),
   );
