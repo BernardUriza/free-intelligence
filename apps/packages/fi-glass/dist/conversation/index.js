@@ -187,17 +187,9 @@ var RemoteConversationLibrary = class _RemoteConversationLibrary {
 // src/conversation/migrateConversationLibrary.ts
 import {
   deriveConversationPreview,
+  mergeConversationMessages,
   resolveConversationTitle
 } from "@free-intelligence/core";
-function messageKey(message) {
-  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
-}
-function mergeConversationMessages(target, source) {
-  const known = new Set(target.map(messageKey));
-  const missing = source.filter((m) => !known.has(messageKey(m)));
-  if (missing.length === 0) return target;
-  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
-}
 function mergeConversationRecords(target, source) {
   const messages = mergeConversationMessages(target.messages, source.messages);
   if (messages === target.messages) return target;

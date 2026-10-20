@@ -382,31 +382,9 @@ import {
   initialConversationState,
   foldAssistantTurn
 } from "@free-intelligence/core";
-
-// src/conversation/migrateConversationLibrary.ts
-import {
-  deriveConversationPreview,
-  resolveConversationTitle
-} from "@free-intelligence/core";
-function messageKey(message) {
-  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
-}
-function mergeConversationMessages(target, source) {
-  const known = new Set(target.map(messageKey));
-  const missing = source.filter((m) => !known.has(messageKey(m)));
-  if (missing.length === 0) return target;
-  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
-}
-
-// src/agent/useAgentConversation.ts
 var DEFAULT_USER_AUTHOR = { id: "user", name: "T\xFA", symbol: "T\xFA" };
 var DEFAULT_PERSIST_ERROR = "No se pudo guardar esta conversaci\xF3n. Sigue en pantalla, pero podr\xEDas perderla al recargar.";
 var DEFAULT_TURN_TIMEOUT_MS = 6e4;
-function applyThreadEvent(state, event) {
-  if (event.type !== "merge_seed") return applyConversationEvent(state, event);
-  const messages = mergeConversationMessages(state.messages, event.messages);
-  return messages === state.messages ? state : { ...state, messages, skipPersist: true };
-}
 function sameThread(a, b) {
   if (a.length !== b.length) return false;
   return a.every((m, i) => {
@@ -429,7 +407,7 @@ function useAgentConversation(agent, options) {
   } = options;
   const controlled = externalMessages !== void 0;
   const [convo, dispatch] = useReducer(
-    applyThreadEvent,
+    applyConversationEvent,
     void 0,
     () => initialConversationState(initialMessages ?? [])
   );

@@ -304,6 +304,15 @@ function foldAssistantTurn(turn, defaultAuthor) {
     ...turn.reactions.length > 0 ? { reactions: turn.reactions } : {}
   };
 }
+function messageKey(message) {
+  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
+}
+function mergeConversationMessages(target, source) {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
+}
 
 // src/agent/conversation-state.ts
 function deferredNotice(author) {
@@ -412,6 +421,10 @@ function applyConversationEvent(state, event) {
       return state.unsent.text === null && state.unsent.images === null ? state : { ...state, unsent: NO_DRAFT };
     case "hydrate":
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
+    case "merge_seed": {
+      const messages = mergeConversationMessages(state.messages, event.messages);
+      return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+    }
     case "persist_skip_consumed":
       return state.skipPersist ? { ...state, skipPersist: false } : state;
     default:
@@ -613,6 +626,7 @@ export {
   initialAgentTurnState,
   initialConversationState,
   makeUserMessage,
+  mergeConversationMessages,
   organizeConversationSummaries,
   renameConversationRecord,
   resolveConversationTitle,

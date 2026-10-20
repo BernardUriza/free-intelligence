@@ -19,7 +19,7 @@ import {
 } from './conversation-state';
 
 interface Op {
-  op: 'send' | 'settled' | 'failed' | 'retry' | 'hydrate' | 'dismiss_failure' | 'clear_unsent';
+  op: 'send' | 'settled' | 'failed' | 'retry' | 'hydrate' | 'merge_seed' | 'dismiss_failure' | 'clear_unsent';
   text?: string;
   reactions?: string[];
   deferred?: boolean;
@@ -71,10 +71,14 @@ function aplicar(state: ConversationState, op: Op): ConversationState {
       return applyConversationEvent(state, { type: 'turn_failed', message: op.message, controlled: false });
     case 'hydrate':
       return applyConversationEvent(state, { type: 'hydrate', messages: op.messages ?? [] });
+    case 'merge_seed':
+      return applyConversationEvent(state, { type: 'merge_seed', messages: op.messages ?? [] });
     case 'dismiss_failure':
       return applyConversationEvent(state, { type: 'dismiss_failure' });
     case 'clear_unsent':
       return applyConversationEvent(state, { type: 'clear_unsent' });
+    default:
+      throw new Error(`op desconocido en el vector: ${(op as { op: string }).op}`);
   }
 }
 

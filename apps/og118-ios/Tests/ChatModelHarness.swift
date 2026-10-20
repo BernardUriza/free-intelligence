@@ -747,6 +747,7 @@ struct Harness {
         await losVectoresDelTurnoSeCumplen()
         await losVectoresDeDerivacionesSeCumplen()
         await losVectoresDelHiloSeCumplen()
+        await elAppendDelServidorNoSeDuplicaAlGuardar()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -1567,7 +1568,7 @@ private func contrato(_ nombre: String) -> [[String: Any]]? {
 private func mensajes(_ crudos: Any?) -> [ChatMessage] {
     (crudos as? [[String: Any]] ?? []).compactMap { m in
         guard let rol = ChatMessage.Role(rawValue: m["role"] as? String ?? "") else { return nil }
-        return ChatMessage(role: rol, content: m["content"] as? String ?? "")
+        return ChatMessage(role: rol, content: m["content"] as? String ?? "", timestamp: m["timestamp"] as? String)
     }
 }
 
@@ -1606,7 +1607,7 @@ private func losVectoresDeDerivacionesSeCumplen() async {
                 "archived": modelo.archived.map(\.id)
             ] as [String: Any]
         default:
-            break
+            expect(false, "\(nombre): kind desconocido «\(vector["kind"] as? String ?? "?")» — el arnés no lo implementa")
         }
         let esperado = canonico(vector["expect"] ?? NSNull())
         let visto = canonico(actual)
@@ -1627,12 +1628,26 @@ private func eventosDeDesenlace(_ op: [String: Any]) -> [StreamEvent] {
     return eventos
 }
 
-/// Cómo termina el stream de un vector: con frames, tronando el transporte, o
-/// colgado hasta que el usuario lo para (`stopped`).
-private enum DesenlaceDelTurno {
+/// Cómo termina el stream de un vector: con frames, tronando el transporte,
+/// colgado hasta que el usuario lo para (`stopped`), o retenido abierto hasta
+/// que el arnés aplica lo que llega a mitad del turno (`merge_seed`).
+private indirect enum DesenlaceDelTurno {
     case eventos([StreamEvent])
     case falla
     case colgado
+    case retenido(DesenlaceDelTurno)
+}
+
+private func alimentar(_ c: AsyncThrowingStream<StreamEvent, Error>.Continuation, _ desenlace: DesenlaceDelTurno) {
+    switch desenlace {
+    case .falla:
+        c.finish(throwing: Og118Error.unauthorized)
+    case .colgado, .retenido:
+        c.yield(.open)
+    case .eventos(let eventos):
+        for e in eventos { c.yield(e) }
+        c.finish()
+    }
 }
 
 /// Sin texto parcial la falla es un transporte que truena; con texto parcial es
@@ -1669,18 +1684,12 @@ private func losVectoresDelHiloSeCumplen() async {
         let nombre = vector["name"] as? String ?? "?"
         let ops = vector["ops"] as? [[String: Any]] ?? []
         var cola: [DesenlaceDelTurno] = []
+        var enVuelo: (AsyncThrowingStream<StreamEvent, Error>.Continuation, DesenlaceDelTurno)?
         let stream: ChatModel.Stream = { _, _, _, _, _, _ in
             let siguiente: DesenlaceDelTurno = cola.isEmpty ? .eventos([]) : cola.removeFirst()
             return AsyncThrowingStream { c in
-                switch siguiente {
-                case .falla:
-                    c.finish(throwing: Og118Error.unauthorized)
-                case .colgado:
-                    c.yield(.open)
-                case .eventos(let eventos):
-                    for e in eventos { c.yield(e) }
-                    c.finish()
-                }
+                if case .retenido(let despues) = siguiente { enVuelo = (c, despues) }
+                alimentar(c, siguiente)
             }
         }
         var semilla: ConversationRecord?
@@ -1699,16 +1708,35 @@ private func losVectoresDelHiloSeCumplen() async {
             pausa: {}
         )
         await model.restoreThread()
+        func operar(_ op: [String: Any], en indice: Int) {
+            switch op["op"] as? String ?? "" {
+            case "hydrate":
+                expect(indice == 0, "\(nombre): hydrate sólo abre el vector (el arnés lo restaura)")
+            case "merge_seed":
+                model.unirHiloDelServidor(mensajes(op["messages"]))
+            case "dismiss_failure":
+                model.errorMessage = nil
+            case "clear_unsent":
+                model.borradorRestaurado()
+            default:
+                expect(false, "\(nombre): op desconocido «\(op["op"] as? String ?? "?")» — el arnés no lo implementa")
+            }
+        }
         var i = 0
         while i < ops.count {
             let op = ops[i]
             switch op["op"] as? String ?? "" {
             case "send", "retry":
                 var parado = false
-                if i + 1 < ops.count, let sig = ops[i + 1]["op"] as? String, sig == "settled" || sig == "failed" {
-                    parado = ops[i + 1]["stopped"] as? Bool == true
-                    cola.append(desenlace(ops[i + 1], falla: sig == "failed"))
-                    i += 1
+                var aMitad: [[String: Any]] = []
+                var j = i + 1
+                while j < ops.count, ops[j]["op"] as? String == "merge_seed" { j += 1 }
+                if j < ops.count, let sig = ops[j]["op"] as? String, sig == "settled" || sig == "failed" {
+                    parado = ops[j]["stopped"] as? Bool == true
+                    aMitad = Array(ops[(i + 1)..<j])
+                    let final = desenlace(ops[j], falla: sig == "failed")
+                    cola.append(aMitad.isEmpty ? final : .retenido(final))
+                    i = j
                 } else {
                     cola.append(.eventos([]))
                 }
@@ -1718,16 +1746,18 @@ private func losVectoresDelHiloSeCumplen() async {
                     model.reintentar()
                 }
                 await settle()
+                if !aMitad.isEmpty {
+                    for (k, intermedia) in aMitad.enumerated() { operar(intermedia, en: i - aMitad.count + k) }
+                    if let (c, despues) = enVuelo { alimentar(c, despues) }
+                    enVuelo = nil
+                    await settle()
+                }
                 if parado {
                     model.cancel()
                     await settle()
                 }
-            case "dismiss_failure":
-                model.errorMessage = nil
-            case "clear_unsent":
-                model.borradorRestaurado()
             default:
-                break
+                operar(op, en: i)
             }
             i += 1
         }
@@ -1736,4 +1766,42 @@ private func losVectoresDelHiloSeCumplen() async {
         let visto = canonico(proyeccionDelHilo(model, guardado: guardado, esperado: vector["expect"]))
         expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
     }
+}
+
+@MainActor
+private func elAppendDelServidorNoSeDuplicaAlGuardar() async {
+    print("el mensaje del worker que ya está en el servidor no se re-sube al guardar el turno")
+    let ayer = [
+        ChatMessage(role: .user, content: "ayer", timestamp: "2020-01-01T00:00:00Z"),
+        ChatMessage(role: .assistant, content: "te contesté", timestamp: "2020-01-01T00:00:01Z")
+    ]
+    let worker = ChatMessage(role: .assistant, content: "listo el reporte", timestamp: "2999-01-01T00:00:00Z")
+    let base = ConversationRecord.from(id: "w", messages: ayer, createdAt: "2020-01-01T00:00:00Z", now: "2020-01-01T00:00:01Z")
+    let vivo = ConversationRecord.from(id: "w", messages: ayer + [worker], createdAt: "2020-01-01T00:00:00Z", now: "2999-01-01T00:00:00Z")
+    var servidor = base
+    var guardado: ConversationRecord?
+    var turno: AsyncThrowingStream<StreamEvent, Error>.Continuation?
+    let model = ChatModel(
+        conversationID: "w",
+        stream: { _, _, _, _, _, _ in AsyncThrowingStream { c in c.yield(.open); turno = c } },
+        persist: { guardado = $0 },
+        restore: { _ in servidor },
+        now: { "2026-10-19T00:00:00Z" },
+        pausa: {}
+    )
+    await model.restoreThread()
+    model.send("hola")
+    await settle()
+    servidor = vivo
+    model.unirHiloDelServidor(vivo.chatMessages)
+    expect(model.isStreaming, "unir el hilo del servidor no toca el turno en vuelo")
+    expect(model.messages.map(\.content) == ["ayer", "te contesté", "hola", "listo el reporte"],
+           "el mensaje del worker se ordena por timestamp (\(model.messages.map(\.content)))")
+    turno?.yield(.text("respuesta"))
+    turno?.yield(.done)
+    turno?.finish()
+    await settle()
+    let contenidos = guardado?.messages.map(\.content) ?? []
+    expect(contenidos.filter { $0 == "listo el reporte" }.count == 1, "el worker queda UNA vez en lo guardado (\(contenidos))")
+    expect(contenidos.contains("hola") && contenidos.last == "respuesta", "y el turno se guarda completo (\(contenidos))")
 }

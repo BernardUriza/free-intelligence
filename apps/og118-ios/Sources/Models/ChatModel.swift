@@ -204,6 +204,12 @@ final class ChatModel: ObservableObject {
         baseRecord = record
     }
 
+    /// La copia del servidor de ESTE hilo llegó (un worker agregó a mitad del
+    /// turno): se une al hilo vivo sin tocar el turno en vuelo — core `merge_seed`.
+    func unirHiloDelServidor(_ servidor: [ChatMessage]) {
+        if let unidos = ChatMessage.unir(messages, servidor) { messages = unidos }
+    }
+
     /// Un envío de sólo imagen es válido —la foto ES el mensaje—, como en la web.
     func send(_ text: String, images: [MessageImage] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

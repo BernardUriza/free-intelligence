@@ -1,5 +1,5 @@
 {
-  "$comment": "Contrato de COMPORTAMIENTO del hilo alrededor de un turno: envío optimista, fold, falla con borrador devuelto, reintento, hidratación, y el turno VACÍO como falla (el silencio no es respuesta). `saved` (opcional) es el último hilo que el shell guardó: un vector que lo declara obliga a todo conformer a medirlo. Escrito a mano; core (src/agent/conversation-state-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen.",
+  "$comment": "Contrato de COMPORTAMIENTO del hilo alrededor de un turno: envío optimista, fold, falla con borrador devuelto, reintento, hidratación, y el turno VACÍO como falla (el silencio no es respuesta). `merge_seed` es el hilo del servidor que llega a mitad del turno (un mensaje `origin: background` del worker): se une por (role, timestamp, content), ordenado por timestamp, sin tocar el turno pendiente. `saved` (opcional) es el último hilo que el shell guardó: un vector que lo declara obliga a todo conformer a medirlo. Escrito a mano; core (src/agent/conversation-state-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen.",
   "version": 1,
   "vectors": [
     {
@@ -331,6 +331,187 @@
           {
             "role": "user",
             "content": "hola"
+          }
+        ]
+      }
+    },
+    {
+      "name": "un append del servidor a mitad del turno se une al hilo y se guarda con el turno",
+      "ops": [
+        {
+          "op": "hydrate",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            }
+          ]
+        },
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "merge_seed",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "el reporte que pediste ya quedó",
+              "timestamp": "2020-01-01T00:00:02.000Z"
+            }
+          ]
+        },
+        {
+          "op": "settled",
+          "text": "respuesta"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "assistant",
+            "content": "el reporte que pediste ya quedó"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hola",
+        "saved": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "assistant",
+            "content": "el reporte que pediste ya quedó"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ]
+      }
+    },
+    {
+      "name": "una semilla del servidor sin nada nuevo no duplica ni cambia el hilo",
+      "ops": [
+        {
+          "op": "hydrate",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            }
+          ]
+        },
+        {
+          "op": "send",
+          "text": "hola"
+        },
+        {
+          "op": "merge_seed",
+          "messages": [
+            {
+              "role": "user",
+              "content": "ayer",
+              "timestamp": "2020-01-01T00:00:00.000Z"
+            },
+            {
+              "role": "assistant",
+              "content": "te contesté",
+              "timestamp": "2020-01-01T00:00:01.000Z"
+            }
+          ]
+        },
+        {
+          "op": "settled",
+          "text": "respuesta"
+        }
+      ],
+      "expect": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
+          }
+        ],
+        "failure": null,
+        "unsentText": null,
+        "lastSentText": "hola",
+        "saved": [
+          {
+            "role": "user",
+            "content": "ayer"
+          },
+          {
+            "role": "assistant",
+            "content": "te contesté"
+          },
+          {
+            "role": "user",
+            "content": "hola"
+          },
+          {
+            "role": "assistant",
+            "content": "respuesta"
           }
         ]
       }

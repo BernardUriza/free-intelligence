@@ -151,7 +151,8 @@ extension ConversationRecord {
             return from(id: id, messages: locales, createdAt: createdAt, now: now, base: base)
         }
         let previos = base?.messages.count ?? 0
-        let nuevos = Array(locales.dropFirst(min(previos, locales.count)))
+        let enVivo = Set(vivo.chatMessages.map(\.claveDeHilo))
+        let nuevos = locales.dropFirst(min(previos, locales.count)).filter { !enVivo.contains($0.claveDeHilo) }
         let todos = vivo.chatMessages + nuevos
         let customTitle = vivo.titleCustom == true ? vivo.title : nil
         return ConversationRecord(

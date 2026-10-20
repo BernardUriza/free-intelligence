@@ -301,3 +301,20 @@ describe('a deferred turn — the engine kept working past the live wait', () =>
     expect(s.failure?.kind).toBe('empty');
   });
 });
+
+describe('merge_seed', () => {
+  const server = (content: string, timestamp: string) => ({ id: content, role: 'assistant' as const, content, timestamp });
+
+  it('unions the server thread into a pending turn without settling it', () => {
+    const sent = send(initialConversationState(), 'hola');
+    const next = applyConversationEvent(sent, { type: 'merge_seed', messages: [server('bg', '2020-01-01T00:00:00.000Z')] });
+    expect(next.pending).toBe(true);
+    expect(next.skipPersist).toBe(true);
+    expect(next.messages.map((m) => m.content)).toEqual(['bg', 'hola']);
+  });
+
+  it('returns the same state when the seed adds nothing', () => {
+    const sent = send(initialConversationState(), 'hola');
+    expect(applyConversationEvent(sent, { type: 'merge_seed', messages: [...sent.messages] })).toBe(sent);
+  });
+});

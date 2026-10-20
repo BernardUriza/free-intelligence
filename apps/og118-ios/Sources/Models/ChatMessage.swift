@@ -38,3 +38,25 @@ struct ChatMessage: Identifiable, Encodable {
         case content
     }
 }
+
+extension ChatMessage {
+    /// Lo que una recarga muestra: el id no viaja al servidor, así que dos copias
+    /// del mismo mensaje se reconocen por (role, timestamp, content).
+    var claveDeHilo: String {
+        "\(role.rawValue)\u{0}\(timestamp ?? "")\u{0}\(content)"
+    }
+
+    /// core `mergeConversationMessages`: todo `destino` más lo que sólo `fuente`
+    /// tiene, ordenado por timestamp (estable en empates); nil si no agrega nada.
+    static func unir(_ destino: [ChatMessage], _ fuente: [ChatMessage]) -> [ChatMessage]? {
+        let conocidos = Set(destino.map(\.claveDeHilo))
+        let faltan = fuente.filter { !conocidos.contains($0.claveDeHilo) }
+        guard !faltan.isEmpty else { return nil }
+        return (destino + faltan).enumerated()
+            .sorted { a, b in
+                let ta = a.element.timestamp ?? "", tb = b.element.timestamp ?? ""
+                return ta != tb ? ta < tb : a.offset < b.offset
+            }
+            .map(\.element)
+    }
+}
