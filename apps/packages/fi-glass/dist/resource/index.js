@@ -785,7 +785,7 @@ function ResourceListRow({ title, meta, onSelect, className }) {
     "button",
     {
       type: "button",
-      className: className ? `${FI_LIST_ROW_CLASS} ${className}` : FI_LIST_ROW_CLASS,
+      className: withTouchTarget(className ? `${FI_LIST_ROW_CLASS} ${className}` : FI_LIST_ROW_CLASS),
       onClick: onSelect,
       children: [
         /* @__PURE__ */ jsx8("span", { className: FI_LIST_ROW_TITLE_CLASS, children: title }),

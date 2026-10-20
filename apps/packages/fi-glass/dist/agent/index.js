@@ -614,79 +614,6 @@ function useAgentConversation(agent, options) {
   };
 }
 
-// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
-var TONES = {
-  error: { border: "rgba(248,113,113,0.35)", background: "rgba(248,113,113,0.08)", text: "#fca5a5" },
-  info: { border: "rgba(96,165,250,0.35)", background: "rgba(96,165,250,0.08)", text: "#93c5fd" }
-};
-var BUTTON_STYLE = {
-  padding: "0.35rem 0.75rem",
-  borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.2)",
-  background: "transparent",
-  color: "#e2e8f0",
-  fontSize: "0.8rem",
-  cursor: "pointer"
-};
-function TurnErrorBanner({
-  error,
-  onRetry,
-  onDismiss,
-  tone = "error",
-  className,
-  retryLabel = "Reintentar",
-  dismissLabel = "Descartar",
-  retryButtonClassName,
-  dismissButtonClassName
-}) {
-  const colors = TONES[tone];
-  return /* @__PURE__ */ jsxs5(
-    "div",
-    {
-      role: tone === "info" ? "status" : "alert",
-      className,
-      style: {
-        marginTop: "1rem",
-        padding: "0.75rem 1rem",
-        borderRadius: 10,
-        border: `1px solid ${colors.border}`,
-        background: colors.background,
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: "0.75rem"
-      },
-      children: [
-        /* @__PURE__ */ jsx5("span", { style: { color: colors.text, fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
-        onRetry && /* @__PURE__ */ jsx5(
-          "button",
-          {
-            type: "button",
-            onClick: onRetry,
-            className: retryButtonClassName,
-            style: retryButtonClassName ? void 0 : BUTTON_STYLE,
-            children: retryLabel
-          }
-        ),
-        /* @__PURE__ */ jsx5(
-          "button",
-          {
-            type: "button",
-            onClick: onDismiss,
-            className: dismissButtonClassName,
-            style: dismissButtonClassName ? void 0 : { ...BUTTON_STYLE, opacity: 0.7 },
-            children: dismissLabel
-          }
-        )
-      ]
-    }
-  );
-}
-
-// src/agent/AgentConversationSurface.tsx
-import { useEffect as useEffect10, useState as useState13 } from "react";
-
 // src/shell/touchTarget.ts
 import { useInsertionEffect } from "react";
 
@@ -727,6 +654,80 @@ function useTouchTargetStyle() {
 function withTouchTarget(className) {
   return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
 }
+
+// src/agent/conversation-surface/components/transcript/TurnErrorBanner.tsx
+import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+var TONES = {
+  error: { border: "rgba(248,113,113,0.35)", background: "rgba(248,113,113,0.08)", text: "#fca5a5" },
+  info: { border: "rgba(96,165,250,0.35)", background: "rgba(96,165,250,0.08)", text: "#93c5fd" }
+};
+var BUTTON_STYLE = {
+  padding: "0.35rem 0.75rem",
+  borderRadius: 8,
+  border: "1px solid rgba(255,255,255,0.2)",
+  background: "transparent",
+  color: "#e2e8f0",
+  fontSize: "0.8rem",
+  cursor: "pointer"
+};
+function TurnErrorBanner({
+  error,
+  onRetry,
+  onDismiss,
+  tone = "error",
+  className,
+  retryLabel = "Reintentar",
+  dismissLabel = "Descartar",
+  retryButtonClassName,
+  dismissButtonClassName
+}) {
+  useTouchTargetStyle();
+  const colors = TONES[tone];
+  return /* @__PURE__ */ jsxs5(
+    "div",
+    {
+      role: tone === "info" ? "status" : "alert",
+      className,
+      style: {
+        marginTop: "1rem",
+        padding: "0.75rem 1rem",
+        borderRadius: 10,
+        border: `1px solid ${colors.border}`,
+        background: colors.background,
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: "0.75rem"
+      },
+      children: [
+        /* @__PURE__ */ jsx5("span", { style: { color: colors.text, fontSize: "0.85rem", flex: 1, minWidth: 0 }, children: error.message }),
+        onRetry && /* @__PURE__ */ jsx5(
+          "button",
+          {
+            type: "button",
+            onClick: onRetry,
+            className: withTouchTarget(retryButtonClassName),
+            style: retryButtonClassName ? void 0 : BUTTON_STYLE,
+            children: retryLabel
+          }
+        ),
+        /* @__PURE__ */ jsx5(
+          "button",
+          {
+            type: "button",
+            onClick: onDismiss,
+            className: withTouchTarget(dismissButtonClassName),
+            style: dismissButtonClassName ? void 0 : { ...BUTTON_STYLE, opacity: 0.7 },
+            children: dismissLabel
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/agent/AgentConversationSurface.tsx
+import { useEffect as useEffect10, useState as useState13 } from "react";
 
 // src/composer/useComposerImages.ts
 import { useCallback as useCallback2, useRef as useRef2, useState as useState3 } from "react";
@@ -1727,6 +1728,7 @@ function CollapsibleText({
   className,
   toggleClassName
 }) {
+  useTouchTargetStyle();
   const contentId = useId();
   const contentRef = useRef7(null);
   const [expanded, setExpanded] = useState7(false);
@@ -1765,7 +1767,7 @@ function CollapsibleText({
         "aria-expanded": expanded,
         "aria-controls": contentId,
         onClick: () => setExpanded((e) => !e),
-        className: toggleClassName,
+        className: withTouchTarget(toggleClassName),
         style: toggleClassName ? void 0 : {
           marginTop: "0.25rem",
           padding: 0,
@@ -1917,15 +1919,28 @@ var CSS = `
   }
 }
 @media (pointer: coarse) {
+  /* Visually hidden, not display:none: a keyboard or VoiceOver on a touch device
+     still reaches every message's actions, and focusing one reveals the row. */
   .${FI_MSG_ACTIONS_CLASS} {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   article[data-fi-last-message] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
-  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS} {
-    display: block;
+  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
   }
-  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})) {
-    display: none;
+  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})):not(:focus-within) {
+    margin-top: 0;
   }
 }
 `;
@@ -2614,6 +2629,7 @@ var CSS2 = `
 }
 `;
 function ensureComposerActionStyle() {
+  ensureTouchTargetStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
   const el = document.createElement("style");
@@ -2780,9 +2796,13 @@ var CSS4 = `
     flex: 1 1 0%;
     min-width: 0;
   }
+  /* The viewport-gated touch sheet cannot see a narrow composer on a wide screen,
+     where this toggle measured 18x18: the container grants the minimum instead. */
   .fi-composer-rail-toggle {
     display: inline-flex;
     order: -1;
+    min-width: var(--fi-touch-target, 44px);
+    min-height: var(--fi-touch-target, 44px);
   }
   [data-fi-composer-slot="footer-start"] {
     flex: 1 1 100%;
@@ -2813,6 +2833,7 @@ var CSS4 = `
 `;
 function ensureComposerFrameStyle() {
   ensureDensityStyle();
+  ensureTouchTargetStyle();
   if (typeof document === "undefined") return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
   const el = document.createElement("style");
@@ -2995,9 +3016,10 @@ function useImagePicker(onFiles) {
 import { Plus } from "lucide-react";
 
 // src/menu/ActionMenu.tsx
-import { Fragment as Fragment5, useEffect as useEffect9, useRef as useRef11, useState as useState12 } from "react";
+import { Fragment as Fragment5, useEffect as useEffect9, useLayoutEffect, useRef as useRef11, useState as useState12 } from "react";
 import { createPortal } from "react-dom";
 import { Fragment as Fragment6, jsx as jsx23, jsxs as jsxs16 } from "react/jsx-runtime";
+var VIEWPORT_MARGIN_PX = 8;
 function ActionMenu({
   actions,
   trigger,
@@ -3010,8 +3032,10 @@ function ActionMenu({
   dividerClassName,
   triggerAttribute
 }) {
+  useTouchTargetStyle();
   const [open, setOpen] = useState12(false);
   const triggerRef = useRef11(null);
+  const menuRef = useRef11(null);
   const [position, setPosition] = useState12({ top: 0, left: 0 });
   useEffect9(() => {
     if (open && triggerRef.current) {
@@ -3019,6 +3043,13 @@ function ActionMenu({
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) return;
+    const { width } = menuRef.current.getBoundingClientRect();
+    const maxLeft = window.innerWidth - VIEWPORT_MARGIN_PX - width;
+    const left = Math.max(VIEWPORT_MARGIN_PX, Math.min(position.left, maxLeft));
+    if (left !== position.left) setPosition((p) => ({ ...p, left }));
+  }, [open, position.left]);
   useEffect9(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -3060,6 +3091,7 @@ function ActionMenu({
         /* @__PURE__ */ jsx23(
           "div",
           {
+            ref: menuRef,
             role: "menu",
             "data-fi-action-menu": "",
             className: menuClassName,
@@ -3069,6 +3101,7 @@ function ActionMenu({
               left: position.left,
               // Grow UPWARD from the anchor — the composer is at the bottom.
               transform: "translateY(-100%)",
+              maxWidth: `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
               zIndex: 9999,
               ...menuClassName ? {} : {
                 minWidth: "13rem",
@@ -3090,10 +3123,11 @@ function ActionMenu({
                     setOpen(false);
                     action.onSelect();
                   },
-                  className: action.className ?? itemClassName,
+                  className: withTouchTarget(action.className ?? itemClassName),
                   style: action.className ?? itemClassName ? void 0 : {
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "flex-start",
                     gap: "0.6rem",
                     width: "100%",
                     padding: "0.5rem 0.65rem",
@@ -3553,7 +3587,7 @@ function AgentConversationSurface(props) {
 }
 
 // src/agent/AgentWorkspaceShell.tsx
-import { useCallback as useCallback7, useEffect as useEffect12, useMemo, useRef as useRef13, useState as useState15, useInsertionEffect as useInsertionEffect6 } from "react";
+import { useCallback as useCallback7, useEffect as useEffect12, useId as useId4, useLayoutEffect as useLayoutEffect2, useMemo, useRef as useRef13, useState as useState15, useInsertionEffect as useInsertionEffect6 } from "react";
 import { Menu } from "lucide-react";
 
 // src/shell/useEdgeSwipe.ts
@@ -3715,8 +3749,10 @@ function AgentWorkspaceShell({
   useDensityStyle();
   const isMobile = useMediaQuery(mobileQuery);
   const [isOpen, setIsOpen] = useState15(false);
+  const panelId = useId4();
   const rootRef = useRef13(null);
   const panelRef = useRef13(null);
+  const toggleRef = useRef13(null);
   const hasSidebar = sidebar != null;
   const drawerMode = hasSidebar && responsive && isMobile;
   const open = useCallback7(() => setIsOpen(true), []);
@@ -3749,6 +3785,22 @@ function AgentWorkspaceShell({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
+  }, [drawerMode, isOpen]);
+  const wasOpenRef = useRef13(false);
+  useLayoutEffect2(() => {
+    if (!drawerMode) {
+      wasOpenRef.current = false;
+      return;
+    }
+    if (isOpen && !wasOpenRef.current) {
+      panelRef.current?.focus();
+    } else if (!isOpen && wasOpenRef.current) {
+      const active = document.activeElement;
+      if (!active || active === document.body || panelRef.current?.contains(active)) {
+        toggleRef.current?.focus();
+      }
+    }
+    wasOpenRef.current = isOpen;
   }, [drawerMode, isOpen]);
   useInsertionEffect6(() => {
     if (drawerMode) ensureToggleStyle();
@@ -3800,6 +3852,7 @@ function AgentWorkspaceShell({
       "data-fi-visual": visual,
       "data-fi-density": density,
       className: rootClassName,
+      inert: drawerMode && isOpen ? true : void 0,
       style: hasSidebar ? { ...rootStyle, flex: 1, minWidth: 0, height: "100%", ...style } : { ...rootStyle, ...style },
       children: [
         header != null && /* @__PURE__ */ jsx29("header", { "data-fi-slot": "header", children: header }),
@@ -3840,14 +3893,19 @@ function AgentWorkspaceShell({
     // The drawer is fixed to the physical top, so its own content also needs
     // the status-bar inset when the PWA runs full-bleed (MOBILE-NATIVE-1).
     boxSizing: "border-box",
-    paddingTop: "env(safe-area-inset-top, 0px)"
+    paddingTop: "env(safe-area-inset-top, 0px)",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
+    paddingLeft: "env(safe-area-inset-left, 0px)"
   } : {
     width: widthCss,
     flexShrink: 0,
     display: "flex",
     flexDirection: "column",
     containerType: "inline-size",
-    containerName: "fi-sidebar"
+    containerName: "fi-sidebar",
+    boxSizing: "border-box",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
+    paddingLeft: "env(safe-area-inset-left, 0px)"
   };
   return /* @__PURE__ */ jsxs20(
     "div",
@@ -3857,18 +3915,22 @@ function AgentWorkspaceShell({
       "data-fi-drawer-dragging": dragging ? "" : void 0,
       style: { display: "flex", height: "100dvh", position: "relative", overflowX: "hidden" },
       children: [
-        /* @__PURE__ */ jsx29(
-          "nav",
+        drawerMode ? /* @__PURE__ */ jsx29(
+          "div",
           {
             ref: panelRef,
+            id: panelId,
             "data-fi-slot": "sidebar",
+            role: "dialog",
+            "aria-modal": "true",
             "aria-label": toggleLabel,
-            style: sidebarContainerStyle,
-            "aria-hidden": drawerMode ? !isOpen : void 0,
-            inert: drawerMode && !isOpen ? true : void 0,
-            children: sidebarNode
+            tabIndex: -1,
+            style: { ...sidebarContainerStyle, outline: "none" },
+            "aria-hidden": !isOpen,
+            inert: !isOpen ? true : void 0,
+            children: /* @__PURE__ */ jsx29("nav", { "aria-label": toggleLabel, style: { display: "contents" }, children: sidebarNode })
           }
-        ),
+        ) : /* @__PURE__ */ jsx29("nav", { "data-fi-slot": "sidebar", "aria-label": toggleLabel, style: sidebarContainerStyle, children: sidebarNode }),
         drawerMode && /* @__PURE__ */ jsx29(
           "div",
           {
@@ -3885,14 +3947,17 @@ function AgentWorkspaceShell({
             }
           }
         ),
-        drawerMode && !isOpen && /* @__PURE__ */ jsx29(
+        drawerMode && /* @__PURE__ */ jsx29(
           "button",
           {
+            ref: toggleRef,
             type: "button",
             className: "fi-aws-toggle",
             onClick: open,
             "aria-label": toggleLabel,
             "aria-expanded": isOpen,
+            "aria-controls": panelId,
+            inert: isOpen ? true : void 0,
             style: {
               position: "absolute",
               // The wrapper is full-bleed (100dvh, no top inset) so a bare `top`
@@ -3904,7 +3969,7 @@ function AgentWorkspaceShell({
               top: "calc(0.6rem + env(safe-area-inset-top, 0px))",
               left: "calc(0.6rem + env(safe-area-inset-left, 0px))",
               zIndex: 30,
-              opacity: dragging ? 1 - dragProgress : 1,
+              opacity: dragging ? 1 - dragProgress : isOpen ? 0 : 1,
               transition: dragging ? "none" : "opacity 0.24s ease"
             },
             children: /* @__PURE__ */ jsx29(Menu, { size: 18, "aria-hidden": true })
@@ -4157,7 +4222,9 @@ var CSS5 = `
 .${FI_ITEM_ACTION_DANGER_CLASS}:hover:not(:disabled) {
   color: var(--fi-sidebar-item-danger, ${glassTokens.danger});
 }
-@media (pointer: coarse) {
+/* Same gate as the 44px minimum: a narrow window with a mouse got 44px actions it
+   could not see, and they ate the title. Sized and revealed under one query. */
+@media ${FI_TOUCH_QUERY} {
   .${FI_ITEM_ACTION_CLASS} {
     opacity: 1;
   }
@@ -4221,6 +4288,7 @@ function ItemActionSlot({
   className,
   children
 }) {
+  useTouchTargetStyle();
   const cls = withTouchTarget(
     joinClasses(FI_ITEM_ACTION_CLASS, danger && FI_ITEM_ACTION_DANGER_CLASS, className)
   );

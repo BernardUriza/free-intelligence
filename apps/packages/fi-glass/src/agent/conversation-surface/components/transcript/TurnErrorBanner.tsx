@@ -12,6 +12,8 @@
  * failure, so it reads as status, never as an alert.
  */
 
+import { useTouchTargetStyle, withTouchTarget } from '../../../../shell/touchTarget';
+
 export interface TurnErrorBannerProps {
   /** Any recoverable failure with a displayable message: a failed turn, save or
    *  sidebar action. One banner anatomy for every caller. */
@@ -56,6 +58,7 @@ export function TurnErrorBanner({
   retryButtonClassName,
   dismissButtonClassName,
 }: TurnErrorBannerProps) {
+  useTouchTargetStyle();
   const colors = TONES[tone];
   return (
     <div
@@ -80,7 +83,7 @@ export function TurnErrorBanner({
         <button
           type="button"
           onClick={onRetry}
-          className={retryButtonClassName}
+          className={withTouchTarget(retryButtonClassName)}
           style={retryButtonClassName ? undefined : BUTTON_STYLE}
         >
           {retryLabel}
@@ -89,7 +92,7 @@ export function TurnErrorBanner({
       <button
         type="button"
         onClick={onDismiss}
-        className={dismissButtonClassName}
+        className={withTouchTarget(dismissButtonClassName)}
         style={dismissButtonClassName ? undefined : { ...BUTTON_STYLE, opacity: 0.7 }}
       >
         {dismissLabel}

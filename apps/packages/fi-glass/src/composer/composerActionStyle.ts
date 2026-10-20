@@ -33,6 +33,7 @@
  */
 
 import { useInsertionEffect } from 'react';
+import { ensureTouchTargetStyle } from '../shell/touchTarget';
 
 /** Base class for a composer control — compose it, never replace the consumer's class. */
 export const FI_COMPOSER_ACTION_CLASS = 'fi-composer-action';
@@ -113,6 +114,8 @@ const CSS = `
 
 /** Inject the idempotent composer-action stylesheet (no-op on the server / if already present). */
 export function ensureComposerActionStyle(): void {
+  // Every composer control also composes fi-touch-target; its sheet must not depend on another component.
+  ensureTouchTargetStyle();
   if (typeof document === 'undefined') return;
   if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
   const el = document.createElement('style');

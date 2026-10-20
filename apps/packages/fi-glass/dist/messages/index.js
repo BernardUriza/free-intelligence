@@ -113,6 +113,49 @@ function normalizeStreamedMarkdown(content) {
 
 // src/messages/CollapsibleText.tsx
 import { useEffect, useId, useRef, useState } from "react";
+
+// src/shell/touchTarget.ts
+import { useInsertionEffect } from "react";
+
+// src/theme/breakpoints.ts
+var FI_MOBILE_BREAKPOINT_PX = 768;
+var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
+var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
+
+// src/shell/touchTarget.ts
+var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
+var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
+function ensureTouchTargetStyle() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = TOUCH_TARGET_STYLE_ID;
+  el.textContent = `
+    @media ${FI_TOUCH_QUERY} {
+      .${FI_TOUCH_TARGET_CLASS} {
+        min-width: var(--fi-touch-target, 44px);
+        min-height: var(--fi-touch-target, 44px);
+        box-sizing: border-box;
+      }
+      :where(.${FI_TOUCH_TARGET_CLASS}) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  `;
+  document.head.appendChild(el);
+}
+function useTouchTargetStyle() {
+  useInsertionEffect(() => {
+    ensureTouchTargetStyle();
+  }, []);
+}
+function withTouchTarget(className) {
+  return className ? `${FI_TOUCH_TARGET_CLASS} ${className}` : FI_TOUCH_TARGET_CLASS;
+}
+
+// src/messages/CollapsibleText.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var OVERFLOW_TOLERANCE_PX = 16;
 function CollapsibleText({
@@ -124,6 +167,7 @@ function CollapsibleText({
   className,
   toggleClassName
 }) {
+  useTouchTargetStyle();
   const contentId = useId();
   const contentRef = useRef(null);
   const [expanded, setExpanded] = useState(false);
@@ -162,7 +206,7 @@ function CollapsibleText({
         "aria-expanded": expanded,
         "aria-controls": contentId,
         onClick: () => setExpanded((e) => !e),
-        className: toggleClassName,
+        className: withTouchTarget(toggleClassName),
         style: toggleClassName ? void 0 : {
           marginTop: "0.25rem",
           padding: 0,
@@ -243,46 +287,6 @@ var MessageContent = memo(function MessageContent2({
 // src/messages/CopyButton.tsx
 import { memo as memo2, useCallback, useState as useState2 } from "react";
 import { Copy, Check } from "lucide-react";
-
-// src/shell/touchTarget.ts
-import { useInsertionEffect } from "react";
-
-// src/theme/breakpoints.ts
-var FI_MOBILE_BREAKPOINT_PX = 768;
-var FI_MOBILE_QUERY = `(max-width: ${FI_MOBILE_BREAKPOINT_PX}px)`;
-var FI_TOUCH_QUERY = `(pointer: coarse), ${FI_MOBILE_QUERY}`;
-
-// src/shell/touchTarget.ts
-var FI_TOUCH_TARGET_CLASS = "fi-touch-target";
-var TOUCH_TARGET_STYLE_ID = "fi-touch-target-style";
-function ensureTouchTargetStyle() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(TOUCH_TARGET_STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = TOUCH_TARGET_STYLE_ID;
-  el.textContent = `
-    @media ${FI_TOUCH_QUERY} {
-      .${FI_TOUCH_TARGET_CLASS} {
-        min-width: var(--fi-touch-target, 44px);
-        min-height: var(--fi-touch-target, 44px);
-        box-sizing: border-box;
-      }
-      :where(.${FI_TOUCH_TARGET_CLASS}) {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-  `;
-  document.head.appendChild(el);
-}
-function useTouchTargetStyle() {
-  useInsertionEffect(() => {
-    ensureTouchTargetStyle();
-  }, []);
-}
-
-// src/messages/CopyButton.tsx
 import { jsx as jsx3 } from "react/jsx-runtime";
 var CopyButton = memo2(function CopyButton2({
   content,
@@ -354,15 +358,28 @@ var CSS = `
   }
 }
 @media (pointer: coarse) {
+  /* Visually hidden, not display:none: a keyboard or VoiceOver on a touch device
+     still reaches every message's actions, and focusing one reveals the row. */
   .${FI_MSG_ACTIONS_CLASS} {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   article[data-fi-last-message] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
-  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS} {
-    display: block;
+  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
   }
-  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})) {
-    display: none;
+  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})):not(:focus-within) {
+    margin-top: 0;
   }
 }
 `;
