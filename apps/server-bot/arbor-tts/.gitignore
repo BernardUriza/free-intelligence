@@ -1,5 +1,5 @@
 node_modules/
-auth/
+auth
 output/
 .env
 *.mp3
