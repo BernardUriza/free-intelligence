@@ -2,5 +2,5 @@ format = 1
 
 [toolchain]
 id = "agent-constitution"
-rev = "91f7e8ae5df61ad57731127bbe9547761dc502bc"
+rev = "502c3b6ffb7aca654c10e4973adea949e69402c7"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
