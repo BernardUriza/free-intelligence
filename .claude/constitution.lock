@@ -6,8 +6,8 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "502c3b6ffb7aca654c10e4973adea949e69402c7"
-tree = "sha256:46c00b965edf27422c10be1ae914a88641a24edcfd711629a048f796bc271d89"
+rev = "9bf5e71b88be30884df7a21e69873312b97f76d4"
+tree = "sha256:4495f5e12e1c59f2d161ef61a9dc7d587a896974b27e1757cf29d266f88dd2a9"
 
 [repo]
 id = "free-intelligence"
@@ -20,8 +20,9 @@ entries = [
   { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
   { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
   { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "new-rule-requires-owner-search-post", from = "core", event = "PostToolUse", matcher = "Bash" },
 ]
-tree = "sha256:2e336f5bc8fb9fe30b6a9a63875dd8fe2cb23a6e14813f5075169f26ae251117"
+tree = "sha256:e66dfc16b0b0855820d2810e206e6ff9c53c489c74f8464b72984757dd835a89"
 
 [resolution]
 gates = ["core", "bernard"]
@@ -29,7 +30,7 @@ policy = ["repo", "bernard", "core"]
 methodology = []
 
 [lock]
-canonical_sha256 = "e2ef138e4bd921c5d105f607b62087fe7ece5ee040790143be45f02938051ae8"
+canonical_sha256 = "f4b1fe6c662956f8630f626718d4972dcd5f391a1cf83d2e262a97088bd20443"
 
 [[overlay]]
 id = "bernard"
