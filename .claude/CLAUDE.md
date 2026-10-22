@@ -18,9 +18,11 @@ make dev-all-local        # Local-only (no tunnel, ~30s startup, faster iteratio
 make dev-kill             # Kill all dev processes
 make test                 # pytest
 
-# Production Deploy
-git checkout -b bernarduriza/<slug>   # transient branch → PR to main → CI/CD auto-deploy
-# (branch is deleted on merge; main is the only branch at rest)
+# Production Deploy (main is protected; no local branch ever, the main-only-branches gate denies one)
+git commit ...                                            # on local main
+git push origin HEAD:refs/heads/bernarduriza/<slug>       # remote-only PR ref
+gh pr create --base main --head bernarduriza/<slug>       # merge --delete-branch → CI/CD auto-deploy
+git pull --ff-only                                        # local main catches the merge
 
 # Desktop Builds
 gh workflow run build-desktop.yml -f platform=windows
@@ -50,7 +52,7 @@ gh workflow run build-desktop.yml -f platform=windows
 ## 🎯 Core Principles
 
 1. **Bernard's Workflow:** Simplicity, focus, no tangents → [development/workflow.md](development/workflow.md)
-2. **Git Flow:** transient `bernarduriza/<slug>` branch → PR to `main`, branch deleted on merge (`dev` retired 2026-07-06) → [development/workflow.md](development/workflow.md#git-workflow)
+2. **Git Flow:** commit on local `main`, push `HEAD:refs/heads/bernarduriza/<slug>` → PR to `main`, remote ref deleted on merge; a checkout off `main` is an alarm, never a worktree (`dev` retired 2026-07-06) → [development/workflow.md](development/workflow.md#git-workflow)
 3. **Security:** ZERO TOLERANCE for secrets → [security/credentials.md](security/credentials.md)
 4. **Production:** CI/CD only, no manual edits → [security/ssh-policy.md](security/ssh-policy.md)
 
@@ -248,7 +250,7 @@ powershell -Command "Start-Process '<output.png>'"  # Show to user
 ## 🏷️ Conventions
 
 - **Commits:** Conventional Commits (feat/fix/docs/chore)
-- **Branches:** main only at rest; work rides transient `bernarduriza/<slug>` PR branches, deleted on merge
+- **Branches:** local `main` only, always; PRs ride a remote-only `bernarduriza/<slug>` ref, deleted on merge
 - **PRs:** AI Gatekeeper (GPT-5) approval required
 - **Docs:** Hong Kong standard (zero bloat, zero duplication)
 

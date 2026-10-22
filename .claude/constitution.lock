@@ -1,0 +1,41 @@
+schema = 1
+profile = "personal"
+pack = []
+override = []
+
+[core]
+id = "agent-constitution"
+repo = "https://github.com/BernardUriza/agent-constitution.git"
+rev = "744ec2fd136cf74ef3630aafbb9471f57a03b836"
+tree = "sha256:4495f5e12e1c59f2d161ef61a9dc7d587a896974b27e1757cf29d266f88dd2a9"
+
+[repo]
+id = "free-intelligence"
+surfaces = ["CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/**", ".claude/overrides/**"]
+imports = []
+surfaces_tree = "sha256:af1254236c2f47590b2d9520567fde5967f85eafb9ffd733d3dafb648d9384a5"
+
+[hooks]
+entries = [
+  { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
+  { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "new-rule-requires-owner-search-post", from = "core", event = "PostToolUse", matcher = "Bash" },
+]
+tree = "sha256:e66dfc16b0b0855820d2810e206e6ff9c53c489c74f8464b72984757dd835a89"
+
+[resolution]
+gates = ["core", "bernard"]
+policy = ["repo", "bernard", "core"]
+methodology = []
+
+[lock]
+canonical_sha256 = "4117a90c38f7774f6fc10fbc7afa87b9a485b228c2ff743c92598de8f9257cf7"
+
+[[overlay]]
+id = "bernard"
+layer = "personal"
+scope = "machine-only"
+repo = "https://github.com/BernardUriza/constitution-bernard.git"
+rev = "20caaf33f1995169757c10fcc22e10b086ebbeee"
+tree = "sha256:864de67b3dffdd37008781bbd85f53bf2e17c0e33ec0a299cdfb78392b8ef43f"
