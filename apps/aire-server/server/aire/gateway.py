@@ -62,7 +62,7 @@ def _upstream() -> str:
     return os.environ.get("AIRE_GATEWAY_UPSTREAM", "https://api.anthropic.com")
 
 
-def _forward_headers(request: Request) -> list[tuple[str, str]]:
+def forward_headers(request: Request) -> list[tuple[str, str]]:
     kept = [(k, v) for k, v in request.headers.items() if k.lower() not in _SKIP_REQUEST]
     kept.append(("accept-encoding", "identity"))
     return kept
@@ -109,13 +109,23 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
     if mirrored:
         await gateway_mirror.log_request(exchange, request.headers, body,
                                          holder.nickname if holder else None)
-    headers = _forward_headers(request)
+    headers = forward_headers(request)
     if holder is not None:
         headers = _outfit(request, headers)
         if headers is None:
             lending.release(request.state)
             return _api_error("AIRE gateway: no credential to lend an invited key", 503)
-    client = httpx.AsyncClient(base_url=_upstream(), timeout=_TIMEOUT)
+    tap = (lambda status, ctype: ResponseTap(exchange, status, ctype, tokens.biller(holder))
+           ) if mirrored else None
+    return await forward(request, body, headers, _upstream(), tap, holder, _api_error)
+
+
+async def forward(request: Request, body: bytes, headers: list[tuple[str, str]], base: str,
+                  tap_for: Any, holder: Any, error: Any) -> Response:
+    """Send the dressed request to `base` and relay its answer as it arrives.
+    Shared by every wire this daemon speaks (#30 Anthropic, #51 OpenAI): only the
+    admission, the credential and the price differ between them, never the relay."""
+    client = httpx.AsyncClient(base_url=base, timeout=_TIMEOUT)
     url = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     try:
         upstream = await client.send(
@@ -124,10 +134,8 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
     except httpx.HTTPError as exc:
         await client.aclose()
         lending.release(request.state)
-        return _api_error(f"AIRE gateway: upstream unreachable ({type(exc).__name__})", 502)
-    tap = ResponseTap(exchange, upstream.status_code,
-                      upstream.headers.get("content-type", ""),
-                      tokens.biller(holder)) if mirrored else None
+        return error(f"AIRE gateway: upstream unreachable ({type(exc).__name__})", 502)
+    tap = tap_for(upstream.status_code, upstream.headers.get("content-type", "")) if tap_for else None
     out = {k: v for k, v in upstream.headers.items() if k.lower() not in _SKIP_RESPONSE}
     lending.hand_off(request.state)  # the relay outlives this frame and frees it
     return StreamingResponse(_relay(client, upstream, tap, holder),
