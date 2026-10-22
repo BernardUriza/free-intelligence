@@ -23,7 +23,7 @@ kept honest, a status flipped the day it changes.
 | [42](42-the-guards-are-observational.md) | The guards ride observational | Observational half Done 2026-08-22; the buffered half Proposed |
 | [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | **Done 2026-08-24** — both notches, plus a 5-min external pulse |
 | [50](50-images-by-reference.md) | Images by reference — the caller sends a signed Discord URL, AIRE fetches, compresses and counts | Done 2026-09-25 — images and documents end to end |
-| [51](51-an-openai-door-for-invited-keys.md) | An OpenAI door for invited keys — Azure OpenAI lent and metered like #32 | In progress — `aire-openai` (gpt-5.4-mini, 20K TPM, $10 budget alert) answers 200; the door is not written |
+| [51](51-an-openai-door-for-invited-keys.md) | An OpenAI door for invited keys — Azure OpenAI lent and metered like #32 | In progress — door written and tested (`/openai/v1/chat/completions`, `/responses`); deploy + first consumer (Visalaw hooks judge) pending |
 
 ## Closed
 

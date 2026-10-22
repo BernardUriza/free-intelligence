@@ -66,6 +66,9 @@ compose_env() {
   # roles, two keys, two files, each revocable alone. Absent, lending is simply
   # off and `arming.py` says so, which is how costwatch would catch it.
   append_secret "$LEND_API_KEY_FILE" "AIRE_LEND_API_KEY=" "the metered key AIRE lends (#32e)"
+  # The OpenAI door (#51): Azure OpenAI, its own slot, revocable without touching Anthropic's.
+  append_secret "$OPENAI_FILE" "AIRE_OPENAI_UPSTREAM="       "the OpenAI door's upstream (#51)"
+  append_secret "$OPENAI_FILE" "AIRE_LEND_AZURE_OPENAI_KEY=" "the Azure key AIRE lends (#51)"
   # The failover chain (#31): both slots are OPTIONAL — a missing file only
   # leaves that slot empty and the rotor skips it. The backup OAuth must come
   # from a DIFFERENT seat/account, or it shares the primary's weekly pool.
