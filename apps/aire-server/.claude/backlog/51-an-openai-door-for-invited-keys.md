@@ -1,6 +1,6 @@
 # 51 — An OpenAI door for invited keys (Azure OpenAI, lent and metered like #32)
 
-Status: **In progress** — the upstream exists and answers (2026-10-22); the door is not written.
+Status: **In progress** — the door is written and tested (2026-10-22: `openai_gateway.py`, 394 tests green); not yet on the droplet, no key minted for a consumer.
 Proposed: 2026-10-22 by Bernard (*"quisiera hacer uno nuevo para que también yo pueda ofrecerle el servicio de OpenAI a mis clientes de AIRE"*).
 
 ## What exists (2026-10-22, verified)
@@ -47,7 +47,23 @@ invitation's ceiling.
 - Microsoft's Product Terms for Azure OpenAI are NOT read yet: before the first
   paying client, read what they say about serving third parties through AIRE.
 
+## What shipped (2026-10-22)
+
+- `POST /openai/v1/chat/completions` and `/openai/v1/responses` only; any other
+  OpenAI path 404s, because a call this door cannot price would be free Azure money.
+- Admission in `door._admit_openai`: an AIRE key as the Bearer (OpenAI SDK) or in
+  `api-key` (Azure SDK); no pass-through, unknown 401, spent 402, slot 429.
+- `lending.azure_openai()` / `lend_openai()`: `AIRE_OPENAI_UPSTREAM` +
+  `AIRE_LEND_AZURE_OPENAI_KEY`, provisioned from `~/.secrets/aire-openai-azure.txt`.
+- A streamed chat that did not ask for usage gets `stream_options.include_usage`.
+- `pricing.openai_usd`: cache counted inside the input; `gpt-4.1` row $2/$8/$0.50.
+- The relay is shared with #30 (`gateway.forward`); the mirror's pool became
+  per-event-loop like `db.pool` (two servers in one process segfaulted under uvloop).
+- First consumer: the Visalaw hooks' LLM judge, dead since `insult-openai` was
+  deleted (2026-10-16). Azure refused `gpt-4.1` on `aire-openai` the first time
+  with 715-123420 ("unusual activity").
+
 ## Next step
 
-Write the door with the real invited-key test from #32 as the template: an invited
-turn that relays, banks its cost and is refused once over its ceiling.
+Deploy, set the env on the droplet, mint the judge's key, and prove one real
+invited turn banks against its ceiling.

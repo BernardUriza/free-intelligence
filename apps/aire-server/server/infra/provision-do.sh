@@ -30,6 +30,7 @@ API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failov
 BAIR_API_KEY_FILE="$HOME/.secrets/aire-bair-api-key.txt"            # BAIR's lane, ANTHROPIC_API_KEY_BAIR= (optional)
 ACP_AGENTS_FILE="$HOME/.secrets/aire-acp-agents.txt"                # #49 ACP roster, AIRE_ACP_AGENTS=<json> (optional)
 LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered key AIRE lends (optional)
+OPENAI_FILE="$HOME/.secrets/aire-openai-azure.txt"        # #51: AIRE_OPENAI_UPSTREAM= + AIRE_LEND_AZURE_OPENAI_KEY= (optional)
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow: signing key + owner
 BUDGET_FILE="$HOME/.secrets/aire-budget.txt"              # #25 cumulative spend backstop
