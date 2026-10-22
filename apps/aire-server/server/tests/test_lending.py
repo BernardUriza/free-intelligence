@@ -124,3 +124,28 @@ def test_fast_mode_costs_double():
 
 def test_no_usage_is_zero_and_the_caller_decides_what_that_means():
     assert pricing.usd(None, "claude-opus-5") == 0.0
+
+
+def test_openai_prices_chat_and_responses_shapes_with_the_cache_inside_the_input():
+    chat = {"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000,
+            "prompt_tokens_details": {"cached_tokens": 500_000}}
+    assert pricing.openai_usd(chat, "gpt-4.1-2025-04-14") == pytest.approx(1.0 + 0.25 + 8.0)
+    resp = {"input_tokens": 1_000_000, "output_tokens": 0}
+    assert pricing.openai_usd(resp, "gpt-4.1") == pytest.approx(2.0)
+
+
+def test_an_unpriced_openai_model_is_charged_at_the_dearest_rate():
+    usage = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
+    dearest = max(pricing._table().values(), key=lambda r: r["output"])
+    assert pricing.openai_usd(usage, "gpt-5.4-mini") == pytest.approx(dearest["input"])
+
+
+def test_openai_lending_needs_both_halves_and_sheds_the_callers_key(monkeypatch):
+    monkeypatch.delenv("AIRE_OPENAI_UPSTREAM", raising=False)
+    monkeypatch.setenv("AIRE_LEND_AZURE_OPENAI_KEY", "k")
+    assert lending.azure_openai() is None
+    monkeypatch.setenv("AIRE_OPENAI_UPSTREAM", "https://x.openai.azure.com")
+    base, cred = lending.azure_openai()
+    sent = _dict(lending.lend_openai([("authorization", "Bearer aire_x"), ("api-key", "aire_x"),
+                                      ("content-type", "application/json")], cred))
+    assert sent == {"content-type": "application/json", "api-key": "k"}
