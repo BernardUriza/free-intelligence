@@ -77,3 +77,19 @@ def test_a_second_event_loop_gets_its_own_pool():
     # is gone is the caller doing the right thing, not an error.
     asyncio.run(db.close())
     assert db._pool is None
+
+
+def test_the_gateway_mirror_pool_follows_the_loop_too():
+    """The gateway mirror kept a process-global pool while `db.pool` had already
+    learned this law; two servers in one process (two test modules) handed the
+    second one the first loop's pool and uvloop segfaulted (#51, 2026-10-22)."""
+    from aire import gateway_store
+
+    async def grab():
+        return await gateway_store.pool()
+
+    first = asyncio.run(grab())
+    second = asyncio.run(grab())
+    assert first is not second, "the mirror handed out a pool from a dead loop"
+    asyncio.run(gateway_store.reset())
+    assert gateway_store._pool is None
