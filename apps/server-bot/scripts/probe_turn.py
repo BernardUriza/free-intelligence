@@ -36,6 +36,35 @@ import httpx
 PROBE_PREFIX = "probe-"
 
 
+def build_probe_payload(
+    ask: str,
+    *,
+    persona: str,
+    slug: str,
+    probe_id: str = "claude",
+    surface: str = "og118",
+    pipeline: str = "runner",
+    today: str | None = None,
+) -> dict:
+    """The `/v1/turn` body of a probe — the ONE place a probe's identity is built.
+
+    Other harnesses (`scripts/frugivoro_bench.py`) import this instead of
+    re-typing the shape, so a probe can never drift into speaking as a person.
+    """
+    today = today or dt.datetime.now(dt.UTC).date().isoformat()
+    principal = f"{PROBE_PREFIX}{probe_id}"
+    return {
+        "channel_id": f"{PROBE_PREFIX}{today}-{slug}",
+        "user_id": principal,
+        "user_name": principal,
+        "surface": surface,
+        "pipeline": pipeline,
+        "origin": "probe",
+        "persona_id": persona,
+        "user_text": ask,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("ask", help="what the probe says to the persona")
@@ -52,17 +81,9 @@ def main() -> int:
         print("PERSONA_RUNNER_URL and PERSONA_RUNNER_TOKEN must be set", file=sys.stderr)
         return 2
 
-    today = dt.datetime.now(dt.UTC).date().isoformat()
-    payload = {
-        "channel_id": f"{PROBE_PREFIX}{today}-{args.slug}",
-        "user_id": f"{PROBE_PREFIX}{args.probe_id}",
-        "user_name": f"{PROBE_PREFIX}{args.probe_id}",
-        "surface": args.surface,
-        "pipeline": "runner",
-        "origin": "probe",
-        "persona_id": args.persona,
-        "user_text": args.ask,
-    }
+    payload = build_probe_payload(
+        args.ask, persona=args.persona, slug=args.slug, probe_id=args.probe_id, surface=args.surface
+    )
     resp = httpx.post(
         f"{url}/v1/turn",
         json=payload,
