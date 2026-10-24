@@ -29,6 +29,7 @@ const VIEWS = [
   { href: "/console", key: "~console", ico: "◈", label: "overview" },
   { href: "/claude", key: "~claude", ico: "▤", label: "conversations" },
   { href: "/gateway", key: "~gateway", ico: "⇄", label: "gateway" },
+  { href: "/spend", key: "~spend", ico: "▮", label: "spend" },
   { href: "/monster", key: "~monster", ico: "◍", label: "the monster" },
   { href: "/sql", key: "~sql", ico: "⌘", label: "sql console" },
 ];
