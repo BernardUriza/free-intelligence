@@ -140,3 +140,33 @@ def test_memory_tool_specs_gate_on_both_envs(monkeypatch):
     assert spec.url == "https://r.example.com/mcp/insult-c1"
     assert spec.is_http and spec.headers["Authorization"] == "Bearer tok-9"
     assert "tok-9" not in repr(spec)  # the bearer never rides a log line
+
+
+def test_the_turns_persona_reaches_the_real_agent_facts_tool(client, monkeypatch):
+    """The whole chain for self-knowledge: the durable row carries the persona, the
+    endpoint binds it, and the real tool scopes its SQL by it — an `agent_id` the
+    model writes in the arguments is ignored (2026-09-26, cross-persona agent_facts)."""
+    from persona_runner.mcp_tools import shared
+
+    async def row(casita):
+        return aire_principal.RemotePrincipal(user_id="u9", channel_id="c9", agent_id="vultur")
+
+    monkeypatch.setattr(aire_principal, "lookup", row)
+
+    class Conn:
+        calls: list = []  # noqa: RUF012 — test double
+
+        async def fetch(self, sql, *args):
+            Conn.calls.append((sql, args))
+            return []
+
+        async def close(self):
+            pass
+
+    async def connect():
+        return Conn()
+
+    monkeypatch.setattr(shared, "_connect", connect)
+    body = _rpc(client, "tools/call", {"name": "get_agent_facts", "arguments": {"agent_id": "alice"}}).json()
+    assert body["result"]["isError"] is False
+    assert Conn.calls and Conn.calls[0][1][0] == "vultur"

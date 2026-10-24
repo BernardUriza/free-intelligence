@@ -33,8 +33,10 @@ CREATE TABLE IF NOT EXISTS aire_turn_principals (
     casita      TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     channel_id  TEXT NOT NULL,
+    agent_id    TEXT NOT NULL DEFAULT '',
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-)
+);
+ALTER TABLE aire_turn_principals ADD COLUMN IF NOT EXISTS agent_id TEXT NOT NULL DEFAULT ''
 """
 
 _ddl_applied = False
@@ -44,6 +46,7 @@ _ddl_applied = False
 class RemotePrincipal:
     user_id: str
     channel_id: str
+    agent_id: str = ""
 
 
 async def _ensure_ddl(conn) -> None:
@@ -53,7 +56,7 @@ async def _ensure_ddl(conn) -> None:
         _ddl_applied = True
 
 
-async def bind(casita: str, *, user_id: str, channel_id: str) -> bool:
+async def bind(casita: str, *, user_id: str, channel_id: str, agent_id: str) -> bool:
     """Publica el principal del turno que ESTA casita está sirviendo ahora.
     Devuelve False (y loguea) si Postgres no está — el turno sigue; las tools
     remotas de ese turno contestarán que no hay principal, nunca un adivinado."""
@@ -63,12 +66,13 @@ async def bind(casita: str, *, user_id: str, channel_id: str) -> bool:
             return False
         await _ensure_ddl(conn)
         await conn.execute(
-            "INSERT INTO aire_turn_principals (casita, user_id, channel_id, updated_at) "
-            "VALUES ($1, $2, $3, now()) "
-            "ON CONFLICT (casita) DO UPDATE SET user_id = $2, channel_id = $3, updated_at = now()",
+            "INSERT INTO aire_turn_principals (casita, user_id, channel_id, agent_id, updated_at) "
+            "VALUES ($1, $2, $3, $4, now()) "
+            "ON CONFLICT (casita) DO UPDATE SET user_id = $2, channel_id = $3, agent_id = $4, updated_at = now()",
             casita,
             user_id,
             channel_id,
+            agent_id,
         )
         return True
 
@@ -87,7 +91,9 @@ async def lookup(casita: str) -> RemotePrincipal | None:
         if conn is None:
             return None
         await _ensure_ddl(conn)
-        row = await conn.fetchrow("SELECT user_id, channel_id FROM aire_turn_principals WHERE casita = $1", casita)
+        row = await conn.fetchrow(
+            "SELECT user_id, channel_id, agent_id FROM aire_turn_principals WHERE casita = $1", casita
+        )
     if row is None:
         return None
-    return RemotePrincipal(user_id=row["user_id"], channel_id=row["channel_id"])
+    return RemotePrincipal(user_id=row["user_id"], channel_id=row["channel_id"], agent_id=row["agent_id"])

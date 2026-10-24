@@ -83,7 +83,7 @@ async def _tools_call(casita: str, params: dict[str, Any]) -> dict[str, Any]:
             "content": [{"type": "text", "text": "no live turn principal for this casita — the turn window is closed"}],
             "isError": True,
         }
-    token = bind_turn_principal(user_id=principal.user_id, channel_id=principal.channel_id)
+    token = bind_turn_principal(user_id=principal.user_id, channel_id=principal.channel_id, agent_id=principal.agent_id)
     try:
         out = await tool.handler(dict(params.get("arguments") or {}))
     except Exception:
