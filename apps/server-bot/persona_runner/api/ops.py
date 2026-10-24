@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import structlog
 from fastapi import APIRouter, Header
+from fastapi.responses import JSONResponse
 
-from persona_runner.core import config
+from persona_runner.core import config, readiness
 from persona_runner.core.auth import check_auth
 from persona_runner.engine import aire_route, auth_failure
 
@@ -39,6 +40,19 @@ async def health() -> dict:
         "auth_configured": bool(config.RUNNER_AUTH_TOKEN),
         "model": config.DEFAULT_MODEL,
     }
+
+
+@router.get("/ready")
+async def ready() -> JSONResponse:
+    """Public readiness probe: 503 until the turn pipeline is warm (or capped).
+
+    Never touches a downstream — it reads a flag `core/readiness.gate` sets once
+    and never clears. Target of the readiness probe declared in
+    `scripts/cd_runner_template.py`; `/health` stays the always-200 liveness
+    and startup target.
+    """
+    body = readiness.state()
+    return JSONResponse(body, status_code=200 if body["ready"] else 503)
 
 
 @router.delete("/v1/session/{channel_id}")

@@ -29,7 +29,7 @@ import structlog
 from fastapi import FastAPI
 
 from persona_runner.api import artifacts, judge, mcp_http, ops, turn, workspace
-from persona_runner.core import config
+from persona_runner.core import config, readiness
 from shared.logging_setup import configure_structlog
 
 log = structlog.get_logger()
@@ -75,12 +75,18 @@ async def _lifespan(app: FastAPI):
     from persona_runner.api import turn_pipeline
 
     boot_warm = asyncio.create_task(turn_pipeline.warm_at_boot())
+    # `/ready` (the startup + readiness probes) answers 503 until the warmup
+    # ends or READY_CAP_S runs out — the ingress holds a cold start's first turn
+    # until the pipeline is resident instead of handing it a half-loaded replica.
+    readiness.reset()
+    boot_ready = asyncio.create_task(readiness.gate(boot_warm))
 
     yield
 
     # Drenar ANTES de cerrar los clientes de AIRE y el pool: los jobs abiertos
     # los usan. Al vencer la espera, sus filas se sueltan para la sucesora.
     boot_resume.cancel()
+    boot_ready.cancel()
     boot_warm.cancel()
     await turn_jobs.drain_for_shutdown(config.RUNNER_SHUTDOWN_DRAIN_S)
     await turn_jobs.JOBS.stop_heartbeat()
