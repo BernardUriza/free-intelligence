@@ -64,6 +64,8 @@ def report() -> dict[str, object]:
 
     armed: dict[str, bool] = {name: bool(os.environ.get(var)) for name, var in _GUARDS}
     armed["lending"] = _lending()
+    armed["lending_openai"] = bool(os.environ.get("AIRE_OPENAI_UPSTREAM")
+                                   and os.environ.get("AIRE_LEND_AZURE_OPENAI_KEY"))
     armed["whitelist_enforce"] = os.environ.get("AIRE_WHITELIST_ENFORCE") == "1"
     armed["door_tokens"] = bool(ACCEPTED_TOKENS)
     slots = _credential_slots_armed()

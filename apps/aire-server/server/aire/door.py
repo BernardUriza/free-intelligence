@@ -28,7 +28,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from . import lending, tokens
+from . import lending, openai_gateway, tokens
 from .bearer import ACCEPTED_TOKENS, accepted, presented_token
 from .engine.lanes import lane_of
 
@@ -38,6 +38,8 @@ async def llm_door(request: Request, call_next: Any) -> Any:
         return await call_next(request)
     if request.url.path.startswith("/v1/"):
         return await gateway_door(request, call_next)
+    if request.url.path.startswith("/openai/"):
+        return await _holding_slot(request, call_next, _admit_openai(request))
     # The approve/revoke links (#32) are clicked from a mail client, which cannot
     # carry a Bearer token. Their HMAC signature IS their authentication, and the
     # verb is signed INTO it so one cannot be replayed as the other — access.py.
@@ -61,7 +63,10 @@ async def gateway_door(request: Request, call_next: Any) -> Any:
     reached no handler at all: a 404 on an undefined `/v1/` path claimed a slot
     that nobody ever gave back, so two typos locked an invited key out of the
     real door until the daemon restarted."""
-    refusal = _admit_gateway(request)
+    return await _holding_slot(request, call_next, _admit_gateway(request))
+
+
+async def _holding_slot(request: Request, call_next: Any, refusal: JSONResponse | None) -> Any:
     if refusal is not None:
         return refusal
     try:
@@ -90,6 +95,24 @@ def _admit_gateway(request: Request) -> JSONResponse | None:
             {"type": "error", "error": {"type": "rate_limit_error",
              "message": f"AIRE: {holder.nickname} already has {lending.MAX_INFLIGHT} turns in flight"}},
             status_code=429)
+    request.state.holder = holder
+    return None
+
+
+def _admit_openai(request: Request) -> JSONResponse | None:
+    """The OpenAI door (#51) has no pass-through: AIRE always lends its own Azure
+    credential, so only a key with a ceiling gets in. The key rides where an
+    OpenAI client puts it — the Bearer — or in `api-key`, where an Azure client does."""
+    holder = tokens.identify(request.headers.get("api-key", "") or presented_token(request))
+    if holder is None:
+        return openai_gateway.error("AIRE: unknown key", 401, "invalid_request_error")
+    if holder.exhausted():
+        return openai_gateway.error(f"AIRE: {holder.nickname} has spent its budget", 402,
+                                    "insufficient_quota")
+    if not lending.claim(request.state, holder.nickname):
+        return openai_gateway.error(
+            f"AIRE: {holder.nickname} already has {lending.MAX_INFLIGHT} turns in flight", 429,
+            "rate_limit_error")
     request.state.holder = holder
     return None
 

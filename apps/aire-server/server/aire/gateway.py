@@ -28,16 +28,15 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import AsyncIterator
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 
 from . import gateway_mirror, lending, tokens
 from .bearer import presented_token
 from .gateway_mirror import ResponseTap
+from .relay import forward
 
 router = APIRouter()
 
@@ -50,19 +49,14 @@ _SKIP_REQUEST = {"host", "content-length", "connection", "keep-alive", "te",
                  "trailer", "transfer-encoding", "upgrade", "proxy-authenticate",
                  "proxy-authorization", "accept-encoding", "x-aire-project",
                  "x-aire-key"}
-_SKIP_RESPONSE = {"content-length", "content-encoding", "transfer-encoding",
-                  "connection", "date", "server"}
 
-# The CLIENT owns the 300s silence watchdog and upstream pings feed it — the
-# proxy's read timeout must be the last to fire, never the first.
-_TIMEOUT = httpx.Timeout(connect=15.0, read=600.0, write=60.0, pool=15.0)
 
 
 def _upstream() -> str:
     return os.environ.get("AIRE_GATEWAY_UPSTREAM", "https://api.anthropic.com")
 
 
-def _forward_headers(request: Request) -> list[tuple[str, str]]:
+def forward_headers(request: Request) -> list[tuple[str, str]]:
     kept = [(k, v) for k, v in request.headers.items() if k.lower() not in _SKIP_REQUEST]
     kept.append(("accept-encoding", "identity"))
     return kept
@@ -109,42 +103,12 @@ async def _proxy(request: Request, mirrored: bool = False) -> Response:
     if mirrored:
         await gateway_mirror.log_request(exchange, request.headers, body,
                                          holder.nickname if holder else None)
-    headers = _forward_headers(request)
+    headers = forward_headers(request)
     if holder is not None:
         headers = _outfit(request, headers)
         if headers is None:
             lending.release(request.state)
             return _api_error("AIRE gateway: no credential to lend an invited key", 503)
-    client = httpx.AsyncClient(base_url=_upstream(), timeout=_TIMEOUT)
-    url = request.url.path + (f"?{request.url.query}" if request.url.query else "")
-    try:
-        upstream = await client.send(
-            client.build_request(request.method, url, content=body, headers=headers),
-            stream=True)
-    except httpx.HTTPError as exc:
-        await client.aclose()
-        lending.release(request.state)
-        return _api_error(f"AIRE gateway: upstream unreachable ({type(exc).__name__})", 502)
-    tap = ResponseTap(exchange, upstream.status_code,
-                      upstream.headers.get("content-type", ""),
-                      tokens.biller(holder)) if mirrored else None
-    out = {k: v for k, v in upstream.headers.items() if k.lower() not in _SKIP_RESPONSE}
-    lending.hand_off(request.state)  # the relay outlives this frame and frees it
-    return StreamingResponse(_relay(client, upstream, tap, holder),
-                             status_code=upstream.status_code, headers=out)
-
-
-async def _relay(client: httpx.AsyncClient, upstream: httpx.Response,
-                 tap: ResponseTap | None, holder: Any = None) -> AsyncIterator[bytes]:
-    try:
-        async for chunk in upstream.aiter_raw():
-            if tap is not None:
-                tap.feed(chunk)
-            yield chunk
-    finally:
-        if tap is not None:
-            await tap.finish()
-        if holder is not None:  # the slot frees even when the socket died mid-turn
-            lending.leave(holder.nickname)
-        await upstream.aclose()
-        await client.aclose()
+    tap = (lambda status, ctype: ResponseTap(exchange, status, ctype, tokens.biller(holder))
+           ) if mirrored else None
+    return await forward(request, body, headers, _upstream(), tap, holder, _api_error)
