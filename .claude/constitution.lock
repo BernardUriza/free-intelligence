@@ -30,12 +30,12 @@ policy = ["repo", "bernard", "core"]
 methodology = []
 
 [lock]
-canonical_sha256 = "daf86c7cea0508aad37cd93976d3ad0fcfc938470e937d69656e8626d3c029a0"
+canonical_sha256 = "d58ca985328c2e33ec564df389638beab249164c5afb1e1c091ab99731f87688"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "20caaf33f1995169757c10fcc22e10b086ebbeee"
-tree = "sha256:864de67b3dffdd37008781bbd85f53bf2e17c0e33ec0a299cdfb78392b8ef43f"
+rev = "40a17552b3fc9938837f97ccd84f1be136a82338"
+tree = "sha256:4131cc7a32d68dd272265ef9a34dea5ddba5136a7e1726b70d0b2d774d964ee2"
