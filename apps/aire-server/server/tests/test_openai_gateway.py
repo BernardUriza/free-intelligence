@@ -109,13 +109,16 @@ def test_a_spent_key_is_refused_before_azure(doors, invited):
     assert fake_upstream.state["path"] is None
 
 
-def test_nothing_to_lend_is_a_plain_503_and_frees_the_slot(doors, invited, monkeypatch):
+def test_nothing_to_lend_is_a_plain_503_before_any_slot_is_claimed(doors, invited, monkeypatch):
     from aire import lending
     monkeypatch.delenv("AIRE_LEND_AZURE_OPENAI_KEY")
+    claims = []
+    monkeypatch.setattr(lending, "claim", lambda state, nick: claims.append(nick) or True)
     nick = invited.holder("aire_unlent")
     r, _ = _post(f"{doors.aire}/openai/v1/chat/completions", CHAT,
                  {"authorization": "Bearer aire_unlent"})
     assert r.status_code == 503
+    assert claims == [], "a door with nothing to lend never takes a slot"
     assert lending._inflight.get(nick) is None
 
 

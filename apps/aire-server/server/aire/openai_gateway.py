@@ -21,7 +21,7 @@ import uuid
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from . import gateway, gateway_mirror, lending, openai_assemble, pricing, relay, tokens
+from . import gateway, gateway_mirror, openai_assemble, pricing, relay, tokens
 from .gateway_mirror import ResponseTap
 
 router = APIRouter()
@@ -62,11 +62,7 @@ async def responses(request: Request) -> Response:
 
 async def _relay(request: Request, body: bytes) -> Response:
     holder = request.state.holder  # the door admits nobody else on this prefix
-    lent = azure_openai()
-    if lent is None:
-        lending.release(request.state)
-        return error("AIRE: no OpenAI credential to lend", 503)
-    base, credential = lent
+    base, credential = azure_openai()  # and refused already if there was nothing to lend
     exchange = uuid.uuid4().hex
     await gateway_mirror.log_request(exchange, request.headers, body, holder.nickname)
     headers = lend_openai(gateway.forward_headers(request), credential)
