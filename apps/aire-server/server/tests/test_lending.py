@@ -137,15 +137,4 @@ def test_openai_prices_chat_and_responses_shapes_with_the_cache_inside_the_input
 def test_an_unpriced_openai_model_is_charged_at_the_dearest_rate():
     usage = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
     dearest = max(pricing._table().values(), key=lambda r: r["output"])
-    assert pricing.openai_usd(usage, "gpt-5.4-mini") == pytest.approx(dearest["input"])
-
-
-def test_openai_lending_needs_both_halves_and_sheds_the_callers_key(monkeypatch):
-    monkeypatch.delenv("AIRE_OPENAI_UPSTREAM", raising=False)
-    monkeypatch.setenv("AIRE_LEND_AZURE_OPENAI_KEY", "k")
-    assert lending.azure_openai() is None
-    monkeypatch.setenv("AIRE_OPENAI_UPSTREAM", "https://x.openai.azure.com")
-    base, cred = lending.azure_openai()
-    sent = _dict(lending.lend_openai([("authorization", "Bearer aire_x"), ("api-key", "aire_x"),
-                                      ("content-type", "application/json")], cred))
-    assert sent == {"content-type": "application/json", "api-key": "k"}
+    assert pricing.openai_usd(usage, "gpt-99-nano") == pytest.approx(dearest["input"])

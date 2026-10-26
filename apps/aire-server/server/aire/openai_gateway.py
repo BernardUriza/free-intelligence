@@ -15,15 +15,32 @@ knows how to price, so it does not exist here until it can be billed.
 
 from __future__ import annotations
 
+import os
 import uuid
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from . import gateway, gateway_mirror, lending, openai_assemble, pricing, tokens
+from . import gateway, gateway_mirror, lending, openai_assemble, pricing, relay, tokens
 from .gateway_mirror import ResponseTap
 
 router = APIRouter()
+
+
+def azure_openai() -> tuple[str, tuple[str, str]] | None:
+    """Where the OpenAI door (#51) relays and the header it lends there, or None
+    when either half is missing. Its own slot, never the Anthropic one: a key
+    revoked on one provider must not silence the other."""
+    base = os.environ.get("AIRE_OPENAI_UPSTREAM", "")
+    key = os.environ.get("AIRE_LEND_AZURE_OPENAI_KEY", "")
+    return (base, ("api-key", key)) if base and key else None
+
+
+def lend_openai(headers: list[tuple[str, str]], credential: tuple[str, str]) -> list[tuple[str, str]]:
+    """Shed whatever the caller presented (its AIRE key rides as the Bearer or as
+    `api-key`) and present AIRE's Azure credential instead."""
+    kept = [(k, v) for k, v in headers if k.lower() not in ("authorization", "api-key", "x-api-key")]
+    return [*kept, credential]
 
 
 def error(message: str, status: int, kind: str = "api_error") -> JSONResponse:
@@ -45,17 +62,17 @@ async def responses(request: Request) -> Response:
 
 async def _relay(request: Request, body: bytes) -> Response:
     holder = request.state.holder  # the door admits nobody else on this prefix
-    lent = lending.azure_openai()
+    lent = azure_openai()
     if lent is None:
         lending.release(request.state)
         return error("AIRE: no OpenAI credential to lend", 503)
     base, credential = lent
     exchange = uuid.uuid4().hex
     await gateway_mirror.log_request(exchange, request.headers, body, holder.nickname)
-    headers = lending.lend_openai(gateway.forward_headers(request), credential)
+    headers = lend_openai(gateway.forward_headers(request), credential)
 
     def tap_for(status: int, content_type: str) -> ResponseTap:
         return ResponseTap(exchange, status, content_type,
                            tokens.biller(holder, pricing.openai_usd), openai_assemble.assemble)
 
-    return await gateway.forward(request, body, headers, base, tap_for, holder, error)
+    return await relay.forward(request, body, headers, base, tap_for, holder, error)

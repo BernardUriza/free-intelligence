@@ -14,6 +14,9 @@ import pytest
 
 import fake_upstream
 from test_gateway import _serve
+from test_lending import _dict
+
+from aire import openai_gateway
 
 CHAT = {"model": "gpt-4.1", "stream": True, "messages": [{"role": "user", "content": "ping"}]}
 
@@ -125,3 +128,14 @@ def test_an_unbilled_endpoint_does_not_exist_and_frees_the_slot(doors, invited):
         assert r.status_code == 404
     assert lending._inflight.get(nick) is None
     assert fake_upstream.state["path"] is None, "an unpriceable call never reaches Azure"
+
+
+def test_openai_lending_needs_both_halves_and_sheds_the_callers_key(monkeypatch):
+    monkeypatch.delenv("AIRE_OPENAI_UPSTREAM", raising=False)
+    monkeypatch.setenv("AIRE_LEND_AZURE_OPENAI_KEY", "k")
+    assert openai_gateway.azure_openai() is None
+    monkeypatch.setenv("AIRE_OPENAI_UPSTREAM", "https://x.openai.azure.com")
+    base, cred = openai_gateway.azure_openai()
+    sent = _dict(openai_gateway.lend_openai([("authorization", "Bearer aire_x"), ("api-key", "aire_x"),
+                                      ("content-type", "application/json")], cred))
+    assert sent == {"content-type": "application/json", "api-key": "k"}

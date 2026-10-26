@@ -39,7 +39,7 @@ RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport
 REPO_URL="git@github.com:BernardUriza/free-intelligence.git"   # aire-server lives at apps/aire-server since 2026-10-08
 REMOTE_DIR="/opt/aire"
 PG_SERVER="development-pg-n66dz"          # the pen's Azure Postgres
-PG_RG="insult-rg"
+PG_RG="og118-rg"                           # insult-rg was deleted 2026-10-17; the pen moved to og118-rg
 
 source "$SCRIPT_DIR/lib/keys.sh"
 source "$SCRIPT_DIR/lib/droplet.sh"

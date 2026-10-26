@@ -64,22 +64,6 @@ def credential() -> tuple[str, str] | None:
     return None
 
 
-def azure_openai() -> tuple[str, tuple[str, str]] | None:
-    """Where the OpenAI door (#51) relays and the header it lends there, or None
-    when either half is missing. Its own slot, never the Anthropic one: a key
-    revoked on one provider must not silence the other."""
-    base = os.environ.get("AIRE_OPENAI_UPSTREAM", "")
-    key = os.environ.get("AIRE_LEND_AZURE_OPENAI_KEY", "")
-    return (base, ("api-key", key)) if base and key else None
-
-
-def lend_openai(headers: list[tuple[str, str]], credential: tuple[str, str]) -> list[tuple[str, str]]:
-    """Shed whatever the caller presented (its AIRE key rides as the Bearer or as
-    `api-key`) and present AIRE's Azure credential instead."""
-    kept = [(k, v) for k, v in headers if k.lower() not in ("authorization", "api-key", "x-api-key")]
-    return [*kept, credential]
-
-
 def lend(headers: list[tuple[str, str]]) -> list[tuple[str, str]] | None:
     """Swap the caller's credential for AIRE's, keeping every other header the
     gateway would have forwarded. None means AIRE has no credential to lend."""
