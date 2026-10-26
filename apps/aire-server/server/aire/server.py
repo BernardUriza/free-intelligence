@@ -29,7 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import (access, arming, artifacts, corpus, corpus_door, door, gateway,
+from . import (access, arming, artifacts, ceiling, corpus, corpus_door, door, gateway,
                init_project, messages, openai_gateway, spend, tokens)
 from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
@@ -123,3 +123,4 @@ app.include_router(artifacts.router)  # GET the casita's files — #22b, the dae
 app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)
 app.include_router(corpus_door.router)   # #47 — a consumer writes and reads its own corpus
 app.include_router(access.router)     # #32 — a stranger asks to be let in; Bernard's inbox decides
+app.include_router(ceiling.router)    # #51 — the owner moves one key's ceiling without re-minting it
