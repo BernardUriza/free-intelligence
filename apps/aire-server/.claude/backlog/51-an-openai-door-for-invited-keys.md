@@ -1,6 +1,6 @@
 # 51 — An OpenAI door for invited keys (Azure OpenAI, lent and metered like #32)
 
-Status: **In progress** — DEPLOYED 2026-10-26 (PR #576, droplet on `abb4bc8d`; `/openai/v1/chat/completions` answers 401 `AIRE: unknown key` in OpenAI's error shape). Not yet usable: the droplet's `/etc/aire/env` lacks the two door variables, and no key is minted.
+Status: **Done 2026-10-26** — one real invited turn through `https://gate.bernarduriza.com/openai/v1/chat/completions` answered 200 from `gpt-5.4-mini-2026-03-17` and banked against the key's ceiling (`aire_token.spent_usd` for `visalaw-judge` = 0.0001005 after three turns: 14/7, 9/5, 9/5 tokens at $0.75/$4.50 per million — list price to the cent). Open, both Bernard's: the judge's wiring on the Windows box, and the ceiling per invitation (the key was minted at the default `AIRE_INVITE_BUDGET_USD` = 0.05).
 Proposed: 2026-10-22 by Bernard (*"quisiera hacer uno nuevo para que también yo pueda ofrecerle el servicio de OpenAI a mis clientes de AIRE"*).
 
 ## What exists (2026-10-22, verified)
@@ -74,7 +74,33 @@ invitation's ceiling.
 - Access requested for `visalaw-judge` through `/access/request` (gate answered
   `sent`); the approve mail is in Bernard's inbox.
 
-## Next step
+## What shipped (2026-10-26, later)
+
+- PR #578: the nothing-to-lend 503 moved into `_admit_openai`, before any slot is
+  claimed (the Gatekeeper's note on #576).
+- Env on the droplet (`AIRE_OPENAI_UPSTREAM`, `AIRE_LEND_AZURE_OPENAI_KEY`),
+  `arming.report()` says `lending_openai: true`.
+- `visalaw-judge` approved and minted; key in `~/.secrets/aire-key-visalaw-judge.txt`.
+- The first real turn hit a wall that was not the door: the Azure subscription
+  was `Warned`/read-only because the September invoice (G189632160, USD 163.22)
+  went past due on 2026-10-09 with no payment method on the account. Azure
+  answered 401 to a correct key; every container app and SWA was down with it.
+  Paid 09:28 UTC, subscription `Enabled` 09:32, Azure OpenAI 200 the same
+  minute. Memory: `azure-subscription-pastdue-2026-10`.
+- Streamed turns carry usage because the door injects
+  `stream_options.include_usage`; verified on the wire (9/5 tokens in the last
+  chunk).
+
+## Next step (the consumer, not the door)
+
+Point the Visalaw hooks' judge at the door: `base_url =
+https://gate.bernarduriza.com/openai/v1`, `api_key` = the `visalaw-judge` key
+(`~/.secrets/aire-key-visalaw-judge.txt`, Bearer or `api-key`), `model =
+gpt-5.4-mini`. Decide the ceiling: at 0.05 USD the judge gets roughly ten
+calls of a few thousand tokens before 402; there is no endpoint to raise a
+key's budget yet, only re-approval at the default.
+
+## Superseded steps (2026-10-26, kept for the record)
 
 1. Bernard: run the env script (appends `AIRE_OPENAI_UPSTREAM` +
    `AIRE_LEND_AZURE_OPENAI_KEY` from `~/.secrets/aire-openai-azure.txt`,
