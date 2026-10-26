@@ -102,7 +102,11 @@ def _admit_gateway(request: Request) -> JSONResponse | None:
 def _admit_openai(request: Request) -> JSONResponse | None:
     """The OpenAI door (#51) has no pass-through: AIRE always lends its own Azure
     credential, so only a key with a ceiling gets in. The key rides where an
-    OpenAI client puts it — the Bearer — or in `api-key`, where an Azure client does."""
+    OpenAI client puts it — the Bearer — or in `api-key`, where an Azure client does.
+    Nothing to lend is refused here, before any slot is taken: a misconfigured door
+    must not hold an invited key's turns hostage while it says 503."""
+    if openai_gateway.azure_openai() is None:
+        return openai_gateway.error("AIRE: no OpenAI credential to lend", 503)
     holder = tokens.identify(request.headers.get("api-key", "") or presented_token(request))
     if holder is None:
         return openai_gateway.error("AIRE: unknown key", 401, "invalid_request_error")
