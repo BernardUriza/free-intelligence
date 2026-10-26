@@ -1,6 +1,6 @@
 # 51 — An OpenAI door for invited keys (Azure OpenAI, lent and metered like #32)
 
-Status: **In progress** — the door is written and tested (2026-10-22: `openai_gateway.py`, 394 tests green); not yet on the droplet, no key minted for a consumer.
+Status: **In progress** — DEPLOYED 2026-10-26 (PR #576, droplet on `abb4bc8d`; `/openai/v1/chat/completions` answers 401 `AIRE: unknown key` in OpenAI's error shape). Not yet usable: the droplet's `/etc/aire/env` lacks the two door variables, and no key is minted.
 Proposed: 2026-10-22 by Bernard (*"quisiera hacer uno nuevo para que también yo pueda ofrecerle el servicio de OpenAI a mis clientes de AIRE"*).
 
 ## What exists (2026-10-22, verified)
@@ -63,7 +63,25 @@ invitation's ceiling.
   deleted (2026-10-16). Azure refused `gpt-4.1` on `aire-openai` the first time
   with 715-123420 ("unusual activity").
 
+## What shipped (2026-10-26)
+
+- PR #576 carried the 2026-10-22 commits plus: `relay.py` (the relay both doors
+  share; `gateway.py` had hit 158 lines against the 150 law), the Azure slot
+  moved into `openai_gateway.py`, `prices.json` gained `gpt-5.4-mini`
+  ($0.75/$4.50/$0.075 cached, GlobalStandard, the only deployment on
+  `aire-openai`; without the row every turn priced at the dearest fallback),
+  and `provision-do.sh` points the pen's firewall at `og118-rg`.
+- Access requested for `visalaw-judge` through `/access/request` (gate answered
+  `sent`); the approve mail is in Bernard's inbox.
+
 ## Next step
 
-Deploy, set the env on the droplet, mint the judge's key, and prove one real
-invited turn banks against its ceiling.
+1. Bernard: run the env script (appends `AIRE_OPENAI_UPSTREAM` +
+   `AIRE_LEND_AZURE_OPENAI_KEY` from `~/.secrets/aire-openai-azure.txt`,
+   restarts `aire-server`). `provision-do.sh` cannot do it: both DigitalOcean
+   tokens in `~/.secrets` answer 401 — regenerate one, or the next provision is
+   by hand too.
+2. Bernard: click approve in "AIRE — visalaw-judge wants in"; the key arrives in
+   "AIRE — the key for visalaw-judge".
+3. One real invited turn against gpt-5.4-mini, then `aire_token.spent_usd` for
+   `visalaw-judge` must be > 0. Only then does this item flip.
