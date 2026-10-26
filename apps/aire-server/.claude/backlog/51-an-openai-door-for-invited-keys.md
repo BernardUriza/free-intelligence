@@ -1,6 +1,6 @@
 # 51 — An OpenAI door for invited keys (Azure OpenAI, lent and metered like #32)
 
-Status: **Done 2026-10-26** — one real invited turn through `https://gate.bernarduriza.com/openai/v1/chat/completions` answered 200 from `gpt-5.4-mini-2026-03-17` and banked against the key's ceiling (`aire_token.spent_usd` for `visalaw-judge` = 0.0001005 after three turns: 14/7, 9/5, 9/5 tokens at $0.75/$4.50 per million — list price to the cent). Open, both Bernard's: the judge's wiring on the Windows box, and the ceiling per invitation (the key was minted at the default `AIRE_INVITE_BUDGET_USD` = 0.05).
+Status: **Done 2026-10-26** — one real invited turn through `https://gate.bernarduriza.com/openai/v1/chat/completions` answered 200 from `gpt-5.4-mini-2026-03-17` and banked against the key's ceiling (`aire_token.spent_usd` for `visalaw-judge` = 0.0001005 after three turns: 14/7, 9/5, 9/5 tokens at $0.75/$4.50 per million — list price to the cent). Open, Bernard's: the judge's wiring on the Windows box. The ceiling per invitation is a route since PR #580 (`POST /access/ceiling`, owner token only); `visalaw-judge` raised to 5 USD on 2026-10-26.
 Proposed: 2026-10-22 by Bernard (*"quisiera hacer uno nuevo para que también yo pueda ofrecerle el servicio de OpenAI a mis clientes de AIRE"*).
 
 ## What exists (2026-10-22, verified)
@@ -96,9 +96,13 @@ invitation's ceiling.
 Point the Visalaw hooks' judge at the door: `base_url =
 https://gate.bernarduriza.com/openai/v1`, `api_key` = the `visalaw-judge` key
 (`~/.secrets/aire-key-visalaw-judge.txt`, Bearer or `api-key`), `model =
-gpt-5.4-mini`. Decide the ceiling: at 0.05 USD the judge gets roughly ten
-calls of a few thousand tokens before 402; there is no endpoint to raise a
-key's budget yet, only re-approval at the default.
+gpt-5.4-mini`. The ceiling is no longer a re-approval: `POST /access/ceiling`
+(PR #580, merged `973ce2dd`, deployed 2026-10-26) moves one live key's
+`budget_usd` with `AIRE_AUTH_TOKEN` alone, spend untouched. `visalaw-judge`
+sits at 5.00 USD since 2026-10-26 10:20 UTC (live receipt: 200
+`{"nickname":"visalaw-judge","budget_usd":5.0,"spent_usd":0.0001005}`; the
+canary token got 401). At $0.75/$4.50 per million that is on the order of a
+thousand judge calls of a few thousand tokens.
 
 ## Superseded steps (2026-10-26, kept for the record)
 
