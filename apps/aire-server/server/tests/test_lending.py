@@ -138,3 +138,10 @@ def test_an_unpriced_openai_model_is_charged_at_the_dearest_rate():
     usage = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
     dearest = max(pricing._table().values(), key=lambda r: r["output"])
     assert pricing.openai_usd(usage, "gpt-99-nano") == pytest.approx(dearest["input"])
+
+
+def test_the_codex_plan_model_is_priced_at_openai_list_with_its_own_cache_rate():
+    usage = {"input_tokens": 1_000_000, "output_tokens": 1_000_000,
+             "input_tokens_details": {"cached_tokens": 500_000}}
+    assert pricing.openai_usd(usage, "gpt-6-astra") == pytest.approx(5.0 + 0.5 + 50.0)
+    assert pricing.openai_usd(usage, "gpt-6.1-sol") == pytest.approx(1.0 + 0.05 + 10.0)
