@@ -133,3 +133,18 @@ labelled correctly, `engine: aire-gpt-5.4-mini`, `aire_spend` `gateway | susurro
    "AIRE — the key for visalaw-judge".
 3. One real invited turn against gpt-5.4-mini, then `aire_token.spent_usd` for
    `visalaw-judge` must be > 0. Only then does this item flip.
+
+## Third consumer (2026-10-27): `thinkpad-stop-judge`
+
+The Stop judge of the Infios ThinkPad (agent-constitution `gates/stop-judge`, raw packet by
+Bernard's decision, http transport to this door). Bernard ordered the door opened from the Mac
+("ábrele la puerta de AIRE a thinkpad primero"): `/access/request` with the owner token → 200
+`sent` 19:01Z → approve link from the mail → key minted (mail "AIRE — the key for
+thinkpad-stop-judge") → `~/.secrets/aire-key-thinkpad-stop-judge.txt` on the Mac → `POST
+/access/ceiling` 5.00 USD (200, spent 0.0). Smoke test from the Mac with the new key:
+`/openai/v1/chat/completions`, `gpt-5.4-mini`, `max_completion_tokens` → 200 from
+`gpt-5.4-mini-2026-03-17`, `PASS`, 40/4 tokens, ceiling re-read `spent_usd 9.6e-05`. Delivery:
+the key mail was forwarded from Bernard's Gmail to his Infios inbox at 19:11Z (Bernard registered
+that address in `.claude/destinatarios-canales.txt` the same turn; no bounce at 19:14Z); the
+ThinkPad stores it as `KEY=…` in its own `~/.secrets/aire-key-thinkpad-stop-judge.txt`. Open, the
+ThinkPad's: receipt of the mail, the local file, and the judge's four cases through the door.
