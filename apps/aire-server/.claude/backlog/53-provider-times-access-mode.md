@@ -1,8 +1,9 @@
 # 53 — provider × access_mode: one credential rotor for both providers
 
-Status: **In progress** — shipped 2026-10-27 (engine, both backends, the Mac installer, tests);
-the live receipt on the Mac door rides the oauth seat, the apikey failover is proven by the
-E2E test against the real `codex exec` shapes and stays unarmed until a key file exists.
+Status: **Done 2026-10-27** — engine, both backends, the Mac installer, tests, the gpt-6 price rows
+(PR #590), and both Codex slots armed on the Mac with live receipts: a plan turn (`metered=f`) and a
+real turn through `codex/apikey/fallback` (`metered=t`, 0.1315 USD banked). What is still unmeasured
+is the wording of a REAL exhausted plan (see Open).
 Proposed: 2026-10-27 by Bernard (*"provider es una cosa y access_mode es otra con solo dos tipos, oauth y apikey"*),
 after reading that the Codex backend (#52) has a single implicit credential and no fallback while the Claude
 backend has a three-slot rotor (#31).
@@ -118,7 +119,34 @@ nominal, nobody billed, now the figure a `CODEX_API_KEY` turn would actually pay
 PR #590 deployed (16:39Z, session `rotor53-prices-103936`): `pong`, `total_cost_usd: 0.06611` =
 5,370 × 10 + 12,160 × 1 + 5 × 50 per million, and `aire_spend` holds the same figure, `metered=f`.
 
+## The fallback, armed (2026-10-27 17:01Z)
+
+Bernard said *"Sí, ármalo"*. The key was minted in platform.openai.com (Personal Organization, Default
+project, name `aire-codex-fallback (Mac, #53)`, tracking `key_RuwfMfyJuJzcuoWH`, expiration Never,
+permissions All) and saved to `~/.secrets/aire-codex-api-key-fallback.txt`; `install-mac.sh` wrote
+`CODEX_API_KEY_FALLBACK=` and `/health` now lists `credential_slots_armed: ["codex/oauth/primary",
+"codex/apikey/fallback"]`, `credential_failover_codex: true`. The key answered `/v1/models` 200 with
+`gpt-6-astra` in the list before it was armed.
+
+**The receipt through the metered slot** — a plan limit cannot be staged, so the plan seat was
+disarmed for one turn (`CODEX_HOME` dropped from `~/.aire/env`, agent kickstarted, `/health` showed
+`["codex/apikey/fallback"]` alone), one `provider: "codex"` pong went through the door on session
+`rotor53-fallback-110130`: `gpt-6-astra`, `success`, `total_cost_usd: 0.1315` (13,125 uncached input
+at $10 + 5 output at $50 per million, a cold thread so nothing cached), and `aire_spend` holds
+`0.13150 | metered=t`. Then `install-mac.sh` re-ran and both slots were armed again. The installer is
+the only thing that touched the env on the way back, so the box is in its canonical state.
+
+**The ceiling that already exists**: the key bills OpenAI's Pay-as-you-go credit, **2.38 USD on the
+day it was created, auto-reload OFF** — when it reaches 0 OpenAI refuses the key (an `insufficient_quota`
+`turn.failed`, which burns the slot like any limit). That is ~18 cold pongs; a sized fallback is a
+feature, not a gap, and topping it up is Bernard's call at platform.openai.com → Billing.
+
 ## Open
 
-- The live receipt of the apikey failover needs a platform key in the file above, or a real exhausted plan.
+- A real exhausted plan's `turn.failed` wording is still unmeasured (the phrases came from the binary's
+  string table); when it happens, read it off `aire_agent_log` and add the exact phrase.
+- Cache WRITES: OpenAI lists a cache-write rate for gpt-6-astra that `openai_usd` does not model (it
+  prices the written tokens at the plain input rate). The real charge for the fallback pong may read
+  slightly above the 0.1315 booked; compare the Billing page's credit balance against `aire_spend`
+  after a few turns and, if it drifts, add `cache_write` to the row and the formula.
 - #52's open item (videopipe calling AIRE) is what this makes survive a plan limit.
