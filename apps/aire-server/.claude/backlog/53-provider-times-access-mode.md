@@ -114,7 +114,9 @@ SSE `text` → `result` (`"pong"`, `model: gpt-6-astra`, `subtype: success`, `er
 12160 cache_read`. The 0.21 was the dearest-row price for a model then absent from `prices.json`
 (cached tokens at $10 instead of $1); the `gpt-6-astra` row (10 / 50 / 1 cached, OpenAI Standard tier,
 developers.openai.com/api/docs/pricing read 2026-10-27) reprices that same pong at 0.10 — still
-nominal, nobody billed, now the figure a `CODEX_API_KEY` turn would actually pay.
+nominal, nobody billed, now the figure a `CODEX_API_KEY` turn would actually pay. Re-measured after
+PR #590 deployed (16:39Z, session `rotor53-prices-103936`): `pong`, `total_cost_usd: 0.06611` =
+5,370 × 10 + 12,160 × 1 + 5 × 50 per million, and `aire_spend` holds the same figure, `metered=f`.
 
 ## Open
 
