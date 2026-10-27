@@ -5,17 +5,19 @@ Nothing under `aire/` imports `claude_agent_sdk` except this package and
 upstream). Everyone else imports from here, so adding a provider is a new
 backend module plus one registry row — the engine never learns its name.
 
-Two backends live here. `claude` is the native one, Anthropic's SDK with its
+Three backends live here. `claude` is the native one, Anthropic's SDK with its
 own `session_store`. `acp` is ONE adapter for every agent that speaks the Agent
 Client Protocol (#49) — which agents, by name, is the operator's `AIRE_ACP_AGENTS`
-roster, never the wire's choice. A turn's `provider` is `"claude"` or a roster
-name; `backend_for` resolves it and the engine calls the same two methods."""
+roster, never the wire's choice. `codex` is OpenAI's headless CLI on the ChatGPT
+plan (#52), listed only where `AIRE_CODEX_COMMAND` names a binary. A turn's
+`provider` is `"claude"`, `"codex"` or a roster name; `backend_for` resolves it
+and the engine calls the same two methods."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from . import acp, claude
+from . import acp, claude, codex
 from .acp_roster import roster
 from .base import AgentBackend, AgentClient, Birth
 
@@ -40,13 +42,16 @@ class UnknownProvider(Exception):
 
 
 def providers() -> tuple[str, ...]:
-    """Every name a turn may carry: the native backend, then the ACP roster."""
-    return (DEFAULT_PROVIDER, *sorted(roster()))
+    """Every name a turn may carry: the native backend, Codex where the box
+    has it, then the ACP roster."""
+    return (DEFAULT_PROVIDER, *((codex.NAME,) if codex.enabled() else ()), *sorted(roster()))
 
 
 def backend_for(provider: str) -> AgentBackend:
     if provider == DEFAULT_PROVIDER:
         return claude
+    if provider == codex.NAME and codex.enabled():
+        return codex
     if provider in roster():
         return acp
     raise UnknownProvider(f"unknown provider {provider!r}; available: {list(providers())}")

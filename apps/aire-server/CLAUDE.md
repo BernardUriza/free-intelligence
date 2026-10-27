@@ -217,6 +217,26 @@ memory. To contradict anything here, verify it first the same way.
   #49's next step. Not deployed as a consumer: the droplet has no node and 162 MB
   free; `claude-code-acp` costs ~90 MB of node beside the `claude` it spawns.
 
+- **A third backend, Codex on the ChatGPT plan** (2026-10-26, backlog #52).
+  `provider: "codex"` exists only where `AIRE_CODEX_COMMAND` names the binary;
+  `agent_sdk/codex.py` runs ONE `codex exec --json` process per turn
+  (`exec resume <thread>` after the first, `-m` on every call because a resume
+  without it falls back to the plan's default weights and says so), mirrors every
+  event through `acp_mirror` and maps the AIRE session to the Codex thread there.
+  Measured facts: the ACP adapter (`codex-acp` 0.16.0, codex-core 0.137) is too old
+  for `gpt-6-astra` — the backend refuses it — while `codex exec` 0.164 answers,
+  and that is the road the official `@openai/codex-sdk` drives underneath; a
+  cold resume says `no rollout found` on stderr with exit 1 and no stdout, so the
+  backend reopens fresh LOUDLY (`CODEX-RESUME-LOST`); the message arrives whole
+  (`item.completed`), never as deltas; a plan turn picks, burns and cools no
+  Anthropic slot (the backend's `ROTOR = False`) and bills no card (the client's
+  `NOMINAL = True` keeps any reported cost `metered=false`) — and because
+  `spend.bank` records paid turns only, a plan turn leaves NO `aire_spend` row:
+  its usage is in the mirror. **The box is this Mac, by Bernard's decision, and
+  the CLI is never used directly** — the binary lives at
+  `~/.aire/codex/node_modules/.bin/codex` as AIRE's agent only; the droplet gets
+  nothing (#52).
+
 ## Discarded routes (don't re-propose them)
 
 - **Ephemeral VM with SSH** (the original `air-lite`): the Agent SDK reinvented with

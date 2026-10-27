@@ -37,7 +37,10 @@ Proposed: 2026-09-17 by Bernard (*"¿se puede poner qwen code como otro agent si
    grows the SDK's HTTP/WebSocket transport (`connect_to_agent(client, transport)`)
    to reach an agent served from the NUC. Pick when the NUC exists.
 4. `usage`/cost: `claude-code-acp` reports none; other agents may. `prices.json`
-   stays Anthropic-only until a provider reports tokens without dollars.
+   stays Anthropic-only until a provider reports tokens without dollars. **The
+   "plan quota" row shape landed with #52 (2026-10-26)**: a client that declares
+   `NOMINAL = True` banks `metered=false` with its token columns, whatever the
+   rotor's slot; an ACP agent on a subscription can declare the same.
 5. The vetted in-process tool registry does not mount on an ACP turn (ACP agents
    bring their own tools); only HTTP remote tools (#48) could.
 
