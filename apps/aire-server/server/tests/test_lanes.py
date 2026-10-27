@@ -19,22 +19,22 @@ def test_the_door_token_names_the_lane():
 
 def test_an_armed_lane_is_its_own_metered_slot():
     slot = armed(ENV)["bair"]
-    assert slot.name == "api-key-bair"
+    assert slot.name == "claude/apikey/bair"
     assert slot.env == {"ANTHROPIC_API_KEY": "sk-bair", "CLAUDE_CODE_OAUTH_TOKEN": ""}
 
 
 def test_an_armed_lane_never_touches_the_pool():
     rotor = Rotor(ENV)
     slots = armed(ENV)
-    assert pick(rotor, "bair", slots).name == "api-key-bair"
-    rotor.burn("api-key-bair")
-    assert pick(rotor, "bair", slots) is None  # dry lane → credentials_exhausted
-    assert pick(rotor, "", slots).name == "oauth-primary"  # the personas keep the pool
+    assert pick(rotor, "bair", slots=slots).name == "claude/apikey/bair"
+    rotor.burn("claude/apikey/bair")
+    assert pick(rotor, "bair", slots=slots) is None  # dry lane → credentials_exhausted
+    assert pick(rotor, "", slots=slots).name == "claude/oauth/primary"  # the personas keep the pool
 
 
 def test_an_unarmed_lane_rides_the_shared_chain_unchanged():
     rotor = Rotor(ENV)
-    assert pick(rotor, "bair", armed({"AIRE_BAIR_TOKEN": "bair-door"})).name == "oauth-primary"
+    assert pick(rotor, "bair", slots=armed({"AIRE_BAIR_TOKEN": "bair-door"})).name == "claude/oauth/primary"
 
 
 def test_the_lane_rides_the_spec_and_the_caller_cannot_claim_one():

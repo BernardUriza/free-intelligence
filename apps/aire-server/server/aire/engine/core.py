@@ -13,7 +13,7 @@ from .. import acp_mirror
 from ..agent_sdk import Birth, SDKClient, build_options, project_key_for_directory
 from ..keys import sdk_session_uuid
 from .contract import CostSink, TurnSpec
-from .credentials import Rotor, is_metered
+from .credentials import Rotor, Slot
 from .detach import Detached, drain_detached
 from .ledger import Ledger
 from .pool import Pool
@@ -30,7 +30,7 @@ class Engine:
         self.ledger = Ledger()  # the two spend ceilings and their bookkeeping
         self.detached = Detached()  # fire-and-forget background turns (#22a)
         self.rotor = Rotor()  # the credential chain (#31)
-        self.slot_of: dict[str, str] = {}  # key → the slot each pooled client was born with
+        self.slot_of: dict[str, Slot] = {}  # key → the slot each pooled client was born with
         self.spec_of: dict[str, TurnSpec] = {}  # key → the shape its client was born with (#38)
 
     def _cwd(self, project: str) -> Path:
@@ -63,13 +63,13 @@ class Engine:
                 birth = Birth(self.session_store, project, str(self._cwd(project)),
                               sdk_session_uuid(session), spec,
                               await self.has_session(project, session, spec.provider),
-                              slot.env if slot else None, slot is None or is_metered(slot.name))
+                              slot.env if slot else None, slot.metered if slot else True)
                 client = SDKClient(spec.provider, options=build_options(birth))
                 await client.__aenter__()
                 self.pool.clients[key] = client
                 self.spec_of[key] = spec  # the shape it was born with (#38)
                 if slot is not None:
-                    self.slot_of[key] = slot.name
+                    self.slot_of[key] = slot
             self.pool.used[key] = now
             lock = self.pool.locks.setdefault(key, asyncio.Lock())
         return client, lock

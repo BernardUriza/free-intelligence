@@ -32,8 +32,8 @@ def armed(environ: dict[str, str] | None = None) -> dict[str, Slot]:
     """The lanes whose credential is present, as rotor slots. Built once at import
     like the bearer's tokens: the env file is read at boot, never mid-flight."""
     env = os.environ if environ is None else environ
-    return {lane: Slot(f"api-key-{lane}", {"ANTHROPIC_API_KEY": env[cred],
-                                           "CLAUDE_CODE_OAUTH_TOKEN": ""})
+    return {lane: Slot(f"claude/apikey/{lane}", "claude", "apikey",
+                       {"ANTHROPIC_API_KEY": env[cred], "CLAUDE_CODE_OAUTH_TOKEN": ""})
             for lane, (_, cred) in LANES.items() if env.get(cred)}
 
 
@@ -52,11 +52,14 @@ def lane_of(presented: str, environ: dict[str, str] | None = None) -> str:
     return found
 
 
-def pick(rotor: Any, lane: str, slots: dict[str, Slot] | None = None) -> Slot | None:
+def pick(rotor: Any, lane: str, provider: str = "claude",
+         slots: dict[str, Slot] | None = None) -> Slot | None:
     """The slot this turn rides. An armed lane is exclusive — cooling means
-    None (`credentials_exhausted`), never the pool. No lane, or a lane whose
-    credential is absent: the shared chain, unchanged."""
+    None (`credentials_exhausted`), never the pool. No lane, a lane whose
+    credential is absent, or a lane of another provider (a lane is a Claude
+    key; a Codex turn by the same consumer rides Codex's chain): the shared
+    chain of `provider`, unchanged."""
     slot = (LANE_SLOTS if slots is None else slots).get(lane)
-    if slot is None:
-        return rotor.active()
+    if slot is None or slot.provider != provider:
+        return rotor.active(provider)
     return None if slot.name in rotor.cooling_names() else slot

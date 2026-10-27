@@ -18,16 +18,22 @@ import pytest
 import aire.engine.ledger as ledger_mod
 from aire.engine.contract import BudgetExceeded, TurnSpec
 from aire.engine.core import Engine
-from aire.engine.credentials import is_metered
+from aire.engine.credentials import AMBIENT, Rotor
 from aire.engine.ledger import Ledger
 from aire.engine.turn import run_turn
 
+SLOTS = {s.name: s for s in Rotor({"CLAUDE_CODE_OAUTH_TOKEN": "a", "CLAUDE_CODE_OAUTH_TOKEN_BACKUP": "b",
+                                   "ANTHROPIC_API_KEY_FALLBACK": "c", "CODEX_HOME": "/h",
+                                   "CODEX_API_KEY_FALLBACK": "d"}).slots}
+
 
 def test_the_chain_knows_which_slots_bill_the_card() -> None:
-    assert not is_metered("oauth-primary")
-    assert not is_metered("oauth-backup")
-    assert is_metered("api-key-fallback")
-    assert is_metered("ambient"), "an unknown credential counts as real money"
+    assert not SLOTS["claude/oauth/primary"].metered
+    assert not SLOTS["claude/oauth/backup"].metered
+    assert SLOTS["claude/apikey/fallback"].metered
+    assert not SLOTS["codex/oauth/primary"].metered, "a ChatGPT-plan turn bills no card"
+    assert SLOTS["codex/apikey/fallback"].metered
+    assert AMBIENT.metered, "an unknown credential counts as real money"
 
 
 def test_oauth_spend_returns_its_delta_but_never_moves_the_ceiling() -> None:
@@ -88,21 +94,20 @@ class _FakeClient:
         yield ResultMessage(self.cumulative)
 
 
-class _Slot:
-    env: dict = {}
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-
 class _Rotor:
     def __init__(self, name: str) -> None:
         self._name = name
 
-    def active(self) -> _Slot:
-        return _Slot(self._name)
+    def providers(self) -> tuple[str, ...]:
+        return ("claude",)
 
-    def burn(self, _name: str) -> None:
+    def active(self, provider: str = "claude") -> Any:
+        return SLOTS[self._name]
+
+    def cooling_names(self) -> list[str]:
+        return []
+
+    def burn(self, _name: str, _text: Any = None) -> None:
         raise AssertionError("a healthy turn must not burn a credential slot")
 
 
@@ -131,7 +136,7 @@ async def _wired(monkeypatch, tmp_path, slot_name: str, cumulative: float = 0.02
 @pytest.mark.asyncio
 async def test_an_exhausted_ledger_still_serves_the_oauth_slot(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(ledger_mod, "MAX_SPEND_USD", 20.0)
-    engine = await _wired(monkeypatch, tmp_path, "oauth-primary")
+    engine = await _wired(monkeypatch, tmp_path, "claude/oauth/primary")
     engine.ledger.spend_usd = 20.45  # the founding incident's exact reading
 
     events = [ev async for ev in
@@ -143,7 +148,7 @@ async def test_an_exhausted_ledger_still_serves_the_oauth_slot(monkeypatch, tmp_
 @pytest.mark.asyncio
 async def test_the_same_exhausted_ledger_still_refuses_the_metered_slot(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(ledger_mod, "MAX_SPEND_USD", 20.0)
-    engine = await _wired(monkeypatch, tmp_path, "api-key-fallback")
+    engine = await _wired(monkeypatch, tmp_path, "claude/apikey/fallback")
     engine.ledger.spend_usd = 20.45
 
     with pytest.raises(BudgetExceeded):
@@ -154,7 +159,7 @@ async def test_the_same_exhausted_ledger_still_refuses_the_metered_slot(monkeypa
 @pytest.mark.asyncio
 async def test_an_oauth_client_past_the_cap_is_neither_cut_nor_retired(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(ledger_mod, "TURN_CAP_USD", 1.0)
-    engine = await _wired(monkeypatch, tmp_path, "oauth-primary", cumulative=1.20)
+    engine = await _wired(monkeypatch, tmp_path, "claude/oauth/primary", cumulative=1.20)
 
     events = [ev async for ev in
               run_turn(engine, "canary", "s1", "hi", TurnSpec(mode="complete"))]
@@ -166,7 +171,7 @@ async def test_an_oauth_client_past_the_cap_is_neither_cut_nor_retired(monkeypat
 @pytest.mark.asyncio
 async def test_a_metered_client_past_the_cap_is_still_cut_and_retired(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(ledger_mod, "TURN_CAP_USD", 1.0)
-    engine = await _wired(monkeypatch, tmp_path, "api-key-fallback", cumulative=1.20)
+    engine = await _wired(monkeypatch, tmp_path, "claude/apikey/fallback", cumulative=1.20)
 
     events = [ev async for ev in
               run_turn(engine, "canary", "s1", "hi", TurnSpec(mode="complete"))]

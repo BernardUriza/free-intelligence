@@ -21,6 +21,7 @@ from .base import Birth
 
 Options = ClaudeAgentOptions
 mcp_server = create_sdk_mcp_server
+CREDENTIALS = "claude"  # the rotor chain its clients ride (#53)
 
 __all__ = ["Options", "HookMatcher", "mcp_server", "tool",
            "project_key_for_directory", "client", "build_options"]

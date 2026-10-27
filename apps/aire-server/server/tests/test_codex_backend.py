@@ -67,8 +67,9 @@ async def test_a_turn_streams_text_banks_tokens_and_lands_in_the_mirror(box, tmp
     assert [e["text"] for e in events if e["type"] == "text"] == ["pong: hola"]
     result = _result(events)
     assert result.text == "pong: hola" and result.subtype == "success" and result.model == "gpt-6-astra"
-    assert result.usage == {"input_tokens": 3, "output_tokens": 2,
-                            "cache_read_input_tokens": 7, "cache_creation_input_tokens": 1}
+    assert result.usage == {"input_tokens": 3, "output_tokens": 2, "cache_read_input_tokens": 7,
+                            "cache_creation_input_tokens": 1, "total_cost_usd": result.usage["total_cost_usd"]}
+    assert result.usage["total_cost_usd"] > 0, "tokens priced at list (#53), nominal on a plan seat"
     assert [r["kind"] for r in await _rows(tmp_path, session)] == ["prompt", "session", "item.completed", "result"]
     argv = _argv(box)
     assert argv[:2] == ["exec", "-m"] and "resume" not in argv and "--json" in argv
@@ -128,6 +129,57 @@ async def test_the_turn_picks_the_weights_and_images_ride_as_files(box, tmp_path
     argv = _argv(box)
     assert argv[argv.index("-m") + 1] == "gpt-6.1-sol"
     assert argv[argv.index("-i") + 1].endswith("image-0.png")
+
+
+def _env(box: Path) -> dict:
+    return json.loads((box / "last_env.json").read_text())
+
+
+@pytest.mark.anyio
+async def test_the_slot_env_reaches_the_process_and_a_plan_turn_is_priced_nominal(box, tmp_path):
+    """#53: the rotor's slot rides on top of the daemon's environ into `codex
+    exec`; the turn's tokens are priced at list so a metered key can bank."""
+    birth = Birth(None, "p", str(tmp_path), str(uuid.uuid4()),
+                  TurnSpec(mode="complete", provider="codex"), False,
+                  credential_env={"CODEX_API_KEY": "sk-test", "CODEX_HOME": str(box)}, metered=True)
+    result = _result(await _turn(birth, "hola"))
+    assert _env(box) == {"CODEX_HOME": str(box), "CODEX_API_KEY": "sk-test"}
+    assert result.usage["total_cost_usd"] > 0, "tokens priced, the dearest row for an unknown model"
+    assert result.error is None
+
+
+@pytest.mark.anyio
+async def test_a_plan_at_its_limit_rotates_to_the_metered_key_and_banks_it(box, tmp_path, monkeypatch, capsys):
+    """The whole #53 acceptance through `run_turn`: the plan seat answers
+    `turn.failed` with the limit wording, the rotor cools `codex/oauth/primary`
+    LOUDLY, the retry rides `codex/apikey/fallback` with `CODEX_API_KEY` in the
+    process, and the turn lands in `aire_spend` as metered."""
+    import aire.engine.core as core
+    import aire.engine.turn as turn_mod
+    from aire.engine.credentials import Rotor
+    from aire.engine.core import Engine
+
+    monkeypatch.setattr(core, "WORKSPACES", tmp_path)
+    banked: list[tuple[float, bool]] = []
+
+    async def fake_bank(door, project, session, holder, usd, metered=True, tokens=None):
+        banked.append((usd, metered))
+
+    monkeypatch.setattr(turn_mod.spend, "bank", fake_bank)
+    engine = Engine(session_store=object())
+    engine.rotor = Rotor({"CODEX_HOME": str(box), "CODEX_API_KEY_FALLBACK": "sk-fallback"})
+    spec = TurnSpec(mode="complete", provider="codex")
+    events = [e async for e in engine.run_stream("proj", str(uuid.uuid4()), "limit please", spec)]
+    assert [e["type"] for e in events] == ["text", "result"], f"the lying attempt leaked: {events}"
+    assert _result(events).text == "pong: limit please"
+    assert engine.rotor.cooling_names() == ["codex/oauth/primary"]
+    assert "CREDENTIAL-EXHAUSTED codex/oauth/primary" in capsys.readouterr().out
+    assert _env(box)["CODEX_API_KEY"] == "sk-fallback"
+    assert banked and banked[-1][1] is True and banked[-1][0] > 0, "the fallback turn is metered"
+    engine.rotor.burn("codex/apikey/fallback")
+    dry = [e async for e in engine.run_stream("proj", str(uuid.uuid4()), "hola", spec)]
+    assert [e.get("error") for e in dry] == ["credentials_exhausted"] and dry[0]["provider"] == "codex"
+    await engine.aclose()
 
 
 def test_the_box_names_the_provider_and_the_roster_cannot_take_the_name(box, monkeypatch):

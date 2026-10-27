@@ -54,6 +54,11 @@ secret_line() {  # <file> <KEY=> <human-name>
   grep "^$2" "$f" | head -1
 }
 
+optional_line() {  # <file> <KEY=> — a missing file leaves that rotor slot empty (#31, #53)
+  local f="$SECRETS/$1"
+  [[ -f "$f" ]] && grep "^$2" "$f" | head -1 || true
+}
+
 compose_env() {
   echo "    [mac] composing $ENV_FILE from ~/.secrets/…"
   mkdir -p "$AIRE_HOME/workspaces" "$AIRE_HOME/log"
@@ -62,6 +67,9 @@ compose_env() {
     echo "AIRE_PORT=$PORT"
     echo "AIRE_ISOLATE_CONFIG=1"
     echo "AIRE_CODEX_COMMAND=$CODEX"
+    # The rotor's codex chain (#53): the plan seat `codex login` left here, then a metered key behind it.
+    echo "CODEX_HOME=$HOME/.codex"
+    optional_line aire-codex-api-key-fallback.txt "CODEX_API_KEY_FALLBACK="
     secret_line aire-postgres.txt  "AIRE_DATABASE_URL=" "the database (pen, store, mirror)"
     secret_line aire-llm-token.txt "AIRE_AUTH_TOKEN="   "the engine's LLM door"
   } > "$ENV_FILE.tmp"

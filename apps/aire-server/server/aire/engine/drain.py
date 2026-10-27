@@ -21,6 +21,7 @@ class _State:
     streamed: dict[str, Any] = field(default_factory=dict)
     streamed_ids: set[str] = field(default_factory=set)
     subtype: str | None = None
+    error: str | None = None
     session_id: str | None = None
     model: str | None = None
     tools: list[ToolCall] = field(default_factory=list)
@@ -106,6 +107,7 @@ def _on_result(message: Any, st: _State) -> None:
     if cost is not None and st.usage is not None:
         st.usage["total_cost_usd"] = cost
     st.subtype = getattr(message, "subtype", None)
+    st.error = getattr(message, "error", None)
     st.session_id = getattr(message, "session_id", None) or st.session_id
 
 
@@ -132,4 +134,4 @@ async def drain(client: Any) -> AsyncIterator[dict[str, Any]]:
            "result": TurnResult(text="".join(st.parts), usage=st.usage,
                                 answer="".join(st.parts[st.answer_from:]),
                                 session_id=st.session_id, tool_calls=tuple(st.tools),
-                                model=st.model, subtype=st.subtype)}
+                                model=st.model, subtype=st.subtype, error=st.error)}

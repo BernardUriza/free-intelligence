@@ -29,7 +29,7 @@ from .codex_options import NAME, CodexOptions, build_options, command, enabled
 from .codex_process import CodexRun
 
 __all__ = ["NAME", "CodexOptions", "build_options", "command", "enabled", "client"]
-ROTOR = False  # the plan's login is the box's own: no Anthropic slot is picked, burned or cooled
+CREDENTIALS = "codex"  # the rotor chain its turns ride (#53): the plan's CODEX_HOME, then a metered CODEX_API_KEY
 
 
 def client(options: CodexOptions) -> "CodexClient":
@@ -37,11 +37,10 @@ def client(options: CodexOptions) -> "CodexClient":
 
 
 class CodexClient:
-    NOMINAL = True  # a plan turn never bills a card: its aire_spend row is metered=false
-
     def __init__(self, options: CodexOptions) -> None:
         self.o = options
         self.thread: str | None = None
+        self.spent = 0.0  # cumulative, like the SDK's total_cost_usd: the ledger banks the delta
         self._run: Any = None
         self._fresh = False  # the next run opens a new thread even though one is remembered
         self._opened: set[str] = set()
@@ -69,7 +68,7 @@ class CodexClient:
     async def _start(self) -> None:
         await self._close()
         self._run = CodexRun(self.o.command, self.o.cwd, self.o.model, self.o.effort, self.o.allow_tools,
-                             self._prompt, self._images, None if self._fresh else self.thread)
+                             self._prompt, self._images, None if self._fresh else self.thread, self.o.env)
         self._fresh = False
         await self._run.start()
 
@@ -127,9 +126,12 @@ class CodexClient:
     async def _on_event(self, event: dict[str, Any]) -> list[Any]:
         kind = event.get("type", "")
         if kind in ("turn.completed", "turn.failed"):
-            entry, message = result(event, self.thread)
+            entry, message = result(event, self.thread, self.o.model)
             if kind == "turn.failed":
                 self._loud("CODEX-TURN-FAILED", entry["error"])
+            else:
+                self.spent += message.total_cost_usd or 0.0
+                message.total_cost_usd = self.spent
             await self._mirror("result", entry)
             return [message]
         if kind == "error":
