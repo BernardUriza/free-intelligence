@@ -1,6 +1,6 @@
 # 52 — The ChatGPT plan is already paid: run OpenAI turns on it through Codex, not on metered tokens
 
-Status: **Proposed 2026-10-26**
+Status: **Proposed 2026-10-26** — box decided the same day: **this Mac**; Codex is never used directly
 Proposed: 2026-10-26 by Bernard (*"así como se puede usar Codex y Claude para mí, que también se utilice esta cuenta para no estar utilizando todo el tiempo los tokens de OpenAI y estarme gastándolos cuando ya tengo incluso posibilidad de usar Astra directamente"*).
 
 ## What it is
@@ -17,8 +17,18 @@ metered tokens (Azure OpenAI, #51; `insult-openai`) only when the plan cannot se
 - `codex exec -m gpt-6-astra -c model_reasoning_effort="medium" -s read-only
   --skip-git-repo-check --json "<prompt>" </dev/null` answered; the session log
   (`~/.codex/sessions/…jsonl`) records `"model":"gpt-6-astra"`, `"effort":"medium"`.
-- First real consumer: videopipe sends its script package (16 KB brief on stdin,
-  `-o <file>` for the last message) instead of automating chatgpt.com through DevTools.
+- One direct run proved it: videopipe's 16 KB script package on stdin, `-o <file>` for the
+  reply (script-vidrios.js, 2026-10-26). Then Bernard: *"DESINSTALA CODEX AHORA, y solo debes usar
+  el coagente de guion astra, a través de AIRE"* — `codex logout` + `npm uninstall -g @openai/codex`
+  the same hour. No consumer calls Codex itself again; the codex binary only lives as AIRE's agent.
+
+## Decided by Bernard 2026-10-26
+
+- **The box is this Mac** (*"backlog para esta mac"*): AIRE spawns the Codex agent here, signed in
+  with Bernard's ChatGPT plan; the droplet stays out of it (#49 item 2).
+- **Every Astra turn goes through AIRE**, the videopipe script coagent first (GPT-6 Astra Medium,
+  its hard rule). Until this card ships, videopipe has no script transport: no Codex direct, and
+  scraping chatgpt.com is out on the Terms.
 
 ## Why (the money and the terms)
 
@@ -40,8 +50,6 @@ the cost of a plan turn is $0 marginal, so `aire_spend` needs a row shape for "p
 
 ## The decisions that are the owner's
 
-- **Which box.** The droplet has no node and ~162 MB free (#49 item 2); the npm package
-  ships a native binary, size not measured. The Mac or the NUC are the candidates.
 - **Who may use it.** The plan is Bernard's personal account: his own consumers (videopipe,
   og118 for himself, Discord for himself) yes. Reselling it to invited keys (#51's clients)
   is NOT this item: third-party use of a ChatGPT plan is "Sign in with ChatGPT", a limited
