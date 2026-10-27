@@ -104,6 +104,20 @@ sits at 5.00 USD since 2026-10-26 10:20 UTC (live receipt: 200
 canary token got 401). At $0.75/$4.50 per million that is on the order of a
 thousand judge calls of a few thousand tokens.
 
+## Second consumer (2026-10-27): `susurro-diarize`
+
+The susurro gateway's `/v1/diarize` (ACA `susurro-rg`) had been calling the deleted
+`insult-openai` deployment (`DIARIZE_OPENAI_ENDPOINT=https://northcentralus.api.cognitive.microsoft.com`,
+answering 502 *"Diarize LLM 401: Access denied due to invalid subscription key"* to the ThinkPad).
+`susurro-diarize` was requested through `/access/request` (owner token), approved from the mail's
+link, minted 17:59Z, raised to 5 USD with `POST /access/ceiling`; key in
+`~/.secrets/aire-key-susurro-diarize.txt`. Receipt: two diarize-shaped turns (system + user,
+`temperature: 0.1`, `response_format: json_object`) → 200 from `gpt-5.4-mini-2026-03-17`, 21/11 tokens,
+`aire_spend` 0.0000653 USD each, `metered=t`. **The door relays Azure's refusal of `max_tokens` on
+gpt-5.4-mini** (400 `unsupported_parameter`, use `max_completion_tokens`): a consumer written for
+gpt-4.1 must rename that field. The consumer's wiring (`api/main.py` `_diarize_window`, the Container
+App env) is susurro's.
+
 ## Superseded steps (2026-10-26, kept for the record)
 
 1. Bernard: run the env script (appends `AIRE_OPENAI_UPSTREAM` +
