@@ -115,8 +115,12 @@ link, minted 17:59Z, raised to 5 USD with `POST /access/ceiling`; key in
 `temperature: 0.1`, `response_format: json_object`) → 200 from `gpt-5.4-mini-2026-03-17`, 21/11 tokens,
 `aire_spend` 0.0000653 USD each, `metered=t`. **The door relays Azure's refusal of `max_tokens` on
 gpt-5.4-mini** (400 `unsupported_parameter`, use `max_completion_tokens`): a consumer written for
-gpt-4.1 must rename that field. The consumer's wiring (`api/main.py` `_diarize_window`, the Container
-App env) is susurro's.
+gpt-4.1 must rename that field. The consumer's wiring landed the same day (susurro/master `4c92edf` + `aa9d85a`, backlog
+`diarize-502` Done there): `_diarize_window` sends Bearer + `max_completion_tokens`, the Container
+App points at `https://gate.bernarduriza.com/openai/v1`, and the secret was set from Bernard's Mac
+(`az containerapp secret set` + revision restart, since a `secretRef` only resolves at container
+start). Closing receipt 18:09:53Z: `POST /v1/diarize` on sus.bernarduriza.com → 200, four segments
+labelled correctly, `engine: aire-gpt-5.4-mini`, `aire_spend` `gateway | susurro-diarize | 0.0010575 | metered=t`.
 
 ## Superseded steps (2026-10-26, kept for the record)
 
