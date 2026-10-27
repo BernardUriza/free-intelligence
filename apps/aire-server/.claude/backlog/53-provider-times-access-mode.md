@@ -103,7 +103,18 @@ Two consequences the card did not foresee:
   platform key; the Azure OpenAI key of #51 does not work there).
 - **The droplet**: nothing — no Codex rows arm there; the `/health` guard is `credential_failover_claude`.
 
+## Live receipt (the Mac, 2026-10-27 15:50Z, after PR #588 merged and `install-mac.sh` re-ran)
+
+`/health` (owner view): `credential_slots_armed: ["codex/oauth/primary"]`, `credential_failover_codex: false`
+in `disarmed` — the honest state, no fallback key on the box. One real turn through the door,
+`POST /projects/videopipe/sessions/rotor53-095028/messages` `{"provider":"codex","mode":"complete"}`:
+SSE `text` → `result` (`"pong"`, `model: gpt-6-astra`, `subtype: success`, `error: null`,
+`total_cost_usd: 0.21177`) → `done`; `aire_spend` got its row: `engine | 0.21177 | metered=f | 1933 in |
+12160 cache_read`. The 0.21 is the dearest-row price for a model absent from `prices.json` — nominal,
+nobody billed; a `gpt-6-astra` row with OpenAI's list price would make the nominal figure honest too.
+
 ## Open
 
 - The live receipt of the apikey failover needs a platform key in the file above, or a real exhausted plan.
+- `prices.json` has no `gpt-6-astra` row: plan turns are priced at the dearest row (nominal, but inflated).
 - #52's open item (videopipe calling AIRE) is what this makes survive a plan limit.
