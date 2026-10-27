@@ -3,9 +3,9 @@ the result seam — the budget cut (#23) and the burned credential pool (#31).
 The Engine facade delegates here so `core.py` stays inside the 150-line law.
 
 A burned attempt never yields its lying result: the slot cools, the poisoned
-client is retired, and the turn retries on the next slot — each slot gets at
-most ONE attempt per turn. All slots dry → a real `credentials_exhausted`
-error. Red stays red."""
+client is retired, and the turn retries on the next slot of the same provider
+(#53) — each slot gets at most ONE attempt per turn. All slots dry → a real
+`credentials_exhausted` error. Red stays red."""
 
 from collections.abc import AsyncIterator
 from typing import Any
@@ -14,35 +14,38 @@ from .. import spend
 from ..agent_sdk import backend_for
 from . import attachment_budget, lanes
 from .contract import BudgetExceeded, TurnSpec
-from .credentials import is_metered, limit_hit
+from .credentials import Slot, limit_hit
 from .drain import drain, turn_cost, turn_tokens
 from .vision import send_turn
 
 _ROTATE: dict[str, Any] = {"type": "_rotate"}
 
 
-def _all_dry_event(rotor: Any) -> dict[str, Any]:
-    return {"type": "error", "error": "credentials_exhausted",
-            "detail": "every credential slot is cooling after a usage-limit hit; "
-                      f"next probe in {rotor.retry_after_s()}s",
-            "cooling": rotor.cooling_names()}
+def _all_dry_event(rotor: Any, provider: str) -> dict[str, Any]:
+    if provider not in rotor.providers():
+        detail = f"no credential slot is armed for provider {provider!r}"
+    else:
+        detail = (f"every {provider} credential slot is cooling after a usage-limit hit; "
+                  f"next probe in {rotor.retry_after_s()}s")
+    return {"type": "error", "error": "credentials_exhausted", "detail": detail,
+            "provider": provider, "cooling": rotor.cooling_names()}
 
 
 async def run_turn(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec,
                    attachments: tuple[dict[str, Any], ...] = ()) -> AsyncIterator[dict[str, Any]]:
-    """Walk the credential chain until an attempt survives or the chain dries.
-    Terminates: every rotation cools one more slot, and `active()` skips them."""
-    rides_rotor = getattr(backend_for(spec.provider), "ROTOR", True)  # a plan turn (#52) needs no slot
+    """Walk the provider's credential chain until an attempt survives or the
+    chain dries. Terminates: every rotation cools one more slot, and `active()`
+    skips them. Which chain is the backend's `CREDENTIALS`, never the wire's."""
+    provider = backend_for(spec.provider).CREDENTIALS
     while True:
-        slot = lanes.pick(engine.rotor, spec.lane) if rides_rotor else None
-        if slot is None and rides_rotor:
-            yield _all_dry_event(engine.rotor)
+        slot = lanes.pick(engine.rotor, spec.lane, provider)
+        if slot is None:
+            yield _all_dry_event(engine.rotor, provider)
             return
         # The spend ceiling guards the CARD, so it refuses only turns that would
-        # ride a metered slot. A subscription turn costs nothing real; blocking
-        # it here is how every persona went mute for 16 hours on 2026-08-25.
-        if slot is not None and is_metered(slot.name) and engine.ledger.exhausted():
+        # ride a metered slot (blocking a plan turn muted every persona for 16h on 2026-08-25).
+        if slot.metered and engine.ledger.exhausted():
             raise BudgetExceeded(engine.ledger.refusal())
         rotated = False
         async for event in _attempt(engine, project, session, prompt, spec, attachments, slot):
@@ -55,12 +58,12 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
 
 
 async def _account(engine: Any, project: str, session: str,
-                   event: dict[str, Any], slot_name: str, nominal: bool = False) -> bool:
+                   event: dict[str, Any], slot: Slot) -> bool:
     """Bank this turn twice, for two different questions, and report whether the
     client hit its own cap (#23).
 
     In RAM the ``Ledger`` answers "should this process stop lending the CARD" —
-    so only a metered slot's dollars move it (``is_metered``); in Postgres
+    so only a metered slot's dollars move it (``slot.metered``); in Postgres
     ``aire_spend`` answers "what did AIRE spend this month" and records every
     turn, nominal or not — the one the RAM counter can never answer, because it
     is born at zero on every deploy.
@@ -68,11 +71,9 @@ async def _account(engine: Any, project: str, session: str,
     The dollars are the DELTA, never ``total_cost_usd``, which is the client's
     CUMULATIVE spend: banking it whole would bill the same money once per turn.
     The slot is the one the client was BORN with, not this attempt's — the
-    client that spent is the one that pays. A NOMINAL client (a ChatGPT-plan
-    Codex turn, #52) bills no card whatever the slot: its row says so."""
-    metered = is_metered(slot_name) and not nominal
-    delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event), metered)
-    await spend.bank("engine", project, session, None, delta, metered, turn_tokens(event))
+    client that spent is the one that pays."""
+    delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event), slot.metered)
+    await spend.bank("engine", project, session, None, delta, slot.metered, turn_tokens(event))
     return spent
 
 
@@ -96,21 +97,23 @@ async def _weigh_under_lock(engine: Any, project: str, session: str,
 
 
 async def _serve(engine: Any, project: str, session: str, prompt: str,
-                 attachments: tuple[dict[str, Any], ...], client: Any, born_with: str,
+                 attachments: tuple[dict[str, Any], ...], client: Any, born_with: Slot,
                  state: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
     """The part that runs UNDER the session lock: weigh, send, drain. `state`
-    tells the caller whether the client spent its cap or hit a usage limit."""
+    tells the caller whether the client spent its cap or hit a usage limit. The
+    notice is the result's TEXT for Claude (a lying success) and its ERROR for
+    Codex (a `turn.failed` whose message names the limit) — same predicate."""
     if (refusal := await _weigh_under_lock(engine, project, session, attachments)) is not None:
         yield refusal
         return
     await send_turn(client, prompt, attachments)
     async for event in drain(client):
         if event.get("type") == "result":
-            state["spent"] = await _account(engine, project, session, event, born_with,
-                                            getattr(client, "NOMINAL", False))
+            state["spent"] = await _account(engine, project, session, event, born_with)
             result = event["result"]
-            if limit_hit(result.text, result.usage):
-                state["notice"] = result.text
+            notice = result.error or result.text
+            if limit_hit(notice, result.usage):
+                state["notice"] = notice
                 continue
         yield event
     if state["spent"]:
@@ -119,13 +122,13 @@ async def _serve(engine: Any, project: str, session: str, prompt: str,
 
 async def _attempt(engine: Any, project: str, session: str, prompt: str,
                    spec: TurnSpec, attachments: tuple[dict[str, Any], ...],
-                   slot: Any) -> AsyncIterator[dict[str, Any]]:
+                   slot: Slot) -> AsyncIterator[dict[str, Any]]:
     key = f"{project}/{session}"
     # A pooled client binds mode/tools/model at birth; a turn that asks for a
     # different shape must not be answered by the old one in silence (#38).
     await engine._rebind(project, session, spec)
     client, lock = await engine._client_for(project, session, spec, slot)
-    born_with = engine.slot_of.get(key, slot.name if slot else "plan")
+    born_with = engine.slot_of.get(key, slot)
     state: dict[str, Any] = {"spent": False, "notice": None}
     try:
         async with lock:
@@ -134,6 +137,6 @@ async def _attempt(engine: Any, project: str, session: str, prompt: str,
     finally:
         if state["spent"] or state["notice"] is not None:
             await engine._retire(project, session)
-    if state["notice"] is not None and slot is not None:
-        engine.rotor.burn(born_with, state["notice"])
+    if state["notice"] is not None:
+        engine.rotor.burn(born_with.name, state["notice"])
         yield _ROTATE

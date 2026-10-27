@@ -151,7 +151,7 @@ memory. To contradict anything here, verify it first the same way.
   (0 output tokens, no tool calls, the same cost echoed back) and **no error event**,
   so a cut turn is indistinguishable from success. Dropping the pool revives it.
   Backlog #23. **Since 2026-09-03 only a METERED client is born with the cap**
-  (`is_metered(slot.name)` at `_client_for`): an OAuth client's dollars are nominal,
+  (`slot.metered` at `_client_for`): an OAuth client's dollars are nominal,
   and cutting it at $1 every ~3 crisis turns only bought a cache-creation per
   rebirth. The ledger's recognition of the cut is metered-only too — both ends.
 - **`permission_mode="bypassPermissions"` is REFUSED when the process runs as root**
@@ -228,14 +228,28 @@ memory. To contradict anything here, verify it first the same way.
   and that is the road the official `@openai/codex-sdk` drives underneath; a
   cold resume says `no rollout found` on stderr with exit 1 and no stdout, so the
   backend reopens fresh LOUDLY (`CODEX-RESUME-LOST`); the message arrives whole
-  (`item.completed`), never as deltas; a plan turn picks, burns and cools no
-  Anthropic slot (the backend's `ROTOR = False`) and bills no card (the client's
-  `NOMINAL = True` keeps any reported cost `metered=false`) — and because
-  `spend.bank` records paid turns only, a plan turn leaves NO `aire_spend` row:
-  its usage is in the mirror. **The box is this Mac, by Bernard's decision, and
-  the CLI is never used directly** — the binary lives at
+  (`item.completed`), never as deltas. **The box is this Mac, by Bernard's
+  decision, and the CLI is never used directly** — the binary lives at
   `~/.aire/codex/node_modules/.bin/codex` as AIRE's agent only; the droplet gets
   nothing (#52).
+
+- **Credentials are `provider × access_mode`, one rotor for both providers**
+  (2026-10-27, backlog #53). Every backend names the chain it rides
+  (`CREDENTIALS = "claude" | "codex"`); a slot is `provider/access_mode/label`
+  (`claude/oauth/primary`, `codex/apikey/fallback`) and `slot.metered` is the
+  only money question (`apikey` bills the card, `oauth` is a plan seat). Codex's
+  rows are armed by `CODEX_HOME` (the plan seat, written by `install-mac.sh`),
+  `CODEX_HOME_BACKUP` and `CODEX_API_KEY_FALLBACK`. Measured against codex-cli
+  0.164.0 with a bogus key: `codex exec` IGNORES `OPENAI_API_KEY` (no bearer
+  sent) and honours `CODEX_API_KEY`, which wins over the plan's `auth.json` in
+  the same `CODEX_HOME` — so a failover keeps the thread. A Codex limit is not a
+  lying success: it is `turn.failed`, whose message rides `TurnResult.error`
+  (never text) and burns the slot through the same `limit_hit`. Codex reports
+  tokens only, so the backend prices them at OpenAI list (`pricing.openai_usd`,
+  the dearest row for an unknown model, cumulative like the SDK's
+  `total_cost_usd`): a plan turn now leaves an `aire_spend` row with
+  `metered=false`, a fallback turn a real one. `/health` reports
+  `credential_failover_<provider>` for each provider the box arms.
 
 ## Discarded routes (don't re-propose them)
 

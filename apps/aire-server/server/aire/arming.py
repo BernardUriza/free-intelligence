@@ -21,6 +21,7 @@ process describing itself, not a waiter read ([[write-only-daemon]]).
 from __future__ import annotations
 
 import os
+from typing import Any
 
 # guard name → (what proves it armed, why its absence is not merely cosmetic)
 _GUARDS: tuple[tuple[str, str], ...] = (
@@ -40,17 +41,18 @@ _GUARDS: tuple[tuple[str, str], ...] = (
 )
 
 
-def _credential_slots_armed() -> list[str]:
-    """The rotor slots (#31) that actually carry fuel, by NAME and in chain
-    order. A COUNT hid which slot was missing: primary + api-key-fallback is
-    two slots, reads as "failover armed", yet the free second-Max `oauth-backup`
+def _credential_slots_armed() -> list[Any]:
+    """The rotor slots (#31, #53) that actually carry fuel, by NAME and in chain
+    order. A COUNT hid which slot was missing: primary + apikey/fallback is two
+    slots, reads as "failover armed", yet the free second-Max `claude/oauth/backup`
     can be empty — so a burned weekly pool rotates only to the metered card, and
     if that card is dry the turn dies with `credentials_exhausted`. Naming the
-    armed slots makes an empty `oauth-backup` visible instead of masked by the
-    count (2026-09-15)."""
-    from .engine.credentials import CHAIN
+    armed slots makes an empty backup visible instead of masked by the count
+    (2026-09-15). Failover is reported PER PROVIDER the box arms: a Codex box
+    without `CODEX_API_KEY_FALLBACK` shows `credential_failover_codex` off."""
+    from .engine.credentials import armed_slots
 
-    return [name for name, source, _, _ in CHAIN if os.environ.get(source)]
+    return armed_slots(os.environ)
 
 
 def _lending() -> bool:
@@ -69,11 +71,12 @@ def report() -> dict[str, object]:
     armed["whitelist_enforce"] = os.environ.get("AIRE_WHITELIST_ENFORCE") == "1"
     armed["door_tokens"] = bool(ACCEPTED_TOKENS)
     slots = _credential_slots_armed()
-    armed["credential_failover"] = len(slots) > 1
+    for provider in dict.fromkeys(slot.provider for slot in slots):
+        armed[f"credential_failover_{provider}"] = sum(s.provider == provider for s in slots) > 1
     return {
         "armed": armed,
         "disarmed": sorted(name for name, ok in armed.items() if not ok),
         "door_tokens": len(ACCEPTED_TOKENS),
         "credential_slots": len(slots),
-        "credential_slots_armed": slots,
+        "credential_slots_armed": [slot.name for slot in slots],
     }

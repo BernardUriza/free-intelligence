@@ -28,17 +28,32 @@ def usage_dict(usage: dict[str, Any]) -> dict[str, int]:
             "cache_creation_input_tokens": int(usage.get("cache_write_input_tokens") or 0)}
 
 
-def result(event: dict[str, Any], thread: str | None) -> tuple[dict[str, Any], ResultMessage]:
+def turn_usd(usage: dict[str, Any], model: str) -> float:
+    """What this turn's tokens cost at OpenAI's list price (#53): Codex reports
+    tokens, never dollars, and a metered key (`codex/apikey/*`) needs dollars to
+    reach `aire_spend`. Priced through the OpenAI door's own table, which bills
+    an unknown model at the DEAREST row — a ceiling must never be free."""
+    from .. import pricing
+    return pricing.openai_usd(
+        {"input_tokens": usage.get("input_tokens"), "output_tokens": usage.get("output_tokens"),
+         "input_tokens_details": {"cached_tokens": usage.get("cached_input_tokens")}}, model)
+
+
+def result(event: dict[str, Any], thread: str | None,
+           model: str = "") -> tuple[dict[str, Any], ResultMessage]:
     """A closing event as (mirror entry, drain result). `turn.completed` is the
     SDK's `success`; a failed turn keeps its own name under `error_` so a
-    consumer branching on `subtype` needs no new vocabulary."""
+    consumer branching on `subtype` needs no new vocabulary, and carries its
+    message as `error` — the rotor reads a usage limit there, never as text."""
     if event["type"] == "turn.completed":
-        usage = usage_dict(event.get("usage") or {})
-        return ({"stop_reason": "end_turn", "usage": usage},
-                ResultMessage(subtype="success", session_id=thread or "", usage=usage))
+        raw = event.get("usage") or {}
+        usage, usd = usage_dict(raw), turn_usd(raw, model)
+        return ({"stop_reason": "end_turn", "usage": usage, "usd": usd},
+                ResultMessage(subtype="success", session_id=thread or "", usage=usage,
+                              total_cost_usd=usd))
     message = (event.get("error") or {}).get("message", "")
     return ({"stop_reason": "turn_failed", "error": message},
-            ResultMessage(subtype="error_turn_failed", session_id=thread or ""))
+            ResultMessage(subtype="error_turn_failed", session_id=thread or "", error=message))
 
 
 def item_messages(kind: str, item: dict[str, Any], model: str, opened: set[str]) -> list[Any]:

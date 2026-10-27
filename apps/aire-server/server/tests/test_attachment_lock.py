@@ -14,6 +14,7 @@ import pytest
 
 from aire.engine import attachment_budget, turn
 from aire.engine.contract import TurnSpec
+from aire.engine.credentials import Slot
 from aire.engine.core import Engine
 
 IMG = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "x"}}
@@ -52,14 +53,15 @@ class FakeClient:
         yield ResultMessage()
 
 
-class Slot:
-    name = "primary"
-    env: dict = {}
-
-
 class Rotor:
-    def active(self) -> Slot:
-        return Slot()
+    def providers(self) -> tuple[str, ...]:
+        return ("claude",)
+
+    def active(self, provider: str = "claude") -> Slot:
+        return Slot("primary")
+
+    def cooling_names(self) -> list[str]:
+        return []
 
 
 class NoMemory:

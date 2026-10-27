@@ -39,13 +39,14 @@ plan cannot serve it.
   A resume the box has no rollout for reopens fresh and logs `CODEX-RESUME-LOST` (the #49
   cold-resume law); a failed turn is `error_turn_failed`, a silent exit `error_exit_<code>`
   — never text.
-- **No Anthropic slot**: `turn.py` reads the backend's `ROTOR` flag; a Codex turn picks,
-  burns and cools no credential slot, so an all-dry rotor never refuses it.
-- **Money, honestly**: the client declares `NOMINAL = True`, so if a cost is ever reported
-  its `aire_spend` row says `metered=false`. But `spend.bank` records PAID turns only
-  (`usd <= 0` → no row, its own law), so a plan turn leaves NO spend row today; its token
-  usage is in the mirror. #49 item 4 (a quota row shape) stays open — Bernard's call whether
-  `aire_spend` should carry $0 rows with tokens.
+- **Its own credential chain** (superseded 2026-10-27 by #53; as shipped on 10-26 it was a
+  `ROTOR = False` flag and a `NOMINAL = True` client): a Codex turn rides the rotor's `codex/*`
+  slots — the plan seat (`CODEX_HOME`) first, a metered `CODEX_API_KEY` behind it — and an
+  all-dry Claude chain never refuses it, because each provider's chain dries alone.
+- **Money, honestly**: the slot decides (`slot.metered`): a plan turn's `aire_spend` row says
+  `metered=false`. Codex reports tokens, never dollars, so #53 prices them at OpenAI list — a
+  plan turn now leaves a nominal row (it left none on 10-26), a fallback turn a real one. The
+  "metered tokens only as fallback" promise above is implemented there.
 - Images ride as files (`-i`), text documents inline; a PDF is refused by the door for any
   non-Claude provider, as before. Codex's `input_tokens` includes the cached part; the backend
   subtracts it so the usage keys mean the same as Anthropic's.

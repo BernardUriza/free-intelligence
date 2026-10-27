@@ -18,9 +18,10 @@ STDERR_TAIL = 2000
 class CodexRun:
     def __init__(self, command: tuple[str, ...], cwd: str, model: str, effort: str,
                  allow_tools: bool, prompt: str, images: list[tuple[bytes, str]],
-                 thread: str | None) -> None:
+                 thread: str | None, env: dict[str, str] | None = None) -> None:
         self.command, self.cwd, self.model, self.effort = command, cwd, model, effort
         self.allow_tools, self.prompt, self.images, self.thread = allow_tools, prompt, images, thread
+        self.env = env or {}
         self._proc: Any = None
         self._stderr: Any = None
         self._tmp: Any = None
@@ -55,9 +56,12 @@ class CodexRun:
         return paths
 
     async def start(self) -> None:
+        """The credential slot rides ON TOP of the daemon's environ (#53): the
+        process inherits `CODEX_HOME` and gets the slot's own var over it."""
         self._proc = await asyncio.create_subprocess_exec(
             *self.argv(self._write_images()), cwd=self.cwd, stdin=asyncio.subprocess.DEVNULL,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            env={**os.environ, **self.env})
         self._stderr = asyncio.create_task(self._proc.stderr.read())
 
     async def lines(self) -> AsyncIterator[bytes]:

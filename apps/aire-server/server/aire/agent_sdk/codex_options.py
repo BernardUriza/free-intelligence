@@ -1,15 +1,16 @@
 """What a Codex client is born with, and whether this box has a Codex at all.
 The operator names the binary in `AIRE_CODEX_COMMAND` (a JSON list or a shell
 string): the environment defines what runs, the wire only names it — the ACP
-roster's trust split (#48, #49). The rotor's Anthropic slot never reaches the
-process: the plan's `codex login` is the box's own."""
+roster's trust split (#48, #49). The credential is the rotor's `codex/*` slot
+(#53): `CODEX_HOME` for a plan seat, `CODEX_API_KEY` for the metered fallback,
+handed to the process as `env` on top of the daemon's own."""
 
 from __future__ import annotations
 
 import json
 import os
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .base import Birth
 
@@ -44,6 +45,7 @@ class CodexOptions:
     allow_tools: bool
     model: str
     effort: str
+    env: dict[str, str] = field(default_factory=dict)
 
 
 def build_options(birth: Birth) -> CodexOptions:
@@ -55,4 +57,5 @@ def build_options(birth: Birth) -> CodexOptions:
                         session_uuid=birth.session_uuid,
                         allow_tools=birth.spec.mode == "agent",
                         model=birth.spec.model or os.environ.get("AIRE_CODEX_MODEL", DEFAULT_MODEL),
-                        effort=os.environ.get("AIRE_CODEX_EFFORT", DEFAULT_EFFORT))
+                        effort=os.environ.get("AIRE_CODEX_EFFORT", DEFAULT_EFFORT),
+                        env=dict(birth.credential_env or {}))

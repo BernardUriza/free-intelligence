@@ -53,7 +53,10 @@ class AgentBackend(Protocol):
     """A provider's whole surface: the client factory, the options it is born
     with, plus the option/tool/hook primitives its clients understand.
     Everything the repo used to import from a vendor SDK lives behind ONE of
-    these."""
+    these. `CREDENTIALS` names the rotor chain its clients ride (#53): the
+    engine never learns a provider's name, only which credentials it spends."""
+
+    CREDENTIALS: str
 
     def client(self, options: Any) -> AgentClient: ...
 

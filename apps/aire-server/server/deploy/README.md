@@ -83,6 +83,9 @@ What it lays down under `~/.aire`: `src/` (a sparse, blobless checkout of
 `apps/aire-server/server` reset to the ref), `venv/`, `codex/` (the agent,
 `npm --prefix`, off the PATH), `env` (composed from `~/.secrets/`: the pen's
 `AIRE_DATABASE_URL`, Bernard's `AIRE_AUTH_TOKEN`, `AIRE_CODEX_COMMAND`,
+`CODEX_HOME=$HOME/.codex` — the plan seat, the rotor's `codex/oauth/primary`
+(#53) — and, when `~/.secrets/aire-codex-api-key-fallback.txt` exists,
+`CODEX_API_KEY_FALLBACK=` for the metered `codex/apikey/fallback` behind it;
 `AIRE_ISOLATE_CONFIG=1` so a stray `provider: "claude"` cannot borrow the
 Keychain), `workspaces/`, `log/`. The agent is `KeepAlive` (a killed engine is
 back in seconds; the pool is a cache). The memory is NOT on this box: the same

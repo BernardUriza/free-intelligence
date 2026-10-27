@@ -200,7 +200,9 @@ jobs:
           # slot 3 with a metered key. Leaving it declared would have been worse
           # than never declaring it: the guard is ON now, so a future loss of that
           # key must go RED — and a stale declaration would have answered "accepted,
-          # carry on" to exactly the regression this watch exists to catch.
+          # carry on" to exactly the regression this watch exists to catch. Since
+          # #53 (2026-10-27) it is reported per provider: `credential_failover_claude`
+          # here; a Codex box would add `credential_failover_codex` (not the droplet).
           DECLARED='["whitelist_enforce"]'
           # The arming half of /health is gated: the endpoint is the one thing the
           # middleware lets through unauthenticated, and a list of which defences
@@ -245,8 +247,8 @@ jobs:
           # oauth-backup empty is a WARNING, not a failure: leaving it empty is
           # sometimes Bernard's deliberate account-staggering (aire-budget.md),
           # so this must stay VISIBLE without crying wolf every night.
-          if ! echo "$SLOTS" | jq -e 'index("oauth-backup")' >/dev/null 2>&1; then
-            echo "::warning::credential chain is missing oauth-backup — the free second-Max failover slot is empty; a burned primary falls straight to the metered card"
+          if ! echo "$SLOTS" | jq -e 'index("claude/oauth/backup")' >/dev/null 2>&1; then
+            echo "::warning::credential chain is missing claude/oauth/backup — the free second-Max failover slot is empty; a burned primary falls straight to the metered card"
           fi
           # All slots dry is a hard failure: the engine cannot serve a single turn.
           ALL_DRY="$(echo "$HEALTH" | jq -r '.credentials_all_dry // "unreadable"')"
