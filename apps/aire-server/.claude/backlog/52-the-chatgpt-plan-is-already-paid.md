@@ -1,6 +1,6 @@
 # 52 — The ChatGPT plan is already paid: run OpenAI turns on it through Codex, not on metered tokens
 
-Status: **In progress** — the backend shipped 2026-10-26 (`agent_sdk/codex.py`, tests, verified through the real HTTP door on this Mac); what stays open is AIRE running on this Mac as a service and videopipe calling it.
+Status: **In progress** — the backend shipped 2026-10-26 (`agent_sdk/codex.py`, tests) and AIRE runs on this Mac as a launchd agent the same day (`infra/install-mac.sh`, verified through its real door); what stays open is videopipe calling it.
 Proposed: 2026-10-26 by Bernard (*"así como se puede usar Codex y Claude para mí, que también se utilice esta cuenta para no estar utilizando todo el tiempo los tokens de OpenAI y estarme gastándolos cuando ya tengo incluso posibilidad de usar Astra directamente"*); greenlit the same day (*"go"*).
 
 ## What it is
@@ -85,11 +85,15 @@ plan cannot serve it.
 
 ## What stays open
 
-1. **AIRE as a service on this Mac** (launchd: `uvicorn aire.server:app` with
-   `AIRE_CODEX_COMMAND`, `AIRE_WORKSPACES`, `AIRE_DATABASE_URL`, a local
-   `AIRE_AUTH_TOKEN`) — today it was started by hand for the receipt above and stopped.
-   The Mac sleeps after one idle minute and reboots (machine notes): a turn in flight dies
-   with it; `caffeinate` is insurance, not a cure.
+1. ~~AIRE as a service on this Mac~~ **Done 2026-10-26**: `infra/install-mac.sh` lays
+   AIRE down under `~/.aire` as the launchd agent `com.bernarduriza.aire` (sparse
+   checkout, venv, the Codex agent, env from `~/.secrets/`, `/health` verified). Receipt
+   through that door: two `provider: "codex"` turns on one session, `pong` then the
+   recalled `pong`, same Codex thread, `gpt-6-astra`, `success`; the mirror rows landed
+   in the OWNER's Postgres on Azure (the Mac is admitted as role `aire`), zero
+   `aire_spend` rows; `kill <pid>` → launchd brought it back in 4 s. The Mac still
+   sleeps after one idle minute — the consumer sleeps with it, so nothing is lost
+   that a human was waiting on.
 2. **videopipe's script coagent** calls that door with `provider: "codex"` (its own repo).
 3. **Exhaustion signal.** When the weekly limit hits, what Codex emits is not measured. Today
    a provider error surfaces as `turn.failed` → `error_turn_failed` (mirrored, logged),

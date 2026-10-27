@@ -66,3 +66,26 @@ tail -f /opt/aire/aire.log | grep KEEPALIVE      # the device's heartbeats, live
 journalctl -u aire-listener -f                    # the listener's stdout
 systemctl status aire-listener                   # service state
 ```
+
+## The Mac box — AIRE as a launchd agent (backlog #52)
+
+Bernard's Mac is the one body allowed to spawn Codex on his ChatGPT plan, so it
+runs its own engine. No CI reaches it: **running the installer IS the deploy.**
+
+```bash
+bash server/infra/install-mac.sh               # idempotent; AIRE_REF=<branch> to try a PR ref
+launchctl print gui/$(id -u)/com.bernarduriza.aire | grep -E "state|pid"
+tail -f ~/.aire/log/aire.err.log               # uvicorn's stderr
+curl -s http://127.0.0.1:8088/health
+```
+
+What it lays down under `~/.aire`: `src/` (a sparse, blobless checkout of
+`apps/aire-server/server` reset to the ref), `venv/`, `codex/` (the agent,
+`npm --prefix`, off the PATH), `env` (composed from `~/.secrets/`: the pen's
+`AIRE_DATABASE_URL`, Bernard's `AIRE_AUTH_TOKEN`, `AIRE_CODEX_COMMAND`,
+`AIRE_ISOLATE_CONFIG=1` so a stray `provider: "claude"` cannot borrow the
+Keychain), `workspaces/`, `log/`. The agent is `KeepAlive` (a killed engine is
+back in seconds; the pool is a cache). The memory is NOT on this box: the same
+owner's Postgres the droplet writes — the Mac's firewall rule on Azure already
+admits it as role `aire`. The Mac sleeps after one idle minute; a turn in flight
+dies with it, and so does the consumer that asked, since videopipe lives here too.
