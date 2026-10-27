@@ -74,7 +74,20 @@ install_agent() {
   mkdir -p "$HOME/Library/LaunchAgents"
   sed "s|__HOME__|$HOME|g" "$SRC/apps/aire-server/server/deploy/mac/$LABEL.plist" > "$PLIST"
   launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  wait_unloaded
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
+}
+
+wait_unloaded() {
+  # bootout returns before launchd drops the job; a bootstrap in that window
+  # fails with "5: Input/output error" (reproduced 2026-10-26, exit 5).
+  local i
+  for i in $(seq 1 20); do
+    launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || return 0
+    sleep 0.5
+  done
+  echo "ERROR: $LABEL still loaded after bootout" >&2
+  exit 1
 }
 
 verify() {
