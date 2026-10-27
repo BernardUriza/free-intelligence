@@ -13,7 +13,7 @@ import os
 from dataclasses import dataclass, field
 
 ENV = "AIRE_ACP_AGENTS"
-RESERVED = ("claude",)  # the native backend's name can never be an ACP agent
+RESERVED = ("claude", "codex")  # the native and Codex backends' names can never be ACP agents
 
 
 class BadRoster(Exception):

@@ -24,6 +24,7 @@ kept honest, a status flipped the day it changes.
 | [43](43-nothing-ever-proved-the-door-serves.md) | Nothing ever proved the door can complete a turn | **Done 2026-08-24** — both notches, plus a 5-min external pulse |
 | [50](50-images-by-reference.md) | Images by reference — the caller sends a signed Discord URL, AIRE fetches, compresses and counts | Done 2026-09-25 — images and documents end to end |
 | [51](51-an-openai-door-for-invited-keys.md) | An OpenAI door for invited keys — Azure OpenAI lent and metered like #32 | Done 2026-10-26 (PRs #576, #578, #580) — a real invited turn banked 0.0001005 USD at list price; `POST /access/ceiling` (owner only) sizes a key, visalaw-judge at 5 USD; open on the consumer side: the judge's wiring (Windows box) |
+| [52](52-the-chatgpt-plan-is-already-paid.md) | The ChatGPT plan is already paid — run Bernard's own OpenAI turns on GPT-6 Astra through Codex sign-in, metered tokens only as fallback | In progress — box = this Mac, Codex only as AIRE's agent (direct CLI uninstalled); backend shipped 2026-10-26 (`agent_sdk/codex.py`: one `codex exec --json` per turn, resume by thread, mirrored; the ACP adapter is too old for Astra); verified through the real door on the Mac with gpt-6-astra; open: AIRE as a launchd service here + videopipe calling it |
 
 ## Closed
 
