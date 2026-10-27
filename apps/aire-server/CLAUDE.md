@@ -245,9 +245,9 @@ memory. To contradict anything here, verify it first the same way.
   the same `CODEX_HOME` — so a failover keeps the thread. A Codex limit is not a
   lying success: it is `turn.failed`, whose message rides `TurnResult.error`
   (never text) and burns the slot through the same `limit_hit`. Codex reports
-  tokens only, so the backend prices them at OpenAI list (`pricing.openai_usd`,
-  the dearest row for an unknown model, cumulative like the SDK's
-  `total_cost_usd`): a plan turn now leaves an `aire_spend` row with
+  tokens only, so the backend prices them at OpenAI list (`pricing.openai_usd`;
+  `prices.json` carries the gpt-6 family, the dearest row for a model it lacks;
+  cumulative like the SDK's `total_cost_usd`): a plan turn now leaves an `aire_spend` row with
   `metered=false`, a fallback turn a real one. `/health` reports
   `credential_failover_<provider>` for each provider the box arms.
 

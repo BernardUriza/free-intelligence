@@ -1,5 +1,5 @@
 {
-  "_": "USD per MILLION tokens, Anthropic first-party list prices (2026-08-11). List, never introductory: a ceiling must be reached no later than the real spend reaches it. Cache multipliers live in pricing.py — they are contract, not catalogue. gpt-* rows are Azure OpenAI GlobalStandard (#51): gpt-4.1 checked against the insult-openai invoice, 41M input tokens = USD 81 (2026-10); cached_input is the per-row cache rate. gpt-5.4-mini (the aire-openai deployment, 2026-10-22) per Microsoft's public GlobalStandard list as mirrored by azurespeed.com/benchlm.ai on 2026-10-26 — azure.microsoft.com itself rendered placeholders that day.",
+  "_": "USD per MILLION tokens, Anthropic first-party list prices (2026-08-11). List, never introductory: a ceiling must be reached no later than the real spend reaches it. Cache multipliers live in pricing.py \u2014 they are contract, not catalogue. gpt-* rows are Azure OpenAI GlobalStandard (#51): gpt-4.1 checked against the insult-openai invoice, 41M input tokens = USD 81 (2026-10); cached_input is the per-row cache rate. gpt-5.4-mini (the aire-openai deployment, 2026-10-22) per Microsoft's public GlobalStandard list as mirrored by azurespeed.com/benchlm.ai on 2026-10-26 \u2014 azure.microsoft.com itself rendered placeholders that day. gpt-6* rows are OpenAI first-party Standard tier (developers.openai.com/api/docs/pricing, read 2026-10-27; long-context >272K and Fast/Ultrafast tiers are dearer and not modelled) \u2014 what the Codex backend's plan turns are priced at nominally and a CODEX_API_KEY fallback turn pays for real (#53).",
   "claude-fable-5": {
     "input": 10.0,
     "output": 50.0
@@ -57,5 +57,30 @@
     "input": 0.75,
     "output": 4.5,
     "cached_input": 0.075
+  },
+  "gpt-6-astra": {
+    "input": 10.0,
+    "output": 50.0,
+    "cached_input": 1.0
+  },
+  "gpt-6-sol": {
+    "input": 2.0,
+    "output": 10.0,
+    "cached_input": 0.2
+  },
+  "gpt-6-luna": {
+    "input": 0.1,
+    "output": 0.5,
+    "cached_input": 0.01
+  },
+  "gpt-6.1-sol": {
+    "input": 2.0,
+    "output": 10.0,
+    "cached_input": 0.1
+  },
+  "gpt-6.1-terra": {
+    "input": 1.0,
+    "output": 5.0,
+    "cached_input": 0.05
   }
 }

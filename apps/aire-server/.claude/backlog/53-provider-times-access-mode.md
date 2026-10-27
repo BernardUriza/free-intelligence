@@ -75,8 +75,9 @@ Two consequences the card did not foresee:
   the binary's string table. **A real exhausted plan is still unmeasured** — when it happens, read the
   `turn.failed` message off `aire_agent_log` and add the exact phrase.
 - **Codex reports tokens, never dollars**, so "banks the turn as metered" needed a price. The backend
-  prices every turn at OpenAI list through `pricing.openai_usd` (`gpt-6-astra` is absent from
-  `prices.json`, so it bills at the dearest row — the table's deliberate bias), cumulative per client like
+  prices every turn at OpenAI list through `pricing.openai_usd` (`prices.json` carries the gpt-6
+  family at OpenAI's Standard tier since the same day; before that row `gpt-6-astra` billed at the
+  dearest row, whose missing cache rate charged cached tokens at the full input price), cumulative per client like
   the SDK's `total_cost_usd` so the ledger's delta law holds. A plan turn now leaves an `aire_spend` row
   with `metered=false` (it left none before); a fallback turn leaves a real one.
 
@@ -110,11 +111,12 @@ in `disarmed` — the honest state, no fallback key on the box. One real turn th
 `POST /projects/videopipe/sessions/rotor53-095028/messages` `{"provider":"codex","mode":"complete"}`:
 SSE `text` → `result` (`"pong"`, `model: gpt-6-astra`, `subtype: success`, `error: null`,
 `total_cost_usd: 0.21177`) → `done`; `aire_spend` got its row: `engine | 0.21177 | metered=f | 1933 in |
-12160 cache_read`. The 0.21 is the dearest-row price for a model absent from `prices.json` — nominal,
-nobody billed; a `gpt-6-astra` row with OpenAI's list price would make the nominal figure honest too.
+12160 cache_read`. The 0.21 was the dearest-row price for a model then absent from `prices.json`
+(cached tokens at $10 instead of $1); the `gpt-6-astra` row (10 / 50 / 1 cached, OpenAI Standard tier,
+developers.openai.com/api/docs/pricing read 2026-10-27) reprices that same pong at 0.10 — still
+nominal, nobody billed, now the figure a `CODEX_API_KEY` turn would actually pay.
 
 ## Open
 
 - The live receipt of the apikey failover needs a platform key in the file above, or a real exhausted plan.
-- `prices.json` has no `gpt-6-astra` row: plan turns are priced at the dearest row (nominal, but inflated).
 - #52's open item (videopipe calling AIRE) is what this makes survive a plan limit.

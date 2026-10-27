@@ -144,7 +144,7 @@ async def test_the_slot_env_reaches_the_process_and_a_plan_turn_is_priced_nomina
                   credential_env={"CODEX_API_KEY": "sk-test", "CODEX_HOME": str(box)}, metered=True)
     result = _result(await _turn(birth, "hola"))
     assert _env(box) == {"CODEX_HOME": str(box), "CODEX_API_KEY": "sk-test"}
-    assert result.usage["total_cost_usd"] > 0, "tokens priced, the dearest row for an unknown model"
+    assert result.usage["total_cost_usd"] > 0, "tokens priced at OpenAI list for the plan model"
     assert result.error is None
 
 
