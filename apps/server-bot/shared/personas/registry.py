@@ -192,12 +192,13 @@ PERSONAS: dict[str, Persona] = {
         corpus_namespace="__corpus_valentis__",
     ),
     # Astra: el coagente de guion de PlusvalíaLeaks, en GPT-6 Astra por el backend
-    # Codex de AIRE (#49/#52). Sin bot de Discord: nace para og118 (elemento 85, At).
+    # Codex de AIRE (#49/#52). Sin puerta de Discord (token_env vacío: ni el
+    # gateway la arranca ni el host la rutea); nace para og118 (elemento 85, At).
     "astra": Persona(
         persona_id="astra",
         display_name="Astra",
         persona_file="astra.md",
-        token_env="ASTRA_DISCORD_TOKEN",  # nosec B106 — env-var NAME, not a secret
+        token_env="",
         aliases=[],
         gateway_enabled=False,
         provider="codex",
