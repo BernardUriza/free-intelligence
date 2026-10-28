@@ -523,3 +523,5 @@ CREATE TABLE IF NOT EXISTS runtime_personas (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_personas_id ON runtime_personas (persona_id, id DESC);
+-- A delete is one more row with deleted = true: the newest row decides, the history stays.
+ALTER TABLE runtime_personas ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;

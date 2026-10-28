@@ -1,4 +1,4 @@
-"""PUT /v1/personas/{persona_id} — create or edit a persona without a deploy.
+"""/v1/personas/{persona_id} — read, create, edit or delete a persona without a deploy.
 
 og118's `POST /elements` is the caller: it claims an empty slot and writes the
 persona here with the runner's bearer. The row lands in Postgres and the next turn
@@ -52,3 +52,45 @@ async def put_persona(persona_id: str, body: PersonaWrite, authorization: str | 
         raise HTTPException(422, str(e)) from e
     persona = runtime_personas.lookup(persona_id)
     return PersonaWritten(persona_id=persona_id, version=version, provider=persona.provider, model=persona.model)
+
+
+class PersonaRead(BaseModel):
+    persona_id: str
+    display_name: str
+    provider: str
+    model: str | None
+    dna: str
+    version: int
+
+
+@router.get("/v1/personas/{persona_id}", response_model=PersonaRead)
+async def get_persona(persona_id: str, authorization: str | None = Header(default=None)):
+    check_auth(authorization)
+    persona = runtime_personas.lookup(persona_id)
+    dna = runtime_personas.dna_for(persona_id)
+    if persona is None or dna is None:
+        raise HTTPException(404, f"no runtime persona {persona_id!r}")
+    return PersonaRead(
+        persona_id=persona_id,
+        display_name=persona.display_name,
+        provider=persona.provider,
+        model=persona.model,
+        dna=dna,
+        version=runtime_personas.version_for(persona_id) or 0,
+    )
+
+
+@router.delete("/v1/personas/{persona_id}", status_code=204)
+async def delete_persona(
+    persona_id: str,
+    authorization: str | None = Header(default=None),
+    deleted_by: str | None = None,
+):
+    check_auth(authorization)
+    memory = await get_memory()
+    if memory is None:
+        raise HTTPException(503, "persona store unavailable")
+    try:
+        await runtime_personas.remove(memory.runtime_personas, persona_id=persona_id, deleted_by=deleted_by)
+    except runtime_personas.RuntimePersonaError as e:
+        raise HTTPException(404, str(e)) from e

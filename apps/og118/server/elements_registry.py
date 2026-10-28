@@ -251,20 +251,60 @@ def _read_overlay(path: Path | None) -> list[dict]:
         raise ElementsRegistryError(f"overlay is not valid JSON: {e}") from e
 
 
+def _write_overlay(path: Path, claims: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".elements.overlay.")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump({"claims": claims}, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+    get_registry.cache_clear()
+
+
+def _registry_with(claims: list[dict]) -> ElementsRegistry:
+    reg = ElementsRegistry.load()
+    for claim in claims:
+        reg = reg.with_claim(claim)
+    return reg
+
+
+def claim_for(atomic_number: int, path: Path | None = None) -> dict | None:
+    """The overlay claim that activated a slot, or None for an image element."""
+    return next((c for c in _read_overlay(path or overlay_path()) if c.get("atomicNumber") == atomic_number), None)
+
+
 def claim_slot(claim: dict, path: Path | None = None) -> Element:
     """Append a claim to the overlay (validated against the live catalog first)
     and return the element it activated. The catalog cache is dropped on success."""
     path = path or overlay_path()
     with _OVERLAY_LOCK:
         claimed = get_registry().with_claim(claim)
-        claims = [*_read_overlay(path), claim]
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".elements.overlay.")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump({"claims": claims}, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, path)
-        get_registry.cache_clear()
+        _write_overlay(path, [*_read_overlay(path), claim])
     return next(e for e in claimed.elements if e.atomic_number == claim["atomicNumber"])
+
+
+def replace_claim(claim: dict, path: Path | None = None) -> Element:
+    """Edit a claimed slot in place: same slot, same persona id, new name, text or aliases."""
+    path = path or overlay_path()
+    z = claim["atomicNumber"]
+    with _OVERLAY_LOCK:
+        others = [c for c in _read_overlay(path) if c.get("atomicNumber") != z]
+        if len(others) == len(_read_overlay(path)):
+            raise ElementsRegistryError(f"slot {z} was not claimed from the UI")
+        claimed = _registry_with(others).with_claim(claim)
+        _write_overlay(path, [*others, claim])
+    return next(e for e in claimed.elements if e.atomic_number == z)
+
+
+def release_slot(atomic_number: int, path: Path | None = None) -> dict:
+    """Empty a claimed slot again and return the claim it held."""
+    path = path or overlay_path()
+    with _OVERLAY_LOCK:
+        claims = _read_overlay(path)
+        held = next((c for c in claims if c.get("atomicNumber") == atomic_number), None)
+        if held is None:
+            raise ElementsRegistryError(f"slot {atomic_number} was not claimed from the UI")
+        _write_overlay(path, [c for c in claims if c is not held])
+    return held
 
 
 @lru_cache(maxsize=1)
