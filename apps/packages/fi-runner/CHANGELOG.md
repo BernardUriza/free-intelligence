@@ -22,6 +22,20 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.25.0] — 2026-10-28
+
+### Added — `provider` on `AIREBackend.run_turn_stream`
+
+`run_turn_stream(provider="codex")` puts `provider` in the body the door
+receives, so a consumer can ask AIRE for the backend a persona rides (Claude by
+default; Codex on the ChatGPT plan seat, aire-server #49/#52). Omitted, the body
+is byte-identical to 0.24. persona-runner's Astra persona is the first caller.
+
+Note: 0.24.0 was never tagged or published (`__version__` and the conda recipe
+stayed at 0.23.0); its `reactions` field ships with this release.
+
+---
+
 ## [0.24.0] — 2026-10-17
 
 ### Added — `reactions` on `TurnResultPayload` (schema 1.2.0)
