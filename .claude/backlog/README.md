@@ -43,7 +43,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
-| [OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy](og118-elementos-alta-sin-deploy.md) | **In progress** (2026-10-28) — alta, edición, prueba y borrado en el backend (#602, #605, #607); la UI migrada a `fi-glass/persona-admin` desde aurity (#608); falta el elemento de prueba en app.og118.ai | 2026-10-28 |
+| [OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy](og118-elementos-alta-sin-deploy.md) | **Done** (2026-10-28) — alta, turno real, edición, prueba y borrado verificados en app.og118.ai con Teneso (117), sin deploy; la UI corre en `fi-glass/persona-admin` extraído de aurity (#602, #605, #607, #608, #609) | 2026-10-28 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso

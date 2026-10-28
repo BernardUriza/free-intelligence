@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy
 
-Status: In progress — option A merged (#602), CD fake-green fixed (#605), read/edit/delete/probe merged (#607); the UI moved onto fi-glass/persona-admin in #608 (open). Not yet verified with a real element on app.og118.ai.
+Status: Done 2026-10-28 — verified on app.og118.ai (build `b26aa8c`, then `c76b364`): element 117 Teneso created from the UI, answered a real turn as Teneso ("— Ts"), edited to GPT-6 Astra (v2), probed ("Hola — Ts", 17.5 s), deleted (slot empty again, runner 404). No deploy in between. PRs #602, #605, #607, #608, #609.
 Proposed: 2026-10-28 by Bernard (*"¿por qué og118 no tiene para agregar elementos nuevos?"*), right after element 85 Ástato needed a four-surface PR (#600) to exist.
 
 ## What it is
@@ -73,5 +73,7 @@ FIRST" (#606).
 What stays from the first build: the backend. aurity's own `backend/` is dead code, so the og118 store needs
 the og118 + runner endpoints above. Only the og118 frontend was undone.
 
-Next: merge #608, then create a test element on app.og118.ai (slot 117 Teneso), send it a real turn, edit,
-probe and delete it, with no deploy in between. Phase 2 (aurity's model catalog → fi-glass) follows.
+The real-surface run found two defects the tests had not: picking a slot did not rename the form (it stayed
+"Hidrógeno"), and the probe showed "Tokens 0 / Costo $0.0000" for a turn nobody measured. Both fixed in #609,
+the slot one with a test that fails without the fix. Known, not fixed: the first create after idle takes ~30 s
+(persona-runner scales to zero). Phase 2, aurity's model catalog → fi-glass, is the rest of Bernard's order.
