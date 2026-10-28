@@ -49,6 +49,7 @@ const CSS = `
   max-width: var(--fi-admin-sheet-width, 40rem); max-height: calc(100dvh - 2rem); background: ${PANEL_BG};
   border-width: 1px; border-style: solid; border-color: ${BORDER}; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
 }
+.fi-admin-sheet:focus { outline: none; }
 .fi-admin-overlay[data-placement="side"] .fi-admin-sheet {
   margin: 0 0 0 auto; height: 100dvh; max-height: none; max-width: var(--fi-admin-panel-width, 48rem); border-radius: 0; border: 0; ${LINE('left')}
 }

@@ -36,6 +36,8 @@ export interface UseModelCatalogOptions {
 export const defaultRemoveCatalogMessage = (model: CatalogModel) =>
   `¿Eliminar ${model.name}?\n\nSe borrará del disco. Podrás reinstalarlo después.`;
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const idleStates = (): Record<CatalogSource, CatalogSourceState> => ({
   ollama: { status: 'idle', models: [] },
   gpt4all: { status: 'idle', models: [] },
@@ -59,6 +61,7 @@ export function useModelCatalog(
   const [sourceStates, setSourceStates] = useState(idleStates);
   const [filter, setFilter] = useState<CatalogFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [fetchQuery, setFetchQuery] = useState('');
   const [maxSizeGb, setMaxSizeGb] = useState<number | undefined>(undefined);
   const [installing, setInstalling] = useState<Record<string, number>>({});
   const [installErrors, setInstallErrors] = useState<Record<string, string>>({});
@@ -98,7 +101,7 @@ export function useModelCatalog(
       try {
         const list = await storeRef.current.listCatalog({
           source,
-          query: searchQuery || undefined,
+          query: fetchQuery || undefined,
           maxSizeGb,
           signal: controller.signal,
         });
@@ -112,14 +115,17 @@ export function useModelCatalog(
         }));
       }
     },
-    [searchQuery, maxSizeGb],
+    [fetchQuery, maxSizeGb],
   );
 
   const reload = useCallback(() => {
-    setSourceStates(idleStates());
-    const sources = filter === 'all' || filter === 'installed' ? CATALOG_SOURCES : [filter];
-    sources.forEach((source) => void loadSource(source));
-  }, [filter, loadSource]);
+    CATALOG_SOURCES.forEach((source) => void loadSource(source));
+  }, [loadSource]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFetchQuery(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (open) {

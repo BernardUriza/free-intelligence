@@ -59,15 +59,19 @@ export function useLLMModels(
   const [includeInactive, setIncludeInactive] = useState(false);
   const [provider, setProvider] = useState<LLMProvider | ''>('');
 
+  const requestSeq = useRef(0);
+
   const reload = useCallback(async () => {
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     try {
-      setModels(await storeRef.current.listModels({ includeInactive, provider: provider || undefined }));
+      const list = await storeRef.current.listModels({ includeInactive, provider: provider || undefined });
+      if (seq === requestSeq.current) setModels(list);
     } catch (err) {
-      setError(errorMessage(err, 'Error al cargar los modelos'));
+      if (seq === requestSeq.current) setError(errorMessage(err, 'Error al cargar los modelos'));
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [includeInactive, provider]);
 
