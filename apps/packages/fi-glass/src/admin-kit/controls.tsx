@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, type ButtonHTMLAttributes, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from 'react';
 import { AlertCircle, Loader2, type LucideIcon } from 'lucide-react';
 import { withTouchTarget } from '../shell/touchTarget';
 import { useAdminKitStyle } from './adminKitStyle';
@@ -54,6 +54,8 @@ export function AdminAlert({ children, action }: { children: ReactNode; action?:
   );
 }
 
+const openSheets: symbol[] = [];
+
 export interface AdminSheetProps {
   onDismiss: () => void;
   labelledBy: string;
@@ -78,13 +80,20 @@ export function AdminSheet({
   children,
 }: AdminSheetProps) {
   useAdminKitStyle();
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
   useEffect(() => {
+    const token = Symbol('admin-sheet');
+    openSheets.push(token);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onDismiss();
+      if (e.key === 'Escape' && openSheets[openSheets.length - 1] === token) dismissRef.current();
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onDismiss]);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      openSheets.splice(openSheets.indexOf(token), 1);
+    };
+  }, []);
 
   return (
     <div className={className ? `fi-admin-overlay ${className}` : 'fi-admin-overlay'} data-placement={placement}>

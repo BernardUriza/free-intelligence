@@ -23,6 +23,12 @@ describe('admin-kit stylesheets', () => {
     expect(css.split('{').length).toBe(css.split('}').length);
   });
 
+  it('each module feeds the shared sheet widths from its own overridable vars', () => {
+    const css = sheets.map(([, text]) => text).join('');
+    expect(css).toContain('--fi-admin-sheet-width: var(--fi-persona-sheet-width, 42rem)');
+    expect(css).toContain('--fi-admin-sheet-width: var(--fi-mc-sheet-width, 36rem)');
+  });
+
   it.each(sheets)('%s never hides a form field', (_id, css) => {
     const hiding = rules(css).filter((r) => /display:\s*none/.test(r.body) && /-input\b/.test(r.selector));
     expect(hiding).toEqual([]);
@@ -42,6 +48,23 @@ describe('admin-kit controls', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(container.querySelector('.fi-admin-backdrop')!);
     expect(onDismiss).toHaveBeenCalledTimes(2);
+  });
+
+  it('Escape dismisses only the sheet on top of the stack', () => {
+    const under = vi.fn();
+    const over = vi.fn();
+    const { rerender } = render(
+      <>
+        <AdminSheet onDismiss={under} labelledBy="a" header={<h2 id="a">Lista</h2>}>lista</AdminSheet>
+        <AdminSheet onDismiss={over} labelledBy="b" header={<h2 id="b">Editor</h2>}>editor</AdminSheet>
+      </>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(over).toHaveBeenCalledTimes(1);
+    expect(under).not.toHaveBeenCalled();
+    rerender(<AdminSheet onDismiss={under} labelledBy="a" header={<h2 id="a">Lista</h2>}>lista</AdminSheet>);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(under).toHaveBeenCalledTimes(1);
   });
 
   it('a button is a touch target that shows a spinner while loading', () => {
