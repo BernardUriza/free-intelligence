@@ -228,17 +228,19 @@ memory. To contradict anything here, verify it first the same way.
   and that is the road the official `@openai/codex-sdk` drives underneath; a
   cold resume says `no rollout found` on stderr with exit 1 and no stdout, so the
   backend reopens fresh LOUDLY (`CODEX-RESUME-LOST`); the message arrives whole
-  (`item.completed`), never as deltas. **The box is this Mac, by Bernard's
-  decision, and the CLI is never used directly** — the binary lives at
-  `~/.aire/codex/node_modules/.bin/codex` as AIRE's agent only; the droplet gets
-  nothing (#52).
+  (`item.completed`), never as deltas. **The box is the droplet, and the CLI is
+  never used directly** — Bernard, 2026-10-28: *"AIRE SOLO VIVE EN EL DROPLET"*
+  (it ran on his Mac as a launchd agent for two days; that door is gone). The
+  binary is the native `linux-x64` build at `/opt/aire-codex` (no node on a 512 MB
+  box), laid down by `remote-bootstrap.sh install_codex`; the plan seat is
+  `/root/.codex/auth.json`, copied from a `codex login` done on the Mac (#52).
 
 - **Credentials are `provider × access_mode`, one rotor for both providers**
   (2026-10-27, backlog #53). Every backend names the chain it rides
   (`CREDENTIALS = "claude" | "codex"`); a slot is `provider/access_mode/label`
   (`claude/oauth/primary`, `codex/apikey/fallback`) and `slot.metered` is the
   only money question (`apikey` bills the card, `oauth` is a plan seat). Codex's
-  rows are armed by `CODEX_HOME` (the plan seat, written by `install-mac.sh`),
+  rows are armed by `CODEX_HOME` (the plan seat, `/root/.codex` in `/etc/aire/env`),
   `CODEX_HOME_BACKUP` and `CODEX_API_KEY_FALLBACK`. Measured against codex-cli
   0.164.0 with a bogus key: `codex exec` IGNORES `OPENAI_API_KEY` (no bearer
   sent) and honours `CODEX_API_KEY`, which wins over the plan's `auth.json` in

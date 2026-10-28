@@ -32,6 +32,8 @@ Proposed: 2026-09-17 by Bernard (*"¿se puede poner qwen code como otro agent si
 2. **The droplet cannot host `claude-code-acp`**: no node installed, 162 MB free,
    and the adapter adds ~90 MB of node beside the `claude` it spawns (measured
    2026-09-17). The backend deploys without a roster (zero behaviour change).
+   Codex is the exception that proves it: its `linux-x64` package is a native
+   binary, so it runs there with no node at all (2026-10-28, #52).
 3. **The NUC is the founding consumer's home** — but ACP is stdio, so AIRE must
    spawn the agent on the same box: either AIRE runs on the NUC, or the backend
    grows the SDK's HTTP/WebSocket transport (`connect_to_agent(client, transport)`)

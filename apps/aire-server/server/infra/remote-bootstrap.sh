@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Step 5b — runs ON the droplet (piped via `ssh bash -s`): packages, swap, repo,
-# venv, Claude CLI, systemd units, and the real-state verification.
+# venv, Claude CLI, the Codex binary, systemd units, and the real-state verification.
 # Expects REPO_URL and REMOTE_DIR in the environment (passed by provision-do.sh).
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -51,6 +51,21 @@ install_runtime() {
   "$REMOTE_DIR/.venv/bin/pip" install -q --no-input -r "$REMOTE_DIR/server/requirements.txt"
   echo "    [remote] Claude CLI (the engine's subprocess AND the SSH door)…"
   command -v claude >/dev/null 2>&1 || curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1
+}
+
+install_codex() {
+  echo "    [remote] the Codex agent (backlog #52): the native linux binary, no node on a 512MB box…"
+  local VER="${CODEX_VERSION:-0.164.0}" HOME_DIR=/opt/aire-codex
+  local BIN="$HOME_DIR/package/vendor/x86_64-unknown-linux-musl/bin/codex"
+  if [[ ! -x "$BIN" ]] || ! "$BIN" --version 2>/dev/null | grep -q " $VER\$"; then
+    rm -rf "$HOME_DIR" && install -d "$HOME_DIR"
+    curl -sfL "https://registry.npmjs.org/@openai/codex/-/codex-${VER}-linux-x64.tgz" | tar xz -C "$HOME_DIR"
+    rm -rf "$HOME_DIR/package/vendor/x86_64-unknown-linux-musl/codex-resources/voice"
+    chmod +x "$BIN"
+  fi
+  echo "    [remote] $("$BIN" --version)"
+  install -d -m 700 /root/.codex
+  [[ -f /root/.codex/auth.json ]] || echo "    [remote] no plan seat yet: scp ~/.codex/auth.json root@<droplet>:/root/.codex/ (deploy/README.md)"
 }
 
 install_nickname_model() {
@@ -141,6 +156,7 @@ echo "    [remote] /etc/aire (out-of-band secrets)…"
 install -d -m 700 /etc/aire
 sync_repo
 install_runtime
+install_codex
 install_nickname_model
 wire_door_env
 restore_door_memory

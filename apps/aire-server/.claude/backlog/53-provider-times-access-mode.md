@@ -40,7 +40,7 @@ One `CHAIN` table, ordered oauth before apikey inside each provider:
 |---|---|---|---|
 | claude | oauth | `CLAUDE_CODE_OAUTH_TOKEN`, `…_BACKUP` | `CLAUDE_CODE_OAUTH_TOKEN=<v>`, `ANTHROPIC_API_KEY=""` |
 | claude | apikey | `ANTHROPIC_API_KEY_FALLBACK` | `ANTHROPIC_API_KEY=<v>`, `CLAUDE_CODE_OAUTH_TOKEN=""` |
-| codex | oauth | `CODEX_HOME` (the plan's, written by `install-mac.sh`), `CODEX_HOME_BACKUP` | `CODEX_HOME=<dir>` |
+| codex | oauth | `CODEX_HOME` (the plan's seat, `/root/.codex` on the droplet since 2026-10-28), `CODEX_HOME_BACKUP` | `CODEX_HOME=<dir>` |
 | codex | apikey | `CODEX_API_KEY_FALLBACK` (`~/.secrets/aire-codex-api-key-fallback.txt`) | `CODEX_API_KEY=<v>` |
 
 `Rotor` is one object keyed by provider: `rotor.active(provider)`, `rotor.burn(name, notice)`,
