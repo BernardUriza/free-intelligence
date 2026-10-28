@@ -16,7 +16,6 @@ const { execSync } = require('child_process');
 const IMPORT_MAPPINGS = {
   // API client mappings
   "@/lib/api/assistant": "@aurity-standalone/api-client/assistant",
-  "@/lib/api/personas": "@aurity-standalone/api-client/personas",
   "@/lib/api/llm-models": "@aurity-standalone/api-client/llm-models",
   "@/lib/api/knowledge": "@aurity-standalone/api-client/knowledge",
   "@/lib/api/checkin": "@aurity-standalone/api-client/checkin",

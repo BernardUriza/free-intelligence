@@ -424,93 +424,6 @@
   }
 
   /* ========================================
-   * PERSONA CARDS (per-color variants)
-   * ======================================== */
-
-  /* Default state */
-  .admin-persona-emerald {
-    @apply admin-card cursor-pointer border-emerald-700/30 bg-emerald-950/10
-           hover:border-emerald-600 hover:bg-emerald-950/20;
-  }
-  .admin-persona-blue {
-    @apply admin-card cursor-pointer border-blue-700/30 bg-blue-950/10
-           hover:border-blue-600 hover:bg-blue-950/20;
-  }
-  .admin-persona-purple {
-    @apply admin-card cursor-pointer border-purple-700/30 bg-purple-950/10
-           hover:border-purple-600 hover:bg-purple-950/20;
-  }
-  .admin-persona-rose {
-    @apply admin-card cursor-pointer border-rose-700/30 bg-rose-950/10
-           hover:border-rose-600 hover:bg-rose-950/20;
-  }
-  .admin-persona-slate {
-    @apply admin-card cursor-pointer border-slate-700/30 bg-slate-950/10
-           hover:border-slate-600 hover:bg-slate-950/20;
-  }
-
-  /* Selected state */
-  .admin-persona-emerald-selected {
-    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
-           shadow-lg shadow-emerald-900/20;
-  }
-  .admin-persona-blue-selected {
-    @apply admin-card cursor-pointer border-blue-500 bg-blue-950/30
-           shadow-lg shadow-blue-900/20;
-  }
-  .admin-persona-purple-selected {
-    @apply admin-card cursor-pointer border-purple-500 bg-purple-950/30
-           shadow-lg shadow-purple-900/20;
-  }
-  .admin-persona-rose-selected {
-    @apply admin-card cursor-pointer border-rose-500 bg-rose-950/30
-           shadow-lg shadow-rose-900/20;
-  }
-  .admin-persona-slate-selected {
-    @apply admin-card cursor-pointer border-slate-500 bg-slate-950/30
-           shadow-lg shadow-slate-900/20;
-  }
-
-  /* Icon wrapper */
-  .admin-persona-icon-emerald {
-    @apply p-2 rounded-lg bg-emerald-900 border border-emerald-700;
-  }
-  .admin-persona-icon-blue {
-    @apply p-2 rounded-lg bg-blue-900 border border-blue-700;
-  }
-  .admin-persona-icon-purple {
-    @apply p-2 rounded-lg bg-purple-900 border border-purple-700;
-  }
-  .admin-persona-icon-rose {
-    @apply p-2 rounded-lg bg-rose-900 border border-rose-700;
-  }
-  .admin-persona-icon-slate {
-    @apply p-2 rounded-lg bg-slate-900 border border-slate-700;
-  }
-
-  /* Brain icon color */
-  .admin-persona-brain-emerald {
-    @apply w-6 h-6 text-emerald-400;
-  }
-  .admin-persona-brain-blue {
-    @apply w-6 h-6 text-blue-400;
-  }
-  .admin-persona-brain-purple {
-    @apply w-6 h-6 text-purple-400;
-  }
-  .admin-persona-brain-rose {
-    @apply w-6 h-6 text-rose-400;
-  }
-  .admin-persona-brain-slate {
-    @apply w-6 h-6 text-slate-400;
-  }
-
-  /* Persona delete button */
-  .admin-persona-delete-btn {
-    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/50;
-  }
-
-  /* ========================================
    * LLM MODEL CARD STATES
    * ======================================== */
   .admin-model-card-selected {
@@ -948,65 +861,10 @@
   }
 
   /* ========================================
-   * PERSONA EXAMPLES TAB (ExamplesTab.tsx)
-   * Naming: pex-{component}[-variant]
-   * ======================================== */
-
-  /* Root container */
-  .pex-root {
-    @apply space-y-4 max-w-4xl;
-  }
-
-  /* Header row with title + add button */
-  .pex-header {
-    @apply flex items-center justify-between mb-4;
-  }
-
-  /* Empty state icon */
-  .pex-empty-icon {
-    @apply w-12 h-12 mx-auto mb-3 opacity-50;
-  }
-
-  /* Empty state hint text */
-  .pex-empty-hint {
-    @apply text-sm mt-1;
-  }
-
-  /* Example card header row */
-  .pex-card-header {
-    @apply flex items-center justify-between mb-3;
-  }
-
-  /* Delete button on example card */
-  .pex-delete-btn {
-    @apply fi-text-error hover:bg-slate-700;
-  }
-
-  /* Fields container inside example card */
-  .pex-fields {
-    @apply space-y-3;
-  }
-
-  /* Field label */
-  .pex-field-label {
-    @apply block fi-text-xs mb-1;
-  }
-
-  /* Textarea for input/output */
-  .pex-textarea {
-    @apply w-full p-2 bg-slate-900 border border-slate-600 rounded
-           text-white text-sm font-mono focus:border-purple-500 focus:outline-none;
-  }
-
-  /* ========================================
    * MODAL CONTAINERS (shared pattern)
    * ======================================== */
   .admin-modal-upload {
     @apply admin-modal-std max-w-xl overflow-y-auto z-10;
-  }
-
-  .admin-modal-persona {
-    @apply admin-modal-std max-w-2xl flex flex-col;
   }
 
   .admin-modal-doc-edit {
@@ -1016,29 +874,6 @@
   .admin-error-banner {
     @apply flex items-center gap-2 p-3 bg-red-900/30
            border border-red-700 rounded-lg text-red-300;
-  }
-
-  /* ========================================
-   * PERSONA EDITOR (ConfigTab, PromptTab, PersonaTestTab)
-   * ======================================== */
-  .admin-config-textarea {
-    @apply w-full p-3 fi-panel text-white font-mono
-           focus:border-purple-500 focus:outline-none;
-  }
-
-  .admin-prompt-textarea {
-    @apply w-full p-4 fi-panel text-white font-mono text-sm
-           focus:border-purple-500 focus:outline-none;
-  }
-
-  .admin-range-input {
-    @apply w-full h-2 bg-slate-700 rounded-lg appearance-none
-           cursor-pointer accent-purple-600;
-  }
-
-  .admin-code-preview {
-    @apply text-sm fi-text whitespace-pre-wrap font-mono
-           bg-slate-900 p-4 rounded overflow-x-auto;
   }
 
   /* ========================================

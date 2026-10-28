@@ -11,7 +11,6 @@
     "./checkin": "./src/checkin.ts",
     "./llm": "./src/llm.ts",
     "./medical": "./src/medical.ts",
-    "./persona": "./src/persona.ts",
     "./session": "./src/session.ts",
     "./patient": "./src/patient.ts",
     "./audit": "./src/audit.ts",

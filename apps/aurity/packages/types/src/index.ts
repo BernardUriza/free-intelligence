@@ -23,7 +23,6 @@ export * from './checkin';
 
 // AI & LLM
 export * from './llm';
-export * from './persona';
 export * from './voices';
 
 // Sessions & Knowledge - exclude SessionMetadata (use from patient.ts)
