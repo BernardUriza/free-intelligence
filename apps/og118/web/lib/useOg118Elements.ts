@@ -54,7 +54,7 @@ const BASE_OPTION: Og118Element = {
   engine: null,
 };
 
-export function useOg118Elements(userId: string | null): Og118ElementsHook {
+export function useOg118Elements(userId: string | null, tokenReady: boolean = true): Og118ElementsHook {
   const [active, setActive] = useState<Og118Element[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string>(BASE_ELEMENT_SLUG);
@@ -88,7 +88,7 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
   }, [revision]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !tokenReady) return;
     let alive = true;
     fetch(`${API}/elements/slots`, { headers: { ...authHeaders() } })
       .then((r) => (r.ok ? r.json() : { canCreate: false, slots: [] }))
@@ -103,7 +103,7 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     return () => {
       alive = false;
     };
-  }, [userId, revision]);
+  }, [userId, tokenReady, revision]);
 
   const select = useCallback(
     (slug: string) => {
