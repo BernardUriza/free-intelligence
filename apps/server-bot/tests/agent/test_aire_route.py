@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -21,6 +22,8 @@ from fi_runner.backend import BackendError
 from persona_runner.core.schemas import JudgeRequest, TurnRequest
 from persona_runner.engine import aire_route
 from persona_runner.engine.aire_route import REQUIRED_BUILTIN_TOOLS
+
+ROOT = Path(__file__).parents[2]
 
 
 @pytest.fixture(autouse=True)
@@ -904,3 +907,46 @@ def test_reported_tokens_is_none_when_aire_reported_nothing():
     assert aire_route.reported_tokens(None, "output_tokens") is None
     assert aire_route.reported_tokens({}, "output_tokens") is None
     assert aire_route.reported_tokens({"output_tokens": None}, "output_tokens") is None
+
+
+@pytest.mark.asyncio
+async def test_a_codex_persona_skips_the_router_and_names_its_provider(monkeypatch):
+    """Astra rides AIRE's Codex backend: the Claude router never runs, the body
+    carries `provider="codex"` with the registry's pinned model, and no remote
+    MCP tool is mounted (only the Claude backend mounts them). Facts still ride
+    in-band, so nothing of her memory is lost to the other provider."""
+    from persona_runner.core import config as runner_config
+
+    monkeypatch.setattr(runner_config, "PERSONAS_DIR", ROOT / "shared" / "personas")
+    backend = AsyncMock()
+    _streams(backend, _Result(model="gpt-6-astra"))
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value="- [work] escribe guiones"))
+    monkeypatch.setattr(aire_route, "memory_tool_specs", lambda _casita: [MagicMock()])
+    router = AsyncMock(return_value=("claude-sonnet-4-6", {}))
+    monkeypatch.setattr("persona_runner.routing.router_runtime.route_model", router)
+
+    resp = await aire_route.turn_via_aire(_turn_request(persona_id="astra"))
+
+    router.assert_not_called()
+    kwargs = backend.run_turn_stream.call_args.kwargs
+    assert kwargs["provider"] == "codex"
+    assert kwargs["model"] == "gpt-6-astra"
+    assert kwargs["mcp_servers"] == []
+    assert "escribe guiones" in kwargs["user_message"]
+    assert resp.model == "gpt-6-astra"
+
+
+@pytest.mark.asyncio
+async def test_a_claude_persona_sends_no_provider_so_the_door_keeps_its_default(monkeypatch):
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    router = AsyncMock(return_value=("claude-sonnet-4-6", {"routed": True}))
+    monkeypatch.setattr("persona_runner.routing.router_runtime.route_model", router)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id="insult"))
+
+    router.assert_called_once()
+    assert backend.run_turn_stream.call_args.kwargs["provider"] is None

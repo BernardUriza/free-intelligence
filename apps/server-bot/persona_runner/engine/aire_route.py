@@ -65,6 +65,7 @@ from persona_runner.engine import aire_principal, aire_topic, auth_failure, turn
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
 from persona_runner.engine.turn_tap import run_turn_tapped
+from shared.personas import get_persona
 
 log = structlog.get_logger()
 
@@ -312,6 +313,16 @@ def base_persona_id(persona_id: str | None) -> str:
     return resolve_persona_path(persona_id).stem
 
 
+def engine_for(base_id: str) -> tuple[str, str | None]:
+    """Which AIRE backend speaks for this persona and, off Claude, which model.
+    ``("claude", None)`` leaves the per-turn router in charge; any other
+    provider pins the registry's model (Astra rides Codex on ``gpt-6-astra``)."""
+    persona = get_persona(base_id)
+    if persona is None or persona.provider == "claude":
+        return "claude", None
+    return persona.provider, persona.model
+
+
 def chat_casita_for(base_id: str, channel_id: str) -> str:
     """The per-chat casita name: ``{persona}-{channel}``, filtered to AIRE's
     name allowlist (``[A-Za-z0-9_-]``, 128 max — aire-server names.py)."""
@@ -552,7 +563,11 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         guidance = f"{guidance}\n\n{note}" if guidance else note
         log.warning("aire_route_turn_resumed", casita=casita, topic=claim.topic_id, job_id=req.job_id)
 
-    model, route_meta = await route_model(req.channel_id, req.user_id, req.user_text)
+    provider, pinned_model = engine_for(base_id)
+    if pinned_model:
+        model, route_meta = pinned_model, {"routed": False, "provider": provider}
+    else:
+        model, route_meta = await route_model(req.channel_id, req.user_id, req.user_text)
     memory_block = await fetch_user_facts(req.user_id)
     framed = frame_turn_text(
         channel_id=req.channel_id,
@@ -574,7 +589,9 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         )
 
     backend = backend_for(base_id)
-    remote_specs = memory_tool_specs(casita)
+    # Only AIRE's Claude backend mounts remote MCP tools; the facts still ride
+    # in-band for every provider (memory_block above).
+    remote_specs = memory_tool_specs(casita) if provider == "claude" else []
     principal_bound = False
     if remote_specs:
         # The remote tools resolve identity from this durable row (the server
@@ -596,6 +613,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
             session_id=claim.topic_id,
             images=images or None,
             documents=documents or None,
+            provider=None if provider == "claude" else provider,
         )
 
     token = _chat_casita.set(casita)

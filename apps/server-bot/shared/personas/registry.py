@@ -61,6 +61,10 @@ class Persona:
     # injected through guidance_for_turn with the header content at
     # shared/corpus/headers/<persona_id>.md.
     corpus_namespace: str | None = None
+    # Which AIRE backend speaks for this persona (aire-server #49/#52): "claude"
+    # rides the runner's per-turn router; any other provider pins `model`.
+    provider: str = "claude"
+    model: str | None = None
 
 
 # Future bots: add an entry, nothing else to change.
@@ -186,6 +190,18 @@ PERSONAS: dict[str, Persona] = {
         # Fase 2 abierta el 2026-09-16 (issue #61, decisión 3 de Álex): entra con
         # ética del cuidado. Su header manda NO citar en un turno de acompañamiento.
         corpus_namespace="__corpus_valentis__",
+    ),
+    # Astra: el coagente de guion de PlusvalíaLeaks, en GPT-6 Astra por el backend
+    # Codex de AIRE (#49/#52). Sin bot de Discord: nace para og118 (elemento 85, At).
+    "astra": Persona(
+        persona_id="astra",
+        display_name="Astra",
+        persona_file="astra.md",
+        token_env="ASTRA_DISCORD_TOKEN",  # nosec B106 — env-var NAME, not a secret
+        aliases=[],
+        gateway_enabled=False,
+        provider="codex",
+        model="gpt-6-astra",
     ),
 }
 
