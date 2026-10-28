@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import * as react from 'react';
 import { ReactNode } from 'react';
+import { f as AdminSheetProps } from '../controls-B6pgIbiJ.js';
+import 'lucide-react';
 
 interface PersonaExample {
     input: string;
@@ -237,16 +239,8 @@ interface PersonaCardProps {
 }
 declare function PersonaCard({ persona, selected, onSelect, onEdit, onDelete, accentColor, hiddenFields, locale, }: PersonaCardProps): react.JSX.Element;
 
-interface PersonaSheetProps {
-    onDismiss: () => void;
-    labelledBy: string;
-    /** 'center' is a dialog; 'side' a slide-over. Both become a full sheet on mobile. */
-    placement?: 'center' | 'side';
-    header: ReactNode;
-    footer?: ReactNode;
-    children: ReactNode;
-}
-declare function PersonaSheet({ onDismiss, labelledBy, placement, header, footer, children }: PersonaSheetProps): react.JSX.Element;
+type PersonaSheetProps = Omit<AdminSheetProps, 'className' | 'bodyRef'>;
+declare function PersonaSheet({ header, footer, ...rest }: PersonaSheetProps): react.JSX.Element;
 
 interface UsePersonaCollectionOptions {
     confirm?: PersonaConfirm;

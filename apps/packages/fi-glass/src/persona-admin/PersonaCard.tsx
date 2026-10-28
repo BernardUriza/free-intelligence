@@ -2,7 +2,7 @@
 
 import type { CSSProperties, KeyboardEvent } from 'react';
 import { Brain, Edit, Trash2 } from 'lucide-react';
-import { PersonaButton } from './controls';
+import { AdminButton } from '../admin-kit';
 import { FI_PERSONA_ROOT_CLASS, usePersonaAdminStyle } from './personaAdminStyle';
 import type { Persona, PersonaHideableField } from './types';
 
@@ -39,7 +39,7 @@ export function PersonaCard({
   usePersonaAdminStyle();
   const hidden = new Set(hiddenFields);
   const stats = persona.usage_stats;
-  const style = accentColor ? ({ '--fi-persona-accent': accentColor } as CSSProperties) : undefined;
+  const style = accentColor ? ({ '--fi-persona-accent': accentColor, '--fi-admin-accent': accentColor } as CSSProperties) : undefined;
   const onKey = (e: KeyboardEvent<HTMLElement>) => {
     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
@@ -68,7 +68,7 @@ export function PersonaCard({
           </div>
         </div>
         <div className="fi-persona-actions">
-          <PersonaButton
+          <AdminButton
             variant="ghost"
             iconOnly
             icon={Edit}
@@ -79,7 +79,7 @@ export function PersonaCard({
             }}
           />
           {onDelete ? (
-            <PersonaButton
+            <AdminButton
               variant="ghost"
               iconOnly
               icon={Trash2}

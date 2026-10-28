@@ -43,10 +43,6 @@
   @apply p-4 rounded-lg border flex items-start gap-3;
 }
 
-@utility admin-card {
-  @apply p-5 rounded-xl border-2 transition-all;
-}
-
 @utility admin-doc-action {
   @apply p-1.5 sm:p-2 rounded-lg transition-all
          disabled:opacity-50 disabled:cursor-not-allowed;
@@ -277,201 +273,6 @@
   }
 
   /* ========================================
-   * MODEL/PERSONA CARDS
-   * ======================================== */
-  .admin-card-default {
-    @apply admin-card border-slate-700 bg-slate-900/50 hover:border-slate-600;
-  }
-
-  .admin-card-installed {
-    @apply admin-card border-emerald-600/50 bg-emerald-950/20;
-  }
-
-  .admin-card-header {
-    @apply flex items-start justify-between mb-3;
-  }
-
-  .admin-card-header-inner {
-    @apply flex items-center gap-2;
-  }
-
-  .admin-card-icon-wrapper {
-    @apply p-2 rounded-lg bg-slate-800 border border-slate-700;
-  }
-
-  .admin-card-title {
-    @apply text-base font-bold text-white line-clamp-1;
-  }
-
-  .admin-card-subtitle {
-    @apply text-xs text-slate-400;
-  }
-
-  .admin-card-description {
-    @apply text-xs text-slate-400 mb-3 line-clamp-2 min-h-[2rem];
-  }
-
-  .admin-card-description-lg {
-    @apply text-sm text-slate-300 mb-4 line-clamp-2 min-h-[2.5rem];
-  }
-
-  .admin-card-stats-grid {
-    @apply grid grid-cols-2 gap-2 mb-4 text-xs;
-  }
-
-  .admin-card-stat {
-    @apply flex items-center gap-1.5 p-2 bg-slate-800/50 rounded border border-slate-700;
-  }
-
-  .admin-card-stat-icon {
-    @apply w-3.5 h-3.5 text-slate-400;
-  }
-
-  .admin-card-stat-value {
-    @apply text-slate-300;
-  }
-
-  .admin-card-stat-label {
-    @apply text-xs text-slate-500;
-  }
-
-  .admin-card-stat-value-mono {
-    @apply text-sm font-mono text-white truncate;
-  }
-
-  .admin-card-tags {
-    @apply flex flex-wrap gap-1 mb-4;
-  }
-
-  .admin-card-tag {
-    @apply px-1.5 py-0.5 text-xs bg-slate-800 text-slate-400 rounded;
-  }
-
-  .admin-card-tag-more {
-    @apply px-1.5 py-0.5 text-xs text-slate-500;
-  }
-
-  .admin-card-actions {
-    @apply flex gap-2;
-  }
-
-  .admin-card-btn-install {
-    @apply flex-1 flex items-center justify-center gap-2 px-4 py-2
-           rounded-lg text-sm font-medium bg-emerald-600 text-white
-           hover:bg-emerald-700 transition-colors
-           disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed;
-  }
-
-  .admin-card-btn-installed {
-    @apply flex-1 flex items-center justify-center gap-2 px-4 py-2
-           bg-emerald-900/30 text-emerald-400 rounded-lg text-sm;
-  }
-
-  .admin-card-btn-delete {
-    @apply p-2 rounded-lg border border-red-800 hover:bg-red-900/30
-           text-red-400 transition-colors;
-  }
-
-  .admin-card-btn-edit {
-    @apply p-2 rounded hover:bg-slate-700 transition-colors;
-  }
-
-  .admin-card-btn-edit-icon {
-    @apply w-4 h-4 text-slate-400 hover:text-white;
-  }
-
-  .admin-card-footer {
-    @apply mt-3 pt-3 border-t border-slate-700/50;
-  }
-
-  .admin-card-footer-text {
-    @apply text-xs text-slate-500 font-mono truncate;
-  }
-
-  .admin-card-divider {
-    @apply pt-4 border-t border-slate-700;
-  }
-
-  /* Progress bar */
-  .admin-progress-container {
-    @apply mb-4;
-  }
-
-  .admin-progress-header {
-    @apply flex items-center justify-between text-xs text-slate-400 mb-1;
-  }
-
-  .admin-progress-bar {
-    @apply h-2 bg-slate-800 rounded-full overflow-hidden;
-  }
-
-  .admin-progress-fill {
-    @apply h-full bg-emerald-500 transition-all duration-300;
-  }
-
-  /* Source badges */
-  .admin-source-badge {
-    @apply px-1.5 py-0.5 text-xs rounded text-white;
-  }
-
-  .admin-installed-badge {
-    @apply flex items-center gap-1 px-1.5 py-0.5 text-xs
-           bg-emerald-700/50 text-emerald-300 rounded;
-  }
-
-  .admin-installed-badge-icon {
-    @apply w-3 h-3;
-  }
-
-  /* ========================================
-   * LLM MODEL CARD STATES
-   * ======================================== */
-  .admin-model-card-selected {
-    @apply admin-card cursor-pointer border-emerald-500 bg-emerald-950/30
-           shadow-lg shadow-emerald-900/20;
-  }
-  .admin-model-card-active {
-    @apply admin-card cursor-pointer border-slate-700 bg-slate-900/50
-           hover:border-slate-600 hover:bg-slate-900/70;
-  }
-  .admin-model-card-inactive {
-    @apply admin-card cursor-pointer border-slate-800 bg-slate-950/50 opacity-60;
-  }
-
-  /* Model inactive badge */
-  .admin-model-badge-inactive {
-    @apply px-2 py-0.5 text-xs bg-red-900/50 fi-text-error rounded-full;
-  }
-
-  /* Model action buttons */
-  .admin-model-toggle-on {
-    @apply text-yellow-400 hover:bg-yellow-900/30;
-  }
-  .admin-model-toggle-off {
-    @apply fi-text-green hover:bg-green-900/30;
-  }
-  .admin-model-test-btn {
-    @apply fi-text-purple hover:text-purple-300 hover:bg-purple-900/30;
-  }
-  .admin-model-delete-btn {
-    @apply text-slate-400 hover:fi-text-error hover:bg-red-900/30;
-  }
-
-  /* Cost tier text colors */
-  .admin-cost-green {
-    @apply text-sm font-medium text-green-400;
-  }
-  .admin-cost-yellow {
-    @apply text-sm font-medium text-yellow-400;
-  }
-  .admin-cost-red {
-    @apply text-sm font-medium text-red-400;
-  }
-  .admin-cost-slate {
-    @apply text-sm font-medium text-slate-400;
-  }
-
-  /* ========================================
    * USER MANAGEMENT
    * ======================================== */
   .admin-user-wrapper-page {
@@ -618,18 +419,6 @@
   .admin-license-radio-active {
     @apply flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer
            transition-colors bg-cyan-500/20 border-cyan-500/50;
-  }
-
-  /* ========================================
-   * MODEL CATALOG DRAWER
-   * ======================================== */
-  .admin-catalog-drawer {
-    @apply fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900
-           border-l border-slate-700 shadow-2xl z-50 flex flex-col
-           transform transition-transform duration-300 ease-out;
-  }
-  .admin-catalog-sync-btn {
-    @apply text-emerald-300 border-emerald-700/50 hover:bg-emerald-700/50;
   }
 
   /* ========================================
@@ -874,24 +663,6 @@
   .admin-error-banner {
     @apply flex items-center gap-2 p-3 bg-red-900/30
            border border-red-700 rounded-lg text-red-300;
-  }
-
-  /* ========================================
-   * MODEL CATALOG (ModelRow)
-   * ======================================== */
-  .admin-model-active-badge {
-    @apply flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5
-           text-xs bg-emerald-700/50 text-emerald-300 rounded;
-  }
-
-  .admin-model-delete-btn {
-    @apply text-slate-500 hover:fi-text-error hover:bg-red-950/30
-           opacity-0 group-hover:opacity-100;
-  }
-
-  .admin-model-chevron {
-    @apply w-4 h-4 text-slate-600 flex-shrink-0
-           opacity-0 group-hover:opacity-100 transition-opacity;
   }
 
   /* ========================================

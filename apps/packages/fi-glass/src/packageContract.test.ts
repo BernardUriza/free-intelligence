@@ -62,8 +62,8 @@ describe('every JS subpath export is built and shipped', () => {
     .filter(([, target]) => typeof target === 'object' && target.import?.startsWith('./dist/'))
     .map(([key, target]) => ({ key, src: target.import!.replace('./dist/', 'src/').replace(/\.js$/, '.ts') }));
 
-  it('includes the persona-admin subpath', () => {
-    expect(subpaths.map((s) => s.key)).toContain('./persona-admin');
+  it('includes the admin-kit, persona-admin and model-catalog subpaths', () => {
+    expect(subpaths.map((s) => s.key)).toEqual(expect.arrayContaining(['./admin-kit', './persona-admin', './model-catalog']));
   });
 
   it.each(subpaths)('$key has a tsup entry and a built dist', ({ key, src }) => {

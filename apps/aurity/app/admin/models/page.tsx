@@ -1,81 +1,53 @@
 /**
- * LLM Models Admin Page
- *
- * Admin panel for managing LLM models available for persona assignment.
- * Route: /admin/models
- * Requires: FI-superadmin role
- *
- * Architecture: Thin orchestrator page that composes modular hooks and components.
- * - useLLMModels: Model list CRUD + filter state
- * - useSystemResources: RAM, CPU, running models polling
- * - useModelTest: Test flow with progressive loading
- * - useModelModals: Modal/drawer visibility
- * - SystemResourcesPanel: Resource dashboard rendering
- * - ModelsFilterBar: Provider filter + inactive toggle
- * - ModelsGrid: Model cards with loading/error/empty states
- * - LLMModelModal: Create/Edit form (extracted)
+ * LLM Models Admin Page — renders fi-glass/model-catalog over aurity's API client.
+ * Route: /admin/models. Requires the FI-superadmin role (enforced by the API).
  */
 
 'use client';
 
-import { Plus, Download } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Plus, X } from 'lucide-react';
+import {
+  LLMModelFilterBar,
+  LLMModelFormSheet,
+  LLMModelGrid,
+  ModelCatalogDrawer,
+  ModelTestSheet,
+  SystemResourcesPanel,
+  useLLMModels,
+  useModelTest,
+  useSystemResources,
+  type LLMModel,
+  type ModelCatalogConfirm,
+  type ModelCatalogNotify,
+} from 'fi-glass/model-catalog';
 import { Button } from '@/components/ui/button';
 import { AppTemplate } from '@/components/layout/AppTemplate';
-import { ModelCatalogDrawer } from '@/components/admin/model-catalog-drawer';
 import { adminLLMModelsHeader } from '@/config/page-headers';
-import { useLLMModels } from './hooks/useLLMModels';
-import { useSystemResources } from './hooks/useSystemResources';
-import { useModelTest } from './hooks/useModelTest';
-import { useModelModals } from './hooks/useModelModals';
-import { SystemResourcesPanel } from './components/SystemResourcesPanel';
-import { ModelsFilterBar } from './components/ModelsFilterBar';
-import { ModelsGrid } from './components/ModelsGrid';
-import { LLMModelModal } from './components/LLMModelModal';
+import { confirmDanger, toastError, toastSuccess } from '@/lib/swal';
+import { modelCatalogStore } from '@/services/model-catalog';
+
+const confirm: ModelCatalogConfirm = (message) =>
+  confirmDanger({ title: '¿Eliminar modelo?', text: message, confirmText: 'Eliminar' });
+
+const notify: ModelCatalogNotify = (kind, message) => (kind === 'success' ? toastSuccess(message) : toastError(message));
 
 export default function LLMModelsAdminPage() {
-  const {
-    models,
-    loading,
-    error,
-    selectedModel,
-    setSelectedModel,
-    loadModels,
-    handleCreate,
-    handleUpdate,
-    handleDelete,
-    handleToggleActive,
-    includeInactive,
-    setIncludeInactive,
-    providerFilter,
-    setProviderFilter,
-  } = useLLMModels();
-
-  const {
-    systemResources,
-    runningModels,
-    resourcesLoading,
-    loadResources,
-    handleUnloadModel,
-  } = useSystemResources();
-
-  const { handleTest } = useModelTest();
-
-  const modals = useModelModals({
-    onCreate: handleCreate,
-    onUpdate: handleUpdate,
-  });
-
-  const headerConfig = adminLLMModelsHeader({ modelsCount: models.length });
+  const collection = useLLMModels(modelCatalogStore, { confirm, notify });
+  const resources = useSystemResources(modelCatalogStore, { notify });
+  const test = useModelTest(modelCatalogStore);
+  const [editing, setEditing] = useState<LLMModel | 'new' | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   return (
     <AppTemplate
-      headerConfig={headerConfig}
+      headerConfig={adminLLMModelsHeader({ modelsCount: collection.models.length })}
       headerActions={
         <div className="fi-flex-gap-md">
-          <Button onClick={modals.openCatalog} variant="purple" icon={Download}>
+          <Button onClick={() => setCatalogOpen(true)} variant="purple" icon={Download}>
             Catálogo
           </Button>
-          <Button onClick={modals.openCreate} icon={Plus}>
+          <Button onClick={() => setEditing('new')} icon={Plus}>
             Nuevo Modelo
           </Button>
         </div>
@@ -85,56 +57,59 @@ export default function LLMModelsAdminPage() {
       showWatermark={true}
       showGeometricBg={true}
     >
-      <SystemResourcesPanel
-        systemResources={systemResources}
-        runningModels={runningModels}
-        resourcesLoading={resourcesLoading}
-        onRefresh={loadResources}
-        onUnloadModel={handleUnloadModel}
+      <SystemResourcesPanel {...resources} />
+
+      <LLMModelFilterBar
+        provider={collection.provider}
+        onProviderChange={collection.setProvider}
+        includeInactive={collection.includeInactive}
+        onIncludeInactiveChange={collection.setIncludeInactive}
       />
 
-      <ModelsFilterBar
-        providerFilter={providerFilter}
-        onProviderChange={setProviderFilter}
-        includeInactive={includeInactive}
-        onIncludeInactiveChange={setIncludeInactive}
+      {collection.actionError && (
+        <div className="admin-error-banner mb-6">
+          <span className="flex-1">{collection.actionError}</span>
+          <button onClick={collection.clearActionError} aria-label="Cerrar error">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      <LLMModelGrid
+        models={collection.models}
+        loading={collection.loading}
+        error={collection.error}
+        selectedId={collection.selectedId}
+        onSelect={collection.setSelectedId}
+        onEdit={setEditing}
+        onDeactivate={(model) => void collection.deactivate(model)}
+        onToggleActive={(model) => void collection.toggleActive(model)}
+        onTest={(model) => void test.run(model)}
+        onRetry={() => void collection.reload()}
+        onCreateFirst={() => setEditing('new')}
       />
 
-      <ModelsGrid
-        models={models}
-        loading={loading}
-        error={error}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        onEditModel={modals.openEdit}
-        onDeleteModel={handleDelete}
-        onToggleActive={handleToggleActive}
-        onTestModel={handleTest}
-        onRetry={loadModels}
-        onCreateFirst={modals.openCreate}
-      />
-
-      {modals.showCreateModal && (
-        <LLMModelModal
-          mode="create"
-          onClose={modals.closeCreate}
-          onCreate={modals.handleCreateAndClose}
+      {editing && (
+        <LLMModelFormSheet
+          model={editing === 'new' ? undefined : editing}
+          store={modelCatalogStore}
+          onClose={() => setEditing(null)}
+          onSaved={(model) => {
+            collection.upsert(model);
+            notify('success', editing === 'new' ? 'Modelo creado correctamente' : 'Modelo actualizado correctamente');
+          }}
         />
       )}
 
-      {modals.editingModel && (
-        <LLMModelModal
-          mode="edit"
-          model={modals.editingModel}
-          onClose={modals.closeEdit}
-          onUpdate={modals.handleUpdateAndClose}
-        />
-      )}
+      <ModelTestSheet {...test} />
 
       <ModelCatalogDrawer
-        isOpen={modals.showCatalogDrawer}
-        onClose={modals.closeCatalog}
-        onModelInstalled={loadModels}
+        open={catalogOpen}
+        onClose={() => setCatalogOpen(false)}
+        store={modelCatalogStore}
+        onModelsChanged={() => void collection.reload()}
+        confirm={confirm}
+        notify={notify}
       />
     </AppTemplate>
   );

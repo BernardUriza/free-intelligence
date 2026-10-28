@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { Alert, PersonaButton } from './controls';
+import { AdminAlert, AdminButton } from '../admin-kit';
 import { mapFormToCreateRequest } from './mappers';
 import { PersonaForm } from './PersonaForm';
 import { PersonaSheet } from './PersonaSheet';
@@ -127,7 +127,7 @@ export function PersonaCreateModal({
             </h2>
             <p className="fi-persona-subtitle">{subtitle}</p>
           </div>
-          <PersonaButton variant="ghost" iconOnly icon={X} onClick={close} disabled={creating} aria-label="Cerrar" />
+          <AdminButton variant="ghost" iconOnly icon={X} onClick={close} disabled={creating} aria-label="Cerrar" />
         </>
       }
       footer={
@@ -136,10 +136,10 @@ export function PersonaCreateModal({
             <span className="fi-persona-required">*</span> Campos requeridos
           </p>
           <div className="fi-persona-actions">
-            <PersonaButton onClick={close} disabled={creating}>
+            <AdminButton onClick={close} disabled={creating}>
               Cancelar
-            </PersonaButton>
-            <PersonaButton
+            </AdminButton>
+            <AdminButton
               variant="primary"
               icon={Sparkles}
               loading={creating}
@@ -147,7 +147,7 @@ export function PersonaCreateModal({
               onClick={() => void submit()}
             >
               {creating ? 'Creando...' : submitLabel}
-            </PersonaButton>
+            </AdminButton>
           </div>
         </>
       }
@@ -171,7 +171,7 @@ export function PersonaCreateModal({
           errors={errors}
           showExamplesSummary
         />
-        {apiError ? <Alert>{apiError}</Alert> : null}
+        {apiError ? <AdminAlert>{apiError}</AdminAlert> : null}
       </form>
     </PersonaSheet>
   );

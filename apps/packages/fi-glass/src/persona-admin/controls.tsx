@@ -1,8 +1,7 @@
 'use client';
 
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { AlertCircle, Loader2, type LucideIcon } from 'lucide-react';
-import { withTouchTarget } from '../shell/touchTarget';
+import type { ReactNode } from 'react';
+import { AlertCircle, type LucideIcon } from 'lucide-react';
 import type { PersonaOption } from './types';
 
 export function FieldLabel({
@@ -32,46 +31,6 @@ export function FieldError({ id, error }: { id?: string; error?: string }) {
       <AlertCircle size={12} aria-hidden="true" />
       {error}
     </p>
-  );
-}
-
-export function Alert({ children }: { children: ReactNode }) {
-  return (
-    <p className="fi-persona-alert" role="alert">
-      <AlertCircle size={18} aria-hidden="true" />
-      <span>{children}</span>
-    </p>
-  );
-}
-
-type Variant = 'default' | 'primary' | 'ghost' | 'danger';
-
-export function PersonaButton({
-  variant = 'default',
-  icon: Icon,
-  loading = false,
-  iconOnly = false,
-  className,
-  children,
-  ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
-  icon?: LucideIcon;
-  loading?: boolean;
-  iconOnly?: boolean;
-}) {
-  const LeadIcon = loading ? Loader2 : Icon;
-  return (
-    <button
-      type="button"
-      {...rest}
-      className={withTouchTarget(className ? `fi-persona-btn ${className}` : 'fi-persona-btn')}
-      data-variant={variant}
-      data-icon-only={iconOnly ? '' : undefined}
-    >
-      {LeadIcon ? <LeadIcon size={16} aria-hidden="true" className={loading ? 'fi-persona-spin' : undefined} /> : null}
-      {children}
-    </button>
   );
 }
 

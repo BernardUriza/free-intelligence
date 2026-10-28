@@ -1,12 +1,15 @@
 'use client';
 
 import {
+  AdminAlert,
+  AdminButton,
+  AdminSheet,
+  ensureAdminKitStyle
+} from "../chunk-K6IVIEAK.js";
+import {
   glassTokens
 } from "../chunk-LO4SF24V.js";
-import {
-  ensureTouchTargetStyle,
-  withTouchTarget
-} from "../chunk-SMPLGG7E.js";
+import "../chunk-SMPLGG7E.js";
 import {
   FI_MOBILE_QUERY,
   FI_TOUCH_QUERY
@@ -130,7 +133,7 @@ import { useCallback, useId } from "react";
 import { Cpu, Mic } from "lucide-react";
 
 // src/persona-admin/controls.tsx
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { jsx, jsxs } from "react/jsx-runtime";
 function FieldLabel({
   htmlFor,
@@ -150,37 +153,6 @@ function FieldError({ id, error }) {
     /* @__PURE__ */ jsx(AlertCircle, { size: 12, "aria-hidden": "true" }),
     error
   ] });
-}
-function Alert({ children }) {
-  return /* @__PURE__ */ jsxs("p", { className: "fi-persona-alert", role: "alert", children: [
-    /* @__PURE__ */ jsx(AlertCircle, { size: 18, "aria-hidden": "true" }),
-    /* @__PURE__ */ jsx("span", { children })
-  ] });
-}
-function PersonaButton({
-  variant = "default",
-  icon: Icon,
-  loading = false,
-  iconOnly = false,
-  className,
-  children,
-  ...rest
-}) {
-  const LeadIcon = loading ? Loader2 : Icon;
-  return /* @__PURE__ */ jsxs(
-    "button",
-    {
-      type: "button",
-      ...rest,
-      className: withTouchTarget(className ? `fi-persona-btn ${className}` : "fi-persona-btn"),
-      "data-variant": variant,
-      "data-icon-only": iconOnly ? "" : void 0,
-      children: [
-        LeadIcon ? /* @__PURE__ */ jsx(LeadIcon, { size: 16, "aria-hidden": "true", className: loading ? "fi-persona-spin" : void 0 }) : null,
-        children
-      ]
-    }
-  );
 }
 function OptionSelect({
   id,
@@ -223,9 +195,8 @@ var MUTED = `var(--glass-chat-text-muted, ${glassTokens.textMuted})`;
 var DANGER = `var(--fi-persona-danger, ${glassTokens.danger})`;
 var BORDER = `var(--fi-persona-border, ${glassTokens.surfaceBorder})`;
 var FIELD_BG = `var(--fi-persona-field-bg, ${glassTokens.searchFill})`;
-var PANEL_BG = `var(--fi-persona-panel-bg, ${glassTokens.bgMid})`;
 var CSS = `
-.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; }
+.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: 42rem; --fi-admin-panel-width: 64rem; --fi-admin-accent: ${ACCENT}; }
 .fi-persona-stack { display: flex; flex-direction: column; gap: 1.25rem; }
 .fi-persona-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fi-persona-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
@@ -245,43 +216,6 @@ textarea.fi-persona-input { resize: vertical; line-height: 1.5; }
 .fi-persona-range { width: 100%; accent-color: ${ACCENT}; min-height: 24px; }
 .fi-persona-hint { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.75rem; color: ${MUTED}; }
 .fi-persona-error { display: flex; align-items: center; gap: 0.25rem; margin: 0; font-size: 0.75rem; color: ${DANGER}; }
-.fi-persona-alert {
-  display: flex; align-items: flex-start; gap: 0.5rem; margin: 0; padding: 0.75rem; border-radius: 10px;
-  color: ${DANGER}; background: rgba(248, 113, 113, 0.08); border-width: 1px; border-style: solid; border-color: rgba(248, 113, 113, 0.35);
-}
-.fi-persona-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 36px;
-  padding: 0.5rem 0.9rem; border-radius: 10px; font: inherit; font-size: 0.875rem; font-weight: 500;
-  cursor: pointer; color: ${TEXT}; background: ${FIELD_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER};
-}
-.fi-persona-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.fi-persona-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px ${ACCENT}; }
-.fi-persona-btn[data-variant="primary"] { color: #04130d; background: ${ACCENT}; border-color: transparent; }
-.fi-persona-btn[data-variant="ghost"] { background: transparent; border-color: transparent; }
-.fi-persona-btn[data-variant="ghost"]:hover { background: ${glassTokens.itemHover}; }
-.fi-persona-btn[data-variant="danger"] { color: ${DANGER}; background: transparent; border-color: rgba(248, 113, 113, 0.35); }
-.fi-persona-btn[data-icon-only] { padding: 0.4rem; min-width: 36px; }
-.fi-persona-spin { animation: fi-persona-spin 1s linear infinite; }
-@keyframes fi-persona-spin { to { transform: rotate(360deg); } }
-.fi-persona-overlay { position: fixed; inset: 0; z-index: 50; display: flex; }
-.fi-persona-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
-.fi-persona-sheet {
-  position: relative; display: flex; flex-direction: column; margin: auto; width: 100%;
-  max-width: var(--fi-persona-sheet-width, 42rem); max-height: calc(100dvh - 2rem);
-  background: ${PANEL_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER}; border-radius: 16px; overflow: hidden;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
-}
-.fi-persona-overlay[data-placement="side"] .fi-persona-sheet {
-  margin: 0 0 0 auto; height: 100dvh; max-height: none; max-width: var(--fi-persona-panel-width, 64rem);
-  border-radius: 0; border: 0; border-left-width: 1px; border-left-style: solid; border-left-color: ${BORDER};
-}
-.fi-persona-sheet-head, .fi-persona-sheet-foot {
-  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 1rem 1.5rem; flex-wrap: wrap;
-}
-.fi-persona-sheet-head { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: ${BORDER}; }
-.fi-persona-sheet-foot { border-top-width: 1px; border-top-style: solid; border-top-color: ${BORDER}; }
-.fi-persona-sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 1.25rem 1.5rem; }
 .fi-persona-title { margin: 0; font-size: 1.125rem; font-weight: 600; color: ${TEXT}; display: flex; align-items: center; gap: 0.5rem; }
 .fi-persona-subtitle { margin: 0.15rem 0 0; font-size: 0.8125rem; color: ${MUTED}; }
 .fi-persona-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
@@ -320,21 +254,14 @@ textarea.fi-persona-input { resize: vertical; line-height: 1.5; }
 @media ${FI_MOBILE_QUERY} {
   .fi-persona-grid, .fi-persona-card-stats { grid-template-columns: minmax(0, 1fr); }
   .fi-persona-input { font-size: 16px; }
-  .fi-persona-sheet, .fi-persona-overlay[data-placement="side"] .fi-persona-sheet {
-    margin: 0; max-width: none; max-height: none; height: 100dvh; border-radius: 0; border: 0;
-  }
-  .fi-persona-sheet-head { padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem 0.75rem; }
-  .fi-persona-sheet-body { padding: 1rem 0.75rem; }
-  .fi-persona-sheet-foot { padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom)); }
 }
 @media ${FI_TOUCH_QUERY} {
-  .fi-persona-input, .fi-persona-btn { min-height: var(--fi-touch-target, 44px); }
-  .fi-persona-btn[data-icon-only] { min-width: var(--fi-touch-target, 44px); }
+  .fi-persona-input { min-height: var(--fi-touch-target, 44px); }
 }
 `;
 function ensurePersonaAdminStyle() {
   if (typeof document === "undefined") return;
-  ensureTouchTargetStyle();
+  ensureAdminKitStyle();
   if (document.getElementById(STYLE_ID)) return;
   const el = document.createElement("style");
   el.id = STYLE_ID;
@@ -578,33 +505,19 @@ function PersonaForm({
 }
 
 // src/persona-admin/PersonaCreateModal.tsx
-import { useCallback as useCallback2, useEffect as useEffect2, useId as useId2, useRef, useState } from "react";
+import { useCallback as useCallback2, useEffect, useId as useId2, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 
 // src/persona-admin/PersonaSheet.tsx
-import { useEffect } from "react";
-import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
-function PersonaSheet({ onDismiss, labelledBy, placement = "center", header, footer, children }) {
+import { jsx as jsx3 } from "react/jsx-runtime";
+var row = (node) => /* @__PURE__ */ jsx3("div", { className: "fi-admin-head-row", children: node });
+function PersonaSheet({ header, footer, ...rest }) {
   usePersonaAdminStyle();
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onDismiss();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onDismiss]);
-  return /* @__PURE__ */ jsxs3("div", { className: `${FI_PERSONA_ROOT_CLASS} fi-persona-overlay`, "data-placement": placement, children: [
-    /* @__PURE__ */ jsx3("div", { className: "fi-persona-backdrop", onClick: onDismiss, "aria-hidden": "true" }),
-    /* @__PURE__ */ jsxs3("div", { className: "fi-persona-sheet", role: "dialog", "aria-modal": "true", "aria-labelledby": labelledBy, children: [
-      /* @__PURE__ */ jsx3("div", { className: "fi-persona-sheet-head", children: header }),
-      /* @__PURE__ */ jsx3("div", { className: "fi-persona-sheet-body", children }),
-      footer ? /* @__PURE__ */ jsx3("div", { className: "fi-persona-sheet-foot", children: footer }) : null
-    ] })
-  ] });
+  return /* @__PURE__ */ jsx3(AdminSheet, { ...rest, className: FI_PERSONA_ROOT_CLASS, header: row(header), footer: footer ? row(footer) : void 0 });
 }
 
 // src/persona-admin/PersonaCreateModal.tsx
-import { Fragment, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
+import { Fragment, jsx as jsx4, jsxs as jsxs3 } from "react/jsx-runtime";
 function startingValues(initialValues, modelOptions, voiceOptions) {
   const values = { ...DEFAULT_PERSONA_VALUES, ...initialValues };
   if (!initialValues?.model && modelOptions.length && !modelOptions.some((o) => o.value === values.model)) {
@@ -637,7 +550,7 @@ function PersonaCreateModal({
   const [errors, setErrors] = useState({});
   const [creating, setCreating] = useState(false);
   const [apiError, setApiError] = useState(null);
-  useEffect2(() => {
+  useEffect(() => {
     if (open) {
       setValues(startRef.current());
       setErrors({});
@@ -681,25 +594,25 @@ function PersonaCreateModal({
     {
       onDismiss: close,
       labelledBy: titleId,
-      header: /* @__PURE__ */ jsxs4(Fragment, { children: [
-        /* @__PURE__ */ jsxs4("div", { children: [
-          /* @__PURE__ */ jsxs4("h2", { id: titleId, className: "fi-persona-title", children: [
+      header: /* @__PURE__ */ jsxs3(Fragment, { children: [
+        /* @__PURE__ */ jsxs3("div", { children: [
+          /* @__PURE__ */ jsxs3("h2", { id: titleId, className: "fi-persona-title", children: [
             /* @__PURE__ */ jsx4(Sparkles, { size: 20, "aria-hidden": "true" }),
             title
           ] }),
           /* @__PURE__ */ jsx4("p", { className: "fi-persona-subtitle", children: subtitle })
         ] }),
-        /* @__PURE__ */ jsx4(PersonaButton, { variant: "ghost", iconOnly: true, icon: X, onClick: close, disabled: creating, "aria-label": "Cerrar" })
+        /* @__PURE__ */ jsx4(AdminButton, { variant: "ghost", iconOnly: true, icon: X, onClick: close, disabled: creating, "aria-label": "Cerrar" })
       ] }),
-      footer: /* @__PURE__ */ jsxs4(Fragment, { children: [
-        /* @__PURE__ */ jsxs4("p", { className: "fi-persona-subtitle", children: [
+      footer: /* @__PURE__ */ jsxs3(Fragment, { children: [
+        /* @__PURE__ */ jsxs3("p", { className: "fi-persona-subtitle", children: [
           /* @__PURE__ */ jsx4("span", { className: "fi-persona-required", children: "*" }),
           " Campos requeridos"
         ] }),
-        /* @__PURE__ */ jsxs4("div", { className: "fi-persona-actions", children: [
-          /* @__PURE__ */ jsx4(PersonaButton, { onClick: close, disabled: creating, children: "Cancelar" }),
+        /* @__PURE__ */ jsxs3("div", { className: "fi-persona-actions", children: [
+          /* @__PURE__ */ jsx4(AdminButton, { onClick: close, disabled: creating, children: "Cancelar" }),
           /* @__PURE__ */ jsx4(
-            PersonaButton,
+            AdminButton,
             {
               variant: "primary",
               icon: Sparkles,
@@ -711,7 +624,7 @@ function PersonaCreateModal({
           )
         ] })
       ] }),
-      children: /* @__PURE__ */ jsxs4(
+      children: /* @__PURE__ */ jsxs3(
         "form",
         {
           className: "fi-persona-stack",
@@ -735,7 +648,7 @@ function PersonaCreateModal({
                 showExamplesSummary: true
               }
             ),
-            apiError ? /* @__PURE__ */ jsx4(Alert, { children: apiError }) : null
+            apiError ? /* @__PURE__ */ jsx4(AdminAlert, { children: apiError }) : null
           ]
         }
       )
@@ -744,19 +657,19 @@ function PersonaCreateModal({
 }
 
 // src/persona-admin/PersonaEditor.tsx
-import { useCallback as useCallback3, useEffect as useEffect3, useId as useId4, useRef as useRef2, useState as useState3 } from "react";
-import { Brain, FileText, List as List2, Loader2 as Loader22, Save, Settings, Trash2 as Trash22, X as X2, Zap as Zap2 } from "lucide-react";
+import { useCallback as useCallback3, useEffect as useEffect2, useId as useId4, useRef as useRef2, useState as useState3 } from "react";
+import { Brain, FileText, List as List2, Loader2, Save, Settings, Trash2 as Trash22, X as X2, Zap as Zap2 } from "lucide-react";
 
 // src/persona-admin/PersonaEditorTabs.tsx
 import { useId as useId3, useState as useState2 } from "react";
 import { List, Plus, Trash2, Zap } from "lucide-react";
-import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
+import { jsx as jsx5, jsxs as jsxs4 } from "react/jsx-runtime";
 function PersonaPromptTab({ persona, onChange }) {
   const id = useId3();
-  return /* @__PURE__ */ jsxs5("div", { className: "fi-persona-field", children: [
-    /* @__PURE__ */ jsxs5("div", { className: "fi-persona-hint", children: [
+  return /* @__PURE__ */ jsxs4("div", { className: "fi-persona-field", children: [
+    /* @__PURE__ */ jsxs4("div", { className: "fi-persona-hint", children: [
       /* @__PURE__ */ jsx5(FieldLabel, { htmlFor: id, children: "System Prompt" }),
-      /* @__PURE__ */ jsxs5("span", { children: [
+      /* @__PURE__ */ jsxs4("span", { children: [
         persona.system_prompt.length,
         " caracteres"
       ] })
@@ -781,27 +694,27 @@ function PersonaExamplesTab({ persona, onChange }) {
   const uid = useId3();
   const examples = persona.examples;
   const update = (index, field, value) => onChange({ examples: examples.map((ex, i) => i === index ? { ...ex, [field]: value } : ex) });
-  return /* @__PURE__ */ jsxs5("div", { className: "fi-persona-stack", children: [
-    /* @__PURE__ */ jsxs5("div", { className: "fi-persona-hint", children: [
-      /* @__PURE__ */ jsxs5("h3", { className: "fi-persona-title", children: [
+  return /* @__PURE__ */ jsxs4("div", { className: "fi-persona-stack", children: [
+    /* @__PURE__ */ jsxs4("div", { className: "fi-persona-hint", children: [
+      /* @__PURE__ */ jsxs4("h3", { className: "fi-persona-title", children: [
         "Few-shot examples (",
         examples.length,
         ")"
       ] }),
-      /* @__PURE__ */ jsx5(PersonaButton, { icon: Plus, onClick: () => onChange({ examples: [...examples, { input: "", output: "" }] }), children: "Agregar example" })
+      /* @__PURE__ */ jsx5(AdminButton, { icon: Plus, onClick: () => onChange({ examples: [...examples, { input: "", output: "" }] }), children: "Agregar example" })
     ] }),
-    examples.length === 0 ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-empty", children: [
+    examples.length === 0 ? /* @__PURE__ */ jsxs4("div", { className: "fi-persona-empty", children: [
       /* @__PURE__ */ jsx5(List, { size: 40, "aria-hidden": "true" }),
       /* @__PURE__ */ jsx5("p", { children: "No hay examples configurados" }),
       /* @__PURE__ */ jsx5("p", { children: "Agrega examples para mejorar la precisi\xF3n de la persona" })
-    ] }) : examples.map((example, index) => /* @__PURE__ */ jsxs5("div", { className: "fi-persona-example", children: [
-      /* @__PURE__ */ jsxs5("div", { className: "fi-persona-hint", children: [
-        /* @__PURE__ */ jsxs5("strong", { children: [
+    ] }) : examples.map((example, index) => /* @__PURE__ */ jsxs4("div", { className: "fi-persona-example", children: [
+      /* @__PURE__ */ jsxs4("div", { className: "fi-persona-hint", children: [
+        /* @__PURE__ */ jsxs4("strong", { children: [
           "Example ",
           index + 1
         ] }),
         /* @__PURE__ */ jsx5(
-          PersonaButton,
+          AdminButton,
           {
             variant: "ghost",
             iconOnly: true,
@@ -811,7 +724,7 @@ function PersonaExamplesTab({ persona, onChange }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs5("div", { className: "fi-persona-field", children: [
+      /* @__PURE__ */ jsxs4("div", { className: "fi-persona-field", children: [
         /* @__PURE__ */ jsx5(FieldLabel, { htmlFor: `${uid}-in-${index}`, children: "Input" }),
         /* @__PURE__ */ jsx5(
           "textarea",
@@ -825,7 +738,7 @@ function PersonaExamplesTab({ persona, onChange }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsxs5("div", { className: "fi-persona-field", children: [
+      /* @__PURE__ */ jsxs4("div", { className: "fi-persona-field", children: [
         /* @__PURE__ */ jsx5(FieldLabel, { htmlFor: `${uid}-out-${index}`, children: "Output" }),
         /* @__PURE__ */ jsx5(
           "textarea",
@@ -860,12 +773,12 @@ function PersonaTestTab({ personaId, store }) {
       setTesting(false);
     }
   };
-  return /* @__PURE__ */ jsxs5("div", { className: "fi-persona-stack", children: [
-    /* @__PURE__ */ jsxs5("div", { children: [
+  return /* @__PURE__ */ jsxs4("div", { className: "fi-persona-stack", children: [
+    /* @__PURE__ */ jsxs4("div", { children: [
       /* @__PURE__ */ jsx5("h3", { className: "fi-persona-title", children: "Probar persona" }),
       /* @__PURE__ */ jsx5("p", { className: "fi-persona-subtitle", children: "Prueba la persona con un input de ejemplo para ver c\xF3mo responde" })
     ] }),
-    /* @__PURE__ */ jsxs5("div", { className: "fi-persona-field", children: [
+    /* @__PURE__ */ jsxs4("div", { className: "fi-persona-field", children: [
       /* @__PURE__ */ jsx5(FieldLabel, { htmlFor: id, children: "Input de prueba" }),
       /* @__PURE__ */ jsx5(
         "textarea",
@@ -879,26 +792,26 @@ function PersonaTestTab({ personaId, store }) {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx5(PersonaButton, { variant: "primary", icon: Zap, loading: testing, disabled: testing || !input.trim(), onClick: () => void run(), children: testing ? "Probando..." : "Probar persona" }),
-    error ? /* @__PURE__ */ jsx5(Alert, { children: error }) : null,
-    result ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-stack", children: [
+    /* @__PURE__ */ jsx5(AdminButton, { variant: "primary", icon: Zap, loading: testing, disabled: testing || !input.trim(), onClick: () => void run(), children: testing ? "Probando..." : "Probar persona" }),
+    error ? /* @__PURE__ */ jsx5(AdminAlert, { children: error }) : null,
+    result ? /* @__PURE__ */ jsxs4("div", { className: "fi-persona-stack", children: [
       /* @__PURE__ */ jsx5("h4", { className: "fi-persona-title", children: "Resultado" }),
       /* @__PURE__ */ jsx5("pre", { className: "fi-persona-pre", "data-testid": "persona-test-output", children: typeof result.output === "string" ? result.output : JSON.stringify(result.output, null, 2) }),
-      /* @__PURE__ */ jsxs5("div", { className: "fi-persona-card-stats", children: [
-        /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
+      /* @__PURE__ */ jsxs4("div", { className: "fi-persona-card-stats", children: [
+        /* @__PURE__ */ jsxs4("div", { className: "fi-persona-row", children: [
           /* @__PURE__ */ jsx5("span", { children: "Latencia" }),
-          /* @__PURE__ */ jsxs5("b", { children: [
+          /* @__PURE__ */ jsxs4("b", { children: [
             result.latency_ms.toFixed(0),
             "ms"
           ] })
         ] }),
-        result.tokens_used !== void 0 ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
+        result.tokens_used !== void 0 ? /* @__PURE__ */ jsxs4("div", { className: "fi-persona-row", children: [
           /* @__PURE__ */ jsx5("span", { children: "Tokens" }),
           /* @__PURE__ */ jsx5("b", { children: result.tokens_used })
         ] }) : null,
-        result.cost_usd !== void 0 ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
+        result.cost_usd !== void 0 ? /* @__PURE__ */ jsxs4("div", { className: "fi-persona-row", children: [
           /* @__PURE__ */ jsx5("span", { children: "Costo" }),
-          /* @__PURE__ */ jsxs5("b", { children: [
+          /* @__PURE__ */ jsxs4("b", { children: [
             "$",
             result.cost_usd.toFixed(4)
           ] })
@@ -909,7 +822,7 @@ function PersonaTestTab({ personaId, store }) {
 }
 
 // src/persona-admin/PersonaEditor.tsx
-import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
+import { Fragment as Fragment2, jsx as jsx6, jsxs as jsxs5 } from "react/jsx-runtime";
 var TABS = [
   { value: "config", label: "Configuraci\xF3n", icon: Settings },
   { value: "prompt", label: "System Prompt", icon: FileText },
@@ -940,7 +853,7 @@ function PersonaEditor({
   const [tab, setTab] = useState3("config");
   const storeRef = useRef2(store);
   storeRef.current = store;
-  useEffect3(() => {
+  useEffect2(() => {
     if (!open || !personaId) return;
     let alive = true;
     setLoading(true);
@@ -1000,20 +913,20 @@ function PersonaEditor({
       placement: "side",
       onDismiss: onClose,
       labelledBy: titleId,
-      header: /* @__PURE__ */ jsxs6(Fragment2, { children: [
-        /* @__PURE__ */ jsxs6("div", { style: { minWidth: 0 }, children: [
-          /* @__PURE__ */ jsxs6("h2", { id: titleId, className: "fi-persona-title", children: [
+      header: /* @__PURE__ */ jsxs5(Fragment2, { children: [
+        /* @__PURE__ */ jsxs5("div", { style: { minWidth: 0 }, children: [
+          /* @__PURE__ */ jsxs5("h2", { id: titleId, className: "fi-persona-title", children: [
             /* @__PURE__ */ jsx6(Brain, { size: 22, "aria-hidden": "true" }),
             persona ? `Editar persona: ${persona.name}` : "Editar persona"
           ] }),
-          persona?.version !== void 0 || persona?.last_updated ? /* @__PURE__ */ jsxs6("p", { className: "fi-persona-subtitle", children: [
+          persona?.version !== void 0 || persona?.last_updated ? /* @__PURE__ */ jsxs5("p", { className: "fi-persona-subtitle", children: [
             persona?.version !== void 0 ? `Versi\xF3n ${persona.version}` : null,
             persona?.last_updated ? ` \xB7 \xDAltima actualizaci\xF3n: ${new Date(persona.last_updated).toLocaleDateString(locale)}` : null
           ] }) : null
         ] }),
-        /* @__PURE__ */ jsx6(PersonaButton, { variant: "ghost", iconOnly: true, icon: X2, onClick: onClose, "aria-label": "Cerrar" }),
+        /* @__PURE__ */ jsx6(AdminButton, { variant: "ghost", iconOnly: true, icon: X2, onClick: onClose, "aria-label": "Cerrar" }),
         persona ? /* @__PURE__ */ jsx6("div", { className: "fi-persona-tabs", role: "tablist", children: tabs.map((t) => /* @__PURE__ */ jsx6(
-          PersonaButton,
+          AdminButton,
           {
             role: "tab",
             className: "fi-persona-tab",
@@ -1026,9 +939,9 @@ function PersonaEditor({
           t.value
         )) }) : null
       ] }),
-      footer: persona ? /* @__PURE__ */ jsxs6(Fragment2, { children: [
+      footer: persona ? /* @__PURE__ */ jsxs5(Fragment2, { children: [
         /* @__PURE__ */ jsx6("div", { className: "fi-persona-actions", children: canDelete ? /* @__PURE__ */ jsx6(
-          PersonaButton,
+          AdminButton,
           {
             variant: "danger",
             icon: Trash22,
@@ -1038,10 +951,10 @@ function PersonaEditor({
             children: "Eliminar"
           }
         ) : null }),
-        /* @__PURE__ */ jsxs6("div", { className: "fi-persona-actions", children: [
-          /* @__PURE__ */ jsx6(PersonaButton, { onClick: onClose, disabled: busy !== null, children: "Cancelar" }),
+        /* @__PURE__ */ jsxs5("div", { className: "fi-persona-actions", children: [
+          /* @__PURE__ */ jsx6(AdminButton, { onClick: onClose, disabled: busy !== null, children: "Cancelar" }),
           /* @__PURE__ */ jsx6(
-            PersonaButton,
+            AdminButton,
             {
               variant: "primary",
               icon: Save,
@@ -1053,8 +966,8 @@ function PersonaEditor({
           )
         ] })
       ] }) : void 0,
-      children: loading ? /* @__PURE__ */ jsx6("div", { className: "fi-persona-empty", "aria-busy": "true", children: /* @__PURE__ */ jsx6(Loader22, { size: 32, className: "fi-persona-spin", "aria-label": "Cargando" }) }) : /* @__PURE__ */ jsxs6("div", { className: "fi-persona-stack", children: [
-        error ? /* @__PURE__ */ jsx6(Alert, { children: error }) : null,
+      children: loading ? /* @__PURE__ */ jsx6("div", { className: "fi-persona-empty", "aria-busy": "true", children: /* @__PURE__ */ jsx6(Loader2, { size: 32, className: "fi-admin-spin", "aria-label": "Cargando" }) }) : /* @__PURE__ */ jsxs5("div", { className: "fi-persona-stack", children: [
+        error ? /* @__PURE__ */ jsx6(AdminAlert, { children: error }) : null,
         persona && tab === "config" ? /* @__PURE__ */ jsx6(
           PersonaForm,
           {
@@ -1079,7 +992,7 @@ function PersonaEditor({
 
 // src/persona-admin/PersonaCard.tsx
 import { Brain as Brain2, Edit, Trash2 as Trash23 } from "lucide-react";
-import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+import { Fragment as Fragment3, jsx as jsx7, jsxs as jsxs6 } from "react/jsx-runtime";
 function formatDate(iso, locale) {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
@@ -1097,14 +1010,14 @@ function PersonaCard({
   usePersonaAdminStyle();
   const hidden = new Set(hiddenFields);
   const stats = persona.usage_stats;
-  const style = accentColor ? { "--fi-persona-accent": accentColor } : void 0;
+  const style = accentColor ? { "--fi-persona-accent": accentColor, "--fi-admin-accent": accentColor } : void 0;
   const onKey = (e) => {
     if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       onSelect?.();
     }
   };
-  return /* @__PURE__ */ jsxs7(
+  return /* @__PURE__ */ jsxs6(
     "article",
     {
       className: `${FI_PERSONA_ROOT_CLASS} fi-persona-card`,
@@ -1115,20 +1028,20 @@ function PersonaCard({
       onClick: onSelect,
       onKeyDown: onKey,
       children: [
-        /* @__PURE__ */ jsxs7("div", { className: "fi-persona-card-head", children: [
-          /* @__PURE__ */ jsxs7("div", { className: "fi-persona-card-id", children: [
+        /* @__PURE__ */ jsxs6("div", { className: "fi-persona-card-head", children: [
+          /* @__PURE__ */ jsxs6("div", { className: "fi-persona-card-id", children: [
             /* @__PURE__ */ jsx7("span", { className: "fi-persona-card-icon", children: /* @__PURE__ */ jsx7(Brain2, { size: 22, "aria-hidden": "true" }) }),
-            /* @__PURE__ */ jsxs7("div", { style: { minWidth: 0 }, children: [
+            /* @__PURE__ */ jsxs6("div", { style: { minWidth: 0 }, children: [
               /* @__PURE__ */ jsx7("h3", { className: "fi-persona-card-name", children: persona.name }),
-              persona.version !== void 0 ? /* @__PURE__ */ jsxs7("p", { className: "fi-persona-subtitle", children: [
+              persona.version !== void 0 ? /* @__PURE__ */ jsxs6("p", { className: "fi-persona-subtitle", children: [
                 "v",
                 persona.version
               ] }) : null
             ] })
           ] }),
-          /* @__PURE__ */ jsxs7("div", { className: "fi-persona-actions", children: [
+          /* @__PURE__ */ jsxs6("div", { className: "fi-persona-actions", children: [
             /* @__PURE__ */ jsx7(
-              PersonaButton,
+              AdminButton,
               {
                 variant: "ghost",
                 iconOnly: true,
@@ -1141,7 +1054,7 @@ function PersonaCard({
               }
             ),
             onDelete ? /* @__PURE__ */ jsx7(
-              PersonaButton,
+              AdminButton,
               {
                 variant: "ghost",
                 iconOnly: true,
@@ -1157,40 +1070,40 @@ function PersonaCard({
           ] })
         ] }),
         /* @__PURE__ */ jsx7("p", { className: "fi-persona-card-desc", children: persona.description }),
-        /* @__PURE__ */ jsxs7("dl", { className: "fi-persona-card-stats", style: { margin: 0 }, children: [
-          /* @__PURE__ */ jsxs7("div", { className: "fi-persona-mini", children: [
+        /* @__PURE__ */ jsxs6("dl", { className: "fi-persona-card-stats", style: { margin: 0 }, children: [
+          /* @__PURE__ */ jsxs6("div", { className: "fi-persona-mini", children: [
             /* @__PURE__ */ jsx7("dt", { children: "Modelo" }),
             /* @__PURE__ */ jsx7("dd", { title: persona.model, children: persona.model })
           ] }),
-          hidden.has("voice") ? null : /* @__PURE__ */ jsxs7("div", { className: "fi-persona-mini", children: [
+          hidden.has("voice") ? null : /* @__PURE__ */ jsxs6("div", { className: "fi-persona-mini", children: [
             /* @__PURE__ */ jsx7("dt", { children: "Voz" }),
             /* @__PURE__ */ jsx7("dd", { children: persona.voice || "N/A" })
           ] }),
-          hidden.has("temperature") ? null : /* @__PURE__ */ jsxs7("div", { className: "fi-persona-mini", children: [
+          hidden.has("temperature") ? null : /* @__PURE__ */ jsxs6("div", { className: "fi-persona-mini", children: [
             /* @__PURE__ */ jsx7("dt", { children: "Temperature" }),
             /* @__PURE__ */ jsx7("dd", { children: persona.temperature.toFixed(2) })
           ] }),
-          hidden.has("max_tokens") ? null : /* @__PURE__ */ jsxs7("div", { className: "fi-persona-mini", children: [
+          hidden.has("max_tokens") ? null : /* @__PURE__ */ jsxs6("div", { className: "fi-persona-mini", children: [
             /* @__PURE__ */ jsx7("dt", { children: "Max tokens" }),
             /* @__PURE__ */ jsx7("dd", { children: persona.max_tokens.toLocaleString(locale) })
           ] })
         ] }),
-        stats || persona.last_updated ? /* @__PURE__ */ jsxs7("div", { className: "fi-persona-card-foot", children: [
-          stats ? /* @__PURE__ */ jsxs7(Fragment3, { children: [
-            /* @__PURE__ */ jsxs7("div", { className: "fi-persona-row", children: [
+        stats || persona.last_updated ? /* @__PURE__ */ jsxs6("div", { className: "fi-persona-card-foot", children: [
+          stats ? /* @__PURE__ */ jsxs6(Fragment3, { children: [
+            /* @__PURE__ */ jsxs6("div", { className: "fi-persona-row", children: [
               /* @__PURE__ */ jsx7("span", { children: "Invocaciones" }),
               /* @__PURE__ */ jsx7("b", { children: stats.total_invocations.toLocaleString(locale) })
             ] }),
-            /* @__PURE__ */ jsxs7("div", { className: "fi-persona-row", children: [
+            /* @__PURE__ */ jsxs6("div", { className: "fi-persona-row", children: [
               /* @__PURE__ */ jsx7("span", { children: "Latencia promedio" }),
               /* @__PURE__ */ jsx7("b", { children: stats.avg_latency_ms > 0 ? `${stats.avg_latency_ms.toFixed(0)}ms` : "N/A" })
             ] }),
-            /* @__PURE__ */ jsxs7("div", { className: "fi-persona-row", children: [
+            /* @__PURE__ */ jsxs6("div", { className: "fi-persona-row", children: [
               /* @__PURE__ */ jsx7("span", { children: "Costo promedio" }),
               /* @__PURE__ */ jsx7("b", { children: stats.avg_cost_usd > 0 ? `$${stats.avg_cost_usd.toFixed(4)}` : "N/A" })
             ] })
           ] }) : null,
-          persona.last_updated ? /* @__PURE__ */ jsxs7("span", { children: [
+          persona.last_updated ? /* @__PURE__ */ jsxs6("span", { children: [
             "Actualizado: ",
             formatDate(persona.last_updated, locale),
             persona.updated_by ? ` por ${persona.updated_by}` : ""
@@ -1202,7 +1115,7 @@ function PersonaCard({
 }
 
 // src/persona-admin/usePersonaCollection.ts
-import { useCallback as useCallback4, useEffect as useEffect4, useRef as useRef3, useState as useState4 } from "react";
+import { useCallback as useCallback4, useEffect as useEffect3, useRef as useRef3, useState as useState4 } from "react";
 function usePersonaCollection(store, { confirm = defaultPersonaConfirm, deleteConfirmMessage = defaultDeleteConfirmMessage } = {}) {
   const storeRef = useRef3(store);
   storeRef.current = store;
@@ -1221,7 +1134,7 @@ function usePersonaCollection(store, { confirm = defaultPersonaConfirm, deleteCo
       setLoading(false);
     }
   }, []);
-  useEffect4(() => {
+  useEffect3(() => {
     void reload();
   }, [reload]);
   const upsert = useCallback4((persona) => {
