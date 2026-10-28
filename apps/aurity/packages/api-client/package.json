@@ -10,7 +10,6 @@
     "./checkin": "./src/checkin.ts",
     "./knowledge": "./src/knowledge.ts",
     "./llm-models": "./src/llm-models.ts",
-    "./personas": "./src/personas.ts",
     "./chat-history": "./src/chat-history.ts",
     "./timeline": "./src/timeline.ts",
     "./kpis": "./src/kpis.ts",

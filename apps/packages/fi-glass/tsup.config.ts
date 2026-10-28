@@ -19,6 +19,7 @@ export default defineConfig({
     'src/conversation/index.ts',
     'src/identity/index.ts',
     'src/resource/index.ts',
+    'src/persona-admin/index.ts',
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },

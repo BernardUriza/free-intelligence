@@ -562,7 +562,7 @@ class ElementCreateRequest(BaseModel):
     atomicNumber: int = Field(ge=1, le=118)
     displayName: str = Field(min_length=1, max_length=80)
     personaId: str = Field(pattern=_PERSONA_ID_RE)
-    description: str | None = Field(default=None, max_length=300)
+    description: str | None = Field(default=None, max_length=500)
     aliases: list[str] = Field(default_factory=list, max_length=8)
     provider: str = "claude"
     model: str | None = Field(default=None, max_length=80)
@@ -571,14 +571,18 @@ class ElementCreateRequest(BaseModel):
 
 @router.get("/elements/slots")
 async def list_empty_slots(principal: Principal = Depends(get_principal)) -> dict:
-    """The empty slots a new element can take, and whether this caller may take one."""
+    """The empty slots a new element can take, whether this caller may take one, and
+    the slugs it may edit (the ones born from the UI)."""
+    author = _element_author(principal)
+    elements = get_registry().elements
     return {
-        "canCreate": _element_author(principal),
+        "canCreate": author,
         "slots": [
             {"atomicNumber": e.atomic_number, "symbol": e.symbol, "slug": e.slug, "displayName": e.display_name}
-            for e in get_registry().elements
+            for e in elements
             if e.status == "empty"
         ],
+        "editable": [e.slug for e in elements if author and e.is_active and claim_for(e.atomic_number)],
     }
 
 
@@ -636,7 +640,7 @@ async def create_element(req: ElementCreateRequest, principal: Principal = Depen
 
 class ElementUpdateRequest(BaseModel):
     displayName: str = Field(min_length=1, max_length=80)
-    description: str | None = Field(default=None, max_length=300)
+    description: str | None = Field(default=None, max_length=500)
     aliases: list[str] = Field(default_factory=list, max_length=8)
     provider: str = "claude"
     model: str | None = Field(default=None, max_length=80)

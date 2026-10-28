@@ -91,13 +91,24 @@ def test_the_slot_list_names_only_empty_slots_and_the_author_bit(client, engine)
     assert body["canCreate"] is True
     zs = {s["atomicNumber"] for s in body["slots"]}
     assert 86 in zs and 85 not in zs and 8 not in zs
+    assert body["editable"] == []
+
+
+def test_the_author_sees_only_ui_born_elements_as_editable(client, engine):
+    assert client.post("/elements", json=BODY).status_code == 201
+    assert client.get("/elements/slots").json()["editable"] == ["radon"]
 
 
 @pytest.mark.parametrize("sub", ["auth0|somebody-else"])
 def test_a_non_author_writes_nothing(client, engine, as_account, sub):
     calls, overlay = engine
+    assert client.post("/elements", json=BODY).status_code == 201
+    calls.clear()
     as_account(sub)
-    assert client.get("/elements/slots").json()["canCreate"] is False
+    body = client.get("/elements/slots").json()
+    assert body["canCreate"] is False and body["editable"] == []
+    overlay.unlink()
+    elements_registry.get_registry.cache_clear()
     r = client.post("/elements", json=BODY)
     assert r.status_code == 403
     assert calls == [] and not overlay.exists()

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Og118ElementSelector — the "elemento" switch (OG118-ELEMENTS-COMPOSER-SWITCH-1).
@@ -17,9 +17,9 @@
  * ordered as aurity's instead of a bare list.
  */
 
-import { Plus } from 'lucide-react';
-import { PersonaSelector } from 'fi-glass/persona-selector';
-import type { Og118Element } from '../lib/og118Element';
+import { Pencil, Plus } from "lucide-react";
+import { PersonaSelector } from "fi-glass/persona-selector";
+import type { Og118Element } from "../lib/og118Element";
 
 export interface Og118ElementSelectorProps {
   elements: Og118Element[];
@@ -28,18 +28,23 @@ export interface Og118ElementSelectorProps {
   loading?: boolean;
   /** Present only for an account that may claim a slot: adds "Nuevo elemento". */
   onCreateNew?: () => void;
+  /** Present only when this account created elements from the UI: adds "Editar mis elementos". */
+  onManage?: () => void;
 }
 
 const TRIGGER_CLASS =
-  'flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-white/5 px-3 py-2 text-sm text-slate-100 transition-colors hover:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40';
+  "flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-white/5 px-3 py-2 text-sm text-slate-100 transition-colors hover:border-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40";
 
 /** The "8 · O" atomic badge (just the symbol for the base og slot). */
 function atomicBadge(el: Og118Element, selected: boolean) {
-  const label = el.atomicNumber > 0 ? `${el.atomicNumber} · ${el.symbol}` : el.symbol;
+  const label =
+    el.atomicNumber > 0 ? `${el.atomicNumber} · ${el.symbol}` : el.symbol;
   return (
     <span
       className={`og-element-badge inline-flex min-w-[2.2rem] justify-center rounded px-1.5 py-0.5 text-xs font-semibold font-mono ${
-        selected ? 'bg-emerald-500/30 text-emerald-100' : 'bg-white/10 text-slate-200'
+        selected
+          ? "bg-emerald-500/30 text-emerald-100"
+          : "bg-white/10 text-slate-200"
       }`}
     >
       {label}
@@ -65,6 +70,7 @@ export function Og118ElementSelector({
   onSelect,
   loading = false,
   onCreateNew,
+  onManage,
 }: Og118ElementSelectorProps) {
   return (
     <PersonaSelector<Og118Element>
@@ -84,7 +90,9 @@ export function Og118ElementSelector({
             Elemento
           </span>
           {sel ? atomicBadge(sel, false) : null}
-          <span className="truncate">{sel ? sel.displayName : 'og118 (base)'}</span>
+          <span className="truncate">
+            {sel ? sel.displayName : "og118 (base)"}
+          </span>
         </span>
       )}
       renderHeader={({ count }) => (
@@ -100,23 +108,59 @@ export function Og118ElementSelector({
       renderPersonaIcon={(el, ctx) => atomicBadge(el, ctx.selected)}
       renderPersonaMeta={(el) => (el.engine ? engineChip(el.engine) : null)}
       renderFooter={
-        onCreateNew
+        onCreateNew || onManage
           ? ({ close }) => (
-              <button
-                type="button"
-                data-ref="og118-element-create"
-                className="fi-touch-target mt-1 flex min-h-[44px] w-full items-center gap-2 border-t border-slate-700 px-3 text-sm text-emerald-200 hover:bg-emerald-500/10"
-                onClick={() => {
-                  close();
-                  onCreateNew();
-                }}
-              >
-                <Plus aria-hidden className="h-4 w-4" />
-                Nuevo elemento
-              </button>
+              <div className="mt-1 border-t border-slate-700">
+                {onCreateNew ? (
+                  <FooterAction
+                    ref_="og118-element-create"
+                    icon={Plus}
+                    label="Nuevo elemento"
+                    onClick={() => {
+                      close();
+                      onCreateNew();
+                    }}
+                  />
+                ) : null}
+                {onManage ? (
+                  <FooterAction
+                    ref_="og118-element-manage"
+                    icon={Pencil}
+                    label="Editar mis elementos"
+                    onClick={() => {
+                      close();
+                      onManage();
+                    }}
+                  />
+                ) : null}
+              </div>
             )
           : undefined
       }
     />
+  );
+}
+
+function FooterAction({
+  ref_,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  ref_: string;
+  icon: typeof Plus;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-ref={ref_}
+      className="fi-touch-target flex min-h-[44px] w-full items-center gap-2 px-3 text-sm text-emerald-200 hover:bg-emerald-500/10"
+      onClick={onClick}
+    >
+      <Icon aria-hidden className="h-4 w-4" />
+      {label}
+    </button>
   );
 }

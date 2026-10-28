@@ -38,17 +38,17 @@ import {
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
-} from "../chunk-HJBDH6RY.js";
+} from "../chunk-EE47ROZG.js";
+import "../chunk-TZYRBKX6.js";
 import "../chunk-NKH57TOL.js";
 import {
   ensureDensityStyle,
   useDensityStyle
 } from "../chunk-VR5XNHGN.js";
-import "../chunk-LO4SF24V.js";
 import "../chunk-SYOBLV7C.js";
 import "../chunk-6Z6QRICA.js";
 import "../chunk-Q3QMY3NK.js";
-import "../chunk-TZYRBKX6.js";
+import "../chunk-LO4SF24V.js";
 import "../chunk-SMPLGG7E.js";
 import "../chunk-HJ2CVNCV.js";
 export {
