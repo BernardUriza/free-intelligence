@@ -556,3 +556,34 @@ async def test_put_persona_refuses_without_an_engine(monkeypatch):
     with pytest.raises(external_engine.PersonaWriteError) as e:
         await external_engine.put_persona("radon", {})
     assert e.value.status == 503
+
+
+@pytest.mark.asyncio
+async def test_get_and_delete_persona_reach_the_engine_with_the_bearer(monkeypatch):
+    seen: list[tuple[str, str, bytes]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, str(request.url), request.content))
+        if request.method == "DELETE":
+            return httpx.Response(204)
+        return httpx.Response(200, json={"persona_id": "radon", "dna": "Eres Radón.", "version": 4})
+
+    _persona_engine(monkeypatch, handler)
+    assert (await external_engine.get_persona("radon"))["version"] == 4
+    assert await external_engine.delete_persona("radon") is None
+    assert seen == [("GET", "https://engine.test/v1/personas/radon", b""),
+                    ("DELETE", "https://engine.test/v1/personas/radon", b"")]
+
+
+@pytest.mark.asyncio
+async def test_a_missing_persona_is_a_404_not_a_crash(monkeypatch):
+    _persona_engine(monkeypatch, lambda r: httpx.Response(404, json={"detail": "no runtime persona"}))
+    with pytest.raises(external_engine.PersonaWriteError) as e:
+        await external_engine.get_persona("ghost")
+    assert e.value.status == 404
+
+
+@pytest.mark.parametrize(("user_id", "origin"), [("probe-element-editor", "probe"), ("auth0|bernard", None)])
+def test_only_a_probe_principal_tags_its_turn(user_id, origin):
+    payload = external_engine._payload(persona_id="radon", user_text="hola", session_uuid="c1", user_id=user_id, history=None)
+    assert payload.get("origin") == origin

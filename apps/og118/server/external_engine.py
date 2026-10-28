@@ -333,6 +333,9 @@ def _payload(*, persona_id: str, user_text: str, session_uuid: str | None, user_
     # a turn with no conversation id would pile every stranger into one memory.
     if user_id and session_uuid:
         payload["pipeline"] = "runner"
+    # A probe (the element editor's "probar") stores tagged rows and grows no facts.
+    if user_id and user_id.startswith("probe-"):
+        payload["origin"] = "probe"
     # Replayed client history (untrusted context, never authorization — same
     # doctrine as the local path). The engine folds it only when it opens a
     # fresh session for this channel; engines predating the field ignore it.
@@ -426,17 +429,31 @@ class PersonaWriteError(RuntimeError):
         self.status = status
 
 
-async def put_persona(persona_id: str, body: dict) -> dict:
-    """Write a persona to the engine (`PUT /v1/personas/{id}`); returns its version."""
+async def _persona_call(method: str, persona_id: str, body: dict | None = None) -> httpx.Response:
     if not is_configured():
         raise PersonaWriteError(503, "external engine not configured")
     headers = {"Authorization": f"Bearer {RUNNER_TOKEN}"}
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         try:
-            r = await client.put(f"{RUNNER_URL}/v1/personas/{persona_id}", json=body, headers=headers)
+            r = await client.request(method, f"{RUNNER_URL}/v1/personas/{persona_id}", json=body, headers=headers)
         except httpx.HTTPError as e:
             raise PersonaWriteError(502, f"engine unreachable: {type(e).__name__}") from e
-    if r.status_code != 200:
+    if r.status_code not in (200, 204):
         detail = r.json().get("detail", r.text) if r.headers.get("content-type", "").startswith("application/json") else r.text
         raise PersonaWriteError(r.status_code, str(detail)[:500])
-    return r.json()
+    return r
+
+
+async def put_persona(persona_id: str, body: dict) -> dict:
+    """Write a persona to the engine (`PUT /v1/personas/{id}`); returns its version."""
+    return (await _persona_call("PUT", persona_id, body)).json()
+
+
+async def get_persona(persona_id: str) -> dict:
+    """Read a runtime persona back from the engine: name, engine, DNA and version."""
+    return (await _persona_call("GET", persona_id)).json()
+
+
+async def delete_persona(persona_id: str) -> None:
+    """Tombstone a runtime persona on the engine."""
+    await _persona_call("DELETE", persona_id)

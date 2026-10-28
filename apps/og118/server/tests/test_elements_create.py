@@ -142,3 +142,101 @@ def test_a_second_claim_on_the_same_slot_is_refused(client, engine):
     assert client.post("/elements", json=BODY).status_code == 201
     r = client.post("/elements", json=BODY | {"personaId": "radon_two", "aliases": []})
     assert r.status_code == 409
+
+
+@pytest.fixture
+def created(client, engine, monkeypatch):
+    """An element born from the UI, with an engine that answers reads, deletes and probes."""
+    assert client.post("/elements", json=BODY).status_code == 201
+    calls, overlay = engine
+    store = {"radon": {"persona_id": "radon", "display_name": "Radón", "provider": "codex",
+                       "model": "gpt-6-astra", "dna": "Eres Radón.", "version": 7}}
+
+    async def fake_get(persona_id):
+        if persona_id not in store:
+            raise PersonaWriteError(404, "no runtime persona")
+        return store[persona_id]
+
+    async def fake_delete(persona_id):
+        calls.append(("DELETE", persona_id))
+        store.pop(persona_id, None)
+
+    async def fake_turn(**kwargs):
+        calls.append(("TURN", kwargs))
+        yield {"type": "text", "text": "TENESO: "}
+        yield {"type": "result", "result": {"text": "TENESO: gas noble. — Rn"}}
+
+    monkeypatch.setattr(app_module, "get_persona", fake_get)
+    monkeypatch.setattr(app_module, "delete_persona", fake_delete)
+    monkeypatch.setattr(app_module, "stream_external_turn", fake_turn)
+    return calls, overlay
+
+
+def test_the_author_reads_back_what_the_element_holds(client, created):
+    r = client.get("/elements/radon/persona")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["atomicNumber"] == 86 and body["personaId"] == "radon"
+    assert body["dna"] == "Eres Radón." and body["provider"] == "codex" and body["version"] == 7
+    assert body["aliases"] == ["rn-bot"]
+
+
+def test_an_edit_writes_a_new_version_and_renames_the_slot(client, created):
+    calls, overlay = created
+    r = client.put("/elements/radon", json={"displayName": "Radón II", "description": "otra", "aliases": ["rn2"],
+                                            "provider": "claude", "model": None, "dna": "Eres Radón II."})
+    assert r.status_code == 200, r.text
+    assert calls[-1] == ("radon", {"display_name": "Radón II", "provider": "claude", "model": None,
+                                   "dna": "Eres Radón II.", "created_by": AUTHOR_HASH})
+    el = elements_registry.get_registry().resolve("rn2")
+    assert el.display_name == "Radón II" and el.engine_binding.persona_id == "radon"
+    assert elements_registry.get_registry().resolve("rn-bot") is None
+    assert len(json.loads(overlay.read_text())["claims"]) == 1
+
+
+def test_a_delete_empties_the_slot_before_dropping_the_persona(client, created):
+    calls, overlay = created
+    assert client.delete("/elements/radon").status_code == 204
+    assert calls[-1] == ("DELETE", "radon")
+    assert json.loads(overlay.read_text())["claims"] == []
+    assert "radon" not in active_slugs(client)
+    zs = {s["atomicNumber"] for s in client.get("/elements/slots").json()["slots"]}
+    assert 86 in zs
+
+
+def test_a_probe_answers_as_the_element_and_is_tagged(client, created):
+    calls, _ = created
+    r = client.post("/elements/radon/test", json={"input": "hola"})
+    assert r.status_code == 200
+    assert r.json()["output"] == "TENESO: gas noble. — Rn"
+    turn = calls[-1][1]
+    assert turn["persona_id"] == "radon" and turn["user_id"].startswith("probe-")
+    assert turn["session_uuid"].startswith("probe-")
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("get", "/elements/radon/persona", None),
+        ("put", "/elements/radon", {"displayName": "x", "dna": "x"}),
+        ("delete", "/elements/radon", None),
+        ("post", "/elements/radon/test", {"input": "hola"}),
+    ],
+)
+def test_a_non_author_touches_nothing(client, created, as_account, method, path, body):
+    _, overlay = created
+    before = overlay.read_text()
+    as_account("auth0|somebody-else")
+    kwargs = {"json": body} if body is not None else {}
+    assert getattr(client, method)(path, **kwargs).status_code == 403
+    assert overlay.read_text() == before
+
+
+@pytest.mark.parametrize("slug", ["yodo", "nobody"])
+def test_an_image_element_or_unknown_slug_is_not_editable(client, created, slug):
+    calls, overlay = created
+    before = overlay.read_text()
+    assert client.delete(f"/elements/{slug}").status_code == 404
+    assert client.put(f"/elements/{slug}", json={"displayName": "x", "dna": "x"}).status_code == 404
+    assert overlay.read_text() == before
+    assert ("DELETE", "radon") not in calls
