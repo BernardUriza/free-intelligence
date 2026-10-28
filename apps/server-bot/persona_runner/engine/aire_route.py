@@ -61,11 +61,10 @@ from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocum
 from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
-from persona_runner.engine import aire_principal, aire_topic, auth_failure, turn_events
+from persona_runner.engine import aire_principal, aire_topic, auth_failure, runtime_personas, turn_events
 from persona_runner.engine.framing import fold_history, frame_turn_text
 from persona_runner.engine.persona_files import load_persona, resolve_persona_path
 from persona_runner.engine.turn_tap import run_turn_tapped
-from shared.personas import get_persona
 
 log = structlog.get_logger()
 
@@ -317,7 +316,7 @@ def engine_for(base_id: str) -> tuple[str, str | None]:
     """Which AIRE backend speaks for this persona and, off Claude, which model.
     ``("claude", None)`` leaves the per-turn router in charge; any other
     provider pins the registry's model (Astra rides Codex on ``gpt-6-astra``)."""
-    persona = get_persona(base_id)
+    persona = runtime_personas.persona_for(base_id)
     if persona is None or persona.provider == "claude":
         return "claude", None
     return persona.provider, persona.model

@@ -506,3 +506,20 @@ CREATE TABLE IF NOT EXISTS invite_turns (
 );
 CREATE INDEX IF NOT EXISTS idx_invite_turns_open
     ON invite_turns (status, heartbeat_at) WHERE status IN ('queued', 'running');
+
+-- ─── runtime_personas ────────────────────────────────────────────────────────
+-- 2026-10-28 (OG118-ELEMENTOS-ALTA): a persona born without a deploy. og118's
+-- `POST /elements` writes it here through the runner's `PUT /v1/personas/{id}`;
+-- the runner materializes the newest row per id at boot and on every write. Append
+-- only: an edit is a new row, the newest one wins, the old DNA stays readable.
+CREATE TABLE IF NOT EXISTS runtime_personas (
+    id            BIGSERIAL PRIMARY KEY,
+    persona_id    TEXT NOT NULL,
+    display_name  TEXT NOT NULL,
+    provider      TEXT NOT NULL CHECK (provider IN ('claude', 'codex')),
+    model         TEXT,
+    dna           TEXT NOT NULL,
+    created_by    TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_personas_id ON runtime_personas (persona_id, id DESC);

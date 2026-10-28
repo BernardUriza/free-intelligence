@@ -37,6 +37,7 @@ from persona_core.memory.repositories import (
     RelationalStateRepository,
     RemindersRepository,
     ResearchJobsRepository,
+    RuntimePersonasRepository,
     SerenityOpsRepository,
     WorldScansRepository,
 )
@@ -77,6 +78,7 @@ class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, Governa
         self._guild_config = GuildConfigRepository(self._manager)
         self._serenityops = SerenityOpsRepository(self._manager)
         self._invite_turns = InviteTurnsRepository(self._manager)
+        self._runtime_personas = RuntimePersonasRepository(self._manager)
 
     # -- Lifecycle --
 
@@ -88,6 +90,10 @@ class MemoryStore(ConversationFacade, KnowledgeFacade, SchedulingFacade, Governa
 
     async def wait_embeddings_prewarmed(self) -> bool:
         return await self._manager.wait_embeddings_prewarmed()
+
+    @property
+    def runtime_personas(self) -> RuntimePersonasRepository:
+        return self._runtime_personas
 
     @property
     def _vectors_available(self) -> bool:
