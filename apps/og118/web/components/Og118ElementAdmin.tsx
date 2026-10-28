@@ -8,6 +8,7 @@
 
 import { useId, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { AdminAlert, AdminButton } from "fi-glass/admin-kit";
 import {
   PersonaCard,
   PersonaCreateModal,
@@ -167,29 +168,20 @@ function Og118ElementManager({
             <h2 id={titleId} className="fi-persona-title">
               Tus elementos
             </h2>
-            <button
-              type="button"
-              className="fi-persona-btn fi-touch-target"
-              data-variant="ghost"
-              data-icon-only=""
+            <AdminButton
+              variant="ghost"
+              iconOnly
+              icon={X}
               aria-label="Cerrar"
               onClick={onClose}
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
+            />
           </div>
         }
       >
         <div className="fi-persona-stack">
-          {collection.error ? (
-            <p className="fi-persona-alert" role="alert">
-              {collection.error}
-            </p>
-          ) : null}
+          {collection.error ? <AdminAlert>{collection.error}</AdminAlert> : null}
           {collection.removeError ? (
-            <p className="fi-persona-alert" role="alert">
-              {collection.removeError}
-            </p>
+            <AdminAlert>{collection.removeError}</AdminAlert>
           ) : null}
           {!collection.loading &&
           !collection.error &&
