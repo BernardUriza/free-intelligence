@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy
 
-Status: In progress — Bernard picked **option A** on 2026-10-28; built the same day in a PR awaiting his merge (merge = deploy of persona-runner + og118-api + og118-web). Not verified on the real surface yet.
+Status: In progress — option A merged (#602), CD fake-green fixed (#605), read/edit/delete/probe merged (#607); the UI moved onto fi-glass/persona-admin in #608 (open). Not yet verified with a real element on app.og118.ai.
 Proposed: 2026-10-28 by Bernard (*"¿por qué og118 no tiene para agregar elementos nuevos?"*), right after element 85 Ástato needed a four-surface PR (#600) to exist.
 
 ## What it is
@@ -54,5 +54,24 @@ Built 2026-10-28, both ends in one PR ([[both-ends-of-the-data-path]]):
 
 Tests: server-bot 2003 passed (incl. a real-Postgres repository test); og118 server 274; web 134.
 
-Next: Bernard's merge, then the verification that defines done — a persona created from the og118 UI
-answers a real turn on app.og118.ai with no deploy in between.
+**2026-10-28, later the same day.** Bernard: *"todo esto ya lo teníamos… vas a tener que deshacer todo lo que
+hiciste y volverlo a hacer pero ahora subiéndolo al framework"*. The hand-built form was a reinvention: aurity
+already had the whole persona admin (zod schema, form, create modal, tabbed editor with a probe tab, service
+with list/get/create/update/delete/test). Rule written: `.claude/rules/framework-first-canary.md`, "grep aurity
+FIRST" (#606).
+
+- **#605** — server-bot CD was fake-green: `AZURE_CREDENTIALS` could not see og118-rg, `continue-on-error`
+  hid it, and the verify step skipped an invisible app. Now OIDC + a hard check that the live image is the
+  new SHA. That is why the first real create returned "Not Found".
+- **#607** — runner `GET/DELETE /v1/personas/{id}` (delete = tombstone row), og118
+  `GET /elements/{slug}/persona`, `PUT`, `DELETE`, `POST …/test` (probe as `probe-element-editor`,
+  `origin=probe`).
+- **#608** — `fi-glass/persona-admin` extracted from aurity, aurity renders it, og118 deletes
+  `Og118ElementCreateDialog` and runs on it through a `PersonaStore` over `/elements`; "Editar mis
+  elementos" in the selector. Mobile measured at 390×844: full sheet, 0 overflow, 44 px targets, 16 px fields.
+
+What stays from the first build: the backend. aurity's own `backend/` is dead code, so the og118 store needs
+the og118 + runner endpoints above. Only the og118 frontend was undone.
+
+Next: merge #608, then create a test element on app.og118.ai (slot 117 Teneso), send it a real turn, edit,
+probe and delete it, with no deploy in between. Phase 2 (aurity's model catalog → fi-glass) follows.
