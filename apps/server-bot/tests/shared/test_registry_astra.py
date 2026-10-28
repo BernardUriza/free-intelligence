@@ -35,6 +35,7 @@ def test_astra_dna_is_the_verbatim_script_coagent_prompt():
 def test_astra_has_no_discord_door():
     a = get_persona("astra")
     assert a.gateway_enabled is False
+    assert a.token_env == ""
     assert a.aliases == []
     assert all(p.persona_id != "astra" for p in gateway_personas())
 
