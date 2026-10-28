@@ -56,6 +56,22 @@ describe('fi-glass declares what it uses', () => {
   });
 });
 
+describe('every JS subpath export is built and shipped', () => {
+  const tsup = readFileSync(join(ROOT, 'tsup.config.ts'), 'utf8');
+  const subpaths = Object.entries(pkg.exports as Record<string, { import?: string }>)
+    .filter(([, target]) => typeof target === 'object' && target.import?.startsWith('./dist/'))
+    .map(([key, target]) => ({ key, src: target.import!.replace('./dist/', 'src/').replace(/\.js$/, '.ts') }));
+
+  it('includes the persona-admin subpath', () => {
+    expect(subpaths.map((s) => s.key)).toContain('./persona-admin');
+  });
+
+  it.each(subpaths)('$key has a tsup entry and a built dist', ({ key, src }) => {
+    expect(tsup).toContain(`'${src}'`);
+    expect(readdirSync(join(ROOT, 'dist', key === '.' ? '' : key.slice(2)))).toContain('index.js');
+  });
+});
+
 describe('the Tailwind contract is declared, not folklore', () => {
   it('exports fi-glass/tailwind and publishes the file behind it', () => {
     expect(pkg.exports['./tailwind']).toBeTruthy();

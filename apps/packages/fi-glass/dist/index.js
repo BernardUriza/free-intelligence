@@ -54,6 +54,9 @@ import {
   useResourceStyle
 } from "./chunk-ERH7OSR3.js";
 import {
+  ChatFilePreview
+} from "./chunk-JK3NSWFZ.js";
+import {
   glassTheme
 } from "./chunk-EBUEQEPO.js";
 import {
@@ -96,7 +99,13 @@ import {
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
-} from "./chunk-HJBDH6RY.js";
+} from "./chunk-EE47ROZG.js";
+import {
+  clearMediaQueryCache,
+  useBreakpoints,
+  useEdgeSwipe,
+  useMediaQuery
+} from "./chunk-TZYRBKX6.js";
 import {
   AUDIO_QUEUE_DEFAULTS,
   AudioDraftPlayer,
@@ -175,7 +184,6 @@ import {
   useImagePicker,
   withComposerAction
 } from "./chunk-VR5XNHGN.js";
-import "./chunk-LO4SF24V.js";
 import "./chunk-SYOBLV7C.js";
 import {
   CollapsibleText,
@@ -199,18 +207,10 @@ import {
   useMessageActionsStyle
 } from "./chunk-6Z6QRICA.js";
 import "./chunk-Q3QMY3NK.js";
+import "./chunk-LO4SF24V.js";
 import {
   PersonaSelector
 } from "./chunk-ARPIU5K7.js";
-import {
-  ChatFilePreview
-} from "./chunk-JK3NSWFZ.js";
-import {
-  clearMediaQueryCache,
-  useBreakpoints,
-  useEdgeSwipe,
-  useMediaQuery
-} from "./chunk-TZYRBKX6.js";
 import {
   FI_TOUCH_TARGET_CLASS,
   ensureTouchTargetStyle,

@@ -59,6 +59,10 @@
     "./resource": {
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
+    },
+    "./persona-admin": {
+      "types": "./dist/persona-admin/index.d.ts",
+      "import": "./dist/persona-admin/index.js"
     }
   },
   "files": [
@@ -69,7 +73,8 @@
   "dependencies": {
     "@free-intelligence/core": "workspace:*",
     "remark-breaks": "^4.0.0",
-    "use-stick-to-bottom": "^1.1.6"
+    "use-stick-to-bottom": "^1.1.6",
+    "zod": "^4.1.13"
   },
   "peerDependencies": {
     "framer-motion": ">=11.0.0",
