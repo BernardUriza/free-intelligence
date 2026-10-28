@@ -5,7 +5,7 @@ import {
   AdminButton,
   AdminSheet,
   ensureAdminKitStyle
-} from "../chunk-K6IVIEAK.js";
+} from "../chunk-PIE7SC3N.js";
 import {
   glassTokens
 } from "../chunk-LO4SF24V.js";
@@ -196,7 +196,7 @@ var DANGER = `var(--fi-persona-danger, ${glassTokens.danger})`;
 var BORDER = `var(--fi-persona-border, ${glassTokens.surfaceBorder})`;
 var FIELD_BG = `var(--fi-persona-field-bg, ${glassTokens.searchFill})`;
 var CSS = `
-.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: 42rem; --fi-admin-panel-width: 64rem; --fi-admin-accent: ${ACCENT}; }
+.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: var(--fi-persona-sheet-width, 42rem); --fi-admin-panel-width: var(--fi-persona-panel-width, 64rem); --fi-admin-accent: ${ACCENT}; }
 .fi-persona-stack { display: flex; flex-direction: column; gap: 1.25rem; }
 .fi-persona-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fi-persona-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }

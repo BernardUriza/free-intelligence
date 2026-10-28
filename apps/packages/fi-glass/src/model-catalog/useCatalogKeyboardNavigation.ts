@@ -10,7 +10,14 @@ export interface UseCatalogKeyboardNavigationOptions {
   onInstall: (model: CatalogModel) => void;
 }
 
-/** `/` focuses search, arrows move the selection, Enter installs the selected row. */
+function isEditable(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+}
+
+/**
+ * `/` focuses search; arrows and Enter drive the list only while the search box or the sheet itself
+ * has focus, so a focused button, select or another dialog keeps its own keys.
+ */
 export function useCatalogKeyboardNavigation({ open, models, installing, onInstall }: UseCatalogKeyboardNavigationOptions) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
@@ -22,12 +29,18 @@ export function useCatalogKeyboardNavigation({ open, models, installing, onInsta
 
   useEffect(() => {
     if (!open) return;
+    const ownsKey = (target: EventTarget | null) =>
+      target === searchRef.current ||
+      target === document.body ||
+      target === listRef.current?.closest('[role="dialog"]');
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement !== searchRef.current) {
+      if (e.key === '/') {
+        if (isEditable(e.target)) return;
         e.preventDefault();
         searchRef.current?.focus();
         return;
       }
+      if (!ownsKey(e.target)) return;
       const total = models.length;
       if (total === 0) return;
       if (e.key === 'ArrowDown') {

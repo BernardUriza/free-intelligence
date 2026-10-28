@@ -1,7 +1,7 @@
 'use client';
 
 // The chrome every fi-glass admin surface shares (sheet, button, alert, spinner), injected once.
-// A module scopes its own fields and cards under its root class; a consumer re-tints with `--fi-admin-*`.
+// A module's root class feeds `--fi-admin-*` from its own `--fi-<module>-*` vars, which is where a consumer re-tints.
 import { useInsertionEffect } from 'react';
 import { FI_MOBILE_QUERY, FI_TOUCH_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';

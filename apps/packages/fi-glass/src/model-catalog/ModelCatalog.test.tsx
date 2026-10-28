@@ -291,6 +291,24 @@ describe('ModelCatalogDrawer', () => {
     expect(await screen.findByRole('listitem', { name: 'TinyLlama' })).toBeTruthy();
   });
 
+  it('installs the selected row from the keyboard only while the search or the list owns the key', async () => {
+    const store = makeStore();
+    render(<ModelCatalogDrawer open onClose={vi.fn()} store={store} />);
+    await screen.findByRole('listitem', { name: 'TinyLlama' });
+    const search = screen.getByRole('searchbox', { name: 'Buscar modelos' });
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    expect(screen.getByRole('listitem', { name: 'TinyLlama' }).getAttribute('data-selected')).toBe('true');
+
+    const reload = screen.getByRole('button', { name: 'Recargar catálogo' });
+    fireEvent.keyDown(reload, { key: 'Enter' });
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Tamaño máximo' }), { key: 'ArrowDown' });
+    expect(store.installCatalogModel).not.toHaveBeenCalled();
+    expect(screen.getByRole('listitem', { name: 'TinyLlama' }).getAttribute('data-selected')).toBe('true');
+
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(store.installCatalogModel).toHaveBeenCalledWith('tinyllama', expect.anything());
+  });
+
   it('renders nothing and lists nothing while closed', () => {
     const store = makeStore();
     const { container } = render(<ModelCatalogDrawer open={false} onClose={vi.fn()} store={store} />);

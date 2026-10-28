@@ -5,7 +5,7 @@ import {
   AdminButton,
   AdminSheet,
   ensureAdminKitStyle
-} from "../chunk-K6IVIEAK.js";
+} from "../chunk-PIE7SC3N.js";
 import {
   glassTokens
 } from "../chunk-LO4SF24V.js";
@@ -196,7 +196,7 @@ var SURFACE = glassTokens.surface;
 var MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 var LINE = (side) => `border-${side}-width: 1px; border-${side}-style: solid; border-${side}-color: ${BORDER};`;
 var CSS = `
-.${FI_MODEL_CATALOG_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: 36rem; --fi-admin-panel-width: 42rem; --fi-admin-accent: ${ACCENT}; --fi-admin-secondary: ${CATALOG}; }
+.${FI_MODEL_CATALOG_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: var(--fi-mc-sheet-width, 36rem); --fi-admin-panel-width: var(--fi-mc-drawer-width, 42rem); --fi-admin-accent: ${ACCENT}; --fi-admin-secondary: ${CATALOG}; }
 .fi-mc-input {
   width: 100%; box-sizing: border-box; padding: 0.55rem 0.75rem; border-radius: 10px; font: inherit; font-size: 0.875rem;
   color: ${TEXT}; background: ${FIELD_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER}; outline: none;
@@ -927,6 +927,9 @@ import {
 
 // src/model-catalog/useCatalogKeyboardNavigation.ts
 import { useEffect, useRef, useState as useState2 } from "react";
+function isEditable(target) {
+  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+}
 function useCatalogKeyboardNavigation({ open, models, installing, onInstall }) {
   const [selectedIndex, setSelectedIndex] = useState2(-1);
   const listRef = useRef(null);
@@ -936,12 +939,15 @@ function useCatalogKeyboardNavigation({ open, models, installing, onInstall }) {
   }, [models.length]);
   useEffect(() => {
     if (!open) return;
+    const ownsKey = (target) => target === searchRef.current || target === document.body || target === listRef.current?.closest('[role="dialog"]');
     const onKey = (e) => {
-      if (e.key === "/" && document.activeElement !== searchRef.current) {
+      if (e.key === "/") {
+        if (isEditable(e.target)) return;
         e.preventDefault();
         searchRef.current?.focus();
         return;
       }
+      if (!ownsKey(e.target)) return;
       const total = models.length;
       if (total === 0) return;
       if (e.key === "ArrowDown") {

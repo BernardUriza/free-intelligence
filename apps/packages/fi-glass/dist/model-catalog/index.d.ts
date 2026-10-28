@@ -355,7 +355,10 @@ interface UseCatalogKeyboardNavigationOptions {
     installing: Record<string, number>;
     onInstall: (model: CatalogModel) => void;
 }
-/** `/` focuses search, arrows move the selection, Enter installs the selected row. */
+/**
+ * `/` focuses search; arrows and Enter drive the list only while the search box or the sheet itself
+ * has focus, so a focused button, select or another dialog keeps its own keys.
+ */
 declare function useCatalogKeyboardNavigation({ open, models, installing, onInstall }: UseCatalogKeyboardNavigationOptions): {
     selectedIndex: number;
     listRef: react.RefObject<HTMLDivElement | null>;

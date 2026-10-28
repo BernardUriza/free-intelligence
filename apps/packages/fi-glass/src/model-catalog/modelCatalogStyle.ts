@@ -24,7 +24,7 @@ const LINE = (side: string) =>
   `border-${side}-width: 1px; border-${side}-style: solid; border-${side}-color: ${BORDER};`;
 
 const CSS = `
-.${FI_MODEL_CATALOG_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: 36rem; --fi-admin-panel-width: 42rem; --fi-admin-accent: ${ACCENT}; --fi-admin-secondary: ${CATALOG}; }
+.${FI_MODEL_CATALOG_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: var(--fi-mc-sheet-width, 36rem); --fi-admin-panel-width: var(--fi-mc-drawer-width, 42rem); --fi-admin-accent: ${ACCENT}; --fi-admin-secondary: ${CATALOG}; }
 .fi-mc-input {
   width: 100%; box-sizing: border-box; padding: 0.55rem 0.75rem; border-radius: 10px; font: inherit; font-size: 0.875rem;
   color: ${TEXT}; background: ${FIELD_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER}; outline: none;
