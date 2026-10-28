@@ -3,7 +3,7 @@ the changing values (Bernard's optimization, 2026-07-21).
 
 `POST /projects/{p}/init {claude_md}` creates the casita and writes its
 `CLAUDE.md`. The engine reads that file directly into the session's system_prompt
-(`options._casita_prompt`), so the consumer's persona lives as CONTENT in the
+(`options.casita_prompt`), so the consumer's persona lives as CONTENT in the
 casita — not repeated inside every message, and editable without a redeploy
 ([[prompts-as-content-not-code]]). Idempotent: re-init refreshes the BASE only —
 a living persona below the `persona` tool's marker (#36) survives, because init

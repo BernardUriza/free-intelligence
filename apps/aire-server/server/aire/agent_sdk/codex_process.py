@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from .codex_events import IMAGE_EXT
+from .codex_persona import PROJECT_DOC_MAX_BYTES
 
 STDERR_TAIL = 2000
 
@@ -38,6 +39,7 @@ class CodexRun:
             argv += ["resume", self.thread]
         argv += ["-m", self.model, "-c", f'model_reasoning_effort="{self.effort}"',
                  "-c", f'sandbox_mode="{sandbox}"', "-c", 'approval_policy="never"',
+                 "-c", f"project_doc_max_bytes={PROJECT_DOC_MAX_BYTES}",
                  "--skip-git-repo-check", "--json"]
         for path in image_paths:
             argv += ["-i", path]

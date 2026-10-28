@@ -29,7 +29,7 @@ SYSTEM_PROMPT = (
 )
 
 
-def _casita_prompt(cwd: str) -> str:
+def casita_prompt(cwd: str) -> str:
     """The casita's fixed prompt, if the `init` endpoint wrote one. Read DIRECTLY
     (not via setting_sources="project", which walks UP the tree and would drag in
     /opt/aire/CLAUDE.md — the server's own). This is the consumer's fixed persona
@@ -122,7 +122,7 @@ def build_options(session_store: Any, project: str, cwd: str, session_uuid: str,
                   credential_env: dict[str, str] | None = None, metered: bool = True) -> Any:
     from ..agent_sdk import Options
     policy = MODES.get(spec.mode, MODES[DEFAULT_MODE])
-    casita = _casita_prompt(cwd)
+    casita = casita_prompt(cwd)
     kwargs: dict[str, Any] = {
         "system_prompt": f"{SYSTEM_PROMPT}\n\n{casita}" if casita else SYSTEM_PROMPT,
         "allowed_tools": list(policy["allowed_tools"]),
