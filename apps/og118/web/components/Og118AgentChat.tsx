@@ -132,7 +132,7 @@ export function Og118AgentChat() {
     onNavigate: (id) =>
       id ? void lib.switchConversation(id).catch(surfacedInBanner) : lib.newConversation(),
   });
-  const elements = useOg118Elements(userId);
+  const elements = useOg118Elements(userId, tokenReady);
   const [creatingElement, setCreatingElement] = useState(false);
   const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);
