@@ -66,16 +66,6 @@ export const ELEMENT_ENGINES = [
 
 export type ElementEngineId = (typeof ELEMENT_ENGINES)[number]['id'];
 
-export interface Og118ElementDraft {
-  atomicNumber: number;
-  displayName: string;
-  personaId: string;
-  description: string;
-  aliases: string[];
-  engine: ElementEngineId;
-  dna: string;
-}
-
 /** A persona id the engine accepts: the slot's slug, lowercased, `[a-z0-9_]{1,32}`. */
 export function personaIdFor(slug: string): string {
   return slug
