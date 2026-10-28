@@ -43,6 +43,7 @@ en el cold start) tienen tests rojo→verde pero **no se han observado en vivo**
 
 | Item | Status | Propuesta |
 |---|---|---|
+| [OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy](og118-elementos-alta-sin-deploy.md) | **Accepted, opción A** (Bernard, 2026-10-28) — hoy un elemento nace sólo por código en dos imágenes (registry de og118 + persona en server-bot, PR #600 lo midió); A = almacén durable de personas en server-bot + `POST /elements` en og118. Sin construir | 2026-10-28 |
 | [OG118-IOS-SWIFT62-1 — SE-0461 sube el decode al main actor al migrar a Swift 6.2](og118-ios-swift62-se0461.md) | **Not built** (re-verificado 2026-09-09) — `SWIFT_VERSION: "5.9"` en las tres configs, cero strict-concurrency, cero `@concurrent`; 13 `@MainActor` de producción. La vacuna para el día del upgrade, no deuda de hoy | 2026-08-13 |
 
 ## En curso

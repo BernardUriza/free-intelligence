@@ -123,8 +123,12 @@ automatically.
 
 ## Notes / risks
 
-- Image is ~1.38 GB (Python + Node + Claude CLI). `min-replicas 1` avoids
-  cold-start pulls; `max-replicas 1` because sessions are in-memory per replica.
+- `min-replicas 1` is applied on EVERY deploy, not only on create (Bernard,
+  2026-10-28, ≈ USD 21/month). At `min 0` the replica slept 5 min after the last
+  request and every chat paid ~25 s to wake it (measured 2026-10-28 17:29Z: ~11 s
+  node + Azure Files mount, 10.9 s pulling the 309 MB image, 1 s start).
+  `max-replicas 1` because sessions are in-memory per replica and HDF5 on SMB
+  needs a single writer.
 - The arm64 image validated locally in Gate 1 is dev-only; CI builds amd64 — the
   in-container turn must be re-validated once on the amd64 ACA image.
 - `AURITY` redeploys on any `main` push (its `deploy-azure.yml` has no path
