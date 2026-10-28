@@ -5,7 +5,7 @@
 import { useInsertionEffect } from 'react';
 import { FI_MOBILE_QUERY, FI_TOUCH_QUERY } from '../theme/breakpoints';
 import { glassTokens } from '../theme/glass-tokens.generated';
-import { ensureTouchTargetStyle } from '../shell/touchTarget';
+import { ensureAdminKitStyle } from '../admin-kit/adminKitStyle';
 
 export const FI_PERSONA_ROOT_CLASS = 'fi-persona-admin';
 
@@ -16,10 +16,9 @@ const MUTED = `var(--glass-chat-text-muted, ${glassTokens.textMuted})`;
 const DANGER = `var(--fi-persona-danger, ${glassTokens.danger})`;
 const BORDER = `var(--fi-persona-border, ${glassTokens.surfaceBorder})`;
 const FIELD_BG = `var(--fi-persona-field-bg, ${glassTokens.searchFill})`;
-const PANEL_BG = `var(--fi-persona-panel-bg, ${glassTokens.bgMid})`;
 
 const CSS = `
-.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; }
+.${FI_PERSONA_ROOT_CLASS} { color: ${TEXT}; font-size: 0.875rem; --fi-admin-sheet-width: 42rem; --fi-admin-panel-width: 64rem; --fi-admin-accent: ${ACCENT}; }
 .fi-persona-stack { display: flex; flex-direction: column; gap: 1.25rem; }
 .fi-persona-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .fi-persona-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
@@ -39,43 +38,6 @@ textarea.fi-persona-input { resize: vertical; line-height: 1.5; }
 .fi-persona-range { width: 100%; accent-color: ${ACCENT}; min-height: 24px; }
 .fi-persona-hint { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.75rem; color: ${MUTED}; }
 .fi-persona-error { display: flex; align-items: center; gap: 0.25rem; margin: 0; font-size: 0.75rem; color: ${DANGER}; }
-.fi-persona-alert {
-  display: flex; align-items: flex-start; gap: 0.5rem; margin: 0; padding: 0.75rem; border-radius: 10px;
-  color: ${DANGER}; background: rgba(248, 113, 113, 0.08); border-width: 1px; border-style: solid; border-color: rgba(248, 113, 113, 0.35);
-}
-.fi-persona-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 36px;
-  padding: 0.5rem 0.9rem; border-radius: 10px; font: inherit; font-size: 0.875rem; font-weight: 500;
-  cursor: pointer; color: ${TEXT}; background: ${FIELD_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER};
-}
-.fi-persona-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.fi-persona-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px ${ACCENT}; }
-.fi-persona-btn[data-variant="primary"] { color: #04130d; background: ${ACCENT}; border-color: transparent; }
-.fi-persona-btn[data-variant="ghost"] { background: transparent; border-color: transparent; }
-.fi-persona-btn[data-variant="ghost"]:hover { background: ${glassTokens.itemHover}; }
-.fi-persona-btn[data-variant="danger"] { color: ${DANGER}; background: transparent; border-color: rgba(248, 113, 113, 0.35); }
-.fi-persona-btn[data-icon-only] { padding: 0.4rem; min-width: 36px; }
-.fi-persona-spin { animation: fi-persona-spin 1s linear infinite; }
-@keyframes fi-persona-spin { to { transform: rotate(360deg); } }
-.fi-persona-overlay { position: fixed; inset: 0; z-index: 50; display: flex; }
-.fi-persona-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); }
-.fi-persona-sheet {
-  position: relative; display: flex; flex-direction: column; margin: auto; width: 100%;
-  max-width: var(--fi-persona-sheet-width, 42rem); max-height: calc(100dvh - 2rem);
-  background: ${PANEL_BG}; border-width: 1px; border-style: solid; border-color: ${BORDER}; border-radius: 16px; overflow: hidden;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
-}
-.fi-persona-overlay[data-placement="side"] .fi-persona-sheet {
-  margin: 0 0 0 auto; height: 100dvh; max-height: none; max-width: var(--fi-persona-panel-width, 64rem);
-  border-radius: 0; border: 0; border-left-width: 1px; border-left-style: solid; border-left-color: ${BORDER};
-}
-.fi-persona-sheet-head, .fi-persona-sheet-foot {
-  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 1rem 1.5rem; flex-wrap: wrap;
-}
-.fi-persona-sheet-head { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: ${BORDER}; }
-.fi-persona-sheet-foot { border-top-width: 1px; border-top-style: solid; border-top-color: ${BORDER}; }
-.fi-persona-sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 1.25rem 1.5rem; }
 .fi-persona-title { margin: 0; font-size: 1.125rem; font-weight: 600; color: ${TEXT}; display: flex; align-items: center; gap: 0.5rem; }
 .fi-persona-subtitle { margin: 0.15rem 0 0; font-size: 0.8125rem; color: ${MUTED}; }
 .fi-persona-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
@@ -114,23 +76,16 @@ textarea.fi-persona-input { resize: vertical; line-height: 1.5; }
 @media ${FI_MOBILE_QUERY} {
   .fi-persona-grid, .fi-persona-card-stats { grid-template-columns: minmax(0, 1fr); }
   .fi-persona-input { font-size: 16px; }
-  .fi-persona-sheet, .fi-persona-overlay[data-placement="side"] .fi-persona-sheet {
-    margin: 0; max-width: none; max-height: none; height: 100dvh; border-radius: 0; border: 0;
-  }
-  .fi-persona-sheet-head { padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem 0.75rem; }
-  .fi-persona-sheet-body { padding: 1rem 0.75rem; }
-  .fi-persona-sheet-foot { padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom)); }
 }
 @media ${FI_TOUCH_QUERY} {
-  .fi-persona-input, .fi-persona-btn { min-height: var(--fi-touch-target, 44px); }
-  .fi-persona-btn[data-icon-only] { min-width: var(--fi-touch-target, 44px); }
+  .fi-persona-input { min-height: var(--fi-touch-target, 44px); }
 }
 `;
 
 /** Inject the idempotent persona-admin stylesheet (no-op on the server / if already present). */
 export function ensurePersonaAdminStyle(): void {
   if (typeof document === 'undefined') return;
-  ensureTouchTargetStyle();
+  ensureAdminKitStyle();
   if (document.getElementById(STYLE_ID)) return;
   const el = document.createElement('style');
   el.id = STYLE_ID;

@@ -2,7 +2,8 @@
 
 import { useId, useState } from 'react';
 import { List, Plus, Trash2, Zap } from 'lucide-react';
-import { Alert, FieldLabel, PersonaButton } from './controls';
+import { AdminAlert, AdminButton } from '../admin-kit';
+import { FieldLabel } from './controls';
 import { errorMessage, type Persona, type PersonaExample, type PersonaStore, type PersonaTestResponse } from './types';
 
 type PersonaPatch = (updates: Partial<Persona>) => void;
@@ -41,9 +42,9 @@ export function PersonaExamplesTab({ persona, onChange }: { persona: Persona; on
     <div className="fi-persona-stack">
       <div className="fi-persona-hint">
         <h3 className="fi-persona-title">Few-shot examples ({examples.length})</h3>
-        <PersonaButton icon={Plus} onClick={() => onChange({ examples: [...examples, { input: '', output: '' }] })}>
+        <AdminButton icon={Plus} onClick={() => onChange({ examples: [...examples, { input: '', output: '' }] })}>
           Agregar example
-        </PersonaButton>
+        </AdminButton>
       </div>
       {examples.length === 0 ? (
         <div className="fi-persona-empty">
@@ -56,7 +57,7 @@ export function PersonaExamplesTab({ persona, onChange }: { persona: Persona; on
           <div key={index} className="fi-persona-example">
             <div className="fi-persona-hint">
               <strong>Example {index + 1}</strong>
-              <PersonaButton
+              <AdminButton
                 variant="ghost"
                 iconOnly
                 icon={Trash2}
@@ -130,10 +131,10 @@ export function PersonaTestTab({ personaId, store }: { personaId: string; store:
           placeholder="Ingresa un caso de prueba..."
         />
       </div>
-      <PersonaButton variant="primary" icon={Zap} loading={testing} disabled={testing || !input.trim()} onClick={() => void run()}>
+      <AdminButton variant="primary" icon={Zap} loading={testing} disabled={testing || !input.trim()} onClick={() => void run()}>
         {testing ? 'Probando...' : 'Probar persona'}
-      </PersonaButton>
-      {error ? <Alert>{error}</Alert> : null}
+      </AdminButton>
+      {error ? <AdminAlert>{error}</AdminAlert> : null}
       {result ? (
         <div className="fi-persona-stack">
           <h4 className="fi-persona-title">Resultado</h4>

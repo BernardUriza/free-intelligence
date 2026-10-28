@@ -60,9 +60,17 @@
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
     },
+    "./admin-kit": {
+      "types": "./dist/admin-kit/index.d.ts",
+      "import": "./dist/admin-kit/index.js"
+    },
     "./persona-admin": {
       "types": "./dist/persona-admin/index.d.ts",
       "import": "./dist/persona-admin/index.js"
+    },
+    "./model-catalog": {
+      "types": "./dist/model-catalog/index.d.ts",
+      "import": "./dist/model-catalog/index.js"
     }
   },
   "files": [

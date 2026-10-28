@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Brain, FileText, List, Loader2, Save, Settings, Trash2, X, Zap, type LucideIcon } from 'lucide-react';
-import { Alert, PersonaButton } from './controls';
+import { AdminAlert, AdminButton } from '../admin-kit';
 import { mapFormToUpdateRequest, mapPersonaToFormValues } from './mappers';
 import { PersonaExamplesTab, PersonaPromptTab, PersonaTestTab } from './PersonaEditorTabs';
 import { PersonaForm } from './PersonaForm';
@@ -155,11 +155,11 @@ export function PersonaEditor({
               </p>
             ) : null}
           </div>
-          <PersonaButton variant="ghost" iconOnly icon={X} onClick={onClose} aria-label="Cerrar" />
+          <AdminButton variant="ghost" iconOnly icon={X} onClick={onClose} aria-label="Cerrar" />
           {persona ? (
             <div className="fi-persona-tabs" role="tablist">
               {tabs.map((t) => (
-                <PersonaButton
+                <AdminButton
                   key={t.value}
                   role="tab"
                   className="fi-persona-tab"
@@ -169,7 +169,7 @@ export function PersonaEditor({
                   onClick={() => setTab(t.value)}
                 >
                   {t.label}
-                </PersonaButton>
+                </AdminButton>
               ))}
             </div>
           ) : null}
@@ -180,7 +180,7 @@ export function PersonaEditor({
           <>
             <div className="fi-persona-actions">
               {canDelete ? (
-                <PersonaButton
+                <AdminButton
                   variant="danger"
                   icon={Trash2}
                   loading={busy === 'delete'}
@@ -188,14 +188,14 @@ export function PersonaEditor({
                   onClick={() => void remove()}
                 >
                   Eliminar
-                </PersonaButton>
+                </AdminButton>
               ) : null}
             </div>
             <div className="fi-persona-actions">
-              <PersonaButton onClick={onClose} disabled={busy !== null}>
+              <AdminButton onClick={onClose} disabled={busy !== null}>
                 Cancelar
-              </PersonaButton>
-              <PersonaButton
+              </AdminButton>
+              <AdminButton
                 variant="primary"
                 icon={Save}
                 loading={busy === 'save'}
@@ -203,7 +203,7 @@ export function PersonaEditor({
                 onClick={() => void save()}
               >
                 Guardar cambios
-              </PersonaButton>
+              </AdminButton>
             </div>
           </>
         ) : undefined
@@ -211,11 +211,11 @@ export function PersonaEditor({
     >
       {loading ? (
         <div className="fi-persona-empty" aria-busy="true">
-          <Loader2 size={32} className="fi-persona-spin" aria-label="Cargando" />
+          <Loader2 size={32} className="fi-admin-spin" aria-label="Cargando" />
         </div>
       ) : (
         <div className="fi-persona-stack">
-          {error ? <Alert>{error}</Alert> : null}
+          {error ? <AdminAlert>{error}</AdminAlert> : null}
           {persona && tab === 'config' ? (
             <PersonaForm
               mode="edit"
