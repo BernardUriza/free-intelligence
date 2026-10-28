@@ -103,6 +103,27 @@ explicit justification**, it must surface:
 It must NOT block legitimate app-specific work: branding, copy, layout, API
 wiring, or tokens.
 
+## Before building a UI capability: grep aurity FIRST
+
+Classifying the layer is step two. Step one is asking whether the capability
+already exists. aurity is the canonical shape, so before writing a form, picker,
+editor or admin surface in og118 or fi-glass:
+
+```bash
+grep -rliE "<capability words>" apps/aurity --include='*.tsx' --include='*.ts' | grep -v node_modules
+```
+
+If aurity has it, extract its shape (schema, form, service contract) into
+fi-glass and point og118 at it. Never redraw it from zero in the consumer.
+
+**Why (2026-10-28, OG118-ELEMENTOS-ALTA):** "Nuevo elemento" was built in og118
+as a fresh dialog: name, engine, DNA, create-only. aurity already had the whole
+thing. `app/admin/personas` + `components/admin/persona/` (zod schema,
+`PersonaForm`, create and edit modals, `personaService` with list, get, create,
+update, delete and test) and `app/admin/models` + `model-catalog-drawer`
+(online/offline models, Ollama download). Nobody had grepped aurity. Bernard: *"todo esto ya lo
+teníamos… un selector en el que se podía crear diferentes elementos."*
+
 ## Why this rule exists
 
 Saved 2026-06-07 after DD-002A was built consumer-local. The fix shipped and
