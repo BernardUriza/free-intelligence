@@ -29,6 +29,7 @@ log = structlog.get_logger()
 PROVIDERS = frozenset({"claude", "codex"})
 MAX_DNA_CHARS = 200_000
 _RUNTIME: dict[str, Persona] = {}
+_VERSIONS: dict[str, int] = {}
 
 
 class RuntimePersonaError(ValueError):
@@ -40,9 +41,20 @@ class _Repo(Protocol):
 
     async def latest(self) -> list[RuntimePersonaRow]: ...
 
+    async def tombstone(self, *, persona_id: str, deleted_by: str | None) -> int | None: ...
+
 
 def lookup(persona_id: str) -> Persona | None:
     return _RUNTIME.get(persona_id)
+
+
+def version_for(persona_id: str) -> int | None:
+    return _VERSIONS.get(persona_id)
+
+
+def dna_for(persona_id: str) -> str | None:
+    path = path_for(persona_id)
+    return path.read_text(encoding="utf-8") if path else None
 
 
 def path_for(persona_id: str) -> Path | None:
@@ -65,6 +77,7 @@ def _write_atomic(path: Path, text: str) -> None:
 
 def _materialize(row: RuntimePersonaRow) -> None:
     _write_atomic(config.RUNTIME_PERSONAS_DIR / f"{row.persona_id}.md", row.dna)
+    _VERSIONS[row.persona_id] = row.version
     _RUNTIME[row.persona_id] = Persona(
         persona_id=row.persona_id,
         display_name=row.display_name,
@@ -112,6 +125,18 @@ async def save(
         "runtime_persona_saved", persona_id=persona_id, provider=provider, model=model, version=version, chars=len(dna)
     )
     return version
+
+
+async def remove(repo: _Repo, *, persona_id: str, deleted_by: str | None) -> int:
+    """Tombstone a runtime persona; its next turn falls back like an unknown id."""
+    if persona_id not in _RUNTIME:
+        raise RuntimePersonaError(f"persona_id {persona_id!r} is not a runtime persona")
+    version = await repo.tombstone(persona_id=persona_id, deleted_by=deleted_by)
+    _RUNTIME.pop(persona_id, None)
+    _VERSIONS.pop(persona_id, None)
+    (config.RUNTIME_PERSONAS_DIR / f"{persona_id}.md").unlink(missing_ok=True)
+    log.info("runtime_persona_removed", persona_id=persona_id, version=version)
+    return version or 0
 
 
 async def hydrate(repo: _Repo) -> int:

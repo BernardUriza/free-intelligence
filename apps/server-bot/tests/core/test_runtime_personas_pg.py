@@ -40,3 +40,24 @@ async def test_an_unknown_provider_never_lands(pg_memory_store):
     with pytest.raises(asyncpg.CheckViolationError):
         await _write(repo, "radon", "v1", provider="gemini", model="x")
     assert await repo.latest() == []
+
+
+@pytest.mark.asyncio
+async def test_a_tombstone_hides_the_persona_and_a_new_write_revives_it(pg_memory_store):
+    repo = pg_memory_store.runtime_personas
+    await _write(repo, "radon", "v1")
+    await _write(repo, "xenon", "x1")
+
+    assert await repo.tombstone(persona_id="radon", deleted_by="t") is not None
+    assert {r.persona_id for r in await repo.latest()} == {"xenon"}
+
+    await _write(repo, "radon", "v3")
+    rows = {r.persona_id: r for r in await repo.latest()}
+    assert rows["radon"].dna == "v3"
+
+
+@pytest.mark.asyncio
+async def test_a_tombstone_for_an_unknown_id_writes_nothing(pg_memory_store):
+    repo = pg_memory_store.runtime_personas
+    assert await repo.tombstone(persona_id="ghost", deleted_by="t") is None
+    assert await repo.latest() == []

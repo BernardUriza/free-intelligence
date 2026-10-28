@@ -8,6 +8,7 @@ Codex persona without a model is a 422, and no token is a 401 before any write.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -33,11 +34,18 @@ class FakeRepo:
         self.rows.append(RuntimePersonaRow(persona_id, display_name, provider, model, dna, version))
         return version
 
+    async def tombstone(self, *, persona_id, deleted_by):
+        self.rows.append(("deleted", persona_id))
+        return len(self.rows)
+
     async def latest(self):
-        newest: dict[str, RuntimePersonaRow] = {}
+        newest: dict[str, RuntimePersonaRow | None] = {}
         for row in self.rows:
-            newest[row.persona_id] = row
-        return list(newest.values())
+            if isinstance(row, tuple):
+                newest[row[1]] = None
+            else:
+                newest[row.persona_id] = row
+        return [r for r in newest.values() if r is not None]
 
 
 class FakeMemory:
@@ -51,6 +59,7 @@ def store(monkeypatch, tmp_path):
     monkeypatch.setattr("persona_runner.core.config.RUNTIME_PERSONAS_DIR", tmp_path / "runtime")
     monkeypatch.setattr("persona_runner.core.config.RUNNER_AUTH_TOKEN", TOKEN)
     monkeypatch.setattr(runtime_personas, "_RUNTIME", {})
+    monkeypatch.setattr(runtime_personas, "_VERSIONS", {})
     repo = FakeRepo()
 
     async def get_memory():
@@ -92,7 +101,7 @@ def test_an_edit_is_a_new_version_and_the_newest_wins(store):
     put(client, "radon")
     r = put(client, "radon", dna="Eres Radón, segunda versión.")
     assert r.json()["version"] == 2
-    assert len(repo.rows) == 2
+    assert len([r for r in repo.rows if not isinstance(r, tuple)]) == 2
     assert persona_files.load_persona("radon") == "Eres Radón, segunda versión."
 
 
@@ -138,3 +147,47 @@ def test_no_token_writes_nothing(store):
     r = client.put("/v1/personas/radon", json={"display_name": "Radón", "dna": DNA})
     assert r.status_code == 401
     assert repo.rows == []
+
+
+def test_a_written_persona_reads_back_with_its_version(store):
+    client, _ = store
+    put(client, "radon", provider="codex", model="gpt-6-astra")
+    put(client, "radon", provider="codex", model="gpt-6-astra", dna="Eres Radón, v2.")
+    r = client.get("/v1/personas/radon", headers=HEADERS)
+    assert r.status_code == 200
+    assert r.json() == {
+        "persona_id": "radon",
+        "display_name": "Radón",
+        "provider": "codex",
+        "model": "gpt-6-astra",
+        "dna": "Eres Radón, v2.",
+        "version": 2,
+    }
+
+
+def test_a_deleted_persona_stops_serving_and_survives_a_fresh_replica(store, monkeypatch):
+    client, repo = store
+    put(client, "radon")
+    assert client.delete("/v1/personas/radon", headers=HEADERS).status_code == 204
+    assert client.get("/v1/personas/radon", headers=HEADERS).status_code == 404
+    assert persona_files.load_persona("radon") != DNA
+    assert aire_route.base_persona_id("radon") == "insult"
+
+    monkeypatch.setattr(runtime_personas, "_RUNTIME", {})
+    assert asyncio.run(runtime_personas.hydrate(repo)) == 0
+
+
+@pytest.mark.parametrize("persona_id", ["insult", "ghost"])
+def test_only_a_runtime_persona_can_be_deleted_or_read(store, persona_id):
+    client, repo = store
+    assert client.delete(f"/v1/personas/{persona_id}", headers=HEADERS).status_code == 404
+    assert client.get(f"/v1/personas/{persona_id}", headers=HEADERS).status_code == 404
+    assert repo.rows == []
+
+
+def test_no_token_reads_or_deletes_nothing(store):
+    client, repo = store
+    put(client, "radon")
+    assert client.get("/v1/personas/radon").status_code == 401
+    assert client.delete("/v1/personas/radon").status_code == 401
+    assert len(repo.rows) == 1

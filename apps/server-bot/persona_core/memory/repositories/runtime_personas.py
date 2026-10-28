@@ -29,9 +29,19 @@ RETURNING id
 """
 
 _LATEST_SQL = """
-SELECT DISTINCT ON (persona_id) id, persona_id, display_name, provider, model, dna
-FROM runtime_personas
-ORDER BY persona_id, id DESC
+SELECT * FROM (
+    SELECT DISTINCT ON (persona_id) id, persona_id, display_name, provider, model, dna, deleted
+    FROM runtime_personas
+    ORDER BY persona_id, id DESC
+) newest
+WHERE NOT deleted
+"""
+
+_TOMBSTONE_SQL = """
+INSERT INTO runtime_personas (persona_id, display_name, provider, model, dna, created_by, deleted)
+SELECT persona_id, display_name, provider, model, dna, $2, true
+FROM runtime_personas WHERE persona_id = $1 ORDER BY id DESC LIMIT 1
+RETURNING id
 """
 
 
@@ -40,6 +50,9 @@ class RuntimePersonasRepository(BaseRepository):
         self, *, persona_id: str, display_name: str, provider: str, model: str | None, dna: str, created_by: str | None
     ) -> int:
         return await self._fetchval(_APPEND_SQL, persona_id, display_name, provider, model, dna, created_by)
+
+    async def tombstone(self, *, persona_id: str, deleted_by: str | None) -> int | None:
+        return await self._fetchval(_TOMBSTONE_SQL, persona_id, deleted_by)
 
     async def latest(self) -> list[RuntimePersonaRow]:
         rows = await self._fetch(_LATEST_SQL)
