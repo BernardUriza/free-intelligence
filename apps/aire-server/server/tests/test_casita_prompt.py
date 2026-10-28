@@ -32,7 +32,7 @@ def _chat_casita(workspaces: Path, text: str) -> str:
 
 def test_a_thin_file_resolves_to_the_shared_base_plus_the_soul(workspaces: Path):
     cwd = _chat_casita(workspaces, f"@base og118\n\n{SOUL}\n")
-    prompt = options._casita_prompt(cwd)
+    prompt = options.casita_prompt(cwd)
     assert prompt.startswith(BASE)
     assert "Usuario: Bernard" in prompt
     assert "@base" not in prompt
@@ -40,25 +40,25 @@ def test_a_thin_file_resolves_to_the_shared_base_plus_the_soul(workspaces: Path)
 
 def test_a_thin_file_with_no_soul_yet_is_just_the_base(workspaces: Path):
     cwd = _chat_casita(workspaces, "@base og118\n")
-    assert options._casita_prompt(cwd) == BASE
+    assert options.casita_prompt(cwd) == BASE
 
 
 def test_editing_the_shared_base_reaches_the_chat_on_the_next_spawn(workspaces: Path):
     cwd = _chat_casita(workspaces, f"@base og118\n\n{SOUL}\n")
     (workspaces / "og118" / "CLAUDE.md").write_text("A refreshed base.\n", encoding="utf-8")
-    assert options._casita_prompt(cwd).startswith("A refreshed base.")
+    assert options.casita_prompt(cwd).startswith("A refreshed base.")
 
 
 def test_a_missing_or_invalid_base_leaves_the_file_verbatim(workspaces: Path):
     cwd = _chat_casita(workspaces, "@base no-such-casita\n\nsoul text\n")
-    assert options._casita_prompt(cwd) == "@base no-such-casita\n\nsoul text"
+    assert options.casita_prompt(cwd) == "@base no-such-casita\n\nsoul text"
     cwd2 = str(workspaces / "og118")  # no @base line at all → unchanged
-    assert options._casita_prompt(cwd2) == BASE
+    assert options.casita_prompt(cwd2) == BASE
 
 
 def test_a_traversal_in_the_base_name_is_refused_not_resolved(workspaces: Path):
     cwd = _chat_casita(workspaces, "@base ../../etc\n\nsoul\n")
-    assert options._casita_prompt(cwd) == "@base ../../etc\n\nsoul"
+    assert options.casita_prompt(cwd) == "@base ../../etc\n\nsoul"
 
 
 def test_the_persona_tool_treats_the_base_line_as_the_protected_half():
