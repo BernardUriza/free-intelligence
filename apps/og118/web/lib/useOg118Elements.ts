@@ -14,9 +14,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   BASE_ELEMENT_SLUG,
+  ELEMENT_ENGINES,
   getSelectedElement,
   setSelectedElement,
   type Og118Element,
+  type Og118ElementDraft,
+  type Og118EmptySlot,
 } from './og118Element';
 import { authHeaders } from './og118Token';
 
@@ -30,6 +33,12 @@ export interface Og118ElementsHook {
   /** Select an element by slug and persist it. */
   select: (slug: string) => void;
   loading: boolean;
+  /** Whether this account may claim a slot (the server's allowlist decides). */
+  canCreate: boolean;
+  /** Empty slots a new element can take. */
+  slots: Og118EmptySlot[];
+  /** Claim a slot with a persona; resolves to the new slug or throws the server's reason. */
+  create: (draft: Og118ElementDraft) => Promise<string>;
 }
 
 const BASE_OPTION: Og118Element = {
@@ -56,6 +65,10 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     setSelected(getSelectedElement(userId));
   }, [userId]);
 
+  const [canCreate, setCanCreate] = useState(false);
+  const [slots, setSlots] = useState<Og118EmptySlot[]>([]);
+  const [revision, setRevision] = useState(0);
+
   useEffect(() => {
     let alive = true;
     fetch(`${API}/elements`, { headers: { ...authHeaders() } })
@@ -72,7 +85,25 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [revision]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    fetch(`${API}/elements/slots`, { headers: { ...authHeaders() } })
+      .then((r) => (r.ok ? r.json() : { canCreate: false, slots: [] }))
+      .then((data: { canCreate?: boolean; slots?: Og118EmptySlot[] }) => {
+        if (!alive) return;
+        setCanCreate(Boolean(data.canCreate));
+        setSlots(data.slots ?? []);
+      })
+      .catch(() => {
+        if (alive) setCanCreate(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, revision]);
 
   const select = useCallback(
     (slug: string) => {
@@ -82,5 +113,35 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     [userId],
   );
 
-  return { elements: [BASE_OPTION, ...active], selected, select, loading };
+  const create = useCallback(
+    async (draft: Og118ElementDraft): Promise<string> => {
+      const engine = ELEMENT_ENGINES.find((e) => e.id === draft.engine) ?? ELEMENT_ENGINES[0];
+      const res = await fetch(`${API}/elements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          atomicNumber: draft.atomicNumber,
+          displayName: draft.displayName,
+          personaId: draft.personaId,
+          description: draft.description || null,
+          aliases: draft.aliases,
+          provider: engine.provider,
+          model: engine.model,
+          dna: draft.dna,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = typeof body?.detail === 'string' ? body.detail : `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
+      const slug = slots.find((s) => s.atomicNumber === draft.atomicNumber)?.slug ?? '';
+      setRevision((r) => r + 1);
+      if (slug) select(slug);
+      return slug;
+    },
+    [slots, select],
+  );
+
+  return { elements: [BASE_OPTION, ...active], selected, select, loading, canCreate, slots, create };
 }
