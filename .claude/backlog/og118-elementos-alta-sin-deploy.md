@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy
 
-Status: Proposed
+Status: Accepted — Bernard picked **option A** on 2026-10-28 (durable persona store on server-bot's side + `POST /elements` in og118). Not built yet.
 Proposed: 2026-10-28 by Bernard (*"¿por qué og118 no tiene para agregar elementos nuevos?"*), right after element 85 Ástato needed a four-surface PR (#600) to exist.
 
 ## What it is
@@ -36,4 +36,7 @@ Where a runtime-created persona prompt lives. Two shapes, each keeps ONE source 
 
 ## Status / next step
 
-Proposed. Nothing built. Waiting on the A/B fork above.
+Accepted, option A (2026-10-28). Nothing built. Order, so each end of the data path ships with the other
+([[both-ends-of-the-data-path]]): server-bot's persona store and `load_persona` reading it first, then
+og118's `POST /elements` writing slot + persona in one call, then the form. Verified only when a persona
+created from the og118 UI answers a real turn with no deploy in between.
