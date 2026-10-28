@@ -54,6 +54,9 @@ import {
   useResourceStyle
 } from "./chunk-ERH7OSR3.js";
 import {
+  PersonaSelector
+} from "./chunk-XA44CHD2.js";
+import {
   ChatFilePreview
 } from "./chunk-JK3NSWFZ.js";
 import {
@@ -208,9 +211,6 @@ import {
 } from "./chunk-6Z6QRICA.js";
 import "./chunk-Q3QMY3NK.js";
 import "./chunk-LO4SF24V.js";
-import {
-  PersonaSelector
-} from "./chunk-ARPIU5K7.js";
 import {
   FI_TOUCH_TARGET_CLASS,
   ensureTouchTargetStyle,

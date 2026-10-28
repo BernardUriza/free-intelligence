@@ -101,6 +101,28 @@ describe('item 1 — every control below 44px composes fi-touch-target and injec
     expect(document.getElementById(TOUCH_SHEET)).not.toBeNull();
   });
 
+  it('PersonaSelector footer close() hands focus back to the trigger, so a sheet it opens can return there', () => {
+    const { getByRole } = render(
+      <PersonaSelector
+        personas={[{ id: 'a' }]}
+        selected="a"
+        onSelect={() => {}}
+        getPersonaId={(p) => p.id}
+        renderFooter={({ close }) => (
+          <button type="button" onClick={close}>
+            Nuevo
+          </button>
+        )}
+      />,
+    );
+    const trigger = getByRole('button');
+    fireEvent.click(trigger);
+    const action = getByRole('button', { name: 'Nuevo' });
+    action.focus();
+    fireEvent.click(action);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('ActionMenu items, also with a consumer item class', () => {
     const { getByRole, getAllByRole } = render(
       <ActionMenu
