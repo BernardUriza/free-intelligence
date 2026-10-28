@@ -5,7 +5,7 @@ import {
   AdminButton,
   AdminSheet,
   ensureAdminKitStyle
-} from "../chunk-PIE7SC3N.js";
+} from "../chunk-VQSI5OGB.js";
 import {
   glassTokens
 } from "../chunk-LO4SF24V.js";
@@ -980,6 +980,7 @@ import { useCallback as useCallback2, useEffect as useEffect2, useMemo, useRef a
 var defaultRemoveCatalogMessage = (model) => `\xBFEliminar ${model.name}?
 
 Se borrar\xE1 del disco. Podr\xE1s reinstalarlo despu\xE9s.`;
+var SEARCH_DEBOUNCE_MS = 300;
 var idleStates = () => ({
   ollama: { status: "idle", models: [] },
   gpt4all: { status: "idle", models: [] },
@@ -999,6 +1000,7 @@ function useModelCatalog(store, {
   const [sourceStates, setSourceStates] = useState3(idleStates);
   const [filter, setFilter] = useState3("all");
   const [searchQuery, setSearchQuery] = useState3("");
+  const [fetchQuery, setFetchQuery] = useState3("");
   const [maxSizeGb, setMaxSizeGb] = useState3(void 0);
   const [installing, setInstalling] = useState3({});
   const [installErrors, setInstallErrors] = useState3({});
@@ -1034,7 +1036,7 @@ function useModelCatalog(store, {
       try {
         const list = await storeRef.current.listCatalog({
           source,
-          query: searchQuery || void 0,
+          query: fetchQuery || void 0,
           maxSizeGb,
           signal: controller.signal
         });
@@ -1048,13 +1050,15 @@ function useModelCatalog(store, {
         }));
       }
     },
-    [searchQuery, maxSizeGb]
+    [fetchQuery, maxSizeGb]
   );
   const reload = useCallback2(() => {
-    setSourceStates(idleStates());
-    const sources = filter === "all" || filter === "installed" ? CATALOG_SOURCES : [filter];
-    sources.forEach((source) => void loadSource(source));
-  }, [filter, loadSource]);
+    CATALOG_SOURCES.forEach((source) => void loadSource(source));
+  }, [loadSource]);
+  useEffect2(() => {
+    const timer = setTimeout(() => setFetchQuery(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   useEffect2(() => {
     if (open) {
       reload();
@@ -1487,15 +1491,18 @@ function useLLMModels(store, {
   const [selectedId, setSelectedId] = useState4(null);
   const [includeInactive, setIncludeInactive] = useState4(false);
   const [provider, setProvider] = useState4("");
+  const requestSeq = useRef3(0);
   const reload = useCallback3(async () => {
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     try {
-      setModels(await storeRef.current.listModels({ includeInactive, provider: provider || void 0 }));
+      const list = await storeRef.current.listModels({ includeInactive, provider: provider || void 0 });
+      if (seq === requestSeq.current) setModels(list);
     } catch (err) {
-      setError(errorMessage(err, "Error al cargar los modelos"));
+      if (seq === requestSeq.current) setError(errorMessage(err, "Error al cargar los modelos"));
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, [includeInactive, provider]);
   useEffect3(() => {

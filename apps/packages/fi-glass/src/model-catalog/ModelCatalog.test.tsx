@@ -117,6 +117,19 @@ describe('the model registry', () => {
     await waitFor(() => expect(store.listModels).toHaveBeenLastCalledWith({ includeInactive: true, provider: 'ollama' }));
   });
 
+  it('a stale listing that resolves late never overwrites the current filter', async () => {
+    const pending: Array<(models: LLMModel[]) => void> = [];
+    const listModels = vi.fn(() => new Promise<LLMModel[]>((resolve) => pending.push(resolve)));
+    render(<ModelsHarness store={makeStore({ listModels })} />);
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: 'ollama' } });
+    await waitFor(() => expect(pending).toHaveLength(2));
+    await act(async () => pending[1]([local]));
+    await act(async () => pending[0]([cloud, local]));
+    expect(screen.getByRole('article', { name: 'qwen3:1.7b' })).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'gpt-4o-mini' })).toBeNull();
+  });
+
   it('shows RAM for a local model and the cost tier for a cloud one', async () => {
     render(<ModelsHarness store={makeStore()} />);
     const localCard = await screen.findByRole('article', { name: 'qwen3:1.7b' });
@@ -217,10 +230,22 @@ describe('ModelCatalogDrawer', () => {
 
     vi.mocked(store.listCatalog).mockClear();
     fireEvent.click(screen.getByRole('tab', { name: /Ollama/ }));
-    await waitFor(() => expect(store.listCatalog).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(store.listCatalog).mock.calls[0][0]).toMatchObject({ source: 'ollama' });
     expect(await screen.findByRole('listitem', { name: 'TinyLlama' })).toBeTruthy();
     expect(screen.queryByRole('listitem', { name: 'Orca' })).toBeNull();
+    expect(store.listCatalog).not.toHaveBeenCalled();
+    expect(screen.getByText('3 modelos · 1 instalados')).toBeTruthy();
+  });
+
+  it('searches once per source after the typing settles, keeping the current rows meanwhile', async () => {
+    const store = makeStore();
+    render(<ModelCatalogDrawer open onClose={vi.fn()} store={store} />);
+    await screen.findByRole('listitem', { name: 'TinyLlama' });
+    vi.mocked(store.listCatalog).mockClear();
+    const search = screen.getByRole('searchbox', { name: 'Buscar modelos' });
+    for (const value of ['t', 'ti', 'tin']) fireEvent.change(search, { target: { value } });
+    expect(screen.getByRole('listitem', { name: 'TinyLlama' })).toBeTruthy();
+    await waitFor(() => expect(store.listCatalog).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(store.listCatalog).mock.calls.every(([q]) => q.query === 'tin')).toBe(true);
   });
 
   it('renders download progress, then registers the installed model', async () => {

@@ -67,6 +67,38 @@ describe('admin-kit controls', () => {
     expect(under).toHaveBeenCalledTimes(1);
   });
 
+  it('a sheet takes focus, keeps Tab inside, and hands focus back to its opener', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(
+      <AdminSheet onDismiss={vi.fn()} labelledBy="f" header={<h2 id="f">Foco</h2>} footer={<button type="button">Guardar</button>}>
+        <input aria-label="Nombre" />
+      </AdminSheet>,
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Foco' });
+    expect(document.activeElement).toBe(dialog);
+    const save = screen.getByRole('button', { name: 'Guardar' });
+    const name = screen.getByLabelText('Nombre');
+    save.focus();
+    fireEvent.keyDown(save, { key: 'Tab' });
+    expect(document.activeElement).toBe(name);
+    fireEvent.keyDown(name, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(save);
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('a field that autofocuses keeps the focus the sheet would take', () => {
+    render(
+      <AdminSheet onDismiss={vi.fn()} labelledBy="g" header={<h2 id="g">Buscar</h2>}>
+        <input aria-label="Buscar" autoFocus />
+      </AdminSheet>,
+    );
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Buscar' }));
+  });
+
   it('a button is a touch target that shows a spinner while loading', () => {
     render(<AdminButton loading>Guardar</AdminButton>);
     const button = screen.getByRole('button', { name: 'Guardar' });
