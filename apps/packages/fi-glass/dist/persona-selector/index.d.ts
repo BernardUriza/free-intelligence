@@ -32,7 +32,7 @@ interface PersonaSelectorProps<T> {
     renderHeader?: (ctx: {
         count: number;
     }) => ReactNode;
-    /** Dropdown footer (e.g. an "edit personas" link). `close()` shuts the menu. */
+    /** Dropdown footer (e.g. an "edit personas" link). `close()` shuts the menu and refocuses the trigger. */
     renderFooter?: (ctx: {
         close: () => void;
     }) => ReactNode;

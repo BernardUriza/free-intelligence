@@ -74,7 +74,7 @@ export interface PersonaSelectorProps<T> {
   renderTriggerValue?: (selected: T | undefined, isOpen: boolean) => ReactNode;
   /** Dropdown header (e.g. title + count). */
   renderHeader?: (ctx: { count: number }) => ReactNode;
-  /** Dropdown footer (e.g. an "edit personas" link). `close()` shuts the menu. */
+  /** Dropdown footer (e.g. an "edit personas" link). `close()` shuts the menu and refocuses the trigger. */
   renderFooter?: (ctx: { close: () => void }) => ReactNode;
   /** Loading-state renderer (default: minimal text). */
   renderLoading?: () => ReactNode;
@@ -130,7 +130,10 @@ export function PersonaSelector<T>({
   const triggerId = `persona-trigger-${reactId}`;
   const contentId = `persona-content-${reactId}`;
 
-  const close = useCallback(() => setIsOpen(false), []);
+  const close = useCallback(() => {
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   // Close on outside click (mousedown, matches aurity's Select).
   useEffect(() => {
