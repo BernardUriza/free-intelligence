@@ -67,28 +67,26 @@ journalctl -u aire-listener -f                    # the listener's stdout
 systemctl status aire-listener                   # service state
 ```
 
-## The Mac box — AIRE as a launchd agent (backlog #52)
+## Codex on the droplet (backlog #52, moved here 2026-10-28)
 
-Bernard's Mac is the one body allowed to spawn Codex on his ChatGPT plan, so it
-runs its own engine. No CI reaches it: **running the installer IS the deploy.**
+AIRE lives ONLY on the droplet (Bernard, 2026-10-28: *"en esta mac NO DEBE HABER
+PUERTA DE AIRE, AIRE SOLO VIVE EN EL DROPLET"*). The Codex agent that spends his
+ChatGPT plan lives there too, as the NATIVE binary — no node on a 512 MB box:
+`remote-bootstrap.sh install_codex` fetches `@openai/codex` `<ver>-linux-x64` from
+the npm registry into `/opt/aire-codex` (voice libs stripped, ~370 MB on disk) and
+`AIRE_CODEX_COMMAND` names `…/vendor/x86_64-unknown-linux-musl/bin/codex`.
+
+The plan seat is out-of-band, like every secret: `codex login` runs on the Mac
+(a browser), and the resulting `~/.codex/auth.json` is copied to the box:
 
 ```bash
-bash server/infra/install-mac.sh               # idempotent; AIRE_REF=<branch> to try a PR ref
-launchctl print gui/$(id -u)/com.bernarduriza.aire | grep -E "state|pid"
-tail -f ~/.aire/log/aire.err.log               # uvicorn's stderr
-curl -s http://127.0.0.1:8088/health
+scp -i ~/.ssh/aire_vm ~/.codex/auth.json root@<IP>:/root/.codex/auth.json   # chmod 600
 ```
 
-What it lays down under `~/.aire`: `src/` (a sparse, blobless checkout of
-`apps/aire-server/server` reset to the ref), `venv/`, `codex/` (the agent,
-`npm --prefix`, off the PATH), `env` (composed from `~/.secrets/`: the pen's
-`AIRE_DATABASE_URL`, Bernard's `AIRE_AUTH_TOKEN`, `AIRE_CODEX_COMMAND`,
-`CODEX_HOME=$HOME/.codex` — the plan seat, the rotor's `codex/oauth/primary`
-(#53) — and, when `~/.secrets/aire-codex-api-key-fallback.txt` exists,
-`CODEX_API_KEY_FALLBACK=` for the metered `codex/apikey/fallback` behind it;
-`AIRE_ISOLATE_CONFIG=1` so a stray `provider: "claude"` cannot borrow the
-Keychain), `workspaces/`, `log/`. The agent is `KeepAlive` (a killed engine is
-back in seconds; the pool is a cache). The memory is NOT on this box: the same
-owner's Postgres the droplet writes — the Mac's firewall rule on Azure already
-admits it as role `aire`. The Mac sleeps after one idle minute; a turn in flight
-dies with it, and so does the consumer that asked, since videopipe lives here too.
+`/etc/aire/env` carries `AIRE_CODEX_COMMAND`, `CODEX_HOME=/root/.codex` (the
+rotor's `codex/oauth/primary`, #53) and `CODEX_API_KEY_FALLBACK=` from
+`~/.secrets/aire-codex-api-key-fallback.txt` (the metered `codex/apikey/fallback`).
+Verify through the public door, never by SSH: `/health` with the owner token lists
+both `codex/*` slots armed; a `provider: "codex"` turn answers `model: gpt-6-astra`
+and leaves an `aire_spend` row with `metered=f` (first receipt 2026-10-28 06:46Z,
+0.03175 nominal, box at ~250 MB available with 1 GB swap).

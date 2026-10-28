@@ -1,6 +1,6 @@
 # 52 — The ChatGPT plan is already paid: run OpenAI turns on it through Codex, not on metered tokens
 
-Status: **In progress** — the backend shipped 2026-10-26 (`agent_sdk/codex.py`, tests) and AIRE runs on this Mac as a launchd agent the same day (`infra/install-mac.sh`, verified through its real door); what stays open is videopipe calling it.
+Status: **In progress** — the backend shipped 2026-10-26 (`agent_sdk/codex.py`, tests); it ran on the Mac as a launchd agent 10-26 → 10-28, and since **2026-10-28 Codex lives on the droplet** (Bernard reversed the box decision, below): `gate.bernarduriza.com` lists `codex`, both slots armed, first plan turn `gpt-6-astra` / `metered=f` at 06:46Z. What stays open is videopipe and og118 calling that door.
 Proposed: 2026-10-26 by Bernard (*"así como se puede usar Codex y Claude para mí, que también se utilice esta cuenta para no estar utilizando todo el tiempo los tokens de OpenAI y estarme gastándolos cuando ya tengo incluso posibilidad de usar Astra directamente"*); greenlit the same day (*"go"*).
 
 ## What it is
@@ -11,10 +11,18 @@ quota, with no API key and no per-token bill. Every OpenAI turn that is Bernard'
 should run there first; metered tokens (Azure OpenAI, #51; `insult-openai`) only when the
 plan cannot serve it.
 
-## Decided by Bernard 2026-10-26
+## Decided by Bernard 2026-10-26 (the box reversed 2026-10-28)
 
-- **The box is this Mac** (*"backlog para esta mac"*): AIRE spawns the Codex agent here, signed
-  in with Bernard's ChatGPT plan; the droplet stays out of it (#49 item 2).
+- ~~**The box is this Mac** (*"backlog para esta mac"*): AIRE spawns the Codex agent here, signed
+  in with Bernard's ChatGPT plan; the droplet stays out of it (#49 item 2).~~ **Struck by Bernard
+  2026-10-28 06:42Z** — *"en esta mac NO DEBE HABER PUERTA DE AIRE, AIRE SOLO VIVE EN EL DROPLET
+  CARAJO"* — when an og118.ai element on Astra needed a door Azure could reach and the Mac's could not.
+  The Mac's launchd agent, its plist and `~/.aire` were removed that hour; `install-mac.sh` and
+  `deploy/mac/` deleted from the repo. The droplet now carries the native `linux-x64` binary at
+  `/opt/aire-codex` (no node: #49 item 2's wall was node, not Codex), the plan seat copied to
+  `/root/.codex/auth.json`, and both rotor slots; `remote-bootstrap.sh install_codex` +
+  `provision-do.sh install_codex_seat` make a kill test resurrect it. Box at ~250 MB available
+  after the first turn, 1 GB swap. Everything else in this section stands.
 - **Codex is never used directly** — *"DESINSTALA CODEX AHORA, y solo debes usar el coagente de
   guion astra, a través de AIRE"* (`codex logout` + `npm uninstall -g @openai/codex` the same
   hour, after one direct run had produced videopipe's `script-vidrios.js`). The binary lives
@@ -86,7 +94,8 @@ plan cannot serve it.
 
 ## What stays open
 
-1. ~~AIRE as a service on this Mac~~ **Done 2026-10-26**: `infra/install-mac.sh` lays
+1. ~~AIRE as a service on this Mac~~ **Done 2026-10-26, UNDONE 2026-10-28** (the box is the
+   droplet now, see above; this entry stays as the record of the two days it ran here): `infra/install-mac.sh` laid
    AIRE down under `~/.aire` as the launchd agent `com.bernarduriza.aire` (sparse
    checkout, venv, the Codex agent, env from `~/.secrets/`, `/health` verified). Receipt
    through that door: two `provider: "codex"` turns on one session, `pong` then the
