@@ -164,7 +164,7 @@ function Og118ElementManager({
         labelledBy={titleId}
         placement="side"
         header={
-          <div className="fi-persona-row">
+          <>
             <h2 id={titleId} className="fi-persona-title">
               Tus elementos
             </h2>
@@ -175,7 +175,7 @@ function Og118ElementManager({
               aria-label="Cerrar"
               onClick={onClose}
             />
-          </div>
+          </>
         }
       >
         <div className="fi-persona-stack">
