@@ -1,5 +1,5 @@
 import type { PersonaOption } from 'fi-glass/persona-admin';
-import type { LLMModel } from '@aurity-standalone/types/llm';
+import type { LLMModel } from 'fi-glass/model-catalog';
 import { VOICE_GROUPS } from '@aurity-standalone/types/voices';
 
 export const PERSONA_MODEL_FALLBACK: PersonaOption[] = [

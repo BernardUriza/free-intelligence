@@ -9,7 +9,6 @@
     "./assistant": "./src/assistant.ts",
     "./chat": "./src/chat.ts",
     "./checkin": "./src/checkin.ts",
-    "./llm": "./src/llm.ts",
     "./medical": "./src/medical.ts",
     "./session": "./src/session.ts",
     "./patient": "./src/patient.ts",
