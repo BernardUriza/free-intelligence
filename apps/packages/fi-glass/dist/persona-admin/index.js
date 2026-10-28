@@ -892,17 +892,17 @@ function PersonaTestTab({ personaId, store }) {
             "ms"
           ] })
         ] }),
-        /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
+        result.tokens_used !== void 0 ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
           /* @__PURE__ */ jsx5("span", { children: "Tokens" }),
           /* @__PURE__ */ jsx5("b", { children: result.tokens_used })
-        ] }),
-        /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
+        ] }) : null,
+        result.cost_usd !== void 0 ? /* @__PURE__ */ jsxs5("div", { className: "fi-persona-row", children: [
           /* @__PURE__ */ jsx5("span", { children: "Costo" }),
           /* @__PURE__ */ jsxs5("b", { children: [
             "$",
             result.cost_usd.toFixed(4)
           ] })
-        ] })
+        ] }) : null
       ] })
     ] }) : null
   ] });
