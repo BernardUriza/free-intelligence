@@ -571,14 +571,18 @@ class ElementCreateRequest(BaseModel):
 
 @router.get("/elements/slots")
 async def list_empty_slots(principal: Principal = Depends(get_principal)) -> dict:
-    """The empty slots a new element can take, and whether this caller may take one."""
+    """The empty slots a new element can take, whether this caller may take one, and
+    the slugs it may edit (the ones born from the UI)."""
+    author = _element_author(principal)
+    elements = get_registry().elements
     return {
-        "canCreate": _element_author(principal),
+        "canCreate": author,
         "slots": [
             {"atomicNumber": e.atomic_number, "symbol": e.symbol, "slug": e.slug, "displayName": e.display_name}
-            for e in get_registry().elements
+            for e in elements
             if e.status == "empty"
         ],
+        "editable": [e.slug for e in elements if author and e.is_active and claim_for(e.atomic_number)],
     }
 
 
