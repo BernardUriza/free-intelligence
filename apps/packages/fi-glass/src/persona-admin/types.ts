@@ -51,8 +51,9 @@ export interface PersonaUpdateRequest {
 export interface PersonaTestResponse {
   output: string | Record<string, unknown>;
   latency_ms: number;
-  tokens_used: number;
-  cost_usd: number;
+  /** Omit when the engine does not report it; a zero would read as a real measurement. */
+  tokens_used?: number;
+  cost_usd?: number;
 }
 
 /**

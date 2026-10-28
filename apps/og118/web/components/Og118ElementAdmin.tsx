@@ -68,7 +68,9 @@ export function Og118ElementAdmin({
 
   return (
     <>
+      {/* Keyed by slot: picking another slot restarts the form on that slot's name and id. */}
       <PersonaCreateModal
+        key={slot?.atomicNumber ?? 0}
         open={mode === "create"}
         onOpenChange={(open) => {
           if (!open) {

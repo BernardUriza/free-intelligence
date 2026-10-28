@@ -50,8 +50,9 @@ interface PersonaUpdateRequest {
 interface PersonaTestResponse {
     output: string | Record<string, unknown>;
     latency_ms: number;
-    tokens_used: number;
-    cost_usd: number;
+    /** Omit when the engine does not report it; a zero would read as a real measurement. */
+    tokens_used?: number;
+    cost_usd?: number;
 }
 /**
  * The persistence seam. A consumer wraps its own API client; the components never import one.

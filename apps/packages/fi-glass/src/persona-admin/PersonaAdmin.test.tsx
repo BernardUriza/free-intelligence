@@ -213,6 +213,19 @@ describe('PersonaEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: /Probar persona/ }));
     expect((await screen.findByTestId('persona-test-output')).textContent).toBe('hola');
     expect(store.test).toHaveBeenCalledWith('soap_editor', 'hola');
+    expect(screen.getByText('Tokens')).toBeTruthy();
+  });
+
+  it('shows no tokens or cost when the engine does not report them', async () => {
+    const store = makeStore();
+    vi.mocked(store.test).mockResolvedValueOnce({ output: 'Hola — Ts', latency_ms: 17478 });
+    renderEditor(store);
+    fireEvent.click(await screen.findByRole('tab', { name: /Probar/ }));
+    fireEvent.change(screen.getByLabelText(/Input de prueba/), { target: { value: 'hola' } });
+    fireEvent.click(screen.getByRole('button', { name: /Probar persona/ }));
+    expect((await screen.findByTestId('persona-test-output')).textContent).toBe('Hola — Ts');
+    expect(screen.queryByText('Tokens')).toBeNull();
+    expect(screen.queryByText('Costo')).toBeNull();
   });
 
   it('hides the examples tab and the hidden fields', async () => {

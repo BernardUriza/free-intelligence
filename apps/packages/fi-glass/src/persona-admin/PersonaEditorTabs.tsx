@@ -145,14 +145,18 @@ export function PersonaTestTab({ personaId, store }: { personaId: string; store:
               <span>Latencia</span>
               <b>{result.latency_ms.toFixed(0)}ms</b>
             </div>
-            <div className="fi-persona-row">
-              <span>Tokens</span>
-              <b>{result.tokens_used}</b>
-            </div>
-            <div className="fi-persona-row">
-              <span>Costo</span>
-              <b>${result.cost_usd.toFixed(4)}</b>
-            </div>
+            {result.tokens_used !== undefined ? (
+              <div className="fi-persona-row">
+                <span>Tokens</span>
+                <b>{result.tokens_used}</b>
+              </div>
+            ) : null}
+            {result.cost_usd !== undefined ? (
+              <div className="fi-persona-row">
+                <span>Costo</span>
+                <b>${result.cost_usd.toFixed(4)}</b>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
