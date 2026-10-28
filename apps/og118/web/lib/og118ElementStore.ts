@@ -191,12 +191,7 @@ export function createOg118ElementStore(
           body: JSON.stringify({ input }),
         },
       );
-      return {
-        output: r.output,
-        latency_ms: r.latency_ms,
-        tokens_used: 0,
-        cost_usd: 0,
-      };
+      return { output: r.output, latency_ms: r.latency_ms };
     },
   };
 }

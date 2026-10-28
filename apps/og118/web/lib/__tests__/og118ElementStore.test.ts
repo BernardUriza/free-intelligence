@@ -86,7 +86,7 @@ describe('og118 element store', () => {
   it('deletes and probes through the element routes', async () => {
     const s = store();
     await s.remove('radon');
-    expect(await s.test('radon', 'hola')).toEqual({ output: 'Rn.', latency_ms: 812, tokens_used: 0, cost_usd: 0 });
+    expect(await s.test('radon', 'hola')).toEqual({ output: 'Rn.', latency_ms: 812 });
     expect(calls.map((c) => `${c.method} ${c.url.replace(/^.*?(\/elements)/, '$1')}`)).toEqual([
       'DELETE /elements/radon',
       'POST /elements/radon/test',
