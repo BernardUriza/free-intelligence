@@ -46,7 +46,7 @@ _ENGINE_KINDS = {"external_http_engine"}
 # Human labels for the engine/persona that answers an element, shown as the
 # selector's engine chip (OG118-ELEMENTS-COMPOSER-SWITCH-1). Keyed by persona_id;
 # unknown ids fall back to capitalize(). These are UI labels, never prompts.
-_ENGINE_LABELS = {"vultur": "Vultur", "alice": "ALICE", "insult": "Insult"}
+_ENGINE_LABELS = {"vultur": "Vultur", "alice": "ALICE", "insult": "Insult", "astra": "Astra"}
 
 
 @dataclass(frozen=True)

@@ -47,15 +47,17 @@ def test_oxygen_binds_to_the_external_vultur_engine() -> None:
 
 def test_every_active_element_rides_the_external_engine() -> None:
     # Oxígeno→vultur, Aluminio→alice, Yodo→Insult (default, no personaId),
-    # Plutonio→reaper. TODOS los bots nacen en discord-bot: og118 sólo elige el
-    # elemento y el runner pone la voz, así que ya no queda ningún elemento local.
+    # Plutonio→reaper, Ástato→astra (GPT-6 Astra via AIRE's Codex backend; the
+    # provider is the persona's, in server-bot's registry — og118 only names it).
     reg = get_registry()
     by = {e.slug: e for e in reg.elements if e.is_active}
-    assert set(by) == {"oxigeno", "aluminio", "yodo", "plutonio"}
+    assert set(by) == {"oxigeno", "aluminio", "yodo", "plutonio", "astato"}
     assert by["oxigeno"].engine_binding.persona_id == "vultur"
     assert by["aluminio"].engine_binding.persona_id == "alice"
     assert by["yodo"].engine_binding.persona_id is None  # omitted → engine default (Insult)
     assert by["plutonio"].engine_binding.persona_id == "reaper"
+    assert by["astato"].engine_binding.persona_id == "astra"
+    assert by["astato"].engine_label == "Astra"
     for e in by.values():
         assert e.engine_binding is not None and e.engine_binding.is_external, e.symbol
 
