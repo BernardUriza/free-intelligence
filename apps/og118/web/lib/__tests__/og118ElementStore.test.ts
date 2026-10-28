@@ -31,7 +31,7 @@ beforeEach(() => {
         ],
       });
     if (url.endsWith('/elements') && method === 'POST')
-      return json(422, { detail: [{ msg: 'String should have at most 300 characters' }] });
+      return json(422, { detail: [{ msg: 'String should have at most 500 characters' }] });
     if (url.endsWith('/persona')) return json(200, READ);
     if (method === 'DELETE') return { ok: true, status: 204, json: async () => ({}) } as Response;
     if (url.endsWith('/test')) return json(200, { output: 'Rn.', latency_ms: 812 });
@@ -56,8 +56,8 @@ describe('og118 element store', () => {
 
   it('creates on the chosen slot with its aliases and engine, and shows the server reason', async () => {
     await expect(
-      store().create({ id: 'radon', name: 'Radón', description: 'x'.repeat(301), system_prompt: 'Eres Radón.', model: 'codex' }),
-    ).rejects.toThrow('String should have at most 300 characters');
+      store().create({ id: 'radon', name: 'Radón', description: 'x'.repeat(501), system_prompt: 'Eres Radón.', model: 'codex' }),
+    ).rejects.toThrow('String should have at most 500 characters');
     expect(calls.at(-1)?.body).toMatchObject({
       atomicNumber: 86,
       personaId: 'radon',

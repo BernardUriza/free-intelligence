@@ -562,7 +562,7 @@ class ElementCreateRequest(BaseModel):
     atomicNumber: int = Field(ge=1, le=118)
     displayName: str = Field(min_length=1, max_length=80)
     personaId: str = Field(pattern=_PERSONA_ID_RE)
-    description: str | None = Field(default=None, max_length=300)
+    description: str | None = Field(default=None, max_length=500)
     aliases: list[str] = Field(default_factory=list, max_length=8)
     provider: str = "claude"
     model: str | None = Field(default=None, max_length=80)
@@ -640,7 +640,7 @@ async def create_element(req: ElementCreateRequest, principal: Principal = Depen
 
 class ElementUpdateRequest(BaseModel):
     displayName: str = Field(min_length=1, max_length=80)
-    description: str | None = Field(default=None, max_length=300)
+    description: str | None = Field(default=None, max_length=500)
     aliases: list[str] = Field(default_factory=list, max_length=8)
     provider: str = "claude"
     model: str | None = Field(default=None, max_length=80)
