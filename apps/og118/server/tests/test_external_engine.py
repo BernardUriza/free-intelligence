@@ -514,3 +514,45 @@ async def test_without_a_thread_to_deliver_to_the_cut_is_an_error(monkeypatch) -
     assert len(evs) == 1 and evs[0]["type"] == "error"
     assert evs[0]["message"].startswith("external engine took longer than")
     assert seen["closed"] is True
+
+
+def _persona_engine(monkeypatch, handler):
+    monkeypatch.setattr(external_engine, "RUNNER_URL", "https://engine.test")
+    monkeypatch.setattr(external_engine, "RUNNER_TOKEN", "tok")
+    real = httpx.AsyncClient
+    monkeypatch.setattr(
+        external_engine.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw)
+    )
+
+
+@pytest.mark.asyncio
+async def test_put_persona_writes_with_the_engine_bearer(monkeypatch):
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers["authorization"]
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"persona_id": "radon", "version": 3, "provider": "claude", "model": None})
+
+    _persona_engine(monkeypatch, handler)
+    out = await external_engine.put_persona("radon", {"display_name": "Radón", "dna": "x"})
+    assert out["version"] == 3
+    assert seen == {"url": "https://engine.test/v1/personas/radon", "auth": "Bearer tok",
+                    "body": {"display_name": "Radón", "dna": "x"}}
+
+
+@pytest.mark.asyncio
+async def test_put_persona_surfaces_the_engine_refusal(monkeypatch):
+    _persona_engine(monkeypatch, lambda r: httpx.Response(422, json={"detail": "belongs to the image"}))
+    with pytest.raises(external_engine.PersonaWriteError) as e:
+        await external_engine.put_persona("insult", {"display_name": "x", "dna": "x"})
+    assert e.value.status == 422 and "belongs to the image" in str(e.value)
+
+
+@pytest.mark.asyncio
+async def test_put_persona_refuses_without_an_engine(monkeypatch):
+    monkeypatch.setattr(external_engine, "RUNNER_URL", "")
+    with pytest.raises(external_engine.PersonaWriteError) as e:
+        await external_engine.put_persona("radon", {})
+    assert e.value.status == 503

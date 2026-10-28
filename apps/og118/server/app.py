@@ -13,6 +13,7 @@ import asyncio
 import base64
 import binascii
 import dataclasses
+import hashlib
 import hmac
 import json
 import logging
@@ -41,9 +42,9 @@ from conversations import ConversationStore, utc_now_iso, valid_conversation_id
 from projects import ProjectRegistry
 from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, build_runner
 from mcp_background import router as mcp_background_router
-from external_engine import stream_external_turn
+from external_engine import PersonaWriteError, put_persona, stream_external_turn
 from fi_runner import Runner
-from elements_registry import Element, get_registry
+from elements_registry import Element, ElementsRegistryError, claim_slot, get_registry
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
     MAX_AUDIO_BYTES,
@@ -532,6 +533,94 @@ async def list_elements() -> dict:
             for e in reg.elements
             if e.is_active
         ]
+    }
+
+
+_PERSONA_ID_RE = r"^[a-z0-9_]{1,32}$"
+
+
+def _element_author(principal: Principal) -> bool:
+    """Who may claim a slot: accounts named in OG118_ELEMENT_AUTHORS by the same
+    hash the conversation store files them under. Unset = nobody (fail closed)."""
+    allowed = {a.strip() for a in os.getenv("OG118_ELEMENT_AUTHORS", "").split(",") if a.strip()}
+    if principal.is_legacy_bearer or not allowed:
+        return False
+    return hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32] in allowed
+
+
+class ElementCreateRequest(BaseModel):
+    atomicNumber: int = Field(ge=1, le=118)
+    displayName: str = Field(min_length=1, max_length=80)
+    personaId: str = Field(pattern=_PERSONA_ID_RE)
+    description: str | None = Field(default=None, max_length=300)
+    aliases: list[str] = Field(default_factory=list, max_length=8)
+    provider: str = "claude"
+    model: str | None = Field(default=None, max_length=80)
+    dna: str = Field(min_length=1, max_length=200_000)
+
+
+@router.get("/elements/slots")
+async def list_empty_slots(principal: Principal = Depends(get_principal)) -> dict:
+    """The empty slots a new element can take, and whether this caller may take one."""
+    return {
+        "canCreate": _element_author(principal),
+        "slots": [
+            {"atomicNumber": e.atomic_number, "symbol": e.symbol, "slug": e.slug, "displayName": e.display_name}
+            for e in get_registry().elements
+            if e.status == "empty"
+        ],
+    }
+
+
+@router.post("/elements", status_code=201)
+async def create_element(req: ElementCreateRequest, principal: Principal = Depends(get_principal)) -> dict:
+    """Claim an empty slot and give it a persona, with no deploy (OG118-ELEMENTOS-ALTA).
+
+    Both ends in one call: the persona goes to the engine that answers the turns
+    (server-bot's runner, durable in its Postgres) and the slot goes to og118's
+    catalog overlay. The engine is written first: a slot that points at a persona
+    the engine does not hold would answer as the default persona."""
+    if not _element_author(principal):
+        raise HTTPException(status_code=403, detail="no puedes crear elementos")
+    claim = {
+        "atomicNumber": req.atomicNumber,
+        "displayName": req.displayName.strip(),
+        "personaId": req.personaId,
+        "description": (req.description or "").strip() or None,
+        "aliases": [a.strip().lower() for a in req.aliases if a.strip()],
+    }
+    try:
+        get_registry().with_claim(claim)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    try:
+        written = await put_persona(
+            req.personaId,
+            {
+                "display_name": claim["displayName"],
+                "provider": req.provider,
+                "model": req.model,
+                "dna": req.dna,
+                "created_by": hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32],
+            },
+        )
+    except PersonaWriteError as e:
+        status = 422 if e.status == 422 else 502
+        raise HTTPException(status_code=status, detail=f"el motor no guardó la persona: {e}") from e
+    try:
+        element = claim_slot(claim)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    logger.info("element_created z=%s persona=%s version=%s", element.atomic_number, req.personaId, written.get("version"))
+    return {
+        "id": element.id,
+        "atomicNumber": element.atomic_number,
+        "symbol": element.symbol,
+        "displayLabel": element.display_label,
+        "personaId": req.personaId,
+        "personaVersion": written.get("version"),
+        "provider": written.get("provider"),
+        "model": written.get("model"),
     }
 
 

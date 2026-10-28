@@ -12,13 +12,25 @@ registry that exceeds it or numbers a slot outside 1..118.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import os
+import tempfile
+import threading
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
 CAP = 118
 ELEMENTS_DIR = Path(__file__).parent / "elements"
 REGISTRY_PATH = ELEMENTS_DIR / "elements.registry.json"
+# OG118-ELEMENTOS-ALTA (2026-10-28): slots claimed from the UI, without a deploy.
+# The image's catalog stays the base; the overlay on the Azure Files volume only
+# turns an EMPTY slot active and binds it to a persona the runner already holds.
+_OVERLAY_LOCK = threading.Lock()
+
+
+def overlay_path() -> Path:
+    default = Path(os.getenv("FI_RAG_STORE_PATH", "/opt/fi/data/fi_rag_store.h5")).parent / "elements.overlay.json"
+    return Path(os.getenv("OG118_ELEMENTS_OVERLAY_PATH", str(default)))
 # PERSONA-SSOT-2 (2026-09-10, decisión de Bernard): el prompt de un elemento vive
 # en discord-bot y en ningún otro lado. og118 NO guarda personajes: elige el
 # elemento y el runner de allá pone la voz, igual que Yodo con `insult.md`. Por eso
@@ -135,7 +147,7 @@ class ElementsRegistry:
     elements: tuple[Element, ...]
 
     @classmethod
-    def load(cls, path: Path = REGISTRY_PATH) -> "ElementsRegistry":
+    def load(cls, path: Path = REGISTRY_PATH, overlay: Path | None = None) -> "ElementsRegistry":
         try:
             doc = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError as e:
@@ -146,7 +158,36 @@ class ElementsRegistry:
         elements = tuple(_to_element(r) for r in doc.get("elements", []))
         reg = cls(elements=elements)
         reg._validate(cap)
+        for claim in _read_overlay(overlay):
+            reg = reg.with_claim(claim)
         return reg
+
+    def with_claim(self, claim: dict) -> "ElementsRegistry":
+        """This catalog with one EMPTY slot turned active on an external persona.
+        Refuses a taken slot, an unknown slot, or an alias another element owns."""
+        z = claim.get("atomicNumber")
+        persona_id = claim.get("personaId")
+        slot = next((e for e in self.elements if e.atomic_number == z), None)
+        if slot is None:
+            raise ElementsRegistryError(f"no slot {z!r}")
+        if slot.status != "empty":
+            raise ElementsRegistryError(f"slot {z} ({slot.symbol}) is {slot.status}, not empty")
+        if not persona_id:
+            raise ElementsRegistryError("a claim needs a personaId")
+        aliases = tuple(a.strip().lower() for a in claim.get("aliases", ()) if a.strip())
+        for a in aliases:
+            owner = self.resolve(a)
+            if owner is not None and owner.atomic_number != z:
+                raise ElementsRegistryError(f"alias {a!r} already names {owner.symbol}")
+        claimed = replace(
+            slot,
+            status="active",
+            display_name=claim.get("displayName") or slot.display_name,
+            description=claim.get("description"),
+            aliases=aliases,
+            engine_binding=EngineBinding(kind="external_http_engine", persona_id=persona_id),
+        )
+        return ElementsRegistry(elements=tuple(claimed if e is slot else e for e in self.elements))
 
     def _validate(self, cap: int) -> None:
         if cap != CAP:
@@ -201,7 +242,32 @@ class ElementsRegistry:
         return None
 
 
+def _read_overlay(path: Path | None) -> list[dict]:
+    if path is None or not path.exists():
+        return []
+    try:
+        return list(json.loads(path.read_text(encoding="utf-8")).get("claims", []))
+    except json.JSONDecodeError as e:
+        raise ElementsRegistryError(f"overlay is not valid JSON: {e}") from e
+
+
+def claim_slot(claim: dict, path: Path | None = None) -> Element:
+    """Append a claim to the overlay (validated against the live catalog first)
+    and return the element it activated. The catalog cache is dropped on success."""
+    path = path or overlay_path()
+    with _OVERLAY_LOCK:
+        claimed = get_registry().with_claim(claim)
+        claims = [*_read_overlay(path), claim]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".elements.overlay.")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump({"claims": claims}, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+        get_registry.cache_clear()
+    return next(e for e in claimed.elements if e.atomic_number == claim["atomicNumber"])
+
+
 @lru_cache(maxsize=1)
 def get_registry() -> ElementsRegistry:
-    """The process-wide registry (loaded + validated once)."""
-    return ElementsRegistry.load()
+    """The process-wide registry: the image's catalog plus the volume's claims."""
+    return ElementsRegistry.load(overlay=overlay_path())

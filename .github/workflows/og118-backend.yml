@@ -135,6 +135,7 @@ jobs:
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
+                "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
                 "HDF5_USE_FILE_LOCKING=FALSE" \
               --remove-env-vars "ANTHROPIC_API_KEY" "CLAUDE_CODE_OAUTH_TOKEN" "OG118_BACKEND"
           else
@@ -151,6 +152,7 @@ jobs:
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
+                "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
                 "HDF5_USE_FILE_LOCKING=FALSE"
           fi
 
