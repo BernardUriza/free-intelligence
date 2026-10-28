@@ -62,6 +62,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write   # OIDC, the og118-github-oidc principal (Owner of og118-rg)
   packages: write   # push to ghcr.io
 
 env:
@@ -160,7 +161,9 @@ jobs:
       - name: Azure Login
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Detect which surfaces changed
         id: detect
@@ -228,20 +231,8 @@ jobs:
             echo "build_runner=$BUILD_RUNNER"
           } >> "$GITHUB_OUTPUT"
 
-          # The build matrix carries ONLY the surfaces that changed, so the fan-out
-          # spawns no idle runners and the job skips entirely when nothing moved.
-          #
-          # It is a list of BARE NAMES, never a list of objects, and that is not a
-          # style choice. An object carries `{` and `}`, and this repo's
-          # AZURE_CREDENTIALS is stored as pretty-printed JSON — Actions registers
-          # each of its lines as a secret, so the lines holding a lone brace turn
-          # EVERY brace in every log and output into "a secret". The masker then
-          # dropped this output whole (`Skip output 'surfaces' since it may contain
-          # secret`), `fromJSON('')` blew up the matrix, and `deploy` skipped: three
-          # surfaces sat un-deployed for days while CI stayed green (2026-08-10, the
-          # commit that closed the Bash hole could not reach prod). A brace-free
-          # array survives the masker. The real cure is storing that secret as
-          # single-line JSON (`jq -c`); this shape keeps CD alive meanwhile.
+          # A list of BARE names: braces in an output were once masked as a secret
+          # and the matrix silently skipped every deploy (2026-08-10).
           SURFACES=$(jq -cn --arg rn "$BUILD_RUNNER" '
             [
               ("persona-runner"  | select($rn == "true"))
@@ -328,13 +319,14 @@ jobs:
       - name: Azure Login
         uses: azure/login@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # --- Deploys (only what was rebuilt) ---
 
       - name: Deploy persona-runner
         if: ${{ needs.detect.outputs.build_runner == 'true' }}
-        continue-on-error: true
         run: |
           # --termination-grace-period 600: el lifespan espera los jobs abiertos hasta
           # RUNNER_SHUTDOWN_DRAIN_S (570) y suelta sus filas al vencer; el ledger
@@ -351,6 +343,12 @@ jobs:
         run: |
           if az containerapp show -n persona-runner -g "$RG" --query "name" -o tsv 2>/dev/null; then
             az containerapp show -n persona-runner -g "$RG" --query "properties.latestRevisionName" -o tsv
+            LIVE_IMG=$(az containerapp show -n persona-runner -g "$RG" \
+              --query "properties.template.containers[0].image" -o tsv)
+            if [ "${LIVE_IMG##*:}" != "$NEW_SHA" ]; then
+              echo "FAIL persona-runner: running $LIVE_IMG, expected :$NEW_SHA"
+              exit 1
+            fi
             RUNNER_LOGS=$(az containerapp logs show -n persona-runner -g "$RG" --tail 15 2>&1 || true)
             echo "$RUNNER_LOGS" | tail -10
 
@@ -416,10 +414,12 @@ jobs:
               fi
               echo "OK persona-runner: real /v1/turn served — agent loop alive"
             else
-              echo "WARN persona-runner: token unavailable, skipping DELETE + turn checks"
+              echo "FAIL persona-runner: runner token unreadable, the turn check cannot run"
+              exit 1
             fi
           else
-            echo "INFO persona-runner: not yet provisioned, skipping health check"
+            echo "FAIL persona-runner: not visible in $RG to this login"
+            exit 1
           fi
 
       - name: Nothing-to-deploy notice
