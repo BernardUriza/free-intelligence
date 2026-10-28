@@ -190,3 +190,15 @@ def test_the_box_names_the_provider_and_the_roster_cannot_take_the_name(box, mon
     monkeypatch.delenv("AIRE_ACP_AGENTS")
     monkeypatch.delenv("AIRE_CODEX_COMMAND")
     assert providers() == ("claude",)
+
+
+@pytest.mark.anyio
+async def test_the_casita_persona_reaches_codex_as_agents_md(box, tmp_path):
+    (tmp_path / "CLAUDE.md").write_text("# Astra\nYou write scripts.\n", encoding="utf-8")
+    await _turn(_birth(tmp_path, str(uuid.uuid4())), "hola")
+    assert (tmp_path / "AGENTS.md").read_text(encoding="utf-8") == "# Astra\nYou write scripts."
+    argv = _argv(box)
+    assert "project_doc_max_bytes=1048576" in argv
+    (tmp_path / "CLAUDE.md").unlink()
+    await _turn(_birth(tmp_path, str(uuid.uuid4())), "hola")
+    assert not (tmp_path / "AGENTS.md").exists()

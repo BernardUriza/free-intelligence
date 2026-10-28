@@ -57,6 +57,7 @@ import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
 import { useOg118ConversationSync } from '@/lib/useOg118ConversationSync';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
+import { Og118ElementCreateDialog } from './Og118ElementCreateDialog';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { OG118_AUTHOR } from './Og118MessageMeta';
@@ -132,6 +133,7 @@ export function Og118AgentChat() {
       id ? void lib.switchConversation(id).catch(surfacedInBanner) : lib.newConversation(),
   });
   const elements = useOg118Elements(userId);
+  const [creatingElement, setCreatingElement] = useState(false);
   const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);
   const conversation = useAgentConversation(agent, {
@@ -230,6 +232,13 @@ export function Og118AgentChat() {
   }
 
   return (
+    <>
+    <Og118ElementCreateDialog
+      open={creatingElement}
+      slots={elements.slots}
+      onClose={() => setCreatingElement(false)}
+      onCreate={elements.create}
+    />
     <AgentWorkspaceShell
       responsive
       toggleLabel="Conversaciones"
@@ -349,6 +358,7 @@ export function Og118AgentChat() {
                   selected={elements.selected}
                   onSelect={elements.select}
                   loading={elements.loading}
+                  onCreateNew={elements.canCreate ? () => setCreatingElement(true) : undefined}
                 />
               </div>
               {/* The chip's shape, its 44px minimum and its label collapse are
@@ -468,5 +478,6 @@ export function Og118AgentChat() {
         />
       }
     />
+    </>
   );
 }

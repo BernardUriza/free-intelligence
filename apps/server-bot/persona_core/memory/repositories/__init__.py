@@ -17,6 +17,7 @@ from persona_core.memory.repositories.profiles import ProfilesRepository
 from persona_core.memory.repositories.relational import RelationalStateRepository
 from persona_core.memory.repositories.reminders import RemindersRepository
 from persona_core.memory.repositories.research_jobs import ResearchJobsRepository
+from persona_core.memory.repositories.runtime_personas import RuntimePersonasRepository
 from persona_core.memory.repositories.serenityops import SerenityOpsRepository
 from persona_core.memory.repositories.world_scans import WorldScansRepository
 
@@ -33,6 +34,7 @@ __all__ = [
     "RelationalStateRepository",
     "RemindersRepository",
     "ResearchJobsRepository",
+    "RuntimePersonasRepository",
     "SerenityOpsRepository",
     "WorldScansRepository",
 ]

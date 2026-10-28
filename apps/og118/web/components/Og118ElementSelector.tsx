@@ -17,6 +17,7 @@
  * ordered as aurity's instead of a bare list.
  */
 
+import { Plus } from 'lucide-react';
 import { PersonaSelector } from 'fi-glass/persona-selector';
 import type { Og118Element } from '../lib/og118Element';
 
@@ -25,6 +26,8 @@ export interface Og118ElementSelectorProps {
   selected: string;
   onSelect: (slug: string) => void;
   loading?: boolean;
+  /** Present only for an account that may claim a slot: adds "Nuevo elemento". */
+  onCreateNew?: () => void;
 }
 
 const TRIGGER_CLASS =
@@ -61,6 +64,7 @@ export function Og118ElementSelector({
   selected,
   onSelect,
   loading = false,
+  onCreateNew,
 }: Og118ElementSelectorProps) {
   return (
     <PersonaSelector<Og118Element>
@@ -95,6 +99,24 @@ export function Og118ElementSelector({
       )}
       renderPersonaIcon={(el, ctx) => atomicBadge(el, ctx.selected)}
       renderPersonaMeta={(el) => (el.engine ? engineChip(el.engine) : null)}
+      renderFooter={
+        onCreateNew
+          ? ({ close }) => (
+              <button
+                type="button"
+                data-ref="og118-element-create"
+                className="fi-touch-target mt-1 flex min-h-[44px] w-full items-center gap-2 border-t border-slate-700 px-3 text-sm text-emerald-200 hover:bg-emerald-500/10"
+                onClick={() => {
+                  close();
+                  onCreateNew();
+                }}
+              >
+                <Plus aria-hidden className="h-4 w-4" />
+                Nuevo elemento
+              </button>
+            )
+          : undefined
+      }
     />
   );
 }

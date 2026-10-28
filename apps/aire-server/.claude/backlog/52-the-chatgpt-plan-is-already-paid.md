@@ -105,6 +105,13 @@ plan cannot serve it.
    sleeps after one idle minute — the consumer sleeps with it, so nothing is lost
    that a human was waiting on.
 2. **videopipe's script coagent** calls that door with `provider: "codex"` (its own repo).
+   Since 2026-10-28 the road is og118: element 85 **Ástato → persona `astra`** (server-bot's
+   registry pins `provider="codex"`, `model="gpt-6-astra"`; persona-runner skips the Claude
+   router and sends `provider` on the body via fi-runner 0.25.0). Building it exposed that
+   the Codex backend never fed the casita persona (Claude reads `CLAUDE.md`, Codex reads
+   `AGENTS.md`): `agent_sdk/codex_persona.py` now writes `AGENTS.md` per turn with
+   `project_doc_max_bytes=1 MiB`. PR opened the same day, NOT merged until Bernard's go
+   (merge = deploy to og118.ai, persona-runner and this droplet).
 3. **Exhaustion signal.** When the weekly limit hits, what Codex emits is not measured. Today
    a provider error surfaces as `turn.failed` → `error_turn_failed` (mirrored, logged),
    never as text; the rotor (#31) must learn the shape before this carries a fleet.

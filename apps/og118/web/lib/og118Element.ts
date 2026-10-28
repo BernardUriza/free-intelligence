@@ -49,3 +49,39 @@ export function setSelectedElement(userId: string | null, slug: string): void {
     /* private mode / storage disabled — selection just won't persist */
   }
 }
+
+/** An empty slot a new element can claim (GET /elements/slots). */
+export interface Og118EmptySlot {
+  atomicNumber: number;
+  symbol: string;
+  slug: string;
+  displayName: string;
+}
+
+/** The engines a new element can ride; Codex pins GPT-6 Astra through AIRE. */
+export const ELEMENT_ENGINES = [
+  { id: 'claude', label: 'Claude (ruteo por turno)', provider: 'claude', model: null },
+  { id: 'codex', label: 'GPT-6 Astra (Codex)', provider: 'codex', model: 'gpt-6-astra' },
+] as const;
+
+export type ElementEngineId = (typeof ELEMENT_ENGINES)[number]['id'];
+
+export interface Og118ElementDraft {
+  atomicNumber: number;
+  displayName: string;
+  personaId: string;
+  description: string;
+  aliases: string[];
+  engine: ElementEngineId;
+  dna: string;
+}
+
+/** A persona id the engine accepts: the slot's slug, lowercased, `[a-z0-9_]{1,32}`. */
+export function personaIdFor(slug: string): string {
+  return slug
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_')
+    .slice(0, 32);
+}

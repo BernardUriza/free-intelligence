@@ -416,3 +416,27 @@ async def stream_external_turn(
         if not detached:
             result.cancel()
             await client.aclose()
+
+
+class PersonaWriteError(RuntimeError):
+    """The engine refused or could not store the persona; `status` is its HTTP code."""
+
+    def __init__(self, status: int, detail: str):
+        super().__init__(detail)
+        self.status = status
+
+
+async def put_persona(persona_id: str, body: dict) -> dict:
+    """Write a persona to the engine (`PUT /v1/personas/{id}`); returns its version."""
+    if not is_configured():
+        raise PersonaWriteError(503, "external engine not configured")
+    headers = {"Authorization": f"Bearer {RUNNER_TOKEN}"}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.put(f"{RUNNER_URL}/v1/personas/{persona_id}", json=body, headers=headers)
+        except httpx.HTTPError as e:
+            raise PersonaWriteError(502, f"engine unreachable: {type(e).__name__}") from e
+    if r.status_code != 200:
+        detail = r.json().get("detail", r.text) if r.headers.get("content-type", "").startswith("application/json") else r.text
+        raise PersonaWriteError(r.status_code, str(detail)[:500])
+    return r.json()

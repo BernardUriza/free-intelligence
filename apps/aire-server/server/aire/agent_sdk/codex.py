@@ -26,6 +26,7 @@ from .. import acp_mirror
 from .acp_messages import ResultMessage
 from .codex_events import item_messages, prompt_and_images, result
 from .codex_options import NAME, CodexOptions, build_options, command, enabled
+from .codex_persona import write_agents_md
 from .codex_process import CodexRun
 
 __all__ = ["NAME", "CodexOptions", "build_options", "command", "enabled", "client"]
@@ -75,8 +76,9 @@ class CodexClient:
     async def query(self, payload: Any) -> None:
         self._prompt, self._images = await prompt_and_images(payload)
         self._opened = set()
+        persona_bytes = write_agents_md(self.o.cwd)
         await self._mirror("prompt", {"text": self._prompt, "images": len(self._images),
-                                      "resume": self.thread})
+                                      "resume": self.thread, "persona_bytes": persona_bytes})
         await self._start()
 
     async def receive_response(self) -> AsyncIterator[Any]:

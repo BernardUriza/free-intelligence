@@ -722,3 +722,27 @@ async def test_documents_ride_as_references_and_a_short_count_is_attachments_los
     attached["n"] = 0
     with pytest.raises(BackendError, match="attachments_lost"):
         await b.run_turn(**kwargs, documents=[doc])
+
+
+@pytest.mark.asyncio
+async def test_provider_rides_the_body_only_when_named(monkeypatch: Any) -> None:
+    """`provider` picks AIRE's backend (claude by default, codex for the ChatGPT
+    plan seat); omitted, the body stays exactly as before so Claude turns never
+    carry a key the door would have to validate."""
+    b = _backend()
+    seen: list[dict[str, Any]] = []
+
+    async def fake_stream(project: str, session: str, body: dict[str, Any]) -> AsyncIterator[dict[str, Any]]:
+        seen.append(dict(body))
+        yield {"type": "result", "result": {"text": "ok"}}
+
+    monkeypatch.setattr(b, "_stream_events", fake_stream)
+    monkeypatch.setattr(b, "_ensure_prompt", _anoop)
+    for provider in ("codex", None):
+        async for _ in b.run_turn_stream(
+            system_prompt="", user_message="hi", mcp_servers=[], tool_policy=ToolPolicy(),
+            session_id="s", model="gpt-6-astra", provider=provider,
+        ):
+            pass
+    assert seen[0] == {"mode": "complete", "message": "hi", "model": "gpt-6-astra", "provider": "codex"}
+    assert "provider" not in seen[1]

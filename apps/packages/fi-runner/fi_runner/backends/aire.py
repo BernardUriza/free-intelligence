@@ -432,10 +432,13 @@ class AIREBackend:
         session_id: str | None = None,
         images: list[TurnImage] | None = None,
         documents: list[TurnDocument] | None = None,
+        provider: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Live-streaming turn through the AIRE door. Re-emits AIRE's SSE events
         in fi-runner's stream vocabulary (``text`` / ``tool_call`` / ``result``),
-        so the Runner's glass-box stream is unchanged."""
+        so the Runner's glass-box stream is unchanged. ``provider`` names which of
+        AIRE's backends speaks (``claude`` when omitted, ``codex`` for the ChatGPT
+        plan seat — aire-server #49/#52); the door 422s a name the box lacks."""
         self._require_door()
         self._warn_unenforceable(tool_policy)
         project = self._resolve_project()
@@ -458,6 +461,8 @@ class AIREBackend:
         chosen_model = model or self.default_model
         if chosen_model:
             body["model"] = chosen_model
+        if provider:
+            body["provider"] = provider
         if images:
             body["images"] = [{"url": i.url} if i.url else {"media_type": i.media_type, "data": i.data}
                               for i in images]

@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS-ALTA — dar de alta un elemento sin PR ni deploy
 
-Status: Accepted — Bernard picked **option A** on 2026-10-28 (durable persona store on server-bot's side + `POST /elements` in og118). Not built yet.
+Status: In progress — Bernard picked **option A** on 2026-10-28; built the same day in a PR awaiting his merge (merge = deploy of persona-runner + og118-api + og118-web). Not verified on the real surface yet.
 Proposed: 2026-10-28 by Bernard (*"¿por qué og118 no tiene para agregar elementos nuevos?"*), right after element 85 Ástato needed a four-surface PR (#600) to exist.
 
 ## What it is
@@ -36,7 +36,23 @@ Where a runtime-created persona prompt lives. Two shapes, each keeps ONE source 
 
 ## Status / next step
 
-Accepted, option A (2026-10-28). Nothing built. Order, so each end of the data path ships with the other
-([[both-ends-of-the-data-path]]): server-bot's persona store and `load_persona` reading it first, then
-og118's `POST /elements` writing slot + persona in one call, then the form. Verified only when a persona
-created from the og118 UI answers a real turn with no deploy in between.
+Built 2026-10-28, both ends in one PR ([[both-ends-of-the-data-path]]):
+
+- **server-bot (the voice).** Table `runtime_personas` (append-only, newest row per id wins), repository
+  `persona_core/memory/repositories/runtime_personas.py`, runner module `engine/runtime_personas.py` that
+  materializes each row as `<RUNTIME_PERSONAS_DIR>/<id>.md` plus an in-process registry entry (provider,
+  model). The runner hydrates it at boot BEFORE serving and on every write. `resolve_persona_path`,
+  `engine_for` and the runner pipeline read it after the image's own personas, which always win: an id the
+  image owns (insult, astra…) is refused with 422. Write door: `PUT /v1/personas/{id}`, runner bearer.
+- **og118 (the slot).** `elements.overlay.json` on the Azure Files volume, applied by the same
+  `ElementsRegistry` (a claim may only turn an EMPTY slot active and may not steal an alias).
+  `GET /elements/slots` (empty slots + `canCreate`) and `POST /elements`, which validates the claim, writes the
+  persona to the engine first, then the slot. Authors: `OG118_ELEMENT_AUTHORS` = the sha256[:32] of the Auth0
+  sub (the conversation store's owner hash), set in `og118-backend.yml`; unset = nobody.
+- **The form.** "Nuevo elemento" at the foot of the element selector, only for an author; a full sheet on
+  mobile, measured at 390 px (no overflow, 44 px targets, 16 px fields).
+
+Tests: server-bot 2003 passed (incl. a real-Postgres repository test); og118 server 274; web 134.
+
+Next: Bernard's merge, then the verification that defines done — a persona created from the og118 UI
+answers a real turn on app.og118.ai with no deploy in between.

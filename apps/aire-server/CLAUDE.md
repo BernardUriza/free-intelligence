@@ -234,6 +234,13 @@ memory. To contradict anything here, verify it first the same way.
   binary is the native `linux-x64` build at `/opt/aire-codex` (no node on a 512 MB
   box), laid down by `remote-bootstrap.sh install_codex`; the plan seat is
   `/root/.codex/auth.json`, copied from a `codex login` done on the Mac (#52).
+  **The casita persona reaches Codex as `AGENTS.md`**: Claude reads the casita's
+  `CLAUDE.md`, Codex does not, so `agent_sdk/codex_persona.py` materializes
+  `casita_prompt(cwd)` into `<casita>/AGENTS.md` before every turn (rewritten only
+  when it changed, removed when the casita has no prompt) and the process runs with
+  `project_doc_max_bytes=1 MiB` so a long persona is never truncated at Codex's
+  32 KiB default. A persona that only ever lived in `CLAUDE.md` was silently
+  ignored by the Codex backend until 2026-10-28 (og118's Astra element found it).
 
 - **Credentials are `provider × access_mode`, one rotor for both providers**
   (2026-10-27, backlog #53). Every backend names the chain it rides
