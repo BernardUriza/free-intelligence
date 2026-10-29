@@ -76,6 +76,14 @@ export class ArborTTS {
     this.page = null;
     if (this.cdpUrl) {
       this.browser = await chromium.connectOverCDP(this.cdpUrl, { timeout: 15000 });
+      // connectOverCDP sends Browser.setDownloadBehavior allowAndName on the DEFAULT context (once,
+      // at connect; playwright-core lib/server/chromium/crBrowser.js CRBrowserContext._initialize), so
+      // for as long as this service stays connected EVERY download of the shared Chrome, other
+      // sessions' WhatsApp audios included, lands in $TMPDIR/playwright-artifacts-*/<uuid> and is
+      // deleted on disconnect (History ids 331, 359, 360; 2026-10-28/29). Hand the downloads back to
+      // Chrome right away; the audio comes back through an in-page fetch, never a page download.
+      this._browserCdp = await this.browser.newBrowserCDPSession();
+      await this._browserCdp.send("Browser.setDownloadBehavior", { behavior: "default" });
       const contexts = this.browser.contexts();
       this.context = contexts[0] || (await this.browser.newContext());
       this._cdp = true;
@@ -290,6 +298,8 @@ export class ArborTTS {
     // In CDP mode we are a guest in the user's browser: never close their
     // context/tabs — just drop the CDP connection.
     if (!this._cdp && this.context) await this.context.close().catch(() => {});
+    if (this._browserCdp) await this._browserCdp.send("Browser.setDownloadBehavior", { behavior: "default" }).catch(() => {});
+    this._browserCdp = null;
     if (this.browser) await this.browser.close().catch(() => {});
     this.browser = this.context = this.page = null;
     this._cdp = false;
