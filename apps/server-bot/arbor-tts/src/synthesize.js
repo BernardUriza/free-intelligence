@@ -227,6 +227,14 @@ export class ArborTTS {
       // Fast-fail when reusing so we fall back quickly; patient for a new chat.
       await this._unlockComposer(page, reuse ? 12_000 : STEP_TIMEOUT);
       await composer.waitFor({ state: "visible", timeout: 15_000 });
+      // A saved conversation that is gone (deleted, other account) does not 404: ChatGPT
+      // redirects to the home page, whose composer is live, and the take would go to plain
+      // ChatGPT, which comments on the script instead of echoing it (San Miguel 2,
+      // 2026-10-29: two 'takes' of editorial critique). Reuse must land on THAT chat.
+      const wantId = reuse ? (target.match(/\/c\/([0-9a-f-]{36})/) || [])[1] : null;
+      if (wantId && !page.url().includes(wantId)) {
+        throw new Error(`conversation ${wantId} is not accessible (landed on ${page.url()})`);
+      }
 
       // Remember the current last assistant id so we can tell the NEW reply
       // apart from prior ones when reusing a conversation.
