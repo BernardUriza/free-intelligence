@@ -6,8 +6,8 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "f5d3ed368b30108ab63ccb5a576ea5884cc63b4d"
-tree = "sha256:2cf1d55a8b5b2b15d5eb62112efddd34951d9862589dcd9db7206d1d29b003ce"
+rev = "56faba96d3f8e6aea4453fd7b833ef58ade7cbd8"
+tree = "sha256:8fd5867bc4173f25b9d35f3569028549cd906fd733abb824cad529ecde477536"
 
 [repo]
 id = "free-intelligence"
@@ -18,12 +18,15 @@ surfaces_tree = "sha256:fae43f6a6a56c42da8daa861b1cba7bd809fd92ee0fcb580faf76bb1
 [hooks]
 entries = [
   { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "checklist-first", from = "core", event = "PreToolUse", matcher = "" },
+  { id = "checklist-first-post", from = "core", event = "PostToolUse", matcher = "TaskCreate|TaskUpdate|TodoWrite" },
+  { id = "checklist-first-prompt", from = "core", event = "UserPromptSubmit", matcher = "" },
   { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
   { id = "instruments-smoke", from = "core", event = "SessionStart", matcher = "" },
   { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
   { id = "new-rule-requires-owner-search-post", from = "core", event = "PostToolUse", matcher = "Bash" },
 ]
-tree = "sha256:71e1c376dae1737729abf5e23f0e5a393aa184e258efcbb0e72b392a1e53bdc0"
+tree = "sha256:8fb5df5896b84204d4768490d4fd5cc013afa101cd0affa75e943a62d096d5ad"
 
 [resolution]
 gates = ["core", "bernard"]
@@ -32,19 +35,19 @@ methodology = []
 
 [toolchain]
 id = "agent-constitution"
-rev = "f5d3ed368b30108ab63ccb5a576ea5884cc63b4d"
-tree = "sha256:bff24209aa4fcaa4f70b5aa0f13c031f5eef2bfa9bfda784a57af798dcd483a3"
+rev = "205443b0f6b95a5338f9095c449416f729eca4c3"
+tree = "sha256:2e93bc0e242ac7246fc5d0a2d25b7307a1a0de6a15c5e200706d33aba1a7ca98"
 
 [materialize]
 rules = true
 
 [lock]
-canonical_sha256 = "3e5b6a4a9f4c2083e623c3f7a1e0838c2d0784e5aefa18f31af9b965e9133e92"
+canonical_sha256 = "4b61c494cf8a204c0d0ae13c29330db859ee80f30c0d0ccf61251eb36eb1f6a5"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "9ab8e906d76630e75db94f230770c591ca9f20dc"
-tree = "sha256:0431f18caf344e11ffebd7f42545be935ce14754176f3174ab4eca48b065df4c"
+rev = "a668cea6113e626368e7c53128b837ff077ebc9e"
+tree = "sha256:3a3779724a3d6cf3a6afc6e8cfd965a0bfae69b29be3af57f511e16b17b385c3"
