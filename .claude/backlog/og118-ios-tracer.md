@@ -58,6 +58,10 @@ Si la app pasa de tracer bullet a algo que se usa, hay que decidir la cuenta de
 Apple Developer ($99/año): sin ella la app recaduca cada 7 días en el teléfono.
 No bloquea nada para empezar.
 
+**Decidido 2026-10-31 por Bernard: «pagamos 99».** Motivo: la app desapareció del iPhone al caducar el perfil gratis de 7 días. Inscripción con `bernarduriza@icloud.com` en developer.apple.com (Chrome de debug); login y pago son átomos suyos. Al quedar activa: `DEVELOPMENT_TEAM` en `apps/og118-ios/Config.xcconfig` → el Team ID pagado, `xcodegen generate`, rebuild, `devicectl install`. Build con perfil gratis (vence 2026-11-07) lista en `/tmp/og118-dd` mientras tanto.
+
+**Avance 2026-10-31 ~11:40:** login OK (2FA por la notificación en la Mac; llamada y SMS nunca llegaron). Datos personales tomados del archivo de identidad privado. Tipo Individual, contrato aceptado, costo Mex$1749/año. Auto-renovación SÍ y tarjeta guardada ••0749 sin CFDI (decisiones de Bernard). Parado en el checkout de la Apple Store MX: falta el CVV y el clic final de pago (Bernard).
+
 ## La UI calca la web — 2026-10-10
 
 Por orden de Bernard ("que sea el mismo UI de web"): medido en vivo con
