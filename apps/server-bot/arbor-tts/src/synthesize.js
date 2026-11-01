@@ -176,20 +176,33 @@ export class ArborTTS {
     const voice = opts.voice || process.env.ARBOR_VOICE || "fathom";
     const format = opts.format || process.env.ARBOR_FORMAT || "mp3";
 
-    // Reuse the last conversation; on ANY failure (gone, slow, id-resolution,
-    // Playwright error) reset it and retry ONCE in a fresh chat — "new chat
-    // only as a fallback".
+    // ONE chat for every take (Bernard, 2026-11-01: «ya tiene mi ChatGPT como cientos y cientos de
+    // chats»). The old rule — on ANY reuse failure open a new chat — turned every slow load of the
+    // saved chat into a fresh one: the Mirror GPT piled up 110 chats. Now a failed reuse is retried
+    // ONCE on a fresh tab, and a new chat is opened only when there is no saved conversation yet, or
+    // when ARBOR_ALLOW_NEW_CHAT=1 says so explicitly. Otherwise the take FAILS and says why.
+    const allowNew = (this.allowNewChat ?? process.env.ARBOR_ALLOW_NEW_CHAT) === "1"
+      || this.allowNewChat === true;
     if (this.lastConversationUrl) {
-      try {
-        return await this._attempt(text, voice, format, this.lastConversationUrl);
-      } catch (e) {
-        // Reuse failed: drop the saved conversation AND the page (it may be
-        // crashed/stale after a Chrome restart), then retry in a fresh chat.
-        // Say so: a silent fallback opened a new chat per take unnoticed.
-        console.error(`arbor-tts: reusing ${this.lastConversationUrl} failed (${e?.message ?? e}); opening a new chat`);
-        this.lastConversationUrl = null;
-        await this._dropPage();
+      let lastErr;
+      for (let i = 0; i < 2; i++) {
+        try {
+          return await this._attempt(text, voice, format, this.lastConversationUrl);
+        } catch (e) {
+          lastErr = e;
+          console.error(`arbor-tts: reusing ${this.lastConversationUrl} failed (${e?.message ?? e})` +
+            (i === 0 ? "; retrying the same chat on a fresh tab" : ""));
+          await this._dropPage();
+          if (/is not accessible/.test(String(e?.message ?? e))) break; // the chat is gone: retrying is pointless
+        }
       }
+      if (!allowNew) {
+        throw new Error(`arbor-tts: the saved Mirror chat ${this.lastConversationUrl} could not be reused ` +
+          `(${lastErr?.message ?? lastErr}). Not opening a new chat: fix the saved chat, or set ` +
+          `ARBOR_ALLOW_NEW_CHAT=1 for this one take.`);
+      }
+      console.error("arbor-tts: ARBOR_ALLOW_NEW_CHAT=1, opening a new chat");
+      this.lastConversationUrl = null;
     }
     try {
       return await this._attempt(text, voice, format, this.gptUrl);
@@ -232,8 +245,14 @@ export class ArborTTS {
         waitUntil: "domcontentloaded",
         timeout: STEP_TIMEOUT,
       });
-      // Fast-fail when reusing so we fall back quickly; patient for a new chat.
-      await this._unlockComposer(page, reuse ? 12_000 : STEP_TIMEOUT);
+      // A reused chat holds every earlier take, so it loads slowly; and its "now a plugin" card is
+      // painted AFTER the history, so unlocking before the history is there raced it (2026-10-26).
+      // Wait for the history, then be as patient as for a new chat: the old 12 s fast-fail is what
+      // sent each slow load to a new chat.
+      if (reuse) {
+        await page.waitForSelector("[data-message-author-role]", { timeout: STEP_TIMEOUT }).catch(() => {});
+      }
+      await this._unlockComposer(page, STEP_TIMEOUT);
       await composer.waitFor({ state: "visible", timeout: 15_000 });
       // A saved conversation that is gone (deleted, other account) does not 404: ChatGPT
       // redirects to the home page, whose composer is live, and the take would go to plain
