@@ -62,6 +62,8 @@ No bloquea nada para empezar.
 
 **Avance 2026-10-31 ~11:40:** login OK (2FA por la notificación en la Mac; llamada y SMS nunca llegaron). Datos personales tomados del archivo de identidad privado. Tipo Individual, contrato aceptado, costo Mex$1749/año. Auto-renovación SÍ y tarjeta guardada ••0749 sin CFDI (decisiones de Bernard). **PAGADO 2026-10-31 12:11** con la Chime virtual (1.er intento rechazado 11:53; Bernard aprobó la alerta SMS de Chime y el reintento pasó; la ••0749 de INVEX y la DiDi estaban bloqueadas). Pedido Apple Store `W1672029496`, Mex$1,749, auto-renovación. Siguiente: esperar el correo de activación a la cuenta iCloud, leer el Team ID nuevo en developer.apple.com/account → `DEVELOPMENT_TEAM` en `Config.xcconfig` → `xcodegen generate` → build → `devicectl install` (iPhone por cable, desbloqueado).
 
+**2026-11-01 14:30 — «sigue sin abrir».** Medido: el iPhone ya trae **iOS 27.0.1** y la Mac Xcode 26.6 (SDK 26.5); compila e instala igual. El perfil gratis local sigue vigente hasta 2026-11-07 e incluye el iPhone (`00008120-000E3D4C0E100032`). La build de `/tmp/og118-dd` se perdió con el reinicio de las 07:50; se rehízo en `generic/platform=iOS` (BUILD SUCCEEDED). Xcode todavía sólo conoce el Personal Team `7L36T9PTFN`: el equipo pagado aún no aparece, y developer.apple.com pide login (átomo de Bernard). El install exige teléfono **desbloqueado** (`kAMDMobileImageMounterDeviceLocked`); compilar contra el id del teléfono también.
+
 ## La UI calca la web — 2026-10-10
 
 Por orden de Bernard ("que sea el mismo UI de web"): medido en vivo con
