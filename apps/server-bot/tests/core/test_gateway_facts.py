@@ -43,7 +43,7 @@ def _client(judge_text: str = "[]", judge_client=None) -> PersonaClient:
     if judge_client is None:
         judge_client = MagicMock()
         judge_client.utility_call = AsyncMock(
-            return_value=SimpleNamespace(text=judge_text, stop_reason="end_turn"),
+            return_value=SimpleNamespace(text=judge_text),
         )
     return PersonaClient(
         persona,

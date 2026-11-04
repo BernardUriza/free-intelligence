@@ -24,7 +24,7 @@ class _FakeResp:
     text = ""
 
     def json(self) -> dict:
-        return {"text": "respuesta", "stop_reason": "end_turn", "model": "agent-runner"}
+        return {"text": "respuesta", "model": "agent-runner"}
 
 
 class _FakeClient:

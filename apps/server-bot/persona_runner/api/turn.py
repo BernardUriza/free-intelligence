@@ -38,7 +38,6 @@ router = APIRouter()
 
 class TurnJobAccepted(BaseModel):
     job_id: str
-    status: str = "running"
 
 
 class TurnJobStatus(BaseModel):

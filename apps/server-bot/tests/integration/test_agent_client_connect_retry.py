@@ -38,7 +38,7 @@ class _Resp:
         self.text = "ok"
 
     def json(self) -> dict:
-        return {"text": "ok", "stop_reason": "end_turn", "model": "agent-runner"}
+        return {"text": "ok", "model": "agent-runner"}
 
 
 class _ScriptedClient:

@@ -46,9 +46,7 @@ def client(monkeypatch):
 def test_submit_then_poll_delivers_a_turn_longer_than_one_poll(client, monkeypatch):
     async def slow_turn(_req: TurnRequest) -> TurnResponse:
         await asyncio.sleep(0.2)
-        return TurnResponse(
-            text="Supremme de Luxe…", output_tokens=1787, model="claude-opus-4-7", stop_reason="end_turn"
-        )
+        return TurnResponse(text="Supremme de Luxe…", output_tokens=1787, model="claude-opus-4-7")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", slow_turn)
 
@@ -80,7 +78,7 @@ def test_the_same_job_id_posted_twice_runs_one_turn(client, monkeypatch):
     async def counted_turn(_req: TurnRequest) -> TurnResponse:
         runs["n"] += 1
         await asyncio.sleep(0.05)
-        return TurnResponse(text="una sola vez", output_tokens=3, model="m", stop_reason="end_turn")
+        return TurnResponse(text="una sola vez", output_tokens=3, model="m")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", counted_turn)
     req = {**REQ, "job_id": "a3f0c9d1e2b84f7a9c6d5e4f3a2b1c0d"}
@@ -157,7 +155,7 @@ def test_a_runner_restart_mid_turn_resumes_the_job_under_the_same_id(client, mon
         seen.append(req)
         if not req.resumed:
             await asyncio.sleep(60)  # el proceso A muere antes de terminar
-        return TurnResponse(text="reanudado", output_tokens=5, model="m", stop_reason="end_turn")
+        return TurnResponse(text="reanudado", output_tokens=5, model="m")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     assert client.post("/v1/turn/jobs", json=JOB, headers=HEADERS).status_code == 202
@@ -178,7 +176,7 @@ def test_a_turn_finished_before_the_restart_is_served_from_the_row_without_runni
 
     async def turn(_req: TurnRequest) -> TurnResponse:
         runs["n"] += 1
-        return TurnResponse(text="una vez", output_tokens=2, model="m", stop_reason="end_turn")
+        return TurnResponse(text="una vez", output_tokens=2, model="m")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     client.post("/v1/turn/jobs", json=JOB, headers=HEADERS)
@@ -241,7 +239,7 @@ def test_the_live_run_receives_the_attachments_the_row_does_not_keep(client, mon
     async def turn(req: TurnRequest) -> TurnResponse:
         seen["attachments"] = req.attachments
         seen["resumed"] = req.resumed
-        return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
+        return TurnResponse(text="la vi", output_tokens=3, model="m")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     image = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "aGk="}}
@@ -280,7 +278,7 @@ def test_with_the_ledger_down_the_contract_is_exactly_ram_only(client, monkeypat
     ledger.fail = True
 
     async def turn(_req: TurnRequest) -> TurnResponse:
-        return TurnResponse(text="ram", output_tokens=1, model="m", stop_reason="end_turn")
+        return TurnResponse(text="ram", output_tokens=1, model="m")
 
     monkeypatch.setattr(aire_route, "turn_via_aire", turn)
     job_id = client.post("/v1/turn/jobs", json=REQ, headers=HEADERS).json()["job_id"]
@@ -307,7 +305,7 @@ def test_an_image_by_reference_rides_in_the_row_and_a_resumed_job_carries_it(cli
 
     async def turn(req: TurnRequest) -> TurnResponse:
         seen["attachments"], seen["resumed"] = req.attachments, req.resumed
-        return TurnResponse(text="la vi", output_tokens=3, model="m", stop_reason="end_turn")
+        return TurnResponse(text="la vi", output_tokens=3, model="m")
 
     image = _ref("ffffffff")
     monkeypatch.setattr(aire_route, "turn_via_aire", never)

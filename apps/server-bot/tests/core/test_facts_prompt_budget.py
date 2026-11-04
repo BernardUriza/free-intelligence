@@ -34,7 +34,7 @@ class _CapturingJudge:
 
     async def utility_call(self, system_prompt, messages, *, model=None, max_tokens=4096):
         self.calls.append(messages)
-        return SimpleNamespace(text=self.reply, stop_reason="end_turn")
+        return SimpleNamespace(text=self.reply)
 
 
 @pytest.mark.asyncio

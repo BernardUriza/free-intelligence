@@ -71,7 +71,7 @@ def _client(
     agent_client = MagicMock()
     agent_client.chat = AsyncMock(return_value=SimpleNamespace(text="respuesta", model_used="claude"))
     judge = MagicMock()
-    judge.utility_call = AsyncMock(return_value=SimpleNamespace(text="[]", stop_reason="end_turn"))
+    judge.utility_call = AsyncMock(return_value=SimpleNamespace(text="[]"))
     return PersonaClient(
         persona,
         memory,

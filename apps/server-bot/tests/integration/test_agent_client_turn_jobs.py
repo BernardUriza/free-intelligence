@@ -31,7 +31,7 @@ class _Resp:
         return self._body
 
 
-TURN = {"text": "Supremme de Luxe…", "output_tokens": 1787, "model": "claude-opus-4-7", "stop_reason": "end_turn"}
+TURN = {"text": "Supremme de Luxe…", "output_tokens": 1787, "model": "claude-opus-4-7"}
 
 
 class _ScriptedClient:

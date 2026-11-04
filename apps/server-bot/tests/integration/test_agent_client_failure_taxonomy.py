@@ -40,7 +40,7 @@ class _Resp:
     def json(self) -> dict:
         if self._bad_json:
             raise ValueError("not json")
-        return {"text": "ok", "stop_reason": "end_turn", "model": "agent-runner"}
+        return {"text": "ok", "model": "agent-runner"}
 
 
 class _Client:

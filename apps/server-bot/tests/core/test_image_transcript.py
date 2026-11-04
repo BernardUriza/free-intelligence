@@ -31,7 +31,7 @@ DOC = {"type": "document", "source": {"type": "base64", "media_type": "applicati
 
 def _judge(text: str = "Captura de una receta: hidroxicloroquina 200mg cada 12h.") -> MagicMock:
     j = MagicMock()
-    j.utility_call = AsyncMock(return_value=SimpleNamespace(text=text, stop_reason="end_turn"))
+    j.utility_call = AsyncMock(return_value=SimpleNamespace(text=text))
     return j
 
 
