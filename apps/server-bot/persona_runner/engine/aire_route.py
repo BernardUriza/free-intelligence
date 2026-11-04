@@ -672,6 +672,17 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         if principal_bound:
             await aire_principal.clear(casita)
 
+    if result.model == NO_MODEL_ANSWERED:
+        log.error(
+            "aire_route_turn_no_model_answered",
+            job_id=req.job_id,
+            channel_id=req.channel_id,
+            casita=casita,
+            requested_model=model,
+            text=result.text[:300],
+        )
+        auth_failure.mark_failure(result.text[:200])
+        raise no_model_answered(result.text)
     auth_failure.clear_failure()
     # Only a turn that SUCCEEDED marks the topic answered: a failed one never
     # reached AIRE's memory, so the next attempt must still fold the history.
@@ -771,6 +782,12 @@ def model_diverged(requested: str | None, answered: str | None) -> bool:
 NO_MODEL_ANSWERED = "<synthetic>"
 
 
+def no_model_answered(text: str) -> HTTPException:
+    """The CLI's own error arrived as text under the synthetic model name. It is a 500, the
+    contract's "no retry fixes this" (`to_http_error`), never a 200 passing it off as the reply."""
+    return HTTPException(500, f"no model answered: {text[:200]}")
+
+
 def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
     """The judge's utility casita: ``{persona}-judge-{sha256(prompt)}``.
 
@@ -845,10 +862,9 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     except BackendError as exc:
         log.error("aire_route_judge_failed", casita=casita, error=str(exc)[:300])
         raise HTTPException(500, f"judge call failed: {str(exc)[:200]}") from exc
-    # The CLI answers its own errors as text under this name; a 200 there passes an API error off as the model's reply.
     if result.model == NO_MODEL_ANSWERED:
         log.error("aire_route_judge_no_model_answered", casita=casita, requested=model, text=result.text[:300])
-        raise HTTPException(502, f"no model answered: {result.text[:200]}")
+        raise no_model_answered(result.text)
     usage = result.usage or {}
     return JudgeResponse(
         text=result.text,
