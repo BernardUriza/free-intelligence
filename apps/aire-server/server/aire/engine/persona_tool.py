@@ -5,7 +5,7 @@ casita per chat, protected base). The casita's ``CLAUDE.md`` has two halves spli
 by ``MARKER``: above it the PROTECTED BASE, owned by the ``init`` endpoint and
 untouchable through this tool — an agent that can erase its own constraints
 erases the cage's manners; below it the LIVING part this tool reads and rewrites.
-The next turn's spawn re-reads the file (``options._casita_prompt``), so an
+The next turn's spawn re-reads the file (``options.casita_prompt``), so an
 update takes effect from the very next message.
 
 Self-confined by construction: the only path ever touched is ``<cwd>/CLAUDE.md``,

@@ -1,4 +1,6 @@
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 private var failures = 0
 
@@ -12,7 +14,7 @@ private func expect(_ condition: Bool, _ what: String) {
 }
 
 private func canned(_ events: [StreamEvent]) -> ChatModel.Stream {
-    { _, _, _, _, _ in
+    { _, _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             for event in events { continuation.yield(event) }
             continuation.finish()
@@ -23,6 +25,15 @@ private func canned(_ events: [StreamEvent]) -> ChatModel.Stream {
 private func settle() async {
     for _ in 0..<50 { await Task.yield() }
     try? await Task.sleep(nanoseconds: 120_000_000)
+}
+
+/// Lo que depende de un poll se espera por su condición, no por un sueño fijo: un runner cargado no cumple los 120 ms.
+@MainActor
+private func esperar(tope: UInt64 = 3_000_000_000, _ hecho: () -> Bool) async {
+    let fin = DispatchTime.now().uptimeNanoseconds + tope
+    while !hecho(), DispatchTime.now().uptimeNanoseconds < fin {
+        try? await Task.sleep(nanoseconds: 10_000_000)
+    }
 }
 
 @MainActor
@@ -50,7 +61,7 @@ private func autorSeCongelaPorMensaje() async {
 private func elResultadoGanaALosDeltas() async {
     print("el frame result reemplaza el texto acumulado")
     let model = ChatModel(stream: canned([
-        .text("parcial"), .result(text: "definitivo", model: "sonnet"), .done
+        .text("parcial"), .result(text: "definitivo", model: "sonnet", reactions: []), .done
     ]))
     model.send("x")
     await settle()
@@ -61,7 +72,7 @@ private func elResultadoGanaALosDeltas() async {
 @MainActor
 private func cancelarNoDuplicaLaBurbuja() async {
     print("cancelar a media respuesta no deja dos burbujas")
-    let model = ChatModel(stream: { _, _, _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             let task = Task {
                 for i in 0..<200 {
@@ -88,7 +99,7 @@ private func cancelarNoDuplicaLaBurbuja() async {
 @MainActor
 private func elErrorNoInventaBurbuja() async {
     print("un stream que truena no fabrica respuesta")
-    let model = ChatModel(stream: { _, _, _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _, _ in
         AsyncThrowingStream { continuation in
             continuation.finish(throwing: Og118Error.unauthorized)
         }
@@ -103,7 +114,7 @@ private func elErrorNoInventaBurbuja() async {
 private func elHistorialViajaSinElTurnoNuevo() async {
     print("el history que se manda no incluye el mensaje del turno en curso")
     var vistos: [[ChatMessage]] = []
-    let model = ChatModel(stream: { _, _, history, _, _ in
+    let model = ChatModel(stream: { _, _, history, _, _, _ in
         vistos.append(history)
         return AsyncThrowingStream { continuation in
             continuation.yield(.text("respuesta"))
@@ -158,6 +169,7 @@ private func persisteAlCerrarElTurno() async {
         restore: { _ in nil },
         now: { "2026-08-12T21:00:00Z" }
     )
+    await model.restoreThread()
     model.send("pregunta")
     await settle()
 
@@ -170,6 +182,41 @@ private func persisteAlCerrarElTurno() async {
     expect(r.preview == "respuesta", "preview del último mensaje")
     expect(r.messages.last?.author?.name == "Yodo", "la autoría sobrevive al guardado")
     expect(r.messages.first?.timestamp != nil, "los mensajes llevan timestamp")
+}
+
+@MainActor
+private func elModeloViajaDeIdaYVuelta() async {
+    print("el modelo que contestó se escribe en trace.model y se lee de vuelta")
+    var guardados: [ConversationRecord] = []
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.text("hola"), .result(text: "hola", model: "claude-sonnet-4-5", reactions: []), .done]),
+        persist: { guardados.append($0) },
+        restore: { _ in nil },
+        now: { "2026-10-10T21:00:00Z" }
+    )
+    await model.restoreThread()
+    model.send("pregunta")
+    await settle()
+
+    expect(model.messages.last?.model == "claude-sonnet-4-5", "la burbuja sabe qué modelo la escribió")
+    guard let r = guardados.last else { return expect(false, "se guardó el turno") }
+    expect(r.messages.last?.trace?.model == "claude-sonnet-4-5", "y viaja en trace.model, donde la web lo lee")
+    expect(r.messages.first?.trace == nil, "el mensaje del usuario no inventa trace")
+    let releido = try? JSONDecoder().decode(ConversationRecord.self, from: JSONEncoder().encode(r))
+    expect(releido?.chatMessages.last?.model == "claude-sonnet-4-5", "y al reabrir el hilo vuelve a la burbuja")
+}
+
+@MainActor
+private func elCorreoSaleDelIdToken() {
+    print("el pie del drawer lee el correo del id_token")
+    let payload = Data(#"{"email":"bernard@ejemplo.mx","sub":"auth0|1"}"#.utf8)
+        .base64EncodedString()
+        .replacingOccurrences(of: "=", with: "")
+        .replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_")
+    expect(Auth.correo(deIdToken: "cabeza.\(payload).firma") == "bernard@ejemplo.mx", "base64url sin relleno se decodifica")
+    expect(Auth.correo(deIdToken: "no-es-jwt") == nil, "un token mal formado no truena, devuelve nil")
 }
 
 @MainActor
@@ -204,7 +251,7 @@ private func elIdDeConversacionEsElSessionID() async {
     var visto: String?
     let model = ChatModel(
         conversationID: "abc-123",
-        stream: { _, sessionID, _, _, _ in
+        stream: { _, sessionID, _, _, _, _ in
             visto = sessionID
             return AsyncThrowingStream { $0.finish() }
         },
@@ -231,6 +278,7 @@ private func cambiarDeHiloNoMezclaMensajes() async {
         restore: { id in id == "hilo-b" ? otro : nil },
         now: { "2026-08-12T21:00:00Z" }
     )
+    await model.restoreThread()
     model.send("hola A")
     await settle()
     expect(model.messages.count == 2, "el hilo A tiene su par")
@@ -313,7 +361,7 @@ private func cancelarNoPersisteRespuestaAMedias() async {
     var historiales: [[ChatMessage]] = []
     let model = ChatModel(
         conversationID: "c1",
-        stream: { _, _, history, _, _ in
+        stream: { _, _, history, _, _, _ in
             historiales.append(history)
             return AsyncThrowingStream { continuation in
                 let t = Task {
@@ -331,13 +379,17 @@ private func cancelarNoPersisteRespuestaAMedias() async {
         restore: { _ in nil },
         now: { "2026-08-12T22:00:00Z" }
     )
+    await model.restoreThread()
     model.send("pregunta larga")
     try? await Task.sleep(nanoseconds: 60_000_000)
     model.cancel()
     await settle()
 
     expect(model.messages.filter { $0.role == .assistant }.isEmpty, "no queda respuesta a medias")
-    expect(guardados.isEmpty, "y NO se persistió nada del turno cancelado")
+    expect(
+        guardados.last?.messages.map(\.content) == ["pregunta larga"],
+        "lo guardado es la pregunta sola, sin la respuesta a medias"
+    )
 
     model.send("segunda")
     await settle()
@@ -368,6 +420,7 @@ private func losGuardadosNoSePisan() async {
         restore: { _ in nil },
         now: { "2026-08-12T22:00:00Z" }
     )
+    await model.restoreThread()
     model.send("uno")
     await settle()
     model.send("dos")
@@ -388,7 +441,7 @@ private func elElementoYElProyectoViajanEnElTurno() async {
 
     let model = ChatModel(
         conversationID: "c3",
-        stream: { _, _, _, corpus, element in
+        stream: { _, _, _, corpus, element, _ in
             vistos.append((corpus, element))
             return AsyncThrowingStream { continuation in
                 continuation.yield(.text("r"))
@@ -505,6 +558,147 @@ private func mutarUnChatEsLoadEditarSave() async {
     expect(guardado?.titleCustom == nil, "y quita la marca custom")
 }
 
+
+// MARK: - Adjuntar imágenes (paridad con useComposerImages de fi-glass)
+
+private func imagenDePrueba(ancho: Int, alto: Int, ruido: Bool, tipo: UTType) -> Data {
+    let contexto = CGContext(
+        data: nil, width: ancho, height: alto, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    )!
+    contexto.setFillColor(CGColor(red: 0.2, green: 0.8, blue: 0.6, alpha: 1))
+    contexto.fill(CGRect(x: 0, y: 0, width: ancho, height: alto))
+    if ruido, let pixeles = contexto.data?.assumingMemoryBound(to: UInt8.self) {
+        var semilla: UInt32 = 118
+        for i in 0..<(contexto.bytesPerRow * alto) {
+            semilla = semilla &* 1_664_525 &+ 1_013_904_223
+            pixeles[i] = UInt8(truncatingIfNeeded: semilla >> 24)
+        }
+    }
+    let salida = NSMutableData()
+    let destino = CGImageDestinationCreateWithData(salida, tipo.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(destino, contexto.makeImage()!, nil)
+    CGImageDestinationFinalize(destino)
+    return salida as Data
+}
+
+private func dimensiones(_ base64: String) -> (Int, Int)? {
+    guard let datos = Data(base64Encoded: base64),
+          let fuente = CGImageSourceCreateWithData(datos as CFData, nil),
+          let props = CGImageSourceCopyPropertiesAtIndex(fuente, 0, nil) as? [CFString: Any],
+          let w = props[kCGImagePropertyPixelWidth] as? Int,
+          let h = props[kCGImagePropertyPixelHeight] as? Int else { return nil }
+    return (w, h)
+}
+
+private func imagenAdjuntaComoLaWeb() {
+    print("adjuntar: mismos tipos, reducción y rechazos que fi-glass")
+    let chica = imagenDePrueba(ancho: 300, alto: 200, ruido: false, tipo: .png)
+    let png = try? ImagenAdjunta.preparar(chica, nombre: "captura.png")
+    expect(png?.mediaType == "image/png", "un PNG chico viaja como PNG (conserva transparencia)")
+    expect(png?.data == chica.base64EncodedString(), "y byte por byte, sin pasar por el canvas")
+
+    let grande = imagenDePrueba(ancho: 4000, alto: 3000, ruido: true, tipo: .png)
+    expect(grande.count > ImagenAdjunta.bytesSinTocar, "control: la foto de prueba sí pesa más del umbral (\(grande.count) bytes)")
+    let reducida = try? ImagenAdjunta.preparar(grande, nombre: "foto.png")
+    expect(reducida?.mediaType == "image/jpeg", "una foto pesada se re-codifica a JPEG")
+    let lados = reducida.flatMap { dimensiones($0.data) }
+    expect(lados.map { max($0.0, $0.1) } == ImagenAdjunta.ladoMaximo, "con el lado mayor en 2048 (llegó \(lados.map { "\($0.0)×\($0.1)" } ?? "nada"))")
+    expect((reducida?.data.count ?? .max) <= ImagenAdjunta.maximoBase64, "y bajo el techo de 4 MiB de base64")
+
+    let heic = imagenDePrueba(ancho: 600, alto: 400, ruido: false, tipo: .heic)
+    expect((try? ImagenAdjunta.preparar(heic))?.mediaType == "image/jpeg", "el HEIC de la cámara (que el servidor rechaza) sale como JPEG")
+
+    do {
+        _ = try ImagenAdjunta.preparar(Data("no soy imagen".utf8), nombre: "nota.txt")
+        expect(false, "basura debería rechazarse")
+    } catch {
+        expect((error as? ImagenAdjunta.Rechazo) == .ilegible("nota.txt"), "basura se rechaza con el mensaje de la web")
+    }
+}
+
+@MainActor
+private func adjuntosTopanEnCuatro() async {
+    print("adjuntos: el quinto se rechaza con el mensaje de la web")
+    let modelo = AdjuntosModel()
+    let chica = imagenDePrueba(ancho: 40, alto: 40, ruido: false, tipo: .png)
+    await modelo.agregar((1...5).map { AdjuntosModel.Archivo(datos: chica, nombre: "f\($0).png") })
+    expect(modelo.borradores.count == 4, "se quedan 4 (hay \(modelo.borradores.count))")
+    expect(modelo.error == "Máximo 4 imágenes por mensaje.", "y el quinto avisa, no desaparece en silencio")
+    expect(modelo.lugaresLibres == 0, "sin lugares libres el + se deshabilita")
+}
+
+@MainActor
+private func laImagenViajaYSePersiste() async {
+    print("una imagen viaja en el turno, se guarda en el record y no se re-sube en history")
+    var imagenesEnviadas: [[MessageImage]] = []
+    var historias: [[ChatMessage]] = []
+    var guardados: [ConversationRecord] = []
+    let foto = MessageImage(mediaType: "image/png", data: "iVBORw0KGgo=")
+    let model = ChatModel(
+        conversationID: "img-1",
+        stream: { _, _, history, _, _, images in
+            imagenesEnviadas.append(images)
+            historias.append(history)
+            return AsyncThrowingStream { c in c.yield(.text("veo un gato")); c.yield(.done); c.finish() }
+        },
+        persist: { guardados.append($0) },
+        restore: { _ in nil },
+        now: { "2026-10-10T22:00:00Z" }
+    )
+    await model.restoreThread()
+    model.send("   ", images: [foto])
+    await settle()
+    expect(imagenesEnviadas.first?.first?.data == foto.data, "un envío de SÓLO imagen sale (la foto es el mensaje)")
+    expect(model.messages.first?.images.count == 1, "la burbuja del usuario lleva su imagen")
+    expect(guardados.last?.messages.first?.images?.first?.mediaType == "image/png", "el record guarda la imagen")
+    expect(guardados.last?.title == ConversationSchema.defaultTitle, "un hilo que empieza con foto toma el título por defecto, como core")
+
+    model.send("¿y ahora?")
+    await settle()
+    expect(imagenesEnviadas.last?.isEmpty == true, "el turno siguiente no re-sube la foto")
+    let cuerpo = String(data: (try? JSONEncoder().encode(historias.last ?? [])) ?? Data(), encoding: .utf8) ?? ""
+    expect(!cuerpo.contains("iVBORw0KGgo"), "ni la mete en history")
+
+    let releido = try? JSONDecoder().decode(ConversationRecord.self, from: JSONEncoder().encode(guardados.last!))
+    expect(releido?.chatMessages.first?.images.first?.data == foto.data, "al reabrir, la imagen vuelve a la burbuja")
+
+    let peticion = ChatRequest(message: "", sessionID: "img-1", history: [], corpusID: nil, element: nil,
+                               images: [ImagenDelTurno(mediaType: foto.mediaType, data: foto.data)])
+    try? JSONEncoder().encode(peticion).write(to: URL(fileURLWithPath: "/tmp/og118-chat-request.json"))
+    try? JSONEncoder().encode(guardados.last!).write(to: URL(fileURLWithPath: "/tmp/og118-record-con-imagen.json"))
+}
+
+@MainActor
+private func reintentarConservaLaImagen() async {
+    print("reintentar un turno con foto la vuelve a mandar")
+    var intentos = 0
+    var imagenes: [[MessageImage]] = []
+    let foto = MessageImage(mediaType: "image/jpeg", data: "/9j/4AAQ")
+    let model = ChatModel(
+        conversationID: "img-2",
+        stream: { _, _, _, _, _, imgs in
+            intentos += 1
+            imagenes.append(imgs)
+            return AsyncThrowingStream { c in
+                if intentos == 1 { c.finish(throwing: Og118Error.badStatus(503)) } else {
+                    c.yield(.text("listo")); c.yield(.done); c.finish()
+                }
+            }
+        },
+        restore: { _ in nil }
+    )
+    await model.restoreThread()
+    model.send("mira", images: [foto])
+    await settle()
+    expect(model.reintentable != nil, "el 503 deja el turno reintentable")
+    model.reintentar()
+    await settle()
+    expect(imagenes.last?.first?.data == foto.data, "y el reintento lleva la misma foto")
+    expect(model.messages.filter { $0.role == .user }.count == 1, "sin duplicar la burbuja del usuario")
+}
+
 @main
 struct Harness {
     static func main() async {
@@ -516,6 +710,12 @@ struct Harness {
         await elHistorialViajaSinElTurnoNuevo()
         derivacionesIgualesQueCore()
         await persisteAlCerrarElTurno()
+        await elModeloViajaDeIdaYVuelta()
+        elCorreoSaleDelIdToken()
+        imagenAdjuntaComoLaWeb()
+        await adjuntosTopanEnCuatro()
+        await laImagenViajaYSePersiste()
+        await reintentarConservaLaImagen()
         await restauraElHiloAlArrancar()
         await elIdDeConversacionEsElSessionID()
         await cambiarDeHiloNoMezclaMensajes()
@@ -549,6 +749,14 @@ struct Harness {
         await elDesenlaceDelPlanLlega()
         await laEnmiendaViveEntreElAnuncioYElPlanNuevo()
         losFramesDelPlanYaNoSonBasura()
+        resonanceElNucleoDeLaLlamada()
+        await unaReaccionSolaEsRespuesta()
+        await unTurnoDiferidoEsperaSinAcusarError()
+        await laEsperaDiferidaNoEsEterna()
+        await losVectoresDelTurnoSeCumplen()
+        await losVectoresDeDerivacionesSeCumplen()
+        await losVectoresDelHiloSeCumplen()
+        await elAppendDelServidorNoSeDuplicaAlGuardar()
         print(failures == 0 ? "\nTODO VERDE" : "\n\(failures) FALLARON")
         exit(failures == 0 ? 0 : 1)
     }
@@ -611,7 +819,7 @@ private func elPlanNoSeArrastraEntreTurnos() async {
         [.open, .plan(["a"]), .toolCall(name: "t", server: nil, isError: false), .text("1"), .done],
         [.open, .text("2"), .done]
     ]
-    let model = ChatModel(stream: { _, _, _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _, _ in
         let eventos = guion.isEmpty ? [] : guion.removeFirst()
         return AsyncThrowingStream { c in
             for e in eventos { c.yield(e) }
@@ -757,6 +965,7 @@ private func cambiarDeChatNoArrastraElReintento() async {
         stream: canned([]),
         restore: { _ in nil }
     )
+    await model.restoreThread()
     model.send("mensaje de A")
     await settle()
     expect(model.reintentable == "mensaje de A", "A dejó su reintento pendiente")
@@ -912,9 +1121,11 @@ private func elParserLeeUnTurnoDeVerdad() {
     // aquí y no en el teléfono de Bernard.
     let ruta = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
-        .appendingPathComponent("Fixtures/turno-real.sse")
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/fixtures/turno-real.sse")
     guard let crudo = try? String(contentsOf: ruta, encoding: .utf8) else {
-        expect(false, "la captura real existe en Tests/Fixtures/turno-real.sse")
+        expect(false, "la captura real existe en core/contracts/fixtures/turno-real.sse")
         return
     }
 
@@ -945,7 +1156,7 @@ private func elParserLeeUnTurnoDeVerdad() {
         switch e {
         case .open: abrio = true
         case .text(let t): texto = t
-        case .result(let t, let m): resultado = t; modelo = m
+        case .result(let t, let m, _): resultado = t; modelo = m
         case .done: cerro = true
         default: break
         }
@@ -988,16 +1199,17 @@ private func elTurnoVacioSeDeclara() async {
     let model = ChatModel(stream: canned([]))
     model.send("hola")
     await settle()
-    expect(model.errorMessage?.contains("sin mandar un solo frame") == true,
-           "cero frames se nombra como tal")
+    expect(model.errorMessage == Copy.turnEmpty, "el silencio se declara con la frase del contrato")
+    expect(model.herramientas.contains("sin un solo frame"), "y la bitácora dice que no llegó un solo frame")
     expect(model.reintentable == "hola", "el mensaje queda listo para reintentar")
-    expect(model.messages.count == 1, "y NO se inventa una burbuja de asistente")
+    expect(model.messages.isEmpty, "la burbuja optimista se revierte (hubo \(model.messages.count))")
+    expect(model.borradorNoEnviado?.texto == "hola", "y el texto vuelve al composer")
 
     let conFrames = ChatModel(stream: canned([.open, .stepStarted(0), .done]))
     conFrames.send("hola")
     await settle()
-    expect(conFrames.errorMessage?.contains("3 frames") == true,
-           "con frames pero sin texto, se dice cuántos llegaron")
+    expect(conFrames.errorMessage == Copy.turnEmpty, "con frames pero sin texto, la misma frase")
+    expect(conFrames.herramientas.contains("3 frames sin texto"), "y la bitácora dice cuántos llegaron")
 }
 
 @MainActor
@@ -1015,7 +1227,7 @@ private func reintentarNoDuplicaLaBurbujaDelUsuario() async {
     print("reintentar rehace el turno, no el mensaje")
     var guion: [[StreamEvent]] = [[], [.open, .text("ahora sí"), .done]]
     var historiasVistas: [[ChatMessage]] = []
-    let model = ChatModel(stream: { _, _, history, _, _ in
+    let model = ChatModel(stream: { _, _, history, _, _, _ in
         historiasVistas.append(history)
         let eventos = guion.isEmpty ? [] : guion.removeFirst()
         return AsyncThrowingStream { c in
@@ -1041,7 +1253,7 @@ private func reintentarNoDuplicaLaBurbujaDelUsuario() async {
 @MainActor
 private func cancelarNoOfreceReintento() async {
     print("cancelar es una decisión, no una falla")
-    let model = ChatModel(stream: { _, _, _, _, _ in
+    let model = ChatModel(stream: { _, _, _, _, _, _ in
         AsyncThrowingStream { c in c.yield(.open) }
     })
     model.send("hola")
@@ -1077,4 +1289,534 @@ private func elMarkdownPegadoSeRepara() {
     let abierto = "texto.## Sí\n```\nfin.## no"
     expect(n(abierto) == "texto.\n\n## Sí\n```\nfin.## no",
            "con el fence abierto sólo se repara lo de afuera")
+}
+
+// MARK: - Resonance: el núcleo de la llamada, mismo contrato que fi-glass
+
+private func resonanceElNucleoDeLaLlamada() {
+    print("resonance: máquina, efectos, cues, VAD y escala del analizador")
+    let r = ResonanceMachine.reducir
+    expect(r(.idle, .callStarted) == .listening, "llamar abre a escuchar")
+    expect(r(.listening, .userSpeechEnded) == .transcribing, "fin de habla transcribe")
+    expect(r(.transcribing, .sttCompleted) == .thinking, "la transcripción pasa a pensar")
+    expect(r(.thinking, .assistantSpeechStarted) == .speaking, "la respuesta se habla")
+    expect(r(.speaking, .assistantSpeechCompleted) == .silenceHold, "al terminar de hablar, silencio")
+    expect(r(.silenceHold, .silenceResume) == .listening, "el auto-resume vuelve a escuchar")
+    expect(r(.speaking, .userSpeechStarted) == .interrupted, "hablar encima interrumpe")
+    expect(r(.thinking, .errorRecoverable) == .listening, "un fallo recuperable vuelve a escuchar")
+    expect(r(.idle, .errorRecoverable) == .idle, "en reposo un fallo no arranca nada")
+    expect(r(.transcribing, .errorFatal) == .ended, "un fallo fatal cuelga")
+    expect(r(.ended, .callStarted) == .ended, "colgada es terminal")
+    expect(r(.silenceHold, .userSpeechStarted) == .silenceHold, "en silencio la voz no cambia de estado, como la web")
+
+    var efectos: [ResonanceEffect] = []
+    let c = ResonanceController()
+    c.alEfecto = { efectos.append($0) }
+    c.empezarLlamada()
+    c.enviar(.userSpeechEnded)
+    c.sttCompleto("hola")
+    c.respuestaLista("qué tal")
+    c.interrumpir()
+    expect(efectos == [.openMic, .beginTranscribe, .invokeAgent, .speak, .stopSpeaking, .openMic],
+           "el turno completo despacha los efectos de la web en orden, con barge-in")
+    expect(c.transcripcion == "hola" && c.textoAsistente == "qué tal", "guarda transcripción y respuesta")
+    c.colgar()
+    expect(c.estado == .ended && efectos.last == .endCall, "colgar despacha end_call")
+    c.empezarLlamada()
+    expect(c.estado == .listening, "una llamada nueva reinicia un controlador ya colgado")
+
+    let p = ResonanceCuePolicy.acciones
+    expect(p(.listening, .transcribing, .userSpeechEnded) == [.playLoop(.thinking), .playOnce(.crystalline)],
+           "fin de habla: arranca el loop y suena el cristal")
+    expect(p(.transcribing, .thinking, .sttCompleted) == [], "transcribir→pensar no reinicia el loop")
+    expect(p(.thinking, .speaking, .assistantSpeechStarted) == [.stopLoop(.thinking)], "salir de pensar lo detiene")
+    expect(p(.thinking, .listening, .errorRecoverable) == [.stopLoop(.thinking)], "un error tampoco lo deja colgado")
+    expect(p(.speaking, .silenceHold, .assistantSpeechCompleted) == [.playOnce(.ready)], "al terminar suena «ready»")
+    expect(p(.thinking, .ended, .callEnded) == [.stopAll], "colgar silencia todo")
+
+    var g = ResonanceVadGate()
+    expect(g.tick(nivel: 30, ahoraMs: 0, modo: .detect) == nil, "la voz no se declara antes de 180 ms")
+    expect(g.tick(nivel: 30, ahoraMs: 180, modo: .detect) == .speechStart, "a los 180 ms sostenidos sí")
+    expect(g.tick(nivel: 18, ahoraMs: 600, modo: .detect) == nil, "entre umbrales sigue siendo voz (histéresis)")
+    expect(g.tick(nivel: 5, ahoraMs: 1000, modo: .detect) == nil, "silencio corto no cierra el turno")
+    expect(g.tick(nivel: 5, ahoraMs: 1450, modo: .detect) == .speechEnd, "850 ms de silencio lo cierran")
+    var largo = ResonanceVadGate()
+    _ = largo.tick(nivel: 40, ahoraMs: 0, modo: .detect)
+    _ = largo.tick(nivel: 40, ahoraMs: 200, modo: .detect)
+    expect(largo.tick(nivel: 40, ahoraMs: 20_200, modo: .detect) == .speechEnd, "un turno se corta a los 20 s")
+    var barge = ResonanceVadGate()
+    _ = barge.tick(nivel: 30, ahoraMs: 0, modo: .barge)
+    expect(barge.tick(nivel: 30, ahoraMs: 200, modo: .barge) == .bargeIn, "hablar encima del TTS dispara barge-in")
+    expect(barge.tick(nivel: 30, ahoraMs: 400, modo: .barge) == nil, "una sola vez por interrupción")
+    expect(ResonancePolicy.modoVad(.thinking) == .idle && ResonancePolicy.modoVad(.silenceHold) == .detect,
+           "el modo del VAD sale del estado como en la web")
+
+    var s = ResonanceSpectrum()
+    let silencio = ResonanceSpectrum.nivel(s.bytes(Array(repeating: 0, count: 256)))
+    expect(silencio == 0, "silencio digital = nivel 0, como getByteFrequencyData")
+    // Fixture: AnalyserNode de Chrome (OfflineAudioContext 48 kHz, seno 1 kHz ×0.3, ganancia 2.5,
+    // smoothing 0) leído en el frame 2560. El puerto debe dar los mismos bytes.
+    let chrome: [UInt8] = [90, 93, 88, 195, 255, 255, 255, 255, 139, 90, 81, 67, 53, 40, 29, 19, 10, 1]
+        + [UInt8](repeating: 0, count: 110)
+    var exacto = ResonanceSpectrum(smoothing: 0)
+    let tono = (2304..<2560).map { Float(0.3 * sin(2 * Double.pi * 1000 * Double($0) / 48_000)) * ResonancePolicy.gain }
+    let propios = exacto.bytes(tono)
+    let peor = zip(propios, chrome).map { abs(Int($0) - Int($1)) }.max() ?? 255
+    expect(peor <= 1, "los 128 bins coinciden con el AnalyserNode de Chrome (peor diferencia \(peor))")
+    var semilla: UInt64 = 7
+    let vozAncha = (0..<256).map { _ -> Float in
+        semilla = semilla &* 6364136223846793005 &+ 1442695040888963407
+        return (Float(semilla >> 40) / Float(1 << 24) * 2 - 1) * 0.05 * ResonancePolicy.gain
+    }
+    var ancha = ResonanceSpectrum()
+    var nivelVoz = 0.0
+    for _ in 0..<20 { nivelVoz = ResonanceSpectrum.nivel(ancha.bytes(vozAncha)) }
+    expect(nivelVoz > 24, "una señal de banda ancha a 0.05 cruza el umbral de 24 (midió \(Int(nivelVoz)); Chrome mide 166)")
+    var debil = ResonanceSpectrum()
+    let ruido = (0..<256).map { Float(0.0002 * sin(2 * Double.pi * 300 * Double($0) / 48_000)) * ResonancePolicy.gain }
+    var nivelRuido = 0.0
+    for _ in 0..<20 { nivelRuido = ResonanceSpectrum.nivel(debil.bytes(ruido)) }
+    expect(nivelRuido < 13, "un murmullo de fondo queda bajo el piso de 13 (midió \(Int(nivelRuido)))")
+    expect(ResonanceSpectrum.bandas([UInt8](repeating: 255, count: 128), cuantas: 24, ganancia: 2.5).allSatisfy { $0 == 1 },
+           "las bandas se recortan a 1")
+    expect(ResonancePolicy.etiqueta(.speaking, oyendo: false) == "Hablando — puedes interrumpir"
+           && ResonancePolicy.etiqueta(.listening, oyendo: true) == "Te oigo", "las etiquetas son las de la web")
+}
+
+// MARK: - reactions: el campo del contrato que el teléfono no veía
+
+@MainActor
+private func unaReaccionSolaEsRespuesta() async {
+    print("un turno con reacción y sin texto es una respuesta, no un error")
+    var guardados: [ConversationRecord] = []
+    let model = ChatModel(
+        stream: canned([.open, .result(text: "", model: nil, reactions: ["🔥", "👀"]), .done]),
+        persist: { guardados.append($0) },
+        restore: { _ in nil }
+    )
+    await model.restoreThread()
+    model.send("mira esto")
+    await settle()
+
+    expect(model.errorMessage == nil, "no acusa 'frames sin texto'")
+    expect(model.reintentable == nil, "ni ofrece reintentar")
+    expect(model.messages.count == 2, "la reacción deja su burbuja (hubo \(model.messages.count))")
+    expect(model.messages.last?.reactions == ["🔥", "👀"], "con las reacciones del contrato")
+    expect(model.messages.last?.content == "", "y sin inventar texto")
+    guard let r = guardados.last else { return expect(false, "se guardó el turno") }
+    expect(r.messages.last?.reactions == ["🔥", "👀"], "y se persisten donde la web las lee")
+    let releido = try? JSONDecoder().decode(ConversationRecord.self, from: JSONEncoder().encode(r))
+    expect(releido?.chatMessages.last?.reactions == ["🔥", "👀"], "y vuelven al reabrir el hilo")
+}
+
+// MARK: - deferred: el frame que rompió la compilación en main sin que nadie lo viera
+
+@MainActor
+private func unTurnoDiferidoEsperaSinAcusarError() async {
+    print("deferred: el motor sigue trabajando, no es un error, y la respuesta llega al hilo")
+    var tardio: ConversationRecord?
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.open, .author(id: "53", name: "Yodo"), .deferred, .done]),
+        persist: { _ in },
+        restore: { _ in tardio },
+        now: { "2026-10-17T12:00:00Z" },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    await model.restoreThread()
+    model.send("¿y entonces?")
+    await settle()
+
+    expect(model.errorMessage == nil, "no acusa error")
+    expect(model.reintentable == nil, "no ofrece reintentar: no hay nada que rehacer")
+    expect(model.messages.count == 1, "no inventa una burbuja vacía (hubo \(model.messages.count))")
+    expect(
+        model.avisoDeEspera == "Yodo sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.",
+        "avisa con la frase de core, con el autor del turno (\(model.avisoDeEspera ?? "nil"))"
+    )
+
+    tardio = ConversationRecord.from(
+        id: "abc-123",
+        messages: [
+            ChatMessage(role: .user, content: "¿y entonces?"),
+            ChatMessage(role: .assistant, content: "llegué tarde", author: ChatMessage.Autor(id: "53", nombre: "Yodo"))
+        ],
+        createdAt: "2026-10-17T12:00:00Z",
+        now: "2026-10-17T12:00:09Z"
+    )
+    await esperar { model.messages.count == 2 && model.avisoDeEspera == nil }
+    expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
+    expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
+    expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
+}
+
+@MainActor
+private func laEsperaDiferidaNoEsEterna() async {
+    print("deferred: si la respuesta nunca llega, el aviso lo dice en vez de mentir 'sigue escribiendo'")
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: canned([.open, .deferred, .done]),
+        persist: { _ in },
+        restore: { _ in nil },
+        pausa: {}
+    )
+    await model.restoreThread()
+    model.send("¿y entonces?")
+    await settle()
+    expect(model.avisoDeEspera == Copy.turnDeferredTimeout,
+           "tras agotar los reintentos el aviso cambia (\(model.avisoDeEspera ?? "nil"))")
+    expect(model.errorMessage == nil, "y sigue sin ser un error")
+}
+
+// MARK: - contracts/agent-turn.vectors.json — la máquina del turno como contrato
+
+private func canonico(_ objeto: Any) -> String {
+    guard let datos = try? JSONSerialization.data(withJSONObject: objeto, options: [.sortedKeys, .fragmentsAllowed]) else {
+        return "<no-json>"
+    }
+    return String(decoding: datos, as: UTF8.self)
+}
+
+@MainActor
+private func proyeccionDelTurno(_ model: ChatModel) -> [String: Any] {
+    let ultimo = model.messages.last(where: { $0.role == .assistant })
+    let p = model.plan
+    var plan: Any = NSNull()
+    if !(p.vacio && p.rechazo == nil && p.enmienda == nil && p.desenlace == nil) {
+        let pasos: [[String: Any]] = p.pasos.map { paso in
+            let estado: String = switch paso.estado {
+            case .pendiente: "pending"
+            case .corriendo: "running"
+            case .hecho: "done"
+            case .fallido: "failed"
+            case .cancelado: "cancelled"
+            }
+            let detalle: Any = paso.detalle ?? NSNull()
+            return [
+                "label": paso.etiqueta,
+                "status": estado,
+                "summary": paso.estado == .hecho ? detalle : NSNull(),
+                "error": paso.estado == .hecho ? NSNull() : detalle,
+                "note": paso.nota ?? NSNull()
+            ]
+        }
+        let rechazo: Any = p.rechazo.map {
+            ["reason": $0.razon, "matched": $0.etiquetas, "guard": $0.guardia ?? NSNull()] as [String: Any]
+        } ?? NSNull()
+        let desenlace: Any = p.desenlace.map { d -> String in
+            switch d {
+            case .completado: "completed"
+            case .fallido: "failed"
+            case .cancelado: "cancelled"
+            }
+        } ?? NSNull()
+        plan = [
+            "steps": pasos,
+            "rejection": rechazo,
+            "amended": p.enmienda?.rawValue ?? NSNull(),
+            "outcome": desenlace
+        ] as [String: Any]
+    }
+    return [
+        "text": model.textoDelUltimoTurno,
+        "status": model.errorMessage == nil ? "done" : "error",
+        "deferred": model.avisoDeEspera != nil,
+        "reactions": ultimo?.reactions ?? [],
+        "author": ultimo?.author.map { ["id": $0.id, "name": $0.nombre] as [String: Any] } ?? NSNull(),
+        "plan": plan
+    ]
+}
+
+@MainActor
+private func losVectoresDelTurnoSeCumplen() async {
+    print("agent-turn.vectors.json: la máquina del turno obedece el mismo contrato que core")
+    let ruta = URL(fileURLWithPath: #filePath).absoluteURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/agent-turn.vectors.json")
+    guard let datos = try? Data(contentsOf: ruta),
+          let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let vectores = raiz["vectors"] as? [[String: Any]], !vectores.isEmpty else {
+        expect(false, "el contrato existe y trae vectores: \(ruta.path)")
+        return
+    }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let frames = vector["events"] as? [[String: Any]] ?? []
+        let eventos = frames.compactMap { frame -> StreamEvent? in
+            guard let d = try? JSONSerialization.data(withJSONObject: frame) else { return nil }
+            return StreamEvent.decode(d)
+        }
+        let model = ChatModel(stream: canned(eventos))
+        model.send("vector")
+        await settle()
+        let actual = canonico(proyeccionDelTurno(model))
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        expect(actual == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(actual)")
+    }
+}
+
+// MARK: - contracts/conversation-derivations.vectors.json
+
+private func contrato(_ nombre: String) -> [[String: Any]]? {
+    let ruta = URL(fileURLWithPath: #filePath).absoluteURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("packages/free-intelligence-core/contracts/\(nombre)")
+    guard let datos = try? Data(contentsOf: ruta),
+          let raiz = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+          let vectores = raiz["vectors"] as? [[String: Any]], !vectores.isEmpty else {
+        expect(false, "el contrato existe y trae vectores: \(ruta.path)")
+        return nil
+    }
+    return vectores
+}
+
+private func mensajes(_ crudos: Any?) -> [ChatMessage] {
+    (crudos as? [[String: Any]] ?? []).compactMap { m in
+        guard let rol = ChatMessage.Role(rawValue: m["role"] as? String ?? "") else { return nil }
+        return ChatMessage(role: rol, content: m["content"] as? String ?? "", timestamp: m["timestamp"] as? String)
+    }
+}
+
+@MainActor
+private func losVectoresDeDerivacionesSeCumplen() async {
+    print("conversation-derivations.vectors.json: título, preview, rename y sidebar como en core")
+    guard let vectores = contrato("conversation-derivations.vectors.json") else { return }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let entrada = vector["input"] as? [String: Any] ?? [:]
+        var actual: Any = NSNull()
+        switch vector["kind"] as? String {
+        case "title":
+            actual = ConversationSchema.title(mensajes(entrada["messages"]))
+        case "preview":
+            actual = ConversationSchema.preview(mensajes(entrada["messages"]))
+        case "rename":
+            let base = entrada["record"] as? [String: Any] ?? [:]
+            var record = ConversationRecord.from(
+                id: "c", messages: mensajes(base["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+            )
+            record.title = base["title"] as? String ?? record.title
+            record.titleCustom = (base["titleCustom"] as? Bool) == true ? true : nil
+            let r = record
+            let modelo = ConversationsModel(list: { [] }, load: { _ in r }, save: { _ in })
+            let guardado = await modelo.rename("c", to: entrada["newTitle"] as? String ?? "")
+            actual = ["title": guardado?.title ?? "", "titleCustom": guardado?.titleCustom == true] as [String: Any]
+        case "organize":
+            let datos = (try? JSONSerialization.data(withJSONObject: entrada["summaries"] ?? [])) ?? Data()
+            let lista = (try? JSONDecoder().decode([ConversationSummary].self, from: datos)) ?? []
+            let modelo = ConversationsModel(list: { lista })
+            await modelo.refresh()
+            actual = [
+                "pinned": modelo.pinned.map(\.id),
+                "active": modelo.active.map(\.id),
+                "archived": modelo.archived.map(\.id)
+            ] as [String: Any]
+        default:
+            expect(false, "\(nombre): kind desconocido «\(vector["kind"] as? String ?? "?")» — el arnés no lo implementa")
+        }
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        let visto = canonico(actual)
+        expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
+    }
+}
+
+// MARK: - contracts/conversation-state.vectors.json
+
+private func eventosDeDesenlace(_ op: [String: Any]) -> [StreamEvent] {
+    let texto = op["text"] as? String ?? ""
+    let reacciones = op["reactions"] as? [String] ?? []
+    var eventos: [StreamEvent] = [.open]
+    if !texto.isEmpty { eventos.append(.text(texto)) }
+    if !reacciones.isEmpty { eventos.append(.result(text: "", model: nil, reactions: reacciones)) }
+    if op["deferred"] as? Bool == true { eventos.append(.deferred) }
+    eventos.append(.done)
+    return eventos
+}
+
+/// Cómo termina el stream de un vector: con frames, tronando el transporte,
+/// colgado hasta que el usuario lo para (`stopped`), o retenido abierto hasta
+/// que el arnés aplica lo que llega a mitad del turno (`merge_seed`).
+private indirect enum DesenlaceDelTurno {
+    case eventos([StreamEvent])
+    case falla
+    case colgado
+    case retenido(DesenlaceDelTurno)
+}
+
+private func alimentar(_ c: AsyncThrowingStream<StreamEvent, Error>.Continuation, _ desenlace: DesenlaceDelTurno) {
+    switch desenlace {
+    case .falla:
+        c.finish(throwing: Og118Error.unauthorized)
+    case .colgado, .retenido:
+        c.yield(.open)
+    case .eventos(let eventos):
+        for e in eventos { c.yield(e) }
+        c.finish()
+    }
+}
+
+/// Sin texto parcial la falla es un transporte que truena; con texto parcial es
+/// un frame `error` a mitad del turno, que también revierte.
+private func desenlace(_ op: [String: Any], falla: Bool) -> DesenlaceDelTurno {
+    if op["stopped"] as? Bool == true { return .colgado }
+    guard falla else { return .eventos(eventosDeDesenlace(op)) }
+    guard let parcial = op["partialText"] as? String, !parcial.isEmpty else { return .falla }
+    return .eventos([.open, .text(parcial), .failure(op["message"] as? String ?? "error"), .done])
+}
+
+/// `saved` sólo se proyecta cuando el vector lo declara; entonces se mide, nunca se salta.
+@MainActor
+private func proyeccionDelHilo(_ model: ChatModel, guardado: ConversationRecord?, esperado: Any?) -> [String: Any] {
+    var proyeccion: [String: Any] = [
+        "messages": model.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] },
+        "failure": model.errorMessage == nil ? NSNull() : (model.tipoDeFalla == .vacio ? "empty" : "stream"),
+        "unsentText": model.borradorNoEnviado?.texto ?? NSNull(),
+        "lastSentText": model.ultimoEnvio?.texto ?? NSNull()
+    ]
+    if (esperado as? [String: Any])?["saved"] != nil {
+        proyeccion["saved"] = guardado.map { r in
+            r.messages.map { ["role": $0.role.rawValue, "content": $0.content] as [String: Any] }
+        } ?? NSNull()
+    }
+    return proyeccion
+}
+
+@MainActor
+private func losVectoresDelHiloSeCumplen() async {
+    print("conversation-state.vectors.json: envío, fold, falla, reintento e hidratación como en core")
+    guard let vectores = contrato("conversation-state.vectors.json") else { return }
+    for vector in vectores {
+        let nombre = vector["name"] as? String ?? "?"
+        let ops = vector["ops"] as? [[String: Any]] ?? []
+        var cola: [DesenlaceDelTurno] = []
+        var enVuelo: (AsyncThrowingStream<StreamEvent, Error>.Continuation, DesenlaceDelTurno)?
+        let stream: ChatModel.Stream = { _, _, _, _, _, _ in
+            let siguiente: DesenlaceDelTurno = cola.isEmpty ? .eventos([]) : cola.removeFirst()
+            return AsyncThrowingStream { c in
+                if case .retenido(let despues) = siguiente { enVuelo = (c, despues) }
+                alimentar(c, siguiente)
+            }
+        }
+        var semilla: ConversationRecord?
+        if let primero = ops.first, primero["op"] as? String == "hydrate" {
+            semilla = ConversationRecord.from(
+                id: "v", messages: mensajes(primero["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+            )
+        }
+        var registro = semilla
+        var guardado: ConversationRecord?
+        let model = ChatModel(
+            conversationID: "v",
+            stream: stream,
+            persist: { guardado = $0 },
+            restore: { _ in registro },
+            pausa: {}
+        )
+        await model.restoreThread()
+        func operar(_ op: [String: Any], en indice: Int) {
+            switch op["op"] as? String ?? "" {
+            case "hydrate":
+                expect(indice == 0, "\(nombre): hydrate sólo abre el vector (el arnés lo restaura)")
+            case "merge_seed":
+                // La semilla ES la copia del servidor: el save la relee antes del PUT.
+                registro = ConversationRecord.from(
+                    id: "v", messages: mensajes(op["messages"]), createdAt: "2026-10-17T00:00:00Z", now: "2026-10-17T00:00:00Z"
+                )
+                model.unirHiloDelServidor(mensajes(op["messages"]))
+            case "dismiss_failure":
+                model.errorMessage = nil
+            case "clear_unsent":
+                model.borradorRestaurado()
+            default:
+                expect(false, "\(nombre): op desconocido «\(op["op"] as? String ?? "?")» — el arnés no lo implementa")
+            }
+        }
+        var i = 0
+        while i < ops.count {
+            let op = ops[i]
+            switch op["op"] as? String ?? "" {
+            case "send", "retry":
+                var parado = false
+                var aMitad: [[String: Any]] = []
+                var j = i + 1
+                while j < ops.count, ops[j]["op"] as? String == "merge_seed" { j += 1 }
+                if j < ops.count, let sig = ops[j]["op"] as? String, sig == "settled" || sig == "failed" {
+                    parado = ops[j]["stopped"] as? Bool == true
+                    aMitad = Array(ops[(i + 1)..<j])
+                    let final = desenlace(ops[j], falla: sig == "failed")
+                    cola.append(aMitad.isEmpty ? final : .retenido(final))
+                    i = j
+                } else {
+                    cola.append(.eventos([]))
+                }
+                if op["op"] as? String == "send" {
+                    model.send(op["text"] as? String ?? "")
+                } else {
+                    model.reintentar()
+                }
+                await settle()
+                if !aMitad.isEmpty {
+                    for (k, intermedia) in aMitad.enumerated() { operar(intermedia, en: i - aMitad.count + k) }
+                    if let (c, despues) = enVuelo { alimentar(c, despues) }
+                    enVuelo = nil
+                    await settle()
+                }
+                if parado {
+                    model.cancel()
+                    await settle()
+                }
+            default:
+                operar(op, en: i)
+            }
+            i += 1
+        }
+        await settle()
+        let esperado = canonico(vector["expect"] ?? NSNull())
+        let visto = canonico(proyeccionDelHilo(model, guardado: guardado, esperado: vector["expect"]))
+        expect(visto == esperado, "\(nombre)\n       esperado \(esperado)\n       actual   \(visto)")
+    }
+}
+
+@MainActor
+private func elAppendDelServidorNoSeDuplicaAlGuardar() async {
+    print("el mensaje del worker que ya está en el servidor no se re-sube al guardar el turno")
+    let ayer = [
+        ChatMessage(role: .user, content: "ayer", timestamp: "2020-01-01T00:00:00Z"),
+        ChatMessage(role: .assistant, content: "te contesté", timestamp: "2020-01-01T00:00:01Z")
+    ]
+    let worker = ChatMessage(role: .assistant, content: "listo el reporte", timestamp: "2999-01-01T00:00:00Z")
+    let base = ConversationRecord.from(id: "w", messages: ayer, createdAt: "2020-01-01T00:00:00Z", now: "2020-01-01T00:00:01Z")
+    let vivo = ConversationRecord.from(id: "w", messages: ayer + [worker], createdAt: "2020-01-01T00:00:00Z", now: "2999-01-01T00:00:00Z")
+    var servidor = base
+    var guardado: ConversationRecord?
+    var turno: AsyncThrowingStream<StreamEvent, Error>.Continuation?
+    let model = ChatModel(
+        conversationID: "w",
+        stream: { _, _, _, _, _, _ in AsyncThrowingStream { c in c.yield(.open); turno = c } },
+        persist: { guardado = $0 },
+        restore: { _ in servidor },
+        now: { "2026-10-19T00:00:00Z" },
+        pausa: {}
+    )
+    await model.restoreThread()
+    model.send("hola")
+    await settle()
+    servidor = vivo
+    model.unirHiloDelServidor(vivo.chatMessages)
+    expect(model.isStreaming, "unir el hilo del servidor no toca el turno en vuelo")
+    expect(model.messages.map(\.content) == ["ayer", "te contesté", "hola", "listo el reporte"],
+           "el mensaje del worker se ordena por timestamp (\(model.messages.map(\.content)))")
+    turno?.yield(.text("respuesta"))
+    turno?.yield(.done)
+    turno?.finish()
+    await settle()
+    let contenidos = guardado?.messages.map(\.content) ?? []
+    expect(contenidos.filter { $0 == "listo el reporte" }.count == 1, "el worker queda UNA vez en lo guardado (\(contenidos))")
+    expect(contenidos.contains("hola") && contenidos.last == "respuesta", "y el turno se guarda completo (\(contenidos))")
+    expect(contenidos == ["ayer", "te contesté", "hola", "listo el reporte", "respuesta"],
+           "y en el orden del hilo, como lo guarda la web (\(contenidos))")
 }

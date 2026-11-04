@@ -5,7 +5,7 @@
  * Superadmin only - CRUD operations.
  */
 
-import type { LLMModel, LLMModelCreate, LLMModelUpdate, LLMProvider } from '@aurity-standalone/types/llm';
+import type { LLMModel, LLMModelCreate, LLMModelUpdate, LLMProvider, ModelTestResult } from 'fi-glass/model-catalog';
 import { api } from './client';
 import { ROUTES } from './routes';
 
@@ -31,13 +31,6 @@ export async function fetchLLMModels(options?: {
 }
 
 /**
- * Fetch a specific LLM model by ID
- */
-export async function fetchLLMModel(modelId: string): Promise<LLMModel> {
-  return api.get<LLMModel>(`${API_BASE}/${modelId}`);
-}
-
-/**
  * Create a new LLM model
  */
 export async function createLLMModel(data: LLMModelCreate): Promise<LLMModel> {
@@ -57,31 +50,6 @@ export async function updateLLMModel(modelId: string, data: LLMModelUpdate): Pro
 export async function deleteLLMModel(modelId: string, hardDelete = false): Promise<void> {
   const params = hardDelete ? '?hard_delete=true' : '';
   await api.delete<void>(`${API_BASE}/${modelId}${params}`);
-}
-
-/**
- * Get list of available providers
- */
-export async function fetchProviders(): Promise<string[]> {
-  return api.get<string[]>(`${API_BASE}/providers/list`);
-}
-
-/**
- * Get list of available cost tiers
- */
-export async function fetchCostTiers(): Promise<string[]> {
-  return api.get<string[]>(`${API_BASE}/cost-tiers/list`);
-}
-
-/**
- * Test response from model validation
- */
-export interface ModelTestResult {
-  success: boolean;
-  model_id: string;
-  prompt: string;
-  response: string;
-  error?: string | null;
 }
 
 /**

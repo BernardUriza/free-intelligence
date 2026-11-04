@@ -1,17 +1,41 @@
 import Foundation
 
+/// Lo que un turno fallido devuelve al composer: el mensaje ENTERO (texto e
+/// imágenes), como `unsent` en core. Devolver sólo el texto perdía las fotos.
+struct BorradorNoEnviado {
+    let texto: String
+    let imagenes: [MessageImage]
+}
+
 @MainActor
 final class ChatModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var liveText = ""
     @Published private(set) var liveAuthor: ChatMessage.Autor?
+    private var liveModel: String?
+    private var liveReactions: [String] = []
+    private var turnoDiferido = false
+    /// El motor sigue trabajando tras cerrar el stream: se avisa, no se acusa.
+    @Published private(set) var avisoDeEspera: String?
     @Published private(set) var plan = TurnPlan()
     /// El texto del turno que se puede volver a intentar. Existe porque un turno
     /// que muere no debe obligar a reteclear: el mensaje ya está en el hilo.
     @Published private(set) var reintentable: String?
+    @Published private(set) var borradorNoEnviado: BorradorNoEnviado?
+    /// Lo que el turno alcanzó a decir, se haya plegado o revertido: es la
+    /// bitácora del turno (core: `AgentTurnState.text`), no el hilo.
+    private(set) var textoDelUltimoTurno = ""
+    enum TipoDeFalla { case transporte, vacio }
+    /// Qué falló: el transporte/el motor, o un turno que cerró sin decir nada.
+    private(set) var tipoDeFalla: TipoDeFalla?
+    private(set) var ultimoEnvio: BorradorNoEnviado?
     @Published private(set) var herramientas: [String] = []
     @Published private(set) var isStreaming = false
     @Published private(set) var isRestoring = false
+    /// El hilo acepta turnos sólo cuando ya se sabe qué hay en el servidor:
+    /// escribir sobre un restore fallido reemplazaba la conversación entera.
+    @Published private(set) var hiloListo: Bool
+    @Published private(set) var cargaFallida: String?
     @Published var errorMessage: String?
 
     typealias Stream = (
@@ -19,10 +43,12 @@ final class ChatModel: ObservableObject {
         _ sessionID: String,
         _ history: [ChatMessage],
         _ corpusID: String?,
-        _ element: String?
+        _ element: String?,
+        _ images: [MessageImage]
     ) -> AsyncThrowingStream<StreamEvent, Error>
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
+    typealias Pausa = () async -> Void
 
     @Published private(set) var conversationID: String
 
@@ -40,6 +66,7 @@ final class ChatModel: ObservableObject {
     private let persist: Persist?
     private let restore: Restore?
     private let now: () -> String
+    private let pausa: Pausa
     private let defaults: UserDefaults
     private var createdAt: String
     /// El record tal como llegó del servidor: al persistir se arrastran sus
@@ -47,8 +74,10 @@ final class ChatModel: ObservableObject {
     /// reemplazo completo.
     private var baseRecord: ConversationRecord?
     private var turn: Task<Void, Never>?
+    private var espera: Task<Void, Never>?
     private var saveChain: Task<Void, Never>?
     private var framesDelTurno = 0
+    private var esperabaRecord = false
 
     init(
         conversationID: String = ConversationIdentity.current(),
@@ -56,6 +85,7 @@ final class ChatModel: ObservableObject {
         persist: Persist? = nil,
         restore: Restore? = nil,
         now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) },
+        pausa: @escaping Pausa = { try? await Task.sleep(nanoseconds: 3_000_000_000) },
         defaults: UserDefaults = .standard
     ) {
         self.conversationID = conversationID
@@ -66,7 +96,9 @@ final class ChatModel: ObservableObject {
         self.persist = persist
         self.restore = restore
         self.now = now
+        self.pausa = pausa
         self.createdAt = now()
+        self.hiloListo = restore == nil
     }
 
     convenience init(client: Og118Client) {
@@ -83,13 +115,21 @@ final class ChatModel: ObservableObject {
     /// chat que no carga se ve idéntico a uno vacío — el mismo silencio que ya
     /// nos costó horas con la lista.
     func restoreThread(esperabaRecord: Bool = false) async {
-        guard let restore, messages.isEmpty, !isRestoring else { return }
+        guard let restore else {
+            hiloListo = true
+            return
+        }
+        guard !isRestoring, !hiloListo else { return }
+        self.esperabaRecord = esperabaRecord
         isRestoring = true
+        cargaFallida = nil
         defer { isRestoring = false }
         do {
             guard let record = try await restore(conversationID) else {
                 if esperabaRecord {
-                    errorMessage = "Esta conversación no está en tu cuenta."
+                    cargaFallida = "Esta conversación no está en tu cuenta."
+                } else {
+                    hiloListo = true
                 }
                 return
             }
@@ -102,42 +142,54 @@ final class ChatModel: ObservableObject {
             if messages.isEmpty, !record.messages.isEmpty {
                 errorMessage = "Llegaron \(record.messages.count) mensajes que esta versión no supo leer."
             }
+            hiloListo = true
         } catch {
-            errorMessage = error.localizedDescription
+            cargaFallida = error.localizedDescription
         }
     }
 
+    func reintentarCarga() {
+        Task { await restoreThread(esperabaRecord: esperabaRecord) }
+    }
+
     func open(_ id: String) async {
-        guard id != conversationID else { return }
+        if id == conversationID {
+            if !hiloListo { await restoreThread(esperabaRecord: true) }
+            return
+        }
         cancel()
         conversationID = id
         ConversationIdentity.set(id, defaults: defaults)
-        messages = []
-        liveText = ""
-        liveAuthor = nil
-        errorMessage = nil
-        // Sin esto, un turno fallido en el chat A dejaba su texto en
-        // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
-        // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
-        reintentable = nil
-        plan = TurnPlan()
-        herramientas = []
-        createdAt = now()
-        baseRecord = nil
+        reiniciarHilo()
+        hiloListo = false
         await restoreThread(esperabaRecord: true)
     }
 
     func startNew() {
         cancel()
         conversationID = ConversationIdentity.fresh(defaults: defaults)
+        reiniciarHilo()
+        hiloListo = true
+    }
+
+    private func reiniciarHilo() {
+        espera?.cancel()
+        espera = nil
+        avisoDeEspera = nil
         messages = []
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
+        liveReactions = []
         errorMessage = nil
+        cargaFallida = nil
         // Sin esto, un turno fallido en el chat A dejaba su texto en
         // `reintentable`; al abrir B y toparse con CUALQUIER error, el botón
         // Reintentar reaparecía y mandaba el mensaje de A dentro de B.
         reintentable = nil
+        tipoDeFalla = nil
+        borradorNoEnviado = nil
+        ultimoEnvio = nil
         plan = TurnPlan()
         herramientas = []
         createdAt = now()
@@ -152,35 +204,55 @@ final class ChatModel: ObservableObject {
         baseRecord = record
     }
 
-    func send(_ text: String) {
+    /// La copia del servidor de ESTE hilo llegó (un worker agregó a mitad del
+    /// turno): se une al hilo vivo sin tocar el turno en vuelo — core `merge_seed`.
+    func unirHiloDelServidor(_ servidor: [ChatMessage]) {
+        if let unidos = ChatMessage.unir(messages, servidor) { messages = unidos }
+    }
+
+    /// Un envío de sólo imagen es válido —la foto ES el mensaje—, como en la web.
+    func send(_ text: String, images: [MessageImage] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isStreaming else { return }
+        guard hiloListo, !trimmed.isEmpty || !images.isEmpty, !isStreaming else { return }
 
+        borradorNoEnviado = nil
+        ultimoEnvio = BorradorNoEnviado(texto: trimmed, imagenes: images)
         let history = messages
-        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now()))
-        lanzarTurno(trimmed, history: history)
+        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: now(), images: images))
+        lanzarTurno(trimmed, images: images, history: history)
     }
 
-    /// Repite el turno muerto. El mensaje del usuario YA está en el hilo, así
-    /// que reintentar no vuelve a agregarlo: sólo rehace la parte que falló.
+    /// El shell ya puso el borrador en el composer: se consume, como
+    /// `clear_unsent` en core.
+    func borradorRestaurado() {
+        borradorNoEnviado = nil
+    }
+
+    /// Reintentar re-envía el último envío como un turno nuevo — la burbuja
+    /// revertida vuelve con él — igual que `retry()` en fi-glass.
     func reintentar() {
-        guard let texto = reintentable, !isStreaming else { return }
-        lanzarTurno(texto, history: Array(messages.dropLast()))
+        guard let ultimo = ultimoEnvio, !isStreaming else { return }
+        send(ultimo.texto, images: ultimo.imagenes)
     }
 
-    private func lanzarTurno(_ texto: String, history: [ChatMessage]) {
+    private func lanzarTurno(_ texto: String, images: [MessageImage], history: [ChatMessage]) {
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
+        liveReactions = []
+        turnoDiferido = false
+        avisoDeEspera = nil
         plan = TurnPlan()
         herramientas = []
         errorMessage = nil
         reintentable = nil
+        tipoDeFalla = nil
         framesDelTurno = 0
         isStreaming = true
 
         turn = Task {
             do {
-                for try await event in stream(texto, conversationID, history, corpusID, element) {
+                for try await event in stream(texto, conversationID, history, corpusID, element, images) {
                     apply(event)
                 }
             } catch is CancellationError {
@@ -191,10 +263,13 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// Parar no es fallar: la pregunta se queda en pantalla, y por eso se guarda.
     func cancel() {
+        let estabaEnVuelo = isStreaming
         turn?.cancel()
         turn = nil
         discardLiveTurn()
+        if estabaEnVuelo { save() }
     }
 
     /// Un turno cancelado NO deja respuesta. Persistir el texto a medias lo
@@ -205,6 +280,8 @@ final class ChatModel: ObservableObject {
         isStreaming = false
         liveText = ""
         liveAuthor = nil
+        liveModel = nil
+        liveReactions = []
     }
 
     private func apply(_ event: StreamEvent) {
@@ -215,8 +292,11 @@ final class ChatModel: ObservableObject {
             liveText += delta
         case .author(let id, let name):
             liveAuthor = ChatMessage.Autor(id: id, nombre: name)
-        case .result(let text, _):
+        case .result(let text, let model, let reactions):
             if !text.isEmpty { liveText = text }
+            if let model, !model.isEmpty { liveModel = model }
+            if !reactions.isEmpty { liveReactions = reactions }
+            plan.cerrarAbiertos()
         case .failure(let message):
             errorMessage = message
         case .plan(let etiquetas):
@@ -235,6 +315,8 @@ final class ChatModel: ObservableObject {
             plan.cancelar()
         case .planClosed(let desenlace):
             plan.cerrarPlan(desenlace)
+        case .deferred:
+            turnoDiferido = true
         case .toolCall(let nombre, let servidor, let esError):
             let etiqueta = servidor.map { "\($0)/\(nombre)" } ?? nombre
             herramientas.append(esError ? "\(etiqueta) ✗" : etiqueta)
@@ -250,54 +332,121 @@ final class ChatModel: ObservableObject {
     private func fold(_ enviado: String) {
         guard isStreaming else { return }
         isStreaming = false
+        let contesto = !liveText.isEmpty || !liveReactions.isEmpty
+        textoDelUltimoTurno = liveText
 
-        // Un turno que cierra sin una sola palabra se veía EXACTAMENTE igual
-        // que uno pensando: silencio. Ahora se declara, y con el conteo de
-        // frames, que es lo que separa "el servidor no contestó" de "contestó
-        // puros frames que no traían texto".
-        if liveText.isEmpty, errorMessage == nil {
-            errorMessage = framesDelTurno == 0
-                ? "El servidor cerró el turno sin mandar un solo frame."
-                : "Llegaron \(framesDelTurno) frames pero ninguno traía texto."
+        // Un error revierte aunque ya hubiera texto parcial: la web hace lo
+        // mismo (`turn_failed` siempre revierte). Un turno sin palabra ni gesto
+        // se declara con el conteo de frames.
+        if errorMessage != nil || (!contesto && !turnoDiferido) {
+            tipoDeFalla = errorMessage == nil ? .vacio : .transporte
+            if errorMessage == nil {
+                errorMessage = Copy.turnEmpty
+                herramientas.append(framesDelTurno == 0 ? "sin un solo frame" : "\(framesDelTurno) frames sin texto")
+            }
+            revertir(enviado)
+            limpiarTurnoVivo()
+            return
         }
-        if errorMessage != nil { reintentable = enviado }
+        if !contesto, turnoDiferido {
+            let quien = liveAuthor?.nombre ?? "og118"
+            avisoDeEspera = Copy.turnDeferredNotice(author: quien)
+        }
 
-        if !liveText.isEmpty {
+        if contesto {
             messages.append(
                 ChatMessage(
                     role: .assistant,
                     content: liveText,
                     author: liveAuthor,
-                    timestamp: now()
+                    timestamp: now(),
+                    model: liveModel,
+                    reactions: liveReactions
                 )
             )
         }
+        limpiarTurnoVivo()
+        save()
+        if turnoDiferido { esperarRespuestaDiferida() }
+    }
+
+    /// Un turno fallido no deja un mensaje de usuario huérfano, ni en pantalla
+    /// ni en el servidor: la burbuja optimista se revierte y el mensaje vuelve
+    /// al composer (core: `unsent`). Persistirla dejaba a la web un hilo cojo.
+    private func revertir(_ enviado: String) {
+        if messages.last?.role == .user { messages.removeLast() }
+        borradorNoEnviado = ultimoEnvio ?? BorradorNoEnviado(texto: enviado, imagenes: [])
+        reintentable = enviado
+    }
+
+    private func limpiarTurnoVivo() {
         liveText = ""
         liveAuthor = nil
-        save()
+        liveModel = nil
+        liveReactions = []
+    }
+
+    /// La respuesta de un turno diferido aterriza en el record del servidor,
+    /// no en el stream: se relee el hilo hasta que crezca, con tope.
+    private func esperarRespuestaDiferida() {
+        guard let restore else { return }
+        let id = conversationID
+        let esperados = messages.count
+        espera?.cancel()
+        espera = Task { [weak self] in
+            for _ in 0..<40 {
+                await self?.pausa()
+                guard let self, !Task.isCancelled, self.conversationID == id else { return }
+                guard self.messages.count == esperados else { return }
+                guard let record = try? await restore(id), record.messages.count > esperados else { continue }
+                self.baseRecord = record
+                self.messages = record.chatMessages
+                self.avisoDeEspera = nil
+                return
+            }
+            guard let self, !Task.isCancelled, self.conversationID == id, self.messages.count == esperados else { return }
+            self.avisoDeEspera = Copy.turnDeferredTimeout
+        }
     }
 
     /// Los guardados van encadenados: dos PUT concurrentes al mismo id se
     /// resuelven last-write-wins en el servidor, así que un snapshot viejo que
     /// llegue tarde borraría el turno más reciente.
     private func save() {
-        guard let persist, !messages.isEmpty else { return }
-        let record = ConversationRecord.from(
-            id: conversationID,
-            messages: messages,
-            createdAt: createdAt,
-            now: now(),
-            base: baseRecord
-        )
-        baseRecord = record
+        guard let persist, hiloListo, !messages.isEmpty else { return }
+        let locales = messages
+        let base = baseRecord
+        let id = conversationID
+        let creado = createdAt
         let previous = saveChain
         saveChain = Task { [weak self] in
             await previous?.value
+            guard let self else { return }
+            let vivo = await self.releer(id)
+            let record = ConversationRecord.fusionar(
+                id: id, locales: locales, base: base, vivo: vivo, createdAt: creado, now: self.now()
+            )
+            self.adoptarFusion(record, locales: locales)
             do {
                 try await persist(record)
             } catch {
-                await MainActor.run { self?.errorMessage = error.localizedDescription }
+                self.errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    /// El PUT es reemplazo total y otro escritor (la web, el drawer) pudo
+    /// cambiar el hilo mientras tanto: se relee antes de escribir.
+    private func releer(_ id: String) async -> ConversationRecord? {
+        guard let restore else { return nil }
+        return try? await ArranqueEnFrio.conReintento { _ in try await restore(id) }
+    }
+
+    private func adoptarFusion(_ record: ConversationRecord, locales: [ChatMessage]) {
+        guard record.id == conversationID else { return }
+        baseRecord = record
+        if record.messages.count > locales.count, messages.map(\.id) == locales.map(\.id) {
+            messages = record.chatMessages
         }
     }
 }

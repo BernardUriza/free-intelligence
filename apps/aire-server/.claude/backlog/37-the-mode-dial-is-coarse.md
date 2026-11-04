@@ -1,6 +1,6 @@
 # The mode dial is coarse — you cannot ask for WebSearch without also getting the file tools
 
-Status: **Proposed**
+Status: **In progress** (2026-09-25 — the narrowing list is built, PR open, not merged)
 Proposed: 2026-08-22 by Claude (surfaced closing fi PR #414's documented cost:
 Fénix's cibercafé tutor lost «busca en internet» on the AIRE route, and the
 only way to give it back was to hand the tutor Read/Write/Glob/Grep too)
@@ -138,3 +138,37 @@ caller-side contract already waiting for it — see free-intelligence
 `SandboxSettings`, not yet in place — `cwd` is NOT a cage."* That line predates
 `engine/cage.py`, which IS the cage (a `PreToolUse` hook denying any file tool
 outside the casita). Backlog #24 is the item; the comment is stale either way.
+
+## In progress — 2026-09-25: the narrowing list, asked for by bair
+
+The owner's fork was answered by a consumer that needs it now: bair, the PR
+gatekeeper, wants an `agent` turn with **Read, Glob and Grep only**. Not Write,
+and above all not WebFetch — it is not caged, so a prompt-injected PR could
+carry the casita's code out through it. Decisions (1)–(3), as built on branch
+`feat/builtins-subset`:
+
+1. **The dial grows, by narrowing only.** `builtins:[…]` on the message body.
+   Absent → the notch, byte-identical (pinned by a test for both modes).
+2. **Shape: the list, not a third notch.** Validated against the chosen mode's
+   own `allowed_tools`: any name outside it (`Bash`, `Edit`, an unknown name,
+   anything at all under `complete`) is a **422**, the same discipline intake
+   applies to an unknown registry tool or provider. Everything the subset leaves
+   out goes to `disallowed_tools`. An ACP provider + `builtins` is a 422 too: its
+   only gate is allow/reject for every tool, so a subset would be accepted and
+   silently ignored.
+3. **`permission_mode` follows `Write`.** A subset with `Write` keeps
+   `acceptEdits` (and `Edit`, which rides with it today); a subset without it
+   runs under `default` and `Edit` joins the disallowed list.
+
+Where: `server/aire/engine/modes.py` (the dial, split out of `options.py`,
+which is now only the options factory), `intake.safe_builtins`/`safe_spec`,
+`TurnSpec.builtins` (so a different subset rebinds the warm client, #38).
+Tests: `server/tests/test_builtins.py`. The stale `options.py` docstring about
+`SandboxSettings` was corrected in the same change.
+
+Left alone on purpose: an unknown `mode` still falls back silently to `agent`
+(`intake.safe_mode`). Nothing in this item or the rules orders it changed; it
+is noted here so it is a known behaviour, not a rediscovery.
+
+Next: merge (a deploy — the owner's call), then fi-runner's `AIREBackend`
+forwards the field (see free-intelligence `fi-runner-aire-backend.md`).

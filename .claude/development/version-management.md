@@ -17,7 +17,7 @@ package.json    → 1.0.0 ❌ (SUPER desincronizado)
 UPDATER-SETUP.md→ 1.0.1 ❌ (doc obsoleta)
 ```
 
-### aurity-desktop (3 different versions):
+### aurity-desktop (3 different versions; app deleted 2026-11-03):
 ```
 tauri.conf.json → 1.0.6 ✅
 Cargo.toml      → 1.0.2 ❌
@@ -39,7 +39,7 @@ package.json    → 1.0.2 ❌
 
 ### Why tauri.conf.json?
 
-1. **CI/CD already reads from it** - `get-artifact-path.js` line 78
+1. **CI/CD already reads from it** - `apps/fi-monitor/scripts/get-artifact-path.cjs`
 2. **Tauri bundler requires it** - Metadata for installers (NSIS, DMG, AppImage)
 3. **No circular dependencies** - Cargo.toml and package.json don't affect Tauri build
 4. **Semantically correct** - It IS the version of the desktop app
@@ -48,7 +48,7 @@ package.json    → 1.0.2 ❌
 ### Architecture
 
 ```
-Source of Truth: tauri.conf.json (fi-monitor + aurity-desktop)
+Source of Truth: tauri.conf.json (fi-monitor)
          ↓
     ┌────┴────┐
     ↓         ↓
@@ -172,12 +172,6 @@ const APPS = [
     tauriConfig: 'apps/fi-monitor/src-tauri/tauri.conf.json',
     packageJson: 'apps/fi-monitor/package.json',
     cargoToml: 'apps/fi-monitor/src-tauri/Cargo.toml'
-  },
-  {
-    name: 'aurity-desktop',
-    tauriConfig: 'apps/aurity-desktop/src-tauri/tauri.conf.json',
-    packageJson: 'apps/aurity-desktop/package.json',
-    cargoToml: 'apps/aurity-desktop/src-tauri/Cargo.toml'
   }
 ];
 
@@ -202,7 +196,6 @@ Source of Truth: apps/*/src-tauri/tauri.conf.json
 Mode: Validation
 
 ✅ fi-monitor: All versions match (1.0.6)
-✅ aurity-desktop: All versions match (1.0.6)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ All versions synchronized
@@ -227,10 +220,6 @@ Mode: Synchronization
 ℹ️    Updating package.json: 1.0.0 → 1.0.6
 ℹ️    Updating Cargo.toml: 1.0.2 → 1.0.6
 ✅ fi-monitor: Synchronized to 1.0.6
-ℹ️  aurity-desktop: Syncing to 1.0.6...
-ℹ️    Updating package.json: 1.0.2 → 1.0.6
-ℹ️    Updating Cargo.toml: 1.0.2 → 1.0.6
-✅ aurity-desktop: Synchronized to 1.0.6
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ All versions synchronized
@@ -257,7 +246,6 @@ Mode: Synchronization
 ```bash
 # Verificar que el archivo existe
 ls -la apps/fi-monitor/src-tauri/tauri.conf.json
-ls -la apps/aurity-desktop/src-tauri/tauri.conf.json
 
 # Validar JSON
 cat apps/fi-monitor/src-tauri/tauri.conf.json | jq .
@@ -370,11 +358,7 @@ ls -l .git/hooks/pre-commit
    - `pnpm version:bump:major` (1.0.6 → 2.0.0)
    - Updates tauri.conf.json then syncs
 
-3. **Multi-app version management**
-   - Currently fi-monitor and aurity-desktop have independent versions
-   - Could enforce they match (if desired)
-
-4. **Changelog generation**
+3. **Changelog generation**
    - Auto-generate CHANGELOG.md entries on version bump
    - Integrate with conventional commits
 
@@ -415,9 +399,6 @@ rm test.json
 
 # 6. Verificar todas las versiones
 grep -r "version.*1\.0\.[0-9]" apps/fi-monitor/ --include="*.json" --include="*.toml" | grep -v node_modules
-# TODAS deben mostrar 1.0.6
-
-grep -r "version.*1\.0\.[0-9]" apps/aurity-desktop/ --include="*.json" --include="*.toml" | grep -v node_modules
 # TODAS deben mostrar 1.0.6
 ```
 

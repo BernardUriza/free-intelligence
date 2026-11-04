@@ -168,6 +168,11 @@ interface ComposerImages {
     drafts: ComposerImageDraft[];
     /** Validate + encode picked/dropped/pasted files into drafts. */
     addFiles: (files: Iterable<File>) => Promise<void>;
+    /**
+     * A picked image is still being read/downscaled. A shell holds the send until
+     * it is false, so the picture goes with THIS message and not the next one.
+     */
+    encoding: boolean;
     /** Detach one image. */
     remove: (id: string) => void;
     /** Detach all (called by the surface after a send). */

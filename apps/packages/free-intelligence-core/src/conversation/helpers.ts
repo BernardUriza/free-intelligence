@@ -13,6 +13,7 @@
  * reproducible; they fall back to the wall clock only when it is omitted.
  */
 
+import { COPY } from '../copy.generated';
 import type { ChatMessage } from '../chat/message';
 import type { ConversationRecord, ConversationSummary } from './record';
 
@@ -20,7 +21,7 @@ import type { ConversationRecord, ConversationSummary } from './record';
 export const CONVERSATION_SCHEMA_VERSION = 1;
 
 /** Fallback title when there is no usable user message yet. */
-const DEFAULT_TITLE = 'New chat';
+const DEFAULT_TITLE = COPY.conversationDefaultTitle;
 const TITLE_MAX = 60;
 const PREVIEW_MAX = 120;
 

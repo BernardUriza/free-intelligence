@@ -16,10 +16,8 @@ const IMPORT_MAPPINGS = {
   '@/types/chat': '@aurity-standalone/types/chat',
   '@/types/checkin': '@aurity-standalone/types/checkin',
   '@/types/knowledge': '@aurity-standalone/types/knowledge',
-  '@/types/llm-model': '@aurity-standalone/types/llm',
   '@/types/medical': '@aurity-standalone/types/medical',
   '@/types/patient': '@aurity-standalone/types/patient',
-  '@/types/persona': '@aurity-standalone/types/persona',
   '@/types/session': '@aurity-standalone/types/session',
   '@/types/voices': '@aurity-standalone/types/voices',
   '@/types/select-configs': '@/types/select-configs', // Keep this one - it's not in types package

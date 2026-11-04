@@ -89,7 +89,7 @@ async def mint(nickname: str, budget_usd: float = DEFAULT_BUDGET_USD) -> str:
     return plaintext
 
 
-def biller(holder: Holder | None) -> Any:
+def biller(holder: Holder | None, price: Any = pricing.usd) -> Any:
     """How an identified gateway turn pays against its key's ceiling — a lent
     credential (#32) and a metered pass-through (#34) bank the same way, at the
     same list prices. A real turn that prices at $0 is PRINTED, never swallowed:
@@ -98,7 +98,7 @@ def biller(holder: Holder | None) -> Any:
         return None
 
     async def bank(usage: dict[str, Any] | None, model: str) -> None:
-        cost = pricing.usd(usage, model)
+        cost = price(usage, model)
         if cost <= 0:
             print(f"KEY {holder.nickname}: a relayed turn banked $0 "
                   f"(model={model!r}) — the ceiling is not biting", flush=True)

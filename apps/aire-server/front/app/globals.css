@@ -32,6 +32,10 @@
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --shadow: 0 1px 2px rgba(16, 16, 16, 0.05), 0 8px 24px -18px rgba(16, 16, 16, 0.4);
+
+  /* chart series (validated adjacent pair, light surface): blue, orange */
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,6 +57,10 @@
     --caller: #7aa2f7;
     --model: #9ece6a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px -20px rgba(0, 0, 0, 0.9);
+
+    /* the same two hues, stepped for the dark surface */
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
   }
 }
 
@@ -1033,4 +1041,102 @@ details.panel > .md {
   main {
     padding: 20px 16px 56px;
   }
+}
+
+/* --- spend: hero, window picker, the chart ------------------------- */
+.hero {
+  margin: 4px 0 14px;
+  font-size: 48px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.hero .hero-k {
+  display: block;
+  margin-top: 8px;
+  font: 400 12.5px/1.4 var(--sans);
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.bar.windows a {
+  padding: 5px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.bar.windows a:hover {
+  border-color: var(--edge);
+  text-decoration: none;
+}
+.bar.windows a.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.viz {
+  margin: 0;
+  padding: 14px 14px 6px;
+}
+.viz svg {
+  display: block;
+  width: 100%;
+  min-width: 640px; /* on a phone the plot scrolls sideways instead of shrinking its text */
+  height: auto;
+  font: 11px var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.viz .grid {
+  stroke: var(--hairline);
+  stroke-width: 1;
+}
+.viz .axis {
+  stroke: var(--edge);
+  stroke-width: 1;
+}
+.viz .tick {
+  fill: var(--muted);
+}
+.viz .peak {
+  fill: var(--ink-2);
+  font-weight: 600;
+}
+.viz .s1 {
+  fill: var(--viz-1);
+}
+.viz .s2 {
+  fill: var(--viz-2);
+}
+.viz .hit {
+  fill: transparent;
+}
+.viz g:hover .hit {
+  fill: var(--accent-soft);
+}
+.viz .legend {
+  display: flex;
+  gap: 18px;
+  padding: 8px 2px 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.viz .legend .sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.viz .legend .s1 {
+  background: var(--viz-1);
+}
+.viz .legend .s2 {
+  background: var(--viz-2);
+}
+.panel .note {
+  margin: 0;
+  padding: 0 16px 14px;
+  font-size: 12px;
+  color: var(--muted);
 }

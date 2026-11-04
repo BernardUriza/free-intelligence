@@ -22,8 +22,9 @@ from fastapi.testclient import TestClient
 from persona_runner.core import readiness
 
 REPO = Path(__file__).resolve().parents[2]
+MONOREPO = REPO.parents[1]
 SCRIPT = REPO / "scripts" / "cd_runner_template.py"
-CD_YML = REPO / ".github" / "workflows" / "cd.yml"
+CD_YML = MONOREPO / ".github" / "workflows" / "server-bot-cd.yml"
 
 spec = importlib.util.spec_from_file_location("cd_runner_template", SCRIPT)
 assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"

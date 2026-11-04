@@ -29,7 +29,7 @@
  * synthesis BY DESIGN. Errors and empty results are never cached.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceAdapter, AudioSource } from '@free-intelligence/core';
 
 export interface UseVoiceOptions {
@@ -63,6 +63,10 @@ function toUrl(src: AudioSource): string {
   return src instanceof Blob ? URL.createObjectURL(src) : src.url;
 }
 
+function revokeIfBlob(url: string | null | undefined) {
+  if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+}
+
 /** Max clips the per-hook session cache retains (LRU evicts beyond this). */
 export const TTS_CACHE_MAX_CLIPS = 8;
 
@@ -89,6 +93,9 @@ export function useVoice(
   // Session LRU of synthesized clips (B3-VOICE-FIGLASS-7). Blobs only — see the
   // module docblock for why neither object URLs nor any persistent storage.
   const clipCache = useRef(new Map<string, Blob>());
+  const audioUrlRef = useRef(audioUrl);
+  audioUrlRef.current = audioUrl;
+  useEffect(() => () => revokeIfBlob(audioUrlRef.current), []);
 
   // Cache-aware synthesis: hit returns the cached Blob (refreshed as most
   // recent, NO provider call); miss bills the provider once and caches a
@@ -141,7 +148,7 @@ export function useVoice(
       setIsOpen(true);
       setAudioUrl((prev) => {
         // Don't leak the previous clip's object URL when re-generating.
-        if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+        revokeIfBlob(prev);
         return null;
       });
 
@@ -173,7 +180,7 @@ export function useVoice(
       setVoiceName(getVoiceDisplayName(newVoice));
       setIsLoading(true);
 
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      revokeIfBlob(audioUrl);
       setAudioUrl(null);
 
       try {
@@ -191,6 +198,7 @@ export function useVoice(
 
   const close = useCallback(() => {
     setIsOpen(false);
+    revokeIfBlob(audioUrlRef.current);
     setAudioUrl(null);
     setIsLoading(false);
     setCurrentText('');

@@ -36,6 +36,7 @@ _REF_TOP_K = 3
 _REF_MIN_SIMILARITY = 0.78
 _REF_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
 _REF_MAX_CHARS = 2200  # cap injected context so the turn stays bounded
+_TRUNCATE_BACKOFF_CHARS = 80  # how far back a truncation looks for a word boundary
 
 
 async def query_corpus(
@@ -112,6 +113,45 @@ def cite_label(source_ref: str | None) -> str:
     return slug or "corpus"
 
 
+def _truncate_at_word(line: str, max_chars: int) -> str:
+    """Cut `line` to at most `max_chars`, backing off to the last word boundary."""
+    cut = line[: max_chars - 1]
+    space = cut.rfind(" ")
+    if space >= len(cut) - _TRUNCATE_BACKOFF_CHARS and space > 0:
+        cut = cut[:space]
+    return cut.rstrip() + "…"
+
+
+def fit_to_budget(lines: list[str], max_chars: int) -> tuple[list[tuple[int, str]], bool]:
+    """Pick the lines that fit a char budget, in rank order → (`(index, line)` kept, truncated).
+
+    The best passage ALWAYS goes in: if it alone exceeds the budget it is
+    truncated at a word boundary instead of dropped. A later line that does not
+    fit is skipped, not a stop — a shorter one further down may still fit.
+
+    Exists because the loop used to `break` on the first line over budget: when
+    that was the TOP hit, the block came out empty and the function returned
+    None with no log event — the corpus was queried, cleared the floor, and the
+    persona got nothing (Frugívoro's pregnancy/cardiometabolic turns, 2026-10-03:
+    top passages of 2255 to 2589 chars against a 2200 cap; 82 of 893 chunks in
+    `__corpus_vegan__` are over it). Shared with `deep_memory.build_user_memory_block`,
+    which carried the same loop.
+    """
+    kept: list[tuple[int, str]] = []
+    total = 0
+    truncated = False
+    for i, line in enumerate(lines):
+        if total + len(line) <= max_chars:
+            kept.append((i, line))
+            total += len(line)
+        elif not kept:
+            short = _truncate_at_word(line, max_chars)
+            kept.append((i, short))
+            total += len(short)
+            truncated = True
+    return kept, truncated
+
+
 async def build_references_block(query: str | None, *, namespace: str, header: str) -> str | None:
     """Retrieve relevant corpus chunks and format them for prompt injection.
 
@@ -143,23 +183,19 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         )
         return None
 
-    lines: list[str] = []
-    total = 0
-    for h in relevant:
-        line = f"- [{cite_label(h.get('source_ref'))}] {h['chunk_text'].strip()}"
-        if total + len(line) > _REF_MAX_CHARS:
-            break
-        lines.append(line)
-        total += len(line)
-    if not lines:
-        return None
+    kept, truncated = fit_to_budget(
+        [f"- [{cite_label(h.get('source_ref'))}] {h['chunk_text'].strip()}" for h in relevant],
+        _REF_MAX_CHARS,
+    )
 
     log.info(
         "deep_memory_corpus_refs_built",
         namespace=namespace,
-        hits=len(lines),
+        hits=len(kept),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
-        low_similarity=round(relevant[len(lines) - 1].get("similarity", 0.0), 3),
+        low_similarity=round(relevant[kept[-1][0]].get("similarity", 0.0), 3),
         dropped_below_floor=len(hits) - len(relevant),
+        dropped_over_budget=len(relevant) - len(kept),
+        truncated=truncated,
     )
-    return header.strip() + "\n" + "\n".join(lines)
+    return header.strip() + "\n" + "\n".join(line for _, line in kept)

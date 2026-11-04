@@ -128,12 +128,14 @@ jobs:
             az containerapp secret set -n "$APP" -g "$RG" \
               --secrets "aire-auth-token=$AIRE_TOKEN" "access-token=$ACCESS_TOKEN"
             az containerapp update -n "$APP" -g "$RG" --image "$IMG" \
+              --min-replicas 1 --max-replicas 1 \
               --set-env-vars \
                 "AIRE_GATE_URL=https://gate.bernarduriza.com" \
                 "AIRE_AUTH_TOKEN=secretref:aire-auth-token" \
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
+                "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
                 "HDF5_USE_FILE_LOCKING=FALSE" \
               --remove-env-vars "ANTHROPIC_API_KEY" "CLAUDE_CODE_OAUTH_TOKEN" "OG118_BACKEND"
           else
@@ -142,7 +144,7 @@ jobs:
               --registry-server ghcr.io \
               --registry-username BernardUriza --registry-password "$GHCR_TOKEN" \
               --target-port 8118 --ingress external \
-              --min-replicas 0 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
+              --min-replicas 1 --max-replicas 1 --cpu 1.0 --memory 2.0Gi \
               --secrets "aire-auth-token=$AIRE_TOKEN" "access-token=$ACCESS_TOKEN" \
               --env-vars \
                 "AIRE_GATE_URL=https://gate.bernarduriza.com" \
@@ -150,6 +152,7 @@ jobs:
                 "OG118_ACCESS_TOKEN=secretref:access-token" \
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
+                "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
                 "HDF5_USE_FILE_LOCKING=FALSE"
           fi
 

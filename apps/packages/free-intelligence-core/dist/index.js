@@ -9,6 +9,7 @@ function initialAgentTurnState() {
     meta: null,
     author: null,
     heartbeats: 0,
+    deferred: false,
     status: "thinking"
   };
 }
@@ -114,6 +115,8 @@ function applyAgentEvent(state, event) {
       return { ...state, author: event.author };
     case "ping":
       return { ...state, heartbeats: state.heartbeats + 1 };
+    case "deferred":
+      return { ...state, deferred: true };
     case "meta":
       return { ...state, meta: event.meta };
     case "error":
@@ -124,6 +127,146 @@ function applyAgentEvent(state, event) {
       return state;
   }
 }
+
+// src/agent/wire-map.ts
+function rec(v) {
+  return v && typeof v === "object" ? v : {};
+}
+function str(v, fallback = "") {
+  return v == null ? fallback : String(v);
+}
+function nullableStr(v) {
+  return typeof v === "string" && v.trim() ? v : null;
+}
+function fromWireEvent(frame) {
+  const ev = rec(frame);
+  const data = rec(ev.data);
+  switch (ev.type) {
+    case "open":
+      return { type: "open" };
+    case "text":
+      return { type: "text", delta: str(ev.text) };
+    case "element": {
+      const el = rec(ev.element);
+      const id = str(el.id);
+      if (!id) return null;
+      return {
+        type: "author",
+        author: {
+          id,
+          name: str(el.name) || str(el.label) || id,
+          symbol: el.symbol ?? null,
+          engine: el.engine ?? null
+        }
+      };
+    }
+    case "tool_call": {
+      const t = rec(ev.tool ?? ev.call);
+      return {
+        type: "tool_call",
+        call: {
+          id: t.id ?? null,
+          name: str(t.name),
+          server: t.server ?? null,
+          isError: t.is_error ?? t.isError ?? null
+        }
+      };
+    }
+    case "plan":
+      return { type: "plan", steps: (data.steps ?? []).map((s) => str(s)) };
+    case "plan_rejected":
+      return {
+        type: "plan_rejected",
+        rejection: {
+          reason: str(data.reason),
+          matched: data.matched ?? [],
+          guard: data.guard ?? null
+        }
+      };
+    case "step_started":
+      return { type: "step_started", index: Number(data.step_index ?? -1) };
+    case "step_done": {
+      const raw = str(data.status, "done");
+      const status = raw === "failed" ? "failed" : raw === "cancelled" ? "cancelled" : "done";
+      return {
+        type: "step_done",
+        index: Number(data.step_index ?? -1),
+        status,
+        summary: data.summary ? str(data.summary) : void 0,
+        error: data.error ? str(data.error) : void 0
+      };
+    }
+    case "step_noted":
+      return { type: "step_noted", index: Number(data.step_index ?? -1), note: str(data.note) };
+    case "plan_amended":
+      return { type: "plan_amended", action: data.action === "replan" ? "replan" : "insert" };
+    case "plan_cancelled":
+      return { type: "plan_cancelled", reason: data.reason ? str(data.reason) : void 0 };
+    case "plan_completed":
+      return {
+        type: "plan_completed",
+        completedCount: Number(data.completed_count ?? 0),
+        failedCount: Number(data.failed_count ?? 0),
+        cancelledCount: Number(data.cancelled_count ?? 0)
+      };
+    case "plan_failed":
+      return {
+        type: "plan_failed",
+        completedCount: Number(data.completed_count ?? 0),
+        failedCount: Number(data.failed_count ?? 0),
+        cancelledCount: Number(data.cancelled_count ?? 0)
+      };
+    case "result": {
+      const r = rec(ev.result);
+      const model = nullableStr(r.model);
+      const reactions = Array.isArray(r.reactions) ? r.reactions.map((x) => str(x).trim()).filter(Boolean) : [];
+      return {
+        type: "result",
+        text: str(r.text),
+        ...model ? { meta: { model } } : {},
+        ...reactions.length > 0 ? { reactions } : {}
+      };
+    }
+    case "error":
+      return { type: "error", message: str(ev.message, "error") };
+    case "ping":
+      return { type: "ping" };
+    case "deferred":
+      return { type: "deferred" };
+    case "done":
+      return { type: "done" };
+    default:
+      return null;
+  }
+}
+
+// src/agent/sse.ts
+function takeSseFrames(buffer) {
+  const frames = buffer.split("\n\n");
+  const rest = frames.pop() ?? "";
+  const payloads = [];
+  for (const frame of frames) {
+    const data = frame.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim());
+    if (data.length > 0) payloads.push(data.join("\n"));
+  }
+  return { payloads, rest };
+}
+
+// src/copy.generated.ts
+var COPY = {
+  /** Título de un hilo sin mensaje de usuario usable (deriveConversationTitle). */
+  conversationDefaultTitle: "New chat",
+  /** Aviso (no error) de un turno diferido: el motor sigue trabajando tras cerrar el stream. */
+  turnDeferredNotice: (author) => "{author} sigue escribiendo. Su respuesta aparecer\xE1 aqu\xED en cuanto termine.".split("{author}").join(author),
+  /** El aviso cuando la relectura acotada del hilo se agotó sin que llegara la respuesta diferida. */
+  turnDeferredTimeout: "La respuesta tard\xF3 m\xE1s de lo normal. Vuelve a abrir este chat para verla.",
+  /** Falla genérica del transporte o del motor, cuando no trae mensaje propio. */
+  turnFailed: "La respuesta fall\xF3. Intenta de nuevo.",
+  /** El watchdog de inactividad cerró el turno. */
+  turnTimeout: "La respuesta tard\xF3 demasiado. Intenta de nuevo.",
+  /** El turno cerró sin texto, sin reacción y sin deferred: el silencio es una falla. */
+  turnEmpty: "La respuesta lleg\xF3 vac\xEDa. Intenta de nuevo."
+};
 
 // src/agent/transcript.ts
 function makeUserMessage(text, author, images) {
@@ -161,13 +304,29 @@ function foldAssistantTurn(turn, defaultAuthor) {
     ...turn.reactions.length > 0 ? { reactions: turn.reactions } : {}
   };
 }
+function messageKey(message) {
+  return `${message.role}\0${message.timestamp ?? ""}\0${message.content}`;
+}
+function mergeConversationMessages(target, source) {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing].map((message, order) => ({ message, order })).sort((a, b) => (a.message.timestamp ?? "").localeCompare(b.message.timestamp ?? "") || a.order - b.order).map(({ message }) => message);
+}
 
 // src/agent/conversation-state.ts
+function deferredNotice(author) {
+  return {
+    kind: "deferred",
+    message: COPY.turnDeferredNotice(author.name)
+  };
+}
 function initialConversationState(seed = []) {
   return {
     messages: seed,
     pending: false,
     failure: null,
+    notice: null,
     timedOut: false,
     unsent: { text: null, images: null },
     lastSent: null,
@@ -199,6 +358,7 @@ function applyConversationEvent(state, event) {
         ...state,
         pending: true,
         failure: null,
+        notice: null,
         timedOut: false,
         // A new send supersedes any draft still waiting to be recovered.
         unsent: NO_DRAFT,
@@ -215,7 +375,17 @@ function applyConversationEvent(state, event) {
     case "turn_settled": {
       if (!state.pending) return state;
       const base = { ...state, pending: false };
-      if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) return base;
+      if (event.controlled || !event.turn.text && event.turn.reactions.length === 0) {
+        if (event.turn.deferred) {
+          return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
+        }
+        if (event.controlled) return base;
+        if (event.stopped) return { ...base, messages: [...state.messages], skipPersist: false };
+        return {
+          ...revertOptimistic(base, false),
+          failure: { kind: "empty", message: COPY.turnEmpty }
+        };
+      }
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
@@ -231,7 +401,7 @@ function applyConversationEvent(state, event) {
         ...reverted,
         failure: {
           kind: "stream",
-          message: event.message || "La respuesta fall\xF3. Intenta de nuevo."
+          message: event.message || COPY.turnFailed
         }
       };
     }
@@ -240,15 +410,21 @@ function applyConversationEvent(state, event) {
       return {
         ...revertOptimistic({ ...state, pending: false }, event.controlled),
         timedOut: true,
-        failure: { kind: "timeout", message: "La respuesta tard\xF3 demasiado. Intenta de nuevo." }
+        failure: { kind: "timeout", message: COPY.turnTimeout }
       };
     }
     case "dismiss_failure":
       return state.failure === null ? state : { ...state, failure: null, timedOut: false };
+    case "dismiss_notice":
+      return state.notice === null ? state : { ...state, notice: null };
     case "clear_unsent":
       return state.unsent.text === null && state.unsent.images === null ? state : { ...state, unsent: NO_DRAFT };
     case "hydrate":
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
+    case "merge_seed": {
+      const messages = mergeConversationMessages(state.messages, event.messages);
+      return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+    }
     case "persist_skip_consumed":
       return state.skipPersist ? { ...state, skipPersist: false } : state;
     default:
@@ -282,7 +458,7 @@ function conversationFileName(record) {
 
 // src/conversation/helpers.ts
 var CONVERSATION_SCHEMA_VERSION = 1;
-var DEFAULT_TITLE = "New chat";
+var DEFAULT_TITLE = COPY.conversationDefaultTitle;
 var TITLE_MAX = 60;
 var PREVIEW_MAX = 120;
 function truncate(text, max) {
@@ -432,6 +608,7 @@ function organizeConversationSummaries(summaries) {
 }
 export {
   CONVERSATION_SCHEMA_VERSION,
+  COPY,
   applyAgentEvent,
   applyConversationEvent,
   applyConversationMetadataPatch,
@@ -445,15 +622,18 @@ export {
   deriveConversationTitle,
   filterConversationSummaries,
   foldAssistantTurn,
+  fromWireEvent,
   initialAgentTurnState,
   initialConversationState,
   makeUserMessage,
+  mergeConversationMessages,
   organizeConversationSummaries,
   renameConversationRecord,
   resolveConversationTitle,
   sanitizeConversationMessage,
   setConversationArchived,
   setConversationPinned,
-  summarizeConversation
+  summarizeConversation,
+  takeSseFrames
 };
 //# sourceMappingURL=index.js.map

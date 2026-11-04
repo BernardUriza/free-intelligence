@@ -21,9 +21,7 @@ export * from './patient';
 // Check-in & Appointments
 export * from './checkin';
 
-// AI & LLM
-export * from './llm';
-export * from './persona';
+// Voices
 export * from './voices';
 
 // Sessions & Knowledge - exclude SessionMetadata (use from patient.ts)

@@ -1,417 +1,50 @@
 # Free Intelligence
 
-**AURITY** = **A**dvanced **U**niversal **R**eliable **I**ntelligence for **T**elemedicine **Y**ield
+A monorepo for a resident, persistent AI substrate: an agent runtime, a chat framework built on it, and the apps that run on both. The app that ships today is **og118** at https://app.og118.ai.
 
-**Version**: 1.0.0
-**Owner**: Bernard Uriza Orozco
-**Architecture**: GPU-First, No Compromises
+## What's in here
 
-> **Hosted instance status:** `app.aurity.io` is **not serving right now** — the host does
-> not complete a TLS handshake for that name. The deployment pipeline below is real and is
-> what the repo is wired for; treat every `app.aurity.io` URL in this document as the
-> deploy target, not as a live endpoint you can call today. Run it locally instead
-> (see Quick Start).
+| Path | What it is | Status |
+|------|-----------|--------|
+| `apps/og118/web` | og118's Next.js web app | Live at app.og118.ai |
+| `apps/og118/server` | og118's FastAPI server over `fi-runner` (SSE turn stream) | Live (Azure Container Apps) |
+| `apps/og118-ios` | og118's native iOS client | In development |
+| `apps/packages/fi-glass` | The chat framework (React): transcript, composer, agent surfaces | Published, consumed by og118 |
+| `apps/packages/fi-runner` | The agent runtime and its stream contract | Published |
+| `apps/packages/fi-core` | Python primitives: RAG chunking, stores, task tracker | Published |
+| `apps/packages/free-intelligence-core` | TypeScript contracts, reducers and generated schemas | Published |
+| `apps/server-bot` | Discord personas and the persona runner | Live |
+| `apps/aire-server` | AIRE, the gateway every model call goes through | Live |
+| `apps/fi-monitor` | Windows desktop monitor (Tauri) | Built on demand |
+| `apps/fenix` | A stationery shop's assistant | Paused |
+| `apps/aurity` | The original Next.js frontend. It's the reference shape fi-glass extracts from; it isn't deployed | Reference only |
 
----
+## Run og118 locally
 
-## 🎯 What is Free Intelligence?
-
-**GPU-accelerated AI system for healthcare** - like Cyberpunk 2077, no GPU = no play.
-
-A **medical intelligence system with GPU-powered RAG**, built for full-speed performance with no degraded modes:
-- 📊 **RAG embeddings**: GPU-only (20-50ms), no CPU fallback (100-150ms unacceptable)
-- 🧠 **LLM inference**: Local Ollama on GPU (Qwen3:1.7b)
-- 🔒 **HIPAA on-prem**: local data, HDF5 append-only, zero cloud PHI
-- 🚀 **Production-grade**: built to deploy on Azure Container Apps + Static Web Apps from CI
-
-**Key Difference:**
-- ❌ Generic systems: CPU fallbacks, degraded performance
-- ❌ Cloud SaaS: PHI in transit, vendor lock-in, latency
-- ✅ **AURITY**: GPU-first architecture, on-prem data, optimal UX
-
-> "Users would rather see nothing than a crappy chart."
-
----
-
-## 💻 System Requirements
-
-Like modern gaming - **GPU required, no compromises**.
-
-### Minimum Specs (Production)
-
-```
-FI Cloud (Production Server)
-═══════════════════════════════
-• Azure Container Apps (serverless)
-• Azure Static Web Apps (frontend)
-• Python: 3.14
-• No GPU needed (backend only)
-
-FI Monitor (GPU Service) ⚡ REQUIRED
-═══════════════════════════════════
-• GPU: NVIDIA RTX 3050+ / AMD equivalent
-• RAM: 8GB minimum
-• Storage: 50GB SSD
-• Internet: 10 Mbps upload (Cloudflare Tunnel)
-• OS: Windows 10/11, macOS 12+, Linux
-
-Why GPU Required?
-─────────────────
-• RAG embeddings CPU: 100-150ms ❌ (unacceptable UX)
-• RAG embeddings GPU: 20-50ms ✅ (production-grade)
-• Ollama inference: Requires GPU for acceptable latency
-• No fallback: System won't start without GPU service
-
-Like Cyberpunk 2077:
-─────────────────────
-✅ RTX 3060+ → Full experience
-✅ GTX 1660+ → Acceptable (entry-level)
-❌ CPU-only → System won't run
-```
-
-### Tested Configurations
-
-| Hardware | GPU | Performance | Status |
-|----------|-----|-------------|--------|
-| Windows PC (i9+RTX4060) | 8GB VRAM | 20-30ms embeddings | ✅ Production |
-| Mac M1 Pro | 16GB unified | 40-50ms (MPS) | ✅ Development |
-| Mac M1 Air | 8GB unified | 50-80ms (MPS) | ⚠️ Entry-level |
-| Cloud GPU (RunPod RTX4090) | 24GB VRAM | 15-25ms | ✅ Alternative |
-| CPU-only server | N/A | System offline | ❌ Unsupported |
-
----
-
-## 🏗️ Architecture Overview
-
-```
-┌────────────────────────────────────────────────────────────┐
-│                 FI Cloud (app.aurity.io)                   │
-│                                                            │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │  Next.js Frontend (Static Export)                    │ │
-│  │  • Auth0 RBAC                                        │ │
-│  │  • Chat UI (RAG-powered)                             │ │
-│  │  • Admin Dashboard                                   │ │
-│  └──────────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │  FastAPI Backend (Python 3.14)                       │ │
-│  │  • RAG Search (GPU embeddings via Monitor)          │ │
-│  │  • Document Storage (HDF5 corpus.h5)                │ │
-│  │  • HIPAA-compliant data layer                       │ │
-│  │  • User isolation (owner_user_id)                   │ │
-│  └──────────────────────────────────────────────────────┘ │
-│                          ↕ HTTPS                           │
-└────────────────────────────────────────────────────────────┘
-                           ↕ Cloudflare Tunnel
-┌────────────────────────────────────────────────────────────┐
-│             FI Monitor (Local GPU Service)                 │
-│                                                            │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │  HTTP Gateway (Port 11400)                           │ │
-│  │  • Routes /rag/* → RAG Service                       │ │
-│  │  • Routes /api/* → Ollama                            │ │
-│  └──────────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │  RAG Service (Port 11435) - GPU Embeddings          │ │
-│  │  • sentence-transformers/all-MiniLM-L6-v2           │ │
-│  │  • CUDA/MPS acceleration                            │ │
-│  │  • 20-50ms latency                                   │ │
-│  └──────────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │  Ollama (Port 11434) - LLM Inference                │ │
-│  │  • Qwen3:1.7b (1.7B params)                          │ │
-│  │  • GPU-accelerated                                   │ │
-│  │  • Local, no cloud API calls                        │ │
-│  └──────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────┘
-```
-
-**GPU-Only Philosophy:**
-```
-FI Monitor UP → Chat works (LLM + RAG embeddings) ✅
-FI Monitor DOWN → Chat offline (fail fast, clear error) ❌
-
-No CPU fallback, no degraded mode, no "it works but slow"
-```
-
----
-
-## 🚀 Quick Start
-
-### Development (Local)
+You need Node 20, pnpm 10 and Python 3.12+.
 
 ```bash
-# 1. Install dependencies
-make install
+pnpm install --frozen-lockfile
 
-# 2. Start backend
-make dev-all
+# One-time server setup (see apps/og118/server/README.md)
+cd apps/og118/server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e ../../packages/fi-runner[claude]
+pip install -e "../../packages/fi-core[stores-hdf5]"
+cd -
 
-# 3. Start frontend (separate terminal)
-cd apps/aurity
-pnpm install
-pnpm dev
-
-# Backend: http://localhost:7001
-# Frontend: http://localhost:9000
+make dev        # server on :8118 + web on :3000
+make test       # server pytest + web vitest
+make dev-kill   # stop both
 ```
 
-### Production Deployment
+Put your credentials in `apps/og118/server/.env.local` and `apps/og118/web/.env.local` (both gitignored). Never commit them.
 
-```bash
-# Automated deployment (via GitHub Actions)
-git push origin main  # Triggers CI/CD pipeline → Azure Container Apps + Static Web Apps
-```
+## Contributing
 
-**Deploy target**: https://app.aurity.io *(currently not serving — see the status note at the top)*
+`main` is protected. Every change goes through a pull request that has to pass the PR Gate (types, unit tests, contract checks, the iOS harness) and the AI Gatekeeper. A merge to `main` deploys og118.
 
----
+## License
 
-## 📦 Monorepo Structure
-
-```
-free-intelligence/
-├── backend/                    # 🐍 Python 3.14 (FastAPI)
-│   ├── src/
-│   │   ├── fi_assistant/      # RAG + LLM integration
-│   │   │   └── services/
-│   │   │       └── monitor_client.py  # GPU embedding client
-│   │   ├── fi_storage/        # HDF5 document storage
-│   │   │   └── infrastructure/
-│   │   │       └── hdf5/
-│   │   │           └── document_repository.py  # HIPAA-compliant
-│   │   ├── fi_auth/           # Auth0 JWT + RBAC
-│   │   └── fi_document/       # Document upload/search
-│   └── storage/
-│       └── corpus.h5          # Single-file storage (all PDFs + embeddings)
-│
-├── apps/
-│   ├── aurity/                # 🌐 Next.js Frontend
-│   │   ├── app/              # Next.js 14 app router
-│   │   ├── components/       # React components
-│   │   └── .env.production   # Production config
-│   │
-│   └── fi-monitor/            # 🎮 GPU Service (Tauri Desktop App)
-│       ├── src-tauri/        # Rust (process management)
-│       ├── rag_service/      # Python GPU embeddings
-│       └── gateway/          # HTTP router (port 11400)
-│
-├── .github/workflows/
-│   ├── deploy-production.yml  # Auto-deploy to app.aurity.io
-│   └── build-desktop.yml     # Build FI Monitor (Win/Mac/Linux)
-│
-├── docs/                      # 📚 Documentation
-└── test_rag_integration.py   # Integration tests
-```
-
----
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-# Unit tests
-pytest backend/tests/
-
-# Type checking
-pyright backend/
-
-# RAG Integration tests (requires FI Monitor running)
-PYTHONPATH=backend/src python3 test_rag_integration.py
-```
-
-### Frontend Tests
-```bash
-cd apps/aurity
-pnpm test          # Jest tests
-pnpm type-check    # TypeScript
-pnpm lint          # ESLint
-```
-
-### Manual E2E Testing
-```bash
-# 1. Start FI Monitor (GPU service)
-# Open FI Monitor app → Auto-starts Ollama + RAG + Tunnel
-
-# 2. Verify GPU service
-curl http://localhost:11435/rag/health
-# Expected: {"status":"ok","device":"cuda"}
-
-# 3. Upload document + RAG query
-curl -X POST https://app.aurity.io/api/documents/upload \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@test.pdf"
-
-curl -X POST https://app.aurity.io/api/assistant/chat \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{"messages":[{"role":"user","content":"¿Qué dice el documento?"}]}'
-```
-
----
-
-## 🔧 Development Workflow
-
-### Git Workflow (Trunk-Based)
-
-```bash
-# All work happens in dev branch
-git checkout dev
-git add .
-git commit -m "feat: description"
-git push origin dev
-
-# Create PR to main (triggers CI/CD)
-gh pr create --base main --head dev --title "Release: v1.0.1"
-
-# After PR approval → Auto-deploy to production
-```
-
-**Protected Branches:**
-- `main` - Production (auto-deploy to app.aurity.io)
-- `dev` - Development (CI checks only)
-
-### CI/CD Pipeline
-
-```
-PR to main:
-  1. ✅ Python syntax check
-  2. ✅ Critical imports validation
-  3. ✅ Frontend build (Next.js)
-  4. ⏭️ Lint warnings (non-blocking)
-
-Merge to main:
-  1. 🚀 Build Docker image → Azure Container Registry
-  2. 🚀 Deploy backend → Azure Container Apps
-  3. 🚀 Deploy frontend → Azure Static Web Apps
-  4. ✅ Health check + E2E validation
-```
-
----
-
-## 🔒 Security & Compliance
-
-### HIPAA Compliance
-
-- ✅ **Data Residency**: On-prem HDF5 storage (no cloud PHI)
-- ✅ **User Isolation**: `owner_user_id` filter on all queries
-- ✅ **Encryption**: AES-GCM-256 at-rest, HTTPS in-transit
-- ✅ **Audit Trail**: All document access logged with user_id
-- ✅ **RBAC**: Auth0 roles (`FI-superadmin`, `FI-doctor`, etc.)
-
-### Auth0 Integration
-
-```typescript
-// JWT contains roles claim
-const roles = user['https://aurity.app/roles'] as string[];
-
-// Backend validates JWT + roles
-@router.get("/documents")
-async def list_documents(
-    current_user: User = Depends(get_current_user)
-):
-    # Only returns documents owned by current_user
-    return document_repository.list_documents(user_id=current_user.user_id)
-```
-
----
-
-## 📊 Performance Metrics
-
-### RAG Embeddings (GPU vs CPU)
-
-| Device | Latency (avg) | Acceptable? |
-|--------|---------------|-------------|
-| RTX 4060 (CUDA) | 20-30ms | ✅ Production |
-| M1 Pro (MPS) | 40-50ms | ✅ Production |
-| CPU (sentence-transformers) | 100-150ms | ❌ Unacceptable |
-
-### Chat SLO
-
-- p95 latency: ≤ 800ms (end-to-end)
-- RAG search: ≤ 200ms
-- LLM inference: ≤ 500ms
-- Error rate: < 1%
-
-### Storage
-
-- HDF5 compression: ~70% reduction (gzip level 4)
-- Single file: `backend/storage/corpus.h5`
-- Backup: Simple file copy (atomic, consistent)
-
----
-
-## 🎯 Roadmap
-
-### Current (v1.0)
-- ✅ RAG GPU embeddings (FI Monitor)
-- ✅ HIPAA-compliant storage (HDF5)
-- ✅ User isolation (Auth0 + owner_user_id)
-- ✅ GPU-only architecture (no CPU fallback)
-- ⛔ Hosted instance at app.aurity.io is down (TLS does not resolve for that name)
-
-### Next (v1.1)
-- [ ] Multi-tenant clinics (clinic_id isolation)
-- [ ] Document sharing (shared_with field)
-- [ ] Azure Blob tunnel discovery (auto-detect FI Monitor)
-- [ ] Performance dashboard (embedding latency, cache hits)
-- [ ] Mobile app (React Native + Auth0)
-
----
-
-## 📚 Tech Stack
-
-**Backend:**
-- Python 3.14, FastAPI, Uvicorn
-- HDF5 (h5py) - Single-file storage
-- sentence-transformers (GPU embeddings)
-- Auth0 (JWT + RBAC)
-- structlog (structured logging)
-
-**Frontend:**
-- Next.js 14 (Static Export)
-- React 18, TypeScript
-- Tailwind CSS
-- Auth0 SDK
-
-**GPU Service (FI Monitor):**
-- Tauri (Rust) - Desktop app framework
-- Python (FastAPI) - RAG service + Gateway
-- Ollama - Local LLM (Qwen3:1.7b)
-- Cloudflare Tunnel - Secure exposure
-
-**Infrastructure:**
-- Azure Container Apps (backend)
-- Azure Static Web Apps (frontend)
-- Azure Container Registry (Docker images)
-- Azure Key Vault (secrets)
-- GitHub Actions (CI/CD)
-
----
-
-## 🤝 Contributing
-
-Personal project by Bernard Uriza Orozco. Outside contributions aren't accepted.
-
-**Philosophy:**
-> "GPU-first, no compromises. Like modern gaming - works perfectly or doesn't work at all."
-
----
-
-## 📄 License
-
-Private project. All rights reserved © 2026 Bernard Uriza Orozco.
-
----
-
-## 🔗 Links
-
-- **Deploy target (currently down)**: https://app.aurity.io
-- **Documentation**: `docs/README.md`
-- **Architecture**: `.claude/CLAUDE.md`
-- **GPU Integration Tests**: `test_rag_integration.py`
-
----
-
-**Free Intelligence: GPU-Accelerated AI for Healthcare** 🧠⚡
-
-*"Users would rather see nothing than a crappy chart."*
+[PolyForm Noncommercial 1.0.0](LICENSE). Commercial licensing is available: bernarduriza@gmail.com.

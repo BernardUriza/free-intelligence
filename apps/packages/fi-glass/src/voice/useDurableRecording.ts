@@ -107,6 +107,9 @@ export function useDurableRecording(
   const segmentsRef = useRef<Blob[]>([]);
   const rtcCtorRef = useRef<Awaited<ReturnType<typeof loadRecordRTC>> | null>(null);
   const pauseOpRef = useRef<Promise<void>>(Promise.resolve());
+  // One start at a time; bumping the attempt disowns a getUserMedia still in flight.
+  const startingRef = useRef(false);
+  const attemptRef = useRef(0);
 
   // Keep ref in sync with state for callbacks
   useEffect(() => {
@@ -140,6 +143,20 @@ export function useDurableRecording(
       setCurrentStream(null);
     }
   }, []);
+
+  useEffect(
+    () => () => {
+      attemptRef.current += 1;
+      stopTimer();
+      const recorder = recorderRef.current;
+      recorderRef.current = null;
+      try {
+        recorder?.stopRecording(() => {});
+      } catch {}
+      releaseStream();
+    },
+    [stopTimer, releaseStream],
+  );
 
   const updateArtifact = useCallback(
     (patch: Partial<AudioArtifact>) => {
@@ -175,6 +192,10 @@ export function useDurableRecording(
 
   const startRecording = useCallback(async () => {
     if (artifact?.state === 'recording' || artifact?.state === 'paused') return;
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const attempt = ++attemptRef.current;
+    let micTimeout: ReturnType<typeof setTimeout> | undefined;
 
     setIsStarting(true);
     try {
@@ -189,24 +210,36 @@ export function useDurableRecording(
       }
 
       // Request microphone with timeout guard
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        micTimeout = setTimeout(
           () => reject(new Error('Permiso de micrófono expirado (15s).')),
           MIC_TIMEOUT_MS,
-        ),
-      );
+        );
+      });
       const audioConstraints: MediaTrackConstraints | boolean = deviceId
         ? { deviceId: { exact: deviceId } }
         : true;
-      const stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({ audio: audioConstraints }),
-        timeoutPromise,
-      ]);
+      const request = navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      // A permission granted after the timeout (or after unmount) belongs to nobody: stop it.
+      void request
+        .then((granted) => {
+          if (attempt !== attemptRef.current) granted.getTracks().forEach((t) => t.stop());
+        })
+        .catch(() => {});
+      let stream: MediaStream;
+      try {
+        stream = await Promise.race([request, timeoutPromise]);
+      } catch (err) {
+        attemptRef.current += 1;
+        throw err;
+      }
+      if (attempt !== attemptRef.current) return;
 
       streamRef.current = stream;
       setCurrentStream(stream);
 
       rtcCtorRef.current = await loadRecordRTC();
+      if (attempt !== attemptRef.current) return;
       segmentsRef.current = [];
       pauseOpRef.current = Promise.resolve();
       setPausedPreviewBlob(null);
@@ -237,6 +270,8 @@ export function useDurableRecording(
       releaseStream();
       onError?.(err instanceof Error ? err.message : 'No se pudo iniciar la grabación.');
     } finally {
+      clearTimeout(micTimeout);
+      startingRef.current = false;
       setIsStarting(false);
     }
   }, [artifact, store, policy, deviceId, onError, releaseStream, startNewRecorderSegment]);

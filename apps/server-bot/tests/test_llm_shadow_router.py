@@ -225,12 +225,13 @@ def test_routing_instruction_loads_from_content_file_not_inline():
 
 def test_valid_targets_mirror_the_registry_in_lockstep():
     # demux_ai must never import personas.*; the target set is mirrored as a
-    # constant — guard it stays in lockstep with the registered personas + the
-    # implicit Insult host.
+    # constant — guard it stays in lockstep with the personas that have a Discord
+    # door (a token_env) + the implicit Insult host. Astra has none: og118 only.
     from shared.personas.registry import all_personas
 
-    expected = {"insult", *(p.persona_id for p in all_personas())}
+    expected = {"insult", *(p.persona_id for p in all_personas() if p.token_env)}
     assert set(llm_shadow_router._VALID_TARGETS) == expected
+    assert "astra" not in llm_shadow_router._VALID_TARGETS
 
 
 def test_routing_instruction_encodes_intent_not_mention():

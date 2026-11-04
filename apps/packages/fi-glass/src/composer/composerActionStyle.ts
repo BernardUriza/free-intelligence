@@ -23,7 +23,7 @@
  * composer on a wide screen (`shell/touchTarget` is media-gated by design and
  * cannot serve this case).
  *
- * DEFAULTS are wrapped in `:where()` (specificity 0) and GUARANTEES are not.
+ * COLOUR DEFAULTS are wrapped in `:where()` (specificity 0); SHAPE and GUARANTEES are not.
  * This sheet is injected at runtime, so it lands in `<head>` AFTER the app's
  * stylesheet — at equal specificity the framework would win every tie, and the
  * first measured render proved it: `background: transparent` erased og118's send
@@ -32,7 +32,8 @@
  * real specificity so no consumer can shrink a target to win space back.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
+import { ensureTouchTargetStyle } from '../shell/touchTarget';
 
 /** Base class for a composer control — compose it, never replace the consumer's class. */
 export const FI_COMPOSER_ACTION_CLASS = 'fi-composer-action';
@@ -51,11 +52,15 @@ export const FI_COMPOSER_ACTION_LABEL_CLASS = 'fi-composer-action-label';
 const COMPOSER_ACTION_STYLE_ID = 'fi-composer-action-style';
 
 const CSS = `
-:where(.${FI_COMPOSER_ACTION_CLASS}) {
+/* Shape carries real specificity: at zero, Tailwind's preflight button reset
+ * flattened send to 18×18 and glued the call chip's outline to its label. */
+.${FI_COMPOSER_ACTION_CLASS} {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+:where(.${FI_COMPOSER_ACTION_CLASS}) {
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
@@ -65,25 +70,25 @@ const CSS = `
 }
 /* Unavailable, not absent: a disabled control keeps its box so the composer does
  * not reflow between empty and typed — the state a user sees most. */
-:where(.${FI_COMPOSER_ACTION_CLASS}:disabled) {
+.${FI_COMPOSER_ACTION_CLASS}:disabled {
   cursor: not-allowed;
 }
-:where(.${FI_COMPOSER_ACTION_CLASS}) svg {
+.${FI_COMPOSER_ACTION_CLASS} svg {
   width: var(--fi-composer-action-icon-size, 1rem);
   height: var(--fi-composer-action-icon-size, 1rem);
 }
-:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.primary}) {
+.${FI_COMPOSER_ACTION_VARIANT_CLASS.primary} {
   padding: var(--fi-composer-action-padding, 0.5rem);
   border-radius: var(--fi-composer-action-radius, 10px);
 }
-:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary} {
   gap: var(--fi-composer-action-gap, 0.35rem);
   padding: var(--fi-composer-action-pill-padding, 0.3rem 0.65rem);
   border-radius: var(--fi-composer-action-pill-radius, 999px);
   font-size: var(--fi-composer-action-font-size, 0.8rem);
   font-weight: 600;
 }
-:where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) svg {
+.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary} svg {
   width: var(--fi-composer-action-icon-size, 0.9rem);
   height: var(--fi-composer-action-icon-size, 0.9rem);
 }
@@ -97,7 +102,7 @@ const CSS = `
     min-width: var(--fi-touch-target, 44px);
     min-height: var(--fi-touch-target, 44px);
   }
-  :where(.${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary}) {
+  .${FI_COMPOSER_ACTION_VARIANT_CLASS.secondary} {
     justify-content: center;
     padding: 0;
   }
@@ -109,6 +114,8 @@ const CSS = `
 
 /** Inject the idempotent composer-action stylesheet (no-op on the server / if already present). */
 export function ensureComposerActionStyle(): void {
+  // Every composer control also composes fi-touch-target; its sheet must not depend on another component.
+  ensureTouchTargetStyle();
   if (typeof document === 'undefined') return;
   if (document.getElementById(COMPOSER_ACTION_STYLE_ID)) return;
   const el = document.createElement('style');
@@ -119,7 +126,7 @@ export function ensureComposerActionStyle(): void {
 
 /** Ensure the composer-action stylesheet is present for the lifetime of a control. */
 export function useComposerActionStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureComposerActionStyle();
   }, []);
 }

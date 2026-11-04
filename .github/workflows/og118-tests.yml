@@ -101,7 +101,7 @@ jobs:
           #
           # pytest-asyncio is NOT in requirements-dev.txt and three modules need
           # it (test_external_engine, test_heartbeat, test_living_claude use
-          # @pytest.mark.asyncio). Because the repo-root pyproject.toml sets
+          # @pytest.mark.asyncio). Because the repo-root pytest.ini sets
           # `--strict-markers`, its absence is not a quiet skip — collection ERRORS
           # on an unknown marker, which is at least honest. It is pinned here
           # rather than added to requirements-dev.txt to keep this PR to workflow

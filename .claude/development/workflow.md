@@ -14,7 +14,7 @@ Bernard values: **simplicity, focus, no tangents, fast results.**
 
 1. Understand what's requested (NO assumptions)
 2. Make the minimal necessary change
-3. Verify locally (`curl`, `make dev-all`)
+3. Verify locally (`make dev`, `make test`, the real page in Chrome)
 4. Commit → Push → PR
 5. DONE. Don't add more.
 
@@ -36,212 +36,45 @@ Bernard values: **simplicity, focus, no tangents, fast results.**
 
 ---
 
-## 🌿 Git Workflow (2-Branch Model)
+## 🌿 Git Workflow
 
-### Branches
-
-```
-ONLY TWO BRANCHES:
-  • dev  → Active development (multi-feature, multi-agent)
-  • main → Production (protected, requires PR + CI)
-```
-
-### Daily Commands
+`main` is the only branch, local and at rest (`dev` retired 2026-07-06). `main` on
+GitHub is protected, so a change rides a remote-only ref that dies on merge:
 
 ```bash
-git checkout dev                    # Always work in dev
-git add . && git commit -m "..."    # Frequent commits
-git push origin dev                 # CI validates automatically
+git status --short && git branch --show-current   # must be clean-enough and on main
+git add <exact paths>                              # never -A / . / -a
+git diff --cached --name-status                    # read it before committing
+git commit -m "feat(scope): ..."
+git push origin HEAD:refs/heads/bernarduriza/<slug>
+gh pr create --base main --head bernarduriza/<slug>
+# PR Gate + AI Gatekeeper green -> gh pr merge --delete-branch -> CI/CD deploys
+git pull --ff-only                                 # local main catches the merge
 ```
 
-### ⚠️ Critical: Sync After Merge
-
-When a PR merges to main, dev becomes BEHIND. **ALWAYS sync**:
-
-```bash
-git checkout dev
-git fetch origin
-git merge origin/main -m "chore: sync dev with main after PR #XX merge"
-git push origin dev
-
-# Verify dev is updated
-git log origin/main..origin/dev    # Should be empty after sync
-```
-
-**Problem:** If you don't sync, PRs will be in "BEHIND" state and can't merge
-**Solution:** Sync dev with main after EVERY merge
-
-### Deploy to Production
-
-```bash
-gh pr create --base main --head dev --title "Release: description"
-# Wait for CI ✅ → Merge → Auto-deploy via CD
-```
-
-### Rules for Claude
-
-❌ **NEVER:**
-- Create additional branches (no feature branches)
-- Push directly to main
-- Bypass PR review
-
-✅ **ALWAYS:**
-- Work in dev
-- Use PR to promote to main
-- Verify CI passes before merge
-- **CRITICAL:** Sync dev with main after EVERY merge
-
-### Optimization: Delete Local main
-
-This workflow uses 2 REMOTE branches (origin/dev, origin/main) but only needs 1 LOCAL branch (dev).
-
-**Benefits:**
-- ✅ Impossible to accidentally commit to main
-- ✅ origin/main always truth source
-- ✅ Less mental confusion
-- ✅ `git diff origin/main..dev` works the same
-
-**How to delete:**
-```bash
-git checkout dev
-git branch -D main  # Safe, doesn't affect remote
-```
-
-**After deletion:**
-```bash
-git fetch origin                    # Update remote refs
-git merge origin/main               # Sync from remote
-git diff origin/main..dev           # Compare with remote
-```
+A local branch is never created; the `main-only-branches` gate denies it. A checkout
+that is not on `main` is an alarm, not a workspace.
 
 ---
 
-## ☁️ Cloud-Dev Mode
-
-### Architecture
-
-**Production:**
-```
-Desktop → fi-monitor (cloudflared) → Azure Blob → Cloud Backend → Frontend
-```
-
-**Cloud-Dev:**
-```
-Local → fi-monitor (cloudflared) → Local File → Local Backend → Local Frontend
-```
-
-### Commands
+## 🖥️ Local og118
 
 ```bash
-# Start all services with tunnel (default)
-make dev-all              # ~60s startup
-
-# Start without tunnel (faster, local-only)
-make dev-all-local        # ~30s startup
-
-# Kill all dev processes
-make dev-kill
-
-# Restart services
-make dev-restart
+make dev          # server (apps/og118/server/run.sh, :8118) + web (next dev, :3000)
+make dev-server   # only the server; make dev-web for only the web
+make dev-kill     # stop whatever listens on :8118 / :3000
+make test         # server pytest + og118-web vitest
 ```
 
-### Startup Sequence (Cloud-Dev)
-
-1. **[0/5]** Cleanup existing processes
-2. **[1/5]** Check prerequisites (Python 3.14, Node, pnpm)
-3. **[2/5]** Initialize storage (corpus.h5)
-4. **[3/5]** Start fi-monitor → wait for tunnel URL (45s timeout)
-5. **[4/5]** Start backend (TunnelURLProvider polls local file)
-6. **[5/5]** Start frontend (connects to localhost:7001)
-
-### Comparison: dev-all vs dev-all-local
-
-| Feature | dev-all (cloud-dev) | dev-all-local |
-|---------|---------------------|---------------|
-| **Tunnel** | ✅ Cloudflared | ❌ None |
-| **Ollama** | Via tunnel | Direct localhost |
-| **Startup** | ~60s (tunnel wait) | ~30s (skip tunnel) |
-| **Network** | Offline OK (local file) | Offline OK |
-| **Production Parity** | ✅ High | ⚠️ Medium |
-| **Use case** | Testing tunnel flow | Quick iterations |
-
-### When to Use Each Mode
-
-**Use `make dev-all` (cloud-dev) when:**
-- Testing tunnel-related features
-- Debugging TunnelURLProvider issues
-- Validating production parity
-- Working on fi-monitor integration
-
-**Use `make dev-all-local` when:**
-- Iterating on UI changes
-- Working on backend logic unrelated to tunnels
-- Need faster feedback loop
-- fi-monitor not available (e.g., CI/CD)
-
-### Troubleshooting
-
-**Tunnel timeout (45s):**
-- **Symptom:** `⚠️ Tunnel timeout (45s), falling back to localhost`
-- **Causes:** fi-monitor failed to start, cloudflared not installed, port 11434 blocked
-- **Fix:**
-  ```bash
-  tail -f logs/fi-monitor-dev.log  # Check logs
-  ollama serve                      # Start Ollama
-  make dev-restart                  # Restart dev
-  ```
-
-**Backend can't reach Ollama via tunnel:**
-- **Symptom:** `curl http://localhost:7001/api/internal/ollama/health` returns 503
-- **Causes:** Tunnel URL stale (> 10 min old), fi-monitor stopped, network issue
-- **Fix:**
-  ```bash
-  cat ~/.config/fi-monitor/tunnel-url.json  # Check tunnel file
-  make dev-restart                          # Restart services
-  ```
-
-### File Locations
-
-- **Tunnel URL:** `~/.config/fi-monitor/tunnel-url.json`
-- **Logs:**
-  - `logs/fi-monitor-dev.log` (fi-monitor + cloudflared)
-  - `logs/backend-dev.log` (FastAPI)
-  - `logs/frontend-aurity-dev.log` (Next.js)
-- **Storage:** `storage/corpus.h5` (HDF5)
-
----
+- The server's `.venv` and its install steps: `apps/og118/server/README.md`.
+- `run.sh` reads `apps/og118/server/.env.local` and picks API-key or OAuth mode.
+- The web runs in `auth0` mode from `apps/og118/web/.env.local`; never flip it to
+  `bearer` to verify how the app looks (`.claude/rules/local-dev-auth-mode-parity.md`).
 
 ## ✅ Verification Checklist
 
-After cloud-dev starts, verify:
-
 ```bash
-# 1. Check tunnel file exists and is fresh
-cat ~/.config/fi-monitor/tunnel-url.json
-# Should show: {"tunnel_url": "https://...", "updated_at": "2026-01-31T..."}
-
-# 2. Verify backend health
-curl http://localhost:7001/health
-# Should return: {"status": "healthy"}
-
-# 3. Test Ollama access via tunnel
-curl http://localhost:7001/api/internal/ollama/health
-# Should return: 200 OK (or 503 if tunnel failed, but backend still healthy)
-
-# 4. Check frontend
-open http://localhost:9000
-# Should load without errors
-
-# 5. Check logs for errors
-tail -n 50 logs/fi-monitor-dev.log
-tail -n 50 logs/backend-dev.log
-tail -n 50 logs/frontend-aurity-dev.log
+curl -s http://localhost:8118/health      # server up
+node scripts/check-console-errors.mjs http://localhost:3000/
+node scripts/screenshot-cdp.mjs http://localhost:3000/ /tmp/og118.png
 ```
-
----
-
-**See also:**
-- `.claude/development/version-management.md` - Version sync strategy
-- `.claude/development/python-314.md` - Python 3.14 requirements
-- `.claude/architecture/desktop-app.md` - fi-monitor architecture
