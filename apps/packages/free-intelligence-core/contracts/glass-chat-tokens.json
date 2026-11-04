@@ -320,6 +320,21 @@
     "drawerWidth": {
       "px": 280,
       "description": "El ancho del drawer de conversaciones en móvil (useEdgeSwipe.ts)."
+    },
+    "pillMinHeight": {
+      "px": 48,
+      "ios": true,
+      "description": "Alto mínimo de la píldora del composer nativo (una línea: + · texto · mic/llamar ↔ enviar). Sólo iOS: la web conserva ComposerFrame."
+    },
+    "userBubbleMaxWidth": {
+      "px": 300,
+      "ios": true,
+      "description": "Ancho máximo de la burbuja del usuario, alineada a la derecha en el iPhone (~77% a 390pt). Sólo iOS."
+    },
+    "startTileSize": {
+      "px": 72,
+      "ios": true,
+      "description": "La casilla del oganesón en el inicio nativo, arriba del saludo de una línea. Sólo iOS."
     }
   },
   "css": {
