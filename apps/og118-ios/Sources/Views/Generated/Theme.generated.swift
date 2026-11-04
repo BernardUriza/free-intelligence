@@ -158,6 +158,12 @@ extension Theme {
     static let menuButtonRadius: CGFloat = 10
     /// El ancho del drawer de conversaciones en móvil (useEdgeSwipe.ts). (280px)
     static let drawerWidth: CGFloat = 280
+    /// Alto mínimo de la píldora del composer nativo (una línea: + · texto · mic/llamar ↔ enviar). Sólo iOS: la web conserva ComposerFrame. (48px)
+    static let pillMinHeight: CGFloat = 48
+    /// Ancho máximo de la burbuja del usuario, alineada a la derecha en el iPhone (~77% a 390pt). Sólo iOS. (300px)
+    static let userBubbleMaxWidth: CGFloat = 300
+    /// La casilla del oganesón en el inicio nativo, arriba del saludo de una línea. Sólo iOS. (72px)
+    static let startTileSize: CGFloat = 72
 
     /// --glass-chat-watermark-opacity. La marca de agua de og118 detrás del hilo: la web y el iPhone la pintan con la misma opacidad.
     static let watermarkOpacity: Double = 0.08
