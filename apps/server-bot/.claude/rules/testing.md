@@ -440,6 +440,25 @@ consumer can exclude it at write time (Datadog `x-datadog-origin: synthetics`,
 OpenTelemetry `user_agent.synthetic.type=test`), and it runs under a dedicated
 test identity (Stripe sandboxes, Auth0 one tenant per environment).
 
+### Which model a probe runs on
+
+**`/v1/turn` has no `model` field: the router picks by tier** (`select_model`), and
+sending one is a 422. To pin a model, use `scripts/probe_turn.py --tier crisis`: the
+id comes from `GET /health` → `models`, the persona's DNA from `shared/personas/`, and
+the call goes to `/v1/judge` (no memory, no markers). Never type a model id from
+memory or from your own environment: yours is what runs Claude Code, not what the
+runner's CLI serves.
+
+The runner refuses what it can't honor: an unknown field, a model outside `models`
+or an unknown `persona_id` is a 422, and a CLI error (`model="<synthetic>"`) on the
+judge is a 502. The script exits 1 unless a model answered, because a 200 is not the
+receipt: read `model` and `output_tokens`.
+
+**Why (2026-11-04):** the Frugívoro check sent `model` to `/v1/turn` and got a 200
+on Haiku, then sent `claude-opus-5-5` to `/v1/judge` and got a 200 whose `text` was
+the CLI's *"does not support this model"*. Bernard: *"mandando parámetros que de
+todas maneras tu mismo sistema … las va a tirar a la basura."*
+
 **Browser probes on og118.ai are still under Bernard's Auth0 login.** The web
 surface cannot tag a turn, so a UI verification there still lands in his memory
 and is still mined. Closing that needs a separate test account (his atom: account

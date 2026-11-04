@@ -10,6 +10,7 @@ y un Postgres caído degrada a "sin puente" en vez de matar el turno.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -167,6 +168,7 @@ def test_job_turn_is_persisted_already_resolved(client, monkeypatch):
 
 
 def test_discord_callers_are_untouched(client, monkeypatch):
+    monkeypatch.setattr("persona_runner.core.config.PERSONAS_DIR", Path(__file__).parents[2] / "shared" / "personas")
     _install(monkeypatch, FakeConn([]))
     seen = _capture_turn(monkeypatch)
     body = {"channel_id": "1489180895264116736", "user_id": BERNARD, "user_text": "hola", "persona_id": "vultur"}

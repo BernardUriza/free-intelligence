@@ -11,6 +11,7 @@ la misma excepción que en `/v1/turn`.
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -33,6 +34,7 @@ REQ = {
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setattr("persona_runner.core.config.RUNNER_AUTH_TOKEN", TOKEN)
+    monkeypatch.setattr("persona_runner.core.config.PERSONAS_DIR", Path(__file__).parents[2] / "shared" / "personas")
     turn_jobs.JOBS.clear()
     app = FastAPI()
     app.include_router(turn_api.router)

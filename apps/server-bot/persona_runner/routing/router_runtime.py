@@ -70,6 +70,7 @@ from persona_core.behavior.contracts.flows import (
     UserState,
 )
 from persona_core.behavior.presets import classify_preset
+from persona_runner.core import config
 from persona_runner.routing.model_routing import ModelChoice, OpusBudget, select_model
 
 log = structlog.get_logger()
@@ -88,6 +89,19 @@ OPUS_24H_CAP = int(os.environ.get("ROUTER_OPUS_24H_CAP", "20"))
 FORCED_MODEL = os.environ.get("AGENT_RUNNER_FORCED_MODEL", "").strip()
 
 _BUDGET = OpusBudget(cap=OPUS_24H_CAP)
+
+
+def served_models() -> dict[str, str]:
+    """The model ids this runner speaks, by tier. `/health` publishes them; `/v1/judge` admits only these."""
+    models = {
+        "casual": CASUAL_MODEL,
+        "depth": DEPTH_MODEL,
+        "crisis": CRISIS_MODEL,
+        "judge_default": config.JUDGE_DEFAULT_MODEL,
+    }
+    if FORCED_MODEL:
+        models["forced"] = FORCED_MODEL
+    return models
 
 
 @dataclass(frozen=True)

@@ -11,6 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import structlog
+from fastapi import HTTPException
 
 from persona_runner.core import config
 from persona_runner.engine import runtime_personas
@@ -38,6 +39,15 @@ def resolve_persona_path(persona_id: str | None) -> Path:
         log.warning("agent_runner_persona_unknown", persona_id=persona_id, path=str(candidate))
         return config.PERSONA_PATH
     return candidate
+
+
+def require_known_persona(persona_id: str | None) -> None:
+    """Refuse at the door a persona_id the fallback below would answer as the default persona."""
+    if not persona_id or persona_id == config.PERSONA_PATH.stem:
+        return
+    on_disk = config.PERSONA_ID_RE.match(persona_id) and (config.PERSONAS_DIR / f"{persona_id}.md").exists()
+    if not on_disk and not runtime_personas.path_for(persona_id):
+        raise HTTPException(422, f"unknown persona_id {persona_id!r}")
 
 
 def load_persona(persona_id: str | None = None) -> str:

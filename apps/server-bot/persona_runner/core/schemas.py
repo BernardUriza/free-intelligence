@@ -127,12 +127,14 @@ class JudgeRequest(BaseModel):
     centralized in the runner. Memory: [[mcp-shape-b-canonical]].
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     system_prompt: str = Field(..., min_length=1, max_length=256000)
     user_text: str = Field(..., min_length=1, max_length=256000)
     max_tokens: int = Field(default=4096, ge=1, le=64000)
     model: str | None = Field(
         default=None,
-        description="Override AGENT_RUNNER_JUDGE_MODEL. Defaults to Haiku.",
+        description="One of the ids GET /health lists under `models`. None = `judge_default`.",
     )
     # v4.21.117: same attachment contract as TurnRequest. Lets utility callers
     # use the judge's vision (image transcription for longitudinal memory) — the
