@@ -377,7 +377,24 @@ jobs:
               --secret-name insult-agent-runner-token \
               --query value -o tsv 2>/dev/null || echo "")
 
-            HEALTH=$(curl -sS -m 15 "https://$FQDN/health" 2>&1 || echo "{}")
+            # The ingress holds requests until the new revision is ready (READY_CAP_S
+            # after boot), so a single short curl read that wait as a broken runner.
+            READY_CODE=""
+            for attempt in $(seq 1 18); do
+              READY_CODE=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' "https://$FQDN/ready" 2>/dev/null || true)
+              if [ "$READY_CODE" = "200" ]; then break; fi
+              echo "ready attempt $attempt -> HTTP ${READY_CODE:-none}"
+              sleep 5
+            done
+            if [ "$READY_CODE" != "200" ]; then
+              echo "FAIL persona-runner: /ready never returned 200 (last ${READY_CODE:-none})"
+              exit 1
+            fi
+
+            if ! HEALTH=$(curl -sS -m 30 "https://$FQDN/health" 2>&1); then
+              echo "FAIL persona-runner: /health did not answer: $HEALTH"
+              exit 1
+            fi
             echo "health: $HEALTH"
             if ! echo "$HEALTH" | grep -q '"auth_configured":true'; then
               echo "FAIL persona-runner: auth_configured!=true in /health"
