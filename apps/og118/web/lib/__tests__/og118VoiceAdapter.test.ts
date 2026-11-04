@@ -47,7 +47,8 @@ describe('og118VoiceAdapter.synthesize', () => {
       speed: 1.0,
     });
 
-    expect(result).toBeInstanceOf(Blob);
+    // Node 20 hands back undici's Blob, not jsdom's: same shape, other realm.
+    expect(Object.prototype.toString.call(result)).toBe('[object Blob]');
     expect((result as Blob).type).toBe('audio/mpeg');
   });
 

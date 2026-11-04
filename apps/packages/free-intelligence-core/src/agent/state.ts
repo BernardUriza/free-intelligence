@@ -74,6 +74,12 @@ export interface AgentTurnState {
    * wrote. A counter, not a timestamp — the reducer stays pure.
    */
   heartbeats: number;
+  /**
+   * True once the backend released this turn WITHOUT an answer because the
+   * engine was still working (`deferred` frame). The answer arrives in the
+   * thread out of band; the turn settles empty and a shell shows a waiting notice.
+   */
+  deferred: boolean;
   status: AgentTurnStatus;
   errorMessage?: string;
 }
@@ -89,6 +95,7 @@ export function initialAgentTurnState(): AgentTurnState {
     meta: null,
     author: null,
     heartbeats: 0,
+    deferred: false,
     status: 'thinking',
   };
 }
@@ -274,6 +281,9 @@ export function applyAgentEvent(
       // Carries nothing; its ARRIVAL is the payload. A NEW object every time, on
       // purpose: that is what tells a watchdog watching this turn to re-arm.
       return { ...state, heartbeats: state.heartbeats + 1 };
+
+    case 'deferred':
+      return { ...state, deferred: true };
 
     case 'meta':
       return { ...state, meta: event.meta };

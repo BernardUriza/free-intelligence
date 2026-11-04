@@ -36,9 +36,9 @@
  */
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState, useInsertionEffect } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
-import { withTouchTarget } from '../shell/touchTarget';
+import { ensureTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
 import { ensureDensityStyle } from '../agent/densityStyle';
 
 const COMPOSER_FRAME_STYLE_ID = 'fi-composer-frame-style';
@@ -95,6 +95,7 @@ const CSS = `
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 0.375rem;
+    padding: 0.25rem 0.3rem;
   }
   [data-fi-composer-slot="header"] {
     flex: 1 1 100%;
@@ -104,15 +105,20 @@ const CSS = `
   [data-fi-composer-slot="footer"] {
     display: contents;
   }
-  /* The body (whatever wrapper the consumer's Composer renders) becomes the
-     row's flexing member so the textarea shares the line with toggle/mic/send. */
-  [data-fi-composer-frame] > :not([data-fi-composer-slot]) {
+  /* The body becomes the row's flexing member — a bare wrapper or the area slot,
+     which og118 renders: excluding it left the row unfilled and send off the edge. */
+  [data-fi-composer-frame] > :not([data-fi-composer-slot]),
+  [data-fi-composer-frame] > [data-fi-composer-slot="area"] {
     flex: 1 1 0%;
     min-width: 0;
   }
+  /* The viewport-gated touch sheet cannot see a narrow composer on a wide screen,
+     where this toggle measured 18x18: the container grants the minimum instead. */
   .fi-composer-rail-toggle {
     display: inline-flex;
     order: -1;
+    min-width: var(--fi-touch-target, 44px);
+    min-height: var(--fi-touch-target, 44px);
   }
   [data-fi-composer-slot="footer-start"] {
     flex: 1 1 100%;
@@ -147,6 +153,7 @@ export function ensureComposerFrameStyle(): void {
   // The tokens this sheet READS are published by the density sheet; a primitive
   // never assumes an ancestor mounted it (same contract as touchTarget).
   ensureDensityStyle();
+  ensureTouchTargetStyle();
 
   if (typeof document === 'undefined') return;
   if (document.getElementById(COMPOSER_FRAME_STYLE_ID)) return;
@@ -158,7 +165,7 @@ export function ensureComposerFrameStyle(): void {
 
 /** Ensure the composer-frame stylesheet is present for the lifetime of the component. */
 export function useComposerFrameStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureComposerFrameStyle();
   }, []);
 }

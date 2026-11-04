@@ -1,6 +1,6 @@
 import * as react from 'react';
 import { ReactNode, CSSProperties, ChangeEvent, MouseEvent, KeyboardEvent } from 'react';
-import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, MessageImage, VoiceAdapter } from '@free-intelligence/core';
+import { ToolCall, AgentTurnState, GuardRejection, AgentPlan, AgentTurnStatus, AgentHook, MessageAuthor, ChatMessage, TurnNotice, MessageImage, VoiceAdapter } from '@free-intelligence/core';
 import { LucideIcon } from 'lucide-react';
 import { b as ComposerAction } from '../ComposerActions-HOiu1DmD.js';
 
@@ -162,8 +162,8 @@ declare function SourcesPanel({ sources, classNames, icons, label, }: SourcesPan
 type AppHandledError = (turn: AgentTurnState) => boolean;
 /** A recoverable failure of the in-flight turn, surfaced for retry/dismiss. */
 interface TurnError {
-    /** `timeout` = the idle watchdog fired; `stream` = the transport reported error. */
-    kind: 'timeout' | 'stream';
+    /** `timeout` = the idle watchdog fired; `stream` = the transport reported error; `empty` = it settled saying nothing. */
+    kind: 'timeout' | 'stream' | 'empty';
     /** Human-readable, app-displayable reason. */
     message: string;
 }
@@ -229,8 +229,17 @@ interface UseAgentConversationOptions {
      * save (a 413 for an oversized record, a dead network, a 500) died as an
      * unhandled rejection — the user saw the thread on screen, believed it was
      * saved, and lost it on reload. Silence is the one thing persistence may never do.
+     *
+     * `conversationId` is the conversation the thread belongs to — the one the
+     * turn was SENT in, not whatever is active when the write happens.
      */
-    onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
+    onMessagesChange?: (messages: ChatMessage[], conversationId?: string) => void | Promise<void>;
+    /**
+     * Called when a turn is sent, with the conversation it was sent in — the
+     * signal a library needs to keep that conversation active across a store
+     * swap before its first save (og118 passes `lib.claimActive`).
+     */
+    onTurnStart?: (conversationId: string | undefined) => void;
     /**
      * Idle watchdog in ms: if the live turn's state does not change for this long
      * while streaming, the turn is declared failed (timeout). Measured since the
@@ -267,6 +276,14 @@ interface AgentConversation {
     /** A recoverable failure of the last turn (timeout/stream), or null. */
     turnError: TurnError | null;
     /**
+     * The last turn settled WITHOUT its answer because the engine is still working
+     * (`deferred`): the answer lands in the thread out of band. A shell shows this
+     * as a waiting notice, never as an error — there is nothing to retry.
+     */
+    turnNotice: TurnNotice | null;
+    /** Clear the waiting notice. */
+    dismissNotice: () => void;
+    /**
      * The thread could not be SAVED (the turn itself succeeded), or null. A shell
      * MUST surface this: the alternative is a user who trusts a thread that is not
      * there. Recover with {@link retryPersist}.
@@ -295,10 +312,17 @@ interface AgentConversation {
      * into the composer.
      */
     clearUnsent: () => void;
+    /**
+     * Whether {@link send} would accept a turn right now — the ONE predicate a
+     * composer gates on. It follows the transport, not {@link isStreaming}: after a
+     * watchdog timeout the transport may still be busy, and `send` would refuse.
+     */
+    canSend: boolean;
     /** Send a message: pushes it optimistically, then drives the agent turn.
      * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
-     * (empty text, ≥1 image) is valid — the picture IS the message. */
-    send: (text: string, images?: MessageImage[]) => void;
+     * (empty text, ≥1 image) is valid — the picture IS the message.
+     * @returns whether the turn went out; a shell clears its composer only on `true`. */
+    send: (text: string, images?: MessageImage[]) => boolean;
     /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
     sendAndAwait: (text: string) => Promise<string>;
     /**
@@ -321,6 +345,27 @@ interface AgentConversation {
     newConversation: () => void;
 }
 declare function useAgentConversation(agent: AgentHook, options: UseAgentConversationOptions): AgentConversation;
+
+interface TurnErrorBannerProps {
+    /** Any recoverable failure with a displayable message: a failed turn, save or
+     *  sidebar action. One banner anatomy for every caller. */
+    error: {
+        message: string;
+    };
+    /** Absent for a notice: there is nothing to retry. */
+    onRetry?: () => void;
+    onDismiss: () => void;
+    /** `error` (default) is an alert in red; `info` is a status in blue. */
+    tone?: 'error' | 'info';
+    className?: string;
+    /** Retry button copy. Default: "Reintentar". */
+    retryLabel?: string;
+    /** Dismiss button copy. Default: "Descartar". */
+    dismissLabel?: string;
+    retryButtonClassName?: string;
+    dismissButtonClassName?: string;
+}
+declare function TurnErrorBanner({ error, onRetry, onDismiss, tone, className, retryLabel, dismissLabel, retryButtonClassName, dismissButtonClassName, }: TurnErrorBannerProps): react.JSX.Element;
 
 /**
  * fi-glass · conversation-surface/types — the public contract of
@@ -486,6 +531,8 @@ interface MessageRenderProps {
     showCopyAction?: boolean;
     /** Copy for the "retry saving" button on the persist-failure banner. */
     persistRetryLabel?: string;
+    /** BCP-47 locale for message times, e.g. `es-MX-u-hc-h23`. Default: the browser's. */
+    messageLocale?: string;
     /** Per-message header slot (avatar + author/meta) → MessageBubble.header. */
     renderHeader?: (message: ChatMessage) => ReactNode;
     /** Per-message badge slot (model/provenance chip) → MessageBubble.badge. */
@@ -583,6 +630,8 @@ interface ImageAttachmentProps {
  */
 interface TurnErrorProps {
     errorClassName?: string;
+    /** Class for the waiting notice of a deferred turn. Falls back to `errorClassName`. */
+    noticeClassName?: string;
     /** Retry button copy. Default: "Reintentar". */
     retryLabel?: string;
     /** Dismiss button copy. Default: "Descartar". */
@@ -872,4 +921,4 @@ declare function ensureDensityStyle(): void;
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 declare function useDensityStyle(): void;
 
-export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceComposerProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };
+export { type AgentClassNames, type AgentConversation, AgentConversationSurface, type AgentConversationSurfaceLayout, type AgentConversationSurfaceProps, type AgentIconSet, AgentPanel, type AgentPanelProps, AgentSidebarItem, type AgentSidebarItemProps, AgentSidebarSection, type AgentSidebarSectionProps, AgentWorkspaceShell, type AgentWorkspaceShellApi, type AgentWorkspaceShellDensity, type AgentWorkspaceShellProps, type AgentWorkspaceShellVisual, type AppHandledError, type AutoScrollProps, type CollapseProps, type ComposerRegionSurface, DEFAULT_TURN_TIMEOUT_MS, DestructiveActionSlot, type DestructiveActionSlotProps, type DictationProps, EditableResourceItem, type EditableResourceItemProps, FI_ITEM_ACTION_CLASS, FI_ITEM_META_CLASS, FI_ITEM_SUBTITLE_CLASS, FI_ITEM_TITLE_CLASS, FI_RESOURCE_RENAME_INPUT_CLASS, FI_SECTION_CARD_CLASS, FI_SECTION_FOOTER_CLASS, FI_SECTION_HEAD_CLASS, FI_SECTION_SCROLL_CLASS, FI_SECTION_TITLE_CLASS, FI_SIDEBAR_ITEM_CLASS, FI_SIDEBAR_SECTION_CLASS, type ImageAttachmentProps, type InlineRename, ItemActionSlot, type ItemActionSlotProps, type MessageRenderProps, type NewConversationProps, type PersistError, PlanChecklist, type PlanChecklistProps, ScrollToBottomButton, type ScrollToBottomButtonProps, type SendControlProps, SourcesPanel, type SourcesPanelProps, StepsPanel, type StepsPanelProps, type SurfaceComposerProps, type SurfaceLayoutProps, type SurfaceSlotProps, type ToolCategory, type ToolVisualStatus, type TranscriptRegionSurface, type TurnError, TurnErrorBanner, type TurnErrorBannerProps, type TurnErrorProps, type UseAgentConversationOptions, type UseInlineRenameOptions, classifyTool, defaultAgentIcons, ensureDensityStyle, ensureSidebarItemStyle, ensureSidebarSectionStyle, latestOpenToolIndex, resolveIcons, shortToolName, toolIcon, toolVisualStatus, useAgentConversation, useDensityStyle, useInlineRename, useSidebarItemStyle, useSidebarSectionStyle };

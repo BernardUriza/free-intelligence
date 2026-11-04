@@ -17,33 +17,58 @@
  * keyboard/screen-reader flows are unchanged where they exist.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 
 export const FI_MSG_ACTIONS_CLASS = 'fi-msg-actions';
+export const FI_MSG_FOOTER_CLASS = 'fi-msg-footer';
+export const FI_MSG_BADGE_CLASS = 'fi-msg-badge';
 
 const MESSAGE_ACTIONS_STYLE_ID = 'fi-msg-actions-style';
 
 const CSS = `
-.${FI_MSG_ACTIONS_CLASS} {
+.${FI_MSG_FOOTER_CLASS} {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
   margin-top: 0.25rem;
+}
+.${FI_MSG_BADGE_CLASS} {
+  min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
   .${FI_MSG_ACTIONS_CLASS} {
     opacity: 0;
     transition: opacity 0.15s ease;
   }
-  article:hover > .${FI_MSG_ACTIONS_CLASS},
+  article:hover > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
   .${FI_MSG_ACTIONS_CLASS}:focus-within {
     opacity: 1;
   }
 }
 @media (pointer: coarse) {
+  /* Visually hidden, not display:none: a keyboard or VoiceOver on a touch device
+     still reaches every message's actions, and focusing one reveals the row. */
   .${FI_MSG_ACTIONS_CLASS} {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
-  article[data-fi-last-message] > .${FI_MSG_ACTIONS_CLASS},
-  article[data-fi-actions-open] > .${FI_MSG_ACTIONS_CLASS} {
-    display: block;
+  article[data-fi-last-message] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  article[data-fi-actions-open] > .${FI_MSG_FOOTER_CLASS} > .${FI_MSG_ACTIONS_CLASS},
+  .${FI_MSG_ACTIONS_CLASS}:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+  article:not([data-fi-last-message]):not([data-fi-actions-open]) > .${FI_MSG_FOOTER_CLASS}:not(:has(> .${FI_MSG_BADGE_CLASS})):not(:focus-within) {
+    margin-top: 0;
   }
 }
 `;
@@ -60,7 +85,7 @@ export function ensureMessageActionsStyle(): void {
 
 /** Ensure the message-actions stylesheet is present for the component's lifetime. */
 export function useMessageActionsStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureMessageActionsStyle();
   }, []);
 }

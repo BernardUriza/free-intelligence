@@ -16,7 +16,8 @@ from fastapi import HTTPException
 
 from .agent_sdk import DEFAULT_PROVIDER, providers
 from .engine import DEFAULT_MODE, MODES
-from .engine.contract import Guard, RemoteTool
+from .engine.contract import Guard, RemoteTool, TurnSpec
+from .engine.modes import BadBuiltins, clean_builtins
 from .engine.remote_tools import BadRemoteTool, clean_remote_tools
 from .engine.guards import UnknownGuard, clean_guards, resolve
 from .engine.tools import UnknownTool, clean_tools
@@ -34,6 +35,18 @@ def safe_names(project: str, session: str) -> tuple[str, str]:
 
 def safe_mode(mode: str | None) -> str:
     return mode if mode in MODES else DEFAULT_MODE
+
+
+def safe_builtins(raw: Any, mode: str, provider: str) -> tuple[str, ...] | None:
+    """The `builtins` field (#37): a narrowing of the mode's builtin tools, 422
+    on any name the mode does not grant. An ACP agent's tools are its own and
+    its only gate is allow/reject, so a subset it cannot honour is refused too."""
+    if raw is not None and provider != DEFAULT_PROVIDER:
+        raise HTTPException(status_code=422, detail="builtins need the native provider")
+    try:
+        return clean_builtins(raw, mode)
+    except BadBuiltins as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def safe_tools(raw: Any, _mode: str) -> tuple[str, ...]:
@@ -93,6 +106,18 @@ def safe_remote_tools(raw: Any) -> tuple[RemoteTool, ...]:
         return clean_remote_tools(raw)
     except BadRemoteTool as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def turn_spec(body: dict[str, Any], lane: str = "") -> TurnSpec:
+    """The turn's shape from the wire, every field through its own gate. `lane`
+    is not the caller's to choose: the door derives it from the token presented."""
+    mode = safe_mode(body.get("mode"))
+    provider = safe_provider(body.get("provider"))
+    return TurnSpec(mode=mode, tools=safe_tools(body.get("tools"), mode),
+                    model=safe_model(body.get("model")),
+                    remote_tools=safe_remote_tools(body.get("remote_tools")),
+                    provider=provider, lane=lane,
+                    builtins=safe_builtins(body.get("builtins"), mode, provider))
 
 
 def build_guards(names: list[str]) -> list[Guard]:

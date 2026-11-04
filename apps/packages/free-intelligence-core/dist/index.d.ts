@@ -245,6 +245,8 @@ type AgentStreamEvent$1 = {
 } | {
     type: 'ping';
 } | {
+    type: 'deferred';
+} | {
     type: 'done';
 };
 
@@ -311,6 +313,12 @@ interface AgentTurnState {
      * wrote. A counter, not a timestamp — the reducer stays pure.
      */
     heartbeats: number;
+    /**
+     * True once the backend released this turn WITHOUT an answer because the
+     * engine was still working (`deferred` frame). The answer arrives in the
+     * thread out of band; the turn settles empty and a shell shows a waiting notice.
+     */
+    deferred: boolean;
     status: AgentTurnStatus;
     errorMessage?: string;
 }
@@ -471,6 +479,54 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
 }
 
 /**
+ * fi-runner wire frame → core {@link AgentStreamEvent}, or null to drop it.
+ *
+ * The wire is `contracts/agent-events.schema.json`; the app-level event is what
+ * {@link applyAgentEvent} reduces. This mapping lived in og118's transport hook
+ * and every other consumer of the stream (the iPhone, the next shell) had to
+ * rewrite it. It is substrate: one mapping, checked against the same vectors
+ * the native client replays (`contracts/agent-turn.vectors.json`).
+ *
+ * @param frame one decoded SSE `data:` payload
+ * @returns the core event, or null for a frame this layer has no use for
+ */
+
+declare function fromWireEvent(frame: unknown): AgentStreamEvent$1 | null;
+
+/**
+ * SSE framing for the agent stream: cut a growing byte buffer into the `data:`
+ * payloads that are complete, and hand back what is still arriving.
+ *
+ * A frame ends at a blank line; its `data:` lines join with `\n` (the SSE spec),
+ * which for the server's one-line frames is the line itself. Every transport
+ * (fetch in og118-web, URLSession on the iPhone) used to carry its own copy of
+ * this cut; the shared fixture `contracts/fixtures/turno-real.sse` is what each
+ * copy must read identically.
+ *
+ * @param buffer everything received so far that has not been consumed
+ * @returns the complete payloads in order, and the unconsumed tail
+ */
+declare function takeSseFrames(buffer: string): {
+    payloads: string[];
+    rest: string;
+};
+
+declare const COPY: {
+    /** Título de un hilo sin mensaje de usuario usable (deriveConversationTitle). */
+    readonly conversationDefaultTitle: "New chat";
+    /** Aviso (no error) de un turno diferido: el motor sigue trabajando tras cerrar el stream. */
+    readonly turnDeferredNotice: (author: string) => string;
+    /** El aviso cuando la relectura acotada del hilo se agotó sin que llegara la respuesta diferida. */
+    readonly turnDeferredTimeout: "La respuesta tardó más de lo normal. Vuelve a abrir este chat para verla.";
+    /** Falla genérica del transporte o del motor, cuando no trae mensaje propio. */
+    readonly turnFailed: "La respuesta falló. Intenta de nuevo.";
+    /** El watchdog de inactividad cerró el turno. */
+    readonly turnTimeout: "La respuesta tardó demasiado. Intenta de nuevo.";
+    /** El turno cerró sin texto, sin reacción y sin deferred: el silencio es una falla. */
+    readonly turnEmpty: "La respuesta llegó vacía. Intenta de nuevo.";
+};
+
+/**
  * ConversationState — the reduced state of a whole agentic CONVERSATION (the
  * thread across turns), plus the pure `applyConversationEvent` reducer that
  * derives it.
@@ -493,9 +549,19 @@ interface ChatHook<TMessage = ChatMessage, TNode = unknown> {
  * a clock read — same discipline as the turn reducer's heartbeat counter.
  */
 
+/**
+ * A turn that settled WITHOUT its answer because the engine is still working
+ * (`AgentTurnState.deferred`). Not a failure: nothing to retry, the answer lands
+ * in the thread out of band and the shell shows this until the thread refreshes.
+ */
+interface TurnNotice {
+    kind: 'deferred';
+    message: string;
+}
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 interface TurnFailure {
-    kind: 'stream' | 'timeout';
+    /** `empty` = the turn settled with no text, no reaction and no deferral: silence is a failure. */
+    kind: 'stream' | 'timeout' | 'empty';
     message: string;
 }
 /**
@@ -515,6 +581,8 @@ interface ConversationState {
     pending: boolean;
     /** A recoverable turn failure the shell renders instead of a zombie panel. */
     failure: TurnFailure | null;
+    /** The last turn was released without its answer; shown until the thread refreshes. */
+    notice: TurnNotice | null;
     /** True once a turn timed out; keeps the watchdog from re-arming on it. */
     timedOut: boolean;
     /** What a failed turn handed back, for the shell to restore. */
@@ -542,11 +610,13 @@ type ConversationEvent =
     controlled: boolean;
 }
 /** The transport finished cleanly. Folds the assistant turn in. */
+/** `stopped`: the USER ended the turn; an empty settle is then a choice, not a failure. */
  | {
     type: 'turn_settled';
     turn: AgentTurnState;
     author: MessageAuthor;
     controlled: boolean;
+    stopped?: boolean;
 }
 /**
  * The transport reported failure. `appHandled` means the app renders its own
@@ -565,6 +635,8 @@ type ConversationEvent =
     controlled: boolean;
 } | {
     type: 'dismiss_failure';
+} | {
+    type: 'dismiss_notice';
 }
 /** The shell restored `unsent` into its composer. */
  | {
@@ -573,6 +645,14 @@ type ConversationEvent =
 /** Load a different conversation (or start a fresh one). */
  | {
     type: 'hydrate';
+    messages: ChatMessage[];
+}
+/**
+ * The server's copy of THIS thread arrived (a worker appended mid-turn). It is
+ * unioned into the live thread; the pending turn is untouched and the merge is not a confirmed turn.
+ */
+ | {
+    type: 'merge_seed';
     messages: ChatMessage[];
 }
 /**
@@ -628,6 +708,13 @@ declare function makeUserMessage(text: string, author: MessageAuthor, images?: M
  * knows who spoke.
  */
 declare function foldAssistantTurn(turn: AgentTurnState, defaultAuthor: MessageAuthor): ChatMessage;
+/**
+ * Union of two copies of one thread by (role, timestamp, content): every message
+ * of `target` plus the ones only `source` has, ordered by timestamp (stable for ties).
+ *
+ * @returns `target` itself (same reference) when `source` adds nothing.
+ */
+declare function mergeConversationMessages(target: ChatMessage[], source: ChatMessage[]): ChatMessage[];
 
 /**
  * Per-send metadata the conversation layer may hand the transport. Optional and
@@ -693,7 +780,7 @@ interface AgentHook {
 /**
  * The fi-runner agent stream contract. Generated from fi_runner/events.py — do not edit by hand.
  */
-type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | PingEvent | DoneEvent;
+type AgentStreamEvent = OpenEvent | ElementEvent | TextEvent | ToolCallEvent | ResultEvent | PlanEvent | StepStartedEvent | StepDoneEvent | StepNotedEvent | PlanAmendedEvent | PlanCancelledEvent | PlanCompletedEvent | PlanFailedEvent | PlanRejectedEvent | ErrorEvent | PingEvent | DeferredEvent | DoneEvent;
 /**
  * First frame of every stream. Carries the id a UI keys concurrent turns on.
  */
@@ -761,6 +848,10 @@ interface ResultEvent {
  * ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
  * fallback), so a UI shows the answer's real provenance instead of guessing at
  * the configured default.
+ *
+ * ``reactions`` are the emoji the speaker put ON the turn (an engine with a
+ * reaction channel, like a Discord persona). A gesture, not content: a turn
+ * with empty ``text`` and reactions is a settled answer, not an empty one.
  */
 interface TurnResultPayload {
     text: string;
@@ -773,6 +864,7 @@ interface TurnResultPayload {
         [k: string]: unknown;
     };
     tool_calls?: ToolCallPayload[];
+    reactions?: string[];
 }
 /**
  * The agent declared its plan. ``steps`` is the checklist a UI renders.
@@ -892,12 +984,24 @@ interface ErrorEvent {
  * A client's idle watchdog cannot tell "the model is thinking" from "the
  * backend hung" — both look like silence. And silence is normal here: a turn
  * proxied to an external engine emits NOTHING until the whole answer lands
- * (up to 95s), while a local turn can think far longer than a token gap.
+ * (up to the proxy's live wait), while a local turn can think far longer
+ * than a token gap.
  * Without this frame the client kills healthy turns and throws away what the
  * user wrote. The ping carries nothing; its arrival IS the signal.
  */
 interface PingEvent {
     type?: 'ping';
+}
+/**
+ * The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).
+ *
+ * A proxied engine kept working past the stream's live wait. The answer lands
+ * in the conversation record out of band, so the stream ends after this frame
+ * with no text: the client folds no bubble and shows a waiting notice until
+ * the thread refreshes. Carries nothing; its arrival is the signal.
+ */
+interface DeferredEvent {
+    type?: 'deferred';
 }
 /**
  * Last frame of a healthy stream.
@@ -1185,4 +1289,4 @@ declare function conversationToMarkdown(record: ConversationRecord, options?: Co
  */
 declare function conversationFileName(record: ConversationRecord): string;
 
-export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationMetadataPatch, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, applyConversationMetadataPatch, conversationArchivePatch, conversationFileName, conversationPinPatch, conversationRenamePatch, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, initialAgentTurnState, initialConversationState, makeUserMessage, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation };
+export { type AgentHook, type AgentMeta, type AgentPlan, type AgentSendMeta, type AgentStreamEvent$1 as AgentStreamEvent, type AgentTurnState, type AgentTurnStatus, type AgentStreamEvent as AgentWireEvent, type AudioSource, CONVERSATION_SCHEMA_VERSION, COPY, type ChatHook, type ChatMessage, type ChatStreamingState, type ConversationEvent, type ConversationLibrary, type ConversationMarkdownOptions, type ConversationMetadataPatch, type ConversationRecord, type ConversationState, type ConversationSummary, type CreateConversationRecordArgs, type GuardLevel, type GuardRejection, type MessageAuthor, type MessageImage, type MessageTrace, type OrganizedConversations, type PlanOutcome, type PlanStep, type StepStatus, type ThemeTokens, type ToolCall, type TranscribeContext, type TranscriptResult, type TurnFailure, type TurnNotice, type UnsentDraft, type VoiceAdapter, type VoiceOption, type DoneEvent as WireDoneEvent, type ElementEvent as WireElementEvent, type ErrorEvent as WireErrorEvent, type OpenEvent as WireOpenEvent, type PlanAmendedEvent as WirePlanAmendedEvent, type PlanCancelledEvent as WirePlanCancelledEvent, type PlanCompletedEvent as WirePlanCompletedEvent, type PlanEvent as WirePlanEvent, type PlanFailedEvent as WirePlanFailedEvent, type PlanRejectedEvent as WirePlanRejectedEvent, type ResultEvent as WireResultEvent, type StepDoneEvent as WireStepDoneEvent, type StepNotedEvent as WireStepNotedEvent, type StepStartedEvent as WireStepStartedEvent, type TextEvent as WireTextEvent, type ToolCallEvent as WireToolCallEvent, applyAgentEvent, applyConversationEvent, applyConversationMetadataPatch, conversationArchivePatch, conversationFileName, conversationPinPatch, conversationRenamePatch, conversationToMarkdown, createConversationRecord, deriveConversationPreview, deriveConversationTitle, filterConversationSummaries, foldAssistantTurn, fromWireEvent, initialAgentTurnState, initialConversationState, makeUserMessage, mergeConversationMessages, organizeConversationSummaries, renameConversationRecord, resolveConversationTitle, sanitizeConversationMessage, setConversationArchived, setConversationPinned, summarizeConversation, takeSseFrames };

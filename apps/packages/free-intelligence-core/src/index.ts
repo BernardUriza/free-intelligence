@@ -32,14 +32,18 @@ export type {
   AgentTurnState,
 } from './agent/state';
 export { initialAgentTurnState, applyAgentEvent } from './agent/state';
+export { fromWireEvent } from './agent/wire-map';
+export { takeSseFrames } from './agent/sse';
+export { COPY } from './copy.generated';
 export { initialConversationState, applyConversationEvent } from './agent/conversation-state';
 export type {
   ConversationState,
   ConversationEvent,
   TurnFailure,
+  TurnNotice,
   UnsentDraft,
 } from './agent/conversation-state';
-export { makeUserMessage, foldAssistantTurn } from './agent/transcript';
+export { makeUserMessage, foldAssistantTurn, mergeConversationMessages } from './agent/transcript';
 export type { AgentHook, AgentSendMeta } from './agent/hook';
 
 // The RAW WIRE frames, generated from the fi-runner contract (the SSOT lives in

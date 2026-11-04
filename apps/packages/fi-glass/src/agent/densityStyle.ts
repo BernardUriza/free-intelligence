@@ -26,7 +26,7 @@
  * (tighter) and `spacious` (airier) are the new opt-in steps.
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 import { FI_MOBILE_QUERY } from '../theme/breakpoints';
 
 const DENSITY_STYLE_ID = 'fi-density-style';
@@ -101,7 +101,7 @@ export function ensureDensityStyle(): void {
 
 /** Ensure the density/spacing stylesheet is present for the lifetime of the component. */
 export function useDensityStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureDensityStyle();
   }, []);
 }

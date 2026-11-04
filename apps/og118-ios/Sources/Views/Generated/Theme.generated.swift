@@ -15,7 +15,7 @@
 import SwiftUI
 
 extension Theme {
-    /// slate-950. --glass-chat-body y --glass-chat-bg-from del preset. OJO: og118 web re-tinta --glass-chat-bg-from a #0a0e16 (--og-bg-deep en globals.css); el iPhone hoy pinta el default del preset, no el re-tint — divergencia heredada, documentada, no resuelta aquí.
+    /// slate-950. --glass-chat-body y --glass-chat-bg-from del preset; og118 lo re-tiñe en consumers.og118 y el iPhone ya compone esa capa.
     /// OVERRIDE de og118: og118 arranca su fondo más arriba que slate-950: --glass-chat-bg-from apunta a --og-bg-deep.
     static let bgDeep = Color(hex: 0x0A0E16)
     /// slate-900. --glass-chat-bg-mid, el centro del barrido diagonal del fondo.
@@ -34,7 +34,7 @@ extension Theme {
     static let danger = Color(hex: 0xF87171)
     /// --glass-chat-text, el texto primario sobre el vidrio.
     static let text = Color(hex: 0xFFFFFF)
-    /// slate-200. El color de body en og118 y content.user en messages/styles.ts. La web pinta al asistente un paso más claro (slate-100, text-slate-100); el iPhone usa este mismo para ambos lados — matiz heredado.
+    /// slate-200. El color de body en og118 y content.user en messages/styles.ts; el asistente usa textAssistant, un paso más claro, en la web y en el iPhone.
     static let textBody = Color(hex: 0xE2E8F0)
     /// slate-400. --glass-chat-text-muted: placeholders y subtítulos.
     static let textMuted = Color(hex: 0x94A3B8)
@@ -111,6 +111,26 @@ extension Theme {
     static let stopBorder = Color(hex: 0xF87171).opacity(0.6)
     /// red-100. Texto de .og-stop-btn.
     static let stopText = Color(hex: 0xFEE2E2)
+    /// slate-100. content.assistant en messages/styles.ts: el cuerpo del asistente va un paso más claro que el del usuario.
+    static let textAssistant = Color(hex: 0xF1F5F9)
+    /// El relleno del botón flotante que abre el drawer (.fi-aws-toggle en AgentWorkspaceShell.tsx).
+    static let menuButtonFill = Color(hex: 0x0A0E16).opacity(0.55)
+    /// El borde de .fi-aws-toggle.
+    static let menuButtonBorder = Color(hex: 0xFFFFFF).opacity(0.14)
+    /// slate-900/50. El relleno de la píldora «Powered by» (MessageModelBadge.tsx).
+    static let modelBadgeFill = Color(hex: 0x0F172A).opacity(0.5)
+    /// white/10. El borde de MessageModelBadge.
+    static let modelBadgeBorder = Color(hex: 0xFFFFFF).opacity(0.1)
+    /// white/18. El borde de la tarjeta de arranque (Og118StartScreen).
+    static let startCardBorder = Color(hex: 0xFFFFFF).opacity(0.18)
+    /// El borde esmeralda del botón Llamar (.og-resonance-call-btn en globals.css de og118).
+    static let resonanceBorder = Color(hex: 0x34D399).opacity(0.35)
+    /// El relleno rojo del botón en llamada, «Colgar» (.og-resonance-call-btn-active).
+    static let resonanceActiveFill = Color(hex: 0xDC2626).opacity(0.28)
+    /// El borde de .og-resonance-call-btn-active; su texto es stopText (#fee2e2).
+    static let resonanceActiveBorder = Color(hex: 0xF87171).opacity(0.5)
+    /// Cada barra del ecualizador de la llamada (.og-voice-bar-bar: esmeralda a 0.45).
+    static let voiceBar = Color(hex: 0x34D399).opacity(0.45)
 
     /// --glass-chat-radius (rounded-2xl): la esquina del composer y las superficies grandes. (16px)
     static let radius: CGFloat = 16
@@ -128,4 +148,23 @@ extension Theme {
     static let itemSubtitleSize: CGFloat = 12
     /// Tipografía de la hora/meta de la fila. (0.68rem -> 11pt)
     static let itemMetaSize: CGFloat = 11
+    /// El radio de las burbujas en móvil (glass-chat.css, max-width 768px): ancho completo, sin cola. (14px)
+    static let bubbleRadiusCompact: CGFloat = 14
+    /// Padding vertical de la burbuja en móvil (py-2.5 bajo la query canónica ≤768 en messages/styles.ts). (10px)
+    static let bubblePadV: CGFloat = 10
+    /// Padding horizontal de la burbuja en móvil (px-3.5 bajo la misma query). (14px)
+    static let bubblePadH: CGFloat = 14
+    /// La esquina de .fi-aws-toggle y del botón de enviar (.og-send-btn). (10px)
+    static let menuButtonRadius: CGFloat = 10
+    /// El ancho del drawer de conversaciones en móvil (useEdgeSwipe.ts). (280px)
+    static let drawerWidth: CGFloat = 280
+    /// Alto mínimo de la píldora del composer nativo (una línea: + · texto · mic/llamar ↔ enviar). Sólo iOS: la web conserva ComposerFrame. (48px)
+    static let pillMinHeight: CGFloat = 48
+    /// Ancho máximo de la burbuja del usuario, alineada a la derecha en el iPhone (~77% a 390pt). Sólo iOS. (300px)
+    static let userBubbleMaxWidth: CGFloat = 300
+    /// La casilla del oganesón en el inicio nativo, arriba del saludo de una línea. Sólo iOS. (72px)
+    static let startTileSize: CGFloat = 72
+
+    /// --glass-chat-watermark-opacity. La marca de agua de og118 detrás del hilo: la web y el iPhone la pintan con la misma opacidad.
+    static let watermarkOpacity: Double = 0.08
 }

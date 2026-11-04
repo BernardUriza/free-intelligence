@@ -162,7 +162,7 @@ function memoryLibrary(seed: ConversationRecord[] = []): ConversationLibrary & {
 }
 
 describe('migrateConversationLibrary', () => {
-  it('copies missing records, skips collisions (target wins), source untouched', async () => {
+  it('copies missing records, leaves a newer target copy alone, source untouched', async () => {
     const localOnly = record('local-1');
     const shared = record('shared', '2026-07-01T00:00:00Z');
     const sharedNewer = record('shared', '2026-07-08T00:00:00Z');
@@ -171,7 +171,7 @@ describe('migrateConversationLibrary', () => {
 
     const result = await migrateConversationLibrary(source, target);
 
-    expect(result).toEqual({ migrated: 1, skipped: 1 });
+    expect(result).toEqual({ migrated: 1, merged: 0, skipped: 1 });
     expect(target.mem.get('local-1')).toEqual(localOnly);
     expect(target.mem.get('shared')).toEqual(sharedNewer);
     expect(source.mem.size).toBe(2);
@@ -184,7 +184,7 @@ describe('migrateConversationLibrary', () => {
     await migrateConversationLibrary(source, target);
     const second = await migrateConversationLibrary(source, target);
 
-    expect(second).toEqual({ migrated: 0, skipped: 2 });
+    expect(second).toEqual({ migrated: 0, merged: 0, skipped: 2 });
     expect(target.mem.size).toBe(2);
   });
 });

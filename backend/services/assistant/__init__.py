@@ -1,1 +1,0 @@
-# fi_assistant

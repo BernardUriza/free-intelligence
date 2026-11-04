@@ -58,6 +58,12 @@ class TurnSpec:
     operator's roster. Bound at birth like the rest, so a turn that switches
     provider drops the warm client — and, until the mirror is re-primed into the
     new agent, its memory: one session, one provider, is the honest shape."""
+    builtins: tuple[str, ...] | None = None
+    """A narrowing of the mode's builtin tools (#37). None keeps the notch whole;
+    `modes.clean_builtins` guarantees it never names a tool the mode lacks."""
+    lane: str = ""
+    """The consumer lane the DOOR derived from the token (`engine/lanes.py`), never
+    the caller's claim. Binds the credential at birth like the rest of the shape."""
 
 
 @dataclass(frozen=True)
@@ -99,6 +105,10 @@ class TurnResult:
     """The SDK result's own verdict (`success`, `error_max_budget_usd`, …) — on
     the wire so a consumer can tell a cut turn from a clean one without guessing
     from its token counts."""
+    error: str | None = None
+    """What a failed turn SAID (Codex's `turn.failed` message, #53) — never
+    painted as text, because an error is not the persona's reply, but carried so
+    the rotor can read a usage limit in it and a consumer can read why."""
 
 
 @dataclass(frozen=True)

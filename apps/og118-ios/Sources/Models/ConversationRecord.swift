@@ -64,7 +64,7 @@ enum ConversationSchema {
     static func fecha(_ iso: String) -> Date? {
         formatoISOFraccional.date(from: iso) ?? formatoISOPlano.date(from: iso)
     }
-    static let defaultTitle = "New chat"
+    static let defaultTitle = Copy.conversationDefaultTitle
     static let titleMax = 60
     static let previewMax = 120
 
@@ -76,6 +76,16 @@ enum ConversationSchema {
         guard collapsed.count > max else { return collapsed }
         let cut = String(collapsed.prefix(Swift.max(0, max - 1)))
         return cut.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression) + "…"
+    }
+
+    /// El tope de un título CUSTOM: texto del usuario, colapsado y cortado en
+    /// seco a `titleMax`, sin elipsis — igual que `conversationRenamePatch` en core.
+    static func cap(_ text: String) -> String {
+        let collapsed = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+        return String(collapsed.prefix(titleMax))
     }
 
     static func title(_ messages: [ChatMessage]) -> String {
@@ -111,14 +121,58 @@ extension ConversationRecord {
     ) -> [PersistedMessage] {
         let previos = base?.messages ?? []
         return messages.enumerated().map { indice, mensaje in
-            if indice < previos.count { return previos[indice] }
-            return PersistedMessage(
-                role: PersistedMessageRole(rawValue: mensaje.role.rawValue) ?? .user,
-                content: mensaje.content,
-                timestamp: mensaje.timestamp,
-                author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) }
-            )
+            indice < previos.count ? previos[indice] : persistido(mensaje)
         }
+    }
+
+    private static func persistido(_ mensaje: ChatMessage) -> PersistedMessage {
+        PersistedMessage(
+            role: PersistedMessageRole(rawValue: mensaje.role.rawValue) ?? .user,
+            content: mensaje.content,
+            timestamp: mensaje.timestamp,
+            author: mensaje.author.map { MessageAuthor(id: $0.id, name: $0.nombre) },
+            images: mensaje.images.isEmpty ? nil : mensaje.images,
+            trace: mensaje.model.map { MessageTrace(model: $0) },
+            reactions: mensaje.reactions.isEmpty ? nil : mensaje.reactions
+        )
+    }
+
+    /// El record VIVO manda (título, pin, archivado y los mensajes que otro
+    /// cliente agregó); el teléfono sólo le suma los turnos posteriores a `base`.
+    /// El orden es el de core: el hilo local, y lo que sólo trae el vivo entra por timestamp.
+    static func fusionar(
+        id: String,
+        locales: [ChatMessage],
+        base: ConversationRecord?,
+        vivo: ConversationRecord?,
+        createdAt: String,
+        now: String
+    ) -> ConversationRecord {
+        guard let vivo else {
+            return from(id: id, messages: locales, createdAt: createdAt, now: now, base: base)
+        }
+        let previos = base?.messages.count ?? 0
+        let delVivo = Array(zip(vivo.chatMessages, vivo.messages))
+        let porClave = Dictionary(delVivo.map { ($0.0.claveDeHilo, $0) }, uniquingKeysWith: { primero, _ in primero })
+        let propios = locales.enumerated().compactMap { indice, mensaje -> (ChatMessage, PersistedMessage)? in
+            if let delServidor = porClave[mensaje.claveDeHilo] { return delServidor }
+            return indice < previos ? nil : (mensaje, persistido(mensaje))
+        }
+        let hilo = ChatMessage.unir(propios, delVivo, mensaje: \.0) ?? propios
+        let todos = hilo.map(\.0)
+        let customTitle = vivo.titleCustom == true ? vivo.title : nil
+        return ConversationRecord(
+            id: id,
+            title: customTitle ?? ConversationSchema.title(todos),
+            titleCustom: vivo.titleCustom,
+            createdAt: vivo.createdAt,
+            updatedAt: now,
+            messages: hilo.map(\.1),
+            preview: ConversationSchema.preview(todos),
+            pinnedAt: vivo.pinnedAt,
+            archivedAt: vivo.archivedAt,
+            schemaVersion: ConversationSchema.version
+        )
     }
 
     static func from(
@@ -155,7 +209,10 @@ extension ConversationRecord {
                 author: persisted.author.map {
                     ChatMessage.Autor(id: $0.id, nombre: $0.name)
                 },
-                timestamp: persisted.timestamp
+                timestamp: persisted.timestamp,
+                model: persisted.trace?.model,
+                images: persisted.images ?? [],
+                reactions: persisted.reactions ?? []
             )
         }
     }

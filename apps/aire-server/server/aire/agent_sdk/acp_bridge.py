@@ -46,7 +46,7 @@ class Bridge:
     async def request_permission(self, session_id: str, tool_call: Any,
                                  options: list[Any], **_: Any) -> schema.RequestPermissionResponse:
         """`agent` mode allows once, `complete` mode rejects: the modes dial
-        (engine/options.py) is the caller's contract and an ACP agent honours it
+        (engine/modes.py) is the caller's contract and an ACP agent honours it
         through the only gate the protocol gives — this one."""
         want = "allow_once" if self.allow_tools else "reject_once"
         pick = next((o for o in options if o.kind == want), None)

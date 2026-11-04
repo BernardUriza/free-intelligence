@@ -40,8 +40,7 @@ from persona_core.runner.judge_client import flatten_utility_messages
 from persona_core.turn.pipeline import BrainReply, BrainTurn, InboundTurn, run_turn
 from persona_runner.api.judge import get_judge_semaphore
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
-from persona_runner.engine import aire_route
-from shared.personas.registry import get_persona
+from persona_runner.engine import aire_route, runtime_personas
 
 log = structlog.get_logger()
 
@@ -186,7 +185,7 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
     if req.user_id in NO_PRINCIPAL_IDS:
         log.warning("turn_pipeline_unavailable", persona_id=req.persona_id, surface=req.surface, reason="no_principal")
         return await aire_route.turn_via_aire(req)
-    persona = get_persona(aire_route.base_persona_id(req.persona_id))
+    persona = runtime_personas.persona_for(aire_route.base_persona_id(req.persona_id))
     memory = await get_memory()
     if persona is None or memory is None:
         log.warning(

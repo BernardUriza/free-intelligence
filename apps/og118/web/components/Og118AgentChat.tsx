@@ -31,9 +31,15 @@ import {
   AgentConversationSurface,
   AgentWorkspaceShell,
   useAgentConversation,
+  TurnErrorBanner,
 } from 'fi-glass/agent';
 import { ComposerActionSlot } from 'fi-glass/composer';
-import { useConversationLibrary } from 'fi-glass/conversation';
+import {
+  readConversationIdFromLocation,
+  useConversationLibrary,
+  useConversationUrl,
+  type ConversationAction,
+} from 'fi-glass/conversation';
 import { useAudioQueueStore, AudioVisualizer } from 'fi-glass/voice';
 import { useOg118Agent } from '@/lib/useOg118Agent';
 import { getToken, setToken, AUTH401 } from '@/lib/og118Token';
@@ -46,11 +52,12 @@ import { Og118StartScreen } from './Og118StartScreen';
 import { Og118Sidebar } from './Og118Sidebar';
 import { SessionExpiredBanner, SignOutButton } from './AuthGate';
 import { Og118ProjectsSection } from './projects';
-import { Og118ElementSelector, Og118ActiveElementStrip } from './Og118ElementSelector';
+import { Og118ElementSelector } from './Og118ElementSelector';
 import { useOg118ConversationLibrary } from '@/lib/useOg118ConversationLibrary';
 import { useOg118ConversationSync } from '@/lib/useOg118ConversationSync';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
+import { Og118ElementAdmin, type Og118ElementAdminMode } from './Og118ElementAdmin';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { OG118_AUTHOR } from './Og118MessageMeta';
@@ -78,6 +85,17 @@ function resonanceVisualizerActive(state: string): boolean {
   return state === 'listening' || state === 'speaking' || state === 'silence_hold';
 }
 
+const ACTION_ERROR_COPY: Record<ConversationAction, string> = {
+  load: 'No se pudieron cargar tus chats. Revisa tu conexión.',
+  switch: 'No se pudo abrir el chat. Revisa tu conexión.',
+  delete: 'No se pudo borrar el chat. Revisa tu conexión.',
+  rename: 'No se pudo renombrar el chat. Revisa tu conexión.',
+  pin: 'No se pudo fijar el chat. Revisa tu conexión.',
+  archive: 'No se pudo archivar el chat. Revisa tu conexión.',
+};
+
+function surfacedInBanner() {}
+
 export function Og118AgentChat() {
   // Identity-scoped local-first stores: each signed-in account gets its OWN
   // IndexedDB database + localStorage keyspace, so two accounts on the same
@@ -88,8 +106,9 @@ export function Og118AgentChat() {
   // CONV-CLOUD-1: signed-in ⇒ the server conversation store is authoritative
   // (after a one-time local→cloud migration); unauthenticated/bearer stays on
   // the identity-scoped IndexedDB exactly as before.
-  const { library: conversationLibrary, cloud: conversationsCloud } =
-    useOg118ConversationLibrary(userId, tokenReady);
+  const conversationStore = useOg118ConversationLibrary(userId, tokenReady);
+  const conversationLibrary = conversationStore.library;
+  const conversationsCloud = conversationStore.status === 'cloud';
   const audioQueueStore = useAudioQueueStore(userId);
   // Projects is resolved BEFORE the library so a conversation born while a
   // project is active is STAMPED with it (`projectId`) — that stamp is the only
@@ -101,10 +120,20 @@ export function Og118AgentChat() {
   // the rendered surface below.
   const proyectos = proyectosActivos();
   const projects = useOg118Projects(userId, tokenReady);
+  // The address decides which chat is open: `/c/<id>` that one, `/` a fresh one.
+  const [routedId] = useState(() => readConversationIdFromLocation());
   const lib = useConversationLibrary(conversationLibrary, {
     projectId: projects.activeProjectId ?? undefined,
+    initialActiveId: routedId,
   });
-  const elements = useOg118Elements(userId);
+  useConversationUrl({
+    activeId: lib.activeId,
+    conversations: lib.conversations,
+    onNavigate: (id) =>
+      id ? void lib.switchConversation(id).catch(surfacedInBanner) : lib.newConversation(),
+  });
+  const elements = useOg118Elements(userId, tokenReady);
+  const [elementAdmin, setElementAdmin] = useState<Og118ElementAdminMode>(null);
   const upload = useOg118ProjectUpload();
   const agent = useOg118Agent(lib.activeId, projects.activeProjectId, elements.selected);
   const conversation = useAgentConversation(agent, {
@@ -118,6 +147,7 @@ export function Og118AgentChat() {
     // re-seeds from lib.activeMessages instead of waiting for a reload.
     seedVersion: lib.activeRecord?.updatedAt,
     onMessagesChange: lib.persist,
+    onTurnStart: lib.claimActive,
     // 401 is og118's own error class — the token-gate banner (needsAuth) handles
     // it, and a blind retry would just 401 again. Claim it so the framework's
     // generic recoverable banner does not double up. Everything else (timeouts,
@@ -134,7 +164,6 @@ export function Og118AgentChat() {
   // here — same dismissable-banner pattern as voice errors, controlled string only.
   const [attachError, setAttachError] = useState<string | null>(null);
   const { turn } = conversation;
-  const activeElement = elements.elements.find((e) => e.slug === elements.selected);
 
   // All voice/audio wiring (TTS playback, durable mic, transcription queue) lives
   // in one consumer hook; it returns the render slots the surface distributes.
@@ -184,6 +213,14 @@ export function Og118AgentChat() {
   ) : null;
 
   // Attachment rejections reuse the same banner presentation (message + dismiss).
+  const actionErrorBanner = lib.actionError ? (
+    <TurnErrorBanner
+      error={{ message: ACTION_ERROR_COPY[lib.actionError.action] }}
+      onRetry={lib.retryAction}
+      onDismiss={lib.dismissActionError}
+    />
+  ) : null;
+
   const attachErrorBanner = attachError ? (
     <Og118VoiceErrorBanner message={attachError} onDismiss={() => setAttachError(null)} />
   ) : null;
@@ -195,12 +232,21 @@ export function Og118AgentChat() {
   }
 
   return (
+    <>
+    <Og118ElementAdmin
+      mode={elementAdmin}
+      onClose={() => setElementAdmin(null)}
+      slots={elements.slots}
+      onChanged={(createdSlug) => {
+        elements.refresh(createdSlug);
+        if (createdSlug) setElementAdmin(null);
+      }}
+    />
     <AgentWorkspaceShell
       responsive
       toggleLabel="Conversaciones"
       sidebar={(shell) => (
         <>
-        <Og118ActiveElementStrip element={activeElement} />
         {proyectos && (
         <Og118ProjectsSection
           projects={projects.projects}
@@ -231,37 +277,32 @@ export function Og118AgentChat() {
         <Og118Sidebar
           conversations={lib.conversations}
           activeId={lib.activeId}
-          cloud={conversationsCloud}
+          sync={{
+            status: conversationStore.status,
+            slow: conversationStore.slow,
+            onRetry: conversationStore.retry,
+          }}
           onNew={() => {
             lib.newConversation();
             shell.close();
           }}
           onSwitch={(id) => {
-            void lib.switchConversation(id).catch((e) =>
-              console.error('[og118] switch failed', e),
-            );
+            void lib.switchConversation(id).catch(surfacedInBanner);
             shell.close();
           }}
           onDelete={(id) =>
-            void lib.deleteConversation(id).catch((e) =>
-              console.error('[og118] delete failed', e),
-            )
+            void lib.deleteConversation(id).catch(surfacedInBanner)
           }
           onRename={(id, title) =>
-            void lib.renameConversation(id, title).catch((e) =>
-              console.error('[og118] rename failed', e),
-            )
+            void lib.renameConversation(id, title).catch(surfacedInBanner)
           }
           onPin={(id, pinned) =>
-            void lib.pinConversation(id, pinned).catch((e) =>
-              console.error('[og118] pin failed', e),
-            )
+            void lib.pinConversation(id, pinned).catch(surfacedInBanner)
           }
           onArchive={(id, archived) =>
-            void lib.archiveConversation(id, archived).catch((e) =>
-              console.error('[og118] archive failed', e),
-            )
+            void lib.archiveConversation(id, archived).catch(surfacedInBanner)
           }
+          onArchiveMany={lib.archiveConversations}
           disabled={conversation.isStreaming}
           accountSlot={<SignOutButton />}
         />
@@ -280,7 +321,16 @@ export function Og118AgentChat() {
           // sidebar lives in the AgentWorkspaceShell drawer (reachable via the
           // hamburger), so the CTA is one tap away — no affordance is lost.
           showNewChatButton={false}
-          emptyState={<Og118StartScreen />}
+          emptyState={
+            conversationStore.status === 'connecting' ? (
+              <div className="og-loading og-loading-inline" role="status">
+                Cargando tus chats…
+              </div>
+            ) : (
+              <Og118StartScreen />
+            )
+          }
+          messageLocale="es-MX-u-hc-h23"
           // Only what must INTERRUPT stays outside the box: system banners and
           // the audio queue. Everything the user SETS before composing moved
           // into the composer's footer rail (COMPOSER-FOOTER-ZONES-1).
@@ -290,6 +340,7 @@ export function Og118AgentChat() {
               {authBanner}
               {voiceErrorBanner}
               {attachErrorBanner}
+              {actionErrorBanner}
               {composer.voiceBar}
               {composer.audioQueuePanel}
             </>
@@ -310,6 +361,8 @@ export function Og118AgentChat() {
                   selected={elements.selected}
                   onSelect={elements.select}
                   loading={elements.loading}
+                  onCreateNew={elements.canCreate ? () => setElementAdmin('create') : undefined}
+                  onManage={elements.editable.length ? () => setElementAdmin('manage') : undefined}
                 />
               </div>
               {/* The chip's shape, its 44px minimum and its label collapse are
@@ -429,5 +482,6 @@ export function Og118AgentChat() {
         />
       }
     />
+    </>
   );
 }

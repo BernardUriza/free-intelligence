@@ -13,13 +13,16 @@ import asyncio
 import base64
 import binascii
 import dataclasses
+import hashlib
 import hmac
 import json
 import logging
 import os
+import time
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,13 +40,21 @@ from fi_runner import MAX_OWNER_INSTRUCTIONS_CHARS
 from fi_core.rag import NothingToIndex
 from fi_runner.aire_corpus import AireCorpusError
 from fi_runner.rag_store import RagStoreClient
-from conversations import ConversationStore, valid_conversation_id
+from conversations import ConversationStore, utc_now_iso, valid_conversation_id
 from projects import ProjectRegistry
 from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, build_runner
 from mcp_background import router as mcp_background_router
-from external_engine import stream_external_turn
+from external_engine import PersonaWriteError, delete_persona, get_persona, put_persona, stream_external_turn
 from fi_runner import Runner
-from elements_registry import Element, get_registry
+from elements_registry import (
+    Element,
+    ElementsRegistryError,
+    claim_for,
+    claim_slot,
+    get_registry,
+    release_slot,
+    replace_claim,
+)
 from stt import (
     DEFAULT_UPLOAD_CONTENT_TYPE,
     MAX_AUDIO_BYTES,
@@ -483,6 +494,19 @@ async def _with_heartbeat(
         pump_task.cancel()
 
 
+def _late_delivery(owner: str, conversation_id: str, user_text: str) -> Callable[[dict], Awaitable[None]]:
+    """OG118-EXTERNAL-TURN-1: the external engine's answer outlived the live turn.
+    It lands in the record the way a background job's does (the user's message
+    rides along, since an unsettled turn is never persisted by the client), and
+    the client's 15s conversation sync paints it."""
+    user_copy = {"role": "user", "content": user_text, "timestamp": utc_now_iso()}
+
+    async def entregar(assistant_message: dict) -> None:
+        get_conversation_store().append_late_turn(owner, conversation_id, user_copy, assistant_message)
+
+    return entregar
+
+
 def _sse(event: dict) -> str:
     payload = {k: _to_jsonable(v) for k, v in event.items()}
     return f"data: {json.dumps(payload, default=str)}\n\n"
@@ -520,6 +544,220 @@ async def list_elements() -> dict:
             if e.is_active
         ]
     }
+
+
+_PERSONA_ID_RE = r"^[a-z0-9_]{1,32}$"
+
+
+def _element_author(principal: Principal) -> bool:
+    """Who may claim a slot: accounts named in OG118_ELEMENT_AUTHORS by the same
+    hash the conversation store files them under. Unset = nobody (fail closed)."""
+    allowed = {a.strip() for a in os.getenv("OG118_ELEMENT_AUTHORS", "").split(",") if a.strip()}
+    if principal.is_legacy_bearer or not allowed:
+        return False
+    return hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32] in allowed
+
+
+class ElementCreateRequest(BaseModel):
+    atomicNumber: int = Field(ge=1, le=118)
+    displayName: str = Field(min_length=1, max_length=80)
+    personaId: str = Field(pattern=_PERSONA_ID_RE)
+    description: str | None = Field(default=None, max_length=500)
+    aliases: list[str] = Field(default_factory=list, max_length=8)
+    provider: str = "claude"
+    model: str | None = Field(default=None, max_length=80)
+    dna: str = Field(min_length=1, max_length=200_000)
+
+
+@router.get("/elements/slots")
+async def list_empty_slots(principal: Principal = Depends(get_principal)) -> dict:
+    """The empty slots a new element can take, whether this caller may take one, and
+    the slugs it may edit (the ones born from the UI)."""
+    author = _element_author(principal)
+    elements = get_registry().elements
+    return {
+        "canCreate": author,
+        "slots": [
+            {"atomicNumber": e.atomic_number, "symbol": e.symbol, "slug": e.slug, "displayName": e.display_name}
+            for e in elements
+            if e.status == "empty"
+        ],
+        "editable": [e.slug for e in elements if author and e.is_active and claim_for(e.atomic_number)],
+    }
+
+
+@router.post("/elements", status_code=201)
+async def create_element(req: ElementCreateRequest, principal: Principal = Depends(get_principal)) -> dict:
+    """Claim an empty slot and give it a persona, with no deploy (OG118-ELEMENTOS-ALTA).
+
+    Both ends in one call: the persona goes to the engine that answers the turns
+    (server-bot's runner, durable in its Postgres) and the slot goes to og118's
+    catalog overlay. The engine is written first: a slot that points at a persona
+    the engine does not hold would answer as the default persona."""
+    if not _element_author(principal):
+        raise HTTPException(status_code=403, detail="no puedes crear elementos")
+    claim = {
+        "atomicNumber": req.atomicNumber,
+        "displayName": req.displayName.strip(),
+        "personaId": req.personaId,
+        "description": (req.description or "").strip() or None,
+        "aliases": [a.strip().lower() for a in req.aliases if a.strip()],
+    }
+    try:
+        get_registry().with_claim(claim)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    try:
+        written = await put_persona(
+            req.personaId,
+            {
+                "display_name": claim["displayName"],
+                "provider": req.provider,
+                "model": req.model,
+                "dna": req.dna,
+                "created_by": hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32],
+            },
+        )
+    except PersonaWriteError as e:
+        status = 422 if e.status == 422 else 502
+        raise HTTPException(status_code=status, detail=f"el motor no guardó la persona: {e}") from e
+    try:
+        element = claim_slot(claim)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    logger.info("element_created z=%s persona=%s version=%s", element.atomic_number, req.personaId, written.get("version"))
+    return {
+        "id": element.id,
+        "atomicNumber": element.atomic_number,
+        "symbol": element.symbol,
+        "displayLabel": element.display_label,
+        "personaId": req.personaId,
+        "personaVersion": written.get("version"),
+        "provider": written.get("provider"),
+        "model": written.get("model"),
+    }
+
+
+class ElementUpdateRequest(BaseModel):
+    displayName: str = Field(min_length=1, max_length=80)
+    description: str | None = Field(default=None, max_length=500)
+    aliases: list[str] = Field(default_factory=list, max_length=8)
+    provider: str = "claude"
+    model: str | None = Field(default=None, max_length=80)
+    dna: str = Field(min_length=1, max_length=200_000)
+
+
+class ElementTestRequest(BaseModel):
+    input: str = Field(min_length=1, max_length=4000)
+
+
+def _claimed_element(slug: str, principal: Principal) -> tuple[Element, dict]:
+    """An element born from the UI, for its author. Image elements are not editable here."""
+    if not _element_author(principal):
+        raise HTTPException(status_code=403, detail="no puedes editar elementos")
+    element = get_registry().resolve(slug)
+    claim = claim_for(element.atomic_number) if element is not None else None
+    if element is None or claim is None:
+        raise HTTPException(status_code=404, detail="ese elemento no se creó desde la app")
+    return element, claim
+
+
+def _engine_error(e: PersonaWriteError) -> HTTPException:
+    return HTTPException(status_code=e.status if e.status in (404, 422) else 502, detail=f"el motor: {e}")
+
+
+@router.get("/elements/{slug}/persona")
+async def read_element(slug: str, principal: Principal = Depends(get_principal)) -> dict:
+    element, claim = _claimed_element(slug, principal)
+    try:
+        persona = await get_persona(claim["personaId"])
+    except PersonaWriteError as e:
+        raise _engine_error(e) from e
+    return {
+        "atomicNumber": element.atomic_number,
+        "symbol": element.symbol,
+        "slug": element.slug,
+        "displayName": element.display_name,
+        "description": element.description,
+        "aliases": list(element.aliases),
+        "personaId": claim["personaId"],
+        "provider": persona.get("provider"),
+        "model": persona.get("model"),
+        "dna": persona.get("dna"),
+        "version": persona.get("version"),
+    }
+
+
+@router.put("/elements/{slug}")
+async def update_element(
+    slug: str, req: ElementUpdateRequest, principal: Principal = Depends(get_principal)
+) -> dict:
+    """A new persona version on the engine, then the slot's name, text and aliases."""
+    element, claim = _claimed_element(slug, principal)
+    edited = {
+        **claim,
+        "displayName": req.displayName.strip(),
+        "description": (req.description or "").strip() or None,
+        "aliases": [a.strip().lower() for a in req.aliases if a.strip()],
+    }
+    try:
+        written = await put_persona(
+            claim["personaId"],
+            {
+                "display_name": edited["displayName"],
+                "provider": req.provider,
+                "model": req.model,
+                "dna": req.dna,
+                "created_by": hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32],
+            },
+        )
+    except PersonaWriteError as e:
+        raise _engine_error(e) from e
+    try:
+        replace_claim(edited)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    logger.info("element_updated z=%s persona=%s version=%s", element.atomic_number, claim["personaId"], written.get("version"))
+    return {"slug": element.slug, "personaVersion": written.get("version")}
+
+
+@router.delete("/elements/{slug}", status_code=204)
+async def delete_element(slug: str, principal: Principal = Depends(get_principal)) -> Response:
+    """Empty the slot first, so it never points at a persona the engine dropped."""
+    element, claim = _claimed_element(slug, principal)
+    try:
+        release_slot(element.atomic_number)
+    except ElementsRegistryError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    try:
+        await delete_persona(claim["personaId"])
+    except PersonaWriteError as e:
+        logger.warning("element_persona_orphaned persona=%s status=%s", claim["personaId"], e.status)
+    logger.info("element_deleted z=%s persona=%s", element.atomic_number, claim["personaId"])
+    return Response(status_code=204)
+
+
+@router.post("/elements/{slug}/test")
+async def test_element(slug: str, req: ElementTestRequest, principal: Principal = Depends(get_principal)) -> dict:
+    """One turn as a probe: tagged in the engine's memory, never mined for facts."""
+    element, claim = _claimed_element(slug, principal)
+    started = time.monotonic()
+    output, error = "", None
+    async for event in stream_external_turn(
+        persona_id=claim["personaId"],
+        user_text=req.input,
+        session_uuid=f"probe-{datetime.now(UTC):%Y%m%d}-{element.slug}-{uuid.uuid4().hex[:8]}",
+        user_id="probe-element-editor",
+    ):
+        if event.get("type") == "result":
+            output = (event.get("result") or {}).get("text") or output
+        elif event.get("type") == "text":
+            output += event.get("text") or ""
+        elif event.get("type") == "error":
+            error = event.get("message")
+    if error and not output:
+        raise HTTPException(status_code=502, detail=error)
+    return {"output": output, "latency_ms": int((time.monotonic() - started) * 1000)}
 
 
 @router.post("/chat/stream")
@@ -576,8 +814,8 @@ async def chat_stream(
                 }
             )
         # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
-        # og118's runner. Proxy the turn and surface the answer (single-shot, no
-        # local plan/step trace). og118's session_id keys the engine's context.
+        # og118's runner. The turn rides the engine's ticket: its tool_call frames
+        # stream live, its text lands whole. og118's session_id keys the engine's context.
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
@@ -626,9 +864,11 @@ async def chat_stream(
                 yield _sse({"type": "done"})
                 return
             user_id = None if principal.is_legacy_bearer else principal.sub
-            # The proxy is single-shot: it yields NOTHING until the whole answer
-            # lands (up to 95s). Without a sign of life the browser's watchdog
-            # killed the turn at 60s and threw away the user's message.
+            # The ticket proxy: the engine's tool_call frames arrive live from its event
+            # log; the heartbeat covers the silences so the browser's 60s watchdog holds.
+            entregar_tarde = (
+                _late_delivery(principal.sub, req.session_id, req.message) if user_id and req.session_id else None
+            )
             async for ev in _with_heartbeat(
                 stream_external_turn(
                     persona_id=element.engine_binding.persona_id,
@@ -636,6 +876,7 @@ async def chat_stream(
                     session_uuid=req.session_id,
                     user_id=user_id,
                     history=history,
+                    deliver_late=entregar_tarde,
                 )
             ):
                 yield _sse(ev)

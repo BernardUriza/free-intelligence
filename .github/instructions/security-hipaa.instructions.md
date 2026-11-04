@@ -1,5 +1,5 @@
 ---
-applyTo: "backend/**/*.py,apps/**/*.ts,apps/**/*.tsx"
+applyTo: "apps/**/*.ts,apps/**/*.tsx"
 excludeAgent: []
 ---
 

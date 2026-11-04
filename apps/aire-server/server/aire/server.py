@@ -29,8 +29,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import (access, arming, artifacts, corpus, corpus_door, door, gateway,
-               init_project, messages, spend, tokens)
+from . import (access, arming, artifacts, ceiling, corpus, corpus_door, door, gateway,
+               init_project, messages, openai_gateway, spend, tokens)
 from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -118,7 +118,9 @@ async def health(request: Request) -> JSONResponse:
 
 app.include_router(messages.router)   # POST a turn (SSE or #22a background), GET status
 app.include_router(gateway.router)    # /v1/* — the gateway door (#30), Messages wire format
+app.include_router(openai_gateway.router)  # /openai/v1/* — the OpenAI door (#51), lent Azure, metered
 app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
 app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)
 app.include_router(corpus_door.router)   # #47 — a consumer writes and reads its own corpus
 app.include_router(access.router)     # #32 — a stranger asks to be let in; Bernard's inbox decides
+app.include_router(ceiling.router)    # #51 — the owner moves one key's ceiling without re-minting it

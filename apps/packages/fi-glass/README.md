@@ -22,9 +22,9 @@ class strings** — `messageStyles` / `markdownStyles` are values like
 is what turns them into styles. So a consumer must:
 
 1. **Have Tailwind** (v3 or v4) configured in the app.
-2. **Tell Tailwind to scan fi-glass's `dist`.** Tailwind ignores `node_modules`
-   by default, so the workspace path must be globbed **explicitly** — otherwise
-   the message primitives render unstyled.
+2. **Tell Tailwind to scan fi-glass's `dist`.** Tailwind ignores `node_modules`,
+   so fi-glass declares the globs itself in the `fi-glass/tailwind` export:
+   spread them into your `content` instead of hand-writing a relative path.
 
 ### Tailwind v3 — `tailwind.config.js`
 
@@ -33,24 +33,22 @@ module.exports = {
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
-    // fi-glass ships class strings in its dist — Tailwind must scan them:
-    '../../packages/fi-glass/dist/**/*.{js,mjs}',
+    ...require('fi-glass/tailwind').content,
   ],
-  // ...
 };
 ```
 
+`og118-web/app/__tests__/tailwindContract.test.ts` compiles og118's real config and
+fails if a fi-glass-only utility stops being generated — copy it into a new consumer.
+
 ### Tailwind v4 — CSS `@source`
+
+CSS cannot `require`, so point `@source` at the same directory the export names:
 
 ```css
 @import 'tailwindcss';
-/* fi-glass ships class strings in its dist — scan them: */
-@source '../../packages/fi-glass/dist/**/*.{js,mjs}';
+@source '../../packages/fi-glass/dist';
 ```
-
-Adjust the relative path to wherever the workspace resolves `fi-glass` for your
-app. (A compiled-CSS option for the message primitives is on the roadmap; until
-then the content-glob is the supported path.)
 
 ### Theme tokens
 
