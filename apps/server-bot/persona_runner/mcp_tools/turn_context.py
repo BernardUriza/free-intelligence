@@ -30,10 +30,17 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class TurnPrincipal:
-    """El usuario y el canal de un turno concreto."""
+    """El usuario, el canal y la persona de un turno concreto.
+
+    `agent_id` es la persona que está hablando (el stem de su ADN, igual a
+    `agents.name`): la dueña de los `agent_facts` que este turno puede tocar. Vacío
+    cuando el camino que ató el turno no conoce a la persona — y entonces las tools
+    de autoconocimiento se niegan en vez de dejar que el modelo la nombre.
+    """
 
     user_id: str
     channel_id: str
+    agent_id: str = ""
 
 
 _CURRENT: contextvars.ContextVar[TurnPrincipal | None] = contextvars.ContextVar(
@@ -50,9 +57,9 @@ class NoTurnPrincipalError(RuntimeError):
     """
 
 
-def bind_turn_principal(*, user_id: str, channel_id: str) -> contextvars.Token:
+def bind_turn_principal(*, user_id: str, channel_id: str, agent_id: str = "") -> contextvars.Token:
     """Ata el principal del turno. Lo llama el handler del turno, nadie más."""
-    return _CURRENT.set(TurnPrincipal(user_id=user_id, channel_id=channel_id))
+    return _CURRENT.set(TurnPrincipal(user_id=user_id, channel_id=channel_id, agent_id=agent_id))
 
 
 def reset_turn_principal(token: contextvars.Token) -> None:
