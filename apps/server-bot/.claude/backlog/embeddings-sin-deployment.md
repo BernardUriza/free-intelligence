@@ -1,6 +1,6 @@
 # Embeddings sin deployment: la memoria profunda y el corpus no recuperan nada
 
-Status: Proposed
+Status: Dropped (decisión de Bernard, 2026-11-04: se queda apagada)
 Proposed: 2026-11-04 by Claude, buscando bugs por orden de Bernard
 
 ## What it is
@@ -45,4 +45,4 @@ falló, y ahí no hubo búsqueda. Se corrige junto con esto.
 
 ## Status / next step
 
-Esperando la decisión de Bernard.
+Bernard eligió dejarla apagada el 2026-11-04. Nada se migra ni se crea. `deep_memory_embed_failed` sigue saliendo en los logs: es este estado conocido, no un incidente nuevo. El defecto de `deep_memory_corpus_no_hits` queda sin corregir mientras esto siga apagado.
