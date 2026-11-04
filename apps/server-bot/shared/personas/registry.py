@@ -65,6 +65,9 @@ class Persona:
     # rides the runner's per-turn router; any other provider pins `model`.
     provider: str = "claude"
     model: str | None = None
+    # The router's casual tier (Haiku) reads Insult's presets, and "no signal" is one of
+    # them. Only a persona built on those modes may ride it; anyone else gets depth.
+    casual_model_allowed: bool = False
 
 
 # Future bots: add an entry, nothing else to change.
@@ -77,6 +80,7 @@ PERSONAS: dict[str, Persona] = {
     # al env del gateway SOLO después del scale-to-0 del Container App
     # discord-bot viejo — nunca dos bots vivos con un token.
     "insult": Persona(
+        casual_model_allowed=True,
         persona_id="insult",
         display_name="Insult",
         persona_file="insult.md",

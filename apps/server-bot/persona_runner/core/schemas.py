@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 # The only ids a probe may speak as. A probe under a real principal is exactly
 # the 2026-09-28 mistake: a wire check landed in Bernard's own memory.
@@ -17,6 +17,8 @@ PROBE_PRINCIPAL_PREFIX = "probe-"
 
 
 class TurnRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     channel_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
     # F3 (2026-09-28): who assembles the turn. "caller" (default) is the
