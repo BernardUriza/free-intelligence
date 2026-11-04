@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * useOg118Elements — loads the active "elementos" catalog (GET /elements) and owns
@@ -11,16 +11,17 @@
  * throws into the render.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 import {
   BASE_ELEMENT_SLUG,
   getSelectedElement,
   setSelectedElement,
   type Og118Element,
-} from './og118Element';
-import { authHeaders } from './og118Token';
+  type Og118EmptySlot,
+} from "./og118Element";
+import { authHeaders } from "./og118Token";
 
-const API = process.env.NEXT_PUBLIC_OG118_API ?? 'http://localhost:8118';
+const API = process.env.NEXT_PUBLIC_OG118_API ?? "http://localhost:8118";
 
 export interface Og118ElementsHook {
   /** BASE companion first, then each active element. */
@@ -30,22 +31,34 @@ export interface Og118ElementsHook {
   /** Select an element by slug and persist it. */
   select: (slug: string) => void;
   loading: boolean;
+  /** Whether this account may claim a slot (the server's allowlist decides). */
+  canCreate: boolean;
+  /** Empty slots a new element can take. */
+  slots: Og118EmptySlot[];
+  /** Slugs of the elements this account created from the UI, which it may edit. */
+  editable: string[];
+  /** Reload the catalog and slots after a create, edit or delete; selects a new slug. */
+  refresh: (selectSlug?: string) => void;
 }
 
 const BASE_OPTION: Og118Element = {
-  id: 'element-base',
+  id: "element-base",
   atomicNumber: 0,
-  symbol: 'og',
+  symbol: "og",
   slug: BASE_ELEMENT_SLUG,
-  displayName: 'og118 (base)',
-  displayLabel: 'og118 (base)',
-  status: 'active',
+  displayName: "og118 (base)",
+  displayLabel: "og118 (base)",
+  status: "active",
   aliases: [],
-  description: 'Compañero base de og118 — sin persona de elemento, respuesta directa.',
+  description:
+    "Compañero base de og118 — sin persona de elemento, respuesta directa.",
   engine: null,
 };
 
-export function useOg118Elements(userId: string | null): Og118ElementsHook {
+export function useOg118Elements(
+  userId: string | null,
+  tokenReady: boolean = true,
+): Og118ElementsHook {
   const [active, setActive] = useState<Og118Element[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string>(BASE_ELEMENT_SLUG);
@@ -55,6 +68,11 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
   useEffect(() => {
     setSelected(getSelectedElement(userId));
   }, [userId]);
+
+  const [canCreate, setCanCreate] = useState(false);
+  const [slots, setSlots] = useState<Og118EmptySlot[]>([]);
+  const [editable, setEditable] = useState<string[]>([]);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -72,7 +90,32 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [revision]);
+
+  useEffect(() => {
+    if (!userId || !tokenReady) return;
+    let alive = true;
+    fetch(`${API}/elements/slots`, { headers: { ...authHeaders() } })
+      .then((r) => (r.ok ? r.json() : { canCreate: false, slots: [] }))
+      .then(
+        (data: {
+          canCreate?: boolean;
+          slots?: Og118EmptySlot[];
+          editable?: string[];
+        }) => {
+          if (!alive) return;
+          setCanCreate(Boolean(data.canCreate));
+          setSlots(data.slots ?? []);
+          setEditable(data.editable ?? []);
+        },
+      )
+      .catch(() => {
+        if (alive) setCanCreate(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [userId, tokenReady, revision]);
 
   const select = useCallback(
     (slug: string) => {
@@ -82,5 +125,22 @@ export function useOg118Elements(userId: string | null): Og118ElementsHook {
     [userId],
   );
 
-  return { elements: [BASE_OPTION, ...active], selected, select, loading };
+  const refresh = useCallback(
+    (selectSlug?: string) => {
+      setRevision((r) => r + 1);
+      if (selectSlug) select(selectSlug);
+    },
+    [select],
+  );
+
+  return {
+    elements: [BASE_OPTION, ...active],
+    selected,
+    select,
+    loading,
+    canCreate,
+    slots,
+    editable,
+    refresh,
+  };
 }

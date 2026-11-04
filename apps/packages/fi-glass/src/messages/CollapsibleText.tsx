@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
 
 // A message one line over the clamp reads better whole than clamped with a
 // toggle that reveals a single hidden line — so overflow only counts past this.
@@ -46,6 +47,7 @@ export function CollapsibleText({
   className,
   toggleClassName,
 }: CollapsibleTextProps) {
+  useTouchTargetStyle();
   const contentId = useId();
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -90,7 +92,7 @@ export function CollapsibleText({
           aria-expanded={expanded}
           aria-controls={contentId}
           onClick={() => setExpanded((e) => !e)}
-          className={toggleClassName}
+          className={withTouchTarget(toggleClassName)}
           style={
             toggleClassName
               ? undefined

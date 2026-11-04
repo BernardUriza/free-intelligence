@@ -246,6 +246,82 @@ body {
   color: #64748b;
   font-size: 0.95rem;
 }
+.og-loading-inline {
+  height: 100%;
+  min-height: 40vh;
+}
+
+.og-start {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 0;
+}
+.og-start-card {
+  max-width: 560px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 2.5rem 2rem;
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(var(--glass-blur, 12px)) saturate(var(--glass-saturation, 180%));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.18));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+.og-start-tile {
+  display: block;
+  margin: 0 auto;
+  width: clamp(120px, 40vw, 220px);
+  height: auto;
+  filter: drop-shadow(0 8px 24px rgba(52, 211, 153, 0.15));
+}
+.og-start-title {
+  margin: 1.5rem 0 0.25rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+.og-start-accent {
+  color: var(--og-accent, #34d399);
+}
+.og-start-element {
+  margin: 0 0 1rem;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+.og-start-pitch {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+.og-start-hint {
+  margin: 1.5rem 0 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+.og-start-hint strong {
+  color: var(--og-accent, #34d399);
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .og-start {
+    padding: 0.5rem 0;
+  }
+  .og-start-card {
+    padding: 1.5rem 1.1rem;
+    border-radius: 16px;
+  }
+  .og-start-title {
+    margin-top: 1rem;
+    font-size: 1.6rem;
+  }
+  .og-start-element {
+    font-size: 0.85rem;
+  }
+  .og-start-pitch {
+    font-size: 0.95rem;
+  }
+}
 
 /* Projects section (proj-sidebar) — sits above the conversations list. The head +
    title layout moved to fi-glass `AgentSidebarSection` (B3-FIGLASS-SHELL-PRIMITIVES-1C);
@@ -337,6 +413,20 @@ body {
   flex: 1;
   min-height: 0;
 }
+.og-sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.og-sidebar-release {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .og-sidebar-new {
   padding: 0.35rem 0.6rem;
   border-radius: 8px;
@@ -348,6 +438,30 @@ body {
   white-space: nowrap;
 }
 .og-sidebar-new:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.og-sidebar-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.og-sidebar-archive-many {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.og-sidebar-archive-many:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+.og-sidebar-archive-many:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -369,13 +483,36 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.6rem 0.85rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.6rem 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 .og-sidebar-privacy {
   margin: 0;
   font-size: 0.7rem;
   color: #475569;
+}
+.og-sidebar-sync-connecting {
+  color: #94a3b8;
+  animation: og-sync-pulse 1.6s ease-in-out infinite;
+}
+.og-sidebar-sync-unreachable {
+  color: #fbbf24;
+}
+@keyframes og-sync-pulse {
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .og-sidebar-sync-connecting { animation: none; }
+}
+.og-sidebar-sync-retry {
+  align-self: flex-start;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 /* CONV-SEARCH-1: the sidebar chat search. */
 .og-sidebar-search {

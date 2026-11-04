@@ -28,6 +28,8 @@ from .acp_messages import collect_blocks, result_message
 from .acp_roster import AcpAgent, roster
 from .base import Birth
 
+CREDENTIALS = "claude"  # an ACP agent inherits the Claude slot's env (claude-code-acp spawns `claude`)
+
 
 @dataclass(frozen=True)
 class AcpOptions:

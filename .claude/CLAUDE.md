@@ -12,17 +12,18 @@
 ## 🚀 Quick Start
 
 ```bash
-# Development
-make dev-all              # Cloud-dev (tunnel + backend + frontend, ~60s startup)
-make dev-all-local        # Local-only (no tunnel, ~30s startup, faster iterations)
-make dev-kill             # Kill all dev processes
-make test                 # pytest
+# Development (og118: server :8118 + web :3000)
+make dev                  # both; or make dev-server / make dev-web
+make dev-kill             # stop whatever listens on :8118 / :3000
+make test                 # og118 server pytest + og118-web vitest
 
-# Production Deploy
-git checkout -b bernarduriza/<slug>   # transient branch → PR to main → CI/CD auto-deploy
-# (branch is deleted on merge; main is the only branch at rest)
+# Production Deploy (main is protected; no local branch ever, the main-only-branches gate denies one)
+git commit ...                                            # on local main
+git push origin HEAD:refs/heads/bernarduriza/<slug>       # remote-only PR ref
+gh pr create --base main --head bernarduriza/<slug>       # merge --delete-branch → CI/CD auto-deploy
+git pull --ff-only                                        # local main catches the merge
 
-# Desktop Builds
+# FI Monitor (Windows) build
 gh workflow run build-desktop.yml -f platform=windows
 ```
 
@@ -38,7 +39,8 @@ gh workflow run build-desktop.yml -f platform=windows
 .claude/
 ├── quick-start/          # Setup guides
 ├── development/          # Workflows, version mgmt
-├── architecture/         # Backend refactor, multi-tenancy
+├── rules/                # Repo rules (mobile UX, auth-mode parity, dist, canary)
+├── backlog/              # Proposed / in-progress items
 ├── operations/ci-cd/     # Windows builds, optimizations
 ├── security/             # Credentials, SSH policy
 ├── integrations/         # Browser MCPs
@@ -50,7 +52,7 @@ gh workflow run build-desktop.yml -f platform=windows
 ## 🎯 Core Principles
 
 1. **Bernard's Workflow:** Simplicity, focus, no tangents → [development/workflow.md](development/workflow.md)
-2. **Git Flow:** transient `bernarduriza/<slug>` branch → PR to `main`, branch deleted on merge (`dev` retired 2026-07-06) → [development/workflow.md](development/workflow.md#git-workflow)
+2. **Git Flow:** commit on local `main`, push `HEAD:refs/heads/bernarduriza/<slug>` → PR to `main`, remote ref deleted on merge; a checkout off `main` is an alarm, never a worktree (`dev` retired 2026-07-06) → [development/workflow.md](development/workflow.md#git-workflow)
 3. **Security:** ZERO TOLERANCE for secrets → [security/credentials.md](security/credentials.md)
 4. **Production:** CI/CD only, no manual edits → [security/ssh-policy.md](security/ssh-policy.md)
 
@@ -73,20 +75,14 @@ pnpm version:sync     # Sync all files
 
 ```
 free-intelligence/
-├── backend/              # FastAPI + HDF5 (Clean Architecture)
-│   ├── infrastructure/  # Auth, workers, observability
-│   ├── services/        # Business logic (8 extracted)
-│   ├── api/             # HTTP layer
-│   └── core/            # Legacy (DI refactor pending)
 ├── apps/
 │   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
-│   ├── fenix/           # LIVE: the stationery shop — real users (see below)
+│   ├── fenix/           # PAUSED: the stationery shop — still deployed, no traffic (see below)
 │   ├── packages/
 │   │   ├── fi-glass/    # the chat framework (aurity is its SSOT)
 │   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
 │   │   └── free-intelligence-core/
 │   ├── aurity/          # LEGACY (see below) — Next.js frontend
-│   ├── aurity-desktop/  # Tauri desktop app
 │   ├── fi-monitor/      # Windows monitor app
 │   ├── server-bot/      # LIVE (absorbed 2026-10-08): Discord personas + persona-runner on Azure Container Apps
 │   │                    #   own CLAUDE.md/AGENTS.md; CI/CD = server-bot-*.yml (conda env, GHCR images)
@@ -100,22 +96,36 @@ free-intelligence/
 ## 🔗 Quick Links
 
 - **Production:** https://app.og118.ai — the app that actually ships today
-- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site, with real users
+- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site (paused, still online)
 
-### `apps/fenix` has REAL USERS — the "no launch, no users" clause does NOT cover it
+### `apps/fenix` is PAUSED — deployed, reachable, and unused (verified 2026-10-09)
 
-The **Project Status** section below says this repo has no users. That is true of
-og118 and false of `apps/fenix`: children at the shop's internet café use
-`/app/` for homework today, and Bernard's mother's team runs the business on it.
+Bernard paused Fénix; the last change under `apps/fenix` is `06cf5c0a` (2026-09-09).
+It used to have real users (the internet café's children on `/app/`, his mother's
+team at the counter), and the rules below were written for that. Today, measured:
 
-Two consequences that override the "delete it, refactor it now" freedom below:
+- **Traffic:** 24 requests to `fenix-api` in 30 days (Azure `Requests` metric), the
+  shape of bots and probes, not a shop.
+- **Azure cost:** $0.40 USD in Sep, $0.01 in Oct to the 9th (Cost Management,
+  `og118-rg`). `fenix-api` scales to 0, `fenix-web` is the Free SWA,
+  `fenixdatastore` is ~$0. Deleting them saves cents and loses the domain binding
+  and the data — not worth it while paused.
+- **Still online:** `www.serviciosfenix.com.mx` and `/app/` answer 200. A visitor's
+  turn spends Fénix's own `ANTHROPIC_API_KEY`, which bills per use and does NOT show
+  in the Azure cost above.
+- **The web has no deploy workflow:** `fenix-backend.yml` builds only the server. A
+  fi-glass fix merged to `main` does not reach `fenix-web` until someone redeploys that
+  SWA by hand — so "this protects Fénix's users" is never a reason to prioritise a
+  fi-glass change while it is paused.
 
-- **A broken deploy is a shop that cannot work**, not a red build. It ships on
-  its own workflow (`fenix-backend.yml`) to Azure Container Apps `fenix-api`.
-- **It runs on og118's server** (`create_app()` + its own door), so a change in
-  `apps/og118/server` reaches Fénix's users. `apps/fenix/DEPLOY.md` documents the
-  gate, the public quota and — most importantly — **why `OG118_ACCESS_TOKEN` must
-  never be set here**: it silenced the café for days while every page looked fine.
+What still holds while it sits on og118's server (`create_app()` + its own door):
+a change in `apps/og118/server` still ships to `fenix-api` through
+`fenix-backend.yml`, and **`OG118_ACCESS_TOKEN` must never be set there** — it
+silenced the café for days while every page looked fine (`apps/fenix/DEPLOY.md`).
+
+**When Bernard resumes it, this section flips back to REAL USERS the same day**:
+a broken deploy is then a shop that cannot work, and the "delete it, refactor it
+now" freedom below stops covering `apps/fenix`.
 
 ### ⚠️ The "staging" that is actually PRODUCTION
 
@@ -154,10 +164,9 @@ in conflict, because two different things are being called legacy:
 - **The DEPLOYMENT is dead, and stays dead.** aurity's Azure infrastructure NO
   LONGER EXISTS — no Static Web App, no resource of any kind, a dead service
   principal ("No subscriptions found") — and `app.aurity.io` answers nothing (its
-  DNS points at a DigitalOcean IP). Its pipeline (`deploy-azure.yml`) is now
-  **manual-only**: it used to run on every push and paint `main` red for something
-  nobody intends to ship, and a permanently-red pipeline is worse than none — it
-  teaches everyone to ignore red.
+  DNS points at a DigitalOcean IP). Its pipeline (`deploy-azure.yml`) and the
+  legacy Python `backend/` it shipped were deleted on 2026-11-03, together with
+  the `aurity-desktop` Tauri shell that bundled that backend as a sidecar.
 - **The CODE is the SSOT of fi-glass, and stays.** aurity's chat anatomy — the
   toolbar menu, the staged file-upload flow — is what the framework extracts and
   what og118 renders. It is not "dead code kept for compatibility" (the thing the
@@ -184,19 +193,15 @@ If you (Claude) ever justify keeping dead code as "intentional for compatibility
 
 ## 🚫 Critical Rules
 
-### Backend: Make Only, Never Raw Commands
+### Local og118: use the Make targets
 ```bash
-# ❌ PROHIBITED - Never run uvicorn/python directly
-uvicorn backend.main:app --reload
-python -m backend.main
-PYTHONPATH=. uvicorn ...
-
-# ✅ CORRECT - Always use Make
-make dev-all-local        # Local development
-make dev-all              # Cloud development (with tunnel)
-make dev-kill             # Stop all services
-make test                 # Run tests
+make dev                  # og118 server (apps/og118/server/run.sh) + web (next dev)
+make dev-kill             # stop :8118 / :3000
+make test                 # og118 server + web suites
 ```
+`run.sh` picks the auth mode from `apps/og118/server/.env.local`; launching
+`uvicorn` by hand skips that. Setup of the server's `.venv`:
+[apps/og118/server/README.md](../apps/og118/server/README.md).
 
 ### No Emojis in Code
 ```typescript
@@ -234,7 +239,7 @@ powershell -Command "Start-Process '<output.png>'"  # Show to user
 ## 🏷️ Conventions
 
 - **Commits:** Conventional Commits (feat/fix/docs/chore)
-- **Branches:** main only at rest; work rides transient `bernarduriza/<slug>` PR branches, deleted on merge
+- **Branches:** local `main` only, always; PRs ride a remote-only `bernarduriza/<slug>` ref, deleted on merge
 - **PRs:** AI Gatekeeper (GPT-5) approval required
 - **Docs:** Hong Kong standard (zero bloat, zero duplication)
 

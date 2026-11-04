@@ -151,7 +151,7 @@ memory. To contradict anything here, verify it first the same way.
   (0 output tokens, no tool calls, the same cost echoed back) and **no error event**,
   so a cut turn is indistinguishable from success. Dropping the pool revives it.
   Backlog #23. **Since 2026-09-03 only a METERED client is born with the cap**
-  (`is_metered(slot.name)` at `_client_for`): an OAuth client's dollars are nominal,
+  (`slot.metered` at `_client_for`): an OAuth client's dollars are nominal,
   and cutting it at $1 every ~3 crisis turns only bought a cache-creation per
   rebirth. The ledger's recognition of the cut is metered-only too — both ends.
 - **`permission_mode="bypassPermissions"` is REFUSED when the process runs as root**
@@ -216,6 +216,49 @@ memory. To contradict anything here, verify it first the same way.
   fresh session opens LOUDLY (`ACP-RESUME-LOST`) — re-priming from the mirror is
   #49's next step. Not deployed as a consumer: the droplet has no node and 162 MB
   free; `claude-code-acp` costs ~90 MB of node beside the `claude` it spawns.
+
+- **A third backend, Codex on the ChatGPT plan** (2026-10-26, backlog #52).
+  `provider: "codex"` exists only where `AIRE_CODEX_COMMAND` names the binary;
+  `agent_sdk/codex.py` runs ONE `codex exec --json` process per turn
+  (`exec resume <thread>` after the first, `-m` on every call because a resume
+  without it falls back to the plan's default weights and says so), mirrors every
+  event through `acp_mirror` and maps the AIRE session to the Codex thread there.
+  Measured facts: the ACP adapter (`codex-acp` 0.16.0, codex-core 0.137) is too old
+  for `gpt-6-astra` — the backend refuses it — while `codex exec` 0.164 answers,
+  and that is the road the official `@openai/codex-sdk` drives underneath; a
+  cold resume says `no rollout found` on stderr with exit 1 and no stdout, so the
+  backend reopens fresh LOUDLY (`CODEX-RESUME-LOST`); the message arrives whole
+  (`item.completed`), never as deltas. **The box is the droplet, and the CLI is
+  never used directly** — Bernard, 2026-10-28: *"AIRE SOLO VIVE EN EL DROPLET"*
+  (it ran on his Mac as a launchd agent for two days; that door is gone). The
+  binary is the native `linux-x64` build at `/opt/aire-codex` (no node on a 512 MB
+  box), laid down by `remote-bootstrap.sh install_codex`; the plan seat is
+  `/root/.codex/auth.json`, copied from a `codex login` done on the Mac (#52).
+  **The casita persona reaches Codex as `AGENTS.md`**: Claude reads the casita's
+  `CLAUDE.md`, Codex does not, so `agent_sdk/codex_persona.py` materializes
+  `casita_prompt(cwd)` into `<casita>/AGENTS.md` before every turn (rewritten only
+  when it changed, removed when the casita has no prompt) and the process runs with
+  `project_doc_max_bytes=1 MiB` so a long persona is never truncated at Codex's
+  32 KiB default. A persona that only ever lived in `CLAUDE.md` was silently
+  ignored by the Codex backend until 2026-10-28 (og118's Astra element found it).
+
+- **Credentials are `provider × access_mode`, one rotor for both providers**
+  (2026-10-27, backlog #53). Every backend names the chain it rides
+  (`CREDENTIALS = "claude" | "codex"`); a slot is `provider/access_mode/label`
+  (`claude/oauth/primary`, `codex/apikey/fallback`) and `slot.metered` is the
+  only money question (`apikey` bills the card, `oauth` is a plan seat). Codex's
+  rows are armed by `CODEX_HOME` (the plan seat, `/root/.codex` in `/etc/aire/env`),
+  `CODEX_HOME_BACKUP` and `CODEX_API_KEY_FALLBACK`. Measured against codex-cli
+  0.164.0 with a bogus key: `codex exec` IGNORES `OPENAI_API_KEY` (no bearer
+  sent) and honours `CODEX_API_KEY`, which wins over the plan's `auth.json` in
+  the same `CODEX_HOME` — so a failover keeps the thread. A Codex limit is not a
+  lying success: it is `turn.failed`, whose message rides `TurnResult.error`
+  (never text) and burns the slot through the same `limit_hit`. Codex reports
+  tokens only, so the backend prices them at OpenAI list (`pricing.openai_usd`;
+  `prices.json` carries the gpt-6 family, the dearest row for a model it lacks;
+  cumulative like the SDK's `total_cost_usd`): a plan turn now leaves an `aire_spend` row with
+  `metered=false`, a fallback turn a real one. `/health` reports
+  `credential_failover_<provider>` for each provider the box arms.
 
 ## Discarded routes (don't re-propose them)
 

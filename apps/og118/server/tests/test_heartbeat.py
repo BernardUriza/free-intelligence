@@ -2,8 +2,8 @@
 
 The P0 this prevents: a client's idle watchdog cannot tell "the model is
 thinking" from "the backend hung" — both are silence — and silence is NORMAL
-here. An external element answers in ONE shot after up to 95s
-(external_engine._TIMEOUT) and says nothing until then; a local turn can think
+here. An external element answers in ONE shot after up to
+`external_engine.LIVE_WAIT_S` and says nothing until then; a local turn can think
 far longer than a token gap. og118 shipped with no heartbeat at all, so the
 browser killed healthy turns at 60s, DISCARDED what the user had written, and
 showed "la respuesta tardó demasiado" while the backend was still working.

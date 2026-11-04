@@ -119,6 +119,12 @@ external one.
 - The engine returns one `LLMResponse` (single-shot), surfaced as a `text` + `done`
   stream. **An external element shows NO glass-box plan/step trace** — the accepted
   trade for reusing a live engine. The base og118 path keeps its full local trace.
+  - **Superseded 2026-10-15 (OG118-EXTERNAL-TURN-1):** the turn now rides the
+    engine's ticket (`POST /v1/turn/jobs`, idempotent `job_id`) and og118 tails
+    `GET /v1/turn/jobs/{id}/events`, so **every `tool_call` the engine makes
+    streams live** into the same glass-box panel as the local path. The TEXT is
+    still single-shot (the engine strips the persona's markers from the final
+    text); token-level text is OG118-EXTERNAL-TURN-2.
 - Verified live (Chrome): Oxígeno → Vultur answers in og118's bubble, in character,
   with the IFA closing line, from the deployed persona-runner. Base (no element)
   stays on the local runner (does NOT hit the external engine).

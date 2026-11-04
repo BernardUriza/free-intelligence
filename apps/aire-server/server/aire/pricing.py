@@ -43,11 +43,15 @@ def _table() -> dict[str, Any]:
 def rates(model: str, speed: str = "standard") -> tuple[float, float]:
     """Dollars per token, in and out. Matched by longest prefix, so a dated
     snapshot (`claude-opus-4-5-20251101`) prices as its family."""
-    table = _table()
-    hit = max((k for k in table if model.startswith(k)), key=len, default=None)
-    row = table[hit] if hit else max(table.values(), key=lambda r: r["output"])
+    row = _row(model)
     factor = FAST_MODE if speed == "fast" else 1.0
     return row["input"] * factor / 1e6, row["output"] * factor / 1e6
+
+
+def _row(model: str) -> dict[str, float]:
+    table = _table()
+    hit = max((k for k in table if model.startswith(k)), key=len, default=None)
+    return table[hit] if hit else max(table.values(), key=lambda r: r["output"])
 
 
 def _cache_write_tokens(usage: dict[str, Any]) -> float:
@@ -73,3 +77,20 @@ def usd(usage: dict[str, Any] | None, model: str) -> float:
         + float(usage.get("cache_read_input_tokens", 0) or 0) * CACHE_READ
     )
     return billable_in * per_in + float(usage.get("output_tokens", 0) or 0) * per_out
+
+
+def openai_usd(usage: dict[str, Any] | None, model: str) -> float:
+    """The dollars one OpenAI-wire turn cost AIRE (#51). Chat Completions says
+    `prompt_tokens`/`completion_tokens`, Responses says `input_tokens`/
+    `output_tokens`; both count reasoning inside the output and cached tokens
+    INSIDE the input. A row without `cached_input` bills the cache at the full
+    input rate — the dearer guess, for the same reason as everywhere here."""
+    if not isinstance(usage, dict):
+        return 0.0
+    row = _row(model or "")
+    prompt = float(usage.get("prompt_tokens", usage.get("input_tokens", 0)) or 0)
+    output = float(usage.get("completion_tokens", usage.get("output_tokens", 0)) or 0)
+    details = usage.get("prompt_tokens_details") or usage.get("input_tokens_details") or {}
+    cached = min(float(details.get("cached_tokens", 0) or 0), prompt)
+    cached_rate = row.get("cached_input", row["input"])
+    return ((prompt - cached) * row["input"] + cached * cached_rate + output * row["output"]) / 1e6

@@ -66,3 +66,27 @@ tail -f /opt/aire/aire.log | grep KEEPALIVE      # the device's heartbeats, live
 journalctl -u aire-listener -f                    # the listener's stdout
 systemctl status aire-listener                   # service state
 ```
+
+## Codex on the droplet (backlog #52, moved here 2026-10-28)
+
+AIRE lives ONLY on the droplet (Bernard, 2026-10-28: *"en esta mac NO DEBE HABER
+PUERTA DE AIRE, AIRE SOLO VIVE EN EL DROPLET"*). The Codex agent that spends his
+ChatGPT plan lives there too, as the NATIVE binary — no node on a 512 MB box:
+`remote-bootstrap.sh install_codex` fetches `@openai/codex` `<ver>-linux-x64` from
+the npm registry into `/opt/aire-codex` (voice libs stripped, ~370 MB on disk) and
+`AIRE_CODEX_COMMAND` names `…/vendor/x86_64-unknown-linux-musl/bin/codex`.
+
+The plan seat is out-of-band, like every secret: `codex login` runs on the Mac
+(a browser), and the resulting `~/.codex/auth.json` is copied to the box:
+
+```bash
+scp -i ~/.ssh/aire_vm ~/.codex/auth.json root@<IP>:/root/.codex/auth.json   # chmod 600
+```
+
+`/etc/aire/env` carries `AIRE_CODEX_COMMAND`, `CODEX_HOME=/root/.codex` (the
+rotor's `codex/oauth/primary`, #53) and `CODEX_API_KEY_FALLBACK=` from
+`~/.secrets/aire-codex-api-key-fallback.txt` (the metered `codex/apikey/fallback`).
+Verify through the public door, never by SSH: `/health` with the owner token lists
+both `codex/*` slots armed; a `provider: "codex"` turn answers `model: gpt-6-astra`
+and leaves an `aire_spend` row with `metered=f` (first receipt 2026-10-28 06:46Z,
+0.03175 nominal, box at ~250 MB available with 1 GB swap).

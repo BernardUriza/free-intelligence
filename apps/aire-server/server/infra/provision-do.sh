@@ -27,8 +27,12 @@ BAIR_TOKEN_FILE="$HOME/.secrets/aire-bair-token.txt"       # revocable BAIR gate
 OAUTH_FILE="$HOME/.secrets/aire-claude-oauth.txt"
 OAUTH_BACKUP_FILE="$HOME/.secrets/aire-claude-oauth-backup.txt"     # #31 failover slot 2 (optional)
 API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-api-key-fallback.txt"    # #31 failover slot 3 (optional)
+BAIR_API_KEY_FILE="$HOME/.secrets/aire-bair-api-key.txt"            # BAIR's lane, ANTHROPIC_API_KEY_BAIR= (optional)
 ACP_AGENTS_FILE="$HOME/.secrets/aire-acp-agents.txt"                # #49 ACP roster, AIRE_ACP_AGENTS=<json> (optional)
 LEND_API_KEY_FILE="$HOME/.secrets/aire-lend-api-key.txt"   # #32e: the metered key AIRE lends (optional)
+OPENAI_FILE="$HOME/.secrets/aire-openai-azure.txt"        # #51: AIRE_OPENAI_UPSTREAM= + AIRE_LEND_AZURE_OPENAI_KEY= (optional)
+CODEX_SEAT_FILE="$HOME/.codex/auth.json"                   # #52: the ChatGPT plan seat a `codex login` on the Mac left (optional)
+CODEX_API_KEY_FALLBACK_FILE="$HOME/.secrets/aire-codex-api-key-fallback.txt"  # #53: CODEX_API_KEY_FALLBACK= (optional)
 WHITELIST_FILE="$HOME/.secrets/aire-whitelist.txt"
 ACCESS_FILE="$HOME/.secrets/aire-access.txt"              # #32 invitation flow: signing key + owner
 BUDGET_FILE="$HOME/.secrets/aire-budget.txt"              # #25 cumulative spend backstop
@@ -37,7 +41,7 @@ RESEND_FILE="$HOME/.secrets/resend-aire.txt"              # #32 mail transport
 REPO_URL="git@github.com:BernardUriza/free-intelligence.git"   # aire-server lives at apps/aire-server since 2026-10-08
 REMOTE_DIR="/opt/aire"
 PG_SERVER="development-pg-n66dz"          # the pen's Azure Postgres
-PG_RG="insult-rg"
+PG_RG="og118-rg"                           # insult-rg was deleted 2026-10-17; the pen moved to og118-rg
 
 source "$SCRIPT_DIR/lib/keys.sh"
 source "$SCRIPT_DIR/lib/droplet.sh"
@@ -64,6 +68,7 @@ for i in $(seq 1 10); do  # a freshly created droplet takes a moment to accept s
 done
 
 install_deploy_key
+install_codex_seat
 compose_env
 $SSH "root@${IP}" REPO_URL="$REPO_URL" REMOTE_DIR="$REMOTE_DIR" 'bash -s' \
   < "$SCRIPT_DIR/remote-bootstrap.sh"

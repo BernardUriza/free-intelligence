@@ -102,6 +102,9 @@ export function Auth0Wrapper({ children }: { children: React.ReactNode }) {
       }}
       cacheLocation="localstorage"
       useRefreshTokens
+      onRedirectCallback={(appState) =>
+        window.history.replaceState({}, '', appState?.returnTo ?? window.location.pathname)
+      }
     >
       <TokenSync>{children}</TokenSync>
     </Auth0Provider>

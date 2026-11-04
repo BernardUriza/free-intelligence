@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { foldAssistantTurn, makeUserMessage } from './transcript';
+import { foldAssistantTurn, makeUserMessage, mergeConversationMessages } from './transcript';
+import type { ChatMessage } from '../chat/message';
 import { initialAgentTurnState } from './state';
 import type { AgentTurnState } from './state';
 import type { MessageAuthor } from './events';
@@ -160,5 +161,30 @@ describe('foldAssistantTurn — reactions are a field, never text', () => {
   it('a turn without reactions folds with no field at all (the plain case stays byte-identical)', () => {
     const msg = foldAssistantTurn(turnWith({}), OG118);
     expect('reactions' in msg).toBe(false);
+  });
+});
+
+describe('mergeConversationMessages', () => {
+  const at = (role: ChatMessage['role'], content: string, timestamp: string): ChatMessage => ({
+    id: `${role}-${content}`,
+    role,
+    content,
+    timestamp,
+  });
+
+  it('returns the same reference when the source adds nothing', () => {
+    const target = [at('user', 'a', '2020-01-01T00:00:00.000Z')];
+    expect(mergeConversationMessages(target, [{ ...target[0], id: 'other' }])).toBe(target);
+  });
+
+  it('unions by (role, timestamp, content) and orders by timestamp, stable for ties', () => {
+    const target = [at('user', 'a', '2020-01-01T00:00:00.000Z'), at('user', 'c', '2020-01-01T00:00:02.000Z')];
+    const source = [at('assistant', 'b', '2020-01-01T00:00:01.000Z'), at('assistant', 'a', '2020-01-01T00:00:00.000Z')];
+    expect(mergeConversationMessages(target, source).map((m) => `${m.role}:${m.content}`)).toEqual([
+      'user:a',
+      'assistant:a',
+      'assistant:b',
+      'user:c',
+    ]);
   });
 });

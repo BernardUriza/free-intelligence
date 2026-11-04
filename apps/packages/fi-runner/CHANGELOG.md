@@ -22,6 +22,33 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 ---
 
+## [0.25.0] — 2026-10-28
+
+### Added — `provider` on `AIREBackend.run_turn_stream`
+
+`run_turn_stream(provider="codex")` puts `provider` in the body the door
+receives, so a consumer can ask AIRE for the backend a persona rides (Claude by
+default; Codex on the ChatGPT plan seat, aire-server #49/#52). Omitted, the body
+is byte-identical to 0.24. persona-runner's Astra persona is the first caller.
+
+Note: 0.24.0 was never tagged or published (`__version__` and the conda recipe
+stayed at 0.23.0); its `reactions` field ships with this release.
+
+---
+
+## [0.24.0] — 2026-10-17
+
+### Added — `reactions` on `TurnResultPayload` (schema 1.2.0)
+
+The og118 server had been forwarding the persona's reactions on the `result`
+frame since server-bot F5 without the contract declaring them. The web read the
+field by hand; the Swift types, generated from this schema, could not see it, so
+a reaction-only turn reached the iPhone as "frames without text" and a retry
+button. The field is now part of the stream contract — additive, optional on
+the wire — and every generated consumer carries it.
+
+---
+
 ## [0.21.9] — 2026-09-22
 
 ### Changed — cap de `fi-core` subido a `<0.34`

@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from unittest.mock import AsyncMock
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -21,6 +22,8 @@ from fi_runner.backend import BackendError
 from persona_runner.core.schemas import JudgeRequest, TurnRequest
 from persona_runner.engine import aire_route
 from persona_runner.engine.aire_route import REQUIRED_BUILTIN_TOOLS
+
+ROOT = Path(__file__).parents[2]
 
 
 @pytest.fixture(autouse=True)
@@ -266,6 +269,21 @@ class _Result:
         self.model = model
 
 
+def _streams(backend, *outcomes):
+    """`run_turn_stream` as the fake (the route taps the stream since
+    OG118-EXTERNAL-TURN-1): each call yields the next outcome as a `result`
+    event, or raises it; the last outcome repeats for every later call."""
+    queue = list(outcomes)
+
+    async def gen(**_kwargs):
+        out = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(out, BaseException):
+            raise out
+        yield {"type": "result", "result": out}
+
+    backend.run_turn_stream = MagicMock(side_effect=gen)
+
+
 def _turn_request(**kw):
     base = {"channel_id": "555", "user_id": "42", "user_text": "hey"}
     base.update(kw)
@@ -276,7 +294,7 @@ def _turn_request(**kw):
 async def test_turn_via_aire_addresses_the_persona_channel_casita(monkeypatch):
     """The turn lands in `{persona}-{channel}` and answers with AIRE's provenance."""
     backend = AsyncMock()
-    backend.run_turn.return_value = _Result()
+    _streams(backend, _Result())
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -296,7 +314,7 @@ async def test_turn_via_aire_addresses_the_persona_channel_casita(monkeypatch):
 async def test_turn_via_aire_folds_history_only_on_the_first_turn(monkeypatch):
     """A live AIRE session already holds the thread — re-folding would duplicate it."""
     backend = AsyncMock()
-    backend.run_turn.return_value = _Result()
+    _streams(backend, _Result())
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -306,9 +324,9 @@ async def test_turn_via_aire_folds_history_only_on_the_first_turn(monkeypatch):
     req = _turn_request(history=[{"role": "user", "content": "el turno viejo"}])
 
     await aire_route.turn_via_aire(req)
-    first = backend.run_turn.await_args.kwargs["user_message"]
+    first = backend.run_turn_stream.call_args.kwargs["user_message"]
     await aire_route.turn_via_aire(req)
-    second = backend.run_turn.await_args.kwargs["user_message"]
+    second = backend.run_turn_stream.call_args.kwargs["user_message"]
 
     assert "el turno viejo" in first
     assert "el turno viejo" not in second
@@ -319,7 +337,7 @@ async def test_turn_via_aire_carries_facts_and_guidance_in_band(monkeypatch):
     """Facts + the guardian overlay travel IN the message — no Khimeras credential
     ever reaches the droplet."""
     backend = AsyncMock()
-    backend.run_turn.return_value = _Result()
+    _streams(backend, _Result())
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value="- [health] toma su tratamiento"))
     monkeypatch.setattr(
@@ -329,17 +347,71 @@ async def test_turn_via_aire_carries_facts_and_guidance_in_band(monkeypatch):
 
     await aire_route.turn_via_aire(_turn_request(behavioral_guidance="cuida a esta persona"))
 
-    sent = backend.run_turn.await_args.kwargs["user_message"]
+    sent = backend.run_turn_stream.call_args.kwargs["user_message"]
     assert "toma su tratamiento" in sent
     assert "cuida a esta persona" in sent
     assert "<behavioral_guidance>" in sent
+
+
+def _bind_recorder(monkeypatch, tmp_path):
+    """Wire a turn whose remote memory tools are ON, with a persona dir holding
+    insult (the default) and vultur, and record what `aire_principal.bind` gets.
+    `turn_via_aire` is where BOTH pipelines meet — the gateway's `caller` turn and
+    og118's `runner` turn (api/turn_pipeline's brain calls it) — so this is the
+    one place the self-facts owner is decided for every surface."""
+    (tmp_path / "insult.md").write_text("# insult")
+    (tmp_path / "vultur.md").write_text("# vultur")
+    monkeypatch.setattr(aire_route.config, "PERSONAS_DIR", tmp_path)
+    monkeypatch.setattr(aire_route.config, "PERSONA_PATH", tmp_path / "insult.md")
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(aire_route, "memory_tool_specs", lambda casita: [f"spec-{casita}"])
+    monkeypatch.setattr(
+        "persona_runner.routing.router_runtime.route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+    bound: list[dict] = []
+
+    async def record_bind(casita, **kw):
+        bound.append({"casita": casita, **kw})
+        return True
+
+    monkeypatch.setattr(aire_route.aire_principal, "bind", record_bind)
+    monkeypatch.setattr(aire_route.aire_principal, "clear", AsyncMock())
+    return bound
+
+
+@pytest.mark.asyncio
+async def test_the_turn_binds_its_own_persona_as_the_self_facts_owner(monkeypatch, tmp_path):
+    """A vultur turn publishes agent_id='vultur' — the persona whose DNA is loaded."""
+    bound = _bind_recorder(monkeypatch, tmp_path)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id="vultur"))
+
+    assert bound == [{"casita": "vultur-555", "user_id": "42", "channel_id": "555", "agent_id": "vultur"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("persona_id", ["no_such_persona", "../alice", "alice' OR '1'='1"])
+async def test_an_unknown_or_hostile_persona_id_never_becomes_the_self_facts_owner(monkeypatch, tmp_path, persona_id):
+    """Resistance: the caller's raw `persona_id` is not trusted as the owner. It
+    resolves exactly like the DNA does — to the default persona — so the facts the
+    turn may touch always belong to the voice actually speaking, never to a name
+    the request smuggled in."""
+    bound = _bind_recorder(monkeypatch, tmp_path)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id=persona_id))
+
+    assert [b["agent_id"] for b in bound] == ["insult"]
 
 
 @pytest.mark.asyncio
 async def test_a_cut_turn_raises_instead_of_returning_empty_success(monkeypatch):
     """`budget_exhausted` must surface as an HTTP error, never as a blank reply."""
     backend = AsyncMock()
-    backend.run_turn.side_effect = BackendError("AIRE turn error [budget_exhausted]: cut")
+    _streams(backend, BackendError("AIRE turn error [budget_exhausted]: cut"))
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -360,10 +432,11 @@ async def test_a_budget_cut_is_resent_once_and_the_resend_answers(monkeypatch):
     same session; without it the persona answered "…" every time a pooled
     client crossed its ceiling mid-conversation (the 2026-08-26 P1)."""
     backend = AsyncMock()
-    backend.run_turn.side_effect = [
+    _streams(
+        backend,
         AIREDoorError("AIRE turn error [budget_exhausted]: cut", code="budget_exhausted"),
         _Result(),
-    ]
+    )
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -374,7 +447,7 @@ async def test_a_budget_cut_is_resent_once_and_the_resend_answers(monkeypatch):
     resp = await aire_route.turn_via_aire(_turn_request())
 
     assert resp.text == "hola", "the resend AIRE prescribes never happened"
-    assert backend.run_turn.await_count == 2
+    assert backend.run_turn_stream.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -382,7 +455,7 @@ async def test_a_second_cut_in_a_row_is_terminal_not_a_retry_storm(monkeypatch):
     """The resend is ONE: a client cut twice on the same turn is a real fault
     and maps to 500 exactly as before, so the gateway's neutral path takes over."""
     backend = AsyncMock()
-    backend.run_turn.side_effect = AIREDoorError("AIRE turn error [budget_exhausted]: cut", code="budget_exhausted")
+    _streams(backend, AIREDoorError("AIRE turn error [budget_exhausted]: cut", code="budget_exhausted"))
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -393,7 +466,7 @@ async def test_a_second_cut_in_a_row_is_terminal_not_a_retry_storm(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         await aire_route.turn_via_aire(_turn_request())
     assert caught.value.status_code == 500
-    assert backend.run_turn.await_count == 2, "terminal after exactly one resend"
+    assert backend.run_turn_stream.call_count == 2, "terminal after exactly one resend"
 
 
 @pytest.mark.asyncio
@@ -401,7 +474,7 @@ async def test_other_terminal_codes_are_never_resent(monkeypatch):
     """`budget_exceeded` (the process ceiling) and `credentials_exhausted` are
     not cured by a resend — retrying them is the storm the 500 mapping kills."""
     backend = AsyncMock()
-    backend.run_turn.side_effect = AIREDoorError("AIRE turn error [budget_exceeded]: ceiling", code="budget_exceeded")
+    _streams(backend, AIREDoorError("AIRE turn error [budget_exceeded]: ceiling", code="budget_exceeded"))
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -412,7 +485,7 @@ async def test_other_terminal_codes_are_never_resent(monkeypatch):
     with pytest.raises(HTTPException) as caught:
         await aire_route.turn_via_aire(_turn_request())
     assert caught.value.status_code == 500
-    assert backend.run_turn.await_count == 1
+    assert backend.run_turn_stream.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -427,7 +500,7 @@ async def test_a_credentials_cut_marks_health_and_a_success_clears_it(monkeypatc
     failing = AsyncMock()
     exc = BackendError("AIRE turn terminal: credentials pool exhausted")
     exc.code = "credentials_exhausted"
-    failing.run_turn.side_effect = exc
+    _streams(failing, exc)
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: failing)
     monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
     monkeypatch.setattr(
@@ -441,7 +514,7 @@ async def test_a_credentials_cut_marks_health_and_a_success_clears_it(monkeypatc
     assert recorded is not None and "credentials" in recorded["detail"]
 
     healthy = AsyncMock()
-    healthy.run_turn.return_value = _Result()
+    _streams(healthy, _Result())
     monkeypatch.setattr(aire_route, "backend_for", lambda _base: healthy)
     await aire_route.turn_via_aire(_turn_request())
     assert auth_failure.last_failure() is None
@@ -561,6 +634,9 @@ class _SlowBackend:
         self.in_flight = 0
         self.max_in_flight = 0
         self.fail_next = False
+
+    async def run_turn_stream(self, **kwargs):
+        yield {"type": "result", "result": await self.run_turn(**kwargs)}
 
     async def run_turn(self, **kwargs):
         self.in_flight += 1
@@ -885,3 +961,46 @@ def test_reported_tokens_is_none_when_aire_reported_nothing():
     assert aire_route.reported_tokens(None, "output_tokens") is None
     assert aire_route.reported_tokens({}, "output_tokens") is None
     assert aire_route.reported_tokens({"output_tokens": None}, "output_tokens") is None
+
+
+@pytest.mark.asyncio
+async def test_a_codex_persona_skips_the_router_and_names_its_provider(monkeypatch):
+    """Astra rides AIRE's Codex backend: the Claude router never runs, the body
+    carries `provider="codex"` with the registry's pinned model, and no remote
+    MCP tool is mounted (only the Claude backend mounts them). Facts still ride
+    in-band, so nothing of her memory is lost to the other provider."""
+    from persona_runner.core import config as runner_config
+
+    monkeypatch.setattr(runner_config, "PERSONAS_DIR", ROOT / "shared" / "personas")
+    backend = AsyncMock()
+    _streams(backend, _Result(model="gpt-6-astra"))
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value="- [work] escribe guiones"))
+    monkeypatch.setattr(aire_route, "memory_tool_specs", lambda _casita: [MagicMock()])
+    router = AsyncMock(return_value=("claude-sonnet-4-6", {}))
+    monkeypatch.setattr("persona_runner.routing.router_runtime.route_model", router)
+
+    resp = await aire_route.turn_via_aire(_turn_request(persona_id="astra"))
+
+    router.assert_not_called()
+    kwargs = backend.run_turn_stream.call_args.kwargs
+    assert kwargs["provider"] == "codex"
+    assert kwargs["model"] == "gpt-6-astra"
+    assert kwargs["mcp_servers"] == []
+    assert "escribe guiones" in kwargs["user_message"]
+    assert resp.model == "gpt-6-astra"
+
+
+@pytest.mark.asyncio
+async def test_a_claude_persona_sends_no_provider_so_the_door_keeps_its_default(monkeypatch):
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    router = AsyncMock(return_value=("claude-sonnet-4-6", {"routed": True}))
+    monkeypatch.setattr("persona_runner.routing.router_runtime.route_model", router)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id="insult"))
+
+    router.assert_called_once()
+    assert backend.run_turn_stream.call_args.kwargs["provider"] is None

@@ -163,4 +163,8 @@ export type AgentStreamEvent =
   // lands. The ping carries nothing; its ARRIVAL is the signal, and the reducer
   // stamps it so a watchdog watching the turn re-arms.
   | { type: 'ping' }
+  // The backend released this turn WITHOUT its answer: a proxied engine kept
+  // working past the stream's live wait and the answer lands in the thread out
+  // of band. The stream ends empty; the shell shows a waiting notice instead.
+  | { type: 'deferred' }
   | { type: 'done' };

@@ -20,6 +20,7 @@ from typing import Any
 from .deps import dsn
 
 _pool: Any = None
+_loop: Any = None
 # Fingerprint -> when this process last asserted it (#41). A cache, never memory.
 #
 # It EXPIRES, and the expiry is the whole point. Skipping the INSERT is worth
@@ -70,11 +71,18 @@ CREATE TABLE IF NOT EXISTS aire_gateway_blob (
 
 
 async def pool() -> Any:
-    global _pool
-    if _pool is None:
+    """The mirror's pool, per event loop — the law `db.pool` already keeps: a pool
+    handed to a loop that did not create it awaits sockets nobody serves, and
+    under uvloop that is a segfault, not an exception."""
+    global _pool, _loop
+    import asyncio
+
+    running = asyncio.get_running_loop()
+    if _pool is None or _loop is not running:
         import asyncpg
 
         _pool = await asyncpg.create_pool(dsn(), min_size=0, max_size=2)
+        _loop = running
         await _pool.execute(DDL)
     return _pool
 
@@ -82,11 +90,13 @@ async def pool() -> Any:
 async def reset() -> None:
     """Drop the cached pool and the fingerprint cache — a database that went
     away and came back, or a test that wants a cold process."""
-    global _pool
+    global _pool, _loop
+    import asyncio
+
     _stored.clear()
-    if _pool is not None:
+    if _pool is not None and _loop is asyncio.get_running_loop():
         await _pool.close()
-        _pool = None
+    _pool, _loop = None, None
 
 
 async def store_blobs(blobs: dict[str, Any]) -> bool:

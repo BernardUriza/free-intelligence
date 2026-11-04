@@ -17,6 +17,7 @@ export {
   type RemoteConversationLibraryOptions,
 } from './RemoteConversationLibrary';
 export {
+  mergeConversationRecords,
   migrateConversationLibrary,
   type MigrateConversationsResult,
 } from './migrateConversationLibrary';
@@ -24,5 +25,27 @@ export {
   useConversationLibrary,
   type UseConversationLibraryOptions,
   type ConversationLibraryState,
+  type ConversationAction,
+  type ConversationActionError,
 } from './useConversationLibrary';
 export { useIndexedDBConversationLibrary } from './useIndexedDBConversationLibrary';
+export {
+  ConversationArchiveDialog,
+  ensureArchiveDialogStyle,
+  FI_ARCHIVE_DIALOG_CLASS,
+  type ConversationArchiveDialogLabels,
+  type ConversationArchiveDialogProps,
+} from './ConversationArchiveDialog';
+export {
+  useConversationUrl,
+  readConversationIdFromPath,
+  readConversationIdFromLocation,
+  DEFAULT_CONVERSATION_PATH_PREFIX,
+  type UseConversationUrlOptions,
+} from './useConversationUrl';
+export {
+  useCloudConversationLibrary,
+  type CloudSyncStatus,
+  type CloudConversationLibraryState,
+  type UseCloudConversationLibraryOptions,
+} from './useCloudConversationLibrary';

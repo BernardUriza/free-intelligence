@@ -50,7 +50,11 @@ function Auth0Gate({ children }: { children: React.ReactNode }) {
         <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>og118</h1>
         <p style={{ opacity: 0.7 }}>Inicia sesión para continuar.</p>
         <button
-          onClick={() => void loginWithRedirect()}
+          onClick={() =>
+            void loginWithRedirect({
+              appState: { returnTo: window.location.pathname + window.location.search },
+            })
+          }
           style={{
             padding: '0.6rem 1.4rem',
             borderRadius: 9999,

@@ -22,6 +22,7 @@ const turn = (over: Partial<AgentTurnState> = {}): AgentTurnState => ({
   meta: null,
   author: null,
   heartbeats: 0,
+  deferred: false,
   reactions: [],
   status: 'thinking',
   ...over,
@@ -132,7 +133,7 @@ describe('<TranscriptMessages> authorship — the bubble names WHO spoke', () =>
       <TranscriptMessages
         {...base}
         turn={turn({ author: null,
-  heartbeats: 0, text: 'hola' })}
+  heartbeats: 0, deferred: false, text: 'hola' })}
         isStreaming
         messages={[]}
       />,
@@ -220,5 +221,27 @@ describe('<TranscriptMessages> reactions', () => {
     render(<TranscriptMessages {...base} messages={[message]} isStreaming={false} />);
     expect(document.querySelectorAll('article').length).toBe(1);
     expect(document.querySelector('[data-fi-message-reactions]')!.textContent).toContain('👀');
+  });
+});
+
+describe('<TranscriptMessages> message time locale', () => {
+  afterEach(cleanup);
+
+  const stored: ChatMessage[] = [
+    { role: 'user', content: 'hola', timestamp: new Date(2026, 8, 28, 20, 53).toISOString() },
+  ];
+
+  it('formats the time with the consumer locale, 24h when the tag asks for it', () => {
+    render(
+      <TranscriptMessages
+        {...base}
+        turn={turn({ status: 'done', plan: null })}
+        isStreaming={false}
+        messages={stored}
+        messageLocale="es-MX-u-hc-h23"
+      />,
+    );
+    expect(document.body.textContent).toContain('20:53');
+    expect(document.body.textContent).not.toMatch(/p\.\s?m\.|PM/i);
   });
 });
