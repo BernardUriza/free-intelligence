@@ -55,6 +55,7 @@ from persona_core.corpus.pg_rag import embed_text
 # persona_core.corpus (generalized from the film-only module 2026-07-16:
 # `references.py`, namespace declared per persona in the registry). The
 # per-user memory below consumes the neutral embedder/connection from there.
+from persona_core.corpus.references import fit_to_budget
 from persona_core.corpus.references import (
     query_corpus as query_corpus,
 )
@@ -219,23 +220,17 @@ async def build_user_memory_block(*, user_id: str, text: str | None) -> str | No
     if not relevant:
         return None
 
-    lines: list[str] = []
-    total = 0
-    for h in relevant:
-        line = f"- {h['chunk_text'].strip()}"
-        if total + len(line) > _USER_MEMORY_MAX_CHARS:
-            break
-        lines.append(line)
-        total += len(line)
-    if not lines:
-        return None
+    kept, truncated = fit_to_budget([f"- {h['chunk_text'].strip()}" for h in relevant], _USER_MEMORY_MAX_CHARS)
 
     log.info(
         "deep_memory_prefetched",
         user_id=user_id,
-        hits=len(lines),
+        hits=len(kept),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
+        dropped_over_budget=len(relevant) - len(kept),
+        truncated=truncated,
     )
+    lines = [line for _, line in kept]
     return load_prompt(SHARED_PROMPTS_DIR, "deep_memory_header", _PROMPT_CACHE) + "\n" + "\n".join(lines)
 
 
