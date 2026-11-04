@@ -34,7 +34,7 @@ def ledger(monkeypatch):
 async def test_a_job_that_finishes_in_time_is_drained_and_nothing_is_released(ledger):
     async def quick(_req: TurnRequest) -> TurnResponse:
         await asyncio.sleep(0.05)
-        return TurnResponse(text="ok", output_tokens=1, model="m", stop_reason="end_turn")
+        return TurnResponse(text="ok", output_tokens=1, model="m")
 
     await turn_jobs.submit(REQ, runner=quick)
     assert await turn_jobs.drain_for_shutdown(timeout_s=2.0) == 0
@@ -70,7 +70,7 @@ async def test_boot_resumes_the_orphans_the_previous_replica_left(ledger):
 
     async def turn(req: TurnRequest) -> TurnResponse:
         seen.append(req)
-        return TurnResponse(text="reanudado", output_tokens=1, model="m", stop_reason="end_turn")
+        return TurnResponse(text="reanudado", output_tokens=1, model="m")
 
     assert await turn_jobs.resume_stale_at_boot(turn) == 1
     await asyncio.sleep(0.05)

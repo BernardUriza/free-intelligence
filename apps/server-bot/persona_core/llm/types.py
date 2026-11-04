@@ -32,4 +32,3 @@ class LLMResponse:
     text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     model_used: str = ""  # populated by chat() — reflects the model that actually produced the text
-    stop_reason: str = ""  # raw API stop_reason; "max_tokens" / "end_turn" / "tool_use" / "pause_turn"

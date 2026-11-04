@@ -55,7 +55,7 @@ async def _tool_heavy_turn(req: TurnRequest) -> TurnResponse:
     await asyncio.sleep(0.05)
     turn_events.emit(req.job_id, _tool("WebSearch", "t2"))
     await asyncio.sleep(0.15)
-    return TurnResponse(text="listo", model="claude-opus-4-7", stop_reason="end_turn")
+    return TurnResponse(text="listo", model="claude-opus-4-7")
 
 
 def _read_sse(client: TestClient, job_id: str, **kw) -> list[tuple[str | None, str | None, dict]]:

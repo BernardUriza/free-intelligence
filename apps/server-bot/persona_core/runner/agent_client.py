@@ -211,7 +211,7 @@ class AgentRunnerClient:
         attachments = _last_user_attachments(messages)
         if not user_text and not attachments:
             log.warning("agent_runner_client_empty_user_text", message_count=len(messages))
-            return LLMResponse(text="", model_used="agent-runner", stop_reason="empty_input")
+            return LLMResponse(text="", model_used="agent-runner")
 
         # The in-band framing (time, relevant memory, other people, the live
         # thread) is the turn pipeline's, not this client's: the runner frames
@@ -506,7 +506,6 @@ class AgentRunnerClient:
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
             model=data.get("model", ""),
-            stop_reason=data.get("stop_reason", ""),
             tool_calls=len(data.get("tool_calls", []) or []),
             session_uuid=data.get("session_uuid"),
             elapsed_ms=elapsed_ms,
@@ -537,7 +536,6 @@ class AgentRunnerClient:
                 job_id=job_id,
                 text_preview=text[:120],
                 model=data.get("model", ""),
-                stop_reason=data.get("stop_reason", ""),
                 session_uuid=data.get("session_uuid"),
             )
             raise PersonaTurnError(f"runner returned text with no generation: {text[:120]}")
@@ -546,7 +544,6 @@ class AgentRunnerClient:
             text=text,
             tool_calls=[],
             model_used=data.get("model", "agent-runner"),
-            stop_reason=data.get("stop_reason", ""),
         )
 
     async def _post_turn_sync(self, payload: dict, headers: dict, *, start: float) -> httpx.Response:

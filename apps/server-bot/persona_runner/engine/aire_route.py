@@ -740,7 +740,6 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         input_tokens=reported_tokens(usage, "input_tokens"),
         output_tokens=reported_tokens(usage, "output_tokens"),
         model=result.model or model,
-        stop_reason="end_turn",
         tool_calls=[{"name": tc.name, "input_keys": list((tc.input or {}).keys())} for tc in result.tool_calls],
     )
 

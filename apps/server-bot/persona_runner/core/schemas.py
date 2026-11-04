@@ -105,7 +105,6 @@ class TurnResponse(BaseModel):
     input_tokens: int | None = None
     output_tokens: int | None = None
     model: str = ""
-    stop_reason: str = ""
     tool_calls: list[dict] = Field(default_factory=list)
     # F5 (2026-09-28): the whole `OutboundTurn` comes back over the wire, not
     # just its text. Filled only when the runner owns the pipeline
