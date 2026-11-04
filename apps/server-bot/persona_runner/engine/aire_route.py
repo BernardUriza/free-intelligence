@@ -768,6 +768,9 @@ def model_diverged(requested: str | None, answered: str | None) -> bool:
     return not (answered.startswith(requested) or requested.startswith(answered))
 
 
+NO_MODEL_ANSWERED = "<synthetic>"
+
+
 def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
     """The judge's utility casita: ``{persona}-judge-{sha256(prompt)}``.
 
@@ -842,6 +845,10 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     except BackendError as exc:
         log.error("aire_route_judge_failed", casita=casita, error=str(exc)[:300])
         raise HTTPException(500, f"judge call failed: {str(exc)[:200]}") from exc
+    # The CLI answers its own errors as text under this name; a 200 there passes an API error off as the model's reply.
+    if result.model == NO_MODEL_ANSWERED:
+        log.error("aire_route_judge_no_model_answered", casita=casita, requested=model, text=result.text[:300])
+        raise HTTPException(502, f"no model answered: {result.text[:200]}")
     usage = result.usage or {}
     return JudgeResponse(
         text=result.text,

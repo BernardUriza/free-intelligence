@@ -24,12 +24,14 @@ import asyncio
 import time
 
 import structlog
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, HTTPException
 
 from persona_runner.core import config
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse
 from persona_runner.engine import aire_route
+from persona_runner.engine.persona_files import require_known_persona
+from persona_runner.routing import router_runtime
 
 log = structlog.get_logger()
 
@@ -60,6 +62,10 @@ async def judge(req: JudgeRequest, authorization: str | None = Header(default=No
     """Run one utility call with an arbitrary system prompt (text or
     text+image in, text out)."""
     check_auth(authorization)
+    require_known_persona(req.persona_id)
+    served = router_runtime.served_models()
+    if req.model and req.model not in served.values():
+        raise HTTPException(422, f"model {req.model!r} is not served here; use one of {sorted(set(served.values()))}")
     semaphore = get_judge_semaphore()
     if semaphore.locked():
         log.info("agent_runner_judge_queued", model=req.model or config.JUDGE_DEFAULT_MODEL)

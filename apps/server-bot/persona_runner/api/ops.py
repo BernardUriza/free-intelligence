@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from persona_runner.core import config, readiness
 from persona_runner.core.auth import check_auth
 from persona_runner.engine import aire_route, auth_failure
+from persona_runner.routing import router_runtime
 
 log = structlog.get_logger()
 
@@ -39,6 +40,7 @@ async def health() -> dict:
         "claude_md_present": claude_md_path.exists(),
         "auth_configured": bool(config.RUNNER_AUTH_TOKEN),
         "model": config.DEFAULT_MODEL,
+        "models": router_runtime.served_models(),
     }
 
 

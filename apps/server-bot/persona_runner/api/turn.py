@@ -31,6 +31,7 @@ from persona_runner.api.turn_pipeline import serve_turn
 from persona_runner.core.auth import check_auth
 from persona_runner.core.schemas import TurnRequest, TurnResponse
 from persona_runner.engine import principal_identity, turn_events, turn_jobs
+from persona_runner.engine.persona_files import require_known_persona
 
 router = APIRouter()
 
@@ -50,6 +51,7 @@ class TurnJobStatus(BaseModel):
 async def turn(req: TurnRequest, authorization: str | None = Header(default=None)) -> TurnResponse:
     """Run one persona turn through AIRE's engine door."""
     check_auth(authorization)
+    require_known_persona(req.persona_id)
     req = await principal_identity.apply(req)
     return await serve_turn(req)
 
@@ -61,6 +63,7 @@ async def submit_turn_job(req: TurnRequest, authorization: str | None = Header(d
     La identidad se resuelve ANTES de persistir el job: un job reanudado en otra
     réplica ya lleva el principal canónico, no vuelve a preguntar."""
     check_auth(authorization)
+    require_known_persona(req.persona_id)
     req = await principal_identity.apply(req)
     job = await turn_jobs.submit(req, runner=serve_turn)
     return TurnJobAccepted(job_id=job.ticket_id)
