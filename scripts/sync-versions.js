@@ -58,12 +58,6 @@ const APPS = [
     tauriConfig: 'apps/fi-monitor/src-tauri/tauri.conf.json',
     packageJson: 'apps/fi-monitor/package.json',
     cargoToml: 'apps/fi-monitor/src-tauri/Cargo.toml'
-  },
-  {
-    name: 'aurity-desktop',
-    tauriConfig: 'apps/aurity-desktop/src-tauri/tauri.conf.json',
-    packageJson: 'apps/aurity-desktop/package.json',
-    cargoToml: 'apps/aurity-desktop/src-tauri/Cargo.toml'
   }
 ];
 
