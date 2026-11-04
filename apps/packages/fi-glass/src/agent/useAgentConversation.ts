@@ -73,6 +73,7 @@ import {
   makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
+import type { TurnNotice } from '@free-intelligence/core';
 
 /** The speaker on the user's side when the app names no other. */
 export const DEFAULT_USER_AUTHOR: MessageAuthor = { id: 'user', name: 'Tú', symbol: 'Tú' };
@@ -88,8 +89,8 @@ export type AppHandledError = (turn: AgentTurnState) => boolean;
 
 /** A recoverable failure of the in-flight turn, surfaced for retry/dismiss. */
 export interface TurnError {
-  /** `timeout` = the idle watchdog fired; `stream` = the transport reported error. */
-  kind: 'timeout' | 'stream';
+  /** `timeout` = the idle watchdog fired; `stream` = the transport reported error; `empty` = it settled saying nothing. */
+  kind: 'timeout' | 'stream' | 'empty';
   /** Human-readable, app-displayable reason. */
   message: string;
 }
@@ -171,8 +172,17 @@ export interface UseAgentConversationOptions {
    * save (a 413 for an oversized record, a dead network, a 500) died as an
    * unhandled rejection — the user saw the thread on screen, believed it was
    * saved, and lost it on reload. Silence is the one thing persistence may never do.
+   *
+   * `conversationId` is the conversation the thread belongs to — the one the
+   * turn was SENT in, not whatever is active when the write happens.
    */
-  onMessagesChange?: (messages: ChatMessage[]) => void | Promise<void>;
+  onMessagesChange?: (messages: ChatMessage[], conversationId?: string) => void | Promise<void>;
+  /**
+   * Called when a turn is sent, with the conversation it was sent in — the
+   * signal a library needs to keep that conversation active across a store
+   * swap before its first save (og118 passes `lib.claimActive`).
+   */
+  onTurnStart?: (conversationId: string | undefined) => void;
   /**
    * Idle watchdog in ms: if the live turn's state does not change for this long
    * while streaming, the turn is declared failed (timeout). Measured since the
@@ -210,6 +220,14 @@ export interface AgentConversation {
   /** A recoverable failure of the last turn (timeout/stream), or null. */
   turnError: TurnError | null;
   /**
+   * The last turn settled WITHOUT its answer because the engine is still working
+   * (`deferred`): the answer lands in the thread out of band. A shell shows this
+   * as a waiting notice, never as an error — there is nothing to retry.
+   */
+  turnNotice: TurnNotice | null;
+  /** Clear the waiting notice. */
+  dismissNotice: () => void;
+  /**
    * The thread could not be SAVED (the turn itself succeeded), or null. A shell
    * MUST surface this: the alternative is a user who trusts a thread that is not
    * there. Recover with {@link retryPersist}.
@@ -238,10 +256,17 @@ export interface AgentConversation {
    * into the composer.
    */
   clearUnsent: () => void;
+  /**
+   * Whether {@link send} would accept a turn right now — the ONE predicate a
+   * composer gates on. It follows the transport, not {@link isStreaming}: after a
+   * watchdog timeout the transport may still be busy, and `send` would refuse.
+   */
+  canSend: boolean;
   /** Send a message: pushes it optimistically, then drives the agent turn.
    * `images` attaches vision input (OG118-IMAGE-UPLOAD-1); an image-only send
-   * (empty text, ≥1 image) is valid — the picture IS the message. */
-  send: (text: string, images?: MessageImage[]) => void;
+   * (empty text, ≥1 image) is valid — the picture IS the message.
+   * @returns whether the turn went out; a shell clears its composer only on `true`. */
+  send: (text: string, images?: MessageImage[]) => boolean;
   /** Like send, but resolves with the assistant's final text (RESONANCE voice turns). */
   sendAndAwait: (text: string) => Promise<string>;
   /**
@@ -276,6 +301,7 @@ export function useAgentConversation(
     initialMessages,
     seedVersion,
     onMessagesChange,
+    onTurnStart,
     turnTimeoutMs = DEFAULT_TURN_TIMEOUT_MS,
     isAppHandledError,
   } = options;
@@ -303,9 +329,12 @@ export function useAgentConversation(
   convoRef.current = convo;
   const messages = convo.messages;
   const turnError = convo.failure;
+  const turnNotice = convo.notice;
   const timedOut = convo.timedOut;
   // Read the latest controlled flag inside effects without re-arming them on it.
   const controlledRef = useRef(controlled);
+  // Set by stop(): an empty settle after a user stop is a choice, not an empty answer.
+  const stoppedRef = useRef(false);
   controlledRef.current = controlled;
   // The fold runs from an effect whose deps must not include the author (a new
   // object literal every render would re-fire it). Refs keep both identities
@@ -316,21 +345,23 @@ export function useAgentConversation(
   userAuthorRef.current = userAuthor;
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
+  const onTurnStartRef = useRef(onTurnStart);
+  onTurnStartRef.current = onTurnStart;
   const [persistError, setPersistError] = useState<PersistError | null>(null);
-  // The thread whose save failed, kept so retryPersist can re-attempt exactly it
-  // (not whatever the thread has become since).
-  const unsaved = useRef<ChatMessage[] | null>(null);
+  // The thread whose save failed and the conversation it belongs to, kept so
+  // retryPersist re-attempts exactly it (not whatever the thread has become since).
+  const unsaved = useRef<{ thread: ChatMessage[]; conversationId?: string } | null>(null);
 
   // The ONE place the persist hook is called. Awaits it and turns a rejection
   // into visible state — never a discarded promise (see `onMessagesChange`).
-  const runPersist = useCallback(async (thread: ChatMessage[]) => {
+  const runPersist = useCallback(async (thread: ChatMessage[], conversationId?: string) => {
     if (!onMessagesChangeRef.current) return;
     try {
-      await onMessagesChangeRef.current(thread);
+      await onMessagesChangeRef.current(thread, conversationId);
       unsaved.current = null;
       setPersistError(null);
     } catch (cause) {
-      unsaved.current = thread;
+      unsaved.current = { thread, conversationId };
       setPersistError({
         message: cause instanceof Error && cause.message ? cause.message : DEFAULT_PERSIST_ERROR,
         cause,
@@ -339,10 +370,10 @@ export function useAgentConversation(
   }, []);
 
   const retryPersist = useCallback(() => {
-    const thread = unsaved.current;
-    if (!thread) return;
+    const failed = unsaved.current;
+    if (!failed) return;
     setPersistError(null);
-    void runPersist(thread);
+    void runPersist(failed.thread, failed.conversationId);
   }, [runPersist]);
 
   const dismissPersistError = useCallback(() => setPersistError(null), []);
@@ -378,6 +409,11 @@ export function useAgentConversation(
   // so a voice turn produces exactly one user + one assistant capsule. The
   // settled turn's text resolves this; a failed/timed-out turn rejects it.
   const awaitResolver = useRef<{ resolve: (t: string) => void; reject: (e: unknown) => void } | null>(null);
+  const abandonAwaited = useCallback((reason: string) => {
+    const r = awaitResolver.current;
+    awaitResolver.current = null;
+    r?.reject(new Error(reason));
+  }, []);
 
   const send = useCallback(
     (text: string, images?: MessageImage[]) => {
@@ -385,7 +421,7 @@ export function useAgentConversation(
       const imgs = images && images.length > 0 ? images : undefined;
       // An image-only send is valid (the picture IS the message); a truly empty
       // send is still a no-op.
-      if ((!t && !imgs) || agent.isStreaming) return;
+      if ((!t && !imgs) || agent.isStreaming) return false;
       dispatch({
         type: 'send',
         text: t,
@@ -393,12 +429,14 @@ export function useAgentConversation(
         author: userAuthorRef.current,
         controlled,
       });
+      onTurnStartRef.current?.(hydratedFor.current ?? undefined);
       // Hand the transport the confirmed thread (prior turns, NOT this message) so
       // a storeless backend can replay it for continuity. The transport that needs
       // it forwards it; one that doesn't ignores `meta`. messagesRef is the thread
       // BEFORE the optimistic push above (same render's state), so the current
       // message is never duplicated into history.
       void agent.send(t, { history: messagesRef.current, ...(imgs ? { images: imgs } : {}) });
+      return true;
     },
     [agent, controlled],
   );
@@ -412,15 +450,17 @@ export function useAgentConversation(
       if (!t) return Promise.resolve('');
       if (agent.isStreaming) return Promise.reject(new Error('a turn is already streaming'));
       return new Promise<string>((resolve, reject) => {
+        abandonAwaited('superseded by a newer turn');
         awaitResolver.current = { resolve, reject };
-        send(t);
+        if (!send(t)) abandonAwaited('the turn could not be sent');
       });
     },
-    [agent.isStreaming, send],
+    [agent.isStreaming, send, abandonAwaited],
   );
 
   const stop = useCallback(() => {
     if (!agentRef.current.isStreaming) return;
+    stoppedRef.current = true;
     agentRef.current.abort?.();
   }, []);
 
@@ -430,6 +470,7 @@ export function useAgentConversation(
   }, [send]);
 
   const dismissError = useCallback(() => dispatch({ type: 'dismiss_failure' }), []);
+  const dismissNotice = useCallback(() => dispatch({ type: 'dismiss_notice' }), []);
 
   // Fold the finished turn once it stops streaming. Effect-based on purpose: the
   // transport hook owns the turn lifecycle, the conversation only observes it.
@@ -457,7 +498,9 @@ export function useAgentConversation(
       turn: agent.turn,
       author: authorRef.current,
       controlled: controlledRef.current,
+      stopped: stoppedRef.current,
     });
+    stoppedRef.current = false;
     // Settle any awaited (sendAndAwait) turn with the assistant's final text.
     const resolver = awaitResolver.current;
     awaitResolver.current = null;
@@ -495,15 +538,30 @@ export function useAgentConversation(
     // Controlled mode: the consumer owns the thread + persistence, so a
     // conversationId change never re-hydrates an internal array.
     if (controlledRef.current) return;
-    const switched = hydratedFor.current !== conversationId;
+    const origin = hydratedFor.current;
+    const switched = origin !== conversationId;
     hydratedFor.current = conversationId;
     const seed = initialRef.current ?? [];
     if (!switched) {
-      // A seed bump mid-turn would drop the optimistic message under the fold;
-      // the next poll picks the change up once the turn settles.
-      if (convoRef.current.pending) return;
+      // Mid-turn the live thread is the source; merge the seed in or the next persist overwrites it.
+      if (convoRef.current.pending) {
+        dispatch({ type: 'merge_seed', messages: seed });
+        return;
+      }
       // The consumer's own persist echoes back as a bump; same thread, no work.
       if (sameThread(seed, convoRef.current.messages)) return;
+    }
+    if (convoRef.current.pending) {
+      // The turn belongs to the conversation it was sent in: stop it there and
+      // save what it has, never fold it into the one being opened.
+      const live = agentRef.current.turn;
+      const said = live.text !== '' || live.reactions.length > 0;
+      const thread = said
+        ? [...convoRef.current.messages, foldAssistantTurn(live, authorRef.current)]
+        : convoRef.current.messages;
+      agentRef.current.abort?.();
+      abandonAwaited('the conversation changed before the turn finished');
+      void runPersist(thread, origin ?? undefined);
     }
     dispatch({ type: 'hydrate', messages: seed });
     if (switched) agent.reset?.();
@@ -519,7 +577,7 @@ export function useAgentConversation(
       dispatch({ type: 'persist_skip_consumed' });
       return;
     }
-    void runPersist(messages);
+    void runPersist(messages, hydratedFor.current ?? undefined);
     // onMessagesChange is read via latest closure; depend only on messages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
@@ -527,16 +585,20 @@ export function useAgentConversation(
   const newConversation = useCallback(() => {
     // Controlled mode: the consumer owns the thread, so clearing the internal
     // array is a no-op for what's shown; still reset the live turn/session.
+    abandonAwaited('a new conversation was started');
     dispatch({ type: 'hydrate', messages: [] });
     agent.reset?.();
-  }, [agent, controlled]);
+  }, [agent, controlled, abandonAwaited]);
 
   return {
     messages: externalMessages ?? messages,
     turn: agent.turn,
     author,
     isStreaming: agent.isStreaming && !timedOut,
+    canSend: !agent.isStreaming,
     turnError,
+    turnNotice,
+    dismissNotice,
     persistError,
     retryPersist,
     dismissPersistError,

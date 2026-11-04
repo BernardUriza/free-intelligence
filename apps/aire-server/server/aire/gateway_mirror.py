@@ -67,9 +67,9 @@ class ResponseTap:
     ceiling depend on the logger."""
 
     def __init__(self, exchange: str, status: int, content_type: str,
-                 on_usage: Any = None) -> None:
+                 on_usage: Any = None, assembler: Any = assemble) -> None:
         self.exchange, self.status, self.content_type = exchange, status, content_type
-        self.on_usage = on_usage
+        self.on_usage, self.assembler = on_usage, assembler
         self.raw = bytearray()
         self.done = False
 
@@ -80,7 +80,7 @@ class ResponseTap:
         if self.done:
             return
         self.done = True
-        message = assemble(bytes(self.raw), self.content_type)
+        message = self.assembler(bytes(self.raw), self.content_type)
         fields = message if isinstance(message, dict) else {}
         if self.on_usage is not None:
             try:

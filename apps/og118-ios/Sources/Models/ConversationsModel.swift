@@ -89,7 +89,7 @@ final class ConversationsModel: ObservableObject {
     /// la web (`onRename` con cadena vacía).
     @discardableResult
     func rename(_ id: String, to title: String) async -> ConversationRecord? {
-        let limpio = ConversationSchema.truncate(title, ConversationSchema.titleMax)
+        let limpio = ConversationSchema.cap(title)
         return await mutate(id) { record in
             if limpio.isEmpty {
                 record.title = ConversationSchema.title(record.chatMessages)

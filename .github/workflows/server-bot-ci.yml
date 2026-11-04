@@ -240,6 +240,13 @@ jobs:
         # or subtracts multidict views itself. Ignored to unblock CI; NOT yet
         # human-reviewed for exploitability — flagged for Bernard. DROP when
         # conda-forge ships multidict 7.0.0 for py314.
+        # CVE-2026-59951 (mcp 1.28.1, GHSA-84m7-p3x7-pcfv): unbounded session
+        # accumulation in the MCP Python SDK's StreamableHTTP SERVER transport
+        # (resource exhaustion). Surfaced 2026-10-15 on PR #548. Fixed in mcp 1.30.0
+        # (not on conda-forge; it jumps 1.28.1 -> 2.0.0) or 2.x (a major bump of a
+        # transitive dep, not done blind). persona_runner imports no `mcp` module:
+        # its /mcp/{casita} door is its own FastAPI handler, so the vulnerable
+        # transport never runs here. DROP when the stack moves to mcp 2.x.
         # fi-core / fi-runner are conda-only (Bernard's channel, NEVER on PyPI by
         # explicit policy). pip-audit can't audit them → "Dependency not found on
         # PyPI" → exit 1, even with zero real vulns. That's a tooling gap, not a
@@ -284,7 +291,8 @@ jobs:
             --ignore-vuln CVE-2026-54282 \
             --ignore-vuln GHSA-6v7p-g79w-8964 \
             --ignore-vuln GHSA-4xgf-cpjx-pc3j \
-            --ignore-vuln CVE-2026-104874 > /tmp/pip-audit.json || true
+            --ignore-vuln CVE-2026-104874 \
+            --ignore-vuln CVE-2026-59951 > /tmp/pip-audit.json || true
           python3 - <<'PY'
           import json, sys
           data = json.load(open("/tmp/pip-audit.json"))

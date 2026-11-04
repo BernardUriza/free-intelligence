@@ -154,7 +154,7 @@ dependencies:
   # y attachments_lost — las imágenes viajan por referencia a AIRE (#50).
   # SUBIDO a 0.23.0 (2026-09-25, free-intelligence PR #496): TurnDocument —
   # PDFs y texto viajan por referencia a AIRE (#50 item 6).
-  - fi-runner=0.23.0
+  - fi-runner=0.25.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

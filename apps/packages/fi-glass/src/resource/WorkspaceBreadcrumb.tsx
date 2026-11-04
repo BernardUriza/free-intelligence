@@ -11,7 +11,7 @@
  * you already are, instead of announcing every crumb as an equal link.
  */
 
-import { Fragment, useEffect, type ReactNode } from 'react';
+import { Fragment, type ReactNode, useInsertionEffect } from 'react';
 import { ensureTouchTargetStyle } from '../shell/touchTarget';
 import { withTouchTarget } from '../shell/touchTarget';
 import { FI_BREADCRUMB_CLASS, useResourceStyle } from './resourceStyle';
@@ -39,7 +39,7 @@ export function WorkspaceBreadcrumb({
 }: WorkspaceBreadcrumbProps) {
   useResourceStyle();
   // The crumbs compose the framework minimum, so its sheet must be present.
-  useEffect(() => ensureTouchTargetStyle(), []);
+  useInsertionEffect(() => ensureTouchTargetStyle(), []);
   return (
     <nav
       className={className ? `${FI_BREADCRUMB_CLASS} ${className}` : FI_BREADCRUMB_CLASS}

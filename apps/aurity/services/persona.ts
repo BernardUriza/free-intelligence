@@ -12,9 +12,10 @@
 import type {
   Persona,
   PersonaCreateRequest,
+  PersonaStore,
   PersonaUpdateRequest,
   PersonaTestResponse,
-} from '@/components/admin/persona/types';
+} from 'fi-glass/persona-admin';
 import { api, APIError } from '@/lib/api/client';
 import { ROUTES } from '@/lib/api/routes';
 
@@ -53,7 +54,7 @@ function handleError(error: unknown, context: string): never {
 /**
  * Persona Service - All API operations for Persona management
  */
-export const personaService = {
+export const personaService: PersonaStore = {
   /**
    * List all personas
    */
@@ -137,7 +138,7 @@ export const personaService = {
    * Delete a persona (requires FI-superadmin role)
    * Note: Auth token is now handled automatically by api client
    */
-  async delete(personaId: string): Promise<void> {
+  async remove(personaId: string): Promise<void> {
     try {
       await api.delete(`${BASE_PATH}/${personaId}`);
     } catch (error) {
@@ -171,17 +172,9 @@ export const personaService = {
   /**
    * Test a persona with sample input
    */
-  async test(
-    personaId: string,
-    input: string,
-    userId?: string
-  ): Promise<PersonaTestResponse> {
+  async test(personaId: string, input: string): Promise<PersonaTestResponse> {
     try {
-      const queryString = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
-      return await api.post<PersonaTestResponse>(
-        `${BASE_PATH}/${personaId}/test${queryString}`,
-        { input }
-      );
+      return await api.post<PersonaTestResponse>(`${BASE_PATH}/${personaId}/test`, { input });
     } catch (error) {
       handleError(error, 'Error al probar la persona');
     }

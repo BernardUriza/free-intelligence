@@ -26,6 +26,5 @@ export { ErrorBoundary } from './ErrorBoundary';
 // Utility
 export { Skeleton } from './Skeleton';
 export { SystemStatus } from './SystemStatus';
-export { ProviderLogo } from './ProviderLogo';
 export { CodeBlock } from './code-block';
 export { EmptyState } from './EmptyState';

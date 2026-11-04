@@ -13,6 +13,7 @@ from pathlib import Path
 import structlog
 
 from persona_runner.core import config
+from persona_runner.engine import runtime_personas
 
 log = structlog.get_logger()
 
@@ -31,6 +32,9 @@ def resolve_persona_path(persona_id: str | None) -> Path:
         return config.PERSONA_PATH
     candidate = config.PERSONAS_DIR / f"{persona_id}.md"
     if not candidate.exists():
+        runtime = runtime_personas.path_for(persona_id)
+        if runtime is not None:
+            return runtime
         log.warning("agent_runner_persona_unknown", persona_id=persona_id, path=str(candidate))
         return config.PERSONA_PATH
     return candidate

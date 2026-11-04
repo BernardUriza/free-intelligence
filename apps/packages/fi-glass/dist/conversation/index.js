@@ -1,5 +1,19 @@
 'use client';
 
+import {
+  scopedStoreName
+} from "../chunk-SYOBLV7C.js";
+import {
+  glassTokens
+} from "../chunk-LO4SF24V.js";
+import {
+  ensureTouchTargetStyle,
+  withTouchTarget
+} from "../chunk-SMPLGG7E.js";
+import {
+  FI_MOBILE_QUERY
+} from "../chunk-HJ2CVNCV.js";
+
 // src/conversation/EphemeralConversationLibrary.ts
 var EphemeralConversationLibrary = class {
   constructor() {
@@ -185,22 +199,51 @@ var RemoteConversationLibrary = class _RemoteConversationLibrary {
 };
 
 // src/conversation/migrateConversationLibrary.ts
+import {
+  deriveConversationPreview,
+  mergeConversationMessages,
+  resolveConversationTitle
+} from "@free-intelligence/core";
+function mergeConversationRecords(target, source) {
+  const messages = mergeConversationMessages(target.messages, source.messages);
+  if (messages === target.messages) return target;
+  return {
+    ...target,
+    messages,
+    title: resolveConversationTitle(messages, target),
+    preview: deriveConversationPreview(messages),
+    updatedAt: source.updatedAt > target.updatedAt ? source.updatedAt : target.updatedAt
+  };
+}
 async function migrateConversationLibrary(source, target) {
   const [sourceList, targetList] = await Promise.all([source.list(), target.list()]);
-  const existing = new Set(targetList.map((summary) => summary.id));
+  const existing = new Map(targetList.map((summary) => [summary.id, summary]));
   let migrated = 0;
+  let merged = 0;
   let skipped = 0;
   for (const summary of sourceList) {
-    if (existing.has(summary.id)) {
+    const theirs = existing.get(summary.id);
+    if (theirs && summary.updatedAt <= theirs.updatedAt) {
       skipped += 1;
       continue;
     }
     const record = await source.get(summary.id);
     if (!record) continue;
-    await target.put(record);
-    migrated += 1;
+    if (!theirs) {
+      await target.put(record);
+      migrated += 1;
+      continue;
+    }
+    const current = await target.get(summary.id);
+    const next = current ? mergeConversationRecords(current, record) : record;
+    if (next === current) {
+      skipped += 1;
+      continue;
+    }
+    await target.put(next);
+    merged += 1;
   }
-  return { migrated, skipped };
+  return { migrated, merged, skipped };
 }
 
 // src/conversation/useConversationLibrary.ts
@@ -211,42 +254,111 @@ import {
   conversationPinPatch,
   conversationRenamePatch,
   CONVERSATION_SCHEMA_VERSION,
-  deriveConversationPreview,
-  resolveConversationTitle,
+  deriveConversationPreview as deriveConversationPreview2,
+  resolveConversationTitle as resolveConversationTitle2,
   sanitizeConversationMessage
 } from "@free-intelligence/core";
+var ARCHIVE_BATCH_CONCURRENCY = 4;
 function useConversationLibrary(library, options = {}) {
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => (/* @__PURE__ */ new Date()).toISOString());
   const { projectId } = options;
+  const routed = options.initialActiveId !== void 0;
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState([]);
-  const [activeId, setActiveId] = useState(null);
+  const [activeId, setActiveId] = useState(
+    () => routed ? options.initialActiveId ?? idFactory() : null
+  );
   const [activeMessages, setActiveMessages] = useState([]);
   const [activeRecord, setActiveRecord] = useState(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const activeRecordRef = useRef(activeRecord);
+  activeRecordRef.current = activeRecord;
+  const claimedId = useRef(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [actionError, setActionError] = useState(null);
+  const failedRun = useRef(null);
+  const guard = useCallback(async function guarded(action, conversationId, run) {
+    try {
+      await run();
+      setActionError(
+        (prev) => prev?.action === action && prev.conversationId === conversationId ? null : prev
+      );
+    } catch (cause) {
+      failedRun.current = () => guarded(action, conversationId, run);
+      setActionError({
+        action,
+        conversationId,
+        message: cause instanceof Error && cause.message ? cause.message : String(cause),
+        cause
+      });
+      throw cause;
+    }
+  }, []);
+  const retryAction = useCallback(() => {
+    const again = failedRun.current;
+    if (!again) return;
+    failedRun.current = null;
+    setActionError(null);
+    void again().catch(() => {
+    });
+  }, []);
+  const dismissActionError = useCallback(() => {
+    failedRun.current = null;
+    setActionError(null);
+  }, []);
   const refresh = useCallback(async () => {
     setConversations(await library.list());
   }, [library]);
   useEffect(() => {
     let cancelled = false;
+    const isCurrent = (id) => !cancelled && activeIdRef.current === id;
+    const adopt = (id, record) => {
+      setActiveId(id);
+      setActiveMessages(record?.messages ?? []);
+      setActiveRecord(record);
+    };
     void (async () => {
+      const current = activeIdRef.current;
       try {
         const list = await library.list();
         if (cancelled) return;
         setConversations(list);
-        if (list.length > 0) {
-          const record = await library.get(list[0].id);
-          if (cancelled) return;
-          setActiveId(list[0].id);
-          setActiveMessages(record?.messages ?? []);
-          setActiveRecord(record ?? null);
-        } else {
-          setActiveId(idFactory());
-          setActiveMessages([]);
-          setActiveRecord(null);
+        const previous = activeRecordRef.current;
+        if (current && list.some((summary) => summary.id === current)) {
+          const stored = await library.get(current);
+          if (!isCurrent(current) || !stored) return;
+          const carried = previous?.id === current ? mergeConversationRecords(stored, previous) : stored;
+          if (carried !== stored) await library.put(carried);
+          if (isCurrent(current)) adopt(current, carried);
+          return;
         }
+        if (current && claimedId.current === current) {
+          if (previous?.id === current) await library.put(previous);
+          return;
+        }
+        if (routed) {
+          if (isCurrent(current) && current === null) adopt(idFactory(), null);
+          return;
+        }
+        const recent = list.find((summary) => !summary.archivedAt);
+        if (recent) {
+          const record = await library.get(recent.id);
+          if (isCurrent(current)) adopt(recent.id, record ?? null);
+        } else if (isCurrent(current) && (current === null || previous !== null)) {
+          adopt(idFactory(), null);
+        }
+      } catch (cause) {
+        if (cancelled) return;
+        failedRun.current = async () => setLoadAttempt((n) => n + 1);
+        setActionError({
+          action: "load",
+          conversationId: current ?? "",
+          message: cause instanceof Error && cause.message ? cause.message : String(cause),
+          cause
+        });
+        if (activeIdRef.current === null) adopt(idFactory(), null);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -254,7 +366,10 @@ function useConversationLibrary(library, options = {}) {
     return () => {
       cancelled = true;
     };
-  }, [library]);
+  }, [library, loadAttempt]);
+  const claimActive = useCallback((conversationId) => {
+    claimedId.current = conversationId ?? activeIdRef.current;
+  }, []);
   const newConversation = useCallback(() => {
     setActiveId(idFactory());
     setActiveMessages([]);
@@ -293,22 +408,23 @@ function useConversationLibrary(library, options = {}) {
     await refresh();
   }, [library, activeId, activeRecord, refresh]);
   const persist = useCallback(
-    async (messages) => {
+    async (messages, conversationId) => {
       if (messages.length === 0) return;
-      const id = activeId ?? idFactory();
+      const id = conversationId ?? activeIdRef.current ?? idFactory();
       const now = nowFn();
-      const prevForTitle = activeRecord?.id === id ? activeRecord : void 0;
+      const held = activeRecordRef.current;
+      const prevForTitle = held?.id === id ? held : id === activeIdRef.current ? void 0 : await library.get(id) ?? void 0;
       const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
       const bornIn = prevForTitle ? prevForTitle.projectId : projectId;
       const record = {
         id,
-        title: resolveConversationTitle(clean, prevForTitle),
+        title: resolveConversationTitle2(clean, prevForTitle),
         titleCustom: prevForTitle?.titleCustom,
         createdAt,
         updatedAt: now,
         messages: clean,
-        preview: deriveConversationPreview(clean),
+        preview: deriveConversationPreview2(clean),
         // Organization flags ride along for the SINGLE-WRITER (IndexedDB) store,
         // where nothing else preserves them. A shared store ignores what a put
         // says about them and keeps its own — a device with a stale copy is not
@@ -319,12 +435,14 @@ function useConversationLibrary(library, options = {}) {
         schemaVersion: CONVERSATION_SCHEMA_VERSION
       };
       await library.put(record);
-      setActiveId(id);
-      setActiveMessages(record.messages);
-      setActiveRecord(record);
+      if (activeIdRef.current === id || activeIdRef.current === null) {
+        setActiveId(id);
+        setActiveMessages(record.messages);
+        setActiveRecord(record);
+      }
       await refresh();
     },
-    [activeId, activeRecord, idFactory, nowFn, library, refresh, projectId]
+    [idFactory, nowFn, library, refresh, projectId]
   );
   const deleteConversation = useCallback(
     async (id) => {
@@ -388,6 +506,63 @@ function useConversationLibrary(library, options = {}) {
     async (id, archived) => mutateMetadata(id, () => conversationArchivePatch(archived, nowFn())),
     [mutateMetadata, nowFn]
   );
+  const archiveConversations = useCallback(
+    async (ids) => {
+      const pending = [...new Set(ids)];
+      const failed = [];
+      const archiveOne = async (id) => {
+        const patch = conversationArchivePatch(true, nowFn());
+        try {
+          if (library.patch) {
+            if (!await library.patch(id, patch)) failed.push(id);
+            return;
+          }
+          const record = await library.get(id);
+          if (!record) {
+            failed.push(id);
+            return;
+          }
+          await library.put(applyConversationMetadataPatch(record, patch));
+        } catch {
+          failed.push(id);
+        }
+      };
+      for (let i = 0; i < pending.length; i += ARCHIVE_BATCH_CONCURRENCY) {
+        await Promise.all(pending.slice(i, i + ARCHIVE_BATCH_CONCURRENCY).map(archiveOne));
+      }
+      const active = activeIdRef.current;
+      if (active && pending.includes(active) && !failed.includes(active)) {
+        const record = await library.get(active).catch(() => null);
+        if (record && activeIdRef.current === active) {
+          setActiveRecord(record);
+          setActiveMessages(record.messages);
+        }
+      }
+      await refresh().catch(() => void 0);
+      return failed;
+    },
+    [library, nowFn, refresh]
+  );
+  const guardedSwitch = useCallback(
+    (id) => guard("switch", id, () => switchConversation(id)),
+    [guard, switchConversation]
+  );
+  const guardedDelete = useCallback(
+    (id) => guard("delete", id, () => deleteConversation(id)),
+    [guard, deleteConversation]
+  );
+  const guardedRename = useCallback(
+    (id, title) => guard("rename", id, () => renameConversation(id, title)),
+    [guard, renameConversation]
+  );
+  const guardedPin = useCallback(
+    (id, pinned) => guard("pin", id, () => pinConversation(id, pinned)),
+    [guard, pinConversation]
+  );
+  const guardedArchive = useCallback(
+    (id, archived) => guard("archive", id, () => archiveConversation(id, archived)),
+    [guard, archiveConversation]
+  );
   return {
     ready,
     conversations,
@@ -395,29 +570,24 @@ function useConversationLibrary(library, options = {}) {
     activeMessages,
     activeRecord,
     newConversation,
-    switchConversation,
-    deleteConversation,
-    renameConversation,
-    pinConversation,
-    archiveConversation,
+    switchConversation: guardedSwitch,
+    deleteConversation: guardedDelete,
+    renameConversation: guardedRename,
+    pinConversation: guardedPin,
+    archiveConversation: guardedArchive,
+    archiveConversations,
     persist,
+    claimActive,
     refresh,
-    reloadActive
+    reloadActive,
+    actionError,
+    retryAction,
+    dismissActionError
   };
 }
 
 // src/conversation/useIndexedDBConversationLibrary.ts
 import { useMemo } from "react";
-
-// src/identity/scopedStore.ts
-var SCOPE_SEPARATOR = "--";
-var LEGACY_SCOPE = "legacy";
-function scopedStoreName(base, identityKey) {
-  const scope = identityKey && identityKey.trim() ? identityKey : LEGACY_SCOPE;
-  return `${base}${SCOPE_SEPARATOR}${scope}`;
-}
-
-// src/conversation/useIndexedDBConversationLibrary.ts
 var BASE_DB_NAME = "free-intelligence-conversations";
 function useIndexedDBConversationLibrary(identityKey, options = {}) {
   const { storeName } = options;
@@ -429,12 +599,420 @@ function useIndexedDBConversationLibrary(identityKey, options = {}) {
     [identityKey, storeName]
   );
 }
+
+// src/conversation/ConversationArchiveDialog.tsx
+import { useEffect as useEffect2, useInsertionEffect, useMemo as useMemo2, useRef as useRef2, useState as useState2 } from "react";
+import { organizeConversationSummaries } from "@free-intelligence/core";
+import { jsx, jsxs } from "react/jsx-runtime";
+var DEFAULT_LABELS = {
+  title: "Archivar chats",
+  selectAll: "Seleccionar todos",
+  selectNone: "Quitar selecci\xF3n",
+  cancel: "Cancelar",
+  archive: (n) => n === 1 ? "Archivar 1 chat" : `Archivar ${n} chats`,
+  failed: (failed, total) => `${failed} de ${total} no se pudieron archivar. Los que fallaron siguen marcados: vuelve a intentarlo.`,
+  empty: "No hay chats para archivar."
+};
+var FI_ARCHIVE_DIALOG_CLASS = "fi-archive-dialog";
+var STYLE_ID = "fi-archive-dialog-style";
+var CSS = `
+.${FI_ARCHIVE_DIALOG_CLASS} {
+  width: min(30rem, calc(100vw - 1.5rem));
+  max-height: min(36rem, calc(100dvh - 3rem));
+  padding: 0;
+  border: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+  border-radius: 16px;
+  background: var(--fi-archive-dialog-bg, ${glassTokens.bgMid});
+  color: var(--glass-chat-text, ${glassTokens.text});
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+.${FI_ARCHIVE_DIALOG_CLASS}[open] {
+  display: flex;
+  flex-direction: column;
+}
+.${FI_ARCHIVE_DIALOG_CLASS}::backdrop {
+  background: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(4px);
+}
+.fi-archive-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.5rem;
+}
+.fi-archive-dialog-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.fi-archive-dialog-toggle,
+.fi-archive-dialog-cancel {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.fi-archive-dialog-toggle:hover,
+.fi-archive-dialog-cancel:hover {
+  background: var(--fi-sidebar-item-hover-bg, ${glassTokens.itemHover});
+  color: var(--glass-chat-text, ${glassTokens.text});
+}
+.fi-archive-dialog-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+.fi-archive-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--fi-touch-target, 44px);
+  padding: 0.4rem 0.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.fi-archive-dialog-row:hover {
+  background: var(--fi-sidebar-item-hover-bg, ${glassTokens.itemHover});
+}
+.fi-archive-dialog-row input {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--fi-accent, ${glassTokens.accent});
+}
+.fi-archive-dialog-row-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fi-archive-dialog-row-title {
+  overflow: hidden;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.fi-archive-dialog-row-meta {
+  font-size: 0.75rem;
+  color: var(--fi-sidebar-item-meta-color, ${glassTokens.itemMeta});
+}
+.fi-archive-dialog-empty {
+  padding: 1.5rem 1rem;
+  color: var(--glass-chat-text-muted, ${glassTokens.textMuted});
+}
+.fi-archive-dialog-error {
+  margin: 0.5rem 1rem 0;
+  font-size: 0.82rem;
+  color: var(--fi-sidebar-item-danger, ${glassTokens.danger});
+}
+.fi-archive-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--glass-chat-surface-border, ${glassTokens.surfaceBorder});
+}
+.fi-archive-dialog-confirm {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--fi-accent, ${glassTokens.accent});
+  color: var(--fi-archive-dialog-confirm-text, ${glassTokens.authorAgentText});
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fi-archive-dialog-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+@media ${FI_MOBILE_QUERY} {
+  .${FI_ARCHIVE_DIALOG_CLASS} {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+`;
+function ensureArchiveDialogStyle() {
+  if (typeof document === "undefined") return;
+  ensureTouchTargetStyle();
+  if (document.getElementById(STYLE_ID)) return;
+  const el = document.createElement("style");
+  el.id = STYLE_ID;
+  el.textContent = CSS;
+  document.head.appendChild(el);
+}
+var initialSelection = (conversations) => new Set(conversations.filter((c) => !c.pinnedAt).map((c) => c.id));
+function ConversationArchiveDialog({
+  open,
+  conversations: given,
+  onArchive,
+  onClose,
+  renderMeta,
+  labels: labelOverrides
+}) {
+  useInsertionEffect(() => {
+    ensureArchiveDialogStyle();
+  }, []);
+  const labels = { ...DEFAULT_LABELS, ...labelOverrides };
+  const conversations = useMemo2(() => {
+    const { pinned, active, archived } = organizeConversationSummaries(given);
+    return [...pinned, ...active, ...archived];
+  }, [given]);
+  const dialogRef = useRef2(null);
+  const [selected, setSelected] = useState2(() => initialSelection(conversations));
+  const [busy, setBusy] = useState2(false);
+  const [failure, setFailure] = useState2(null);
+  useEffect2(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      setSelected(initialSelection(conversations));
+      setFailure(null);
+      dialog.showModal();
+    } else if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
+  const selectedIds = conversations.filter((c) => selected.has(c.id)).map((c) => c.id);
+  const allSelected = conversations.length > 0 && selectedIds.length === conversations.length;
+  const toggle = (id) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+  const confirm = async () => {
+    const ids = selectedIds;
+    if (ids.length === 0) return;
+    setBusy(true);
+    setFailure(null);
+    const failed = await onArchive(ids);
+    setBusy(false);
+    if (failed.length === 0) {
+      onClose();
+      return;
+    }
+    setSelected(new Set(failed));
+    setFailure({ failed: failed.length, total: ids.length });
+  };
+  return /* @__PURE__ */ jsxs(
+    "dialog",
+    {
+      ref: dialogRef,
+      className: FI_ARCHIVE_DIALOG_CLASS,
+      "aria-labelledby": "fi-archive-dialog-title",
+      onCancel: (e) => {
+        e.preventDefault();
+        if (!busy) onClose();
+      },
+      onClick: (e) => {
+        if (e.target === e.currentTarget && !busy) onClose();
+      },
+      children: [
+        /* @__PURE__ */ jsxs("div", { className: "fi-archive-dialog-head", children: [
+          /* @__PURE__ */ jsx("h2", { id: "fi-archive-dialog-title", className: "fi-archive-dialog-title", children: labels.title }),
+          conversations.length > 0 && /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: withTouchTarget("fi-archive-dialog-toggle"),
+              onClick: () => setSelected(allSelected ? /* @__PURE__ */ new Set() : new Set(conversations.map((c) => c.id))),
+              disabled: busy,
+              children: allSelected ? labels.selectNone : labels.selectAll
+            }
+          )
+        ] }),
+        conversations.length === 0 ? /* @__PURE__ */ jsx("p", { className: "fi-archive-dialog-empty", children: labels.empty }) : /* @__PURE__ */ jsx("ul", { className: "fi-archive-dialog-list", children: conversations.map((c) => /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsxs("label", { className: "fi-archive-dialog-row", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "checkbox",
+              checked: selected.has(c.id),
+              onChange: () => toggle(c.id),
+              disabled: busy
+            }
+          ),
+          /* @__PURE__ */ jsxs("span", { className: "fi-archive-dialog-row-body", children: [
+            /* @__PURE__ */ jsx("span", { className: "fi-archive-dialog-row-title", children: c.title }),
+            renderMeta && /* @__PURE__ */ jsx("span", { className: "fi-archive-dialog-row-meta", children: renderMeta(c) })
+          ] })
+        ] }) }, c.id)) }),
+        failure && /* @__PURE__ */ jsx("p", { className: "fi-archive-dialog-error", role: "alert", children: labels.failed(failure.failed, failure.total) }),
+        /* @__PURE__ */ jsxs("div", { className: "fi-archive-dialog-foot", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: withTouchTarget("fi-archive-dialog-cancel"),
+              onClick: onClose,
+              disabled: busy,
+              children: labels.cancel
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: withTouchTarget("fi-archive-dialog-confirm"),
+              onClick: () => void confirm(),
+              disabled: busy || selectedIds.length === 0,
+              children: labels.archive(selectedIds.length)
+            }
+          )
+        ] })
+      ]
+    }
+  );
+}
+
+// src/conversation/useConversationUrl.ts
+import { useEffect as useEffect3, useRef as useRef3 } from "react";
+var DEFAULT_CONVERSATION_PATH_PREFIX = "/c/";
+function readConversationIdFromPath(pathname, prefix = DEFAULT_CONVERSATION_PATH_PREFIX) {
+  if (!pathname.startsWith(prefix)) return null;
+  const id = decodeURIComponent(pathname.slice(prefix.length).replace(/\/+$/, ""));
+  return id && !id.includes("/") ? id : null;
+}
+function readConversationIdFromLocation(prefix = DEFAULT_CONVERSATION_PATH_PREFIX) {
+  if (typeof window === "undefined") return null;
+  return readConversationIdFromPath(window.location.pathname, prefix);
+}
+function useConversationUrl({
+  activeId,
+  conversations,
+  onNavigate,
+  prefix = DEFAULT_CONVERSATION_PATH_PREFIX,
+  rootPath = "/"
+}) {
+  const onNavigateRef = useRef3(onNavigate);
+  onNavigateRef.current = onNavigate;
+  const shownId = useRef3(void 0);
+  const shownForActive = useRef3(null);
+  const saved = activeId !== null && conversations.some((c) => c.id === activeId);
+  const target = saved ? activeId : null;
+  useEffect3(() => {
+    if (typeof window === "undefined") return;
+    const here = readConversationIdFromPath(window.location.pathname, prefix);
+    const previous = shownId.current;
+    const previousActive = shownForActive.current;
+    shownId.current = target;
+    shownForActive.current = activeId;
+    if (here === target) return;
+    if (target === null && here !== null && previous === void 0) return;
+    const path = target === null ? rootPath : `${prefix}${encodeURIComponent(target)}`;
+    const firstSave = previous === null && previousActive === activeId;
+    if (previous === void 0 || firstSave) window.history.replaceState(window.history.state, "", path);
+    else window.history.pushState(window.history.state, "", path);
+  }, [target, activeId, prefix, rootPath]);
+  useEffect3(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => {
+      const id = readConversationIdFromPath(window.location.pathname, prefix);
+      shownId.current = id;
+      onNavigateRef.current(id);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [prefix]);
+}
+
+// src/conversation/useCloudConversationLibrary.ts
+import { useCallback as useCallback2, useEffect as useEffect4, useState as useState3 } from "react";
+var DEFAULT_RETRY_DELAYS_MS = [5e3, 15e3, 3e4, 6e4];
+var DEFAULT_SLOW_AFTER_MS = 4e3;
+function useCloudConversationLibrary({
+  local,
+  remote,
+  enabled,
+  scopeKey,
+  retryDelaysMs = DEFAULT_RETRY_DELAYS_MS,
+  slowAfterMs = DEFAULT_SLOW_AFTER_MS
+}) {
+  const [settledFor, setSettledFor] = useState3(null);
+  const [failedFor, setFailedFor] = useState3(null);
+  const [attempt, setAttempt] = useState3(0);
+  const [slow, setSlow] = useState3(false);
+  const active = enabled && scopeKey !== null;
+  const settled = active && settledFor === scopeKey;
+  const failed = active && !settled && failedFor === scopeKey;
+  useEffect4(() => {
+    if (!active || settled) return;
+    let cancelled = false;
+    setSlow(false);
+    const slowTimer = setTimeout(() => {
+      if (!cancelled) setSlow(true);
+    }, slowAfterMs);
+    void (async () => {
+      try {
+        await migrateConversationLibrary(local, remote);
+        await migrateConversationLibrary(local, remote);
+        if (cancelled) return;
+        setFailedFor(null);
+        setSettledFor(scopeKey);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("fi-glass: cloud conversation store unreachable, staying local", error);
+        setFailedFor(scopeKey);
+      } finally {
+        clearTimeout(slowTimer);
+        if (!cancelled) setSlow(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      clearTimeout(slowTimer);
+    };
+  }, [active, settled, scopeKey, local, remote, attempt, slowAfterMs]);
+  const [failures, setFailures] = useState3(0);
+  useEffect4(() => {
+    if (!failed) return;
+    const delay = retryDelaysMs[Math.min(failures, retryDelaysMs.length - 1)];
+    const timer = setTimeout(() => {
+      setFailures((n) => n + 1);
+      setAttempt((n) => n + 1);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [failed, failures, retryDelaysMs]);
+  useEffect4(() => {
+    if (settled) setFailures(0);
+  }, [settled]);
+  const retry = useCallback2(() => {
+    setFailedFor(null);
+    setFailures(0);
+    setAttempt((n) => n + 1);
+  }, []);
+  if (!active) return { library: local, status: "local", slow: false, retry };
+  if (settled) return { library: remote, status: "cloud", slow: false, retry };
+  return { library: local, status: failed ? "unreachable" : "connecting", slow, retry };
+}
 export {
+  ConversationArchiveDialog,
+  DEFAULT_CONVERSATION_PATH_PREFIX,
   EphemeralConversationLibrary,
+  FI_ARCHIVE_DIALOG_CLASS,
   IndexedDBConversationLibrary,
   RemoteConversationLibrary,
+  ensureArchiveDialogStyle,
+  mergeConversationRecords,
   migrateConversationLibrary,
+  readConversationIdFromLocation,
+  readConversationIdFromPath,
+  useCloudConversationLibrary,
   useConversationLibrary,
+  useConversationUrl,
   useIndexedDBConversationLibrary
 };
 //# sourceMappingURL=index.js.map

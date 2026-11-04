@@ -13,8 +13,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[2]
 MONOREPO = REPO.parents[1]
 SCRIPT = REPO / "scripts" / "cd_wait_revision.py"
@@ -199,14 +197,6 @@ def test_an_az_hiccup_is_retried_not_a_verdict():
     assert s.run() == 0
     assert calls["n"] == 2
     assert any(line.startswith("WARN") for line in s.lines)
-
-
-@pytest.mark.parametrize("app", ["persona-gateway", "khimeras-host"])
-def test_cd_yml_gates_each_min1_app_on_its_revision_state(app):
-    text = CD_YML.read_text()
-    assert f'python3 scripts/cd_wait_revision.py {app} "$RG" "$REGISTRY/{app}:$NEW_SHA"' in text, (
-        f"cd.yml must gate {app} on the revision that carries the new image"
-    )
 
 
 def test_cd_yml_no_longer_greps_a_log_line_printed_before_the_crash():

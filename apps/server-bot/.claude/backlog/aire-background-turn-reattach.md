@@ -3,6 +3,11 @@
 Status: Proposed
 Proposed: 2026-09-23 by Claude (plan "que las respuestas siempre lleguen", slice 5)
 
+> 2026-10-15: el boleto ganó una bitácora de eventos en RAM (`engine/turn_events.py`,
+> `GET /v1/turn/jobs/{id}/events`) con los `tool_call` del turno. Un reattach de
+> fase B debería reanudar también esa bitácora desde el cursor de AIRE en vez de
+> abrir una nueva; hoy un job re-corrido empieza en el `id` 1.
+
 ## What it is
 
 Con v4.40.2 el runner tiene un boleto durable (`turn_jobs`): si muere a media

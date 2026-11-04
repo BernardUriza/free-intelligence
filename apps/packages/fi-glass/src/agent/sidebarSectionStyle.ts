@@ -18,7 +18,7 @@
  * conversation rail sets the taller padding + bottom border on `body`/`.og-sidebar`).
  */
 
-import { useEffect } from 'react';
+import { useInsertionEffect } from 'react';
 import { ensureDensityStyle } from './densityStyle';
 
 export const FI_SIDEBAR_SECTION_CLASS = 'fi-sidebar-section';
@@ -89,7 +89,7 @@ export function ensureSidebarSectionStyle(): void {
 
 /** Ensure the sidebar-section stylesheet is present for the lifetime of the component. */
 export function useSidebarSectionStyle(): void {
-  useEffect(() => {
+  useInsertionEffect(() => {
     ensureSidebarSectionStyle();
   }, []);
 }

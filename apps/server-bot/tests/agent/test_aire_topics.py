@@ -142,6 +142,9 @@ class _Door:
         self.max_in_flight = 0
         self.fail_next = False
 
+    async def run_turn_stream(self, **kwargs):
+        yield {"type": "result", "result": await self.run_turn(**kwargs)}
+
     async def run_turn(self, **kwargs):
         self.in_flight += 1
         self.max_in_flight = max(self.max_in_flight, self.in_flight)

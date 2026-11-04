@@ -50,6 +50,7 @@ struct TurnPlan: Equatable {
 
     mutating func declarar(_ etiquetas: [String]) {
         pasos = etiquetas.map { Paso(etiqueta: $0) }
+        rechazo = nil
         // Un plan nuevo limpia la enmienda: el replan ANUNCIA y luego declara
         // los pasos, así que la insignia sólo vive entre esos dos frames.
         enmienda = nil
@@ -82,9 +83,25 @@ struct TurnPlan: Equatable {
         self.desenlace = desenlace
     }
 
+    /// Empezar el paso N implica que 0..N-1 terminaron aunque SSE haya perdido
+    /// sus `step_done`: el barrido es el mismo que hace core.
     mutating func empezar(_ indice: Int) {
         guard pasos.indices.contains(indice) else { return }
+        for i in pasos.indices where i < indice && abierto(i) {
+            pasos[i].estado = .hecho
+        }
         pasos[indice].estado = .corriendo
+    }
+
+    /// El turno cerró (`result`): lo que seguía abierto se da por hecho.
+    mutating func cerrarAbiertos() {
+        for i in pasos.indices where abierto(i) {
+            pasos[i].estado = .hecho
+        }
+    }
+
+    private func abierto(_ i: Int) -> Bool {
+        pasos[i].estado == .pendiente || pasos[i].estado == .corriendo
     }
 
     mutating func cerrar(_ indice: Int, estado: StepStatus, resumen: String?, error: String?) {

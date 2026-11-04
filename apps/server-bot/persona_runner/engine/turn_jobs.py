@@ -32,6 +32,7 @@ from persona_core import tickets
 from persona_core.tickets import MAX_WAIT_S, LedgerRow, Ticket, TicketRegistry
 from persona_runner.core import config
 from persona_runner.core.schemas import TurnRequest, TurnResponse
+from persona_runner.engine import turn_events
 from persona_runner.engine.turn_ledger import PgTurnLedger
 
 __all__ = [
@@ -107,9 +108,21 @@ def _resumer(runner: Runner) -> Callable[[LedgerRow], Coroutine[Any, Any, TurnRe
             raise NotResumableError("not_resumable: attachments are not persisted")
         if _expired(row.payload.get("attachments")):
             raise NotResumableError("not_resumable: image references expired")
-        return await runner(_request_from(row.payload, resumed=True))
+        return await _with_event_log(row.ticket_id, runner(_request_from(row.payload, resumed=True)))
 
     return resume
+
+
+async def _with_event_log(job_id: str, turn: Coroutine[Any, Any, TurnResponse]) -> TurnResponse:
+    """La bitácora de `tool_call` vive lo que vive el boleto: nace con el alta,
+    ANTES de que el pipeline (guardian, memoria, framing) llegue al cerebro, para
+    que un consumidor que conecte en el primer segundo no reciba `done` en vez
+    de los verbos (og118, 2026-10-15); se cierra cuando el turno termina."""
+    turn_events.open_log(job_id)
+    try:
+        return await turn
+    finally:
+        turn_events.close_log(job_id)
 
 
 async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
@@ -121,9 +134,12 @@ async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
     # reconstruir desde ella tiraba cada imagen en el alta (P0 2026-09-25,
     # regresión de c74dbf4). La fila sólo sirve para reanudar.
     async def run(_payload: dict[str, Any]) -> TurnResponse:
-        return await runner(req.model_copy(update={"resumed": False}))
+        return await _with_event_log(job_id, runner(req.model_copy(update={"resumed": False})))
 
-    return await JOBS.open_durable(
+    # Abierta ANTES de que exista la task: el 202 sale antes de su primer paso,
+    # y un consumidor que conecte en ese hueco debe encontrar la bitácora.
+    turn_events.open_log(job_id)
+    got = await JOBS.open_durable(
         _payload(req),
         run,
         ticket_id=job_id,
@@ -131,6 +147,9 @@ async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
         deadline_s=config.RUNNER_JOB_DEADLINE_S,
         resume=_resumer(runner),
     )
+    if not isinstance(got, Ticket) or got.done:
+        turn_events.close_log(job_id)
+    return got
 
 
 async def lookup(job_id: str, *, runner: Runner) -> TurnJob | LedgerRow | None:

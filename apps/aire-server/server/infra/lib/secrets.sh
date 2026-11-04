@@ -15,6 +15,17 @@ install_deploy_key() {
 grep -q "^Host github.com$" /root/.ssh/config 2>/dev/null || printf "Host github.com\n  IdentityFile /root/.ssh/github_deploy\n  StrictHostKeyChecking accept-new\n" >> /root/.ssh/config'
 }
 
+install_codex_seat() {
+  echo "    [local] the ChatGPT plan seat for Codex (#52)…"
+  if [[ ! -f "$CODEX_SEAT_FILE" ]]; then
+    echo "    [local] no $CODEX_SEAT_FILE — codex/oauth/primary disabled (run codex login on the Mac first)."
+    return 0
+  fi
+  $SSH "root@${IP}" 'install -d -m 700 /root/.codex'
+  scp -i "$SSH_KEY" -q "$CODEX_SEAT_FILE" "root@${IP}:/root/.codex/auth.json"
+  $SSH "root@${IP}" 'chmod 600 /root/.codex/auth.json'
+}
+
 append_secret() {  # <file> <KEY=> <human-name>
   if [[ -f "$1" ]]; then
     # `|| true`: a file without this key is normal (grep exits 1, and under
@@ -66,11 +77,21 @@ compose_env() {
   # roles, two keys, two files, each revocable alone. Absent, lending is simply
   # off and `arming.py` says so, which is how costwatch would catch it.
   append_secret "$LEND_API_KEY_FILE" "AIRE_LEND_API_KEY=" "the metered key AIRE lends (#32e)"
+  # The OpenAI door (#51): Azure OpenAI, its own slot, revocable without touching Anthropic's.
+  append_secret "$OPENAI_FILE" "AIRE_OPENAI_UPSTREAM="       "the OpenAI door's upstream (#51)"
+  append_secret "$OPENAI_FILE" "AIRE_LEND_AZURE_OPENAI_KEY=" "the Azure key AIRE lends (#51)"
+  # Codex on the droplet (#52, since 2026-10-28): the native binary remote-bootstrap lays down,
+  # the plan seat install_codex_seat copies, and the metered key behind it (#53).
+  ENV_CONTENT+="AIRE_CODEX_COMMAND=/opt/aire-codex/package/vendor/x86_64-unknown-linux-musl/bin/codex"$'\n'
+  ENV_CONTENT+="CODEX_HOME=/root/.codex"$'\n'
+  append_secret "$CODEX_API_KEY_FALLBACK_FILE" "CODEX_API_KEY_FALLBACK=" "the metered Codex fallback (#53)"
   # The failover chain (#31): both slots are OPTIONAL — a missing file only
   # leaves that slot empty and the rotor skips it. The backup OAuth must come
   # from a DIFFERENT seat/account, or it shares the primary's weekly pool.
   append_secret "$OAUTH_BACKUP_FILE"     "CLAUDE_CODE_OAUTH_TOKEN_BACKUP=" "the failover backup OAuth (#31)"
   append_secret "$API_KEY_FALLBACK_FILE" "ANTHROPIC_API_KEY_FALLBACK="     "the failover metered API key (#31)"
+  # BAIR's lane (engine/lanes.py): its own key, so reviews never burn the pool.
+  append_secret "$BAIR_API_KEY_FILE" "ANTHROPIC_API_KEY_BAIR=" "BAIR's own credential lane"
   append_secret "$WHITELIST_FILE"  "AIRE_WHITELIST_ENFORCE=" "the whitelist gate"
   # Which ACP agents the box may spawn, by name (#49). Config, not a secret —
   # but it lives here so a re-provision restores the roster, not just the code.

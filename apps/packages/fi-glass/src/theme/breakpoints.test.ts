@@ -38,11 +38,40 @@ describe('the mobile breakpoint has exactly one source of truth', () => {
       const src = readFileSync(file, 'utf8');
       // Only flag it inside an actual media query / width comparison, so prose
       // in a comment or an unrelated 768 never trips this.
-      if (/max-width:\s*768px/.test(src)) {
+      if (/(?<!\[@media\()max-width:\s*768px/.test(src)) {
         offenders.push(file.replace(SRC, 'src'));
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('no Tailwind viewport variant splits the breakpoint (max-md: is <768, the canon is <=768)', () => {
+    const offenders: string[] = [];
+    for (const file of [...readAll(SRC, '.ts'), ...readAll(SRC, '.tsx')]) {
+      if (file.includes('.test.')) continue;
+      const src = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/[^\n]*/g, '');
+      for (const [variant] of src.matchAll(/(?<![\w@-])(?:max-)?md:(?=[\w[-])/g)) {
+        offenders.push(`${file.replace(SRC, 'src')} → ${variant}`);
+      }
+      for (const [, px] of src.matchAll(/\[@media\(max-width:(\d+)px\)\]:/g)) {
+        if (Number(px) !== FI_MOBILE_BREAKPOINT_PX) offenders.push(`${file.replace(SRC, 'src')} → ${px}px`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the mobile message styles hang off the canonical query', async () => {
+    const { messageStyles } = await import('../messages/styles');
+    const variant = `[@media${FI_MOBILE_QUERY.replace(/\s+/g, '')}]:`;
+    expect(messageStyles.content.indent).toBe(`pl-8 ${variant}pl-0`);
+    expect(messageStyles.content.base).toContain(`${variant}text-[16px]`);
+    expect(messageStyles.message.base).toContain(`${variant}px-3.5`);
+  });
+
+  it('is exported from fi-glass/theme so a consumer can hold its own stylesheets to it', async () => {
+    const theme = await import('./index');
+    expect(theme.FI_MOBILE_BREAKPOINT_PX).toBe(FI_MOBILE_BREAKPOINT_PX);
+    expect(theme.FI_MOBILE_QUERY).toBe(FI_MOBILE_QUERY);
   });
 
   it('exposes the queries the sheets and hooks consume', () => {

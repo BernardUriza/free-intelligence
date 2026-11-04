@@ -92,3 +92,24 @@ export function foldAssistantTurn(
     ...(turn.reactions.length > 0 ? { reactions: turn.reactions } : {}),
   };
 }
+
+/** Persisted messages carry no id (sanitize drops it); this is what a reload shows. */
+function messageKey(message: ChatMessage): string {
+  return `${message.role}\u0000${message.timestamp ?? ''}\u0000${message.content}`;
+}
+
+/**
+ * Union of two copies of one thread by (role, timestamp, content): every message
+ * of `target` plus the ones only `source` has, ordered by timestamp (stable for ties).
+ *
+ * @returns `target` itself (same reference) when `source` adds nothing.
+ */
+export function mergeConversationMessages(target: ChatMessage[], source: ChatMessage[]): ChatMessage[] {
+  const known = new Set(target.map(messageKey));
+  const missing = source.filter((m) => !known.has(messageKey(m)));
+  if (missing.length === 0) return target;
+  return [...target, ...missing]
+    .map((message, order) => ({ message, order }))
+    .sort((a, b) => (a.message.timestamp ?? '').localeCompare(b.message.timestamp ?? '') || a.order - b.order)
+    .map(({ message }) => message);
+}

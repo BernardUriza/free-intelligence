@@ -24,11 +24,30 @@
 import type { ChatMessage, MessageImage } from '../chat/message';
 import type { MessageAuthor } from './events';
 import type { AgentTurnState } from './state';
-import { makeUserMessage, foldAssistantTurn } from './transcript';
+import { makeUserMessage, foldAssistantTurn, mergeConversationMessages } from './transcript';
+import { COPY } from '../copy.generated';
+
+/**
+ * A turn that settled WITHOUT its answer because the engine is still working
+ * (`AgentTurnState.deferred`). Not a failure: nothing to retry, the answer lands
+ * in the thread out of band and the shell shows this until the thread refreshes.
+ */
+export interface TurnNotice {
+  kind: 'deferred';
+  message: string;
+}
+
+export function deferredNotice(author: MessageAuthor): TurnNotice {
+  return {
+    kind: 'deferred',
+    message: COPY.turnDeferredNotice(author.name),
+  };
+}
 
 /** Why a turn failed, in terms a shell can render a recovery banner from. */
 export interface TurnFailure {
-  kind: 'stream' | 'timeout';
+  /** `empty` = the turn settled with no text, no reaction and no deferral: silence is a failure. */
+  kind: 'stream' | 'timeout' | 'empty';
   message: string;
 }
 
@@ -50,6 +69,8 @@ export interface ConversationState {
   pending: boolean;
   /** A recoverable turn failure the shell renders instead of a zombie panel. */
   failure: TurnFailure | null;
+  /** The last turn was released without its answer; shown until the thread refreshes. */
+  notice: TurnNotice | null;
   /** True once a turn timed out; keeps the watchdog from re-arming on it. */
   timedOut: boolean;
   /** What a failed turn handed back, for the shell to restore. */
@@ -75,7 +96,8 @@ export type ConversationEvent =
       controlled: boolean;
     }
   /** The transport finished cleanly. Folds the assistant turn in. */
-  | { type: 'turn_settled'; turn: AgentTurnState; author: MessageAuthor; controlled: boolean }
+  /** `stopped`: the USER ended the turn; an empty settle is then a choice, not a failure. */
+  | { type: 'turn_settled'; turn: AgentTurnState; author: MessageAuthor; controlled: boolean; stopped?: boolean }
   /**
    * The transport reported failure. `appHandled` means the app renders its own
    * banner for this error class (e.g. a 401 token gate), so the generic
@@ -85,10 +107,16 @@ export type ConversationEvent =
   /** The idle watchdog fired. Time as an event keeps the reducer pure. */
   | { type: 'turn_timeout'; controlled: boolean }
   | { type: 'dismiss_failure' }
+  | { type: 'dismiss_notice' }
   /** The shell restored `unsent` into its composer. */
   | { type: 'clear_unsent' }
   /** Load a different conversation (or start a fresh one). */
   | { type: 'hydrate'; messages: ChatMessage[] }
+  /**
+   * The server's copy of THIS thread arrived (a worker appended mid-turn). It is
+   * unioned into the live thread; the pending turn is untouched and the merge is not a confirmed turn.
+   */
+  | { type: 'merge_seed'; messages: ChatMessage[] }
   /**
    * The shell CONSUMED the skip: it saw `skipPersist` and declined to persist
    * this change. One-shot — the flag clears so the NEXT confirmed change
@@ -102,6 +130,7 @@ export function initialConversationState(seed: ChatMessage[] = []): Conversation
     messages: seed,
     pending: false,
     failure: null,
+    notice: null,
     timedOut: false,
     unsent: { text: null, images: null },
     lastSent: null,
@@ -153,6 +182,7 @@ export function applyConversationEvent(
         ...state,
         pending: true,
         failure: null,
+        notice: null,
         timedOut: false,
         // A new send supersedes any draft still waiting to be recovered.
         unsent: NO_DRAFT,
@@ -174,7 +204,20 @@ export function applyConversationEvent(
       // turn it mapped from its transport. A turn that said nothing AND made no
       // gesture folds nothing; a reaction-only turn (empty text, `reactions`
       // set — server-bot F5) IS an answer and gets its bubble.
-      if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) return base;
+      if (event.controlled || (!event.turn.text && event.turn.reactions.length === 0)) {
+        if (event.turn.deferred) {
+          return { ...base, notice: deferredNotice(event.turn.author ?? event.author) };
+        }
+        if (event.controlled) return base;
+        // A stop leaves the question on screen, so it is saved: a fresh array lets a thread-keyed shell see it.
+        if (event.stopped) return { ...base, messages: [...state.messages], skipPersist: false };
+        // Silence is not an answer: a turn that said nothing and made no gesture
+        // left the user's message hanging with no sign of what happened.
+        return {
+          ...revertOptimistic(base, false),
+          failure: { kind: 'empty', message: COPY.turnEmpty },
+        };
+      }
       return {
         ...base,
         messages: [...state.messages, foldAssistantTurn(event.turn, event.author)],
@@ -193,7 +236,7 @@ export function applyConversationEvent(
         ...reverted,
         failure: {
           kind: 'stream',
-          message: event.message || 'La respuesta falló. Intenta de nuevo.',
+          message: event.message || COPY.turnFailed,
         },
       };
     }
@@ -203,12 +246,15 @@ export function applyConversationEvent(
       return {
         ...revertOptimistic({ ...state, pending: false }, event.controlled),
         timedOut: true,
-        failure: { kind: 'timeout', message: 'La respuesta tardó demasiado. Intenta de nuevo.' },
+        failure: { kind: 'timeout', message: COPY.turnTimeout },
       };
     }
 
     case 'dismiss_failure':
       return state.failure === null ? state : { ...state, failure: null, timedOut: false };
+
+    case 'dismiss_notice':
+      return state.notice === null ? state : { ...state, notice: null };
 
     case 'clear_unsent':
       return state.unsent.text === null && state.unsent.images === null
@@ -217,6 +263,11 @@ export function applyConversationEvent(
 
     case 'hydrate':
       return { ...initialConversationState(event.messages), lastSent: state.lastSent };
+
+    case 'merge_seed': {
+      const messages = mergeConversationMessages(state.messages, event.messages);
+      return messages === state.messages ? state : { ...state, messages, skipPersist: true };
+    }
 
     case 'persist_skip_consumed':
       return state.skipPersist ? { ...state, skipPersist: false } : state;

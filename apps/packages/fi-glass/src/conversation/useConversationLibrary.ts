@@ -37,6 +37,11 @@ import {
   resolveConversationTitle,
   sanitizeConversationMessage,
 } from '@free-intelligence/core';
+import { mergeConversationRecords } from './migrateConversationLibrary';
+
+// Enough to finish a sidebar of ~50 chats in a few round trips without opening
+// fifty requests against a cold-starting API at once.
+const ARCHIVE_BATCH_CONCURRENCY = 4;
 
 export interface UseConversationLibraryOptions {
   /** Mint a new conversation id. Default: `crypto.randomUUID`. Injectable for tests. */
@@ -52,6 +57,22 @@ export interface UseConversationLibraryOptions {
    * under whatever happens to be active right now.
    */
   projectId?: string;
+  /**
+   * The conversation the URL names, for a routed shell (`/c/<id>`). A string opens
+   * that conversation; `null` starts a fresh one. When set, the library never
+   * falls back to "the most recent" on its own — the address decides what is open.
+   */
+  initialActiveId?: string | null;
+}
+
+/** `load` = the store could not be read (mount, store swap, or its retry). */
+export type ConversationAction = 'load' | 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
+
+export interface ConversationActionError {
+  action: ConversationAction;
+  conversationId: string;
+  message: string;
+  cause: unknown;
 }
 
 export interface ConversationLibraryState {
@@ -80,8 +101,25 @@ export interface ConversationLibraryState {
   /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
    * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
   archiveConversation: (id: string, archived: boolean) => Promise<void>;
-  /** Persist the active conversation's messages (no-op for an empty thread). */
-  persist: (messages: ChatMessage[]) => Promise<void>;
+  /**
+   * Archive many conversations at once (the "clean up my sidebar" gesture). Never
+   * throws: resolves with the ids that could NOT be archived, so the caller keeps
+   * them selected and says so. One list refresh for the whole batch.
+   */
+  archiveConversations: (ids: string[]) => Promise<string[]>;
+  /**
+   * Persist a conversation's messages (no-op for an empty thread). `conversationId`
+   * is the conversation the thread BELONGS to (default: the active one); a write
+   * that lands after the user moved elsewhere saves that conversation and leaves
+   * the active one alone.
+   */
+  persist: (messages: ChatMessage[], conversationId?: string | null) => Promise<void>;
+  /**
+   * Mark a conversation (default: the active one) as holding the user's work —
+   * a turn was sent in it. A store swap then keeps it active even before its
+   * first save, instead of moving the user to the new store's most recent.
+   */
+  claimActive: (conversationId?: string | null) => void;
   /** Re-read the summary list from storage. */
   refresh: () => Promise<void>;
   /**
@@ -91,6 +129,11 @@ export interface ConversationLibraryState {
    * like `switchConversation` when a previously stored record is gone.
    */
   reloadActive: () => Promise<void>;
+  /** The last sidebar action that failed, kept until it succeeds, is retried or dismissed. */
+  actionError: ConversationActionError | null;
+  /** Re-run exactly the failed action. */
+  retryAction: () => void;
+  dismissActionError: () => void;
 }
 
 export function useConversationLibrary(
@@ -100,39 +143,115 @@ export function useConversationLibrary(
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
   const nowFn = options.now ?? (() => new Date().toISOString());
   const { projectId } = options;
+  const routed = options.initialActiveId !== undefined;
 
   const [ready, setReady] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() =>
+    routed ? options.initialActiveId ?? idFactory() : null,
+  );
   const [activeMessages, setActiveMessages] = useState<ChatMessage[]>([]);
   const [activeRecord, setActiveRecord] = useState<ConversationRecord | null>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  const activeRecordRef = useRef(activeRecord);
+  activeRecordRef.current = activeRecord;
+  const claimedId = useRef<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [actionError, setActionError] = useState<ConversationActionError | null>(null);
+  const failedRun = useRef<(() => Promise<void>) | null>(null);
+
+  const guard = useCallback(async function guarded(
+    action: ConversationAction,
+    conversationId: string,
+    run: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await run();
+      setActionError((prev) =>
+        prev?.action === action && prev.conversationId === conversationId ? null : prev,
+      );
+    } catch (cause) {
+      failedRun.current = () => guarded(action, conversationId, run);
+      setActionError({
+        action,
+        conversationId,
+        message: cause instanceof Error && cause.message ? cause.message : String(cause),
+        cause,
+      });
+      throw cause;
+    }
+  }, []);
+
+  const retryAction = useCallback(() => {
+    const again = failedRun.current;
+    if (!again) return;
+    failedRun.current = null;
+    setActionError(null);
+    void again().catch(() => {});
+  }, []);
+
+  const dismissActionError = useCallback(() => {
+    failedRun.current = null;
+    setActionError(null);
+  }, []);
 
   const refresh = useCallback(async () => {
     setConversations(await library.list());
   }, [library]);
 
-  // Mount: hydrate from storage. Activate the most recent conversation, or seed a
-  // fresh in-memory id (NOT persisted) when there is nothing stored yet.
+  // Runs on mount, on every store swap and on a load retry. The conversation the
+  // user is in survives a swap; only an untouched one adopts the store's most recent.
   useEffect(() => {
     let cancelled = false;
+    const isCurrent = (id: string | null) => !cancelled && activeIdRef.current === id;
+    const adopt = (id: string, record: ConversationRecord | null) => {
+      setActiveId(id);
+      setActiveMessages(record?.messages ?? []);
+      setActiveRecord(record);
+    };
     void (async () => {
+      const current = activeIdRef.current;
       try {
         const list = await library.list();
         if (cancelled) return;
         setConversations(list);
-        if (list.length > 0) {
-          const record = await library.get(list[0].id);
-          if (cancelled) return;
-          setActiveId(list[0].id);
-          setActiveMessages(record?.messages ?? []);
-          setActiveRecord(record ?? null);
-        } else {
-          setActiveId(idFactory());
-          setActiveMessages([]);
-          setActiveRecord(null);
+        const previous = activeRecordRef.current;
+        if (current && list.some((summary) => summary.id === current)) {
+          const stored = await library.get(current);
+          if (!isCurrent(current) || !stored) return;
+          const carried =
+            previous?.id === current ? mergeConversationRecords(stored, previous) : stored;
+          if (carried !== stored) await library.put(carried);
+          if (isCurrent(current)) adopt(current, carried);
+          return;
         }
+        if (current && claimedId.current === current) {
+          if (previous?.id === current) await library.put(previous);
+          return;
+        }
+        if (routed) {
+          if (isCurrent(current) && current === null) adopt(idFactory(), null);
+          return;
+        }
+        // An archived chat is put away on purpose: it is never what opens by default.
+        const recent = list.find((summary) => !summary.archivedAt);
+        if (recent) {
+          const record = await library.get(recent.id);
+          if (isCurrent(current)) adopt(recent.id, record ?? null);
+        } else if (isCurrent(current) && (current === null || previous !== null)) {
+          adopt(idFactory(), null);
+        }
+      } catch (cause) {
+        if (cancelled) return;
+        failedRun.current = async () => setLoadAttempt((n) => n + 1);
+        setActionError({
+          action: 'load',
+          conversationId: current ?? '',
+          message: cause instanceof Error && cause.message ? cause.message : String(cause),
+          cause,
+        });
+        if (activeIdRef.current === null) adopt(idFactory(), null);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -140,9 +259,13 @@ export function useConversationLibrary(
     return () => {
       cancelled = true;
     };
-    // Hydrate once per library instance; idFactory is stable enough for mount.
+    // idFactory is stable enough for a hydrate; re-running on it would re-hydrate every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [library]);
+  }, [library, loadAttempt]);
+
+  const claimActive = useCallback((conversationId?: string | null) => {
+    claimedId.current = conversationId ?? activeIdRef.current;
+  }, []);
 
   const newConversation = useCallback(() => {
     setActiveId(idFactory());
@@ -189,14 +312,20 @@ export function useConversationLibrary(
   }, [library, activeId, activeRecord, refresh]);
 
   const persist = useCallback(
-    async (messages: ChatMessage[]) => {
+    async (messages: ChatMessage[], conversationId?: string | null) => {
       // Never persist an empty thread — a brand-new conversation stays in-memory
       // until its first real message.
       if (messages.length === 0) return;
-      const id = activeId ?? idFactory();
+      const id = conversationId ?? activeIdRef.current ?? idFactory();
       const now = nowFn();
+      const held = activeRecordRef.current;
       // Preserve createdAt when updating the same record; otherwise it's new.
-      const prevForTitle = activeRecord?.id === id ? activeRecord : undefined;
+      const prevForTitle =
+        held?.id === id
+          ? held
+          : id === activeIdRef.current
+            ? undefined
+            : ((await library.get(id)) ?? undefined);
       const createdAt = prevForTitle ? prevForTitle.createdAt : now;
       const clean = messages.map(sanitizeConversationMessage);
       // Birth-only, and the discriminator is the RECORD's existence, not whether
@@ -223,12 +352,16 @@ export function useConversationLibrary(
         schemaVersion: CONVERSATION_SCHEMA_VERSION,
       };
       await library.put(record);
-      setActiveId(id);
-      setActiveMessages(record.messages);
-      setActiveRecord(record);
+      // The user may have moved on while the write was in flight: saving a
+      // conversation never re-activates it.
+      if (activeIdRef.current === id || activeIdRef.current === null) {
+        setActiveId(id);
+        setActiveMessages(record.messages);
+        setActiveRecord(record);
+      }
       await refresh();
     },
-    [activeId, activeRecord, idFactory, nowFn, library, refresh, projectId],
+    [idFactory, nowFn, library, refresh, projectId],
   );
 
   const deleteConversation = useCallback(
@@ -317,6 +450,65 @@ export function useConversationLibrary(
     [mutateMetadata, nowFn],
   );
 
+  const archiveConversations = useCallback(
+    async (ids: string[]): Promise<string[]> => {
+      const pending = [...new Set(ids)];
+      const failed: string[] = [];
+      const archiveOne = async (id: string) => {
+        const patch = conversationArchivePatch(true, nowFn());
+        try {
+          if (library.patch) {
+            if (!(await library.patch(id, patch))) failed.push(id);
+            return;
+          }
+          const record = await library.get(id);
+          if (!record) {
+            failed.push(id);
+            return;
+          }
+          await library.put(applyConversationMetadataPatch(record, patch));
+        } catch {
+          failed.push(id);
+        }
+      };
+      for (let i = 0; i < pending.length; i += ARCHIVE_BATCH_CONCURRENCY) {
+        await Promise.all(pending.slice(i, i + ARCHIVE_BATCH_CONCURRENCY).map(archiveOne));
+      }
+      const active = activeIdRef.current;
+      if (active && pending.includes(active) && !failed.includes(active)) {
+        const record = await library.get(active).catch(() => null);
+        if (record && activeIdRef.current === active) {
+          setActiveRecord(record);
+          setActiveMessages(record.messages);
+        }
+      }
+      await refresh().catch(() => undefined);
+      return failed;
+    },
+    [library, nowFn, refresh],
+  );
+
+  const guardedSwitch = useCallback(
+    (id: string) => guard('switch', id, () => switchConversation(id)),
+    [guard, switchConversation],
+  );
+  const guardedDelete = useCallback(
+    (id: string) => guard('delete', id, () => deleteConversation(id)),
+    [guard, deleteConversation],
+  );
+  const guardedRename = useCallback(
+    (id: string, title: string) => guard('rename', id, () => renameConversation(id, title)),
+    [guard, renameConversation],
+  );
+  const guardedPin = useCallback(
+    (id: string, pinned: boolean) => guard('pin', id, () => pinConversation(id, pinned)),
+    [guard, pinConversation],
+  );
+  const guardedArchive = useCallback(
+    (id: string, archived: boolean) => guard('archive', id, () => archiveConversation(id, archived)),
+    [guard, archiveConversation],
+  );
+
   return {
     ready,
     conversations,
@@ -324,13 +516,18 @@ export function useConversationLibrary(
     activeMessages,
     activeRecord,
     newConversation,
-    switchConversation,
-    deleteConversation,
-    renameConversation,
-    pinConversation,
-    archiveConversation,
+    switchConversation: guardedSwitch,
+    deleteConversation: guardedDelete,
+    renameConversation: guardedRename,
+    pinConversation: guardedPin,
+    archiveConversation: guardedArchive,
+    archiveConversations,
     persist,
+    claimActive,
     refresh,
     reloadActive,
+    actionError,
+    retryAction,
+    dismissActionError,
   };
 }

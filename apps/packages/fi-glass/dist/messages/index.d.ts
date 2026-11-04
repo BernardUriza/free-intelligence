@@ -21,7 +21,7 @@ declare const messageStyles: {
         readonly padding: "px-4";
     };
     readonly message: {
-        readonly base: "group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150";
+        readonly base: "group relative py-3 px-4 -mx-4 [@media(max-width:768px)]:py-2.5 [@media(max-width:768px)]:px-3.5 [@media(max-width:768px)]:-mx-3.5 transition-colors duration-150";
         readonly user: "bg-transparent hover:bg-white/[0.02]";
         readonly assistant: "bg-white/[0.02] hover:bg-white/[0.04]";
         readonly borderRadius: "rounded-lg";
@@ -38,17 +38,17 @@ declare const messageStyles: {
         readonly time: "text-[11px] text-slate-500 tabular-nums";
     };
     readonly content: {
-        readonly base: "text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]";
+        readonly base: "text-[14px] leading-relaxed [@media(max-width:768px)]:text-[16px] [@media(max-width:768px)]:leading-[1.5]";
         readonly user: "text-slate-200";
         readonly assistant: "text-slate-100";
-        readonly indent: "pl-8 max-md:pl-0";
+        readonly indent: "pl-8 [@media(max-width:768px)]:pl-0";
     };
     readonly actions: {
         readonly container: "\n      absolute top-2 right-2\n      flex items-center gap-0.5\n      opacity-0 group-hover:opacity-100\n      transition-opacity duration-150\n      bg-slate-800/95 backdrop-blur-sm rounded-md p-0.5\n      border border-slate-700/50 shadow-lg\n    ";
         readonly button: {
             readonly base: "p-1.5 rounded transition-colors duration-150";
             readonly idle: "hover:bg-slate-700 text-slate-300 hover:text-white";
-            readonly active: "bg-emerald-500/20 text-emerald-400";
+            readonly active: "bg-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_20%,transparent)] text-[color:var(--fi-accent,#34d399)]";
             readonly speaking: "bg-amber-500/20 text-amber-400";
         };
         readonly icon: "w-3.5 h-3.5";
@@ -70,15 +70,14 @@ declare const markdownStyles: {
     readonly em: "italic text-slate-300";
     readonly code: "px-1 py-0.5 bg-slate-800/80 rounded text-amber-300/90 font-mono text-[13px]";
     readonly pre: "my-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700/30 overflow-x-auto text-[13px]";
-    readonly ul: "my-2 ml-0.5 space-y-1.5";
-    readonly ol: "my-2 ml-0.5 space-y-1.5 list-decimal list-inside";
-    readonly li: "flex gap-1.5 text-slate-200";
-    readonly bullet: "text-slate-500 select-none text-[10px] mt-1";
+    readonly ul: "my-2 pl-5 space-y-1.5 list-disc marker:text-slate-500";
+    readonly ol: "my-2 pl-5 space-y-1.5 list-decimal marker:text-slate-400";
+    readonly li: "pl-0.5 text-slate-200";
     readonly h1: "text-lg font-semibold text-white mt-4 mb-2";
     readonly h2: "text-base font-semibold text-white mt-3 mb-1.5";
     readonly h3: "text-sm font-semibold text-slate-100 mt-2 mb-1";
     readonly blockquote: "my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]";
-    readonly link: "text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors";
+    readonly link: "text-[color:var(--fi-accent,#34d399)] hover:text-[color:color-mix(in_srgb,var(--fi-accent,#34d399)_70%,white)] underline underline-offset-2 transition-colors";
 };
 
 interface MessageContentProps {
@@ -174,6 +173,8 @@ interface MessageBubbleProps {
 declare const MessageBubble: react.NamedExoticComponent<MessageBubbleProps>;
 
 declare const FI_MSG_ACTIONS_CLASS = "fi-msg-actions";
+declare const FI_MSG_FOOTER_CLASS = "fi-msg-footer";
+declare const FI_MSG_BADGE_CLASS = "fi-msg-badge";
 /** Inject the idempotent message-actions stylesheet (no-op on the server / if present). */
 declare function ensureMessageActionsStyle(): void;
 /** Ensure the message-actions stylesheet is present for the component's lifetime. */
@@ -266,4 +267,4 @@ interface MessageListProps<T> {
 }
 declare function MessageList<T>({ groups, renderItem, renderDivider, containerClassName, groupClassName, header, footer, }: MessageListProps<T>): react.JSX.Element;
 
-export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, MessageReactions, type MessageReactionsProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };
+export { CollapsibleText, type CollapsibleTextProps, CopyButton, type CopyButtonProps, FI_MSG_ACTIONS_CLASS, FI_MSG_BADGE_CLASS, FI_MSG_FOOTER_CLASS, MessageAuthorHeader, type MessageAuthorHeaderProps, MessageBubble, type MessageBubbleProps, MessageContent, type MessageContentProps, MessageImages, type MessageImagesProps, MessageList, type MessageListGroup, type MessageListProps, MessageModelBadge, type MessageModelBadgeProps, MessageReactions, type MessageReactionsProps, defaultMessageBadge, defaultMessageHeader, ensureMessageActionsStyle, markdownStyles, messageStyles, normalizeStreamedMarkdown, useMessageActionsStyle };

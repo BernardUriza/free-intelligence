@@ -82,3 +82,22 @@ describe('<MessageContent> markdown headings', () => {
     expect((html.match(/<p/g) || []).length).toBe(2);
   });
 });
+
+describe('<MessageContent> markdown lists', () => {
+  it('numbers an ordered list instead of painting it with bullets', () => {
+    const html = renderToStaticMarkup(
+      <MessageContent isUser={false} content={'1. Auditar\n2. Corregir'} />,
+    );
+    expect(html).toMatch(/<ol class="[^"]*list-decimal/);
+    expect(html).not.toContain('•');
+    expect(html).not.toMatch(/<li class="[^"]*\bflex\b/);
+  });
+
+  it('gives an unordered list a real disc marker', () => {
+    const html = renderToStaticMarkup(
+      <MessageContent isUser={false} content={'- uno\n- dos'} />,
+    );
+    expect(html).toMatch(/<ul class="[^"]*list-disc/);
+    expect(html).not.toContain('•');
+  });
+});

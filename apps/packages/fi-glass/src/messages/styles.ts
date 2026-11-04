@@ -1,3 +1,5 @@
+import { ACCENT_BG_SOFT, ACCENT_TEXT, ACCENT_TEXT_LIGHT_HOVER } from '../theme/accentClasses';
+
 /**
  * fi-glass · message style configuration
  * Copied verbatim from aurity ui/message/styles/message-styles.ts on 2026-06-01
@@ -18,11 +20,11 @@ export const messageStyles = {
     padding: 'px-4',
   },
 
-  // Message row. CONV-MOBILE-RECLAIM-1: on phones (max-md) the row tightens to
+  // Message row. CONV-MOBILE-RECLAIM-1: on phones (the canonical ≤768 query) the row tightens to
   // ~10px/14px padding so content dominates the viewport; desktop keeps the
   // original 12px/16px.
   message: {
-    base: 'group relative py-3 px-4 -mx-4 max-md:py-2.5 max-md:px-3.5 max-md:-mx-3.5 transition-colors duration-150',
+    base: 'group relative py-3 px-4 -mx-4 [@media(max-width:768px)]:py-2.5 [@media(max-width:768px)]:px-3.5 [@media(max-width:768px)]:-mx-3.5 transition-colors duration-150',
     user: 'bg-transparent hover:bg-white/[0.02]',
     assistant: 'bg-white/[0.02] hover:bg-white/[0.04]',
     borderRadius: 'rounded-lg',
@@ -47,10 +49,10 @@ export const messageStyles = {
   // and drop the 2rem avatar indent — the header row already attributes the
   // message, so on a 390px screen the body reclaims the full text column.
   content: {
-    base: 'text-[14px] leading-relaxed max-md:text-[16px] max-md:leading-[1.5]',
+    base: 'text-[14px] leading-relaxed [@media(max-width:768px)]:text-[16px] [@media(max-width:768px)]:leading-[1.5]',
     user: 'text-slate-200',
     assistant: 'text-slate-100',
-    indent: 'pl-8 max-md:pl-0', // Align with avatar (desktop only)
+    indent: 'pl-8 [@media(max-width:768px)]:pl-0', // Align with avatar (desktop only)
   },
 
   // Actions toolbar
@@ -69,7 +71,7 @@ export const messageStyles = {
       // to a ~26px target with a brighter idle tint, still secondary to the text.
       base: 'p-1.5 rounded transition-colors duration-150',
       idle: 'hover:bg-slate-700 text-slate-300 hover:text-white',
-      active: 'bg-emerald-500/20 text-emerald-400',
+      active: `${ACCENT_BG_SOFT} ${ACCENT_TEXT}`,
       speaking: 'bg-amber-500/20 text-amber-400',
     },
     icon: 'w-3.5 h-3.5',
@@ -97,16 +99,13 @@ export const markdownStyles = {
   em: 'italic text-slate-300',
   code: 'px-1 py-0.5 bg-slate-800/80 rounded text-amber-300/90 font-mono text-[13px]',
   pre: 'my-3 p-3 bg-slate-900/80 rounded-lg border border-slate-700/30 overflow-x-auto text-[13px]',
-  ul: 'my-2 ml-0.5 space-y-1.5',
-  ol: 'my-2 ml-0.5 space-y-1.5 list-decimal list-inside',
-  li: 'flex gap-1.5 text-slate-200',
-  bullet: 'text-slate-500 select-none text-[10px] mt-1',
+  ul: 'my-2 pl-5 space-y-1.5 list-disc marker:text-slate-500',
+  ol: 'my-2 pl-5 space-y-1.5 list-decimal marker:text-slate-400',
+  li: 'pl-0.5 text-slate-200',
   h1: 'text-lg font-semibold text-white mt-4 mb-2',
   h2: 'text-base font-semibold text-white mt-3 mb-1.5',
   h3: 'text-sm font-semibold text-slate-100 mt-2 mb-1',
   blockquote: 'my-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-slate-700/40 border-l-2 border-l-amber-500/60 text-slate-200 text-[13.5px]',
-  // B3-FIGLASS-VISUAL-1: links were amber-400, one shade off the amber-300 of
-  // inline `code` — you couldn't tell a clickable link from literal code.
-  // Emerald is the chat accent and reads unmistakably as "interactive".
-  link: 'text-emerald-400 hover:text-emerald-300 underline underline-offset-2 transition-colors',
+  // The consumer's accent, not amber: amber-400 sat one shade off inline `code`.
+  link: `${ACCENT_TEXT} ${ACCENT_TEXT_LIGHT_HOVER} underline underline-offset-2 transition-colors`,
 } as const;

@@ -1,0 +1,334 @@
+{
+  "$comment": "El contrato de COMPORTAMIENTO de la máquina del turno. Escrito a mano: ni core ni og118-ios lo generan; los dos lo obedecen. Cada vector es una secuencia de frames del cable (agent-events.schema.json) y la proyección del estado al que ambos consumidores deben llegar. core lo corre en src/agent/turn-vectors.test.ts; og118-ios en Tests/ChatModelHarness.swift.",
+  "version": 1,
+  "vectors": [
+    {
+      "name": "un plan declara sus pasos pendientes",
+      "events": [
+        { "type": "open", "request_id": "r1" },
+        { "type": "plan", "data": { "steps": ["Buscar", "Resumir"] } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "Buscar", "status": "pending", "summary": null, "error": null, "note": null },
+            { "label": "Resumir", "status": "pending", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "step_started barre los pasos anteriores que SSE perdió",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a", "b", "c"] } },
+        { "type": "step_started", "data": { "step_index": 2 } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "a", "status": "done", "summary": null, "error": null, "note": null },
+            { "label": "b", "status": "done", "summary": null, "error": null, "note": null },
+            { "label": "c", "status": "running", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "result cierra los pasos que quedaron abiertos",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a", "b"] } },
+        { "type": "step_started", "data": { "step_index": 0 } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "done", "summary": "listo" } },
+        { "type": "step_started", "data": { "step_index": 1 } },
+        { "type": "text", "text": "hola" },
+        { "type": "result", "result": { "text": "hola", "model": "m" } },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "hola", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "a", "status": "done", "summary": "listo", "error": null, "note": null },
+            { "label": "b", "status": "done", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "step_done failed lleva el error, no un resumen",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "step_started", "data": { "step_index": 0 } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "failed", "error": "boom" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "a", "status": "failed", "summary": null, "error": "boom", "note": null }],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "step_done cancelled lleva su razón como error",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "cancelled", "error": "user aborted" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "a", "status": "cancelled", "summary": null, "error": "user aborted", "note": null }],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "step_noted anota sin tocar el estado",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "step_noted", "data": { "step_index": 0, "note": "revisando" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "a", "status": "pending", "summary": null, "error": null, "note": "revisando" }],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "un rechazo del guard sin plan previo deja un plan vacío con el rechazo",
+      "events": [
+        { "type": "plan_rejected", "data": { "reason": "destruye datos", "matched": [], "guard": "no-destructivo" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": { "steps": [], "rejection": { "reason": "destruye datos", "matched": [], "guard": "no-destructivo" }, "amended": null, "outcome": null }
+      }
+    },
+    {
+      "name": "un rechazo del guard conserva los pasos: el stream sigue y hay que verlo",
+      "events": [
+        { "type": "plan", "data": { "steps": ["Borrar la base", "Avisar"] } },
+        { "type": "plan_rejected", "data": { "reason": "Un paso destruye datos", "matched": [{ "index": 0, "label": "Borrar la base" }], "guard": "no-destructivo" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "Borrar la base", "status": "pending", "summary": null, "error": null, "note": null },
+            { "label": "Avisar", "status": "pending", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": { "reason": "Un paso destruye datos", "matched": ["Borrar la base"], "guard": "no-destructivo" },
+          "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "un plan nuevo limpia el rechazo anterior",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "plan_rejected", "data": { "reason": "r", "matched": [], "guard": null } },
+        { "type": "plan", "data": { "steps": ["b"] } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "b", "status": "pending", "summary": null, "error": null, "note": null }],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "replan: la insignia vive entre el anuncio y el plan nuevo",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "plan_amended", "data": { "action": "replan" } },
+        { "type": "plan", "data": { "steps": ["b", "c"] } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "b", "status": "pending", "summary": null, "error": null, "note": null },
+            { "label": "c", "status": "pending", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": null
+        }
+      }
+    },
+    {
+      "name": "insert deja la insignia puesta",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "plan_amended", "data": { "action": "insert" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "a", "status": "pending", "summary": null, "error": null, "note": null }],
+          "rejection": null, "amended": "insert", "outcome": null
+        }
+      }
+    },
+    {
+      "name": "una enmienda sin plan que enmendar no significa nada",
+      "events": [
+        { "type": "plan_amended", "data": { "action": "insert" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": { "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null, "plan": null }
+    },
+    {
+      "name": "plan_cancelled deja los abiertos en cancelled, nunca en done",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a", "b", "c"] } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "done" } },
+        { "type": "step_started", "data": { "step_index": 1 } },
+        { "type": "plan_cancelled", "data": { "reason": "user" } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "a", "status": "done", "summary": null, "error": null, "note": null },
+            { "label": "b", "status": "cancelled", "summary": null, "error": null, "note": null },
+            { "label": "c", "status": "cancelled", "summary": null, "error": null, "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": "cancelled"
+        }
+      }
+    },
+    {
+      "name": "plan_completed estampa el desenlace",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a"] } },
+        { "type": "step_started", "data": { "step_index": 0 } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "done", "summary": "hecho" } },
+        { "type": "plan_completed", "data": { "completed_count": 1, "failed_count": 0, "cancelled_count": 0 } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [{ "label": "a", "status": "done", "summary": "hecho", "error": null, "note": null }],
+          "rejection": null, "amended": null, "outcome": "completed"
+        }
+      }
+    },
+    {
+      "name": "plan_failed estampa el desenlace y deja los pasos como quedaron",
+      "events": [
+        { "type": "plan", "data": { "steps": ["a", "b"] } },
+        { "type": "step_done", "data": { "step_index": 0, "status": "done" } },
+        { "type": "step_done", "data": { "step_index": 1, "status": "failed", "error": "x" } },
+        { "type": "plan_failed", "data": { "completed_count": 1, "failed_count": 1, "cancelled_count": 0 } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": {
+        "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": null,
+        "plan": {
+          "steps": [
+            { "label": "a", "status": "done", "summary": null, "error": null, "note": null },
+            { "label": "b", "status": "failed", "summary": null, "error": "x", "note": null }
+          ],
+          "rejection": null, "amended": null, "outcome": "failed"
+        }
+      }
+    },
+    {
+      "name": "text concatena deltas y result reemplaza",
+      "events": [
+        { "type": "text", "text": "ho" },
+        { "type": "text", "text": "la" },
+        { "type": "result", "result": { "text": "hola!" } },
+        { "type": "done" }
+      ],
+      "expect": { "text": "hola!", "status": "done", "deferred": false, "reactions": [], "author": null, "plan": null }
+    },
+    {
+      "name": "un result vacío no borra lo acumulado",
+      "events": [
+        { "type": "text", "text": "x" },
+        { "type": "result", "result": { "text": "" } },
+        { "type": "done" }
+      ],
+      "expect": { "text": "x", "status": "done", "deferred": false, "reactions": [], "author": null, "plan": null }
+    },
+    {
+      "name": "element nombra al autor del turno",
+      "events": [
+        { "type": "element", "element": { "id": "53", "label": "53 · I · Yodo", "name": "Yodo", "symbol": "I", "engine": null } },
+        { "type": "text", "text": "ok" },
+        { "type": "done" }
+      ],
+      "expect": { "text": "ok", "status": "done", "deferred": false, "reactions": [], "author": { "id": "53", "name": "Yodo" }, "plan": null }
+    },
+    {
+      "name": "una reacción sin texto es una respuesta",
+      "events": [
+        { "type": "result", "result": { "text": "", "reactions": ["🔥", "👀"] } },
+        { "type": "done" }
+      ],
+      "expect": { "text": "", "status": "done", "deferred": false, "reactions": ["🔥", "👀"], "author": null, "plan": null }
+    },
+    {
+      "name": "deferred: el turno cierra sin respuesta y sin error",
+      "events": [
+        { "type": "deferred" },
+        { "type": "done" }
+      ],
+      "expect": { "text": "", "status": "done", "deferred": true, "reactions": [], "author": null, "plan": null }
+    },
+    {
+      "name": "error pone el turno en error y conserva lo dicho",
+      "events": [
+        { "type": "text", "text": "a" },
+        { "type": "error", "message": "boom" },
+        { "type": "done" }
+      ],
+      "expect": { "text": "a", "status": "error", "deferred": false, "reactions": [], "author": null, "plan": null }
+    },
+    {
+      "name": "ping no cambia nada en pantalla",
+      "events": [
+        { "type": "ping" },
+        { "type": "text", "text": "a" },
+        { "type": "ping" },
+        { "type": "done" }
+      ],
+      "expect": { "text": "a", "status": "done", "deferred": false, "reactions": [], "author": null, "plan": null }
+    }
+  ]
+}

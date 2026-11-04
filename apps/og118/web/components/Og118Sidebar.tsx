@@ -42,6 +42,7 @@ import {
   ItemActionSlot,
   FI_SECTION_TITLE_CLASS,
 } from 'fi-glass/agent';
+import { ConversationArchiveDialog, type CloudSyncStatus } from 'fi-glass/conversation';
 
 const TITLE_MAX = 60;
 const ACTION_ICON_SIZE = 14;
@@ -58,14 +59,31 @@ export interface Og118SidebarProps {
   onPin: (id: string, pinned: boolean) => void;
   /** Archive (`true`) / unarchive (`false`) a conversation. */
   onArchive: (id: string, archived: boolean) => void;
+  /** Archive many at once; resolves with the ids that failed. Omit to hide the bulk action. */
+  onArchiveMany?: (ids: string[]) => Promise<string[]>;
   /** Disable switching/new/delete while a turn streams (avoids cross-thread folds). */
   disabled?: boolean;
-  /** True when the server store is authoritative (signed in) — the storage note
-   * and delete-confirm copy must tell the truth about where the data lives. */
-  cloud?: boolean;
+  /** Where writes land right now — the storage note and delete-confirm copy must
+   * tell the truth about it, including while the account's server is still waking. */
+  sync?: { status: CloudSyncStatus; slow: boolean; onRetry: () => void };
   /** Account controls (e.g. the sign-out button) rendered in the sidebar footer,
    * next to the storage note — the layout home that replaced the floating pill. */
   accountSlot?: React.ReactNode;
+}
+
+export function syncNote(status: CloudSyncStatus, slow: boolean): string {
+  switch (status) {
+    case 'cloud':
+      return 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.';
+    case 'connecting':
+      return slow
+        ? 'Despertando el servidor — puede tardar hasta 30 s.'
+        : 'Conectando con tu cuenta…';
+    case 'unreachable':
+      return 'Sin conexión con tu cuenta. Lo nuevo se guarda en este navegador y se sube al reconectar.';
+    default:
+      return 'Guardado localmente en este navegador.';
+  }
 }
 
 export function shortTime(iso: string): string {
@@ -82,6 +100,25 @@ export function shortTime(iso: string): string {
   });
 }
 
+export function releaseLabel(sha: string | undefined, iso: string | undefined): string {
+  const version = sha ? sha.slice(0, 7) : 'dev';
+  const date = iso ? new Date(iso) : null;
+  if (!date || Number.isNaN(date.getTime())) return version;
+  const when = date.toLocaleString('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  return `${version} · ${when}`;
+}
+
+const RELEASE_LABEL = releaseLabel(
+  process.env.NEXT_PUBLIC_OG118_RELEASE_SHA,
+  process.env.NEXT_PUBLIC_OG118_RELEASED_AT,
+);
+
 export function Og118Sidebar({
   conversations,
   activeId,
@@ -91,15 +128,19 @@ export function Og118Sidebar({
   onRename,
   onPin,
   onArchive,
+  onArchiveMany,
   disabled = false,
-  cloud = false,
+  sync = { status: 'local', slow: false, onRetry: () => {} },
   accountSlot,
 }: Og118SidebarProps) {
   // B3-FIGLASS-MOBILE-2 — the "Nuevo chat" affordance inherits the framework 44×44
   // touch minimum; the rows inherit it from EditableResourceItem's action slots.
   useTouchTargetStyle();
+  const cloud = sync.status === 'cloud';
   const [showArchived, setShowArchived] = useState(false);
   const [query, setQuery] = useState('');
+  const [archivingMany, setArchivingMany] = useState(false);
+  const archivable = conversations.filter((c) => !c.archivedAt);
 
   const searching = query.trim() !== '';
   const { pinned, active, archived } = organizeConversationSummaries(
@@ -190,19 +231,37 @@ export function Og118Sidebar({
         ariaLabel="Conversaciones"
         count={pinned.length + active.length}
         title={
-          <span className={FI_SECTION_TITLE_CLASS}>
-            og118<span style={{ color: 'var(--og-accent, #34d399)' }}>.ai</span>
+          <span className="og-sidebar-brand">
+            <span className={FI_SECTION_TITLE_CLASS}>
+              og118<span style={{ color: 'var(--og-accent, #34d399)' }}>.ai</span>
+            </span>
+            <span className="og-sidebar-release" title={`Versión y fecha de la última actualización: ${process.env.NEXT_PUBLIC_OG118_RELEASED_AT ?? 'local'}`}>
+              {RELEASE_LABEL}
+            </span>
           </span>
         }
         actionSlot={
-          <button
-            className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-new`}
-            onClick={onNew}
-            disabled={disabled}
-            aria-label="Nuevo chat"
-          >
-            + Nuevo chat
-          </button>
+          <span className="og-sidebar-head-actions">
+            {onArchiveMany && archivable.length > 0 && (
+              <button
+                className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-archive-many`}
+                onClick={() => setArchivingMany(true)}
+                disabled={disabled}
+                aria-label="Archivar chats"
+                title="Archivar chats"
+              >
+                <Archive size={16} />
+              </button>
+            )}
+            <button
+              className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-new`}
+              onClick={onNew}
+              disabled={disabled}
+              aria-label="Nuevo chat"
+            >
+              + Nuevo chat
+            </button>
+          </span>
         }
       >
         {conversations.length > 0 && (
@@ -218,6 +277,9 @@ export function Og118Sidebar({
         <nav className="og-sidebar-list">
           {noResults && (
             <p className="og-sidebar-noresults">Sin resultados para «{query.trim()}».</p>
+          )}
+          {sync.status === 'connecting' && conversations.length === 0 && (
+            <p className="og-sidebar-noresults og-sidebar-sync-connecting">Cargando tus chats…</p>
           )}
           {pinned.length > 0 && (
             <>
@@ -262,13 +324,34 @@ export function Og118Sidebar({
       )}
 
       <div className="og-sidebar-foot">
-        <p className="og-sidebar-privacy">
-          {cloud
-            ? 'Sincronizado en tu cuenta — disponible en todos tus dispositivos.'
-            : 'Guardado localmente en este navegador.'}
+        <p
+          className={`og-sidebar-privacy og-sidebar-sync-${sync.status}`}
+          role="status"
+          aria-live="polite"
+          data-ref="og118-sync-status"
+        >
+          {syncNote(sync.status, sync.slow)}
         </p>
+        {sync.status === 'unreachable' && (
+          <button
+            type="button"
+            className={`${FI_TOUCH_TARGET_CLASS} og-sidebar-sync-retry`}
+            onClick={sync.onRetry}
+          >
+            Reintentar conexión
+          </button>
+        )}
         {accountSlot}
       </div>
+      {onArchiveMany && (
+        <ConversationArchiveDialog
+          open={archivingMany}
+          conversations={archivable}
+          onArchive={onArchiveMany}
+          onClose={() => setArchivingMany(false)}
+          renderMeta={(c) => shortTime(c.updatedAt)}
+        />
+      )}
     </aside>
   );
 }

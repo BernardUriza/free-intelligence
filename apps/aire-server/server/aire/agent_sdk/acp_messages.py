@@ -53,6 +53,7 @@ class ResultMessage:
     session_id: str
     usage: dict[str, Any] | None = None
     total_cost_usd: float | None = None
+    error: str | None = None
 
 
 def translate(update: Any, agent: str) -> list[Any]:
