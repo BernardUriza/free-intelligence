@@ -52,6 +52,8 @@ const conversation = {
   },
   isStreaming: false,
   turnError: null,
+    turnNotice: null,
+    dismissNotice: () => {},
   send: () => {},
   retry: () => {},
   dismissError: () => {},

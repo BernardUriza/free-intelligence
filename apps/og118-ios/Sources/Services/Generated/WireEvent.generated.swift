@@ -190,6 +190,7 @@ struct TurnResultPayload: Decodable {
     let model: String?
     let guardOutcomes: JSONValor?
     let toolCalls: [ToolCallPayload]?
+    let reactions: [String]?
 
     enum CodingKeys: String, CodingKey {
         case text
@@ -198,11 +199,13 @@ struct TurnResultPayload: Decodable {
         case model
         case guardOutcomes = "guard_outcomes"
         case toolCalls = "tool_calls"
+        case reactions
     }
 }
 
 /// Un frame del stream, tal como el contrato lo declara.
 enum WireEvent: Decodable {
+    case deferred
     case done
     case element(element: ElementPayload)
     case error(message: String)
@@ -239,6 +242,7 @@ enum WireEvent: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let tipo = try c.decode(String.self, forKey: .type)
         switch tipo {
+        case "deferred": self = .deferred
         case "done": self = .done
         case "element":
             self = .element(element: try c.decode(ElementPayload.self, forKey: .element))

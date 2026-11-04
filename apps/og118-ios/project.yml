@@ -16,12 +16,16 @@ targets:
     sources:
       - Sources
       - Resources/Assets.xcassets
+      - path: Resources/Sounds
+        buildPhase: resources
     configFiles:
       Debug: Config.xcconfig
       Release: Config.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bernard.og118
+        DEVELOPMENT_TEAM: 7L36T9PTFN
+        CODE_SIGN_STYLE: Automatic
         PRODUCT_NAME: og118
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -36,6 +40,7 @@ targets:
       properties:
         OG118Auth0ClientID: $(OG118_AUTH0_CLIENT_ID)
         NSMicrophoneUsageDescription: og118 usa el micrófono para dictarle tus mensajes.
+        NSCameraUsageDescription: og118 usa la cámara para que le mandes una foto en el chat.
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:

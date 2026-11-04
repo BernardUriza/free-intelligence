@@ -41,6 +41,7 @@ export interface TranscriptMessagesProps {
   agentPanelProps?: Partial<Omit<AgentPanelProps, 'turn'>>;
   showCopyAction: boolean;
   renderHeader?: (message: ChatMessage) => ReactNode;
+  messageLocale?: string;
   renderBadge?: (message: ChatMessage) => ReactNode;
   renderActions?: (message: ChatMessage) => ReactNode;
   resolveBubbleClass: (message: ChatMessage) => string | undefined;
@@ -61,6 +62,7 @@ export function TranscriptMessages({
   agentPanelProps,
   showCopyAction,
   renderHeader,
+  messageLocale,
   renderBadge,
   renderActions,
   resolveBubbleClass,
@@ -90,7 +92,7 @@ export function TranscriptMessages({
               header={
                 renderHeader
                   ? renderHeader(m)
-                  : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR)
+                  : defaultMessageHeader(m, agentAuthor, userAuthor ?? DEFAULT_USER_AUTHOR, messageLocale)
               }
               // Model provenance, off the persisted trace — the framework shows
               // it without the consumer wiring a badge (og118's own chip read a

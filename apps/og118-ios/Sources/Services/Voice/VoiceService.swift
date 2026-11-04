@@ -19,6 +19,7 @@ enum VoiceError: LocalizedError {
     case upstream(Int)
     case sinPermiso
     case sinGrabacion
+    case audioSinRespuesta
 
     var errorDescription: String? {
         switch self {
@@ -34,17 +35,21 @@ enum VoiceError: LocalizedError {
             return "Falta permiso de micrófono. Actívalo en Ajustes."
         case .sinGrabacion:
             return "No se grabó nada."
+        case .audioSinRespuesta:
+            return "El audio del teléfono no respondió. Cierra otras apps que usen el micrófono y vuelve a intentar."
         }
     }
 }
 
 private struct TTSRequest: Encodable {
     let text: String
+    let voice: String
     let responseFormat: String
     let speed: Double
 
     enum CodingKeys: String, CodingKey {
         case text
+        case voice
         case speed
         case responseFormat = "response_format"
     }
@@ -55,6 +60,10 @@ private struct TranscriptResponse: Decodable {
 }
 
 struct VoiceService {
+    /// `OG118_DEFAULT_VOICE` de la web: sin pedirla, el servidor usa su propio
+    /// default (`OG118_TTS_VOICE`) y el teléfono sonaría distinto a la web.
+    static let vozPorDefecto = "nova"
+
     var accessToken: () async throws -> String
 
     /// Devuelve el audio y su Content-Type, que el reproductor necesita para
@@ -67,7 +76,7 @@ struct VoiceService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         try await authorize(&request)
         request.httpBody = try JSONEncoder().encode(
-            TTSRequest(text: recortado, responseFormat: "mp3", speed: speed)
+            TTSRequest(text: recortado, voice: Self.vozPorDefecto, responseFormat: "mp3", speed: speed)
         )
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -78,6 +87,14 @@ struct VoiceService {
         }
         let tipo = http.value(forHTTPHeaderField: "Content-Type") ?? "audio/mpeg"
         return (data, tipo)
+    }
+
+    /// El API se apaga a los 5 min sin tráfico y tarda 20–30 s en volver: se le
+    /// pega a `/health` mientras el usuario habla, para que el audio no espere.
+    func despertar() async {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent("health"))
+        request.timeoutInterval = 45
+        _ = try? await URLSession.shared.data(for: request)
     }
 
     func transcribe(audio: Data, mime: String = VoiceLimits.recordingMime) async throws -> String {

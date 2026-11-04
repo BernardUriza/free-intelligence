@@ -1,0 +1,53 @@
+schema = 2
+profile = "personal"
+pack = []
+override = []
+
+[core]
+id = "agent-constitution"
+repo = "https://github.com/BernardUriza/agent-constitution.git"
+rev = "56faba96d3f8e6aea4453fd7b833ef58ade7cbd8"
+tree = "sha256:8fd5867bc4173f25b9d35f3569028549cd906fd733abb824cad529ecde477536"
+
+[repo]
+id = "free-intelligence"
+surfaces = ["CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/**", ".claude/overrides/**"]
+imports = []
+surfaces_tree = "sha256:fae43f6a6a56c42da8daa861b1cba7bd809fd92ee0fcb580faf76bb1fdb7c68d"
+
+[hooks]
+entries = [
+  { id = "always-on-invariants", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "checklist-first", from = "core", event = "PreToolUse", matcher = "" },
+  { id = "checklist-first-post", from = "core", event = "PostToolUse", matcher = "TaskCreate|TaskUpdate|TodoWrite" },
+  { id = "checklist-first-prompt", from = "core", event = "UserPromptSubmit", matcher = "" },
+  { id = "currency-field-formatter", from = "core", event = "PreToolUse", matcher = "mcp__chrome-devtools__fill|mcp__chrome-devtools__fill_form" },
+  { id = "instruments-smoke", from = "core", event = "SessionStart", matcher = "" },
+  { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
+  { id = "new-rule-requires-owner-search-post", from = "core", event = "PostToolUse", matcher = "Bash" },
+]
+tree = "sha256:8fb5df5896b84204d4768490d4fd5cc013afa101cd0affa75e943a62d096d5ad"
+
+[resolution]
+gates = ["core", "bernard"]
+policy = ["repo", "bernard", "core"]
+methodology = []
+
+[toolchain]
+id = "agent-constitution"
+rev = "205443b0f6b95a5338f9095c449416f729eca4c3"
+tree = "sha256:2e93bc0e242ac7246fc5d0a2d25b7307a1a0de6a15c5e200706d33aba1a7ca98"
+
+[materialize]
+rules = true
+
+[lock]
+canonical_sha256 = "4b61c494cf8a204c0d0ae13c29330db859ee80f30c0d0ccf61251eb36eb1f6a5"
+
+[[overlay]]
+id = "bernard"
+layer = "personal"
+scope = "machine-only"
+repo = "https://github.com/BernardUriza/constitution-bernard.git"
+rev = "a668cea6113e626368e7c53128b837ff077ebc9e"
+tree = "sha256:3a3779724a3d6cf3a6afc6e8cfd965a0bfae69b29be3af57f511e16b17b385c3"

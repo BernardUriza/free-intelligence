@@ -13,6 +13,7 @@ import asyncio
 import pytest
 
 from aire.engine.contract import TurnSpec
+from aire.engine.credentials import Slot
 from aire.engine.core import Engine
 
 HAIKU = TurnSpec(mode="complete", model="claude-haiku-4-5-20251001")
@@ -118,7 +119,7 @@ async def test_the_real_turn_path_rebinds_before_it_takes_a_client(engine, monke
     monkeypatch.setattr(engine, "_client_for", spy_client_for)
     monkeypatch.setattr(turn_mod, "send_turn", _noop)
     monkeypatch.setattr(turn_mod, "drain", _empty_stream)
-    slot = type("Slot", (), {"name": "oauth-primary", "env": {}})()
+    slot = Slot("claude/oauth/primary", "claude", "oauth")
 
     async for _ in turn_mod._attempt(engine, "p", "s", "hola", HAIKU, (), slot):
         pass
@@ -138,7 +139,7 @@ async def _empty_stream(*_a, **_k):
 async def test_dropping_forgets_every_piece_of_the_client_state(engine):
     """One way out of the pool, so a retire and a rebind cannot forget half."""
     await _client(engine, HAIKU)
-    engine.slot_of["p/s"] = "oauth-primary"
+    engine.slot_of["p/s"] = "claude/oauth/primary"
     engine.ledger.account("p/s", 0.42)
     await engine._retire("p", "s")
     assert "p/s" not in engine.spec_of

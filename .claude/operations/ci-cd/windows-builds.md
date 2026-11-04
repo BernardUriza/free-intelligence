@@ -2,6 +2,14 @@
 
 **Last Updated:** 2026-01-21 (Errors #1-17 documented)
 
+> **Historical record (2026-11-03):** this journey was the `aurity-desktop` Windows build,
+> which bundled the legacy Python `backend/` as a PyInstaller sidecar. Both were deleted on
+> 2026-11-03, so the `apps/aurity-desktop/...` and `backend/...` paths below no longer exist.
+> The live Windows build is `build-fi-monitor` in `build-desktop.yml` (its sidecar is
+> `apps/fi-monitor/pyinstaller/fi-backend.spec`; artifact paths come from
+> `apps/fi-monitor/scripts/get-artifact-path.cjs`). The signing, NSIS and PowerShell lessons
+> still apply to it.
+
 ## Context
 
 Windows builds fallaban consistentemente. Proceso de debugging iterativo reveló **17 errores encadenados** a través de 3 días. Cada build fallaba "un paso más adelante" hasta completar.
@@ -554,14 +562,14 @@ Cada build falla "un paso más adelante". No puedes ver errores posteriores hast
       import unix_module  # Fallback
   ```
 - **Best practice:** Test on ALL target platforms BEFORE CI/CD
-- **Quick check:** `grep -r "import fcntl\|import pwd\|import grp" backend/` → flag for review
+- **Quick check:** `grep -r "import fcntl\|import pwd\|import grp" apps/fi-monitor/` → flag for review
 - **Related errors:** Error #8 (wc/tr), Error #17 (fcntl) - same root cause
 
 ## Debugging Commands
 
 ```bash
 # Trigger Windows build
-gh workflow run build-desktop.yml -f platform=windows --ref dev
+gh workflow run build-desktop.yml -f platform=windows --ref main
 
 # Monitor build progress
 gh run watch

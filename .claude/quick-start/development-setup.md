@@ -1,154 +1,85 @@
 # Development Setup
 
-**Last Updated:** 2026-01-31
+**Last Updated:** 2026-11-03
 **Status:** Active
 
 ---
 
 ## Prerequisites
 
-### Required
-- **Python 3.14+** (JIT compiler, t-strings, lazy annotations)
-- **Node 20+** (Next.js, pnpm)
-- **pnpm 9+** (monorepo package manager)
-
-### Optional (for full stack)
-- **Ollama** (local LLM for cloud-dev mode)
-- **cloudflared** (tunnel for production parity)
+- **Node 20+** and **pnpm 10** (monorepo package manager)
+- **Python 3.12+** for the og118 server (its Dockerfile runs 3.12)
+- `lsof` (used by `make dev-kill`)
 
 ---
 
-## Quick Setup (5 minutes)
+## Quick Setup
 
 ```bash
-# 1. Clone repository
+# 1. Clone
 git clone https://github.com/BernardUriza/free-intelligence.git
 cd free-intelligence
 
-# 2. Install dependencies
-pnpm install
+# 2. JS dependencies (the lockfile is the source of truth)
+pnpm install --frozen-lockfile
 
-# 3. Setup Python environment
-cd backend
-python3.14 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# venv\Scripts\activate   # Windows
-pip install -r requirements-prod.txt
+# 3. og118 server environment (full steps: apps/og118/server/README.md)
+cd apps/og118/server
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt pytest-asyncio
+pip install -e "../../packages/fi-runner[claude]"
+pip install -e "../../packages/fi-core[stores-hdf5]"
+cd -
 
-# 4. Verify setup
-pnpm version:check        # Version consistency
-make test                 # Backend tests
+# 4. Credentials (gitignored, never committed)
+#    apps/og118/server/.env.local  -> ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN
+#    apps/og118/web/.env.local     -> auth0 mode + NEXT_PUBLIC_OG118_API=http://localhost:8118
+
+# 5. Verify
+pnpm version:check
+make test
 ```
 
 ---
 
-## Development Modes
+## Run
 
-### Local-Only Mode (Fastest - ~30s startup)
 ```bash
-make dev-all-local
+make dev          # server :8118 + web :3000
+make dev-kill     # stop both
 ```
 
-**Use when:**
-- Iterating on UI changes
-- Working on backend logic unrelated to tunnels
-- Need fastest feedback loop
-
-**Architecture:**
-```
-Backend (localhost:7001) → Ollama (localhost:11434) → Frontend (localhost:9000)
-```
-
-### Cloud-Dev Mode (Production Parity - ~60s startup)
-```bash
-make dev-all
-```
-
-**Use when:**
-- Testing tunnel-related features
-- Validating production parity
-- Working on fi-monitor integration
-
-**Architecture:**
-```
-fi-monitor → cloudflared tunnel → Backend (TunnelURLProvider) → Frontend
-```
+Log in through Auth0 on http://localhost:3000; it's a registered callback. Don't
+switch the web to `bearer` mode to skip the login when you're judging how the app
+looks: see `.claude/rules/local-dev-auth-mode-parity.md`.
 
 ---
 
 ## Verification
 
-After starting dev mode, verify:
-
 ```bash
-# 1. Backend health
-curl http://localhost:7001/health
-# Expected: {"status": "healthy"}
-
-# 2. Frontend
-open http://localhost:9000
-# Expected: Auth0 login page
-
-# 3. Ollama (cloud-dev only)
-curl http://localhost:7001/api/internal/ollama/health
-# Expected: 200 OK (or 503 if Ollama not running - acceptable)
+curl -s http://localhost:8118/health      # {"ok":true}
+node scripts/check-console-errors.mjs http://localhost:3000/
 ```
 
 ---
 
 ## Troubleshooting
 
-### Python version mismatch
-**Error:** `SyntaxError: invalid syntax` (t-strings not supported)
-**Fix:**
-```bash
-python --version  # Should show 3.14.x
-pyenv install 3.14.0
-pyenv local 3.14.0
-```
-
-### pnpm not found
-**Fix:**
-```bash
-npm install -g pnpm@latest
-pnpm --version  # Should show 9.x
-```
-
 ### Port already in use
-**Error:** `EADDRINUSE: address already in use :::7001`
-**Fix:**
 ```bash
-make dev-kill      # Kill all dev processes
-make dev-restart   # Start fresh
+make dev-kill
 ```
 
-### Tunnel timeout (cloud-dev)
-**Error:** `⚠️ Tunnel timeout (45s), falling back to localhost`
-**Fix:**
-```bash
-# Install cloudflared
-brew install cloudflared  # macOS
-# or download from https://github.com/cloudflare/cloudflared/releases
+### `missing apps/og118/server/.venv`
+Run step 3 above.
 
-# Start Ollama
-ollama serve
-
-# Restart dev
-make dev-restart
-```
+### `ERROR: set ANTHROPIC_API_KEY ... or CLAUDE_CODE_OAUTH_TOKEN`
+`run.sh` found neither in `apps/og118/server/.env.local`.
 
 ---
 
 ## Next Steps
 
-1. **Read workflow docs:** [.claude/development/workflow.md](../development/workflow.md)
-2. **Setup version hook:** `pnpm version:install-hook` (optional)
-3. **Try mentor mode:** [.claude/guides/mentor.md](../guides/mentor.md)
-4. **Make your first change:** Work in `dev` branch, verify, commit, PR
-
----
-
-**See also:**
-- [Development Workflow](../development/workflow.md)
-- [Version Management](../development/version-management.md)
-- [Python 3.14 Features](../development/python-314.md)
+- [development/workflow.md](../development/workflow.md): git flow and local og118
+- [development/version-management.md](../development/version-management.md): FI Monitor versions

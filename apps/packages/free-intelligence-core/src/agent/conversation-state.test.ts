@@ -164,7 +164,7 @@ describe('the fold', () => {
     ).toBe(s);
   });
 
-  it('an empty-text settle closes the turn without folding a blank message', () => {
+  it('an empty-text settle is a failure: the turn reverts and the draft comes back', () => {
     let s = send(initialConversationState(), 'hola');
     s = applyConversationEvent(s, {
       type: 'turn_settled',
@@ -172,7 +172,32 @@ describe('the fold', () => {
       author: AGENT,
       controlled: false,
     });
+    expect(s.messages).toHaveLength(0);
+    expect(s.pending).toBe(false);
+    expect(s.failure?.kind).toBe('empty');
+    expect(s.unsent.text).toBe('hola');
+    expect(s.lastSent?.text).toBe('hola');
+  });
+
+  it('a user stop that settles empty keeps the message and raises nothing', () => {
+    let s = send(initialConversationState(), 'hola');
+    s = applyConversationEvent(s, {
+      type: 'turn_settled', turn: settledTurn(''), author: AGENT, controlled: false, stopped: true,
+    });
     expect(s.messages).toHaveLength(1);
+    expect(s.failure).toBeNull();
+    expect(s.pending).toBe(false);
+  });
+
+  it('a controlled shell gets no revert and no failure for an empty settle', () => {
+    let s = applyConversationEvent(initialConversationState(), { type: 'send', text: 'hola', author: USER, controlled: true });
+    s = applyConversationEvent(s, {
+      type: 'turn_settled',
+      turn: settledTurn(''),
+      author: AGENT,
+      controlled: true,
+    });
+    expect(s.failure).toBeNull();
     expect(s.pending).toBe(false);
   });
 });
@@ -224,9 +249,72 @@ describe('a reaction-only turn is an answer (server-bot F5)', () => {
     expect(s.skipPersist).toBe(false);
   });
 
-  it('a turn with neither text nor reactions still folds nothing', () => {
+  it('a turn with neither text nor reactions folds nothing and fails as empty', () => {
     let s = send(initialConversationState(), 'hola');
     s = applyConversationEvent(s, { type: 'turn_settled', turn: settledTurn(''), author: AGENT, controlled: false });
-    expect(s.messages).toHaveLength(1);
+    expect(s.messages).toHaveLength(0);
+    expect(s.failure?.kind).toBe('empty');
+  });
+});
+
+describe('a deferred turn — the engine kept working past the live wait', () => {
+  const YODO: MessageAuthor = { id: 'yodo', name: 'Yodo', symbol: 'I' };
+  const deferredTurn = (author: MessageAuthor | null): AgentTurnState => ({
+    ...initialAgentTurnState(),
+    author,
+    deferred: true,
+    status: 'done',
+  });
+  const settle = (s: ConversationState, author: MessageAuthor | null) =>
+    applyConversationEvent(s, { type: 'turn_settled', turn: deferredTurn(author), author: AGENT, controlled: false });
+
+  it('folds no bubble, keeps the user message on screen and raises a notice naming the speaker', () => {
+    const s = settle(send(initialConversationState(), 'un mensaje largo'), YODO);
+    expect(s.messages.map((m) => m.role)).toEqual(['user']);
+    expect(s.pending).toBe(false);
+    expect(s.failure).toBeNull();
+    expect(s.notice).toEqual({
+      kind: 'deferred',
+      message: 'Yodo sigue escribiendo. Su respuesta aparecerá aquí en cuanto termine.',
+    });
+    expect(s.skipPersist).toBe(true);
+  });
+
+  it('names the default author when the backend announced none', () => {
+    const s = settle(send(initialConversationState(), 'hola'), null);
+    expect(s.notice?.message.startsWith('og118 sigue escribiendo')).toBe(true);
+  });
+
+  it('the notice clears on reload, on the next send, and on dismiss', () => {
+    const s = settle(send(initialConversationState(), 'hola'), YODO);
+    expect(applyConversationEvent(s, { type: 'hydrate', messages: [] }).notice).toBeNull();
+    expect(send(s, 'otra cosa').notice).toBeNull();
+    expect(applyConversationEvent(s, { type: 'dismiss_notice' }).notice).toBeNull();
+  });
+
+  it('an empty turn that was NOT deferred raises no notice — it fails instead', () => {
+    const empty: AgentTurnState = { ...initialAgentTurnState(), status: 'done' };
+    const s = applyConversationEvent(send(initialConversationState(), 'hola'), {
+      type: 'turn_settled', turn: empty, author: AGENT, controlled: false,
+    });
+    expect(s.notice).toBeNull();
+    expect(s.failure?.kind).toBe('empty');
+  });
+});
+
+describe('merge_seed', () => {
+  const server = (content: string, timestamp: string) => ({ id: content, role: 'assistant' as const, content, timestamp });
+
+  it('unions the server thread into a pending turn without settling it', () => {
+    const sent = send(initialConversationState(), 'hola');
+    const next = applyConversationEvent(sent, { type: 'merge_seed', messages: [server('bg', '2020-01-01T00:00:00.000Z')] });
+    expect(next.pending).toBe(true);
+    expect(next.skipPersist).toBe(true);
+    expect(next.messages.map((m) => m.content)).toEqual(['bg', 'hola']);
+  });
+
+  it('returns the same state when the seed adds nothing', () => {
+    const sent = send(initialConversationState(), 'hola');
+    expect(applyConversationEvent(sent, { type: 'merge_seed', messages: [...sent.messages] })).toBe(sent);
   });
 });

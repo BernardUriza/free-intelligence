@@ -23,7 +23,7 @@ def test_rotor_orders_the_chain_and_skips_empty_slots():
     rotor = Rotor({"CLAUDE_CODE_OAUTH_TOKEN": "tok-a",
                    "CLAUDE_CODE_OAUTH_TOKEN_BACKUP": "",
                    "ANTHROPIC_API_KEY_FALLBACK": "key-c"})
-    assert [s.name for s in rotor.slots] == ["oauth-primary", "api-key-fallback"]
+    assert [s.name for s in rotor.slots] == ["claude/oauth/primary", "claude/apikey/fallback"]
     assert rotor.slots[0].env == {"CLAUDE_CODE_OAUTH_TOKEN": "tok-a", "ANTHROPIC_API_KEY": ""}
     assert rotor.slots[1].env == {"ANTHROPIC_API_KEY": "key-c", "CLAUDE_CODE_OAUTH_TOKEN": ""}
 
@@ -32,17 +32,51 @@ def test_rotor_with_no_slots_is_one_ambient_slot_injecting_nothing():
     rotor = Rotor({})
     assert [s.name for s in rotor.slots] == ["ambient"]
     assert rotor.active().env == {}
+    assert rotor.active().metered, "an unknown credential counts as real money"
+    assert rotor.active("codex") is None, "Codex has no ambient: a plan seat is armed or absent"
+    assert rotor.providers() == ("claude",)
+
+
+def test_the_chain_is_provider_times_access_mode():
+    """#53: two closed axes, one table. A Codex box arms its plan seat with
+    CODEX_HOME and a metered CODEX_API_KEY behind it; each provider rotates
+    within its own chain and a burned Claude slot never touches Codex's."""
+    rotor = Rotor({**FULL_ENV, "CODEX_HOME": "/home/plan", "CODEX_API_KEY_FALLBACK": "sk-o"})
+    assert rotor.providers() == ("claude", "codex")
+    codex = [s for s in rotor.slots if s.provider == "codex"]
+    assert [(s.name, s.access_mode, s.metered, s.env) for s in codex] == [
+        ("codex/oauth/primary", "oauth", False, {"CODEX_HOME": "/home/plan"}),
+        ("codex/apikey/fallback", "apikey", True, {"CODEX_API_KEY": "sk-o"})]
+    assert rotor.active("codex").name == "codex/oauth/primary"
+    rotor.burn("codex/oauth/primary", "Usage limit reached. You've reached your usage limit.")
+    assert rotor.active("codex").name == "codex/apikey/fallback"
+    assert rotor.active("claude").name == "claude/oauth/primary"
+    assert rotor.all_dry("codex") is False and rotor.all_dry() is False
+    rotor.burn("codex/apikey/fallback")
+    assert rotor.all_dry("codex") is True and rotor.all_dry() is True, "any dry chain is dry"
+    assert rotor.all_dry("claude") is False
+
+
+def test_codex_turn_failed_wording_burns_its_slot():
+    """A Codex limit arrives as `turn.failed` (usage None), not as lying text.
+    The 401 was measured live 2026-10-27 (bogus key); the usage-limit lines are
+    codex-cli 0.164.0's own strings — a real exhausted plan is still unmeasured."""
+    assert limit_hit("unexpected status 401 Unauthorized: Incorrect API key provided: sk-bogus*0000."
+                     " auth error code: invalid_api_key", None)
+    assert limit_hit("Usage limit reached. You've reached your usage limit.", None)
+    assert limit_hit("You're out of credits. Your workspace is out of credits.", None)
+    assert not limit_hit("Usage limit reached — said the poem", {"output_tokens": 5})
 
 
 def test_burn_rotates_and_all_dry_returns_none():
     rotor = Rotor(FULL_ENV)
-    assert rotor.active().name == "oauth-primary"
-    rotor.burn("oauth-primary")
-    assert rotor.active().name == "oauth-backup"
-    rotor.burn("oauth-backup")
-    rotor.burn("api-key-fallback")
+    assert rotor.active().name == "claude/oauth/primary"
+    rotor.burn("claude/oauth/primary")
+    assert rotor.active().name == "claude/oauth/backup"
+    rotor.burn("claude/oauth/backup")
+    rotor.burn("claude/apikey/fallback")
     assert rotor.active() is None
-    assert rotor.cooling_names() == ["api-key-fallback", "oauth-backup", "oauth-primary"]
+    assert rotor.cooling_names() == ["claude/apikey/fallback", "claude/oauth/backup", "claude/oauth/primary"]
     assert 0 < rotor.retry_after_s() <= credentials.COOLDOWN_S
 
 
@@ -51,7 +85,7 @@ def test_all_dry_tracks_the_live_rotor_not_the_config(monkeypatch):
     monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     rotor = Rotor(FULL_ENV)
     assert rotor.all_dry() is False, "a fresh chain has a live slot"
-    for name in ("oauth-primary", "oauth-backup", "api-key-fallback"):
+    for name in ("claude/oauth/primary", "claude/oauth/backup", "claude/apikey/fallback"):
         rotor.burn(name)
     assert rotor.all_dry() is True, "every armed slot burned — the engine serves nothing"
     clock[0] += credentials.COOLDOWN_S + 1
@@ -63,10 +97,10 @@ def test_cooldown_expiry_requalifies_the_slot(monkeypatch):
     clock = [1000.0]
     monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     rotor = Rotor({"CLAUDE_CODE_OAUTH_TOKEN": "tok-a"})
-    rotor.burn("oauth-primary")
+    rotor.burn("claude/oauth/primary")
     assert rotor.active() is None
     clock[0] += credentials.COOLDOWN_S + 1
-    assert rotor.active().name == "oauth-primary"
+    assert rotor.active().name == "claude/oauth/primary"
     assert rotor.cooling_names() == []
 
 
@@ -80,6 +114,15 @@ def test_limit_hit_needs_both_the_phrase_and_zero_usage():
     assert not limit_hit("Here is your poem about limits", ZERO_USAGE)
     assert not limit_hit("", ZERO_USAGE)
     assert not limit_hit(None, ZERO_USAGE)
+
+
+def test_an_org_that_disabled_oauth_burns_the_slot():
+    """Live 2026-10-10 13:26Z (canary, then og118 on the iPhone): vegdevida's org turned
+    OAuth off; the API answers 403 permission_error and the CLI prints this as the reply."""
+    cli_text = ("Your organization has disabled Claude subscription access for Claude Code"
+                " · Use an Anthropic API key instead, or ask your admin to enable access")
+    assert limit_hit(cli_text, ZERO_USAGE)
+    assert limit_hit('{"type":"error","error":{"type":"permission_error"}}', ZERO_USAGE)
 
 
 def test_a_dead_card_burns_the_metered_slot_too():
@@ -104,6 +147,15 @@ def test_a_revoked_token_burns_its_slot():
                          {**ZERO_USAGE, "output_tokens": 14})
 
 
+def test_an_org_monthly_spend_limit_burns_its_slot():
+    # The live text of 2026-10-08 18:02Z (the deploy canary, mode=complete): the
+    # primary's org hit its monthly spend limit, the rotor did not know the phrase,
+    # and every turn came back as that sentence at $0 instead of rotating.
+    assert limit_hit("You've hit your org's monthly spend limit", ZERO_USAGE)
+    assert not limit_hit("What happens if I hit my org's monthly spend limit?",
+                         {**ZERO_USAGE, "output_tokens": 21})
+
+
 NOW = datetime(2026, 9, 8, 17, 53, tzinfo=timezone.utc)
 
 
@@ -126,19 +178,19 @@ def test_burn_cools_until_the_reset_not_the_flat_hour(monkeypatch):
     monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     monkeypatch.setattr(credentials, "reset_delay_s", lambda text, now=None: 7200.0)
     rotor = Rotor({"CLAUDE_CODE_OAUTH_TOKEN": "tok-a"})
-    rotor.burn("oauth-primary", "You've hit your session limit · resets 11:20pm (UTC)")
+    rotor.burn("claude/oauth/primary", "You've hit your session limit · resets 11:20pm (UTC)")
     assert rotor.retry_after_s() == 7200
     clock[0] += credentials.COOLDOWN_S + 1
     assert rotor.active() is None, "the flat hour must not re-probe a slot still burned"
     clock[0] += 7200
-    assert rotor.active().name == "oauth-primary"
+    assert rotor.active().name == "claude/oauth/primary"
 
 
 def test_burn_without_a_notice_keeps_the_default_cooldown(monkeypatch):
     clock = [1000.0]
     monkeypatch.setattr(credentials, "time", SimpleNamespace(monotonic=lambda: clock[0]))
     rotor = Rotor({"ANTHROPIC_API_KEY_FALLBACK": "key-c"})
-    rotor.burn("api-key-fallback", "Credit balance is too low")
+    rotor.burn("claude/apikey/fallback", "Credit balance is too low")
     assert rotor.retry_after_s() == round(credentials.COOLDOWN_S)
 
 
@@ -148,7 +200,7 @@ def _engine_with(rotor: Rotor, results: list[TurnResult]) -> tuple[Engine, dict]
     seen = {"drains": 0, "retired": 0, "slots_used": []}
 
     async def fake_client_for(project, session, spec, slot=None):
-        engine.slot_of[f"{project}/{session}"] = slot.name
+        engine.slot_of[f"{project}/{session}"] = slot
         seen["slots_used"].append(slot.name)
         return SimpleNamespace(query=_noop), asyncio.Lock()
 
@@ -186,8 +238,8 @@ def test_limit_hit_rotates_retries_once_and_yields_only_the_real_result():
     assert events[0]["result"].text == "OK"
     assert seen["drains"] == 2
     assert seen["retired"] == 1
-    assert seen["slots_used"] == ["oauth-primary", "oauth-backup"]
-    assert engine.rotor.cooling_names() == ["oauth-primary"]
+    assert seen["slots_used"] == ["claude/oauth/primary", "claude/oauth/backup"]
+    assert engine.rotor.cooling_names() == ["claude/oauth/primary"]
 
 
 def test_all_slots_dry_emits_a_real_error_one_attempt_per_slot():
@@ -199,7 +251,7 @@ def test_all_slots_dry_emits_a_real_error_one_attempt_per_slot():
         seen["restore"]()
     assert seen["drains"] == 3
     assert [e.get("error") for e in events] == ["credentials_exhausted"]
-    assert events[0]["cooling"] == ["api-key-fallback", "oauth-backup", "oauth-primary"]
+    assert events[0]["cooling"] == ["claude/apikey/fallback", "claude/oauth/backup", "claude/oauth/primary"]
     assert "next probe in" in events[0]["detail"]
 
 

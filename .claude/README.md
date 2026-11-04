@@ -10,16 +10,16 @@
 ## 🚀 Quick Start
 
 ```bash
-# Development
-make dev-all              # Cloud-dev (~60s startup, production parity)
-make dev-all-local        # Local-only (~30s startup, faster iterations)
-make dev-kill             # Kill all dev processes
-make test                 # pytest
+# Development (og118: server :8118 + web :3000)
+make dev                  # both; or make dev-server / make dev-web
+make dev-kill             # stop whatever listens on :8118 / :3000
+make test                 # og118 server pytest + og118-web vitest
 
-# Production Deploy
-git push origin dev       # → PR to main → CI/CD auto-deploy
+# Production Deploy (commit on local main, remote-only PR ref)
+git push origin HEAD:refs/heads/bernarduriza/<slug>
+gh pr create --base main --head bernarduriza/<slug>   # merge → CI/CD auto-deploy
 
-# Desktop Builds
+# FI Monitor (Windows) build
 gh workflow run build-desktop.yml -f platform=windows
 ```
 
@@ -34,11 +34,11 @@ gh workflow run build-desktop.yml -f platform=windows
 ├── README.md (you are here)     # Navigation hub
 ├── quick-start/                 # Getting started guides
 ├── development/                 # Workflows, version mgmt, Python 3.14
-├── architecture/                # Backend refactor, multi-tenancy, desktop
-├── operations/ci-cd/            # Windows builds, optimizations, testing
+├── operations/ci-cd/            # Windows builds, optimizations
 ├── security/                    # Credentials, SSH policy
 ├── integrations/                # Browser MCPs
 ├── guides/                      # Mentor mode, insult mode
+├── backlog/                     # Proposed / in-progress items
 └── history/                     # Archived learnings (2025)
 ```
 
@@ -49,17 +49,16 @@ gh workflow run build-desktop.yml -f platform=windows
 ### 1. Bernard's Workflow
 **Simplicity, focus, no tangents, fast results.**
 
-- Work in `dev` branch ALWAYS
+- Commit on local `main`; a PR rides a remote-only `bernarduriza/<slug>` ref
 - Minimal changes only
 - Verify → Commit → Push → PR → DONE
 - **Never** go on tangents or offer unsolicited "improvements"
 
 **See:** [development/workflow.md](development/workflow.md)
 
-### 2. Git Flow (2-Branch Model)
-- **dev** → Active development (multi-feature, multi-agent)
-- **main** → Production (protected, requires PR + CI)
-- **Critical:** Sync dev with main after EVERY merge
+### 2. Git Flow
+- **main** is the only branch at rest (protected: PR + CI + AI Gatekeeper)
+- PRs ride a remote-only `bernarduriza/<slug>` ref, deleted on merge (`dev` retired 2026-07-06)
 
 **See:** [development/workflow.md#git-workflow](development/workflow.md)
 
@@ -81,44 +80,18 @@ gh workflow run build-desktop.yml -f platform=windows
 
 ## 🏗️ Architecture
 
-### Production Environment
-- **Live:** https://app.aurity.io/
-- **Backend:** https://app.aurity.io/api/
-- **Topology:** Nginx (SSL) → Next.js (static) + FastAPI (7001)
-
-### Backend Structure (Clean Architecture)
-```
-backend/
-├── infrastructure/     # Auth, workers, observability (Phase 2.2 ✅)
-├── services/          # Business logic (Phase 1 ✅ - 8 services extracted)
-├── api/               # HTTP layer (routers)
-├── repositories/      # Data access (interfaces defined ✅)
-└── core/              # Legacy (71 files, DI refactor pending)
-```
-
-**Status:** Phase 2.2 Complete (Infrastructure extracted)
-**Next:** Phase 2.3 (DI Refactor) - 5 hours estimated
-
-**See:** [architecture/backend-refactor.md](architecture/backend-refactor.md)
+- **Live app:** og118 — https://app.og118.ai (web on the `og118-web-staging` SWA, server `og118-api` on Azure Container Apps)
+- **Framework:** `apps/packages/fi-glass` (chat UI), `fi-runner` (agent runtime), `fi-core` / `free-intelligence-core`
+- **aurity:** the SSOT of fi-glass's shape; read it, do not run it (see `.claude/CLAUDE.md`)
 
 ---
 
 ## 🛠️ Development
 
-### Cloud-Dev Mode
-Replicates production architecture locally with cloudflared tunnel.
-
-**When to use:**
-- Testing tunnel-related features
-- Validating production parity
-- Working on fi-monitor integration
-
-**When to use local mode:**
-- Quick UI iterations
-- Backend logic unrelated to tunnels
-- Faster feedback loop (~30s vs ~60s)
-
-**See:** [development/workflow.md#cloud-dev-mode](development/workflow.md)
+### Local og118
+`make dev` runs `apps/og118/server/run.sh` (auth mode from its `.env.local`) and
+`pnpm --filter og118-web dev` (auth0 mode, see `.claude/rules/local-dev-auth-mode-parity.md`).
+Server `.venv` setup: `apps/og118/server/README.md`.
 
 ### Version Management
 ```bash
@@ -211,20 +184,6 @@ Prompt for aggressive personality engineering (code reviews).
 
 ## 📜 History & ADRs
 
-### Backend Refactor Journey
-- **Phase 1:** Service extraction (77% reduction, 7→3 levels)
-- **Phase 2.1:** Interface definitions (8 interfaces, Clean Architecture)
-- **Phase 2.2:** Infrastructure extraction (75 files moved)
-- **Phase 2.3:** DI refactor (pending - Service Locator elimination)
-
-**See:** [architecture/backend-refactor.md](architecture/backend-refactor.md)
-
-### Multi-Tenancy
-- **Phase 1:** Auth0 clinic_id extraction (complete ✅)
-- **Phase 2:** Repository filtering (documented, pending - 19 files)
-
-**See:** [architecture/multi-tenancy-phase2.md](architecture/multi-tenancy-phase2.md)
-
 ### Archived Learnings (2025)
 - Next.js static export quirks
 - asyncio timeout with httpx
@@ -237,16 +196,9 @@ Prompt for aggressive personality engineering (code reviews).
 
 ## ⚡ Executive Kernel
 
-**Architecture Principles:**
-- **Single Entry:** PUBLIC → INTERNAL → WORKER (no exceptions)
-- **Append-only:** Clinical data in HDF5 (sha256 integrity)
-- **Zero trust:** Between layers, RBAC Auth0 for ADMIN
-- **Observability:** By default (SLOs explicit, kill-switch ready)
-
 **Deployment:**
 - **Main branch:** Production (protected, CI/CD only)
-- **Dev branch:** Active development (multi-agent chaos)
-- **PRs:** AI Gatekeeper (GPT-5) required approval
+- **PRs:** AI Gatekeeper required approval
 
 **Security:**
 - ZERO TOLERANCE for hardcoded secrets
@@ -257,10 +209,9 @@ Prompt for aggressive personality engineering (code reviews).
 
 ## 🔗 Quick Links
 
-- **Production:** https://app.aurity.io
-- **Backend API:** https://app.aurity.io/api/
+- **Production:** https://app.og118.ai
 - **CI/CD Workflows:** `.github/workflows/`
-- **Desktop Apps:** Windows (NSIS), macOS (DMG), Linux (AppImage)
+- **FI Monitor:** Windows (NSIS) via `build-desktop.yml`
 
 ---
 
