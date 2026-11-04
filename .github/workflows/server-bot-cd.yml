@@ -358,11 +358,12 @@ jobs:
             fi
             # The deploy step is continue-on-error and the YAML path drops what the
             # CLI's model does not know without a word: red here if the probes did
-            # not land on the live template.
+            # not land on the live template. ACA stores probes sorted by type, so
+            # both sides compare sorted (2026-11-03: Readiness,Startup came back).
             PROBE_PATHS=$(az containerapp show -n persona-runner -g "$RG" \
-              --query "join(',', properties.template.containers[0].probes[].join(':', [type, httpGet.path]))" -o tsv \
+              --query "join(',', sort_by(properties.template.containers[0].probes, &type)[].join(':', [type, httpGet.path]))" -o tsv \
               2>/dev/null || true)
-            if [ "$PROBE_PATHS" != "Startup:/health,Readiness:/ready" ]; then
+            if [ "$PROBE_PATHS" != "Readiness:/ready,Startup:/health" ]; then
               echo "FAIL persona-runner: declared probes missing from the live template (got '$PROBE_PATHS')"
               exit 1
             fi
