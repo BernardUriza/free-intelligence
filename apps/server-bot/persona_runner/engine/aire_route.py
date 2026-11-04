@@ -869,7 +869,6 @@ async def judge_via_aire(req: JudgeRequest) -> JudgeResponse:
     return JudgeResponse(
         text=result.text,
         model=result.model or model,
-        stop_reason="end_turn",
         input_tokens=int(usage.get("input_tokens", 0) or 0),
         output_tokens=int(usage.get("output_tokens", 0) or 0),
     )

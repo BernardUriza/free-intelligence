@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 from fastapi import FastAPI, HTTPException
+from pydantic import ValidationError
 
 from persona_runner.api import judge as judge_api
 from persona_runner.api import ops as ops_api
@@ -72,6 +73,12 @@ async def test_a_judge_without_a_model_is_still_admitted(monkeypatch):
     monkeypatch.setattr(aire_route, "judge_via_aire", called)
     async with _client() as http:
         assert (await http.post("/v1/judge", json=BODY)).status_code == 200
+
+
+def test_the_judge_refuses_a_max_tokens_nothing_honours():
+    """AIRE's door has no such knob: asked for 5 on 2026-11-04, it answered 423 tokens."""
+    with pytest.raises(ValidationError):
+        JudgeRequest(system_prompt="s", user_text="u", max_tokens=5)
 
 
 @pytest.mark.asyncio

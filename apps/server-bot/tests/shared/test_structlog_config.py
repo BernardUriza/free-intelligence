@@ -54,3 +54,16 @@ def test_processors_extra_run_before_renderer(monkeypatch, capsys):
     configure_structlog(processors_extra=[stamp])
     line = _capture_line(capsys)
     assert json.loads(line)["stamped"] is True
+
+
+def test_json_mode_keeps_the_traceback(monkeypatch, capsys):
+    """2026-11-04: every `log.exception` in prod read `exc_info: true`, so the runner's
+    dead embeddings logged an error for three weeks without ever saying why."""
+    monkeypatch.setenv("LOG_FORMAT", "json")
+    configure_structlog()
+    try:
+        raise RuntimeError("la causa real")
+    except RuntimeError:
+        structlog.get_logger().exception("probe_failed")
+    parsed = json.loads(capsys.readouterr().out.strip())
+    assert "la causa real" in parsed["exception"]

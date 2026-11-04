@@ -313,3 +313,108 @@ async def test_a_failed_job_is_recorded_as_failed_with_its_error():
         await a.wait(ticket, wait_s=1.0)  # type: ignore[arg-type]
     await _settle()
     assert ledger.rows["j1"]["status"] == "failed" and "AIRE dijo que no" in ledger.rows["j1"]["error"]
+
+
+async def _fail_then_retry(registry: TicketRegistry, ran: list[str], *, rerun_failed: bool = True) -> object:
+    async def bad(payload: dict) -> dict:
+        ran.append("fallo")
+        await asyncio.sleep(0)
+        raise RuntimeError("AIRE dijo que no")
+
+    async def good(payload: dict) -> dict:
+        ran.append("bien")
+        return {"answer": payload["ask"]}
+
+    first = await registry.open_durable(
+        {"ask": "roto"}, bad, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=rerun_failed
+    )
+    with pytest.raises(RuntimeError):
+        await registry.wait(first, wait_s=1.0)
+    await _settle()
+    return await registry.open_durable(
+        {"ask": "sano"}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=rerun_failed
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_failed_ticket_runs_again_when_its_id_is_resubmitted():
+    """2026-11-04: the same send after a failure replayed that failure forever, and og118
+    keeps the same id because a failed turn never joins the history it derives it from."""
+    ledger = FakeLedger()
+    registry = _registry(ledger)
+    ran: list[str] = []
+    ticket = await _fail_then_retry(registry, ran)
+    done, result = await registry.wait(ticket, wait_s=1.0)
+    await _settle()
+    assert done and result == {"answer": "sano"} and ran == ["fallo", "bien"]
+    assert ledger.rows["j1"]["status"] == "done" and ledger.rows["j1"]["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_failed_row_runs_again_from_another_replica():
+    ledger = FakeLedger()
+    ran: list[str] = []
+
+    async def bad(payload: dict) -> dict:
+        ran.append("fallo")
+        await asyncio.sleep(0)
+        raise RuntimeError("AIRE dijo que no")
+
+    first = await _registry(ledger).open_durable({"ask": "x"}, bad, ticket_id="j1", label="c1", deadline_s=600)
+    with pytest.raises(RuntimeError):
+        await first.task
+    await _settle()
+    other = _registry(ledger)
+
+    async def good(payload: dict) -> dict:
+        ran.append("bien")
+        return {"answer": "ok"}
+
+    ticket = await other.open_durable({"ask": "x"}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=True)
+    assert await ticket.task == {"answer": "ok"} and ran == ["fallo", "bien"]
+
+
+@pytest.mark.asyncio
+async def test_a_finished_ticket_never_runs_again():
+    """RESISTANCE: the client's retry of a send that worked is still one turn."""
+    ledger = FakeLedger()
+    registry = _registry(ledger)
+    ran: list[str] = []
+
+    async def good(payload: dict) -> dict:
+        ran.append("bien")
+        return {"answer": "ok"}
+
+    first = await registry.open_durable({}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=True)
+    await first.task
+    await _settle()
+    again = await registry.open_durable({}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=True)
+    assert again is first and ran == ["bien"]
+
+
+@pytest.mark.asyncio
+async def test_without_the_flag_a_failed_ticket_stays_failed():
+    """RESISTANCE: the gateway never resends what it may have half delivered."""
+    ran: list[str] = []
+    ticket = await _fail_then_retry(_registry(FakeLedger()), ran, rerun_failed=False)
+    assert ran == ["fallo"] and ticket.done
+
+
+@pytest.mark.asyncio
+async def test_a_collected_ticket_is_served_from_its_row_never_run_again():
+    """RESISTANCE: once polled, RAM forgets the ticket; the row owned by this same
+    process still answers instead of starting the turn over."""
+    ledger = FakeLedger()
+    registry = _registry(ledger)
+    ran: list[str] = []
+
+    async def good(payload: dict) -> dict:
+        ran.append("bien")
+        return {"answer": "ok"}
+
+    first = await registry.open_durable({}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=True)
+    await first.task
+    await _settle()
+    registry.drop("j1")
+    again = await registry.open_durable({}, good, ticket_id="j1", label="c1", deadline_s=600, rerun_failed=True)
+    assert isinstance(again, LedgerRow) and again.status == "done" and ran == ["bien"]

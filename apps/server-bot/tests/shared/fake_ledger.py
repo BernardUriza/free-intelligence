@@ -59,6 +59,17 @@ class FakeLedger:
             }
         return self._row(ticket_id, claimed_by)
 
+    async def reopen(self, ticket_id, *, label, payload, deadline_s, claimed_by):
+        if self.fail:
+            return None
+        r = self.rows.get(ticket_id)
+        if r is None or r["status"] not in ("failed", "abandoned"):
+            return None
+        r.update(
+            status="running", attempts=1, payload=payload, result=None, error=None, stale=False, claimed_by=claimed_by
+        )
+        return self._row(ticket_id, claimed_by)
+
     async def get(self, ticket_id):
         if self.fail or ticket_id not in self.rows:
             return None

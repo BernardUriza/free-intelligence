@@ -144,7 +144,6 @@ class InProcessJudge:
         messages: list[dict[str, Any]],
         *,
         model: str | None = None,
-        max_tokens: int = 4096,
     ) -> JudgeResponse:
         user_text, attachments = flatten_utility_messages(messages)
         if not user_text.strip():
@@ -152,7 +151,6 @@ class InProcessJudge:
         req = JudgeRequest(
             system_prompt=system_prompt,
             user_text=user_text,
-            max_tokens=max_tokens,
             model=model or None,
             attachments=attachments or None,
             persona_id=self.persona_id,

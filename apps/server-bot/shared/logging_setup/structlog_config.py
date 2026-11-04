@@ -37,7 +37,9 @@ def configure_structlog(processors_extra: list[Processor] | None = None) -> None
         structlog.processors.TimeStamper(fmt="iso"),
     ]
 
-    processors: list[Processor] = base_processors + list(processors_extra or []) + [renderer]
+    # JSONRenderer writes `exc_info: true` and drops the traceback; the console renderer formats its own.
+    tracebacks: list[Processor] = [structlog.processors.format_exc_info] if log_format == "json" else []
+    processors: list[Processor] = base_processors + list(processors_extra or []) + tracebacks + [renderer]
 
     structlog.configure(
         processors=processors,

@@ -84,7 +84,7 @@ def _fit_lines(lines: list[str], budget: int, *, keep_tail: bool = False) -> lis
 class UtilityClient(Protocol):
     """The minimal surface `extract_facts` needs. `RunnerJudgeClient` satisfies
     it — the function is agnostic to the concrete client, it only requires a
-    `utility_call` returning an object with `.text` + `.stop_reason`."""
+    `utility_call` returning an object with `.text`."""
 
     async def utility_call(
         self,
@@ -92,7 +92,6 @@ class UtilityClient(Protocol):
         messages: list[dict[str, Any]],
         *,
         model: str | None = ...,
-        max_tokens: int = ...,
     ) -> Any: ...
 
 
@@ -140,12 +139,8 @@ async def extract_facts(
             load_prompt(PROMPTS_DIR, "facts_extraction", _CACHE),
             [{"role": "user", "content": user_prompt}],
             model=model,
-            max_tokens=4096,
         )
         raw = response.text.strip()
-        if response.stop_reason == "max_tokens":
-            log.warning("facts_extraction_truncated", user_name=user_name)
-            return existing_facts
 
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()

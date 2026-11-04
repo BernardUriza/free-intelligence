@@ -75,6 +75,15 @@ UPDATE turn_jobs
 RETURNING job_id, label, status, attempts, claimed_by, request, response, error, aire_sent_at, false AS stale
 """
 
+_REOPEN_SQL = """
+UPDATE turn_jobs
+   SET status = 'running', attempts = 1, label = $2, claimed_by = $3, request = $4::jsonb, response = NULL, error = NULL,
+       aire_sent_at = NULL, finished_at = NULL, claimed_at = now(), heartbeat_at = now(),
+       deadline_at = now() + ($5::double precision * interval '1 second')
+ WHERE job_id = $1 AND status IN ('failed', 'abandoned')
+RETURNING job_id, label, status, attempts, claimed_by, request, response, error, aire_sent_at, false AS stale
+"""
+
 _HEARTBEAT_SQL = """
 UPDATE turn_jobs SET heartbeat_at = now()
  WHERE job_id = ANY($1::text[]) AND claimed_by = $2 AND status = 'running'
@@ -205,6 +214,17 @@ class PgTurnLedger:
             return row_from_record(record, me=claimed_by) if record else None
 
         return await self._run("open", _op)
+
+    async def reopen(
+        self, ticket_id: str, *, label: str, payload: dict[str, Any], deadline_s: float, claimed_by: str
+    ) -> LedgerRow | None:
+        async def _op(conn):
+            record = await conn.fetchrow(
+                _REOPEN_SQL, ticket_id, label, claimed_by, json.dumps(payload), float(deadline_s)
+            )
+            return row_from_record(record, me=claimed_by) if record else None
+
+        return await self._run("reopen", _op)
 
     async def get(self, ticket_id: str) -> LedgerRow | None:
         async def _op(conn):
