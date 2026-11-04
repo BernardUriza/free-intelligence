@@ -84,8 +84,9 @@ def _runner(
         async def aclose(self) -> None:
             seen["closed"] = True
 
-        async def post(self, url, json, headers):
+        async def post(self, url, json, headers, timeout=None):
             seen["post_url"] = url
+            seen["post_timeout"] = timeout
             if sent is not None:
                 sent.update(json)
             if raise_exc is not None:
@@ -464,6 +465,28 @@ def test_live_wait_covers_the_engine_ceiling_plus_its_cold_start_and_no_request_
     assert external_engine.POLL_WAIT_S <= 50.0, "persona_core.tickets.MAX_WAIT_S"
     assert external_engine._TIMEOUT.read < ACA_INGRESS_REQUEST_TIMEOUT_S
     assert external_engine._EVENTS_TIMEOUT.read < ACA_INGRESS_REQUEST_TIMEOUT_S
+
+
+@pytest.mark.asyncio
+async def test_the_ticket_waits_out_a_cold_start_instead_of_calling_it_unreachable(monkeypatch) -> None:
+    """Measured 2026-11-04: 38 cold starts, p90 51 s, max 61 s, and the ingress holds the
+    POST for all of it. A shorter read reports a dead engine and leaves the POST queued."""
+    _configure(monkeypatch)
+    seen: dict = {}
+    _install(monkeypatch, _runner(seen=seen))
+    await _collect(_turn())
+    assert seen["post_timeout"].read >= 169.0, "the 2026-09-23 cold start, robustness.md"
+    assert seen["post_timeout"].read < ACA_INGRESS_REQUEST_TIMEOUT_S
+
+
+@pytest.mark.asyncio
+async def test_a_ticket_that_never_opened_leaves_a_log_line(monkeypatch, caplog) -> None:
+    """The user saw the error; the logs saw nothing, so its zero in KQL proved no health."""
+    _configure(monkeypatch)
+    _install(monkeypatch, _runner(raise_exc=httpx.ReadTimeout("slow")))
+    evs = await _collect(_turn())
+    assert evs[0]["type"] == "error"
+    assert any("ReadTimeout" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio
