@@ -8,7 +8,7 @@ an unknown `persona_id` answered with Insult's DNA.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -18,8 +18,8 @@ from persona_runner.api import judge as judge_api
 from persona_runner.api import ops as ops_api
 from persona_runner.api import turn as turn_api
 from persona_runner.core import config
-from persona_runner.core.schemas import JudgeRequest, JudgeResponse
-from persona_runner.engine import aire_route, persona_files, runtime_personas
+from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest
+from persona_runner.engine import aire_route, auth_failure, persona_files, runtime_personas
 from persona_runner.routing import router_runtime
 
 BODY = {"system_prompt": "s", "user_text": "u"}
@@ -108,15 +108,42 @@ def test_the_door_refuses_what_the_fallback_would_have_swallowed(evil):
 
 
 @pytest.mark.asyncio
-async def test_the_clis_own_error_is_a_502_not_a_reply(monkeypatch):
+async def test_the_clis_own_error_on_the_judge_is_a_500_not_a_reply(monkeypatch):
     error = "API Error: 400 Claude Code 2.1.215 does not support this model"
     backend = AsyncMock()
     backend.run_turn.return_value = SimpleNamespace(text=error, model="<synthetic>", usage={})
     monkeypatch.setattr(aire_route, "judge_backend_for", lambda _c: backend)
     with pytest.raises(HTTPException) as exc:
         await aire_route.judge_via_aire(JudgeRequest(**BODY))
-    assert exc.value.status_code == 502
+    assert exc.value.status_code == 500
     assert "does not support" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_the_clis_own_error_on_a_turn_is_a_500_seen_by_health_and_never_marks_the_topic(monkeypatch):
+    """2026-09-28: a revoked token's 401 reached the person as the persona's reply."""
+    auth_failure.clear_failure()
+    error = "Failed to authenticate. API Error: 401 OAuth access token has been revoked."
+    result = SimpleNamespace(text=error, model="<synthetic>", usage={}, session_id="s", tool_calls=())
+
+    async def stream(**_kwargs):
+        yield {"type": "result", "result": result}
+
+    backend = AsyncMock()
+    backend.run_turn_stream = MagicMock(side_effect=stream)
+    marked = AsyncMock()
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(aire_route.aire_topic, "mark_answered", marked)
+    monkeypatch.setattr(router_runtime, "route_model", AsyncMock(return_value=("claude-sonnet-4-6", {})))
+
+    with pytest.raises(HTTPException) as exc:
+        await aire_route.turn_via_aire(TurnRequest(channel_id="555", user_id="42", user_text="hey"))
+
+    assert exc.value.status_code == 500
+    assert "revoked" in auth_failure.last_failure()["detail"]
+    marked.assert_not_awaited()
+    auth_failure.clear_failure()
 
 
 @pytest.mark.asyncio

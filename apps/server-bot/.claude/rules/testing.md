@@ -450,9 +450,9 @@ memory or from your own environment: yours is what runs Claude Code, not what th
 runner's CLI serves.
 
 The runner refuses what it can't honor: an unknown field, a model outside `models`
-or an unknown `persona_id` is a 422, and a CLI error (`model="<synthetic>"`) on the
-judge is a 502. The script exits 1 unless a model answered, because a 200 is not the
-receipt: read `model` and `output_tokens`.
+or an unknown `persona_id` is a 422, and a CLI error (`model="<synthetic>"`) is a 500
+on both the turn and the judge. The script exits 1 unless a model answered, because a
+200 is not the receipt: read `model` and `output_tokens`.
 
 **Why (2026-11-04):** the Frugívoro check sent `model` to `/v1/turn` and got a 200
 on Haiku, then sent `claude-opus-5-5` to `/v1/judge` and got a 200 whose `text` was
