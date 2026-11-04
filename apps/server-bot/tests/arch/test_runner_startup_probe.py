@@ -149,8 +149,8 @@ def test_cd_yml_applies_the_rendered_template_with_the_new_image():
 
 def test_cd_yml_goes_red_if_the_probe_did_not_land():
     text = CD_YML.read_text()
-    assert "probes[].join(':', [type, httpGet.path])" in text
-    assert 'if [ "$PROBE_PATHS" != "Startup:/health,Readiness:/ready" ]; then' in text
+    assert "sort_by(properties.template.containers[0].probes, &type)[].join(':', [type, httpGet.path])" in text
+    assert 'if [ "$PROBE_PATHS" != "Readiness:/ready,Startup:/health" ]; then' in text
 
 
 # --- /ready itself ---------------------------------------------------------
@@ -232,5 +232,7 @@ def test_the_cd_check_expects_exactly_what_the_script_declares():
     """The CD's post-deploy check and the declared probes are one fact: if one
     moves without the other, the check goes red on a correct deploy (or green
     on a wrong one)."""
-    declared = ",".join(f"{p['type']}:{p['httpGet']['path']}" for p in tpl.RUNNER_PROBES)
+    declared = ",".join(
+        f"{p['type']}:{p['httpGet']['path']}" for p in sorted(tpl.RUNNER_PROBES, key=lambda p: p["type"])
+    )
     assert f'"$PROBE_PATHS" != "{declared}"' in CD_YML.read_text()
