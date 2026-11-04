@@ -3,19 +3,18 @@
  * Get Artifact Path - Dynamic version resolution for CI/CD
  *
  * Usage:
- *   node get-artifact-path.js <app> <target-triple> <type>
+ *   node get-artifact-path.cjs <app> <target-triple> <type>
  *
  * Examples:
- *   node get-artifact-path.js aurity aarch64-apple-darwin dmg
- *   node get-artifact-path.js fi-monitor x86_64-pc-windows-msvc nsis
+ *   node get-artifact-path.cjs fi-monitor x86_64-pc-windows-msvc nsis
  *
  * Output (JSON):
  *   {
  *     "version": "1.0.0",
- *     "productName": "Aurity",
- *     "file": "Aurity_1.0.0_aarch64.dmg",
- *     "path": "src-tauri/target/.../bundle/dmg/Aurity_1.0.0_aarch64.dmg",
- *     "sig": "src-tauri/target/.../bundle/dmg/Aurity_1.0.0_aarch64.dmg.sig"
+ *     "productName": "FIMonitor",
+ *     "file": "FIMonitor_1.0.0_x64-setup.exe",
+ *     "path": "src-tauri/target/.../bundle/nsis/FIMonitor_1.0.0_x64-setup.exe",
+ *     "sig": "src-tauri/target/.../bundle/nsis/FIMonitor_1.0.0_x64-setup.exe.sig"
  *   }
  */
 
@@ -25,8 +24,8 @@ const path = require('path');
 const [,, app, triple, type] = process.argv;
 
 if (!app || !triple || !type) {
-  console.error('Usage: node get-artifact-path.js <app> <target-triple> <type>');
-  console.error('Example: node get-artifact-path.js aurity aarch64-apple-darwin dmg');
+  console.error('Usage: node get-artifact-path.cjs <app> <target-triple> <type>');
+  console.error('Example: node get-artifact-path.cjs fi-monitor x86_64-pc-windows-msvc nsis');
   process.exit(1);
 }
 
@@ -55,8 +54,7 @@ const repoRoot = findRepoRoot(__dirname) || process.cwd();
 
 // Mapeo de apps a configuraciones (paths relativos al repo root)
 const configs = {
-  'fi-monitor': path.join(repoRoot, 'apps/fi-monitor/src-tauri/tauri.conf.json'),
-  'aurity': path.join(repoRoot, 'apps/aurity-desktop/src-tauri/tauri.conf.json')
+  'fi-monitor': path.join(repoRoot, 'apps/fi-monitor/src-tauri/tauri.conf.json')
 };
 
 const configPath = configs[app];
