@@ -131,7 +131,6 @@ class JudgeRequest(BaseModel):
 
     system_prompt: str = Field(..., min_length=1, max_length=256000)
     user_text: str = Field(..., min_length=1, max_length=256000)
-    max_tokens: int = Field(default=4096, ge=1, le=64000)
     model: str | None = Field(
         default=None,
         description="One of the ids GET /health lists under `models`. None = `judge_default`.",
@@ -150,7 +149,6 @@ class JudgeRequest(BaseModel):
 class JudgeResponse(BaseModel):
     text: str
     model: str = ""
-    stop_reason: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
 

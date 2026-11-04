@@ -166,9 +166,9 @@ def test_norm_fact_collapses_case_and_whitespace():
 # --------------------------------------------------------------------------
 
 
-def _judge(text: str, stop_reason: str = "end_turn"):
+def _judge(text: str):
     llm = MagicMock()
-    llm.utility_call = AsyncMock(return_value=SimpleNamespace(text=text, stop_reason=stop_reason))
+    llm.utility_call = AsyncMock(return_value=SimpleNamespace(text=text))
     return llm
 
 
@@ -192,9 +192,9 @@ async def test_extract_returns_existing_on_bad_json():
 
 
 async def test_extract_returns_existing_on_truncation():
-    """RESISTANCE: a max_tokens cut-off yields a partial list — discard it."""
+    """RESISTANCE: a cut-off answer is a partial list, invalid JSON — discard it."""
     existing = [{"fact": "ya guardado", "category": "general"}]
-    llm = _judge('[{"fact": "a medias"', stop_reason="max_tokens")
+    llm = _judge('[{"fact": "a medias"')
     assert await extract_facts(llm, None, "Bernard", existing, [{"user_name": "B", "content": "x"}]) == existing
 
 

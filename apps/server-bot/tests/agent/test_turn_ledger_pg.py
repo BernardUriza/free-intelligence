@@ -130,3 +130,28 @@ async def test_without_postgres_every_method_is_none(monkeypatch):
     assert await ledger.release(claimed_by="A") is None
     assert await ledger.reap(result_ttl_s=1) is None
     assert await ledger.stale_ids(stale_s=60, max_attempts=2, limit=1) is None
+
+
+@pytest.mark.asyncio
+async def test_reopen_hands_a_failed_row_to_exactly_one_caller_and_clears_the_old_outcome(ledger):
+    await ledger.open("j1", label="l", payload=PAYLOAD, deadline_s=600, claimed_by="A")
+    await ledger.finish("j1", status="failed", result=None, error="adjunto roto", claimed_by="A")
+    fresh = {**PAYLOAD, "user_text": "otra vez"}
+    winners = await asyncio.gather(
+        ledger.reopen("j1", label="l", payload=fresh, deadline_s=600, claimed_by="B"),
+        ledger.reopen("j1", label="l", payload=fresh, deadline_s=600, claimed_by="C"),
+    )
+    won = [w for w in winners if w is not None]
+    assert len(won) == 1 and won[0].owned and won[0].status == "running" and won[0].attempts == 1
+    row = await ledger.get("j1")
+    assert row.error is None and row.result is None and row.payload == fresh
+
+
+@pytest.mark.asyncio
+async def test_reopen_never_touches_a_row_that_finished_or_is_still_running(ledger):
+    await ledger.open("run", label="l", payload=PAYLOAD, deadline_s=600, claimed_by="A")
+    await ledger.open("ok", label="l", payload=PAYLOAD, deadline_s=600, claimed_by="A")
+    await ledger.finish("ok", status="done", result={"answer": "x"}, error=None, claimed_by="A")
+    assert await ledger.reopen("run", label="l", payload=PAYLOAD, deadline_s=600, claimed_by="B") is None
+    assert await ledger.reopen("ok", label="l", payload=PAYLOAD, deadline_s=600, claimed_by="B") is None
+    assert (await ledger.get("ok")).result == {"answer": "x"}

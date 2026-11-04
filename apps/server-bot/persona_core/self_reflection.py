@@ -91,7 +91,6 @@ async def reflect_self_facts(
     resp = await judge_client.utility_call(
         system_prompt,
         [{"role": "user", "content": material}],
-        max_tokens=1024,
     )
     facts = parse_reflection(resp.text, max_facts)
     log.info(

@@ -55,6 +55,7 @@ RESULT_ROW_TTL_S = 3600.0
 ROW_POLL_S = 2.0
 
 TERMINAL = frozenset({"done", "failed", "abandoned"})
+RERUNNABLE = frozenset({"failed", "abandoned"})
 
 
 @dataclass
@@ -83,6 +84,13 @@ class TicketLedger(Protocol):
     ) -> LedgerRow | None: ...
 
     async def get(self, ticket_id: str) -> LedgerRow | None: ...
+
+    async def reopen(
+        self, ticket_id: str, *, label: str, payload: dict[str, Any], deadline_s: float, claimed_by: str
+    ) -> LedgerRow | None:
+        """Hand a RERUNNABLE row to this caller as a fresh run, or None if another replica won it.
+        Only `open_durable(rerun_failed=True)` calls it."""
+        ...
 
     async def claim(
         self, ticket_id: str, *, claimed_by: str, stale_s: float, max_attempts: int
@@ -120,6 +128,10 @@ class Ticket[T]:
     @property
     def done(self) -> bool:
         return self.task.done()
+
+    @property
+    def failed(self) -> bool:
+        return self.task.done() and (self.task.cancelled() or self.task.exception() is not None)
 
 
 class TicketRegistry[T]:
@@ -232,13 +244,18 @@ class TicketRegistry[T]:
         label: str,
         deadline_s: float,
         resume: Callable[[LedgerRow], Coroutine[Any, Any, T]] | None = None,
+        rerun_failed: bool = False,
     ) -> Ticket[T] | LedgerRow:
         """Alta idempotente con fila. Devuelve el boleto en RAM si este proceso
-        lo corre, o la fila cuando otro proceso ya lo terminó o lo sigue corriendo."""
+        lo corre, o la fila cuando otro proceso ya lo terminó o lo sigue corriendo.
+        Con `rerun_failed`, un id que falló corre de nuevo: un turno fallido no entregó nada."""
         self._reap()
         if (existing := self._tickets.get(ticket_id)) is not None:
-            log.info("ticket_reused", registry=self.name, ticket_id=ticket_id, label=label, done=existing.done)
-            return existing
+            if not (rerun_failed and existing.failed):
+                log.info("ticket_reused", registry=self.name, ticket_id=ticket_id, label=label, done=existing.done)
+                return existing
+            await self._flush_finishes()
+            self.drop(ticket_id)
         if self.ledger is None:
             return self._start(run(payload), ticket_id=ticket_id, label=label, attempt=1)
         await self._maybe_reap_rows()
@@ -248,10 +265,24 @@ class TicketRegistry[T]:
         if row is None:
             self._ledger_unavailable("open")
             return self._start(run(payload), ticket_id=ticket_id, label=label, attempt=1)
-        if row.owned:
+        if row.owned and not row.terminal:
             log.info("ticket_ledger_opened", registry=self.name, ticket_id=ticket_id, label=label)
             return self._start(run(payload), ticket_id=ticket_id, label=label, attempt=1)
+        if rerun_failed and row.status in RERUNNABLE:
+            reopened = await self.ledger.reopen(
+                ticket_id, label=label, payload=payload, deadline_s=deadline_s, claimed_by=self.claimed_by
+            )
+            if reopened is not None:
+                log.warning("ticket_rerun_after_failure", registry=self.name, ticket_id=ticket_id, previous=row.error)
+                return self._start(run(payload), ticket_id=ticket_id, label=label, attempt=1)
+            row = await self.ledger.get(ticket_id) or row
         return await self._adopt(row, label=label, resume=resume or (lambda r: run(r.payload)))
+
+    async def _flush_finishes(self) -> None:
+        """Let a failed ticket's row say `failed` before its id opens again."""
+        await asyncio.sleep(0)
+        if self._finish_tasks:
+            await asyncio.gather(*list(self._finish_tasks), return_exceptions=True)
 
     async def lookup(
         self,

@@ -146,6 +146,7 @@ async def submit(req: TurnRequest, *, runner: Runner) -> TurnJob | LedgerRow:
         label=_label(req),
         deadline_s=config.RUNNER_JOB_DEADLINE_S,
         resume=_resumer(runner),
+        rerun_failed=True,
     )
     if not isinstance(got, Ticket) or got.done:
         turn_events.close_log(job_id)

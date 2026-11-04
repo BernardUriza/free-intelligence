@@ -61,7 +61,6 @@ class JudgeResponse:
 
     text: str
     model_used: str = ""
-    stop_reason: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
 
@@ -104,7 +103,6 @@ class RunnerJudgeClient:
         messages: list[dict[str, Any]],
         *,
         model: str | None = None,
-        max_tokens: int = 4096,
     ) -> JudgeResponse:
         """One-shot utility call against the runner's /v1/judge.
 
@@ -117,10 +115,9 @@ class RunnerJudgeClient:
                 forwarded as `attachments`.
             model: model id to request. Falsy → the runner's own judge-model
                 default (Haiku class).
-            max_tokens: max generation tokens.
 
         Returns:
-            JudgeResponse with text + token counts + stop_reason.
+            JudgeResponse with text + token counts.
 
         Raises:
             httpx.HTTPError on a transport failure or a non-2xx from the runner —
@@ -133,7 +130,6 @@ class RunnerJudgeClient:
         payload: dict[str, Any] = {
             "system_prompt": system_prompt,
             "user_text": user_text,
-            "max_tokens": max_tokens,
         }
         if attachments:
             payload["attachments"] = attachments
@@ -153,12 +149,10 @@ class RunnerJudgeClient:
             model=data.get("model", ""),
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
-            stop_reason=data.get("stop_reason", ""),
         )
         return JudgeResponse(
             text=data.get("text", ""),
             model_used=data.get("model", ""),
-            stop_reason=data.get("stop_reason", ""),
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
         )
