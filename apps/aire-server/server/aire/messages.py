@@ -24,7 +24,7 @@ from .engine.drain import turn_cost
 from .engine.guards import observe
 from .engine.vision import attached_counts
 from .attachment_door import safe_attachments
-from .intake import build_guards, safe_guard_names, safe_names, safe_provider, safe_spec
+from .intake import build_guards, safe_guard_names, safe_names, safe_provider, turn_spec
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     project, session = safe_names(project, session)
     body = await request.json()
     message = str(body.get("message", body.get("prompt", ""))).strip()
-    spec = safe_spec(body)
+    spec = turn_spec(body, getattr(request.state, "lane", ""))  # the door named the lane
     engine = await get_engine()
     attachments = await safe_attachments(body.get("images"), body.get("documents"),
                                          engine.session_key(project, session), spec.provider)

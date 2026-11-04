@@ -95,8 +95,8 @@ def _external_client(monkeypatch, rag: _SpyRag):
     spy_runner = _SpyRunner()
     sent: dict = {}
 
-    async def fake_external_turn(*, persona_id, user_text, session_uuid, user_id, history=None):
-        sent.update({"persona_id": persona_id, "user_text": user_text})
+    async def fake_external_turn(*, persona_id, user_text, session_uuid, user_id, history=None, deliver_late=None):
+        sent.update({"persona_id": persona_id, "user_text": user_text, "deliver_late": deliver_late})
         yield {"type": "text", "text": "ok"}
 
     monkeypatch.setattr(

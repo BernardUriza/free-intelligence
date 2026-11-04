@@ -96,6 +96,25 @@ describe('ItemActionSlot / DestructiveActionSlot', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('activates an action from the keyboard instead of selecting the row', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onActivate = vi.fn();
+    render(
+      <AgentSidebarItem
+        selected={false}
+        onSelect={onSelect}
+        title="t"
+        actions={<ItemActionSlot label="Act" onActivate={onActivate}>x</ItemActionSlot>}
+      />,
+    );
+    screen.getByRole('button', { name: 'Act' }).focus();
+    await user.keyboard('{Enter}');
+    await user.keyboard(' ');
+    expect(onActivate).toHaveBeenCalledTimes(2);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it('respects disabled and tags the danger variant', () => {
     const onActivate = vi.fn();
     render(

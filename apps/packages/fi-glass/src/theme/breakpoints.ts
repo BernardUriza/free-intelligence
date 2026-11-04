@@ -14,7 +14,9 @@
  * evaluated. So the breakpoint physically cannot live in the token sheet with
  * the rest; the JS-generated sheets interpolate this constant instead, and the
  * three hand-written `.css` files are held to it by `breakpoints.test.ts`,
- * which parses them and fails on any `max-width` that disagrees.
+ * which parses them and fails on any `max-width` that disagrees. Tailwind class
+ * strings cannot interpolate it either: they spell `[@media(max-width:768px)]:`
+ * (never `max-md:`, which is <768) and the same test holds that literal here.
  */
 
 /** The mobile breakpoint in CSS px. Below/at this width the UI is a phone. */

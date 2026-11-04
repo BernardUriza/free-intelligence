@@ -614,7 +614,17 @@
       "symbol": "At",
       "slug": "astato",
       "displayName": "Ástato",
-      "status": "empty"
+      "status": "active",
+      "description": "Astra: el coagente de guion de PlusvalíaLeaks — escribe guiones satíricos con recibos sobre GPT-6 Astra, a través de AIRE.",
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "astra"
+      },
+      "aliases": [
+        "at",
+        "astatine",
+        "astra"
+      ]
     },
     {
       "atomicNumber": 86,

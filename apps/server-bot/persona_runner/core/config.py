@@ -21,6 +21,9 @@ PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/personas/insult.md"))
 # the directory (path traversal) — anything else falls back to the default.
 PERSONAS_DIR = Path(os.environ.get("PERSONAS_DIR", "/app/personas"))
 PERSONA_ID_RE = re.compile(r"^[a-z0-9_]{1,32}$")
+# Personas created without a deploy (og118 POST /elements) are materialized here
+# from Postgres at boot and on every write; the image's PERSONAS_DIR always wins.
+RUNTIME_PERSONAS_DIR = Path(os.environ.get("RUNTIME_PERSONAS_DIR", str(Path.home() / "runtime-personas")))
 
 RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("INSULT_AGENT_RUNNER_TOKEN", "")
 

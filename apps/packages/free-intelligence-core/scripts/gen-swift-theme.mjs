@@ -49,6 +49,10 @@ const medidas = Object.entries(contrato.dimensions).map(([nombre, def]) => {
   return `${doc}    static let ${nombre}: CGFloat = ${medidaPt(def)}`;
 });
 
+const escalares = Object.entries(contrato.css)
+  .filter(([, def]) => def.swift === 'Double')
+  .map(([nombre, def]) => `${def.description ? `    /// ${def.description}\n` : ''}    static let ${nombre}: Double = ${Number(def.value)}`);
+
 const salida = `// DO NOT EDIT — generado desde contracts/glass-chat-tokens.json
 //
 // El contrato es LA FUENTE, escrita a mano. El CSS de fi-glass, el mirror
@@ -69,6 +73,8 @@ extension Theme {
 ${colores.join('\n')}
 
 ${medidas.join('\n')}
+
+${escalares.join('\n')}
 }
 `;
 

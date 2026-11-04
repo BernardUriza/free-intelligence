@@ -1,6 +1,6 @@
 {
   "name": "fi-glass",
-  "version": "1.7.0",
+  "version": "1.9.0",
   "sideEffects": [
     "**/*.css"
   ],
@@ -20,6 +20,10 @@
     },
     "./theme.css": "./src/theme/index.css",
     "./glass-chat.css": "./src/theme/glass-chat.css",
+    "./tailwind": {
+      "require": "./tailwind.cjs",
+      "default": "./tailwind.cjs"
+    },
     "./messages": {
       "types": "./dist/messages/index.d.ts",
       "import": "./dist/messages/index.js"
@@ -56,27 +60,29 @@
       "types": "./dist/resource/index.d.ts",
       "import": "./dist/resource/index.js"
     },
-    "./surface": {
-      "types": "./dist/surface/index.d.ts",
-      "import": "./dist/surface/index.js"
+    "./admin-kit": {
+      "types": "./dist/admin-kit/index.d.ts",
+      "import": "./dist/admin-kit/index.js"
     },
-    "./form": {
-      "types": "./dist/form/index.d.ts",
-      "import": "./dist/form/index.js"
+    "./persona-admin": {
+      "types": "./dist/persona-admin/index.d.ts",
+      "import": "./dist/persona-admin/index.js"
     },
-    "./feedback": {
-      "types": "./dist/feedback/index.d.ts",
-      "import": "./dist/feedback/index.js"
+    "./model-catalog": {
+      "types": "./dist/model-catalog/index.d.ts",
+      "import": "./dist/model-catalog/index.js"
     }
   },
   "files": [
     "dist",
-    "src/theme"
+    "src/theme",
+    "tailwind.cjs"
   ],
   "dependencies": {
     "@free-intelligence/core": "workspace:*",
     "remark-breaks": "^4.0.0",
-    "use-stick-to-bottom": "^1.1.6"
+    "use-stick-to-bottom": "^1.1.6",
+    "zod": "^4.1.13"
   },
   "peerDependencies": {
     "framer-motion": ">=11.0.0",
@@ -98,13 +104,19 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.0",
     "esbuild-plugin-preserve-directives": "^0.0.11",
     "framer-motion": "^12.23.24",
+    "jsdom": "^27.0.1",
     "lucide-react": "^0.548.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "tsup": "^8.5.1"
+    "tsup": "^8.5.1",
+    "vitest": "^4.0.16"
   }
 }

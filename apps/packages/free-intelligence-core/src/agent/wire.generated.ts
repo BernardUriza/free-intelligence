@@ -32,6 +32,7 @@ export type AgentStreamEvent =
   | PlanRejectedEvent
   | ErrorEvent
   | PingEvent
+  | DeferredEvent
   | DoneEvent;
 
 /**
@@ -101,6 +102,10 @@ export interface ResultEvent {
  * ``model`` is the model that ACTUALLY ran (the retry loop may escalate to the
  * fallback), so a UI shows the answer's real provenance instead of guessing at
  * the configured default.
+ *
+ * ``reactions`` are the emoji the speaker put ON the turn (an engine with a
+ * reaction channel, like a Discord persona). A gesture, not content: a turn
+ * with empty ``text`` and reactions is a settled answer, not an empty one.
  */
 export interface TurnResultPayload {
   text: string;
@@ -113,6 +118,7 @@ export interface TurnResultPayload {
     [k: string]: unknown;
   };
   tool_calls?: ToolCallPayload[];
+  reactions?: string[];
 }
 /**
  * The agent declared its plan. ``steps`` is the checklist a UI renders.
@@ -232,12 +238,24 @@ export interface ErrorEvent {
  * A client's idle watchdog cannot tell "the model is thinking" from "the
  * backend hung" — both look like silence. And silence is normal here: a turn
  * proxied to an external engine emits NOTHING until the whole answer lands
- * (up to 95s), while a local turn can think far longer than a token gap.
+ * (up to the proxy's live wait), while a local turn can think far longer
+ * than a token gap.
  * Without this frame the client kills healthy turns and throws away what the
  * user wrote. The ping carries nothing; its arrival IS the signal.
  */
 export interface PingEvent {
   type?: 'ping';
+}
+/**
+ * The live turn was released before its answer existed (OG118-EXTERNAL-TURN-1).
+ *
+ * A proxied engine kept working past the stream's live wait. The answer lands
+ * in the conversation record out of band, so the stream ends after this frame
+ * with no text: the client folds no bubble and shows a waiting notice until
+ * the thread refreshes. Carries nothing; its arrival is the signal.
+ */
+export interface DeferredEvent {
+  type?: 'deferred';
 }
 /**
  * Last frame of a healthy stream.

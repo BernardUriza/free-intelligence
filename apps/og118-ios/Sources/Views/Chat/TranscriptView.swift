@@ -10,21 +10,56 @@ struct TranscriptView: View {
     let aparicion: Animation?
 
     @State private var alFondo = true
+    @State private var tocado: UUID?
+    @State private var esperaLarga = false
+
+    private var ultimoAsistente: UUID? {
+        chat.messages.last(where: { $0.role == .assistant })?.id
+    }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    if chat.isRestoring {
+                        HStack(spacing: 8) {
+                            ProgressView().tint(Theme.accent)
+                            Text(esperaLarga
+                                ? "El servidor estaba dormido; la conversación tarda unos segundos."
+                                : "Cargando la conversación…")
+                        }
+                        .font(.footnote)
+                        .foregroundStyle(Theme.textMuted)
+                        .padding(.horizontal, 14)
+                        .transition(.opacity)
+                    }
+                    if let falla = chat.cargaFallida {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(falla)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.danger)
+                            botonSecundario("Reintentar carga", icono: "arrow.clockwise") { chat.reintentarCarga() }
+                        }
+                        .padding(.horizontal, 14)
+                    }
                     ForEach(chat.messages) { message in
                         MessageBubble(
                             role: message.role,
                             text: message.content,
                             author: message.author?.nombre,
                             timestamp: message.timestamp,
+                            model: message.model,
+                            imagenes: message.images,
+                            reacciones: message.reactions,
+                            mostrarAcciones: !chat.isStreaming
+                                && (message.id == ultimoAsistente || message.id == tocado),
                             leyendo: voz.reproductor.hablando == message.id.uuidString,
                             sintetizando: voz.sintetizando == message.id.uuidString,
                             onLeer: message.role == .assistant
                                 ? { voz.alternarLectura(de: message.content, id: message.id.uuidString) }
+                                : nil,
+                            onTocar: message.role == .assistant
+                                ? { withAnimation(aparicion) { tocado = tocado == message.id ? nil : message.id } }
                                 : nil
                         )
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -49,31 +84,23 @@ struct TranscriptView: View {
                             )
                         }
                     }
-                    if let error = voz.errorMessage {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(Theme.danger)
-                            .padding(.horizontal, 14)
-                    }
                     if let error = chat.errorMessage {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(error)
                                 .font(.footnote)
                                 .foregroundStyle(Theme.danger)
                             if chat.reintentable != nil {
-                                Button { chat.reintentar() } label: {
-                                    Label("Reintentar", systemImage: "arrow.clockwise")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(Theme.text)
-                                        .padding(.horizontal, 14)
-                                        .frame(height: 34)
-                                        .background(Theme.surface, in: Capsule())
-                                        .overlay(Capsule().stroke(Theme.surfaceBorder, lineWidth: 1))
-                                }
-                                .frame(minHeight: 44)
+                                botonSecundario("Reintentar", icono: "arrow.clockwise") { chat.reintentar() }
                             }
                         }
                         .padding(.horizontal, 14)
+                    }
+                    if let aviso = chat.avisoDeEspera {
+                        Text(aviso)
+                            .font(.footnote)
+                            .foregroundStyle(Theme.textMuted)
+                            .padding(.horizontal, 14)
+                            .accessibilityIdentifier("aviso-de-espera")
                     }
                     if let bitacora = diagnostico.resumen {
                         Text(bitacora)
@@ -87,7 +114,7 @@ struct TranscriptView: View {
                     centinelaDeFondo
                 }
                 .padding(.horizontal, 12)
-                .padding(.top, 14)
+                .padding(.top, 60)
                 .animation(aparicion, value: chat.messages.count)
                 .animation(aparicion, value: chat.isStreaming)
             }
@@ -95,12 +122,11 @@ struct TranscriptView: View {
             // forma continua. Reemplaza el truco de GeometryReader+PreferenceKey,
             // que no dispara en el primer layout y no ve los content insets.
             .onScrollGeometryChange(for: Bool.self) { geo in
-                let fin = geo.contentOffset.y + geo.containerSize.height
-                let total = geo.contentSize.height + geo.contentInsets.bottom
-                return fin >= total - 40
+                geo.visibleRect.maxY >= geo.contentSize.height - 40
             } action: { _, estaAlFondo in
                 if estaAlFondo != alFondo { alFondo = estaAlFondo }
             }
+            .defaultScrollAnchor(.bottom)
             .scrollDismissesKeyboard(.interactively)
             .overlay(alignment: .bottom) {
                 if !alFondo {
@@ -112,6 +138,12 @@ struct TranscriptView: View {
             .animation(aparicion, value: alFondo)
             .onChange(of: chat.messages.count) { _, _ in
                 irAlFondo(proxy, animado: true)
+            }
+            .task(id: chat.isRestoring) {
+                esperaLarga = false
+                guard chat.isRestoring else { return }
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                if chat.isRestoring { esperaLarga = true }
             }
             .onChange(of: chat.liveText) { _, _ in
                 // Sólo persigue el stream si el usuario NO se fue a leer arriba:
@@ -134,6 +166,19 @@ struct TranscriptView: View {
         } else {
             proxy.scrollTo("fondo", anchor: .bottom)
         }
+    }
+
+    private func botonSecundario(_ titulo: String, icono: String, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Label(titulo, systemImage: icono)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(Theme.surface, in: Capsule())
+                .overlay(Capsule().stroke(Theme.surfaceBorder, lineWidth: 1))
+        }
+        .frame(minHeight: 44)
     }
 
     private func botonAlFondo(_ accion: @escaping () -> Void) -> some View {

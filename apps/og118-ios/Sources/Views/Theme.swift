@@ -33,13 +33,14 @@ enum Theme {
 /// La marca «og118.ai»: blanco + esmeralda, el mismo par que el logo web.
 struct Wordmark: View {
     let size: CGFloat
+    var weight: Font.Weight = .bold
 
     var body: some View {
         Text("og118")
-            .font(.system(size: size, weight: .bold))
+            .font(.system(size: size, weight: weight))
             .foregroundStyle(Theme.text)
         + Text(".ai")
-            .font(.system(size: size, weight: .bold))
+            .font(.system(size: size, weight: weight))
             .foregroundStyle(Theme.accent)
     }
 }

@@ -5,9 +5,7 @@ import AVFoundation
 /// Graba con AVAudioRecorder en AAC/m4a — el formato nativo de iOS y uno de los
 /// que el servidor acepta, así que el audio viaja sin transcodificar.
 @MainActor
-final class AudioRecorder: ObservableObject {
-    @Published private(set) var grabando = false
-
+final class AudioRecorder {
     private var recorder: AVAudioRecorder?
     private var destino: URL?
 
@@ -22,9 +20,7 @@ final class AudioRecorder: ObservableObject {
     func empezar() async throws {
         guard await pedirPermiso() else { throw VoiceError.sinPermiso }
 
-        let sesion = AVAudioSession.sharedInstance()
-        try sesion.setCategory(.playAndRecord, mode: .spokenAudio, options: [.defaultToSpeaker])
-        try sesion.setActive(true)
+        try await ColaDeAudio.activar(.playAndRecord, modo: .spokenAudio, opciones: [.defaultToSpeaker])
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("og118-\(UUID().uuidString).m4a")
@@ -38,7 +34,6 @@ final class AudioRecorder: ObservableObject {
         grabadora.record()
         recorder = grabadora
         destino = url
-        grabando = true
     }
 
     /// Detiene y devuelve el audio. Borra el temporal: la grabación ya viajó en
@@ -46,8 +41,7 @@ final class AudioRecorder: ObservableObject {
     func detener() -> Data? {
         recorder?.stop()
         recorder = nil
-        grabando = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ColaDeAudio.desactivar()
         guard let url = destino else { return nil }
         destino = nil
         defer { try? FileManager.default.removeItem(at: url) }
@@ -57,10 +51,9 @@ final class AudioRecorder: ObservableObject {
     func cancelar() {
         recorder?.stop()
         recorder = nil
-        grabando = false
         if let url = destino { try? FileManager.default.removeItem(at: url) }
         destino = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        ColaDeAudio.desactivar()
     }
 }
 #endif

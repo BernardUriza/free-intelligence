@@ -21,7 +21,6 @@ export {
 
 // API modules - re-export from lib/api
 export * from '../../../lib/api/assistant';
-export * from '../../../lib/api/personas';
 export * from '../../../lib/api/llm-models';
 export * from '../../../lib/api/knowledge';
 export * from '../../../lib/api/checkin';

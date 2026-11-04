@@ -20,6 +20,7 @@ import pytest
 
 from aire import spend
 from aire.engine.contract import TurnSpec
+from aire.engine.credentials import Slot
 from aire.engine.core import Engine
 from aire.engine.turn import run_turn
 
@@ -68,16 +69,17 @@ class FakeClient:
         yield ResultMessage(self.costs.pop(0))
 
 
-class Slot:
-    name = "primary"
-    env: dict = {}
-
-
 class Rotor:
-    def active(self) -> Slot:
-        return Slot()
+    def providers(self) -> tuple[str, ...]:
+        return ("claude",)
 
-    def burn(self, _name: str) -> None:
+    def active(self, provider: str = "claude") -> Slot:
+        return Slot("primary")
+
+    def cooling_names(self) -> list[str]:
+        return []
+
+    def burn(self, _name: str, _text: Any = None) -> None:
         raise AssertionError("a healthy turn must not burn a credential slot")
 
 

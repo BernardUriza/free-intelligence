@@ -28,11 +28,25 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from persona_runner.api import artifacts, judge, mcp_http, ops, turn, workspace
+from persona_runner.api import artifacts, judge, mcp_http, ops, personas, turn, workspace
 from persona_runner.core import config
 from shared.logging_setup import configure_structlog
 
 log = structlog.get_logger()
+
+
+async def _hydrate_runtime_personas(turn_pipeline) -> None:
+    """Load the personas created without a deploy BEFORE serving, so a turn for
+    one never falls back to the default persona on a fresh replica."""
+    from persona_runner.engine import runtime_personas
+
+    try:
+        memory = await asyncio.wait_for(turn_pipeline.get_memory(), timeout=30)
+    except TimeoutError:
+        log.error("runtime_personas_hydrate_timeout")
+        return
+    if memory is not None:
+        await runtime_personas.hydrate(memory.runtime_personas)
 
 
 @asynccontextmanager
@@ -74,6 +88,7 @@ async def _lifespan(app: FastAPI):
     # réplica fría no pague ~25 s de carga dentro de su propio presupuesto.
     from persona_runner.api import turn_pipeline
 
+    await _hydrate_runtime_personas(turn_pipeline)
     boot_warm = asyncio.create_task(turn_pipeline.warm_at_boot())
 
     yield
@@ -113,3 +128,4 @@ app.include_router(judge.router)
 app.include_router(workspace.router)
 app.include_router(artifacts.router)
 app.include_router(mcp_http.router)
+app.include_router(personas.router)

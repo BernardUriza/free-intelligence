@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from aire.engine import MODES, TurnSpec
 from aire.engine.modes import BUILTINS, policy_for
 from aire.engine.options import build_options
-from aire.intake import safe_builtins, safe_spec
+from aire.intake import safe_builtins, turn_spec
 
 READERS = ["Read", "Glob", "Grep"]
 
@@ -19,14 +19,14 @@ def _options(tmp_path, spec):
 
 @pytest.mark.parametrize("mode", ["complete", "agent"])
 def test_no_field_keeps_the_notch_byte_identical(tmp_path, mode):
-    options = _options(tmp_path, safe_spec({"mode": mode}))
+    options = _options(tmp_path, turn_spec({"mode": mode}))
     assert options.allowed_tools == MODES[mode]["allowed_tools"]
     assert options.disallowed_tools == MODES[mode]["disallowed_tools"]
     assert options.permission_mode == MODES[mode]["permission_mode"]
 
 
 def test_the_gatekeeper_subset_reads_and_nothing_else(tmp_path):
-    spec = safe_spec({"mode": "agent", "builtins": ["Grep", "Read", "Glob", "Read"]})
+    spec = turn_spec({"mode": "agent", "builtins": ["Grep", "Read", "Glob", "Read"]})
     options = _options(tmp_path, spec)
     assert options.allowed_tools == READERS
     assert set(options.disallowed_tools) == set(BUILTINS) - set(READERS)
@@ -72,5 +72,5 @@ def test_registry_tools_still_ride_beside_a_subset(tmp_path):
 
 def test_a_different_subset_is_a_different_shape_so_the_client_rebinds():
     assert TurnSpec(mode="agent") != TurnSpec(mode="agent", builtins=tuple(READERS))
-    assert TurnSpec(mode="agent", builtins=("Read",)) == safe_spec(
+    assert TurnSpec(mode="agent", builtins=("Read",)) == turn_spec(
         {"mode": "agent", "builtins": ["Read"]})

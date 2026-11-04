@@ -1,4 +1,6 @@
 import { ConversationLibrary, ConversationSummary, ConversationRecord, ConversationMetadataPatch, ChatMessage } from '@free-intelligence/core';
+import * as react from 'react';
+import { ReactNode } from 'react';
 
 /**
  * EphemeralConversationLibrary — conversations that die with the tab.
@@ -135,23 +137,34 @@ declare class RemoteConversationLibrary implements ConversationLibrary {
 }
 
 /**
- * migrateConversationLibrary — one-time local→cloud transcript migration.
+ * migrateConversationLibrary — local→cloud transcript migration.
  *
  * When a shell flips from a local library (IndexedDB) to a remote one (the
  * account signed in and the cloud store is now authoritative), the transcripts
- * that already live in the browser must not be stranded. This copies every
- * source record the target does not already have — target wins on id collision
- * (the cloud copy may be newer, written from another device), and the source is
- * left intact (never destructive: the local data remains a fallback until the
- * user clears it). Idempotent: a second run finds nothing to copy.
+ * that already live in the browser must not be stranded. A record the target
+ * lacks is copied. A record BOTH have is merged when the source was written
+ * after the target: the shell writes locally while the cloud store is still
+ * connecting, so skipping the collision lost exactly those turns. The merge is
+ * a union of messages (target metadata wins); nothing is ever removed, and the
+ * source is left intact. Idempotent: a second run finds nothing to write.
  */
 
 interface MigrateConversationsResult {
     /** How many records were copied into the target. */
     migrated: number;
-    /** How many source records were skipped because the target already had them. */
+    /** How many existing target records gained messages only the source had. */
+    merged: number;
+    /** How many source records needed no write (the target already had everything). */
     skipped: number;
 }
+/**
+ * Union of two copies of the same conversation: every message of `target`,
+ * plus the ones only `source` has, ordered by timestamp (stable for ties).
+ * `target` keeps its title, flags and project.
+ *
+ * @returns `target` itself (same reference) when `source` adds nothing.
+ */
+declare function mergeConversationRecords(target: ConversationRecord, source: ConversationRecord): ConversationRecord;
 declare function migrateConversationLibrary(source: ConversationLibrary, target: ConversationLibrary): Promise<MigrateConversationsResult>;
 
 interface UseConversationLibraryOptions {
@@ -168,6 +181,20 @@ interface UseConversationLibraryOptions {
      * under whatever happens to be active right now.
      */
     projectId?: string;
+    /**
+     * The conversation the URL names, for a routed shell (`/c/<id>`). A string opens
+     * that conversation; `null` starts a fresh one. When set, the library never
+     * falls back to "the most recent" on its own — the address decides what is open.
+     */
+    initialActiveId?: string | null;
+}
+/** `load` = the store could not be read (mount, store swap, or its retry). */
+type ConversationAction = 'load' | 'switch' | 'delete' | 'rename' | 'pin' | 'archive';
+interface ConversationActionError {
+    action: ConversationAction;
+    conversationId: string;
+    message: string;
+    cause: unknown;
 }
 interface ConversationLibraryState {
     /** False until the first hydration from storage finishes. */
@@ -195,8 +222,25 @@ interface ConversationLibraryState {
     /** Archive (`true`) or unarchive (`false`) a conversation — the reversible
      * alternative to delete. Archiving clears any pin. Throws if `id` is gone. */
     archiveConversation: (id: string, archived: boolean) => Promise<void>;
-    /** Persist the active conversation's messages (no-op for an empty thread). */
-    persist: (messages: ChatMessage[]) => Promise<void>;
+    /**
+     * Archive many conversations at once (the "clean up my sidebar" gesture). Never
+     * throws: resolves with the ids that could NOT be archived, so the caller keeps
+     * them selected and says so. One list refresh for the whole batch.
+     */
+    archiveConversations: (ids: string[]) => Promise<string[]>;
+    /**
+     * Persist a conversation's messages (no-op for an empty thread). `conversationId`
+     * is the conversation the thread BELONGS to (default: the active one); a write
+     * that lands after the user moved elsewhere saves that conversation and leaves
+     * the active one alone.
+     */
+    persist: (messages: ChatMessage[], conversationId?: string | null) => Promise<void>;
+    /**
+     * Mark a conversation (default: the active one) as holding the user's work —
+     * a turn was sent in it. A store swap then keeps it active even before its
+     * first save, instead of moving the user to the new store's most recent.
+     */
+    claimActive: (conversationId?: string | null) => void;
     /** Re-read the summary list from storage. */
     refresh: () => Promise<void>;
     /**
@@ -206,9 +250,83 @@ interface ConversationLibraryState {
      * like `switchConversation` when a previously stored record is gone.
      */
     reloadActive: () => Promise<void>;
+    /** The last sidebar action that failed, kept until it succeeds, is retried or dismissed. */
+    actionError: ConversationActionError | null;
+    /** Re-run exactly the failed action. */
+    retryAction: () => void;
+    dismissActionError: () => void;
 }
 declare function useConversationLibrary(library: ConversationLibrary, options?: UseConversationLibraryOptions): ConversationLibraryState;
 
 declare function useIndexedDBConversationLibrary(identityKey: string | null | undefined, options?: Omit<IndexedDBConversationLibraryOptions, 'dbName'>): IndexedDBConversationLibrary;
 
-export { type ConversationLibraryState, EphemeralConversationLibrary, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseConversationLibraryOptions, migrateConversationLibrary, useConversationLibrary, useIndexedDBConversationLibrary };
+interface ConversationArchiveDialogLabels {
+    title: string;
+    selectAll: string;
+    selectNone: string;
+    cancel: string;
+    /** The confirm button for `n` selected chats. */
+    archive: (n: number) => string;
+    /** Shown after a partial failure: `failed` chats out of `total` could not be archived. */
+    failed: (failed: number, total: number) => string;
+    empty: string;
+}
+interface ConversationArchiveDialogProps {
+    open: boolean;
+    /** The candidates: pass the chats that are NOT archived yet. */
+    conversations: ConversationSummary[];
+    /** Archive these ids; resolve with the ids that failed (see `archiveConversations`). */
+    onArchive: (ids: string[]) => Promise<string[]>;
+    onClose: () => void;
+    /** Secondary line per row (e.g. a formatted date). Omit for title only. */
+    renderMeta?: (conversation: ConversationSummary) => ReactNode;
+    labels?: Partial<ConversationArchiveDialogLabels>;
+}
+declare const FI_ARCHIVE_DIALOG_CLASS = "fi-archive-dialog";
+/** Inject the idempotent archive-dialog stylesheet (no-op on the server / if already present). */
+declare function ensureArchiveDialogStyle(): void;
+declare function ConversationArchiveDialog({ open, conversations: given, onArchive, onClose, renderMeta, labels: labelOverrides, }: ConversationArchiveDialogProps): react.JSX.Element;
+
+declare const DEFAULT_CONVERSATION_PATH_PREFIX = "/c/";
+/** The conversation id a path names (`/c/<id>` or `/c/<id>/`), or `null` for any other path. */
+declare function readConversationIdFromPath(pathname: string, prefix?: string): string | null;
+/** The id the current address names — call it once, before the library mounts. */
+declare function readConversationIdFromLocation(prefix?: string): string | null;
+interface UseConversationUrlOptions {
+    activeId: string | null;
+    /** The library's summaries: an id becomes addressable once it is saved. */
+    conversations: ConversationSummary[];
+    /** Back/forward landed on another address: open that conversation, or a fresh one for `null`. */
+    onNavigate: (conversationId: string | null) => void;
+    /** Path prefix for a conversation. Default `/c/`. */
+    prefix?: string;
+    /** The address of "no conversation yet". Default `/`. */
+    rootPath?: string;
+}
+declare function useConversationUrl({ activeId, conversations, onNavigate, prefix, rootPath, }: UseConversationUrlOptions): void;
+
+type CloudSyncStatus = 'local' | 'connecting' | 'cloud' | 'unreachable';
+interface UseCloudConversationLibraryOptions {
+    local: ConversationLibrary;
+    remote: ConversationLibrary;
+    enabled: boolean;
+    scopeKey: string | null;
+    retryDelaysMs?: readonly number[];
+    slowAfterMs?: number;
+}
+interface CloudConversationLibraryState {
+    library: ConversationLibrary;
+    status: CloudSyncStatus;
+    slow: boolean;
+    retry: () => void;
+}
+/**
+ * Hands a shell its conversation store while the cloud one is reached: local until the
+ * local→cloud migration settles, then remote; an unreachable server retries with backoff.
+ *
+ * @returns `status` tells the UI the truth about where writes land right now; `slow` flips
+ * when connecting outlasts `slowAfterMs` (a scale-to-zero cold start); `retry` reconnects now.
+ */
+declare function useCloudConversationLibrary({ local, remote, enabled, scopeKey, retryDelaysMs, slowAfterMs, }: UseCloudConversationLibraryOptions): CloudConversationLibraryState;
+
+export { type CloudConversationLibraryState, type CloudSyncStatus, type ConversationAction, type ConversationActionError, ConversationArchiveDialog, type ConversationArchiveDialogLabels, type ConversationArchiveDialogProps, type ConversationLibraryState, DEFAULT_CONVERSATION_PATH_PREFIX, EphemeralConversationLibrary, FI_ARCHIVE_DIALOG_CLASS, IndexedDBConversationLibrary, type IndexedDBConversationLibraryOptions, type MigrateConversationsResult, RemoteConversationLibrary, type RemoteConversationLibraryOptions, type UseCloudConversationLibraryOptions, type UseConversationLibraryOptions, type UseConversationUrlOptions, ensureArchiveDialogStyle, mergeConversationRecords, migrateConversationLibrary, readConversationIdFromLocation, readConversationIdFromPath, useCloudConversationLibrary, useConversationLibrary, useConversationUrl, useIndexedDBConversationLibrary };

@@ -14,7 +14,7 @@ concept and not a stray field:
 - `AIRE_MAX_SPEND_USD` is this process's own backstop: turns refused BEFORE the
   API is called. It resets on restart, which is a known limit — a ledger that
   survives restarts is Bernard's open decision (#25). Since 2026-08-26 it counts
-  METERED dollars only (`credentials.is_metered`): an OAuth turn's cost is
+  METERED dollars only (`Slot.metered`): an OAuth turn's cost is
   nominal — the Max subscription already paid — and banking it against the
   ceiling turned a card backstop into a scheduled outage (every ~$20 of nominal
   spend, every persona went mute until a restart).

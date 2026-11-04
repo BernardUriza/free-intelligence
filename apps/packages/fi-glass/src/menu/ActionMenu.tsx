@@ -22,8 +22,11 @@
  * to the framework; the trigger icon and the dress belong to the consumer.
  */
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useTouchTargetStyle, withTouchTarget } from '../shell/touchTarget';
+
+const VIEWPORT_MARGIN_PX = 8;
 
 export interface MenuAction {
   /** Stable id (also the React key). */
@@ -81,8 +84,10 @@ export function ActionMenu({
   dividerClassName,
   triggerAttribute,
 }: ActionMenuProps) {
+  useTouchTargetStyle();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
   // aurity's positioning, unchanged: anchor to the trigger's rect, 8px above it,
@@ -93,6 +98,15 @@ export function ActionMenu({
       setPosition({ top: rect.top - 8, left: rect.left });
     }
   }, [open]);
+
+  // Anchored to a trigger near the right edge, the menu would leave a 320px viewport.
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current) return;
+    const { width } = menuRef.current.getBoundingClientRect();
+    const maxLeft = window.innerWidth - VIEWPORT_MARGIN_PX - width;
+    const left = Math.max(VIEWPORT_MARGIN_PX, Math.min(position.left, maxLeft));
+    if (left !== position.left) setPosition((p) => ({ ...p, left }));
+  }, [open, position.left]);
 
   useEffect(() => {
     if (!open) return;
@@ -136,6 +150,7 @@ export function ActionMenu({
               aria-hidden="true"
             />
             <div
+              ref={menuRef}
               role="menu"
               data-fi-action-menu=""
               className={menuClassName}
@@ -145,6 +160,7 @@ export function ActionMenu({
                 left: position.left,
                 // Grow UPWARD from the anchor — the composer is at the bottom.
                 transform: 'translateY(-100%)',
+                maxWidth: `calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px)`,
                 zIndex: 9999,
                 ...(menuClassName
                   ? {}
@@ -169,13 +185,14 @@ export function ActionMenu({
                       setOpen(false);
                       action.onSelect();
                     }}
-                    className={action.className ?? itemClassName}
+                    className={withTouchTarget(action.className ?? itemClassName)}
                     style={
                       action.className ?? itemClassName
                         ? undefined
                         : {
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'flex-start',
                             gap: '0.6rem',
                             width: '100%',
                             padding: '0.5rem 0.65rem',

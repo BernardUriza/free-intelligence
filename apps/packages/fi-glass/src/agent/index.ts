@@ -44,6 +44,10 @@ export {
   DEFAULT_TURN_TIMEOUT_MS,
 } from './useAgentConversation';
 export {
+  TurnErrorBanner,
+  type TurnErrorBannerProps,
+} from './conversation-surface/components/transcript/TurnErrorBanner';
+export {
   AgentConversationSurface,
   type AgentConversationSurfaceProps,
   type AgentConversationSurfaceLayout,
