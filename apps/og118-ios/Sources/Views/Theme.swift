@@ -67,6 +67,42 @@ struct GlassBackground: View {
     }
 }
 
+/// Liquid Glass para lo que FLOTA sobre el hilo (barra, píldora, chips), nunca
+/// para el contenido. En iOS 18–25 cae a material con el borde del preset.
+struct FiGlass<Forma: Shape>: ViewModifier {
+    let forma: Forma
+    var interactivo = false
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffect(interactivo ? .regular.interactive() : .regular, in: forma)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: forma)
+                .overlay(forma.stroke(Theme.surfaceBorder, lineWidth: 1))
+        }
+    }
+}
+
+extension View {
+    func fiGlass<Forma: Shape>(in forma: Forma, interactivo: Bool = false) -> some View {
+        modifier(FiGlass(forma: forma, interactivo: interactivo))
+    }
+}
+
+/// Botón redondo de vidrio de 44 pt: el idioma de la barra superior.
+struct GlassCircleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 17, weight: .medium))
+            .foregroundStyle(Theme.textBody)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .fiGlass(in: Circle(), interactivo: true)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
 struct AccentButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

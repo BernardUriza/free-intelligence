@@ -28,6 +28,7 @@ for (const [nombre, def] of Object.entries(contrato.colors)) {
   lineas.push(`  ${nombre}: '${colorCss(def)}',`);
 }
 for (const [nombre, def] of Object.entries(contrato.dimensions)) {
+  if (def.ios) continue;
   if (def.description) lineas.push(`  /** ${def.description} */`);
   lineas.push(`  ${nombre}: '${medidaCss(def)}',`);
 }
