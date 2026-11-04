@@ -40,9 +40,9 @@ Después de resolver Errors #1-13 en Windows builds, identificamos que los build
 
 **Cambios:**
 ```yaml
-# Agregado a 4 jobs: build-fi-monitor, build-linux, build-macos, build-windows
+# Hoy sólo existe build-fi-monitor (los jobs de aurity-desktop se borraron el 2026-11-03)
 jobs:
-  build-windows:
+  build-fi-monitor:
     runs-on: windows-latest
     env:
       CARGO_INCREMENTAL: "1"  # ← Nuevo
@@ -66,14 +66,14 @@ jobs:
 # ANTES:
 - uses: actions/cache@v4
   with:
-    path: apps/aurity-desktop/pyinstaller/dist
+    path: apps/fi-monitor/pyinstaller/dist
 
 # DESPUÉS:
 - uses: actions/cache@v4
   with:
     path: |
-      apps/aurity-desktop/pyinstaller/dist
-      apps/aurity-desktop/pyinstaller/build  # ← Agregado
+      apps/fi-monitor/pyinstaller/dist
+      apps/fi-monitor/pyinstaller/build  # ← Agregado
 ```
 
 **Impacto esperado:** 20-30% faster PyInstaller builds
@@ -81,7 +81,7 @@ jobs:
 **Rationale:**
 - `build/` contiene import analysis, dependency graphs, metadata
 - PyInstaller puede reusar estos artifacts si el código Python no cambió
-- Cache key se invalida solo si cambias backend/src/ o requirements-prod.txt
+- Cache key se invalida solo si cambias `apps/fi-monitor/gateway/**/*.py`, `rag_service/**/*.py` o el `.spec`
 
 ---
 
@@ -99,7 +99,6 @@ jobs:
       ~/.cargo/registry/cache
       ~/.cargo/git/db
       apps/fi-monitor/src-tauri/target      # ← CONFLICTO
-      apps/aurity-desktop/src-tauri/target  # ← CONFLICTO
     key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('apps/**/src-tauri/src/**/*.rs') }}
 
 # DESPUÉS:
@@ -168,7 +167,7 @@ concurrency:
 
 **Próximo build esperamos:**
 - sccache: **60-80% hits** (solo recompila archivos cambiados)
-- PyInstaller: **100% hit** (si backend/src/ no cambió)
+- PyInstaller: **100% hit** (si el Python de fi-monitor no cambió)
 - Cargo deps: **100% hit** (si Cargo.lock no cambió)
 
 **Tiempo esperado en segundo build:** ~5-10 min (50-65% más rápido que baseline)
@@ -184,7 +183,7 @@ concurrency:
 **Solución:** Separar responsabilidades por layer:
 - Cargo cache → Dependencies (registry, git)
 - sccache → Compiled artifacts (binaries, libs)
-- PyInstaller cache → Python backend artifacts
+- PyInstaller cache → artifacts del fi-backend de fi-monitor
 
 **Lesson:** Cuando usas múltiple layers de caching, asegura **scope exclusivo** para cada layer.
 
@@ -236,12 +235,7 @@ sccache v0.0.9 (junio 2024):
    - Self-hosted en AWS/GCP: 2-4x faster, costo fijo
    - Trade-off: Mantenimiento + seguridad
 
-2. **Matrix Builds** (unificar build-linux/macos/windows)
-   - Menos código duplicado
-   - GitHub paraleliza automáticamente
-   - Trade-off: Mayor complejidad en job único
-
-3. **Remote Build Caching** (BuildJet, CacheDrive)
+2. **Remote Build Caching** (BuildJet, CacheDrive)
    - Cache compartido entre runners
    - ~10x faster cache restore
    - Trade-off: $49-99/month

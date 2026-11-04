@@ -12,11 +12,10 @@
 ## 🚀 Quick Start
 
 ```bash
-# Development
-make dev-all              # Cloud-dev (tunnel + backend + frontend, ~60s startup)
-make dev-all-local        # Local-only (no tunnel, ~30s startup, faster iterations)
-make dev-kill             # Kill all dev processes
-make test                 # pytest
+# Development (og118: server :8118 + web :3000)
+make dev                  # both; or make dev-server / make dev-web
+make dev-kill             # stop whatever listens on :8118 / :3000
+make test                 # og118 server pytest + og118-web vitest
 
 # Production Deploy (main is protected; no local branch ever, the main-only-branches gate denies one)
 git commit ...                                            # on local main
@@ -24,7 +23,7 @@ git push origin HEAD:refs/heads/bernarduriza/<slug>       # remote-only PR ref
 gh pr create --base main --head bernarduriza/<slug>       # merge --delete-branch → CI/CD auto-deploy
 git pull --ff-only                                        # local main catches the merge
 
-# Desktop Builds
+# FI Monitor (Windows) build
 gh workflow run build-desktop.yml -f platform=windows
 ```
 
@@ -40,7 +39,8 @@ gh workflow run build-desktop.yml -f platform=windows
 .claude/
 ├── quick-start/          # Setup guides
 ├── development/          # Workflows, version mgmt
-├── architecture/         # Backend refactor, multi-tenancy
+├── rules/                # Repo rules (mobile UX, auth-mode parity, dist, canary)
+├── backlog/              # Proposed / in-progress items
 ├── operations/ci-cd/     # Windows builds, optimizations
 ├── security/             # Credentials, SSH policy
 ├── integrations/         # Browser MCPs
@@ -75,11 +75,6 @@ pnpm version:sync     # Sync all files
 
 ```
 free-intelligence/
-├── backend/              # FastAPI + HDF5 (Clean Architecture)
-│   ├── infrastructure/  # Auth, workers, observability
-│   ├── services/        # Business logic (8 extracted)
-│   ├── api/             # HTTP layer
-│   └── core/            # Legacy (DI refactor pending)
 ├── apps/
 │   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
 │   ├── fenix/           # PAUSED: the stationery shop — still deployed, no traffic (see below)
@@ -88,7 +83,6 @@ free-intelligence/
 │   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
 │   │   └── free-intelligence-core/
 │   ├── aurity/          # LEGACY (see below) — Next.js frontend
-│   ├── aurity-desktop/  # Tauri desktop app
 │   ├── fi-monitor/      # Windows monitor app
 │   ├── server-bot/      # LIVE (absorbed 2026-10-08): Discord personas + persona-runner on Azure Container Apps
 │   │                    #   own CLAUDE.md/AGENTS.md; CI/CD = server-bot-*.yml (conda env, GHCR images)
@@ -170,10 +164,9 @@ in conflict, because two different things are being called legacy:
 - **The DEPLOYMENT is dead, and stays dead.** aurity's Azure infrastructure NO
   LONGER EXISTS — no Static Web App, no resource of any kind, a dead service
   principal ("No subscriptions found") — and `app.aurity.io` answers nothing (its
-  DNS points at a DigitalOcean IP). Its pipeline (`deploy-azure.yml`) is now
-  **manual-only**: it used to run on every push and paint `main` red for something
-  nobody intends to ship, and a permanently-red pipeline is worse than none — it
-  teaches everyone to ignore red.
+  DNS points at a DigitalOcean IP). Its pipeline (`deploy-azure.yml`) and the
+  legacy Python `backend/` it shipped were deleted on 2026-11-03, together with
+  the `aurity-desktop` Tauri shell that bundled that backend as a sidecar.
 - **The CODE is the SSOT of fi-glass, and stays.** aurity's chat anatomy — the
   toolbar menu, the staged file-upload flow — is what the framework extracts and
   what og118 renders. It is not "dead code kept for compatibility" (the thing the
@@ -200,19 +193,15 @@ If you (Claude) ever justify keeping dead code as "intentional for compatibility
 
 ## 🚫 Critical Rules
 
-### Backend: Make Only, Never Raw Commands
+### Local og118: use the Make targets
 ```bash
-# ❌ PROHIBITED - Never run uvicorn/python directly
-uvicorn backend.main:app --reload
-python -m backend.main
-PYTHONPATH=. uvicorn ...
-
-# ✅ CORRECT - Always use Make
-make dev-all-local        # Local development
-make dev-all              # Cloud development (with tunnel)
-make dev-kill             # Stop all services
-make test                 # Run tests
+make dev                  # og118 server (apps/og118/server/run.sh) + web (next dev)
+make dev-kill             # stop :8118 / :3000
+make test                 # og118 server + web suites
 ```
+`run.sh` picks the auth mode from `apps/og118/server/.env.local`; launching
+`uvicorn` by hand skips that. Setup of the server's `.venv`:
+[apps/og118/server/README.md](../apps/og118/server/README.md).
 
 ### No Emojis in Code
 ```typescript
