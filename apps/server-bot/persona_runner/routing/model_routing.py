@@ -12,6 +12,8 @@ via the three *_model parameters so tests can pass dummy strings.
 
 Tiers:
 - CASUAL (Haiku): DEFAULT_ABRASIVE, PLAYFUL_ROAST, META_DEFLECTION.
+  Only for personas with `casual_model_allowed` (Insult); the rest get DEPTH, because
+  "no signal" classifies as DEFAULT_ABRASIVE and would send a fermentation question here.
 - DEPTH (Sonnet): INTELLECTUAL_PRESSURE, ARC, RELATIONAL_PROBE. Also the
   universal fallback when casual output fails a guard.
 - CRISIS (Opus): RESPECTFUL_SERIOUS, severe disclosure, or vulnerable+hard
@@ -70,6 +72,7 @@ def select_model(
     *,
     opus_24h_count: int = 0,
     opus_24h_cap: int = 20,
+    casual_allowed: bool = False,
 ) -> ModelChoice:
     """Pick (primary, fallback) for a turn. Never touches the network."""
     is_crisis = (
@@ -83,6 +86,8 @@ def select_model(
         return ModelChoice(depth_model, depth_model, ModelTier.DEPTH, "opus_cap_reached")
     if preset.mode in _DEPTH_PRESETS:
         return ModelChoice(depth_model, depth_model, ModelTier.DEPTH, "depth_preset")
+    if preset.mode in _CASUAL_PRESETS and not casual_allowed:
+        return ModelChoice(depth_model, depth_model, ModelTier.DEPTH, "casual_not_allowed_for_persona")
     if preset.mode in _CASUAL_PRESETS:
         return ModelChoice(casual_model, depth_model, ModelTier.CASUAL, "casual_preset")
     # Unknown / future preset: default to Sonnet. Better waste money than

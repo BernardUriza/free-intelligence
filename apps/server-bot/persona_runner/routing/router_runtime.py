@@ -161,7 +161,12 @@ async def _disclosure_severity(conn: asyncpg.Connection, user_id: str) -> int:
 
 
 async def route_for_session(
-    *, channel_id: str, user_id: str, user_text: str, pg_conn: asyncpg.Connection | None
+    *,
+    channel_id: str,
+    user_id: str,
+    user_text: str,
+    pg_conn: asyncpg.Connection | None,
+    casual_allowed: bool = False,
 ) -> RoutingDecision:
     """Pick a model for a NEW session. Fail-open to DEPTH_MODEL on any error.
 
@@ -217,6 +222,7 @@ async def route_for_session(
         crisis_model=CRISIS_MODEL,
         opus_24h_count=_BUDGET.count(user_id),
         opus_24h_cap=OPUS_24H_CAP,
+        casual_allowed=casual_allowed,
     )
 
     # 5) Record Opus usage post-decision so the cap takes effect on the next
@@ -249,7 +255,9 @@ def _reset_budget_for_tests() -> Any:
     return old
 
 
-async def route_model(channel_id: str, user_id: str, user_text: str) -> tuple[str, dict[str, Any]]:
+async def route_model(
+    channel_id: str, user_id: str, user_text: str, *, casual_allowed: bool = False
+) -> tuple[str, dict[str, Any]]:
     """Run the 3-tier router (Haiku/Sonnet/Opus) for a turn about to run.
 
     Lived beside the local SDK host's session pool while that host existed (the model
@@ -271,6 +279,7 @@ async def route_model(channel_id: str, user_id: str, user_text: str) -> tuple[st
             user_id=user_id,
             user_text=user_text,
             pg_conn=pg_conn,
+            casual_allowed=casual_allowed,
         )
         return decision.model, {
             "routed": True,

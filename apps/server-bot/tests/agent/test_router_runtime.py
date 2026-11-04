@@ -50,6 +50,7 @@ async def test_route_for_session_without_pg_conn_still_routes_from_text():
         user_id="user-1",
         user_text="hola que tal",
         pg_conn=None,
+        casual_allowed=True,
     )
 
     assert decision.model == router_runtime.CASUAL_MODEL
@@ -70,6 +71,7 @@ async def test_route_for_session_survives_disclosure_query_failure():
         user_id="user-1",
         user_text="hola que tal",
         pg_conn=conn,
+        casual_allowed=True,
     )
 
     assert decision.model == router_runtime.CASUAL_MODEL
@@ -105,6 +107,7 @@ async def test_route_for_session_resists_escalation_for_trivial_text_and_zero_di
         user_id="user-1",
         user_text="hola que tal",
         pg_conn=conn,
+        casual_allowed=True,
     )
 
     assert decision.model == router_runtime.CASUAL_MODEL
@@ -129,3 +132,17 @@ async def test_route_for_session_classifier_exception_fails_open_to_depth():
     assert decision.reason == "classifier_exception"
     assert decision.preset_mode == ""
     assert decision.disclosure_severity == 0
+
+
+async def test_the_kefir_question_that_frugi_answered_on_haiku_now_routes_to_depth():
+    """2026-11-04: a fermentation question classifies as default_abrasive, Insult's casual mode."""
+    decision = await router_runtime.route_for_session(
+        channel_id="channel-1",
+        user_id="user-1",
+        user_text="Un amigo tiene tuna verde y quiere ponérsela a un kéfir de agua. ¿Primera o segunda fermentación?",
+        pg_conn=None,
+    )
+
+    assert decision.preset_mode == "default_abrasive"
+    assert decision.model == router_runtime.DEPTH_MODEL
+    assert decision.reason == "casual_not_allowed_for_persona"

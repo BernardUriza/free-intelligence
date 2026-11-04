@@ -566,7 +566,13 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
     if pinned_model:
         model, route_meta = pinned_model, {"routed": False, "provider": provider}
     else:
-        model, route_meta = await route_model(req.channel_id, req.user_id, req.user_text)
+        persona = runtime_personas.persona_for(base_id)
+        model, route_meta = await route_model(
+            req.channel_id,
+            req.user_id,
+            req.user_text,
+            casual_allowed=persona is not None and persona.casual_model_allowed,
+        )
     memory_block = await fetch_user_facts(req.user_id)
     framed = frame_turn_text(
         channel_id=req.channel_id,

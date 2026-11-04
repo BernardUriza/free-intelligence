@@ -73,6 +73,7 @@ def _select(
     disclosure_severity: int = 0,
     opus_24h_count: int = 0,
     opus_24h_cap: int = 20,
+    casual_allowed: bool = True,
 ):
     return select_model(
         preset=preset,
@@ -83,7 +84,26 @@ def _select(
         crisis_model=CRISIS,
         opus_24h_count=opus_24h_count,
         opus_24h_cap=opus_24h_cap,
+        casual_allowed=casual_allowed,
     )
+
+
+def test_a_persona_without_casual_gets_depth_on_a_casual_preset():
+    choice = _select(preset=_preset(PresetMode.DEFAULT_ABRASIVE), casual_allowed=False)
+    assert choice.primary == DEPTH
+    assert choice.tier == ModelTier.DEPTH
+    assert choice.reason == "casual_not_allowed_for_persona"
+
+
+def test_a_persona_with_casual_keeps_haiku_on_a_casual_preset():
+    choice = _select(preset=_preset(PresetMode.DEFAULT_ABRASIVE), casual_allowed=True)
+    assert choice.primary == CASUAL
+    assert choice.tier == ModelTier.CASUAL
+
+
+def test_the_floor_never_lowers_a_crisis_turn():
+    choice = _select(preset=_preset(PresetMode.RESPECTFUL_SERIOUS), casual_allowed=False)
+    assert choice.primary == CRISIS
 
 
 def test_select_model_crisis_branch_for_respectful_serious_preset():

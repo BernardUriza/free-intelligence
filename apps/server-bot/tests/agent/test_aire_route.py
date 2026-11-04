@@ -1004,3 +1004,25 @@ async def test_a_claude_persona_sends_no_provider_so_the_door_keeps_its_default(
 
     router.assert_called_once()
     assert backend.run_turn_stream.call_args.kwargs["provider"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("persona_id", "allowed"),
+    [("insult", True), ("frugivoro", False), ("vultur", False), ("alice", False), ("no-such-persona", True)],
+)
+async def test_only_a_persona_that_declares_it_may_ride_the_casual_tier(monkeypatch, persona_id, allowed):
+    """An unknown id loads the default persona's DNA, so it inherits Insult's tier too."""
+    from persona_runner.core import config as runner_config
+
+    monkeypatch.setattr(runner_config, "PERSONAS_DIR", ROOT / "shared" / "personas")
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    router = AsyncMock(return_value=("claude-sonnet-4-6", {"routed": True}))
+    monkeypatch.setattr("persona_runner.routing.router_runtime.route_model", router)
+
+    await aire_route.turn_via_aire(_turn_request(persona_id=persona_id))
+
+    assert router.call_args.kwargs["casual_allowed"] is allowed
