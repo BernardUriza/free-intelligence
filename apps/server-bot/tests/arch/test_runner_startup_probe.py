@@ -236,3 +236,25 @@ def test_the_cd_check_expects_exactly_what_the_script_declares():
         f"{p['type']}:{p['httpGet']['path']}" for p in sorted(tpl.RUNNER_PROBES, key=lambda p: p["type"])
     )
     assert f'"$PROBE_PATHS" != "{declared}"' in CD_YML.read_text()
+
+
+def _verify_step() -> str:
+    text = CD_YML.read_text()
+    start = text.index("- name: Verify persona-runner health")
+    return text[start : text.index("- name: Nothing-to-deploy notice")]
+
+
+def test_the_cd_waits_for_ready_before_reading_health():
+    """2026-11-04: the ingress holds a request until the new revision is ready, so a
+    15 s curl to /health timed out on a correct deploy and the CD went red."""
+    step = _verify_step()
+    assert 'FQDN/ready"' in step
+    assert step.index('FQDN/ready"') < step.index('FQDN/health"')
+    assert "/ready never returned 200" in step
+
+
+def test_a_silent_health_is_not_reported_as_a_missing_auth():
+    """The timeout became `{}` and then 'auth_configured!=true', which blamed the auth."""
+    step = _verify_step()
+    assert "/health did not answer" in step
+    assert not any('FQDN/health"' in line and 'echo "{}"' in line for line in step.splitlines())
