@@ -54,10 +54,13 @@ LIVE_WAIT_S = ENGINE_TURN_CEILING_S + ENGINE_COLD_START_S
 # and its events stream, which pings every 15s. Nothing here approaches the ingress' 240s.
 POLL_WAIT_S = 50.0
 EVENTS_READ_S = 60.0
+# The ingress holds the POST for the whole cold start; same cap as the gateway (robustness.md).
+SUBMIT_READ_S = 200.0
 JOB_DEADLINE_S = 600.0
 POLL_TRANSIENT_RETRIES = 3
 _TIMEOUT = httpx.Timeout(POLL_WAIT_S + 10.0, connect=10.0)
 _EVENTS_TIMEOUT = httpx.Timeout(EVENTS_READ_S, connect=10.0)
+_SUBMIT_TIMEOUT = httpx.Timeout(SUBMIT_READ_S, connect=10.0)
 
 LateDelivery = Callable[[dict], Awaitable[None]]
 _LATE_TASKS: set[asyncio.Task] = set()
@@ -190,10 +193,12 @@ def _error(message: str) -> dict:
 async def _submit(client: httpx.AsyncClient, payload: dict, headers: dict) -> str | dict:
     """Open the ticket. Returns the job id, or the one `error` event to emit."""
     try:
-        resp = await client.post(f"{RUNNER_URL}/v1/turn/jobs", json=payload, headers=headers)
+        resp = await client.post(f"{RUNNER_URL}/v1/turn/jobs", json=payload, headers=headers, timeout=_SUBMIT_TIMEOUT)
     except httpx.HTTPError as exc:
+        log.warning("external engine ticket not opened: %s", type(exc).__name__)
         return _error(f"external engine unreachable: {type(exc).__name__}")
     if resp.status_code != 202:
+        log.warning("external engine refused the ticket: %s", resp.status_code)
         return _error(f"external engine returned {resp.status_code}")
     try:
         job_id = str(resp.json().get("job_id") or "")
