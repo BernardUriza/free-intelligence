@@ -617,6 +617,45 @@ export async function gatewayExchange(exchange: string): Promise<GatewayHalves |
  * not how large its tables are.                                       *
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Spend — what the engine door banked per day (`aire_spend`, #25/#8). *
+ * Days are cut in America/Mexico_City, Bernard's clock. The token     *
+ * columns exist since 2026-09-15; an earlier day carries turns and    *
+ * dollars only, and the page says so instead of drawing a zero.       *
+ * ------------------------------------------------------------------ */
+
+export type SpendDay = {
+  day: string; turns: number;
+  input: number; cache_read: number; cache_creation: number;
+  usd: number; usd_metered: number;
+};
+
+/** One row per day with activity, oldest first, over the last `days` days.
+ *  Sums only — the ledger is small (a few thousand rows) and the aggregate
+ *  happens in Postgres, so a 180-day window costs one scan, not a transfer. */
+export async function spendDaily(days: number): Promise<SpendDay[]> {
+  const rows = await read<Record<keyof SpendDay, string>>(
+    `
+    SELECT (at AT TIME ZONE 'America/Mexico_City')::date::text AS day,
+           count(*)::int                                          AS turns,
+           coalesce(sum(input_tokens), 0)::float                  AS input,
+           coalesce(sum(cache_read), 0)::float                    AS cache_read,
+           coalesce(sum(cache_creation), 0)::float                AS cache_creation,
+           coalesce(sum(usd), 0)::float                           AS usd,
+           coalesce(sum(usd) FILTER (WHERE metered), 0)::float    AS usd_metered
+    FROM aire_spend
+    WHERE at >= (now() AT TIME ZONE 'America/Mexico_City')::date - $1::int * interval '1 day'
+    GROUP BY 1 ORDER BY 1
+    `,
+    [days],
+  );
+  return rows.map((r) => ({
+    day: r.day, turns: Number(r.turns),
+    input: Number(r.input), cache_read: Number(r.cache_read), cache_creation: Number(r.cache_creation),
+    usd: Number(r.usd), usd_metered: Number(r.usd_metered),
+  }));
+}
+
 export type GatewayCounts = { requests: number; sessions: number };
 
 /** How much has crossed the gateway. Only `kind` and `session_id` are touched —
