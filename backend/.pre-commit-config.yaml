@@ -1,3 +1,0 @@
-
-# Exclude deprecated archives
-exclude: 'backend/_deprecated_'
