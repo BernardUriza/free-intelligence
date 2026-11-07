@@ -440,6 +440,20 @@ consumer can exclude it at write time (Datadog `x-datadog-origin: synthetics`,
 OpenTelemetry `user_agent.synthetic.type=test`), and it runs under a dedicated
 test identity (Stripe sandboxes, Auth0 one tenant per environment).
 
+### Talking to a persona AS Bernard is not a probe: `persona_mcp/`
+
+When Bernard himself wants a persona's answer from a Claude Code session (a meal
+plan from Frugívoro, a read from Insult), the turn must carry HIS principal, or the
+persona answers blind. That is `persona_mcp/server.py` (MCP tool `ask_persona`, or
+`python3 -I persona_mcp/server.py ask <persona> "<texto>"`): `pipeline="runner"`,
+`user_id=907264175246569543`, channel `claude-code-<persona>`. Write the ask in
+first person, without re-introducing him: the persona already reads his facts.
+`probe_turn.py --tier` goes to `/v1/judge`, which has no memory at all.
+
+**Why (2026-11-06):** a meal plan came back with almost no fruit because it was
+asked through `probe_turn.py --tier crisis`. Bernard: *"frugi sí usó mis facts?
+casi no me puso fruta y sabe que me gusta"*.
+
 ### Which model a probe runs on
 
 **`/v1/turn` has no `model` field: the router picks by tier** (`select_model`), and

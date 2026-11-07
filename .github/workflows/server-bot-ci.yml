@@ -97,8 +97,9 @@ jobs:
         # conda dep — pytest-postgresql shells out to pg_ctl directly and
         # the conda postgresql package's bins are pathed for activated envs.
         run: |
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo install -d -m 0755 /etc/apt/keyrings
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/keyrings/pgdg.gpg
+          sudo sh -c 'echo "deb [signed-by=/etc/apt/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           # SÓLO el repo de PostgreSQL, no los del runner. Un `apt-get update`
           # global falla entero si CUALQUIER repo preinstalado está roto, y el
           # 2026-09-09 el de Google Chrome devolvió `Hash Sum mismatch` dos veces
