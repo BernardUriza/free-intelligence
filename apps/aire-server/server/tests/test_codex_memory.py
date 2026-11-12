@@ -102,3 +102,13 @@ async def test_no_tools_mounts_nothing_and_an_unsupported_one_is_loud(box, tmp_p
     await _result(_birth(_casita(tmp_path, "persona"), ["persona", "memory"]), "hola")
     names = {a.split(".")[1] for a in _argv(box) if a.startswith("mcp_servers.")}
     assert names == {"memory"} and "CODEX-TOOL-UNSUPPORTED" in capsys.readouterr().out
+
+
+@pytest.mark.anyio
+async def test_a_clean_turn_keeps_what_codex_said_on_stderr(box, tmp_path):
+    birth = _birth(_casita(tmp_path, "noisy"), ["memory"])
+    await _result(birth, "warn me")
+    async with db.acquire() as conn:
+        rows = await conn.fetch("SELECT entry::text AS e FROM aire_agent_log"
+                                " WHERE session_id = $1 AND kind = 'stderr'", birth.session_uuid)
+    assert any("failed to start" in r["e"] for r in rows), "a startup warning must reach the log"
