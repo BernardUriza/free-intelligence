@@ -77,10 +77,16 @@ class CodexRun:
         tail = (await self._stderr)[-STDERR_TAIL:].decode(errors="replace")
         return code, tail
 
-    async def close(self) -> None:
+    async def close(self) -> str:
+        """Kill if still running and return the stderr tail, which a clean turn otherwise drops."""
+        tail = ""
         if self._proc is not None and self._proc.returncode is None:
             self._proc.kill()
             await self._proc.wait()
+        if self._stderr is not None:
+            tail = (await self._stderr)[-STDERR_TAIL:].decode(errors="replace")
+            self._stderr = None
         if self._tmp is not None:
             self._tmp.cleanup()
             self._tmp = None
+        return tail

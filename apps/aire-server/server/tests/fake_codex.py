@@ -73,6 +73,8 @@ def main() -> int:
         print("segfault", file=sys.stderr)
         return 3
     emit({"type": "turn.started"})
+    if "warn" in prompt:
+        print("WARN mcp client for `memory` failed to start", file=sys.stderr, flush=True)
     if "fail" in prompt or limited(prompt):
         emit({"type": "turn.failed", "error": {"message": LIMIT if limited(prompt) else "boom"}})
         return 0

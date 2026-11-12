@@ -10,11 +10,8 @@ lines, and the thread lives in the box's `~/.codex` like a Claude session lives
 in its store — so the daemon mirrors every event through `acp_mirror` (the pen
 is the same, only the agent differs) and remembers which thread answers to
 which AIRE session. A resume the box cannot honour (`no rollout found`, exit 1)
-opens a fresh thread LOUDLY, the ACP backend's cold-resume law.
-
-The ACP road was tried first and is dead for now: `codex-acp` 0.16.0 bundles
-codex-core 0.137 and the backend answers *"gpt-6-astra requires a newer version
-of Codex"* — re-measure when Zed ships a newer adapter."""
+opens a fresh thread LOUDLY, the ACP backend's cold-resume law. Why not ACP:
+the CLAUDE.md's Codex entry (the adapter is too old for gpt-6-astra)."""
 
 from __future__ import annotations
 
@@ -57,8 +54,10 @@ class CodexClient:
 
     async def _close(self) -> None:
         if self._run is not None:
-            await self._run.close()
+            tail = await self._run.close()
             self._run = None
+            if tail.strip():
+                await self._mirror("stderr", {"stderr": tail})
 
     async def _mirror(self, kind: str, entry: dict[str, Any]) -> None:
         await acp_mirror.append(self.o.project_key, self.o.session_uuid, NAME, self.thread, kind, entry)
