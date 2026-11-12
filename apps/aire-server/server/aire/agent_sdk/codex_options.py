@@ -18,6 +18,7 @@ NAME = "codex"
 ENV = "AIRE_CODEX_COMMAND"
 DEFAULT_MODEL = "gpt-6-astra"
 DEFAULT_EFFORT = "medium"
+MCP_RUST_LOG = "warn,codex_rmcp_client=info,codex_mcp=info"
 
 
 def command() -> tuple[str, ...]:
@@ -65,9 +66,12 @@ def build_options(birth: Birth) -> CodexOptions:
     the rest. `agent` mode is the only one that may write its casita."""
     from .claude import project_key_for_directory
     key = project_key_for_directory(birth.cwd)
-    return CodexOptions(command=command(), cwd=birth.cwd, project_key=key, mcp=_mcp(birth, key),
+    mcp = _mcp(birth, key)
+    env = dict(birth.credential_env or {})
+    if mcp:
+        env.setdefault("RUST_LOG", MCP_RUST_LOG)
+    return CodexOptions(command=command(), cwd=birth.cwd, project_key=key, mcp=mcp,
                         session_uuid=birth.session_uuid,
                         allow_tools=birth.spec.mode == "agent",
                         model=birth.spec.model or os.environ.get("AIRE_CODEX_MODEL", DEFAULT_MODEL),
-                        effort=os.environ.get("AIRE_CODEX_EFFORT", DEFAULT_EFFORT),
-                        env=dict(birth.credential_env or {}))
+                        effort=os.environ.get("AIRE_CODEX_EFFORT", DEFAULT_EFFORT), env=env)
