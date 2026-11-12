@@ -1,6 +1,6 @@
 # 54 — The Stop judge lives in a casita: one fixed casita, a persona, memory, and it learns every turn
 
-Status: **Proposed**
+Status: **Accepted**
 Proposed: 2026-11-12 by Bernard (*"la intencion de pasar el juez por AIRE es que se usara una casita que
 escriba memorias y sea mas listo cada vez y se llame la misma casita siempre, o sea, usar lo que hicimos de
 free-intelligence realmente, ahorita no se usa, es solo decoracion, la persona, la memoria el mcp, todo esta
@@ -46,6 +46,13 @@ the credential rotor (#53: Codex plan seat first, `metered=f`). The judge adapte
 3. Latency budget: a Stop that waits ~9–10 s on every reply, or verdict stays on the fast door and the
    casita learns asynchronously from the log.
 
+## Decided 2026-11-12 (Bernard)
+
+1. **Codex, and the Codex backend gets MCP** — so every Codex casita gains `memory`, not just the judge.
+2. **One casita `stop-judge`, a session per day**; what it learns lives in the casita's memory and persona.
+3. **Every verdict goes through the casita** (~9–10 s per Stop accepted); one path, no fast-door shadow.
+
 ## Status / next step
 
-Proposed. Next: Bernard settles the three forks; then the Codex-MCP gap (if Codex) is the first PR.
+Accepted. First PR: MCP for the Codex backend (`memory` reachable from `codex exec`, project-scoped like the
+SDK path). Then the judge adapter's transport points at the message door.
