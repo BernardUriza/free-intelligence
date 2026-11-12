@@ -48,6 +48,8 @@ def server_flags(name: str, project_key: str, cwd: str) -> list[str]:
              "default_tools_approval_mode": "approve"}
     flags = [f"mcp_servers.{name}.{key}={_toml(value)}" for key, value in entry.items()]
     flags.append(f"mcp_servers.{name}.startup_timeout_sec={STARTUP_TIMEOUT_S}")
+    # An optional server still starting when the turn's catalog is captured is OMITTED (tool_catalog.rs:376).
+    flags.append(f"mcp_servers.{name}.required=true")
     return [part for flag in flags for part in ("-c", flag)]
 
 
