@@ -1,6 +1,6 @@
 # 54 — The Stop judge lives in a casita: one fixed casita, a persona, memory, and it learns every turn
 
-Status: **Accepted**
+Status: **In progress**
 Proposed: 2026-11-12 by Bernard (*"la intencion de pasar el juez por AIRE es que se usara una casita que
 escriba memorias y sea mas listo cada vez y se llame la misma casita siempre, o sea, usar lo que hicimos de
 free-intelligence realmente, ahorita no se usa, es solo decoracion, la persona, la memoria el mcp, todo esta
@@ -54,5 +54,15 @@ the credential rotor (#53: Codex plan seat first, `metered=f`). The judge adapte
 
 ## Status / next step
 
-Accepted. First PR: MCP for the Codex backend (`memory` reachable from `codex exec`, project-scoped like the
-SDK path). Then the judge adapter's transport points at the message door.
+In progress. First PR (Codex gets `memory`): a turn with `provider: "codex"` and `tools: ["memory"]` declares a
+stdio MCP server per turn through `codex exec -c mcp_servers.memory.*` (`agent_sdk/codex_mcp.py`); its child is
+`python -m aire.engine.stdio_tool memory <project_key> <cwd>`, which serves the SAME server object the SDK mounts
+in-process. `recall` now reads `claude_session_store` AND `aire_agent_log`, so a Codex casita finds its own
+rows (the open question above: it did not, Codex rows never reach the SDK store). Shaped by codex-cli 0.164.0's
+source: the child's env is scrubbed (the DSN rides as `env_vars`, a name, never a value in argv) and under
+`approval_policy="never"` an MCP call that needs approval is denied, so the server is `approve`. Only `memory`
+is offered to Codex; any other registry name logs `CODEX-TOOL-UNSUPPORTED`. Proven locally against a fake
+model that spawns the real server the way codex does. NOT yet proven on the droplet with the real CLI.
+
+Next: deploy, then one real Codex turn through the door with `tools: ["memory"]` that recalls an earlier
+session's word; then the judge adapter's transport points at the message door.
