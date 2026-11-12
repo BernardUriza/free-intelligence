@@ -112,3 +112,9 @@ async def test_a_clean_turn_keeps_what_codex_said_on_stderr(box, tmp_path):
         rows = await conn.fetch("SELECT entry::text AS e FROM aire_agent_log"
                                 " WHERE session_id = $1 AND kind = 'stderr'", birth.session_uuid)
     assert any("failed to start" in r["e"] for r in rows), "a startup warning must reach the log"
+
+
+def test_a_turn_that_mounts_mcp_asks_codex_for_the_server_logs(tmp_path):
+    mounted = build_options(_birth(_casita(tmp_path, "logs"), ["memory"]))
+    bare = build_options(_birth(_casita(tmp_path, "quiet")))
+    assert "codex_rmcp_client=info" in mounted.env["RUST_LOG"] and "RUST_LOG" not in bare.env
