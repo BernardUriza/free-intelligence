@@ -51,16 +51,23 @@ def _clamp(raw: Any, default: int) -> int:
         return default
 
 
-_SEARCH = (
-    f"SELECT src, seq, body FROM ("
+_STORE_HITS = (
     f" SELECT 'claude' AS src, seq, entry::text AS body, mtime AS ms FROM {_TABLE}"
     "  WHERE project_key = $1 AND entry::text ILIKE $2"
     " UNION ALL"
-    " SELECT provider, seq, entry::text, (extract(epoch FROM at) * 1000)::bigint"
+)
+_AGENT_HITS = (
+    " SELECT provider AS src, seq, entry::text AS body,"
+    " (extract(epoch FROM at) * 1000)::bigint AS ms"
     f" FROM {acp_mirror.TABLE}"
     "  WHERE project_key = $1 AND entry::text ILIKE $2"
-    ") hits ORDER BY ms DESC, seq DESC LIMIT $3"
 )
+
+
+def _search_sql(has_store: bool) -> str:
+    """The SDK store exists only once a Claude turn created it; a Codex-only box has none."""
+    head = _STORE_HITS if has_store else ""
+    return f"SELECT src, seq, body FROM ({head}{_AGENT_HITS}) hits ORDER BY ms DESC, seq DESC LIMIT $3"
 
 
 async def _search(project_key: str, query: str, limit: int) -> list[str]:
@@ -68,7 +75,8 @@ async def _search(project_key: str, query: str, limit: int) -> list[str]:
     newest first by wall clock (the two `seq` columns are separate counters)."""
     await acp_mirror.ensure()
     async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
-        rows = await conn.fetch(_SEARCH, project_key, f"%{query}%", limit)
+        has_store = await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", _TABLE)
+        rows = await conn.fetch(_search_sql(has_store), project_key, f"%{query}%", limit)
     return [f"[{r['src']} seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 
