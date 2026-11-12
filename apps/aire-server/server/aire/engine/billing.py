@@ -28,3 +28,11 @@ def turn_tokens(event: dict[str, Any]) -> dict[str, int]:
     return {"cache_read": int(usage.get("cache_read_input_tokens") or 0),
             "cache_creation": int(usage.get("cache_creation_input_tokens") or 0),
             "input_tokens": int(usage.get("input_tokens") or 0)}
+
+
+def owed(event: dict[str, Any]) -> tuple[float, bool]:
+    """What an invited key owes for a `result`, and whether it rode a metered slot.
+    `turn.py` stamps both: the ledger's DELTA (never the client's cumulative total),
+    and $0 for a plan seat, whose nominal dollars nobody is billed. Unstamped →
+    (0, metered): the door's warning then says the ceiling is not biting."""
+    return float(event.get("billed_usd") or 0.0), bool(event.get("metered", True))

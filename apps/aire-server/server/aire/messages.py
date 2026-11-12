@@ -20,7 +20,7 @@ from . import tokens
 from .deps import get_engine
 from .engine import BudgetExceeded, SlotBusy, TurnSpec
 from .engine.contract import Guard
-from .engine.drain import turn_cost
+from .engine.billing import owed
 from .engine.guards import observe
 from .engine.vision import attached_counts
 from .attachment_door import safe_attachments
@@ -57,12 +57,16 @@ async def post_message(project: str, session: str, request: Request) -> Any:
     return EventSourceResponse(_events(project, session, message, spec, attachments, holder, guards))
 
 
-async def _bank(holder: Any, cost: float) -> None:
-    """Charge one turn to the invited key that asked for it (#32d/#28). A real
-    result that bills nothing is PRINTED, never swallowed: that is precisely what
-    a ceiling looks like while it is not biting, and it stayed invisible once."""
+async def _bank(holder: Any, result_ev: dict[str, Any]) -> None:
+    """Charge one turn to the invited key that asked for it (#32d/#28): metered
+    dollars only — a plan seat's are nominal, and banking them 402'd a judge key
+    on money nobody paid. A metered $0 is PRINTED: a ceiling that is not biting."""
+    cost, metered = owed(result_ev)
+    if not metered:
+        print(f"INVITE {holder.nickname}: a plan-seat turn, nothing billed", flush=True)
+        return
     if cost <= 0:
-        print(f"INVITE {holder.nickname}: a turn banked $0 — the ceiling is not biting", flush=True)
+        print(f"INVITE {holder.nickname}: a metered turn banked $0 — the ceiling is not biting", flush=True)
     await tokens.charge(holder.nickname, cost)
 
 
@@ -70,7 +74,7 @@ async def _launch_background(project: str, session: str, message: str, spec: Tur
                              attachments: tuple[dict[str, Any], ...],
                              holder: Any = None) -> JSONResponse:
     engine = await get_engine()
-    sink = (lambda cost: _bank(holder, cost)) if holder is not None else None
+    sink = (lambda ev: _bank(holder, ev)) if holder is not None else None
     try:
         engine.launch_detached(project, session, message, spec, attachments, on_cost=sink)
     except RuntimeError as exc:  # a turn already runs on this session
@@ -116,7 +120,7 @@ async def _events(project: str, session: str, message: str, spec: TurnSpec,
             # An invited key pays for its own turn (#32d/#28). Banked as the result
             # passes, not at the end: a dropped socket must not make a turn free.
             if holder is not None and ev.get("type") == "result":
-                await _bank(holder, turn_cost(ev))
+                await _bank(holder, ev)
             yield ServerSentEvent(event=ev["type"], data=json.dumps(_plain(ev), ensure_ascii=False))
             if guards and ev.get("type") == "result":
                 yield _guards_event(guards, ev, message)

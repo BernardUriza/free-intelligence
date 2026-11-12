@@ -15,7 +15,6 @@ from collections.abc import AsyncIterator
 from typing import Any, Awaitable, Callable
 
 from .contract import CostSink
-from .drain import turn_cost
 
 
 async def drain_detached(events: AsyncIterator[dict[str, Any]], key: str,
@@ -30,7 +29,7 @@ async def drain_detached(events: AsyncIterator[dict[str, Any]], key: str,
     try:
         async for ev in events:
             if on_cost is not None and ev.get("type") == "result":
-                await on_cost(turn_cost(ev))
+                await on_cost(ev)
             if ev.get("type") == "error":
                 print(f"DETACHED {key} {ev.get('error')}: {ev.get('detail', '')}")
     except Exception as exc:  # noqa: BLE001 — no client to tell; log for the operator
