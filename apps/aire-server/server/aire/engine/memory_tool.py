@@ -1,9 +1,13 @@
 """The `memory` in-process MCP server — the agent recalls its OWN transcript.
 
 The first tenant of AIRE's tool registry (backlog #29). An in-process SDK MCP
-server (runs INSIDE the daemon, no subprocess) exposing one tool, `recall`, that
-searches this project's mirrored transcript in `claude_session_store` and returns
-the matching entries. It is the agent reading its own memory — the same sanctioned
+server exposing one tool, `recall`, that searches this project's mirrored
+transcript and returns the matching entries. The transcript lives in TWO tables:
+`claude_session_store` (the Claude SDK's own store) and `aire_agent_log` (the pen
+the daemon holds for Codex and every ACP agent, `acp_mirror`). `recall` reads
+both, so a casita remembers what it said whichever backend answered (#54). The
+Codex backend reaches this same server over stdio (`engine/stdio_tool.py`).
+It is the agent reading its own memory — the same sanctioned
 exception to [[write-only-daemon]] as `session_store.load()`, never a waiter read.
 
 SESSION-SCOPED by construction: `build_memory_server` closes over the project_key,
@@ -18,7 +22,7 @@ from typing import Any
 from ..agent_sdk import mcp_server as create_sdk_mcp_server
 from ..agent_sdk import tool
 
-from .. import db
+from .. import acp_mirror, db
 
 _TABLE = "claude_session_store"
 _MAX_LIMIT = 20
@@ -47,16 +51,33 @@ def _clamp(raw: Any, default: int) -> int:
         return default
 
 
+_STORE_HITS = (
+    f" SELECT 'claude' AS src, seq, entry::text AS body, mtime AS ms FROM {_TABLE}"
+    "  WHERE project_key = $1 AND entry::text ILIKE $2"
+    " UNION ALL"
+)
+_AGENT_HITS = (
+    " SELECT provider AS src, seq, entry::text AS body,"
+    " (extract(epoch FROM at) * 1000)::bigint AS ms"
+    f" FROM {acp_mirror.TABLE}"
+    "  WHERE project_key = $1 AND entry::text ILIKE $2"
+)
+
+
+def _search_sql(has_store: bool) -> str:
+    """The SDK store exists only once a Claude turn created it; a Codex-only box has none."""
+    head = _STORE_HITS if has_store else ""
+    return f"SELECT src, seq, body FROM ({head}{_AGENT_HITS}) hits ORDER BY ms DESC, seq DESC LIMIT $3"
+
+
 async def _search(project_key: str, query: str, limit: int) -> list[str]:
-    """The matching transcript entries for this project, newest first."""
+    """The matching transcript entries for this project from both tables,
+    newest first by wall clock (the two `seq` columns are separate counters)."""
+    await acp_mirror.ensure()
     async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
-        rows = await conn.fetch(
-            f"SELECT seq, entry::text AS body FROM {_TABLE} "
-            "WHERE project_key = $1 AND entry::text ILIKE $2 "
-            "ORDER BY seq DESC LIMIT $3",
-            project_key, f"%{query}%", limit,
-        )
-    return [f"[seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
+        has_store = await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", _TABLE)
+        rows = await conn.fetch(_search_sql(has_store), project_key, f"%{query}%", limit)
+    return [f"[{r['src']} seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 
 def build_memory_server(project_key: str, _cwd: str = "") -> Any:

@@ -19,10 +19,11 @@ STDERR_TAIL = 2000
 class CodexRun:
     def __init__(self, command: tuple[str, ...], cwd: str, model: str, effort: str,
                  allow_tools: bool, prompt: str, images: list[tuple[bytes, str]],
-                 thread: str | None, env: dict[str, str] | None = None) -> None:
+                 thread: str | None, env: dict[str, str] | None = None,
+                 mcp: tuple[str, ...] = ()) -> None:
         self.command, self.cwd, self.model, self.effort = command, cwd, model, effort
         self.allow_tools, self.prompt, self.images, self.thread = allow_tools, prompt, images, thread
-        self.env = env or {}
+        self.env, self.mcp = env or {}, mcp
         self._proc: Any = None
         self._stderr: Any = None
         self._tmp: Any = None
@@ -32,14 +33,14 @@ class CodexRun:
         every call (a resume without it falls back to the plan's default weights)
         and the modes dial becomes the sandbox: `agent` may write its casita,
         anything else is read-only. `approval_policy=never` because nobody sits
-        at this terminal to answer a prompt."""
+        at this terminal to answer a prompt. `mcp` is `codex_mcp.flags` (#54)."""
         sandbox = "workspace-write" if self.allow_tools else "read-only"
         argv = [*self.command, "exec"]
         if self.thread:
             argv += ["resume", self.thread]
         argv += ["-m", self.model, "-c", f'model_reasoning_effort="{self.effort}"',
                  "-c", f'sandbox_mode="{sandbox}"', "-c", 'approval_policy="never"',
-                 "-c", f"project_doc_max_bytes={PROJECT_DOC_MAX_BYTES}",
+                 "-c", f"project_doc_max_bytes={PROJECT_DOC_MAX_BYTES}", *self.mcp,
                  "--skip-git-repo-check", "--json"]
         for path in image_paths:
             argv += ["-i", path]

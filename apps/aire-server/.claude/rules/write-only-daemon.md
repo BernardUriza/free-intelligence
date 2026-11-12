@@ -114,7 +114,10 @@ at all.
    view. Session-scoped by construction (the server closes over the casita's
    project_key), so one project can never read another's transcript. Authorized by
    Bernard 2026-07-29 when he chose "an in-process memory server over AIRE's own
-   Postgres" as the first tenant of the tool registry.
+   Postgres" as the first tenant of the tool registry. Since 2026-11-12 (#54) it
+   also reads `aire_agent_log`, where the daemon mirrors Codex and ACP turns, and
+   the Codex backend reaches the same server over stdio (`engine/stdio_tool.py`):
+   still the agent's own transcript, still scoped by the casita's project_key.
 
 None is a waiter read. If Bernard vetoes any, that feature moves out of scope —
 his call. Any read that serves a VIEW is a violation; it belongs in the front.

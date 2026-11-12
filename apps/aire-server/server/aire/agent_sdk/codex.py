@@ -68,8 +68,9 @@ class CodexClient:
 
     async def _start(self) -> None:
         await self._close()
+        thread = None if self._fresh else self.thread
         self._run = CodexRun(self.o.command, self.o.cwd, self.o.model, self.o.effort, self.o.allow_tools,
-                             self._prompt, self._images, None if self._fresh else self.thread, self.o.env)
+                             self._prompt, self._images, thread, self.o.env, self.o.mcp)
         self._fresh = False
         await self._run.start()
 

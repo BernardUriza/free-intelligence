@@ -46,14 +46,26 @@ class CodexOptions:
     model: str
     effort: str
     env: dict[str, str] = field(default_factory=dict)
+    mcp: tuple[str, ...] = ()
+    """`-c` flags declaring the registry tools this turn mounts (#54)."""
+
+
+def _mcp(birth: Birth, project_key: str) -> tuple[str, ...]:
+    """The registry tools Codex can mount (#54) as `-c` flags; a name it cannot
+    mount is said LOUD, never dropped in silence."""
+    from .codex_mcp import flags, split
+    mounted, refused = split(tuple(birth.spec.tools))
+    if refused:
+        print(f"CODEX-TOOL-UNSUPPORTED {birth.project}/{birth.session_uuid}: {list(refused)}", flush=True)
+    return tuple(flags(mounted, project_key, birth.cwd))
 
 
 def build_options(birth: Birth) -> CodexOptions:
     """`spec.model` picks the weights per turn; the operator's defaults fill
     the rest. `agent` mode is the only one that may write its casita."""
     from .claude import project_key_for_directory
-    return CodexOptions(command=command(), cwd=birth.cwd,
-                        project_key=project_key_for_directory(birth.cwd),
+    key = project_key_for_directory(birth.cwd)
+    return CodexOptions(command=command(), cwd=birth.cwd, project_key=key, mcp=_mcp(birth, key),
                         session_uuid=birth.session_uuid,
                         allow_tools=birth.spec.mode == "agent",
                         model=birth.spec.model or os.environ.get("AIRE_CODEX_MODEL", DEFAULT_MODEL),
