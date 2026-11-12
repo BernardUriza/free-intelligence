@@ -92,6 +92,7 @@ async def test_the_overrides_name_the_secret_never_carry_it(box, tmp_path):
     await _result(_birth(_casita(tmp_path, "flags"), ["memory"]), "hola")
     argv = " ".join(_argv(box))
     assert 'mcp_servers.memory.default_tools_approval_mode="approve"' in argv
+    assert "mcp_servers.memory.required=true" in argv, "an optional server still starting is omitted"
     assert '"AIRE_DATABASE_URL"' in argv and db.dsn() not in argv
 
 
