@@ -4,6 +4,6 @@ uvicorn[standard]
 sse-starlette
 claude-agent-sdk
 asyncpg
-agent-client-protocol
+agent-client-protocol<1
 pillow
 pypdf
