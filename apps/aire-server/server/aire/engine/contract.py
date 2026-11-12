@@ -5,9 +5,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-CostSink = Callable[[float], Awaitable[None]]
-"""What a turn's dollars are reported to. The engine never learns WHOSE ceiling
-it is feeding — it hands over a number, and the HTTP surface knows the key."""
+CostSink = Callable[[dict[str, Any]], Awaitable[None]]
+"""What a turn's `result` event is reported to. The engine never learns WHOSE
+ceiling it is feeding — it hands over the stamped result, the HTTP surface knows the key."""
 
 
 class BudgetExceeded(Exception):

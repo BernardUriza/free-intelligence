@@ -58,9 +58,9 @@ async def run_turn(engine: Any, project: str, session: str, prompt: str,
 
 
 async def _account(engine: Any, project: str, session: str,
-                   event: dict[str, Any], slot: Slot) -> bool:
-    """Bank this turn twice, for two different questions, and report whether the
-    client hit its own cap (#23).
+                   event: dict[str, Any], slot: Slot) -> tuple[bool, float]:
+    """Bank this turn twice, for two different questions; return whether the
+    client hit its own cap (#23) and what an invited key owes (metered delta only).
 
     In RAM the ``Ledger`` answers "should this process stop lending the CARD" —
     so only a metered slot's dollars move it (``slot.metered``); in Postgres
@@ -74,7 +74,7 @@ async def _account(engine: Any, project: str, session: str,
     client that spent is the one that pays."""
     delta, spent = engine.ledger.account(f"{project}/{session}", turn_cost(event), slot.metered)
     await spend.bank("engine", project, session, None, delta, slot.metered, turn_tokens(event))
-    return spent
+    return spent, delta if slot.metered else 0.0
 
 
 async def _weigh_under_lock(engine: Any, project: str, session: str,
@@ -109,7 +109,8 @@ async def _serve(engine: Any, project: str, session: str, prompt: str,
     await send_turn(client, prompt, attachments)
     async for event in drain(client):
         if event.get("type") == "result":
-            state["spent"] = await _account(engine, project, session, event, born_with)
+            state["spent"], billed = await _account(engine, project, session, event, born_with)
+            event = {**event, "metered": born_with.metered, "billed_usd": billed}
             result = event["result"]
             notice = result.error or result.text
             if limit_hit(notice, result.usage):
