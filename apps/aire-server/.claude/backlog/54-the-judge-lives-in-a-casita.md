@@ -66,3 +66,20 @@ model that spawns the real server the way codex does. NOT yet proven on the drop
 
 Next: deploy, then one real Codex turn through the door with `tools: ["memory"]` that recalls an earlier
 session's word; then the judge adapter's transport points at the message door.
+
+## 2026-11-12 23:45Z — memory works live on the droplet (#639–#642)
+
+The first live run failed: the model said *"No tengo acceso a recall"* and listed 195 `mcp__codex_apps__*`
+tools and none from `memory`. `RUST_LOG=trace` on the droplet showed the server initialize and answer
+`tools/list`, then `omitting pending optional MCP server server_name=memory`
+(`codex-mcp/src/connection_manager/tool_catalog.rs:376` at `rust-v0.164.0`): an optional server past the
+startup grace is dropped from the turn's catalog. `mcp_servers.memory.required=true` (#642) makes codex wait.
+Receipt: session `mem-g-1112` was told `guanabana-20314`; a NEW session `mem-h-1112` with `tools: ["memory"]`
+answered `guanabana-20314` in 18.5 s, and `aire_agent_log` holds the `mcp_tool_call` `memory/recall`
+`status: completed`. Side fixes: `recall` survives a box without `claude_session_store`; a clean Codex turn
+keeps its stderr (`kind=stderr`); MCP turns run with `RUST_LOG` for the server's logs.
+
+Cost note: every Codex turn carries the plan's ~195 `codex_apps` tools (~24K cached input tokens).
+
+Next: the judge adapter (`agent-constitution/gates/stop-judge`) moves its transport to the message door,
+casita `stop-judge`, session per day, `tools: ["memory"]`.
