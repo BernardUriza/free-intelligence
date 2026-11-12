@@ -5,6 +5,8 @@ It echoes `pong: <prompt>`, keeps each thread's history in FAKE_CODEX_STORE so
 does (stderr `no rollout found`, exit 1), runs a "tool" whose outcome follows
 the sandbox, fails a turn on "fail", dies silently on "crash", and records the
 argv and the credential env it was given (`last_argv.json`, `last_env.json`).
+A prompt `recall: <term>` calls the `memory` MCP server for real (#54,
+`fake_codex_mcp.py`) and answers `pong: recalled <what the server said>`.
 
 A prompt with "limit" is a plan at its ceiling (#53): without `CODEX_API_KEY`
 the turn fails with the CLI's own usage-limit wording (its 0.164.0 string
@@ -45,6 +47,16 @@ def limited(prompt: str) -> bool:
     return "limit" in prompt and not os.environ.get("CODEX_API_KEY")
 
 
+def mcp_recall(query: str) -> str:
+    """The model calls `memory/recall`; the item carries what the server said."""
+    from fake_codex_mcp import recall
+    answer, failed = recall(sys.argv[1:], query)
+    item = {"id": "item_m", "type": "mcp_tool_call", "server": "memory", "tool": "recall",
+            "arguments": {"query": query}, "status": "failed" if failed else "completed"}
+    emit({"type": "item.completed", "item": item})
+    return f"recalled {answer}"
+
+
 def main() -> int:
     STORE.mkdir(parents=True, exist_ok=True)
     record()
@@ -70,6 +82,8 @@ def main() -> int:
                                                 "command": "ls", "aggregated_output": "", "status": "in_progress"}})
         emit({"type": "item.completed", "item": {"id": "item_0", "type": "command_execution",
                                                   "command": "ls", "aggregated_output": "", "status": status}})
+    if prompt.startswith("recall: "):
+        prompt = mcp_recall(prompt.removeprefix("recall: "))
     text = f"pong: {prompt}" + (f" after {len(history)}" if history else "") + (f" images: {len(images)}" if images else "")
     emit({"type": "item.completed", "item": {"id": "item_1", "type": "agent_message", "text": text}})
     emit({"type": "turn.completed", "usage": USAGE})
