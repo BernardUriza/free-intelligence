@@ -119,3 +119,16 @@ def test_a_turn_that_mounts_mcp_asks_codex_for_the_server_logs(box, tmp_path):
     mounted = build_options(_birth(_casita(tmp_path, "logs"), ["memory"]))
     bare = build_options(_birth(_casita(tmp_path, "quiet")))
     assert "codex_rmcp_client=info" in mounted.env["RUST_LOG"] and "RUST_LOG" not in bare.env
+
+
+@pytest.mark.anyio
+async def test_recall_leaves_out_the_asking_session_and_its_own_echoes(box, tmp_path):
+    from aire import acp_mirror
+    from aire.engine.memory_tool import _search
+    pk, word = f"pk-{uuid.uuid4().hex[:6]}", f"guanabana-{uuid.uuid4().hex[:6]}"
+    await acp_mirror.append(pk, "earlier", "codex", "t1", "prompt", {"text": f"the secret word is {word}"})
+    await acp_mirror.append(pk, "now", "codex", "t2", "prompt", {"text": f"recall {word}"})
+    await acp_mirror.append(pk, "other", "codex", "t3", "item.started",
+                            {"type": "mcp_tool_call", "arguments": {"query": word}})
+    hits = await _search(pk, word, 10, "now")
+    assert len(hits) == 1 and "the secret word is" in hits[0], hits
