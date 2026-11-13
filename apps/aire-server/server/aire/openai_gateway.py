@@ -21,7 +21,7 @@ import uuid
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from . import gateway, gateway_mirror, openai_assemble, pricing, relay, tokens
+from . import gateway, gateway_mirror, openai_assemble, openai_memory, pricing, relay, tokens
 from .gateway_mirror import ResponseTap
 
 router = APIRouter()
@@ -63,12 +63,15 @@ async def responses(request: Request) -> Response:
 async def _relay(request: Request, body: bytes) -> Response:
     holder = request.state.holder  # the door admits nobody else on this prefix
     base, credential = azure_openai()  # and refused already if there was nothing to lend
+    route = openai_memory.route_for(holder.nickname)  # None unless the routes file names it (#54)
+    sent = await openai_memory.remind(route, body) if route else body
     exchange = uuid.uuid4().hex
-    await gateway_mirror.log_request(exchange, request.headers, body, holder.nickname)
+    await gateway_mirror.log_request(exchange, request.headers, sent, holder.nickname)
     headers = lend_openai(gateway.forward_headers(request), credential)
 
     def tap_for(status: int, content_type: str) -> ResponseTap:
-        return ResponseTap(exchange, status, content_type,
-                           tokens.biller(holder, pricing.openai_usd), openai_assemble.assemble)
+        args = (exchange, status, content_type,
+                tokens.biller(holder, pricing.openai_usd), openai_assemble.assemble)
+        return openai_memory.RememberingTap(route, body, *args) if route else ResponseTap(*args)
 
-    return await relay.forward(request, body, headers, base, tap_for, holder, error)
+    return await relay.forward(request, sent, headers, base, tap_for, holder, error)

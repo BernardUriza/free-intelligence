@@ -81,6 +81,19 @@ async def _search(project_key: str, query: str, limit: int, current: str = "") -
     return [f"[{r['src']} seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 
+async def marked(project_key: str, marker: str, limit: int, timeout_ms: int) -> list[str]:
+    """The prompts of THIS project that open with `marker`, newest first — how a casita's
+    corrections are found without a turn (#54). A prefix, not a substring: a verdict
+    that merely quotes a correction is not one."""
+    await acp_mirror.ensure()
+    async with db.acquire(statement_timeout_ms=timeout_ms) as conn:
+        rows = await conn.fetch(
+            f"SELECT entry->>'text' AS text FROM {acp_mirror.TABLE} WHERE project_key = $1"
+            " AND kind = 'prompt' AND entry->>'text' LIKE $2 ORDER BY seq DESC LIMIT $3",
+            project_key, marker.replace("%", r"\%").replace("_", r"\_") + "%", limit)
+    return [r["text"] for r in rows]
+
+
 def build_memory_server(project_key: str, _cwd: str = "", current_session: str = "") -> Any:
     """The session-scoped `memory` server: `recall` over THIS project's transcript.
     (`_cwd` is the registry's shared factory contract; this tool is database-backed

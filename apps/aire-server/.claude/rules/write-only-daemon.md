@@ -118,6 +118,9 @@ at all.
    also reads `aire_agent_log`, where the daemon mirrors Codex and ACP turns, and
    the Codex backend reaches the same server over stdio (`engine/stdio_tool.py`):
    still the agent's own transcript, still scoped by the casita's project_key.
+   Since 2026-11-13 the OpenAI door reads a ROUTED casita's corrections the same way
+   (`openai_memory.py`, `memory_tool.marked`) to put them in the judge's system message:
+   the result feeds the model, never a view.
 
 None is a waiter read. If Bernard vetoes any, that feature moves out of scope —
 his call. Any read that serves a VIEW is a violation; it belongs in the front.
