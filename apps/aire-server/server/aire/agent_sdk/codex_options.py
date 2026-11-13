@@ -58,7 +58,7 @@ def _mcp(birth: Birth, project_key: str) -> tuple[str, ...]:
     mounted, refused = split(tuple(birth.spec.tools))
     if refused:
         print(f"CODEX-TOOL-UNSUPPORTED {birth.project}/{birth.session_uuid}: {list(refused)}", flush=True)
-    return tuple(flags(mounted, project_key, birth.cwd))
+    return tuple(flags(mounted, project_key, birth.cwd, birth.session_uuid))
 
 
 def build_options(birth: Birth) -> CodexOptions:

@@ -25,18 +25,19 @@ from .tools import REGISTRY
 MODULE = "aire.engine.stdio_tool"
 
 
-async def serve(name: str, project_key: str, cwd: str) -> None:
-    """Speak MCP on stdin/stdout until the agent closes the pipe."""
+async def serve(name: str, project_key: str, cwd: str, *session: str) -> None:
+    """Speak MCP on stdin/stdout until the agent closes the pipe. `session` (memory only)
+    names the turn's own session, which `recall` leaves out."""
     from mcp.server.stdio import stdio_server
 
-    server: Any = REGISTRY[name](project_key, cwd)["instance"]
+    server: Any = REGISTRY[name](project_key, cwd, *session)["instance"]
     async with stdio_server() as (read, write):
         await server.run(read, write, server.create_initialization_options())
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3 or argv[0] not in REGISTRY:
-        print(f"usage: python -m {MODULE} <{'|'.join(sorted(REGISTRY))}> <project_key> <cwd>",
+    if len(argv) not in (3, 4) or argv[0] not in REGISTRY:
+        print(f"usage: python -m {MODULE} <{'|'.join(sorted(REGISTRY))}> <project_key> <cwd> [session]",
               file=sys.stderr)
         return 2
     anyio.run(serve, *argv)

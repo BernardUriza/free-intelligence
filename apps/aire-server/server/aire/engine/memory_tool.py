@@ -53,14 +53,15 @@ def _clamp(raw: Any, default: int) -> int:
 
 _STORE_HITS = (
     f" SELECT 'claude' AS src, seq, entry::text AS body, mtime AS ms FROM {_TABLE}"
-    "  WHERE project_key = $1 AND entry::text ILIKE $2"
+    "  WHERE project_key = $1 AND session_id <> $4 AND entry::text ILIKE $2"
     " UNION ALL"
 )
 _AGENT_HITS = (
     " SELECT provider AS src, seq, entry::text AS body,"
     " (extract(epoch FROM at) * 1000)::bigint AS ms"
     f" FROM {acp_mirror.TABLE}"
-    "  WHERE project_key = $1 AND entry::text ILIKE $2"
+    "  WHERE project_key = $1 AND session_id <> $4 AND entry::text ILIKE $2"
+    "  AND kind <> 'stderr' AND coalesce(entry->>'type', '') <> 'mcp_tool_call'"
 )
 
 
@@ -70,17 +71,17 @@ def _search_sql(has_store: bool) -> str:
     return f"SELECT src, seq, body FROM ({head}{_AGENT_HITS}) hits ORDER BY ms DESC, seq DESC LIMIT $3"
 
 
-async def _search(project_key: str, query: str, limit: int) -> list[str]:
-    """The matching transcript entries for this project from both tables,
-    newest first by wall clock (the two `seq` columns are separate counters)."""
+async def _search(project_key: str, query: str, limit: int, current: str = "") -> list[str]:
+    """The matching entries from both tables, newest first by wall clock. The CURRENT
+    session is left out: its own prompt and tool calls always match, and its thread holds them anyway."""
     await acp_mirror.ensure()
     async with db.acquire(statement_timeout_ms=_STATEMENT_TIMEOUT_MS) as conn:
         has_store = await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", _TABLE)
-        rows = await conn.fetch(_search_sql(has_store), project_key, f"%{query}%", limit)
+        rows = await conn.fetch(_search_sql(has_store), project_key, f"%{query}%", limit, current)
     return [f"[{r['src']} seq {r['seq']}] {r['body'][:_SNIPPET]}" for r in rows]
 
 
-def build_memory_server(project_key: str, _cwd: str = "") -> Any:
+def build_memory_server(project_key: str, _cwd: str = "", current_session: str = "") -> Any:
     """The session-scoped `memory` server: `recall` over THIS project's transcript.
     (`_cwd` is the registry's shared factory contract; this tool is database-backed
     and does not touch the casita's disk.)"""
@@ -97,7 +98,7 @@ def build_memory_server(project_key: str, _cwd: str = "") -> Any:
         if not query:
             return _error("query is required")
         try:
-            hits = await _search(project_key, query, _clamp(args.get("limit"), 5))
+            hits = await _search(project_key, query, _clamp(args.get("limit"), 5), current_session)
         except Exception as exc:  # noqa: BLE001 — a tool reports its failure as text
             return _error(f"recall failed: {type(exc).__name__}")
         return _text("\n\n".join(hits) if hits else f"No past entries match {query!r}.")

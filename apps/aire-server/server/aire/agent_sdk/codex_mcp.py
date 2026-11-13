@@ -40,10 +40,10 @@ def _toml(value: object) -> str:
     return json.dumps(value)
 
 
-def server_flags(name: str, project_key: str, cwd: str) -> list[str]:
+def server_flags(name: str, project_key: str, cwd: str, session: str = "") -> list[str]:
     """The `-c` pairs that declare one stdio server scoped to this casita."""
     from ..engine.stdio_tool import MODULE
-    entry = {"command": sys.executable, "args": ["-m", MODULE, name, project_key, cwd],
+    entry = {"command": sys.executable, "args": ["-m", MODULE, name, project_key, cwd, session],
              "cwd": SERVER_ROOT, "env_vars": list(FORWARDED_ENV),
              "default_tools_approval_mode": "approve"}
     flags = [f"mcp_servers.{name}.{key}={_toml(value)}" for key, value in entry.items()]
@@ -53,5 +53,5 @@ def server_flags(name: str, project_key: str, cwd: str) -> list[str]:
     return [part for flag in flags for part in ("-c", flag)]
 
 
-def flags(names: tuple[str, ...], project_key: str, cwd: str) -> list[str]:
-    return [part for name in names for part in server_flags(name, project_key, cwd)]
+def flags(names: tuple[str, ...], project_key: str, cwd: str, session: str = "") -> list[str]:
+    return [part for name in names for part in server_flags(name, project_key, cwd, session)]
