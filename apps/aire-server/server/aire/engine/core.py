@@ -33,15 +33,17 @@ class Engine:
         self.slot_of: dict[str, Slot] = {}  # key → the slot each pooled client was born with
         self.spec_of: dict[str, TurnSpec] = {}  # key → the shape its client was born with (#38)
 
-    def _cwd(self, project: str) -> Path:
+    @staticmethod
+    def _cwd(project: str) -> Path:
         ws = WORKSPACES / project
         ws.mkdir(parents=True, exist_ok=True)
         return ws
 
-    def session_key(self, project: str, session: str) -> dict[str, str]:
+    @staticmethod
+    def session_key(project: str, session: str) -> dict[str, str]:
         """The store key. `project_key` is NOT invented: the SDK derives it from
         the cwd when it WRITES, so the reader must derive it the same way."""
-        return {"project_key": project_key_for_directory(str(self._cwd(project))),
+        return {"project_key": project_key_for_directory(str(Engine._cwd(project))),
                 "session_id": sdk_session_uuid(session)}
 
     async def has_session(self, project: str, session: str, provider: str = "claude") -> bool:
@@ -79,12 +81,10 @@ class Engine:
         """One turn, live (transcript mirrors to Postgres). The RAM slot
         (backpressure) is held for the whole turn: a 3rd device queues.
 
-        The spend-ceiling gate lives in ``run_turn``, not here: whether the
-        ceiling applies depends on which credential SLOT the turn rides, and
-        the slot is chosen there."""
+        The lifecycle (attempts, budget cut, failover) and the spend-ceiling
+        gate live in ``run_turn``, not here: whether the ceiling applies depends
+        on which credential SLOT the turn rides, and the slot is chosen there."""
         async with self.pool.slot():
-            # The turn lifecycle (attempts, budget cut, credential failover)
-            # lives in turn.py — the #23/#31 detections share the result seam.
             async for event in run_turn(self, project, session, prompt, spec, attachments):
                 yield event
 

@@ -1,0 +1,8 @@
+{
+  "marker": "CORRECTION FROM BERNARD",
+  "header": "Corrections Bernard made to earlier verdicts of this judge, newest first. Judge a similar close by them:",
+  "limit": 10,
+  "routes": {
+    "thinkpad-stop-judge": "stop-judge-infios"
+  }
+}

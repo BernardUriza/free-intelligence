@@ -83,3 +83,21 @@ Cost note: every Codex turn carries the plan's ~195 `codex_apps` tools (~24K cac
 
 Next: the judge adapter (`agent-constitution/gates/stop-judge`) moves its transport to the message door,
 casita `stop-judge`, session per day, `tools: ["memory"]`.
+
+## 2026-11-13 — the ThinkPad judge remembers without a Codex turn (`openai_memory.py`)
+
+The ThinkPad cannot be touched and calls the OpenAI door (`thinkpad-stop-judge`, `gpt-5.4-mini`, 90 s client
+timeout) up to 90 times an hour, 7–8 a minute in bursts: a Codex casita turn per verdict (25–50 s, serialized,
+512 MB box) cannot carry that. Bernard chose **memory without a Codex turn**: the verdict stays on Azure through
+the relay, and for a ROUTED key the door (a) reads the casita's corrections — `aire_agent_log` prompt rows that
+OPEN with `CORRECTION FROM BERNARD`, the shape `stop-judge-correct.py` writes through the message door — and
+appends the newest 10 to the system message, bounded by a 1.5 s statement timeout and `wait_for`, relaying
+unchanged on any failure; (b) appends the verdict (the caller's last user message and the reply) to the casita
+with `acp_mirror`, provider `openai`, kinds `request`/`response`, session = the America/Mexico_City date,
+off the response's path. Routes are content: `aire/prompts/openai-memory-routes.json`
+(`thinkpad-stop-judge` → `stop-judge-infios`), so a re-provisioned box routes the same. The key is
+`Engine.session_key` itself (now callable without an engine), so this door and the message door that
+`STOP_JUDGE_AIRE_PROJECT=stop-judge-infios` reaches derive the SAME `project_key`; the casita directory is
+created on the first verdict the way the message door creates it. Proven by `tests/test_openai_memory.py`:
+unrouted bytes relayed untouched, a correction written by a real Codex-backend turn injected, the verdict rows
+landed, a verdict that only quotes a correction not mistaken for one, a stalled read relayed in < 4 s.
