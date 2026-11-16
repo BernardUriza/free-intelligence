@@ -46,10 +46,11 @@ def encendido(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
     crear `/opt/fi` — PermissionError en local, y peor en un runner con permisos.
     """
     import app as app_module
+    from routes import projects as project_routes
 
     monkeypatch.setenv("OG118_PROYECTOS", "1")
     previas = list(app_module.app.router.routes)
-    app_module.app.include_router(app_module.projects_router)
+    app_module.app.include_router(project_routes.router)
     yield app_module
     app_module.app.router.routes[:] = previas
 
@@ -60,10 +61,10 @@ def encendido(monkeypatch: pytest.MonkeyPatch) -> Iterator[object]:
 def test_apagado_por_default(monkeypatch) -> None:
     """Sin la variable, apagado. Un default que hay que declarar para apagar es
     un default encendido con disfraz."""
-    import app as app_module
+    import deps
 
     monkeypatch.delenv("OG118_PROYECTOS", raising=False)
-    assert app_module.proyectos_activos() is False
+    assert deps.proyectos_activos() is False
 
 
 def test_apagado_las_rutas_NO_EXISTEN(apagado) -> None:
@@ -104,9 +105,11 @@ def test_apagado_un_corpus_id_viejo_NO_rompe_el_chat(apagado) -> None:
     """Una pestaña sin recargar sigue mandando `corpus_id`. Se IGNORA, no se
     rechaza: romperle el chat entero por una feature que él no pidió sería
     cambiar una molestia por una caída."""
-    campos = apagado.ChatRequest.model_fields
+    from routes.chat import ChatRequest
+
+    campos = ChatRequest.model_fields
     assert "corpus_id" in campos, "el campo sigue aceptándose para no 422-ear a un cliente viejo"
-    req = apagado.ChatRequest(message="hola", corpus_id="project-de-ayer")
+    req = ChatRequest(message="hola", corpus_id="project-de-ayer")
     assert req.corpus_id == "project-de-ayer"
 
 

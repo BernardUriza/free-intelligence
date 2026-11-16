@@ -22,6 +22,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+import deps
 import stt as stt_module
 
 FAKE_AUDIO = b"OggS\x00fake-webm-opus-payload" + b"\x00" * 100
@@ -165,7 +166,7 @@ def client() -> TestClient:
 @pytest.fixture(autouse=True)
 def _clean_state(monkeypatch: pytest.MonkeyPatch):
     # Default: no access token (open) unless a test sets one. Reset overrides after.
-    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", None)
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", None)
     yield
     app_module.app.dependency_overrides.clear()
 
@@ -220,7 +221,7 @@ def test_success_empty_transcript_is_ok(client: TestClient) -> None:
 
 
 def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", "s3cr3t-token")
     _override_provider(_FakeProvider())
 
     # No bearer -> 401

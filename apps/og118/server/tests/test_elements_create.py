@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+from routes import elements as elements_routes
 import elements_registry
 from external_engine import PersonaWriteError
 
@@ -45,7 +46,7 @@ def engine(monkeypatch, tmp_path):
         calls.append((persona_id, body))
         return {"persona_id": persona_id, "version": 7, "provider": body["provider"], "model": body["model"]}
 
-    monkeypatch.setattr(app_module, "put_persona", fake_put)
+    monkeypatch.setattr(elements_routes, "put_persona", fake_put)
     yield calls, overlay
     elements_registry.get_registry.cache_clear()
 
@@ -142,7 +143,7 @@ def test_an_engine_refusal_leaves_the_catalog_untouched(client, engine, monkeypa
     async def refuse(persona_id, body):
         raise PersonaWriteError(422, "persona_id 'radon' belongs to the image")
 
-    monkeypatch.setattr(app_module, "put_persona", refuse)
+    monkeypatch.setattr(elements_routes, "put_persona", refuse)
     r = client.post("/elements", json=BODY)
     assert r.status_code == 422
     assert not overlay.exists()
@@ -177,9 +178,9 @@ def created(client, engine, monkeypatch):
         yield {"type": "text", "text": "TENESO: "}
         yield {"type": "result", "result": {"text": "TENESO: gas noble. — Rn"}}
 
-    monkeypatch.setattr(app_module, "get_persona", fake_get)
-    monkeypatch.setattr(app_module, "delete_persona", fake_delete)
-    monkeypatch.setattr(app_module, "stream_external_turn", fake_turn)
+    monkeypatch.setattr(elements_routes, "get_persona", fake_get)
+    monkeypatch.setattr(elements_routes, "delete_persona", fake_delete)
+    monkeypatch.setattr(elements_routes, "stream_external_turn", fake_turn)
     return calls, overlay
 
 

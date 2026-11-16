@@ -7,7 +7,8 @@ import asyncio
 
 import pytest
 
-import app as app_module
+from routes import chat as chat_routes
+import deps
 import detached_turn
 from conversations import ConversationStore
 
@@ -99,8 +100,8 @@ async def test_an_explicit_stop_ends_the_turn_and_nothing_lands() -> None:
 @pytest.mark.asyncio
 async def test_the_abandoned_answer_lands_in_the_record(tmp_path, monkeypatch) -> None:
     store = ConversationStore(tmp_path / "conversations")
-    monkeypatch.setattr(app_module, "get_conversation_store", lambda: store)
-    deliver = app_module._abandoned_delivery(KEY[0], KEY[1], "¿sigues ahí?")
+    monkeypatch.setattr(deps, "get_conversation_store", lambda: store)
+    deliver = chat_routes._abandoned_delivery(KEY[0], KEY[1], "¿sigues ahí?")
     await deliver([{"type": "text", "text": "aquí"}, {"type": "result", "result": {"text": "aquí sigo", "model": "m-1"}}])
     messages = store.get(KEY[0], KEY[1])["messages"]
     assert [(m["role"], m["content"]) for m in messages] == [("user", "¿sigues ahí?"), ("assistant", "aquí sigo")]
@@ -118,7 +119,7 @@ async def test_a_dropped_connection_under_the_heartbeat_still_delivers() -> None
 
     async def respond() -> None:
         turn = detached_turn.surviving(_turn(gate), key=KEY, deliver_late=deliver)
-        async for event in app_module._with_heartbeat(turn, interval=0.05):
+        async for event in chat_routes._with_heartbeat(turn, interval=0.05):
             heard.append(event["type"])
 
     response = asyncio.create_task(respond())

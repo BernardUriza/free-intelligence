@@ -20,6 +20,8 @@ from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
 import app as app_module
+from routes import chat as chat_routes
+import deps
 from fastapi.testclient import TestClient
 
 
@@ -38,7 +40,7 @@ class _SpyRunner:
 
 def test_chat_stream_binds_active_corpus(monkeypatch, project_registry) -> None:
     spy = _SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", spy)
+    monkeypatch.setattr(deps, "_runner", spy)
     client = TestClient(app_module.app)
     # The default (bearer-mode) principal is the legacy account; the corpus must
     # be OWNED by it or the route 404s before binding.
@@ -55,7 +57,7 @@ def test_chat_stream_binds_active_corpus(monkeypatch, project_registry) -> None:
 
 def test_chat_stream_corpus_is_optional(monkeypatch) -> None:
     spy = _SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", spy)
+    monkeypatch.setattr(deps, "_runner", spy)
     client = TestClient(app_module.app)
 
     resp = client.post("/chat/stream", json={"message": "hola"})
@@ -100,9 +102,9 @@ def _external_client(monkeypatch, rag: _SpyRag):
         yield {"type": "text", "text": "ok"}
 
     monkeypatch.setattr(
-        app_module, "_runner_and_element", lambda token: (spy_runner, _EXTERNAL_ELEMENT)
+        deps, "_runner_and_element", lambda token: (spy_runner, _EXTERNAL_ELEMENT)
     )
-    monkeypatch.setattr(app_module, "stream_external_turn", fake_external_turn)
+    monkeypatch.setattr(chat_routes, "stream_external_turn", fake_external_turn)
     app_module.app.dependency_overrides[app_module.get_rag_store] = lambda: rag
     client = TestClient(app_module.app)
     return client, spy_runner, sent

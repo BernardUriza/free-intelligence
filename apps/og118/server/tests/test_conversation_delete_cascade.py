@@ -19,6 +19,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+import deps
 from conversations import ConversationStore
 
 
@@ -52,7 +53,7 @@ def conversation_store(tmp_path):
 @pytest.fixture
 def spy(monkeypatch):
     runner = SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", runner)
+    monkeypatch.setattr(deps, "_runner", runner)
     return runner
 
 
@@ -91,7 +92,7 @@ def test_clearing_the_account_forgets_every_native_session(client, spy):
 
 
 def test_a_dead_memory_layer_never_blocks_the_visible_delete(client, monkeypatch, caplog):
-    monkeypatch.setattr(app_module, "_runner", SpyRunner(explode=True))
+    monkeypatch.setattr(deps, "_runner", SpyRunner(explode=True))
     client.put("/conversations/conv-uno", json=_record("conv-uno"))
 
     with caplog.at_level("ERROR"):

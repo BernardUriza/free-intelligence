@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+from routes import conversations as conversation_routes
 from conversations import ConversationStore, valid_conversation_id
 
 
@@ -113,7 +114,7 @@ def test_delete_and_clear(client: TestClient, as_account) -> None:
 def test_oversized_conversation_rejected(client: TestClient, as_account) -> None:
     record = _record("conv-big")
     record["messages"] = [
-        {"role": "user", "content": "x" * (app_module.MAX_CONVERSATION_BYTES + 1024)}
+        {"role": "user", "content": "x" * (conversation_routes.MAX_CONVERSATION_BYTES + 1024)}
     ]
     assert _put(client, record).status_code == 413
 

@@ -42,9 +42,10 @@ def _proyectos_encendidos(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     hereda `/projects` montado.
     """
     import app as app_module
+    from routes import projects as project_routes
 
     monkeypatch.setenv("OG118_PROYECTOS", "1")
     rutas_previas = list(app_module.app.router.routes)
-    app_module.app.include_router(app_module.projects_router)
+    app_module.app.include_router(project_routes.router)
     yield
     app_module.app.router.routes[:] = rutas_previas

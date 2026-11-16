@@ -176,3 +176,31 @@ class ProjectRegistry:
         (the route returns 404, never 403 — no existence probing, ADR invariant 7)."""
         proj = self._load().get(project_id)
         return proj is not None and proj.get("ownerId") == owner
+
+
+def turn_context(corpus_id: str | None, registry: ProjectRegistry) -> dict | None:
+    """The per-turn context bound into the system prompt.
+
+    `corpus_id` says WHERE the agent looks; the project's `instructions` say HOW
+    the owner wants it to answer inside that workspace.
+
+    The instructions are read from the REGISTRY, never from the request. A client
+    that could send its own instruction text would be handing itself a system
+    prompt — the whole point is that this is the owner's standing configuration,
+    and the only way to change it is `PATCH /projects/{id}`, which enforces
+    ownership. Ownership of `corpus_id` itself was already validated before the
+    stream opened, so by here the project is the caller's.
+
+    A project that vanished between the check and this read (deleted from another
+    device mid-turn) yields no instructions rather than an error: the turn is
+    already in flight and a missing addendum is a smaller failure than a dropped
+    answer.
+    """
+    if not corpus_id:
+        return None
+    context: dict = {"corpus_id": corpus_id}
+    project = registry.get(corpus_id)
+    instructions = (project or {}).get("instructions", "")
+    if instructions:
+        context["instructions"] = instructions
+    return context

@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-import app as app_module
+from routes import chat as chat_routes
+import deps
 import push
 from conversations import ConversationStore
 
@@ -88,10 +89,10 @@ async def test_the_abandoned_answer_is_stored_and_announced(tmp_path, monkeypatc
         told.append((owner, title, body, conversation_id))
         return 1
 
-    monkeypatch.setattr(app_module, "get_conversation_store", lambda: conversations)
-    monkeypatch.setattr(app_module, "get_device_store", lambda: devices)
+    monkeypatch.setattr(deps, "get_conversation_store", lambda: conversations)
+    monkeypatch.setattr(deps, "get_device_store", lambda: devices)
     monkeypatch.setattr(push, "notify", notify)
-    deliver = app_module._abandoned_delivery(OWNER, CID, "¿sigues ahí?")
+    deliver = chat_routes._abandoned_delivery(OWNER, CID, "¿sigues ahí?")
     await deliver([{"type": "result", "result": {"text": "aquí sigo", "model": "m-1"}}])
     assert conversations.get(OWNER, CID)["messages"][-1]["content"] == "aquí sigo"
     assert told == [(OWNER, "og118", "aquí sigo", CID)]
@@ -104,8 +105,8 @@ async def test_a_push_that_explodes_does_not_lose_the_answer(tmp_path, monkeypat
     async def notify(*args, **kwargs):
         raise RuntimeError("apns is down")
 
-    monkeypatch.setattr(app_module, "get_conversation_store", lambda: conversations)
-    monkeypatch.setattr(app_module, "get_device_store", lambda: _devices(tmp_path))
+    monkeypatch.setattr(deps, "get_conversation_store", lambda: conversations)
+    monkeypatch.setattr(deps, "get_device_store", lambda: _devices(tmp_path))
     monkeypatch.setattr(push, "notify", notify)
-    await app_module._abandoned_delivery(OWNER, CID, "¿sigues ahí?")([{"type": "result", "result": {"text": "sí"}}])
+    await chat_routes._abandoned_delivery(OWNER, CID, "¿sigues ahí?")([{"type": "result", "result": {"text": "sí"}}])
     assert conversations.get(OWNER, CID)["messages"][-1]["content"] == "sí"
