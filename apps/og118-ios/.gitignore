@@ -1,5 +1,6 @@
 OG118.xcodeproj/
 Sources/Info.plist
+OG118.entitlements
 DerivedData/
 *.xcuserstate
 Config.xcconfig

@@ -53,6 +53,7 @@ from external_engine import (
     stream_external_turn,
 )
 import detached_turn
+import push
 from fi_runner import Runner
 from fi_runner.events import SCHEMA_VERSION
 from elements_registry import (
@@ -371,6 +372,35 @@ def get_conversation_store() -> ConversationStore:
     return _conversation_store
 
 
+_device_store: push.DeviceStore | None = None
+
+
+def get_device_store() -> push.DeviceStore:
+    """The APNs tokens of each account, next to its conversations. Overridable in tests."""
+    global _device_store
+    if _device_store is None:
+        default = os.path.join(
+            os.path.dirname(os.getenv("FI_RAG_STORE_PATH", "/opt/fi/data/fi_rag_store.h5")), "devices"
+        )
+        _device_store = push.DeviceStore(os.getenv("OG118_DEVICES_PATH", default))
+    return _device_store
+
+
+async def _announce(owner: str, conversation_id: str, message: dict) -> None:
+    """The late answer is in the record; say so on the account's phones. Never raises."""
+    try:
+        author = message.get("author")
+        title = (author.get("name") if isinstance(author, dict) else None) or "og118"
+        await push.notify(get_device_store(), owner, title, message.get("content") or "", conversation_id)
+    except Exception:
+        logger.exception("late answer was stored but not announced")
+
+
+class DeviceRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=200, pattern=r"^[0-9a-fA-F]+$")
+    environment: str = Field(default="production", pattern=r"^(production|development)$")
+
+
 class HistoryMessage(BaseModel):
     """One prior turn the client replays for continuity. UNTRUSTED — re-sanitized
     by fi_runner.sanitize_history (role allowlist, caps) before it folds into the
@@ -519,6 +549,7 @@ def _late_delivery(owner: str, conversation_id: str, user_text: str) -> Callable
 
     async def entregar(assistant_message: dict) -> None:
         get_conversation_store().append_late_turn(owner, conversation_id, user_copy, assistant_message)
+        await _announce(owner, conversation_id, assistant_message)
 
     return entregar
 
@@ -535,6 +566,7 @@ def _abandoned_delivery(owner: str, conversation_id: str, user_text: str) -> det
         if result.get("model"):
             message["model"] = result["model"]
         get_conversation_store().append_late_turn(owner, conversation_id, user_copy, message)
+        await _announce(owner, conversation_id, message)
 
     return entregar
 
@@ -965,6 +997,21 @@ async def chat_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/push/devices")
+async def push_register(req: DeviceRequest, principal: Principal = Depends(get_principal)) -> dict:
+    """A phone says where to reach it. Per account: the shared legacy bearer has no one to tell."""
+    if principal.is_legacy_bearer:
+        raise HTTPException(status_code=403, detail="push needs an account")
+    get_device_store().register(principal.sub, req.token.lower(), req.environment)
+    return {"registered": True, "configured": push.is_configured()}
+
+
+@router.delete("/push/devices/{token}")
+async def push_forget(token: str, principal: Principal = Depends(get_principal)) -> dict:
+    get_device_store().remove(principal.sub, token.lower())
+    return {"registered": False}
 
 
 @router.post("/chat/cancel")

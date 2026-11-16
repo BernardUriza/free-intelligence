@@ -10,6 +10,8 @@ struct ContentView: View {
     @StateObject private var voz: VoiceModel
     @StateObject private var llamada: ResonanceCallModel
     @ObservedObject var diagnostico: TurnDiagnostics
+    @ObservedObject private var avisos = Avisos.shared
+    private let registrarDispositivo: (String) async -> Void
     @State private var draft = ""
     @StateObject private var adjuntos = AdjuntosModel()
     @State private var drawerAbierto = false
@@ -25,7 +27,8 @@ struct ContentView: View {
         reduceMotion ? nil : .easeOut(duration: 0.3)
     }
 
-    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, llamada: ResonanceCallModel, diagnostico: TurnDiagnostics) {
+    init(chat: ChatModel, conversations: ConversationsModel, catalog: CatalogModel, voz: VoiceModel, llamada: ResonanceCallModel, diagnostico: TurnDiagnostics, registrarDispositivo: @escaping (String) async -> Void = { _ in }) {
+        self.registrarDispositivo = registrarDispositivo
         _chat = StateObject(wrappedValue: chat)
         _conversations = StateObject(wrappedValue: conversations)
         _catalog = StateObject(wrappedValue: catalog)
@@ -82,7 +85,21 @@ struct ContentView: View {
             }
         }
         .onChange(of: chat.isStreaming) { _, enVuelo in
-            if !enVuelo { soltarProrroga() }
+            if !enVuelo {
+                avisarSiNadieMira()
+                soltarProrroga()
+            }
+        }
+        .task(id: "\(avisos.tokenDispositivo ?? "")|\(auth.isSignedIn)") {
+            if auth.isSignedIn, let token = avisos.tokenDispositivo { await registrarDispositivo(token) }
+        }
+        .onChange(of: avisos.hiloPorAbrir) { _, hilo in
+            guard let hilo else { return }
+            avisos.hiloPorAbrir = nil
+            Task { await chat.open(hilo) }
+        }
+        .onChange(of: avisos.llegadas) { _, _ in
+            Task { await chat.resincronizar() }
         }
         .onAppear { draft = BorradorStore.leer(chat.conversationID) }
         .onChange(of: chat.conversationID) { _, id in draft = BorradorStore.leer(id) }
@@ -102,6 +119,17 @@ struct ContentView: View {
         CacheLocal.viva.vaciar()
         BorradorStore.vaciar()
         draft = ""
+    }
+
+    /// El turno terminó con la app fuera de pantalla pero viva: el aviso lo
+    /// pone el teléfono mismo; el servidor sólo avisa los que ya soltó.
+    private func avisarSiNadieMira() {
+        guard fase != .active, let ultimo = chat.messages.last, ultimo.role == .assistant else { return }
+        avisos.avisarLocal(
+            titulo: ultimo.author?.nombre ?? "og118",
+            cuerpo: ultimo.content,
+            hilo: chat.conversationID
+        )
     }
 
     /// iOS suspende la app a los pocos segundos de salir: la prórroga deja
@@ -239,6 +267,7 @@ struct ContentView: View {
             onArchivos: { archivos in Task { await adjuntos.agregar(archivos) } },
             onQuitarAdjunto: { adjuntos.quitar($0) },
             onSend: { texto in
+                avisos.pedirPermisoUnaVez()
                 chat.send(texto, images: adjuntos.imagenes)
                 adjuntos.vaciar()
             },

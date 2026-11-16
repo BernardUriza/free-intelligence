@@ -82,6 +82,15 @@ struct Og118Client {
     var transporte: Transporte
     var diagnostico: TurnDiagnostics?
 
+    /// El servidor avisa a este teléfono cuando una respuesta aterriza sin que
+    /// nadie la esté viendo.
+    func registrarDispositivo(token: String, ambiente: String) async throws {
+        var request = ruta("push/devices", metodo: "POST")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["token": token, "environment": ambiente])
+        _ = try await pedir(request)
+    }
+
     /// Parar a mano un turno que, de otro modo, terminaría en el servidor.
     func cancelTurn(sessionID: String) async {
         var request = ruta("chat/cancel", metodo: "POST")

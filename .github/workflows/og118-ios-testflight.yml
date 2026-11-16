@@ -40,16 +40,36 @@ jobs:
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
 
+      - name: Certificates that exist before this run
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          pip3 install --quiet --break-system-packages cryptography
+          python3 apps/og118-ios/scripts/ci_certificados.py snapshot "$RUNNER_TEMP/certs.json"
+
       - name: Archive
+        # Signed, not CODE_SIGNING_ALLOWED=NO: an unsigned archive carries no entitlements, and
+        # the build would reach the phone unable to register for notifications.
         working-directory: apps/og118-ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           BUILD=$(date -u +%Y%m%d%H%M)
           echo "build number: $BUILD"
           set -o pipefail
           xcodebuild -project OG118.xcodeproj -scheme OG118 -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/og118.xcarchive" \
-            CURRENT_PROJECT_VERSION="$BUILD" CODE_SIGNING_ALLOWED=NO archive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CURRENT_PROJECT_VERSION="$BUILD" archive \
             | grep -E "error:|\*\* " | tail -20
+          codesign -d --entitlements - "$RUNNER_TEMP/og118.xcarchive/Products/Applications/og118.app" 2>/dev/null \
+            | grep -q "aps-environment" || { echo "the archive lost the push entitlement"; exit 1; }
+          echo "push entitlement present in the archive"
 
       - name: Sign in the cloud and upload to TestFlight
         working-directory: apps/og118-ios
@@ -65,6 +85,12 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             | grep -E "error|Upload|\*\* |Progress 100" | tail -20
 
-      - name: Remove the key
+      - name: Revoke the certificates this run created, remove the key
         if: always()
-        run: rm -rf "$RUNNER_TEMP/keys"
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          test -f "$RUNNER_TEMP/certs.json" && python3 apps/og118-ios/scripts/ci_certificados.py prune "$RUNNER_TEMP/certs.json"
+          rm -rf "$RUNNER_TEMP/keys"

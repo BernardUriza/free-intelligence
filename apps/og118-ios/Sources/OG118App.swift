@@ -1,7 +1,22 @@
 import SwiftUI
 
+final class Delegado: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        Task { @MainActor in Avisos.shared.instalar() }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in Avisos.shared.tokenRecibido(deviceToken) }
+    }
+}
+
 @main
 struct OG118App: App {
+    @UIApplicationDelegateAdaptor(Delegado.self) private var delegado
     @StateObject private var auth: Auth
     @StateObject private var raiz: Raiz
 
@@ -19,7 +34,8 @@ struct OG118App: App {
                 catalog: raiz.catalog,
                 voz: raiz.voz,
                 llamada: raiz.llamada,
-                diagnostico: raiz.diagnostico
+                diagnostico: raiz.diagnostico,
+                registrarDispositivo: raiz.registrarDispositivo
             )
             .environmentObject(auth)
         }
@@ -37,6 +53,7 @@ final class Raiz: ObservableObject {
     let catalog: CatalogModel
     let voz: VoiceModel
     let llamada: ResonanceCallModel
+    let registrarDispositivo: (String) async -> Void
 
     init(auth: Auth) {
         let transporte = Transporte(
@@ -51,5 +68,8 @@ final class Raiz: ObservableObject {
         conversations = ConversationsModel(client: client)
         catalog = CatalogModel(client: client)
         llamada = ResonanceCallModel(chat: chat, client: client) { voz.errorMessage = $0 }
+        registrarDispositivo = { token in
+            try? await client.registrarDispositivo(token: token, ambiente: Avisos.ambiente)
+        }
     }
 }

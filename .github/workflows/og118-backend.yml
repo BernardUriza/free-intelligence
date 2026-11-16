@@ -204,6 +204,25 @@ jobs:
             echo "ragstore-vol already mounted — no-op"
           fi
 
+      - name: Wire push (APNs) config (only when configured — else no-op)
+        # OG118-PUSH-1. Same shape as the TTS step below: additive, idempotent,
+        # and a clean no-op while the key is unset (push.py then sends nothing).
+        env:
+          APNS_KEY: ${{ secrets.OG118_APNS_KEY }}
+          APNS_KEY_ID: ${{ secrets.OG118_APNS_KEY_ID }}
+        run: |
+          if [ -z "$APNS_KEY" ] || [ -z "$APNS_KEY_ID" ]; then
+            echo "Push not configured (OG118_APNS_KEY / OG118_APNS_KEY_ID unset). Skipping."
+            exit 0
+          fi
+          az containerapp secret set -n "$APP" -g "$RG" \
+            --secrets "apns-key=$APNS_KEY"
+          az containerapp update -n "$APP" -g "$RG" \
+            --set-env-vars \
+              "OG118_APNS_KEY=secretref:apns-key" \
+              "OG118_APNS_KEY_ID=$APNS_KEY_ID" \
+              "OG118_APNS_TEAM_ID=7L36T9PTFN"
+
       - name: Wire TTS config (only when configured — else no-op)
         # B3-VOICE-BACKEND-1. Additive + idempotent: it does NOT touch the chat
         # env above. `--set-env-vars` MERGES (it never drops the chat vars). When
