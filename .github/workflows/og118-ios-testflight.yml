@@ -1,0 +1,70 @@
+name: "og118-ios: TestFlight"
+
+# The phone app died three times because its signing profile expired and nobody was watching
+# (2026-10-17, 10-31, 11-07). A build uploaded here reaches the phone over the air, lasts 90
+# days, and every merge that touches the app (or the weekly watcher) starts the clock again.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/og118-ios/**"
+      - ".github/workflows/og118-ios-testflight.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: og118-ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: "Archive and upload"
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Project and signing key
+        working-directory: apps/og118-ios
+        env:
+          AUTH0_CLIENT_ID: ${{ vars.OG118_IOS_AUTH0_CLIENT_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+          brew install xcodegen
+          test -n "$AUTH0_CLIENT_ID"
+          printf 'OG118_AUTH0_CLIENT_ID = %s\nDEVELOPMENT_TEAM = 7L36T9PTFN\nCODE_SIGN_STYLE = Automatic\n' "$AUTH0_CLIENT_ID" > Config.xcconfig
+          xcodegen generate
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Archive
+        working-directory: apps/og118-ios
+        run: |
+          BUILD=$(date -u +%Y%m%d%H%M)
+          echo "build number: $BUILD"
+          set -o pipefail
+          xcodebuild -project OG118.xcodeproj -scheme OG118 -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/og118.xcarchive" \
+            CURRENT_PROJECT_VERSION="$BUILD" CODE_SIGNING_ALLOWED=NO archive \
+            | grep -E "error:|\*\* " | tail -20
+
+      - name: Sign in the cloud and upload to TestFlight
+        working-directory: apps/og118-ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/og118.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            | grep -E "error|Upload|\*\* |Progress 100" | tail -20
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
