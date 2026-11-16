@@ -147,7 +147,11 @@ solo que mi cel estaba en silencio»). Entonces:
   tenía al verla era el `202611161905`, anterior al arreglo. Mover el disparo al modelo (PR #663) sigue siendo
   correcto para la respuesta tardía, pero no fue lo que hizo sonar el aviso.
 - Llegó sin sonido porque el teléfono estaba en silencio, no por la app.
-- Sigue sin ejercitarse el push del servidor (turno que iOS suspende antes de terminar).
+- Push del servidor ejercitado el 16-nov-2026 14:13 desde la Mac (sin teléfono): `POST /chat/stream` con
+  `survive_disconnect` desde la sesión web de la misma cuenta, conexión cortada a los 18 s; la respuesta
+  completa quedó en `GET /conversations/69536da1-…` y el log dijo `late answer announced: devices_accepted=1`
+  (línea agregada en PR #665). Probado: Apple aceptó el aviso para un dispositivo. Sin probar: que el
+  banner se haya visto en el teléfono, y el caso exacto en que es iOS quien suspende la app.
 
 **Lo que la prueba del 16-nov destapó:** la línea `chat turn client=…` no salía en los logs de producción. El
 logger `og118` no tenía handler y todo su INFO (también las auditorías de elementos) se perdía; ahora cuelga de
