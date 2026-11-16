@@ -84,6 +84,14 @@ struct ContentView: View {
                 .id(chat.conversationID)
                 .animation(aparicion, value: chat.conversationID)
                 .animation(aparicion, value: chat.messages.isEmpty)
+                if let aviso = auth.storageWarning {
+                    Text(aviso)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.danger)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 26)
+                        .padding(.bottom, 4)
+                }
                 if let error = voz.errorMessage {
                     aviso(error) { voz.errorMessage = nil }.transition(.opacity)
                 }

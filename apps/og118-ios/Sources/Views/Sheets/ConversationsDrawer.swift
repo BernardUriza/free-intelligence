@@ -118,6 +118,11 @@ struct ConversationsDrawer: View {
                 LazyVStack(alignment: .leading, spacing: 5) {
                     if conversations.summaries.isEmpty {
                         estadoVacio
+                    } else if let error = conversations.errorMessage {
+                        Text(error)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(Theme.danger)
+                            .padding(8)
                     }
                     if archivadosAbiertos {
                         ForEach(archivados) { filaArchivada($0) }

@@ -39,7 +39,7 @@ private func esperar(_ condicion: @MainActor () -> Bool) async {
 
 @MainActor
 private func modelo(_ falso: DictadoFalso) -> VoiceModel {
-    VoiceModel(servicio: VoiceService(accessToken: { "" }), dictado: falso.dependencias())
+    VoiceModel(servicio: VoiceService(transporte: Transporte(token: { _ in "" }, sesionRechazada: {})), dictado: falso.dependencias())
 }
 
 @MainActor

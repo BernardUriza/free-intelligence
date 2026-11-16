@@ -135,6 +135,8 @@ struct AuthDependencies {
 final class Auth: NSObject, ObservableObject {
     @Published private(set) var isSignedIn = false
     @Published private(set) var storageWarning: String?
+    /// Por qué la app regresó al login sin que el usuario lo pidiera.
+    @Published private(set) var avisoDeSalida: String?
     /// El correo del id_token, para el «Salir · correo» del drawer. Se recuerda
     /// entre lanzamientos para no pintar el pie vacío mientras viaja el refresh.
     @Published private(set) var email: String? = UserDefaults.standard.string(forKey: Auth.emailKey)
@@ -176,8 +178,10 @@ final class Auth: NSObject, ObservableObject {
         ])
     }
 
-    func token() async throws -> String {
-        if let accessToken, let expiresAt, expiresAt > Date().addingTimeInterval(60) {
+    /// `rechazado` es el access token al que el servidor contestó 401: aunque
+    /// no haya vencido en el reloj, ya no sirve y se cambia por uno nuevo.
+    func token(rechazado: String? = nil) async throws -> String {
+        if let accessToken, accessToken != rechazado, let expiresAt, expiresAt > Date().addingTimeInterval(60) {
             return accessToken
         }
         if let refrescando { return try await refrescando.value }
@@ -194,7 +198,7 @@ final class Auth: NSObject, ObservableObject {
                     "refresh_token": refreshToken
                 ])
             } catch {
-                if (error as? AuthError)?.revokesSession == true { signOut() }
+                if (error as? AuthError)?.revokesSession == true { cerrarPorRechazo() }
                 throw error
             }
             guard let accessToken else { throw AuthError.notSignedIn }
@@ -204,7 +208,13 @@ final class Auth: NSObject, ObservableObject {
         return try await tarea.value
     }
 
+    func cerrarPorRechazo() {
+        signOut()
+        avisoDeSalida = Og118Error.unauthorized.errorDescription
+    }
+
     func signOut() {
+        avisoDeSalida = nil
         accessToken = nil
         refreshToken = nil
         expiresAt = nil
@@ -228,6 +238,7 @@ final class Auth: NSObject, ObservableObject {
             email = correo
             UserDefaults.standard.set(correo, forKey: Self.emailKey)
         }
+        avisoDeSalida = nil
         isSignedIn = true
     }
 

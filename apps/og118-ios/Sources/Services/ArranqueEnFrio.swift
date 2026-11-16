@@ -1,14 +1,7 @@
 import Foundation
 
-/// El servidor de og118 corre con `minReplicas: 0`, así que tras un rato sin
-/// uso Azure lo apaga y la PRIMERA petición sólo sirve para despertarlo: se
-/// queda esperando el arranque del contenedor y muchas veces muere antes de
-/// que el proceso exista. En el teléfono eso se veía como "Cargando tus
-/// chats…" para siempre — el log del servidor mostraba el arranque a la misma
-/// hora de la captura y CERO peticiones después.
-///
-/// La cura es asumir que la primera petición puede ser el despertador: se le
-/// pone un plazo corto y se reintenta contra el servidor ya despierto.
+/// La primera petición tras un despliegue o un reinicio del contenedor puede
+/// morir antes de que el proceso exista: se le pone un plazo corto y se repite.
 enum ArranqueEnFrio {
     /// Plazo de la primera petición. Corto a propósito: si el servidor está
     /// dormido no vale la pena esperar el timeout largo del sistema, y si está

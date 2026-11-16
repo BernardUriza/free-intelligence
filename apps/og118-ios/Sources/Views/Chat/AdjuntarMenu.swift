@@ -43,9 +43,8 @@ struct AdjuntarMenu: View {
             Task {
                 var archivos: [AdjuntosModel.Archivo] = []
                 for (indice, item) in items.enumerated() {
-                    if let datos = try? await item.loadTransferable(type: Data.self) {
-                        archivos.append(.init(datos: datos, nombre: "foto \(indice + 1)"))
-                    }
+                    let datos = (try? await item.loadTransferable(type: Data.self)) ?? Data()
+                    archivos.append(.init(datos: datos, nombre: "foto \(indice + 1)"))
                 }
                 onArchivos(archivos)
             }
@@ -59,8 +58,7 @@ struct AdjuntarMenu: View {
             let archivos = urls.prefix(max(1, lugaresLibres)).compactMap { url -> AdjuntosModel.Archivo? in
                 let acceso = url.startAccessingSecurityScopedResource()
                 defer { if acceso { url.stopAccessingSecurityScopedResource() } }
-                guard let datos = try? Data(contentsOf: url) else { return nil }
-                return .init(datos: datos, nombre: url.lastPathComponent)
+                return .init(datos: (try? Data(contentsOf: url)) ?? Data(), nombre: url.lastPathComponent)
             }
             onArchivos(archivos)
         }

@@ -12,6 +12,14 @@ enum Config {
         (Bundle.main.object(forInfoDictionaryKey: "OG118Auth0ClientID") as? String) ?? ""
     }
 
+    /// Viaja en cada petición: los logs del servidor dicen qué build sigue vivo.
+    static var clienteID: String {
+        let info = Bundle.main.infoDictionary
+        let corta = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "ios/\(corta)(\(build))"
+    }
+
     static var redirectURI: String {
         "\(callbackScheme)://\(auth0Domain)/ios/\(bundleIdentifier)/callback"
     }

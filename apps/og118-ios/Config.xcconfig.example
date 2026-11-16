@@ -1,6 +1,8 @@
 // Copia este archivo a Config.xcconfig (ignorado por git) y llena los valores.
 // El client id sale de ~/.secrets/og118-ios-auth0.txt; el team, de
 // `security find-identity -v -p codesigning`.
+// El equipo de firma vive SÓLO aquí: project.yml no lo fija, porque un valor a
+// nivel de target le gana a este archivo y dejaría la firma en el equipo viejo.
 OG118_AUTH0_CLIENT_ID =
 DEVELOPMENT_TEAM =
 CODE_SIGN_STYLE = Automatic

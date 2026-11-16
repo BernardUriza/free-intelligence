@@ -46,7 +46,7 @@ final class ResonanceCallModel: NSObject, ObservableObject {
     }
 
     convenience init(chat: ChatModel, client: Og118Client, alFallar: @escaping (String) -> Void) {
-        self.init(chat: chat, servicio: VoiceService(accessToken: client.accessToken), alFallar: alFallar)
+        self.init(chat: chat, servicio: VoiceService(transporte: client.transporte), alFallar: alFallar)
     }
 
     func alternar() {

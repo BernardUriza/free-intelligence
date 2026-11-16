@@ -70,7 +70,7 @@ struct Og118Client {
         return camino.isEmpty ? "la raíz" : camino.joined(separator: ".")
     }
 
-    var accessToken: () async throws -> String
+    var transporte: Transporte
     var diagnostico: TurnDiagnostics?
 
     private func anotar(_ texto: String) async {
@@ -94,16 +94,6 @@ struct Og118Client {
                     request.timeoutInterval = 300
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-
-                    await anotar("pidiendo token…")
-                    let token = try await accessToken()
-                    await anotar("token: \(token.isEmpty ? "VACÍO" : "\(token.count) chars")")
-                    // Tolerar el token vacío mandaba la petición SIN credencial
-                    // y el servidor contestaba 401: un bug del cliente disfrazado
-                    // de rechazo del servidor. Mejor morir aquí, con nombre.
-                    guard !token.isEmpty else { throw Og118Error.unauthorized }
-                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
                     request.httpBody = try JSONEncoder().encode(
                         ChatRequest(
                             message: message,
@@ -117,15 +107,7 @@ struct Og118Client {
                         )
                     )
 
-                    await anotar("POST \(Config.apiBase.host ?? "?")/chat/stream")
-                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
-                    guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-                    await anotar("HTTP \(http.statusCode) · \(http.value(forHTTPHeaderField: "Content-Type") ?? "sin tipo")")
-                    if http.statusCode == 401 { throw Og118Error.unauthorized }
-                    guard (200..<300).contains(http.statusCode) else {
-                        throw Og118Error.badStatus(http.statusCode)
-                    }
-
+                    let bytes = try await abrirStream(request)
                     var parser = SSEParser()
                     var lineasVistas = 0
                     var framesEmitidos = 0
@@ -153,101 +135,92 @@ struct Og118Client {
         }
     }
 
-    func listElements() async throws -> [Element] {
-        try await get("elements", as: ElementList.self).elements
-    }
-
-    func listProjects() async throws -> [Project] {
-        try await get("projects", as: ProjectList.self).projects
-    }
-
-    private func get<T: Decodable>(_ path: String, as type: T.Type) async throws -> T {
-        try await ArranqueEnFrio.conReintento { esReintento in
-            var request = URLRequest(url: Config.apiBase.appendingPathComponent(path))
-            request.timeoutInterval = esReintento ? 60 : ArranqueEnFrio.plazoDespertador
-            try await authorize(&request)
-            let (data, response) = try await URLSession.shared.data(for: request)
+    /// El 401 llega con los encabezados, antes del primer frame: repetir el POST
+    /// con un token nuevo no duplica ningún turno.
+    private func abrirStream(_ request: URLRequest) async throws -> URLSession.AsyncBytes {
+        var rechazado: String?
+        while true {
+            await anotar(rechazado == nil ? "pidiendo token…" : "401: refrescando token…")
+            let (firmada, token) = try await transporte.autorizada(request, rechazado: rechazado)
+            await anotar("POST \(Config.apiBase.host ?? "?")/chat/stream")
+            let (bytes, response) = try await URLSession.shared.bytes(for: firmada)
             guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-            if http.statusCode == 401 { throw Og118Error.unauthorized }
+            await anotar("HTTP \(http.statusCode) · \(http.value(forHTTPHeaderField: "Content-Type") ?? "sin tipo")")
+            if http.statusCode == 401 {
+                if rechazado == nil {
+                    rechazado = token
+                    continue
+                }
+                await transporte.sesionRechazada()
+                throw Og118Error.unauthorized
+            }
             guard (200..<300).contains(http.statusCode) else {
                 throw Og118Error.badStatus(http.statusCode)
             }
-            return try JSONDecoder().decode(T.self, from: data)
+            return bytes
+        }
+    }
+
+    private func pedir(_ request: URLRequest) async throws -> Data {
+        let (data, http) = try await transporte.enviar(request, despertador: true)
+        guard (200..<300).contains(http.statusCode) else {
+            throw Og118Error.badStatus(http.statusCode)
+        }
+        return data
+    }
+
+    private func ruta(_ path: String, metodo: String = "GET") -> URLRequest {
+        var request = URLRequest(url: Config.apiBase.appendingPathComponent(path))
+        request.httpMethod = metodo
+        return request
+    }
+
+    func listElements() async throws -> [Element] {
+        try JSONDecoder().decode(ElementList.self, from: try await pedir(ruta("elements"))).elements
+    }
+
+    /// Con Proyectos apagado el servidor no monta la ruta y contesta 404: eso
+    /// es «no hay proyectos», no una falla que haya que enseñarle a nadie.
+    func listProjects() async throws -> [Project] {
+        do {
+            return try JSONDecoder().decode(ProjectList.self, from: try await pedir(ruta("projects"))).projects
+        } catch Og118Error.badStatus(404) {
+            return []
         }
     }
 
     func listConversations() async throws -> [ConversationSummary] {
-        try await ArranqueEnFrio.conReintento { esReintento in
-            var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations"))
-            request.timeoutInterval = esReintento ? 60 : ArranqueEnFrio.plazoDespertador
-            try await authorize(&request)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-            if http.statusCode == 401 { throw Og118Error.unauthorized }
-            guard (200..<300).contains(http.statusCode) else {
-                throw Og118Error.badStatus(http.statusCode)
-            }
-            return try JSONDecoder().decode(ConversationList.self, from: data).conversations
-        }
+        try JSONDecoder().decode(ConversationList.self, from: try await pedir(ruta("conversations"))).conversations
     }
 
     func loadConversation(id: String) async throws -> ConversationRecord? {
-        var request = URLRequest(url: Config.apiBase.appendingPathComponent("conversations/\(id)"))
-        try await authorize(&request)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-        if http.statusCode == 404 { return nil }
-        if http.statusCode == 401 { throw Og118Error.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw Og118Error.badStatus(http.statusCode)
+        let data: Data
+        do {
+            data = try await pedir(ruta("conversations/\(id)"))
+        } catch Og118Error.badStatus(404) {
+            return nil
         }
         do {
             // El iOS ya dejó `author` como string suelto en la cuenta antes de
-            // conocer el contrato: se normaliza en el borde, para que el tipo
-            // generado no cargue con un caso que el contrato no declara.
+            // conocer el contrato: se normaliza en el borde.
             return try JSONDecoder().decode(ConversationRecord.self, from: LegadoDeAutor.normalizar(data))
         } catch let error as DecodingError {
-            // `localizedDescription` de DecodingError dice sólo "no está en el
-            // formato correcto", que no sirve para arreglar nada. El error SÍ
-            // trae la llave y la ruta — hay que sacarlas.
             throw Og118Error.formato(Og118Client.detalle(error))
         }
     }
 
     func saveConversation(_ record: ConversationRecord) async throws {
-        var request = URLRequest(
-            url: Config.apiBase.appendingPathComponent("conversations/\(record.id)")
-        )
-        request.httpMethod = "PUT"
+        var request = ruta("conversations/\(record.id)", metodo: "PUT")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        try await authorize(&request)
         request.httpBody = try JSONEncoder().encode(record)
-
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-        if http.statusCode == 401 { throw Og118Error.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw Og118Error.badStatus(http.statusCode)
-        }
+        _ = try await pedir(request)
     }
 
+    /// Un reintento tras un borrado que sí llegó contesta 404: ya está borrada.
     func deleteConversation(id: String) async throws {
-        var request = URLRequest(
-            url: Config.apiBase.appendingPathComponent("conversations/\(id)")
-        )
-        request.httpMethod = "DELETE"
-        try await authorize(&request)
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
-        if http.statusCode == 401 { throw Og118Error.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw Og118Error.badStatus(http.statusCode)
+        do {
+            _ = try await pedir(ruta("conversations/\(id)", metodo: "DELETE"))
+        } catch Og118Error.badStatus(404) {
         }
-    }
-
-    private func authorize(_ request: inout URLRequest) async throws {
-        let token = try await accessToken()
-        guard !token.isEmpty else { throw Og118Error.unauthorized }
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     }
 }
