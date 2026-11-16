@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (2026-11-16) — Apple completó la inscripción al programa de pago (pedido `W1947292357`, leído 00:35). La app NO está instalada y **no se instala por cable con perfil gratis** (orden de Bernard, 16-nov): llega por TestFlight, paso 1b, aún sin escribir. Robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b y 6 pendientes (tabla abajo).
+Status: **In progress** (2026-11-16) — la cuenta de desarrollador sigue «(Pending)» (leído 00:40), aunque el pedido `W1947292357` ya dice completado (leído 00:35). La app NO está instalada y **no se instala por cable con perfil gratis** (orden de Bernard, 16-nov): llega por TestFlight, paso 1b, aún sin escribir. Robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b y 6 pendientes (tabla abajo).
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -80,7 +80,7 @@ confianza; manda un turno, cambia de app, regresa y la respuesta está ahí; y s
 | Paso | Qué | Estado (2026-11-15) |
 |---|---|---|
 | 1a | El equipo de firma vive sólo en `Config.xcconfig`; `Info.plist` reporta versión y build reales | Hecho, PR #651. `project.yml` fijaba `DEVELOPMENT_TEAM` a nivel de target y le ganaba al xcconfig: cambiar el xcconfig no habría cambiado la firma |
-| 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **Destrabado el 16-nov a las 00:35**: la vista del pedido `W1947292357` dice «Se completó la inscripción», «Entregado electrónicamente (Completado)», «Gracias por ser parte del Apple Developer Program». Falta leer la cuenta por dentro (developer.apple.com pide login, sin verificar) y escribir TestFlight; nada escrito todavía |
+| 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **Sigue bloqueado.** 16-nov 00:35: la vista del pedido `W1947292357` dice «Se completó la inscripción» y «Entregado electrónicamente (Completado)». 16-nov 00:40: developer.apple.com/account, con sesión iniciada, sigue mostrando la cuenta como «(Pending)» con el aviso «Your purchase may take up to 48 hours to process». **Pedido completado no es cuenta activa** (se le anunció a Bernard como activa y hubo que corregirlo). Nada de TestFlight escrito todavía |
 | 2 | Un solo camino de red (`Transporte`): 401 → refresco → reintento → login con motivo; arranque en frío en cargar/guardar/borrar; errores callados a la vista; modelos construidos una vez | Hecho, PR #651 |
 | 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | Hecho, PR #652, desplegado: a las 23:10 del 15-nov `POST /chat/cancel` sin credencial pasó de 404 a 401 en producción. Probado con pruebas (servidor, arnés, simulador); **sin probar** una desconexión real contra producción ni en el teléfono |
 | 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Hecho, PR #653; con pruebas, sin probar en el teléfono |
@@ -96,8 +96,10 @@ cable era solo de carga), y con un cable de datos los intentos de las 00:18 a 00
 locked». Bernard ordenó parar y que no se instale nada en su teléfono hasta tener la membresía activa y la entrega
 por aire. El paso 6 se hace entonces, con el build de TestFlight.
 
-El estado del pedido se lee sin login con `~/.local/bin/apple-membresia-vigia` (vista de invitado de la tienda,
-por el Chrome de trabajo).
+Quién vigila: `~/.local/bin/apple-membresia-vigia`, por el Chrome de trabajo, lee la CUENTA (la verdad) y el
+pedido (para cazar una cancelación). Corre con launchd (`com.bernard.apple-membresia-vigia`) a las 9:07, 14:07 y
+20:07, avisa en pantalla solo cuando el estado cambia y se da de baja solo al ver la cuenta activa o el pedido
+cancelado. Bitácora en `~/Library/Application Support/apple-membresia-vigia/`.
 
 Lo que quedó fuera de estos pasos y sigue abierto: un solo dueño del `AVAudioSession` (dictado, llamada y
 reproducción lo configuran cada uno por su lado), las imágenes del borrador (sólo el texto sobrevive al cierre)
