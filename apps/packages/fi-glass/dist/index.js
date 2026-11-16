@@ -1,4 +1,10 @@
 import {
+  PersonaSelector
+} from "./chunk-XA44CHD2.js";
+import {
+  ChatFilePreview
+} from "./chunk-JK3NSWFZ.js";
+import {
   CapacityMeter,
   DocCard,
   DocCardGrid,
@@ -54,12 +60,6 @@ import {
   useResourceStyle
 } from "./chunk-ERH7OSR3.js";
 import {
-  PersonaSelector
-} from "./chunk-XA44CHD2.js";
-import {
-  ChatFilePreview
-} from "./chunk-JK3NSWFZ.js";
-import {
   glassTheme
 } from "./chunk-EBUEQEPO.js";
 import {
@@ -102,7 +102,7 @@ import {
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
-} from "./chunk-EE47ROZG.js";
+} from "./chunk-DWJLRJE6.js";
 import {
   clearMediaQueryCache,
   useBreakpoints,
