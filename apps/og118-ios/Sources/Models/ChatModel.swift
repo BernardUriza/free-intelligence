@@ -67,6 +67,8 @@ final class ChatModel: ObservableObject {
     private let persist: Persist?
     private let restore: Restore?
     private let detener: Detener?
+    private let cache: CacheLocal?
+    private var guardadosFallidos = 0
     private let now: () -> String
     private let pausa: Pausa
     private let defaults: UserDefaults
@@ -87,6 +89,7 @@ final class ChatModel: ObservableObject {
         persist: Persist? = nil,
         restore: Restore? = nil,
         detener: Detener? = nil,
+        cache: CacheLocal? = nil,
         now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) },
         pausa: @escaping Pausa = { try? await Task.sleep(nanoseconds: 3_000_000_000) },
         defaults: UserDefaults = .standard
@@ -99,6 +102,7 @@ final class ChatModel: ObservableObject {
         self.persist = persist
         self.restore = restore
         self.detener = detener
+        self.cache = cache
         self.now = now
         self.pausa = pausa
         self.createdAt = now()
@@ -110,7 +114,8 @@ final class ChatModel: ObservableObject {
             stream: client.stream,
             persist: client.saveConversation,
             restore: client.loadConversation,
-            detener: client.cancelTurn
+            detener: client.cancelTurn,
+            cache: .viva
         )
     }
 
@@ -129,8 +134,25 @@ final class ChatModel: ObservableObject {
         isRestoring = true
         cargaFallida = nil
         defer { isRestoring = false }
+        let id = conversationID
+        let guardado = cache?.hilo(id)
+        let sinSubir = guardado != nil && cache?.estaPendiente(id) == true
+        if messages.isEmpty, let guardado { messages = guardado.chatMessages }
         do {
-            guard let record = try await restore(conversationID) else {
+            let record = try await restore(id)
+            guard id == conversationID else { return }
+            // El último guardado no llegó al servidor: lo local manda y se
+            // vuelve a subir, fusionado con lo que el servidor tenga.
+            if sinSubir, let guardado {
+                createdAt = guardado.createdAt
+                messages = guardado.chatMessages
+                hiloListo = true
+                save()
+                return
+            }
+            guard let record else {
+                messages = []
+                cache?.olvidar(id)
                 if esperabaRecord {
                     cargaFallida = "Esta conversación no está en tu cuenta."
                 } else {
@@ -138,6 +160,7 @@ final class ChatModel: ObservableObject {
                 }
                 return
             }
+            cache?.guardar(record)
             createdAt = record.createdAt
             baseRecord = record
             messages = record.chatMessages
@@ -299,10 +322,16 @@ final class ChatModel: ObservableObject {
     func resincronizar() async {
         guard let restore, hiloListo, !isStreaming else { return }
         let id = conversationID
+        if cache?.estaPendiente(id) == true {
+            guardadosFallidos = 0
+            save()
+            return
+        }
         guard let record = try? await restore(id),
               id == conversationID, !isStreaming,
               record.messages.count > messages.count else { return }
         espera?.cancel()
+        cache?.guardar(record)
         baseRecord = record
         messages = record.chatMessages
         avisoDeEspera = nil
@@ -463,11 +492,28 @@ final class ChatModel: ObservableObject {
                 id: id, locales: locales, base: base, vivo: vivo, createdAt: creado, now: self.now()
             )
             self.adoptarFusion(record, locales: locales)
+            self.cache?.guardar(record)
+            self.cache?.marcarPendiente(id, true)
             do {
                 try await persist(record)
+                self.cache?.marcarPendiente(id, false)
+                self.guardadosFallidos = 0
             } catch {
                 self.errorMessage = error.localizedDescription
+                self.reintentarGuardado(id)
             }
+        }
+    }
+
+    /// Un guardado que falla no se abandona: se repite con pausa, y lo que no
+    /// alcance a subir queda marcado en disco para el siguiente arranque.
+    private func reintentarGuardado(_ id: String) {
+        guardadosFallidos += 1
+        guard guardadosFallidos <= 3 else { return }
+        Task { [weak self] in
+            await self?.pausa()
+            guard let self, self.conversationID == id, self.cache?.estaPendiente(id) != false else { return }
+            self.save()
         }
     }
 

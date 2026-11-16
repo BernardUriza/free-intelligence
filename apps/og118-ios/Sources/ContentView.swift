@@ -84,6 +84,24 @@ struct ContentView: View {
         .onChange(of: chat.isStreaming) { _, enVuelo in
             if !enVuelo { soltarProrroga() }
         }
+        .onAppear { draft = BorradorStore.leer(chat.conversationID) }
+        .onChange(of: chat.conversationID) { _, id in draft = BorradorStore.leer(id) }
+        .onChange(of: draft) { _, texto in BorradorStore.guardar(texto, chat.conversationID) }
+        .onChange(of: auth.isSignedIn) { _, dentro in
+            if !dentro { limpiarCuenta() }
+        }
+    }
+
+    /// Nada de una cuenta sobrevive a su cierre de sesión: ni el hilo abierto,
+    /// ni el contexto del turno, ni lo guardado en disco.
+    private func limpiarCuenta() {
+        chat.startNew()
+        chat.element = nil
+        chat.corpusID = nil
+        conversations.vaciar()
+        CacheLocal.viva.vaciar()
+        BorradorStore.vaciar()
+        draft = ""
     }
 
     /// iOS suspende la app a los pocos segundos de salir: la prórroga deja
