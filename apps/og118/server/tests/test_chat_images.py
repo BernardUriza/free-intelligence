@@ -15,6 +15,8 @@ from collections.abc import AsyncIterator
 from types import SimpleNamespace
 
 import app as app_module
+from routes import chat as chat_routes
+import deps
 from fastapi.testclient import TestClient
 
 JPEG_B64 = base64.b64encode(b"not-really-a-jpeg-but-valid-b64").decode()
@@ -35,7 +37,7 @@ class _SpyRunner:
 
 def _client(monkeypatch) -> tuple[_SpyRunner, TestClient]:
     spy = _SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", spy)
+    monkeypatch.setattr(deps, "_runner", spy)
     return spy, TestClient(app_module.app)
 
 
@@ -91,7 +93,7 @@ def test_rejects_invalid_base64(monkeypatch) -> None:
 def test_rejects_too_many_images(monkeypatch) -> None:
     _, client = _client(monkeypatch)
     too_many = [{"media_type": "image/jpeg", "data": JPEG_B64}] * (
-        app_module.MAX_IMAGES_PER_MESSAGE + 1
+        chat_routes.MAX_IMAGES_PER_MESSAGE + 1
     )
     resp = client.post("/chat/stream", json={"message": "x", "images": too_many})
     assert resp.status_code == 422
@@ -99,7 +101,7 @@ def test_rejects_too_many_images(monkeypatch) -> None:
 
 def test_rejects_oversized_image(monkeypatch) -> None:
     _, client = _client(monkeypatch)
-    huge = "A" * (app_module._MAX_IMAGE_B64_CHARS + 4)
+    huge = "A" * (chat_routes._MAX_IMAGE_B64_CHARS + 4)
     resp = client.post(
         "/chat/stream", json={"message": "x", "images": [{"media_type": "image/jpeg", "data": huge}]}
     )
@@ -117,7 +119,7 @@ def test_external_element_refuses_images_in_stream(monkeypatch) -> None:
         engine_binding=SimpleNamespace(is_external=True, persona_id="vultur"),
     )
     monkeypatch.setattr(
-        app_module, "_runner_and_element", lambda token: (spy, external_element)
+        deps, "_runner_and_element", lambda token: (spy, external_element)
     )
     resp = client.post(
         "/chat/stream",

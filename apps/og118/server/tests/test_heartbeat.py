@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-import app as app_module
+from routes import chat as chat_routes
 
 
 async def _collect(agen) -> list[dict]:
@@ -30,7 +30,7 @@ async def test_a_quiet_turn_still_reports_it_is_alive() -> None:
         yield {"type": "text", "text": "por fin"}
 
     started = time.monotonic()
-    events = await _collect(app_module._with_heartbeat(quiet_then_answer(), interval=0.1))
+    events = await _collect(chat_routes._with_heartbeat(quiet_then_answer(), interval=0.1))
     elapsed = time.monotonic() - started
 
     pings = [e for e in events if e["type"] == "ping"]
@@ -47,7 +47,7 @@ async def test_a_talkative_turn_gets_no_pings() -> None:
         for i in range(5):
             yield {"type": "text", "text": str(i)}
 
-    events = await _collect(app_module._with_heartbeat(chatty(), interval=5.0))
+    events = await _collect(chat_routes._with_heartbeat(chatty(), interval=5.0))
     assert [e["type"] for e in events] == ["text"] * 5
 
 
@@ -60,7 +60,7 @@ async def test_an_error_mid_turn_survives_the_wrapper() -> None:
         yield {"type": "text", "text": "empiezo"}
         raise RuntimeError("el runner explotó")
 
-    events = await _collect(app_module._with_heartbeat(boom(), interval=5.0))
+    events = await _collect(chat_routes._with_heartbeat(boom(), interval=5.0))
     assert events[0] == {"type": "text", "text": "empiezo"}
     assert events[-1]["type"] == "error"
     assert "explotó" in events[-1]["message"]
@@ -70,4 +70,4 @@ async def test_an_error_mid_turn_survives_the_wrapper() -> None:
 async def test_the_interval_is_well_under_the_client_watchdog() -> None:
     """15s vs the shell's 60s idle budget: a healthy turn re-arms it several times
     over before it can ever fire."""
-    assert app_module.HEARTBEAT_INTERVAL_S < 60 / 3
+    assert chat_routes.HEARTBEAT_INTERVAL_S < 60 / 3

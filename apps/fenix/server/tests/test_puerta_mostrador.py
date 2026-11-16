@@ -292,7 +292,9 @@ def test_el_candado_de_og118_deja_mudo_al_cibercafe(sin_modelo, monkeypatch):
     c = _cliente(sin_modelo)
     assert c.post("/chat/stream", json={"message": "hola"}).status_code == 200
 
-    monkeypatch.setattr(og118, "_ACCESS_TOKEN", "el-bearer-del-contenedor")
+    import deps
+
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", "el-bearer-del-contenedor")
     assert c.post("/chat/stream", json={"message": "hola"}).status_code == 401
 
 

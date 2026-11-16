@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import app as app_module
+import deps
 import external_engine
 import pytest
 from fastapi.testclient import TestClient
@@ -60,7 +61,7 @@ def _errores(validador: Draft202012Validator, frame: dict) -> list[str]:
 
 def test_a_reaction_only_turn_is_on_the_contract(monkeypatch, validador) -> None:
     monkeypatch.setattr(
-        app_module,
+        deps,
         "_runner",
         _Runner([{"type": "result", "result": {"text": "", "reactions": ["🔥", "👀"]}}]),
     )
@@ -95,7 +96,6 @@ def test_info_lines_reach_the_handler_uvicorn_installs() -> None:
     import io
     import logging
 
-    import app as app_module
 
     server_log = logging.getLogger("uvicorn.error")
     sink = io.StringIO()
@@ -104,7 +104,7 @@ def test_info_lines_reach_the_handler_uvicorn_installs() -> None:
     server_log.addHandler(handler)
     server_log.setLevel(logging.INFO)
     try:
-        app_module.logger.info("chat turn client=%s", "ios/0.1.0(1)")
+        deps.logger.info("chat turn client=%s", "ios/0.1.0(1)")
     finally:
         server_log.removeHandler(handler)
         server_log.setLevel(previous)

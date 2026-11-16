@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import app as app_module
+import deps
 from fastapi.testclient import TestClient
 
 
@@ -32,7 +33,7 @@ class _SpyRunner:
 
 def test_chat_stream_forwards_client_history(monkeypatch) -> None:
     spy = _SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", spy)
+    monkeypatch.setattr(deps, "_runner", spy)
     client = TestClient(app_module.app)
 
     body = {
@@ -56,7 +57,7 @@ def test_chat_stream_forwards_client_history(monkeypatch) -> None:
 
 def test_chat_stream_history_is_optional(monkeypatch) -> None:
     spy = _SpyRunner()
-    monkeypatch.setattr(app_module, "_runner", spy)
+    monkeypatch.setattr(deps, "_runner", spy)
     client = TestClient(app_module.app)
 
     resp = client.post("/chat/stream", json={"message": "hola"})

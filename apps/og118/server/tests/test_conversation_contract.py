@@ -90,7 +90,7 @@ def test_un_rol_inventado_es_INVALIDO(validador):
 
 def test_el_modelo_del_servidor_acepta_lo_que_el_contrato_acepta():
     """Guarda que el pydantic no se quede corto respecto al contrato."""
-    from app import ConversationRecordRequest  # noqa: PLC0415
+    from routes.conversations import ConversationRecordRequest  # noqa: PLC0415
 
     modelo = ConversationRecordRequest(**_record())
     assert modelo.messages == [{"role": "user", "content": "hola"}]

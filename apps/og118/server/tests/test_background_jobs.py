@@ -248,12 +248,12 @@ def test_el_turno_local_monta_el_spec_remoto(monkeypatch, tmp_path):
 # --- El worker -----------------------------------------------------------------
 
 def test_el_worker_entrega_al_record_y_cierra_el_job(tmp_path, monkeypatch, jobs, project_registry):
-    import app as app_module
+    import deps
     import background_worker
 
     conversations = ConversationStore(tmp_path / "conv")
-    monkeypatch.setattr(app_module, "_conversation_store", conversations)
-    monkeypatch.setattr(app_module, "_project_registry", project_registry)
+    monkeypatch.setattr(deps, "_conversation_store", conversations)
+    monkeypatch.setattr(deps, "_project_registry", project_registry)
     conversations.put("auth0|ana", _record(cid="c1"))
     jobs.create(owner="auth0|ana", conversation_id="c1", goal="resume el hilo", corpus_id=None)
     jobs.create(owner="auth0|ana", conversation_id="borrada", goal="x", corpus_id=None)

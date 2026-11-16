@@ -17,6 +17,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+import deps
+from routes import projects as project_routes
 from fi_runner.rag_store import RagStoreClient
 
 
@@ -28,7 +30,7 @@ def client() -> TestClient:
 @pytest.fixture(autouse=True)
 def store(monkeypatch, tmp_path):
     """Open (no bearer) by default + an isolated tmp HDF5 store per test."""
-    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", None)
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", None)
     monkeypatch.setenv("FI_RAG_BACKEND", "hdf5")
     monkeypatch.setenv("FI_RAG_STORE_PATH", str(tmp_path / "proj.h5"))
     rag = RagStoreClient()
@@ -98,7 +100,7 @@ def test_upload_too_large_returns_413(client: TestClient, monkeypatch) -> None:
     # A huge upload must be rejected BEFORE it is read whole into RAM (OOM the
     # single replica). The read is capped at MAX_UPLOAD_BYTES + 1, so a body over
     # the cap is a 413 — never a memory blowup. (Cap shrunk for the test.)
-    monkeypatch.setattr(app_module, "MAX_UPLOAD_BYTES", 100)
+    monkeypatch.setattr(project_routes, "MAX_UPLOAD_BYTES", 100)
     pid = _create(client)
     resp = _upload(client, pid, "big.md", "x" * 500)
     assert resp.status_code == 413
@@ -132,7 +134,7 @@ def test_delete_keeps_project_when_corpus_purge_fails(
 
 
 def test_bearer_gate_blocks_then_allows(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", "s3cr3t-token")
     hdr = {"Authorization": "Bearer s3cr3t-token"}
     # No bearer → 401 even to create.
     assert client.post("/projects", json={"name": "p"}).status_code == 401
@@ -181,7 +183,7 @@ def test_create_project_mints_unique_ids(client: TestClient) -> None:
 
 
 def test_create_project_bearer_gated(client: TestClient, monkeypatch) -> None:
-    monkeypatch.setattr(app_module, "_ACCESS_TOKEN", "s3cr3t-token")
+    monkeypatch.setattr(deps, "_ACCESS_TOKEN", "s3cr3t-token")
     assert client.post("/projects", json={"name": "a"}).status_code == 401
     ok = client.post("/projects", json={"name": "a"}, headers={"Authorization": "Bearer s3cr3t-token"})
     assert ok.status_code == 200

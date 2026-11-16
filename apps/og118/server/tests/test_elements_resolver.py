@@ -9,7 +9,7 @@ via build_runner (the companion safety property must survive a persona swap).
 
 from __future__ import annotations
 
-from app import _runner, _runner_and_element
+from deps import _runner, _runner_and_element
 
 
 def test_no_element_returns_base_runner() -> None:

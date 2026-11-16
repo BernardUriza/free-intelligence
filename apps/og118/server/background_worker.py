@@ -23,8 +23,9 @@ from typing import Any
 
 from fi_runner import load_prompt
 
-from app import _turn_context, get_conversation_store, get_project_registry
+from deps import get_conversation_store, get_project_registry
 from mcp_background import get_job_store
+from projects import turn_context
 from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, build_runner
 
 log = logging.getLogger("og118.background_worker")
@@ -53,7 +54,7 @@ async def procesar(job: dict, runner: Any, conversations: Any, registry: Any) ->
         prompt,
         session_id=cid,
         history=_historial(record),
-        context=_turn_context(job.get("corpusId"), registry),
+        context=turn_context(job.get("corpusId"), registry),
     )
     texto = (getattr(result, "answer", "") or result.text or "").strip()
     if not texto:
