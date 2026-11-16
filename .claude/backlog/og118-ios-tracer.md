@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (2026-11-16) — la cuenta de desarrollador sigue «(Pending)» (leído 00:40), aunque el pedido `W1947292357` ya dice completado (leído 00:35). La app NO está instalada y **no se instala por cable con perfil gratis** (orden de Bernard, 16-nov): llega por TestFlight, paso 1b, aún sin escribir. Robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b y 6 pendientes (tabla abajo).
+Status: **In progress** (2026-11-16) — la cuenta de desarrollador ya está activa (leído 11:08) y og118 está en TestFlight: build `2026111601`, subido 11:53, válido 11:55, caduca el 2027-02-14. Falta: instalarla en el iPhone por TestFlight y automatizar la subida. Robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b a medias, 6 pendiente (tabla abajo).
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -80,7 +80,7 @@ confianza; manda un turno, cambia de app, regresa y la respuesta está ahí; y s
 | Paso | Qué | Estado (2026-11-15) |
 |---|---|---|
 | 1a | El equipo de firma vive sólo en `Config.xcconfig`; `Info.plist` reporta versión y build reales | Hecho, PR #651. `project.yml` fijaba `DEVELOPMENT_TEAM` a nivel de target y le ganaba al xcconfig: cambiar el xcconfig no habría cambiado la firma |
-| 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **Sigue bloqueado.** 16-nov 00:35: la vista del pedido `W1947292357` dice «Se completó la inscripción» y «Entregado electrónicamente (Completado)». 16-nov 00:40: developer.apple.com/account, con sesión iniciada, sigue mostrando la cuenta como «(Pending)» con el aviso «Your purchase may take up to 48 hours to process». **Pedido completado no es cuenta activa** (se le anunció a Bernard como activa y hubo que corregirlo). Nada de TestFlight escrito todavía |
+| 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **A medias.** 16-nov 11:08: developer.apple.com/account ya no dice «(Pending)», muestra «Membership details» y «Program resources» (el vigilante lo vio a las 09:56 y se dio de baja solo). El Team ID pagado es el mismo `7L36T9PTFN` de siempre (la inscripción individual convirtió el equipo personal), así que `Config.xcconfig` no cambió. Bernard aceptó los Términos de App Store Connect (versión del 4 de junio de 2018). Registro de app creado: nombre `og118`, bundle `com.bernard.og118`, SKU `og118-ios`, id `6835548280`. Subida A MANO desde esta Mac con la sesión de Xcode: `xcodebuild archive` (Release, `CURRENT_PROJECT_VERSION=2026111601`, `ARCHIVE SUCCEEDED` 11:50) y `xcodebuild -exportArchive` con `ExportOptions.plist` (`app-store-connect`, `upload`, `7L36T9PTFN`, firma automática): `Upload succeeded` 11:53. Build `2026111601` `VALID` a las 11:55, estado interno `IN_BETA_TESTING`, caduca el 2027-02-14; el grupo interno de TestFlight «Bernard» tiene acceso a todos los builds y él es su tester. Falta: instalar en el teléfono por TestFlight (sin cable); acceso a la API de App Store Connect (pide aceptar términos aparte, decisión de Bernard, aún no preguntada); el workflow de CI para TestFlight; el vigilante de caducidad de 90 días; el evento anual de renovación |
 | 2 | Un solo camino de red (`Transporte`): 401 → refresco → reintento → login con motivo; arranque en frío en cargar/guardar/borrar; errores callados a la vista; modelos construidos una vez | Hecho, PR #651 |
 | 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | Hecho, PR #652, desplegado: a las 23:10 del 15-nov `POST /chat/cancel` sin credencial pasó de 404 a 401 en producción. Probado con pruebas (servidor, arnés, simulador); **sin probar** una desconexión real contra producción ni en el teléfono |
 | 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Hecho, PR #653; con pruebas, sin probar en el teléfono |
@@ -100,6 +100,19 @@ Quién vigila: `~/.local/bin/apple-membresia-vigia`, por el Chrome de trabajo, l
 pedido (para cazar una cancelación). Corre con launchd (`com.bernard.apple-membresia-vigia`) a las 9:07, 14:07 y
 20:07, avisa en pantalla solo cuando el estado cambia y se da de baja solo al ver la cuenta activa o el pedido
 cancelado. Bitácora en `~/Library/Application Support/apple-membresia-vigia/`.
+
+**Cómo se sube una versión mientras no haya CI** (desde `apps/og118-ios`, con la sesión de Xcode de la Mac):
+
+```bash
+xcodebuild archive -project OG118.xcodeproj -scheme OG118 -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath "$TMPDIR/OG118.xcarchive" \
+  CURRENT_PROJECT_VERSION=<AAAAMMDDNN> -allowProvisioningUpdates
+xcodebuild -exportArchive -archivePath "$TMPDIR/OG118.xcarchive" \
+  -exportOptionsPlist ExportOptions.plist -exportPath "$TMPDIR/og118-export" -allowProvisioningUpdates
+```
+
+El número de build (`CURRENT_PROJECT_VERSION`) tiene que ser mayor que el del build anterior; si no, App Store
+Connect rechaza la subida.
 
 Lo que quedó fuera de estos pasos y sigue abierto: un solo dueño del `AVAudioSession` (dictado, llamada y
 reproducción lo configuran cada uno por su lado), las imágenes del borrador (sólo el texto sobrevive al cierre)
