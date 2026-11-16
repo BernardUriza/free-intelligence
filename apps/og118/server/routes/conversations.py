@@ -14,11 +14,8 @@ from deps import get_conversation_store, get_principal, logger
 
 router = APIRouter()
 
-# Hard ceiling on one persisted conversation (sanitized transcript JSON). A
-# runaway thread gets rejected loud instead of growing an unbounded file on the
-# single-replica volume. 16 MB (was 4): attached images persist base64-inline in
-# the record (OG118-IMAGE-UPLOAD-1) — the composer downscales each to a few
-# hundred KB, so this holds dozens of images before a thread hits the wall.
+# Ceiling on one persisted conversation, so a runaway thread is rejected instead of growing an unbounded file.
+# 16 MB because attached images persist base64-inline in the record.
 MAX_CONVERSATION_BYTES = 16 * 1024 * 1024
 
 
@@ -34,17 +31,11 @@ class ConversationRecordRequest(BaseModel):
     updatedAt: str
     messages: list[dict]
     preview: str
-    # CONV-ORGANIZE-1 organization flags (ISO timestamps). Optional + dumped with
-    # exclude_none, so unpinning/unarchiving = the client omits the field and the
-    # upsert drops it from the stored record.
+    # Organization flags (ISO timestamps), dumped with exclude_none: omitting one clears it from the stored record.
     pinnedAt: str | None = None
     archivedAt: str | None = None
-    # The project this conversation lives in (= the corpus_id bound on its turns).
-    # Until now the corpus binding was EPHEMERAL — sent per request, stored
-    # nowhere — so a conversation started inside a project became indistinguishable
-    # from any other the moment it was saved, and the project could not list its
-    # own chats. Optional, and dumped with exclude_none like the flags above: a
-    # conversation outside any project simply omits it.
+    # The project this conversation lives in (the corpus_id bound on its turns), stored so a project can list its own chats.
+    # Omitted for a conversation outside any project.
     projectId: str | None = None
     schemaVersion: int
 

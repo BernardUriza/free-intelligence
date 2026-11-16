@@ -45,27 +45,14 @@ __all__ = [
     "get_tts_provider",
 ]
 
-# --- Config from env (no secrets in code; cloud injects these) ----------------
-# Comma-separated allowed CORS origins; defaults to the local Next dev server so
-# nothing changes for local work. Cloud sets the SWA origin.
+# Allowed CORS origins, comma-separated. Defaults to the local Next dev server; cloud sets the SWA origin.
 _DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 _ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("OG118_ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if o.strip()
 ]
 
-# The ceiling on ANY request body, enforced before the body is read.
-#
-# Every endpoint already caps what it accepts (a conversation record, an audio
-# blob, an uploaded file, the images on a turn) — but those caps run AFTER
-# FastAPI has materialized and parsed the whole body, so they protect the disk,
-# not the process: a 500 MB PUT was fully resident in memory before anything
-# rejected it. This is the missing outer wall.
-#
-# The value is the largest LEGITIMATE body the API has: one /chat/stream turn may
-# carry MAX_IMAGES_PER_MESSAGE (4) images of MAX_IMAGE_BYTES (5 MB) each, which
-# base64 inflates by ~4/3 → ~27 MB plus the JSON envelope. 32 MB clears that with
-# room to spare while still cutting the absurd early. Per-endpoint caps stay
-# authoritative for what each route actually allows.
+# Outer wall: per-endpoint caps run AFTER the body is in memory, so a 500 MB PUT was resident before any rejected it.
+# Sized for the largest legitimate body: 4 images of 5 MB, base64-inflated (~27 MB), plus the JSON envelope.
 MAX_REQUEST_BODY_BYTES = 32 * 1024 * 1024
 
 
@@ -121,12 +108,8 @@ def create_app(dependencies: list | None = None) -> FastAPI:
     de una app no son las de la otra y `dependency_overrides` es por-app. Un
     consumer toma la suya y la modifica sin tocar la de nadie.
     """
-    # `dependencies` corren en TODA ruta de esta instancia y sólo de ésta — es
-    # el punto de extensión para un consumer que necesite endurecer rutas que
-    # og118 sirve abiertas. Antes se mutaban los objetos APIRoute heredados;
-    # eso dependía de que `include_router` los COPIARA, y FastAPI 0.141 dejó de
-    # hacerlo: dos apps que incluyen el mismo router comparten los mismos
-    # objetos, así que la mutación le viajaba de vuelta a og118.
+    # `dependencies` corren en toda ruta de ESTA instancia: así endurece un consumer las rutas que og118 sirve abiertas.
+    # Mutar los APIRoute heredados dejó de servir: desde FastAPI 0.141 dos apps que incluyen el mismo router los comparten.
     application = FastAPI(
         title="og118 server",
         version="0.0.0",

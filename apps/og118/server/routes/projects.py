@@ -15,17 +15,13 @@ from projects import ProjectRegistry
 
 router = APIRouter()
 
-# Hard ceiling on a project-document upload (text only). Read with a +1 cap so the
-# in-memory bytes never exceed this regardless of the declared Content-Length — a
-# single huge POST can't OOM the single-replica container.
+# Ceiling on a document upload. Read with a +1 cap so one huge POST cannot OOM the single-replica container.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 class ProjectCreateRequest(BaseModel):
-    # Only the display name is client-supplied. The corpus_id is NOT — minting it
-    # server-side is the privacy boundary (a client-chosen id could land on another
-    # project's corpus). Any extra field (e.g. a client-sent project_id) is dropped
-    # by pydantic, which is exactly the invariant.
+    # Only the name is client-supplied. The corpus_id is minted server-side: that is the privacy boundary.
+    # pydantic drops any extra field, such as a client-sent project_id.
     name: str | None = None
     description: str | None = None
     instructions: str | None = None
@@ -88,12 +84,8 @@ async def update_project(
     registry: ProjectRegistry = Depends(get_project_registry),
 ) -> dict:
     """Edit name / description / instructions. Omitted field = untouched."""
-    # `instructions` becomes part of the SYSTEM PROMPT of every turn in this
-    # project, so its length is not cosmetic: a pasted document pushes the
-    # persona and the guards toward the edge of the context window, where models
-    # start dropping them. fi-runner truncates as its last line of defense; the
-    # product refuses first, and says why, instead of silently keeping half of
-    # what the owner wrote.
+    # `instructions` rides in the SYSTEM PROMPT of every turn here, so a pasted document would crowd out the persona and guards.
+    # The product refuses and says why; fi-runner's truncation is only the last line of defense.
     if req.instructions is not None and len(req.instructions) > MAX_OWNER_INSTRUCTIONS_CHARS:
         raise HTTPException(
             status_code=422,
@@ -171,10 +163,8 @@ async def delete_project(
     docs). 404 if missing or not owned (no existence probing)."""
     if not registry.owns(project_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
-    # Right-to-forget: purge the corpus FIRST (the un-erasable data), THEN drop the
-    # registry entry. If delete_corpus fails we 500 with the project still present +
-    # owned (the user retries) — never the old failure mode where the registry entry
-    # was already gone and the orphaned corpus could no longer be reached to delete.
+    # Purge the corpus FIRST, then the registry entry: if the purge fails the project is still there to retry.
+    # The reverse order orphaned a corpus nobody could reach to delete.
     await rag.delete_corpus(project_id)
     registry.delete(project_id, principal.sub)
     return {"deleted": project_id}
@@ -226,19 +216,8 @@ async def upload_project_document(
             status_code=400, detail={"code": "EMPTY_FILE", "message": "uploaded file has no text"}
         )
     doc_id = file.filename or "document.txt"
-    # min_chunk_size lowered from fi-core's default (100 TOKENS): papelería docs
-    # (inventory lists, short notes) are short and would otherwise yield 0 chunks.
-    # Non-empty text that produces no chunks is below the chunker's floor (a
-    # one-line note). Nothing is indexed, so the doc would be unsearchable — fail
-    # LOUD instead of a silent 200 that looks ingested and answers nothing.
-    #
-    # It arrives as an EXCEPTION now, not a `0`. fi-core 0.25.0 raises
-    # `NothingToIndex` BEFORE it deletes anything, which is the point: the old
-    # `0` was returned after the previous version of the document had already
-    # been destroyed, so this 422 told the user to re-upload a copy that no
-    # longer existed. `AireCorpusError` is the same refusal arriving from AIRE's
-    # corpus door on the AIRE route. Both are caught, or a message meant to be
-    # helpful becomes a 500.
+    # min_chunk_size is below fi-core's default because papelería documents are short. Text under the chunker's floor
+    # arrives as `NothingToIndex` (or `AireCorpusError` from AIRE's door), raised BEFORE the previous version is destroyed.
     try:
         chunks = await rag.ingest(project_id, doc_id, text, min_chunk_size=20)
     except (NothingToIndex, AireCorpusError) as exc:
@@ -258,8 +237,6 @@ async def upload_project_document(
                 "message": "document is too short to index; add more text and re-upload",
             },
         )
-    # Adding knowledge IS activity on the project: without this the index page
-    # would sort a project someone just fed to the bottom, under ones untouched
-    # for weeks.
+    # Adding knowledge is activity: without this the index sorts a freshly fed project to the bottom.
     registry.touch(project_id, principal.sub)
     return {"corpus_id": project_id, "doc_id": doc_id, "chunks": chunks}

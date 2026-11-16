@@ -36,30 +36,13 @@ from tts import build_provider as build_tts_provider
 # (which client build is alive, element audits) vanished in production.
 logger = logging.getLogger("uvicorn.error").getChild("og118")
 
-# Auth gate. OG118_AUTH_MODE picks the level (default `bearer` = today's behavior,
-# nothing changes until explicitly flipped — the lockout-prevention guarantee):
-#   bearer → legacy shared OG118_ACCESS_TOKEN speed-bump (synthetic identity)
-#   dual   → accept a valid Auth0 JWT OR the legacy bearer (zero-downtime cutover)
-#   auth0  → Auth0 JWT only
-# The Auth0 validation + dual-accept come from the fi_runner.auth framework
-# primitive (the og118-Gate-3 canary). `principal.sub` is the account_id that
-# owns projects (PROJ-ACCOUNT-1).
+# OG118_AUTH_MODE: bearer (shared token, synthetic identity; the default), dual (Auth0 JWT or the bearer), auth0 (JWT only).
+# `principal.sub` is the account id that owns projects and conversations.
 _ACCESS_TOKEN = os.getenv("OG118_ACCESS_TOKEN")
 _AUTH_MODE = os.getenv("OG118_AUTH_MODE", "bearer").lower()
 
-# OG118_PROYECTOS — la feature de Proyectos (workspaces con corpus de documentos)
-# APAGADA por default. Bernard dejó de usarla el 2026-08-29 y pidió esconderla en
-# vez de borrarla, para retomarla después.
-#
-# El apagado NO es un `if` dentro de cada handler: las 7 rutas viven en su propio
-# `projects_router`, que `create_app()` monta SÓLO con el flag prendido. Apagado,
-# las rutas no existen y el 404 es real, no simulado — y `corpus_id` deja de
-# atarse al turno, así que ningún prompt promete documentos que nadie va a leer.
-#
-# La rama prendida está CUBIERTA POR TESTS (`test_projects_flag.py`), y eso no es
-# decoración: el bug del corpus del 2026-08-29 existió porque había un `else` que
-# nadie corría. Una feature apagada sin test de su rama viva es esa misma trampa
-# esperando a que alguien la prenda.
+# Proyectos está APAGADO por default: Bernard pidió esconderlo, no borrarlo. Apagado, sus rutas no se montan (404 real).
+# La rama prendida la cubre `test_projects_flag.py`: una feature apagada sin test de su rama viva es una trampa.
 def proyectos_activos() -> bool:
     """Lee el flag EN CADA LLAMADA, no al importar.
 
@@ -132,10 +115,8 @@ def _runner_and_element(element_token: str | None) -> tuple[Runner, Element | No
     el = get_registry().resolve(element_token)
     if el is None or not el.is_active:
         return _runner, None
-    # Todo elemento activo corre en el motor remoto (la rama externa de
-    # chat_stream), así que aquí nunca se construye un runner por elemento: se
-    # devuelve el base como placeholder sin uso. El catálogo garantiza el
-    # binding — un elemento activo sin él no carga (PERSONA-SSOT-2).
+    # Todo elemento activo corre en el motor remoto, así que no hay runner por elemento: el base viaja como placeholder.
+    # El catálogo garantiza el binding; un elemento activo sin él no carga (PERSONA-SSOT-2).
     return _runner, el
 
 
@@ -162,9 +143,7 @@ def base_runner() -> Runner:
     """The og118 companion runner, read at call time so a test can swap it."""
     return _runner
 
-# Built once from the ambient env. None when OG118_TTS_* / OG118_STT_* is
-# unset/incomplete — the voice routes turn that into an explicit 503, never a
-# crash.
+# Built once from the env. None when OG118_TTS_* / OG118_STT_* is incomplete; the voice routes answer 503.
 _tts_provider = build_tts_provider()
 _stt_provider = build_stt_provider()
 
@@ -205,12 +184,8 @@ def get_rag_store() -> RagStoreClient:
     store in one place is what stops it recurring — see [[both-ends-of-the-data-path]]."""
     global _rag_store
     if _rag_store is None:
-        # Sin rama. La local escribía en un HDF5 del contenedor que, desde la
-        # consolidación en AIRE (2026-08-29), NADIE lee: la búsqueda del agente
-        # entra por la puerta y aterriza en la Postgres de AIRE. Dejar el `else`
-        # habría reconstruido exactamente el bug del 24-ago —la subida en una
-        # repisa, la búsqueda en otra— con la diferencia de que esta vez la rama
-        # muerta era la que corría por default.
+        # Sin rama local: desde la consolidación en AIRE nadie lee el HDF5 del contenedor.
+        # Un `else` reconstruiría el bug del 24-ago: la subida en una repisa y la búsqueda en otra.
         from fi_runner.aire_corpus import AireCorpusClient
 
         _rag_store = AireCorpusClient(os.getenv("OG118_AIRE_PROJECT", "og118"))
