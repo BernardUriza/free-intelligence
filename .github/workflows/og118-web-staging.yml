@@ -48,6 +48,9 @@ jobs:
       # the deployed bundle derive from the source on this commit, whatever the
       # committed dist says (rule: derived-not-frozen).
       - name: Build the packages og118 web consumes
+        # fi-glass's DTS pass peaks near 2.6 GB (measured 2026-11-16); Node 20's default heap kills its worker.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           pnpm --filter @free-intelligence/core build
           pnpm --filter fi-glass build
