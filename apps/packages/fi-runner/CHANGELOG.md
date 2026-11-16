@@ -20,6 +20,21 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 (Add entries here as work lands on `dev`.)
 
+### Changed — `runner.py` is the orchestrator again (no public-API change)
+
+- One backend attempt (stream normalization, plan events, plan veto) moved to
+  `fi_runner/_turn_attempt.py`; `Runner._attempt_stream` keeps only the retry loop.
+- `fold_history` now lives in `fi_runner.conversation`; `render_context_prompt`
+  and `stamp_pinned_args` in `fi_runner.context_binding`.
+- `run` and `run_stream` share one preamble (`_prepare_turn` owns the event
+  buffer and the attachments) instead of two copies.
+- Field rationale moved from 105 lines of comments to the `Runner` docstring.
+
+### Removed
+
+- `fi_runner.runner._derive_plan_events` / `_PlanStreamObserver` re-exports.
+  Import them from `fi_runner._plan_events`.
+
 ---
 
 ## [0.25.0] — 2026-10-28

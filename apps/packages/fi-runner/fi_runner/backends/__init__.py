@@ -25,7 +25,7 @@ What went with them, stated plainly rather than discovered later:
 - ``ProviderConfig`` — Codex's API-motor selection. AIRE's door picks the model.
 - The only implementation of ``enforces_pinned_args``. The pin contract in
   :attr:`fi_runner.backend.MCPServerSpec.pinned_args` survives ON PURPOSE, and
-  :meth:`fi_runner.Runner._pin_args` now REFUSES every pinned turn — because no
+  :func:`fi_runner.context_binding.stamp_pinned_args` now REFUSES every pinned turn — because no
   backend can gate a tool argument any more. That refusal is the point: it keeps
   the gap loud until the door implements it, instead of letting a consumer
   believe a tenant is fenced when nothing is fencing it.
