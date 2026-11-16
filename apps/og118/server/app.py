@@ -54,6 +54,7 @@ from external_engine import (
 )
 import detached_turn
 from fi_runner import Runner
+from fi_runner.events import SCHEMA_VERSION
 from elements_registry import (
     Element,
     ElementsRegistryError,
@@ -547,7 +548,9 @@ def _sse(event: dict) -> str:
 
 @router.get("/health")
 async def health() -> dict:
-    return {"ok": True}
+    """`schema` is the stream contract this server speaks: a native client that
+    cannot be redeployed with it compares before trusting what it parses."""
+    return {"ok": True, "schema": SCHEMA_VERSION}
 
 
 @router.get("/elements")
@@ -800,7 +803,11 @@ async def chat_stream(
     registry: ProjectRegistry = Depends(get_project_registry),
     rag: RagStoreClient = Depends(get_rag_store),
     seleccionar_runner: RunnerSelector = Depends(get_runner_selector),
+    x_og118_client: str | None = Header(default=None),
 ) -> StreamingResponse:
+    # Which build is alive, seen from outside: a native app that stops opening
+    # stops appearing here, and its last line names the build that died.
+    logger.info("chat turn client=%s", (x_og118_client or "web")[:40])
     # Con Proyectos apagado, un `corpus_id` que llegue se IGNORA en vez de
     # rechazarse: un cliente viejo (una pestaña sin recargar, una app móvil sin
     # actualizar) sigue chateando, sólo que sin corpus. Rechazarlo con 422 le

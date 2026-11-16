@@ -21,6 +21,7 @@ final class ConversationsModel: ObservableObject {
     private let load: Load?
     private let save: Save?
     private let remove: Remove?
+    private let cache: CacheLocal?
     private let now: () -> String
 
     init(
@@ -28,13 +29,22 @@ final class ConversationsModel: ObservableObject {
         load: Load? = nil,
         save: Save? = nil,
         remove: Remove? = nil,
+        cache: CacheLocal? = nil,
         now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) }
     ) {
         self.list = list
         self.load = load
         self.save = save
         self.remove = remove
+        self.cache = cache
         self.now = now
+        summaries = cache?.lista() ?? []
+    }
+
+    /// Al cerrar sesión: la lista de una cuenta no se le enseña a la siguiente.
+    func vaciar() {
+        summaries = []
+        errorMessage = nil
     }
 
     convenience init(client: Og118Client) {
@@ -42,7 +52,8 @@ final class ConversationsModel: ObservableObject {
             list: client.listConversations,
             load: client.loadConversation,
             save: client.saveConversation,
-            remove: client.deleteConversation
+            remove: client.deleteConversation,
+            cache: .viva
         )
     }
 
@@ -70,6 +81,7 @@ final class ConversationsModel: ObservableObject {
         defer { isLoading = false }
         do {
             summaries = try await list()
+            cache?.guardarLista(summaries)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -107,6 +119,8 @@ final class ConversationsModel: ObservableObject {
         do {
             try await remove(id)
             summaries.removeAll { $0.id == id }
+            cache?.olvidar(id)
+            cache?.guardarLista(summaries)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -136,6 +150,7 @@ final class ConversationsModel: ObservableObject {
     private func reload() async {
         do {
             summaries = try await list()
+            cache?.guardarLista(summaries)
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (EN VIVO 2026-10-10) — ya está INSTALADA EN EL iPHONE 15 físico, firmada con el Apple ID gratis. El launch lo niega iOS hasta que Bernard confíe en el desarrollador en el teléfono; luego el átomo es la contraseña de Auth0
+Status: **In progress** (2026-11-15) — paso 1 a 5 de 6 del robustecimiento en curso (tabla abajo). La app NO está instalada: el perfil gratis caducó el 2026-11-07 y la membresía de pago (pedido `W1947292357`) sigue sin activarse. La vuelta completa en el teléfono con el código nuevo está sin verificar.
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -69,6 +69,33 @@ No bloquea nada para empezar.
 **2026-11-15 20:45 — «otra vez se murió og118 en mi cel».** Medido: el servidor está sano (`/health` 200, réplica viva, suscripción `Enabled`) y su último request real es del 4-nov. La causa es la app nativa: el perfil gratis venció el 2026-11-07 14:48 UTC y nadie firmó con el equipo pagado. **La membresía NO está activa:** developer.apple.com/account (leído 20:44, sesión de `bernarduriza@icloud.com`) dice `Bernard Uriza Orozco (Pending)` y «Purchase your membership. To continue your enrollment, complete your purchase now», quince días después del pedido `W1672029496`. Xcode sólo conoce el Personal Team `7L36T9PTFN`. **El «PAGADO 2026-10-31» de arriba quedó falso al día siguiente:** el pedido `W1672029496`, leído el 15-nov 20:50 en la vista de invitado de la Apple Store, dice «Cancelado. Se canceló este artículo el 01 noviembre 2026 y no se facturó». No hay cargo que reclamar; hay que comprar de nuevo. `developer.apple.com/enroll/purchase` está en «Complete your purchase» (Mex$1749, botón «Continue to payment»), con la inscripción intacta. Parche: build nueva con perfil gratis (creado 2026-11-16 02:36 UTC, **vence 2026-11-23 02:36 UTC**), sin instalar porque el iPhone salía `unavailable` en `devicectl`. Siguiente: iPhone desbloqueado en la misma red → `devicectl install` → confianza por Duplicación del iPhone; y cerrar la inscripción (pagar de nuevo o reclamar el pedido, decisión de Bernard).
 
 **2026-11-15 20:55 — pedido nuevo `W1947292357`.** Bernard autorizó volver a comprar (Mex$1,749, auto-renovación, sin CFDI). Colocado con la Chime virtual como tarjeta nueva (la guardada ••0749 no se usó); al formulario de facturación le faltaba la colonia. Pantalla final: «Gracias: Confirmación del pedido». **Autorizado en la tarjeta, leído en app.chime.com a las 21:02:** «Aos Mexico, Nov 15 2026 8:55 PM, −$94.49», sin alerta SMS. Autorizado todavía no es membresía activa: el del 31-oct también dio número y Apple lo canceló al día siguiente. El iPhone no anuncia Bonjour ni responde ping desde la Mac (última conexión de CoreDevice: 1-nov), así que el install espera a que esté desbloqueado en la misma red o por cable. Verificar el estado en la vista de invitado de la Apple Store y que `(Pending)` desaparezca de developer.apple.com/account (hasta 48 h). Al activarse: Team ID pagado → `DEVELOPMENT_TEAM` en `Config.xcconfig` → `xcodegen generate` → build → `devicectl install`.
+
+## Robustecimiento — 2026-11-15 (plan aprobado por Bernard)
+
+Bernard, tras la tercera muerte por perfil caducado: *«busquen qué más mejorar en la arquitectura, en el
+robustecimiento, que sean serios… para que no vuelva a pasar y para que realmente tenga una funcionalidad
+real»*. **La meta es el paso 6**: abre og118 en el iPhone cualquier día, sin Mac, sin cable y sin volver a dar
+confianza; manda un turno, cambia de app, regresa y la respuesta está ahí; y si algo va a caducar, se entera antes.
+
+| Paso | Qué | Estado (2026-11-15) |
+|---|---|---|
+| 1a | El equipo de firma vive sólo en `Config.xcconfig`; `Info.plist` reporta versión y build reales | Hecho, PR #651. `project.yml` fijaba `DEVELOPMENT_TEAM` a nivel de target y le ganaba al xcconfig: cambiar el xcconfig no habría cambiado la firma |
+| 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **Bloqueado** por la activación de la membresía. Nada escrito todavía |
+| 2 | Un solo camino de red (`Transporte`): 401 → refresco → reintento → login con motivo; arranque en frío en cargar/guardar/borrar; errores callados a la vista; modelos construidos una vez | Hecho, PR #651 |
+| 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | PR #652. Probado con pruebas (servidor, arnés, simulador); **sin probar** contra el servidor desplegado ni en el teléfono |
+| 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Escrito y con pruebas; sin probar en el teléfono |
+| 5 | CI compila la app y corre `OG118UnitTests`; el deploy fija `OG118_AUTH_MODE` y `AUTH0_*`; `/health` da la versión del contrato; el servidor registra `X-OG118-Client` | Escrito. **Falta**: que la app compare la versión del contrato, y el dominio propio de la API (`api.og118.ai` no resuelve; `Config.swift` sigue apuntando al hostname crudo de Azure) |
+| 6 | Prueba en el iPhone real (login, texto, foto, dictado, llamada, cambiar de app >30 s) | **Pendiente**: necesita el teléfono desbloqueado y alcanzable |
+
+Lo que quedó fuera de estos pasos y sigue abierto: un solo dueño del `AVAudioSession` (dictado, llamada y
+reproducción lo configuran cada uno por su lado), las imágenes del borrador (sólo el texto sobrevive al cierre)
+y el aviso «despertando el servidor» en el POST del chat (el API está prendido 24/7 desde el 28-oct).
+
+Hallazgos de la auditoría que cambiaron el plan: nada vigilaba la caducidad (ni workflow, ni script, ni launchd,
+ni cron); el CI sólo compilaba un arnés de macOS; un 401 dejaba al usuario atorado en «Tu sesión expiró» sin
+refrescar ni sacar al login; cualquier corte de red borraba la burbuja y «Reintentar» cobraba el turno dos veces;
+`RootView` reconstruía todos los modelos en cada cambio de `Auth`; `GET /projects` daba 404 en cada arranque
+(bandera apagada) y ese error nunca se mostraba.
 
 ## La UI calca la web — 2026-10-10
 

@@ -116,6 +116,10 @@ jobs:
         # fresh `create` brought the app up doorless. CLAUDE_CODE_OAUTH_TOKEN
         # and OG118_BACKEND are relics of the deleted CLI backend — removed
         # here so the live app matches the code that runs it.
+        #
+        # The auth mode had the same drift: OG118_AUTH_MODE and AUTH0_* lived
+        # only on the live app (read 2026-11-15: auth0). A fresh `create` came
+        # up in bearer mode and every Auth0 client, the iPhone included, got 401.
         env:
           IMG: ghcr.io/bernarduriza/free-intelligence/og118-server:${{ github.sha }}
           GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
@@ -136,6 +140,9 @@ jobs:
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
                 "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
+                "OG118_AUTH_MODE=auth0" \
+                "AUTH0_DOMAIN=dev-1r4daup7ofj7q6gn.us.auth0.com" \
+                "AUTH0_AUDIENCE=https://api.og118.ai" \
                 "HDF5_USE_FILE_LOCKING=FALSE" \
               --remove-env-vars "ANTHROPIC_API_KEY" "CLAUDE_CODE_OAUTH_TOKEN" "OG118_BACKEND"
           else
@@ -153,6 +160,9 @@ jobs:
                 "OG118_ALLOWED_ORIGINS=$ALLOWED_ORIGINS" \
                 "OG118_MODEL=$MODEL" \
                 "OG118_ELEMENT_AUTHORS=9a373d43343969d122428e550b992261" \
+                "OG118_AUTH_MODE=auth0" \
+                "AUTH0_DOMAIN=dev-1r4daup7ofj7q6gn.us.auth0.com" \
+                "AUTH0_AUDIENCE=https://api.og118.ai" \
                 "HDF5_USE_FILE_LOCKING=FALSE"
           fi
 

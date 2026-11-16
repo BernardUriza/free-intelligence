@@ -94,6 +94,25 @@ jobs:
             Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift
           /tmp/og118-harness
 
+      - name: Build the real app and run its unit tests on a simulator
+        # The harness compiles Models and Services for macOS; the SwiftUI layer,
+        # the project file and the OG118UnitTests target ran on nobody's machine
+        # but the author's.
+        working-directory: apps/og118-ios
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+          brew install xcodegen
+          cp Config.xcconfig.example Config.xcconfig
+          xcodegen generate
+          SIM=$(xcrun simctl list devices available | grep -m1 -oE "iPhone [^(]+\([0-9A-F-]{36}\)" | grep -oE "[0-9A-F-]{36}")
+          echo "simulator: $SIM"
+          set -o pipefail
+          xcodebuild -project OG118.xcodeproj -scheme OG118 \
+            -destination "platform=iOS Simulator,id=$SIM" \
+            -only-testing:OG118UnitTests CODE_SIGNING_ALLOWED=NO test \
+            | grep -E "error:|Test run with|✘|\*\* " | tail -40
+
   # ============================================================
   # AI GATEKEEPER: BAIR inline runner. The reusable-workflow approach
   # (uses: BernardUriza/.github/...@main) kept tripping startup_failure

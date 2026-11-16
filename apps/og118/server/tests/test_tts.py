@@ -181,7 +181,9 @@ def _override_provider(provider) -> None:
 
 
 def test_health_still_ok(client: TestClient) -> None:
-    assert client.get("/health").json() == {"ok": True}
+    body = client.get("/health").json()
+    assert body["ok"] is True
+    assert body["schema"].count(".") == 2
 
 
 def test_unconfigured_returns_503(client: TestClient) -> None:

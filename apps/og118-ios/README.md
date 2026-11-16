@@ -21,11 +21,11 @@ capa de UI, porque fi-glass es TypeScript y no cruza a Swift.
 | El cliente Auth0 existe y acepta el callback | `GET /authorize` con el `client_id` y el `redirect_uri` reales | `302` al login, sin *Unknown client* ni *Callback URL mismatch* |
 | **Compila para iOS** | `xcodebuild -sdk iphonesimulator` con Xcode 26.6 | `** BUILD SUCCEEDED **` |
 | **Arranca y se ve** | instalada y lanzada en un simulador iPhone 16 Pro / iOS 26.5 | login renderiza con la identidad de og118 |
-| **Corre en el iPhone físico** | **no probado** | falta conectar el teléfono por cable |
+| **Corre en el iPhone físico** | instalada el 2026-10-10 y el 2026-11-01 | hoy NO está instalada: el perfil gratis caducó el 2026-11-07 |
+| **La app real y sus unit tests** | `xcodebuild test -only-testing:OG118UnitTests` en simulador, también en CI (`pr-gate.yml`) | 13 pasan (2026-11-15) |
 
-Ya arranca y se ve como og118, pero **nadie ha completado todavía una vuelta de
-chat real** — login de Auth0 contra el tenant, SSE del servidor, respuesta
-pintada. Eso sigue presumiéndose roto hasta que ocurra.
+El estado vivo, incidente por incidente, está en `.claude/backlog/og118-ios-tracer.md`. Lo que este README
+no puede afirmar: la vuelta completa en el teléfono con el código del 2026-11-15 está sin verificar.
 
 ## Correrla en el simulador
 
@@ -83,11 +83,13 @@ print('el servidor acepta el JSON de Swift')"
 
 ## Persistencia
 
-El transcript vive en el servidor, no en el teléfono: `PUT /conversations/{id}`
-al cerrar cada turno y `GET` al arrancar. El id de conversación se guarda en
-`UserDefaults` y **es también el `session_id`** que viaja en `/chat/stream` —
-así lo manda el contrato de core (*"Stable id. Doubles as the backend session_id
-for the same thread"*), y por eso no se genera un uuid aparte por lanzamiento.
+La fuente de verdad es el servidor: `PUT /conversations/{id}` al cerrar cada turno y `GET` al arrancar. El id
+de conversación se guarda en `UserDefaults` y **es también el `session_id`** que viaja en `/chat/stream`.
+
+Desde el 2026-11-15 el teléfono guarda una copia (`Services/CacheLocal.swift`, en Application Support): el
+último record de cada hilo y la lista se pintan al instante y se leen sin red, pero no se puede mandar sobre un
+hilo que el servidor no confirmó. Un guardado que no llega queda marcado como pendiente y se vuelve a subir. El
+borrador de texto de cada conversación sobrevive al cierre de la app. Cerrar sesión borra todo eso.
 
 Título, preview y truncado replican `free-intelligence-core` al carácter
 (tope 60 y 120, colapso de espacios, elipsis) para que el mismo hilo se lea
@@ -128,21 +130,24 @@ El código está alineado a **ese** cliente — no se creó uno nuevo (Art. 6).
 El `client_id` del web (`9FxTpqyKHP9xw9u4fO6T3Ob7acAarEQj`) es de tipo SPA y no
 sirve aquí: Auth0 no acepta callbacks de esquema propio en clientes SPA.
 
-## Lo que falta para la primera corrida
+## Red y turno
 
-**2026-10-10: ya corre en el iPhone 15 físico** (Apple ID gratis, perfil de 7
-días). Comandos y el átomo de "Confiar" en `.claude/backlog/og118-ios-tracer.md`.
+Toda petición sale por `Services/Transporte.swift`. Un 401 refresca el token una vez y repite; si el servidor
+rechaza también el nuevo, la sesión se cierra y el login dice por qué. Cada petición lleva
+`X-OG118-Client: ios/<versión>(<build>)`.
 
-Xcode 26.6 está instalado (vía `xcodes`, sin la App Store) y el proyecto
-**compila, arranca y pinta el login en el simulador** — verificado el
-2026-08-23. Lo que falta es la vuelta completa del tracer bullet, y se presume
-rota hasta que ocurra: login de Auth0 contra el tenant → `POST /chat/stream` →
-SSE → respuesta pintada. El único átomo humano es la contraseña de Auth0 en el
-simulador; build, install, launch y screenshot se manejan desde la sesión.
+El turno pide `survive_disconnect`: si la conexión se cae con el turno ya abierto (cambiar de app, perder
+señal), el servidor lo termina y la respuesta llega por el record; el teléfono la espera en vez de revertir.
+Parar a mano llama a `POST /chat/cancel`. 45 s sin una sola línea del servidor cortan el stream.
 
-El teléfono físico es un paso aparte: firma con Apple ID gratis (la app dura 7
-días antes de recaducar; reinstalar es darle Run otra vez) o los $99 del año
-completo. El simulador no necesita cuenta de desarrollador ni firma.
+## Firma y distribución
+
+El equipo de firma vive **sólo** en `Config.xcconfig` (ignorado por git). `project.yml` no lo fija: un valor a
+nivel de target le gana al xcconfig.
+
+Con el Apple ID gratis el perfil dura 7 días y la app deja de abrir; pasó el 17-oct, el 31-oct y el 7-nov de 2026.
+La salida es TestFlight con la membresía de pago (paso 1b del tracker), que todavía no existe. Mientras tanto,
+instalar por cable exige el teléfono desbloqueado y volver a confiar en el desarrollador si la app se borró.
 
 ## Anatomía
 
