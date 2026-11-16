@@ -1,5 +1,5 @@
 {
-  "$comment": "El contrato de COMPORTAMIENTO de la máquina del turno. Escrito a mano: ni core ni og118-ios lo generan; los dos lo obedecen. Cada vector es una secuencia de frames del cable (agent-events.schema.json) y la proyección del estado al que ambos consumidores deben llegar. core lo corre en src/agent/turn-vectors.test.ts; og118-ios en Tests/ChatModelHarness.swift.",
+  "$comment": "El contrato de COMPORTAMIENTO de la máquina del turno. Escrito a mano: ni core ni og118-ios lo generan; los dos lo obedecen. Cada vector es una secuencia de frames del cable (agent-events.schema.json) y la proyección del estado al que ambos consumidores deben llegar. core lo corre en src/agent/turn-vectors.test.ts; og118-ios en Tests/Harness/PruebasContratos.swift.",
   "version": 1,
   "vectors": [
     {

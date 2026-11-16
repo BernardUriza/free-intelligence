@@ -58,7 +58,7 @@ SDK=$(xcrun --show-sdk-path --sdk macosx)
 # binario que se instala, pero el arnés sí la cubre.
 swiftc -DDEBUG -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
   Sources/Models/*.swift Sources/Services/*.swift Sources/Services/Generated/*.swift \
-  Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift
+  Sources/Services/Voice/*.swift Tests/Harness/*.swift
 /tmp/og118-harness
 ```
 

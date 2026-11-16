@@ -1,5 +1,5 @@
 {
-  "$comment": "Contrato de COMPORTAMIENTO de las derivaciones de conversación (título, preview, rename, agrupado del sidebar). Escrito a mano; core (src/conversation/derivations-vectors.test.ts) y og118-ios (Tests/ChatModelHarness.swift) lo obedecen. Longitudes en caracteres ASCII a propósito: JS cuenta UTF-16 y Swift grafemas.",
+  "$comment": "Contrato de COMPORTAMIENTO de las derivaciones de conversación (título, preview, rename, agrupado del sidebar). Escrito a mano; core (src/conversation/derivations-vectors.test.ts) y og118-ios (Tests/Harness/PruebasContratos.swift) lo obedecen. Longitudes en caracteres ASCII a propósito: JS cuenta UTF-16 y Swift grafemas.",
   "version": 1,
   "vectors": [
     {

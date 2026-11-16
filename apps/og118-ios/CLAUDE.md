@@ -12,7 +12,7 @@ en `.claude/backlog/og118-ios-tracer.md`; la anatomía, en `README.md`.
 - **Toda petición sale por `Services/Transporte.swift`.** Ningún `URLSession.shared.data` suelto con su propio
   manejo de 401.
 - **El equipo de firma vive sólo en `Config.xcconfig`.** Nunca en `project.yml`.
-- **Un cambio se prueba en tres niveles**: el arnés de macOS (`Tests/ChatModelHarness.swift`, corre en CI), los
+- **Un cambio se prueba en tres niveles**: el arnés de macOS (`Tests/Harness/*.swift`, corre en CI), los
   unit tests en simulador (`xcodebuild test -only-testing:OG118UnitTests`, corre en CI) y el teléfono. Lo que
   no se probó en el teléfono se escribe como «sin verificar en el teléfono», no como hecho.
 - **`xcrun` necesita `DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer`** en esta Mac:
@@ -27,7 +27,7 @@ cd apps/og118-ios
 SDK=$(xcrun --show-sdk-path --sdk macosx)
 swiftc -DDEBUG -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
   Sources/Models/*.swift Sources/Services/*.swift Sources/Services/Generated/*.swift \
-  Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift && /tmp/og118-harness
+  Sources/Services/Voice/*.swift Tests/Harness/*.swift && /tmp/og118-harness
 
 export DEVELOPER_DIR=/Applications/Xcode-26.6.0.app/Contents/Developer
 xcodegen generate

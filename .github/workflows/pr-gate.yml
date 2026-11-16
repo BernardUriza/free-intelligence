@@ -91,7 +91,7 @@ jobs:
           SDK=$(xcrun --show-sdk-path --sdk macosx)
           swiftc -DDEBUG -sdk "$SDK" -target arm64-apple-macos14.0 -o /tmp/og118-harness \
             Sources/Models/*.swift Sources/Services/*.swift Sources/Services/Generated/*.swift \
-            Sources/Services/Voice/*.swift Tests/ChatModelHarness.swift
+            Sources/Services/Voice/*.swift Tests/Harness/*.swift
           /tmp/og118-harness
 
       - name: Build the real app and run its unit tests on a simulator
