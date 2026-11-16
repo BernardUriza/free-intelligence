@@ -33,7 +33,7 @@ final class VoiceModel: ObservableObject {
     }
 
     convenience init(client: Og118Client) {
-        let servicio = VoiceService(accessToken: client.accessToken)
+        let servicio = VoiceService(transporte: client.transporte)
         let grabadora = AudioRecorder()
         self.init(
             servicio: servicio,

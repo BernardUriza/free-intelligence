@@ -70,6 +70,7 @@ final class ConversationsModel: ObservableObject {
         defer { isLoading = false }
         do {
             summaries = try await list()
+            errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }

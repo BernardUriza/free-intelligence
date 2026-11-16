@@ -64,7 +64,7 @@ struct VoiceService {
     /// default (`OG118_TTS_VOICE`) y el teléfono sonaría distinto a la web.
     static let vozPorDefecto = "nova"
 
-    var accessToken: () async throws -> String
+    var transporte: Transporte
 
     /// Devuelve el audio y su Content-Type, que el reproductor necesita para
     /// elegir decodificador.
@@ -74,13 +74,11 @@ struct VoiceService {
         request.httpMethod = "POST"
         request.timeoutInterval = 120
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        try await authorize(&request)
         request.httpBody = try JSONEncoder().encode(
             TTSRequest(text: recortado, voice: Self.vozPorDefecto, responseFormat: "mp3", speed: speed)
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        let (data, http) = try await transporte.enviar(request)
         if http.statusCode == 503 { throw VoiceError.notConfigured }
         guard (200..<300).contains(http.statusCode) else {
             throw VoiceError.upstream(http.statusCode)
@@ -111,11 +109,9 @@ struct VoiceService {
             "multipart/form-data; boundary=\(frontera)",
             forHTTPHeaderField: "Content-Type"
         )
-        try await authorize(&request)
         request.httpBody = cuerpoMultipart(audio: audio, mime: mime, frontera: frontera)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw Og118Error.notHTTP }
+        let (data, http) = try await transporte.enviar(request)
         if http.statusCode == 503 { throw VoiceError.notConfigured }
         guard (200..<300).contains(http.statusCode) else {
             throw VoiceError.upstream(http.statusCode)
@@ -132,12 +128,5 @@ struct VoiceService {
         cuerpo.append(audio)
         agregar("\r\n--\(frontera)--\r\n")
         return cuerpo
-    }
-
-    private func authorize(_ request: inout URLRequest) async throws {
-        let token = try await accessToken()
-        if !token.isEmpty {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
     }
 }

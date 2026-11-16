@@ -10,6 +10,15 @@ struct ContextSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let error = catalog.errorMessage {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(Theme.danger)
+                        Button("Reintentar") { Task { await catalog.refresh() } }
+                            .frame(minHeight: 44)
+                    }
+                }
                 Section("Elemento") {
                     elementRow(elemento: nil)
                     ForEach(catalog.elements) { elementRow(elemento: $0) }

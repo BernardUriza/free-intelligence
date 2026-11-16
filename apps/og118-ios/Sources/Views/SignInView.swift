@@ -21,8 +21,8 @@ struct SignInView: View {
             }
             .buttonStyle(AccentButtonStyle())
             .disabled(signingIn)
-            if let signInError {
-                Text(signInError)
+            if let texto = signInError ?? auth.avisoDeSalida {
+                Text(texto)
                     .font(.footnote)
                     .foregroundStyle(Theme.danger)
                     .multilineTextAlignment(.center)

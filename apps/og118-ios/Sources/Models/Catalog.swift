@@ -83,6 +83,7 @@ final class CatalogModel: ObservableObject {
     }
 
     func refresh() async {
+        errorMessage = nil
         do {
             elements = try await loadElements()
         } catch {
