@@ -38,7 +38,7 @@ import {
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
-} from "../chunk-EE47ROZG.js";
+} from "../chunk-DWJLRJE6.js";
 import "../chunk-TZYRBKX6.js";
 import "../chunk-NKH57TOL.js";
 import {

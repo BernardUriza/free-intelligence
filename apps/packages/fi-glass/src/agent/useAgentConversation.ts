@@ -70,7 +70,6 @@ import {
   type MessageImage,
   applyConversationEvent,
   initialConversationState,
-  makeUserMessage,
   foldAssistantTurn,
 } from '@free-intelligence/core';
 import type { TurnNotice } from '@free-intelligence/core';
@@ -393,7 +392,6 @@ export function useAgentConversation(
   // (apps often pass a fresh arrow each render).
   const appHandledRef = useRef(isAppHandledError);
   appHandledRef.current = isAppHandledError;
-  // Last send (text + any attached images) — replayed by retry().
   // Latest seed, read without retriggering the hydration effect on array identity.
   const initialRef = useRef(initialMessages);
   initialRef.current = initialMessages;
