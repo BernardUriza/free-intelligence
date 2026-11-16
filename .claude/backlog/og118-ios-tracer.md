@@ -101,6 +101,29 @@ pedido (para cazar una cancelación). Corre con launchd (`com.bernard.apple-memb
 20:07, avisa en pantalla solo cuando el estado cambia y se da de baja solo al ver la cuenta activa o el pedido
 cancelado. Bitácora en `~/Library/Application Support/apple-membresia-vigia/`.
 
+## Aviso de respuesta lista — 2026-11-16 (PR #661)
+
+La primera mejora que Bernard escogió para la app: mandar la pregunta, guardar el teléfono y enterarse solo.
+
+- **Servidor** (`apps/og118/server/push.py`): cada teléfono registra su token por cuenta (`POST /push/devices`);
+  al entregar un turno tardío (el local que se quedó sin cliente o el externo que llegó tarde) manda un aviso
+  por APNs con el id del hilo. Sin llave no hace nada; un push que falla no pierde la respuesta.
+- **App** (`Sources/Services/Avisos.swift`): pide permiso al mandar el primer mensaje; si el turno termina con
+  la app en segundo plano pero viva, el aviso es local; tocar cualquiera de los dos abre ese hilo.
+- **Llave APNs**: «og118 push», Sandbox & Production, en `~/.secrets/apns-og118*` y en los secrets
+  `OG118_APNS_KEY` / `OG118_APNS_KEY_ID`; el deploy la conecta en su propio paso.
+- **CI**: el archivo ahora se firma (uno sin firmar pierde los entitlements), el job falla si falta
+  `aps-environment` y revoca el certificado de desarrollo que cada corrida obliga a crear.
+
+Verificado el 16-nov: suite del servidor 308 en verde; build `202611161905` subido por CI con «push entitlement
+present in the archive» y «development certificates revoked after the run: 1»; el Container App tiene las tres
+`OG118_APNS_*`; `POST /push/devices` sin credencial contesta 401; Apple contesta `400 BadDeviceToken` a un token
+falso con esta llave, o sea que la llave sí autentica. El primer deploy falló en el paso del worker por un 429 de
+Azure y pasó al reintentarlo.
+
+**Sin verificar:** que un aviso de verdad llegue al teléfono. Falta que el build nuevo se instale, que Bernard
+acepte el permiso de notificaciones y un turno real con la app fuera de pantalla.
+
 **Lo que la prueba del 16-nov destapó:** la línea `chat turn client=…` no salía en los logs de producción. El
 logger `og118` no tenía handler y todo su INFO (también las auditorías de elementos) se perdía; ahora cuelga de
 `uvicorn.error`. Y la Duplicación del iPhone se corta cuando Bernard toma el teléfono o regresa a la Mac: solo
