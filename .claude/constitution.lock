@@ -42,12 +42,12 @@ tree = "sha256:4f664058e07a86f8fbf3c0ca3b870e6ed1eb1bafd899a9b529a629cd6bc84ccd"
 rules = true
 
 [lock]
-canonical_sha256 = "bd6f71459536cd7c495eaecd707415d1dcae1c097e591f4c055c6c8e3351ff11"
+canonical_sha256 = "59585a246d46c753ffc75f135eb90b668971e9198b6183579e4e8415ed45094a"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "869973a7af2c34e3a563fb25524b95f723cc2fa4"
-tree = "sha256:e126f50f69dfbfd43aa0099c81b0c3c9754a7a2c588d3c54bbf2e53abb99c63e"
+rev = "84de47e4d061310cf73a86dd917d51247bf0ad90"
+tree = "sha256:597572626940d03505adf408303ac29bd4ca0d0b6a434c1383a0dbde85ffd60b"
