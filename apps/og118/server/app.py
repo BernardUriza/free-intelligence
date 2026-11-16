@@ -391,7 +391,8 @@ async def _announce(owner: str, conversation_id: str, message: dict) -> None:
     try:
         author = message.get("author")
         title = (author.get("name") if isinstance(author, dict) else None) or "og118"
-        await push.notify(get_device_store(), owner, title, message.get("content") or "", conversation_id)
+        accepted = await push.notify(get_device_store(), owner, title, message.get("content") or "", conversation_id)
+        logger.info("late answer announced: devices_accepted=%d", accepted)
     except Exception:
         logger.exception("late answer was stored but not announced")
 
