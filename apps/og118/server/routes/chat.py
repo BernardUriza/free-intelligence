@@ -59,10 +59,8 @@ class HistoryMessage(BaseModel):
     content: str
 
 
-# Vision input caps (OG118-IMAGE-UPLOAD-1). Anthropic's per-image API limit is
-# 5 MB decoded; the composer downscales before encoding, so a compliant client
-# never hits these — they exist for the hostile/buggy one. base64 inflates 4/3,
-# so the string cap is the decoded cap ×4/3 (plus padding slack).
+# Vision caps for a hostile or buggy client; the composer downscales, so a compliant one never hits them.
+# Anthropic's limit is 5 MB decoded; base64 inflates 4/3, hence the string cap.
 MAX_IMAGES_PER_MESSAGE = 4
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _MAX_IMAGE_B64_CHARS = (MAX_IMAGE_BYTES * 4) // 3 + 4
@@ -101,31 +99,19 @@ class ChatImage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
-    # Client-supplied conversation history (og118 is local-first: the transcript
-    # lives in the browser's IndexedDB and is replayed each turn). This is why
-    # continuity survives an ACA replica recycle with NO server-side store — the
-    # durable source of truth is the client, not the backend's RAM.
+    # Client-supplied history, replayed each turn: continuity survives a replica recycle with no server-side store.
     history: list[HistoryMessage] | None = None
-    # Active project's corpus for this turn (Projects canary). corpus_id = the
-    # local-first project id the user selected; absent means no active project.
-    # It binds via fi_runner.active_corpus_binding so the agent scopes its
-    # rag_store search to THIS corpus. Pre-Gate-3 it is NOT authorization — a
-    # shared bearer guards the route; ownership lands with auth (PROJ-ACCOUNT).
+    # The active project's corpus for this turn; it scopes the agent's rag_store search.
+    # Ownership is validated in the handler before the stream opens.
     corpus_id: str | None = None
-    # Active "elemento" for this turn (OG118-ELEMENTS-ADR-1). A token the registry
-    # resolves (slug/symbol/atomic number/alias, e.g. "oxigeno"/"O"/"8"); an active
-    # element swaps the persona (Vultur for Oxígeno), nothing else. Absent/unknown/
-    # non-active → the base og118 companion persona.
+    # A token the registry resolves (slug, symbol, atomic number or alias). An active element swaps the persona;
+    # absent, unknown or inactive means the base og118 persona.
     element: str | None = None
-    # Images attached to THIS turn's message (OG118-IMAGE-UPLOAD-1): vision input,
-    # current-turn only — history replay is a text fold and never carries them.
-    # An image-only send (empty message) is valid; each image is validated by
-    # ChatImage at the boundary, and the count is capped here.
+    # Vision input for THIS turn only; history replay is a text fold and never carries images.
+    # An image-only send (empty message) is valid.
     images: list[ChatImage] | None = Field(default=None, max_length=MAX_IMAGES_PER_MESSAGE)
-    # OG118-TURN-SURVIVES-1: a client that can lose its socket without meaning
-    # to (a phone leaving the foreground) asks the turn to finish anyway; the
-    # answer lands in the record. Opt-in: a client that sets it must call
-    # POST /chat/cancel on an explicit stop.
+    # A client that can lose its socket without meaning to asks the turn to finish anyway; the answer lands in the record.
+    # Opt-in: such a client must call POST /chat/cancel on an explicit stop.
     survive_disconnect: bool = False
 
 
@@ -234,16 +220,12 @@ async def chat_stream(
     # Which build is alive, seen from outside: a native app that stops opening
     # stops appearing here, and its last line names the build that died.
     logger.info("chat turn client=%s", (x_og118_client or "web")[:40])
-    # Con Proyectos apagado, un `corpus_id` que llegue se IGNORA en vez de
-    # rechazarse: un cliente viejo (una pestaña sin recargar, una app móvil sin
-    # actualizar) sigue chateando, sólo que sin corpus. Rechazarlo con 422 le
-    # rompería el chat entero por una feature que él no pidió.
+    # Con Proyectos apagado, un `corpus_id` que llegue se ignora en vez de rechazarse:
+    # un cliente viejo sigue chateando sin corpus en lugar de recibir un 422.
     corpus_id = req.corpus_id if proyectos_activos() else None
 
-    # If a corpus is bound this turn, the caller must OWN it — turns corpus_id
-    # from client-asserted into server-validated (no cross-account corpus reads).
-    # Skipped for the legacy single shared account (bearer mode): there is one
-    # tenant, ownership is moot, and pre-registry corpora keep working.
+    # A bound corpus must be OWNED by the caller: no cross-account corpus reads.
+    # Skipped for the legacy shared bearer, where there is one tenant.
     if corpus_id and not principal.is_legacy_bearer and not registry.owns(corpus_id, principal.sub):
         raise HTTPException(status_code=404, detail="project not found")
 
@@ -251,21 +233,13 @@ async def chat_stream(
     external = element is not None and element.engine_binding is not None and element.engine_binding.is_external
 
     async def generate() -> AsyncIterator[str]:
-        # OG118-LIVING-CLAUDE (casita-per-chat): la casita AIRE de ESTE turno,
-        # derivada del conversation_id del cliente. Se setea aquí adentro —
-        # este frame es el contexto donde corre el pump del heartbeat, así que
-        # AIREBackend.project_for_turn la ve; en la ruta claude-code nadie la
-        # lee. Sin conversación → None → la casita fija de _backend_aire.
+        # La casita AIRE de este turno sale del conversation_id. Se fija AQUÍ porque este frame es el contexto
+        # donde corre el pump del heartbeat, y de ahí la lee AIREBackend.
         AIRE_CHAT_PROJECT.set(aire_project_for_chat(req.session_id))
         request_id = uuid.uuid4().hex[:12]
         yield _sse({"type": "open", "request_id": request_id})
-        # Announce WHO answers BEFORE the first token, so the client attributes
-        # the bubble from its first character (fi-glass folds it into
-        # ChatMessage.author). The parts ride alongside the composed label: the
-        # UI needs the name and the symbol separately, and re-parsing
-        # "53 · I · Yodo" client-side would be a contract nobody declared.
-        # Absent when no element is selected — the base og118 persona answers,
-        # and the shell attributes the turn to its own default author.
+        # Announce WHO answers before the first token, so the client attributes the bubble from its first character.
+        # Name and symbol ride separately: re-parsing the composed label client-side would be an undeclared contract.
         if element is not None:
             yield _sse(
                 {
@@ -279,18 +253,13 @@ async def chat_stream(
                     },
                 }
             )
-        # ENGINE-BINDING-ADR-1: an external element runs on its own live engine, not
-        # og118's runner. The turn rides the engine's ticket: its tool_call frames
-        # stream live, its text lands whole. og118's session_id keys the engine's context.
+        # An external element runs on its own engine: its tool_call frames stream live and its text lands whole.
+        # og118's session_id keys the engine's context.
         history = [m.model_dump() for m in req.history] if req.history else None
         if external:
             assert element is not None and element.engine_binding is not None
-            # OG118-EXTERNAL-CORPUS-GAP-1 ruta 2: the external engine has no
-            # rag_store tools, so the server retrieves the active project's
-            # chunks HERE and folds them into the outbound text — the element
-            # sees the user's documents without the remote engine knowing og118.
-            # A retrieval failure refuses LOUD; answering without the documents
-            # the user believes are in play is the silent lie this kills.
+            # The external engine has no rag_store tools, so the server retrieves the project's chunks here and folds them in.
+            # A retrieval failure refuses loud: answering without the documents the user believes are in play would be a lie.
             outbound_text = req.message
             if corpus_id:
                 try:
@@ -314,9 +283,8 @@ async def chat_stream(
                         "(recuperado por el sistema — fundamenta tu respuesta en él):\n"
                         f"{context_block}\n---\n{req.message}"
                     )
-            # The external-engine proxy is a text contract — it has no channel
-            # for image blocks. Refuse LOUD (an in-stream error the shell shows)
-            # instead of silently answering without the picture.
+            # The external-engine proxy is a text contract with no channel for images:
+            # refuse in-stream instead of answering without the picture.
             if req.images:
                 yield _sse(
                     {
