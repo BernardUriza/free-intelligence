@@ -138,6 +138,17 @@ TestFlight):
   Duplicación del iPhone no muestre banners.
 - El camino del push del servidor no se ejercitó: los dos turnos terminaron dentro de la app, no abandonados.
 
+**Corrección, 16-nov ~13:52 — el aviso SÍ llegó.** Bernard lo vio en su teléfono («sí salió la notificación…
+solo que mi cel estaba en silencio»). Entonces:
+
+- La captura de pantalla NO era prueba de ausencia: la Duplicación del iPhone no enseña los banners. Un «no lo
+  vi» por duplicación no dice nada sobre notificaciones; para eso sirven los ojos de Bernard o el servidor.
+- La «causa probable» de arriba (el `onChange` que no corre en segundo plano) queda SIN probar: el build que él
+  tenía al verla era el `202611161905`, anterior al arreglo. Mover el disparo al modelo (PR #663) sigue siendo
+  correcto para la respuesta tardía, pero no fue lo que hizo sonar el aviso.
+- Llegó sin sonido porque el teléfono estaba en silencio, no por la app.
+- Sigue sin ejercitarse el push del servidor (turno que iOS suspende antes de terminar).
+
 **Lo que la prueba del 16-nov destapó:** la línea `chat turn client=…` no salía en los logs de producción. El
 logger `og118` no tenía handler y todo su INFO (también las auditorías de elementos) se perdía; ahora cuelga de
 `uvicorn.error`. Y la Duplicación del iPhone se corta cuando Bernard toma el teléfono o regresa a la Mac: solo
