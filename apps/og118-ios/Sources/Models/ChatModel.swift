@@ -51,6 +51,11 @@ final class ChatModel: ObservableObject {
     typealias Pausa = () async -> Void
     typealias Detener = (String) async -> Void
 
+    /// Una respuesta entró al hilo, viva o tardía. Vive en el modelo y no en la
+    /// vista: SwiftUI no corre `onChange` con la escena en segundo plano, que es
+    /// justo cuando alguien tiene que enterarse.
+    var alRecibirRespuesta: ((ChatMessage, String) -> Void)?
+
     @Published private(set) var conversationID: String
 
     /// Elemento activo (token que el registry resuelve) y proyecto activo
@@ -429,6 +434,7 @@ final class ChatModel: ObservableObject {
                     reactions: liveReactions
                 )
             )
+            if let respuesta = messages.last { alRecibirRespuesta?(respuesta, conversationID) }
         }
         limpiarTurnoVivo()
         save()
@@ -467,6 +473,9 @@ final class ChatModel: ObservableObject {
                 self.baseRecord = record
                 self.messages = record.chatMessages
                 self.avisoDeEspera = nil
+                if let respuesta = self.messages.last, respuesta.role == .assistant {
+                    self.alRecibirRespuesta?(respuesta, id)
+                }
                 return
             }
             guard let self, !Task.isCancelled, self.conversationID == id, self.messages.count == esperados else { return }

@@ -85,10 +85,7 @@ struct ContentView: View {
             }
         }
         .onChange(of: chat.isStreaming) { _, enVuelo in
-            if !enVuelo {
-                avisarSiNadieMira()
-                soltarProrroga()
-            }
+            if !enVuelo { soltarProrroga() }
         }
         .task(id: "\(avisos.tokenDispositivo ?? "")|\(auth.isSignedIn)") {
             if auth.isSignedIn, let token = avisos.tokenDispositivo { await registrarDispositivo(token) }
@@ -119,17 +116,6 @@ struct ContentView: View {
         CacheLocal.viva.vaciar()
         BorradorStore.vaciar()
         draft = ""
-    }
-
-    /// El turno terminó con la app fuera de pantalla pero viva: el aviso lo
-    /// pone el teléfono mismo; el servidor sólo avisa los que ya soltó.
-    private func avisarSiNadieMira() {
-        guard fase != .active, let ultimo = chat.messages.last, ultimo.role == .assistant else { return }
-        avisos.avisarLocal(
-            titulo: ultimo.author?.nombre ?? "og118",
-            cuerpo: ultimo.content,
-            hilo: chat.conversationID
-        )
     }
 
     /// iOS suspende la app a los pocos segundos de salir: la prórroga deja
