@@ -86,7 +86,9 @@ from tts import (
 from tts import build_provider as build_tts_provider
 from voice_quota import verificar_cuota_de_voz
 
-logger = logging.getLogger("og118")
+# A child of uvicorn's logger: a bare "og118" logger has no handler and every INFO line
+# (which client build is alive, element audits) vanished in production.
+logger = logging.getLogger("uvicorn.error").getChild("og118")
 
 # --- Config from env (no secrets in code; cloud injects these) ----------------
 # Comma-separated allowed CORS origins; defaults to the local Next dev server so

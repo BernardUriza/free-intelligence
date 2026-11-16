@@ -87,3 +87,25 @@ def test_the_external_engine_turn_is_on_the_contract(validador) -> None:
 def test_the_contract_rejects_what_the_server_must_not_send(validador) -> None:
     colado = {"type": "result", "result": {"text": "x", "mood": "happy"}}
     assert _errores(validador, colado) != [], "un campo fuera del contrato debe fallar aquí, no en el teléfono"
+
+
+def test_info_lines_reach_the_handler_uvicorn_installs() -> None:
+    """The line that names which client build is alive was written and never printed:
+    its logger had no handler and the root level is WARNING."""
+    import io
+    import logging
+
+    import app as app_module
+
+    server_log = logging.getLogger("uvicorn.error")
+    sink = io.StringIO()
+    handler = logging.StreamHandler(sink)
+    previous = server_log.level
+    server_log.addHandler(handler)
+    server_log.setLevel(logging.INFO)
+    try:
+        app_module.logger.info("chat turn client=%s", "ios/0.1.0(1)")
+    finally:
+        server_log.removeHandler(handler)
+        server_log.setLevel(previous)
+    assert "chat turn client=ios/0.1.0(1)" in sink.getvalue()
