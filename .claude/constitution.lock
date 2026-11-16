@@ -6,8 +6,8 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "205443b0f6b95a5338f9095c449416f729eca4c3"
-tree = "sha256:bb3dd6b3022110bcf73bdc0fb5a89407f52712eefb64286ef19e73f861fff667"
+rev = "0574e3a0b45c45aacd23b125fd5e3b390c93b10a"
+tree = "sha256:6198556919c50baabc2dcab97ddbc9baef801cb64323d30d7c678af92b141874"
 
 [repo]
 id = "free-intelligence"
@@ -35,19 +35,19 @@ methodology = []
 
 [toolchain]
 id = "agent-constitution"
-rev = "205443b0f6b95a5338f9095c449416f729eca4c3"
-tree = "sha256:2e93bc0e242ac7246fc5d0a2d25b7307a1a0de6a15c5e200706d33aba1a7ca98"
+rev = "ce6bfbcb6a245a1f9252ba5701dfed9344c78e97"
+tree = "sha256:4f664058e07a86f8fbf3c0ca3b870e6ed1eb1bafd899a9b529a629cd6bc84ccd"
 
 [materialize]
 rules = true
 
 [lock]
-canonical_sha256 = "1eff7ec8b91badf2d0e660ae02d1453c1370ae62867ece0a7ffbf3102f2698e8"
+canonical_sha256 = "bd6f71459536cd7c495eaecd707415d1dcae1c097e591f4c055c6c8e3351ff11"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "06b8377ccb09ceae38734a10490dd79af49ccb84"
-tree = "sha256:f32b97a3ceb8a73ace16e56aa0a71a5c9960eb62a4fcb4b73d858d2ed8fcf045"
+rev = "869973a7af2c34e3a563fb25524b95f723cc2fa4"
+tree = "sha256:e126f50f69dfbfd43aa0099c81b0c3c9754a7a2c588d3c54bbf2e53abb99c63e"
