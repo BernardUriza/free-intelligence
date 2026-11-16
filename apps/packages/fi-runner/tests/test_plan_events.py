@@ -22,7 +22,7 @@ from fi_runner import (
     ToolCall,
     plan_guard,
 )
-from fi_runner.runner import _derive_plan_events, _PlanStreamObserver
+from fi_runner._plan_events import _derive_plan_events, _PlanStreamObserver
 
 # --- _derive_plan_events: pure ---------------------------------------------
 

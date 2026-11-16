@@ -2,25 +2,24 @@
 
 The runner is backend-agnostic: it resolves its declared capabilities to MCP
 server specs and hands them, the persona (system prompt) and the tool policy to
-whatever :class:`~fi_runner.backend.AgentBackend` it was given. Swap the backend
-(Claude Code ↔ Codex ↔ raw API) without touching the runner.
+whatever :class:`~fi_runner.backend.AgentBackend` it was given.
 
 It is also the TURN PIPELINE: each turn runs the backend, then the in-process
-``guards`` (deterministic safety nets). When a guard requests a retry (e.g. a
-persona break) and the :class:`RetryPolicy` allows it, the runner re-runs the
-turn with the guard's reinforcement appended to the system prompt — optionally
-on a fallback model. On the final allowed attempt guards are told ``final=True``
-so a transformational guard sanitizes instead of asking to retry again. This is
-how the retry/anti-drift loop that used to live in a consumer (insult's client)
-moves UP into the runner: the runner orchestrates, the runner stays dumb about
-WHAT each guard does.
+``guards``. When a guard requests a retry and the :class:`RetryPolicy` allows
+it, the runner re-runs the turn with the guard's reinforcement appended to the
+system prompt, optionally on a fallback model. On the final allowed attempt
+guards are told ``final=True`` so a transformational guard sanitizes instead of
+asking to retry again.
 
-Internals are split into sibling modules; this file is the orchestrator:
+This file is the orchestrator; the work lives in sibling modules:
 
-  - :mod:`._plan_events`    — plan-first stream events from task_tracker calls
-  - :mod:`._runner_config`  — :class:`RetryPolicy`, :class:`FlowNarrator`
-  - :mod:`._flow_delivery`  — Mermaid diagram render + background narration
+  - :mod:`._turn_attempt`    — one backend attempt: stream, plan events, plan veto
+  - :mod:`._plan_events`     — plan-first stream events from task_tracker calls
+  - :mod:`._runner_config`   — :class:`RetryPolicy`, :class:`FlowNarrator`
+  - :mod:`._flow_delivery`   — Mermaid diagram render + background narration
   - :mod:`._guards_executor` — guard list execution + CRITICAL escalation
+  - :mod:`.conversation`     — continuity: history fold and transcript stores
+  - :mod:`.context_binding`  — per-turn prompt addendum and pinned tool arguments
 """
 
 from __future__ import annotations
@@ -35,34 +34,26 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from . import capabilities as _capabilities
+from ._flow_delivery import deliver_turn_flow, drain_narrations, schedule_narration
+from ._guards_executor import guard_level as _guard_level
+from ._guards_executor import run_guards
+from ._runner_config import FlowNarrator, RetryPolicy
+from ._turn_attempt import AttemptOutcome, stream_attempt
 from .backend import AgentBackend, BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage, TurnResult
-from .conversation import ConversationStore, Message, render_transcript, sanitize_history
+from .context_binding import render_context_prompt, stamp_pinned_args
+from .conversation import ConversationStore, Message, fold_history
 from .flow import Event
 from .guards import Guard
 from .pipeline import EventSink, MutationStage, run_pipeline
 from .plan_guard import PlanGuard
 from .router import ModelRouter
 
-# Extracted internals — kept private (leading underscore) to signal they
-# are implementation detail; consumers should import from ``fi_runner``
-# directly, not these submodules.
-from ._flow_delivery import deliver_turn_flow, drain_narrations, schedule_narration
-from ._guards_executor import guard_level as _guard_level, run_guards
-from ._plan_events import _derive_plan_events, _PlanStreamObserver
-from ._runner_config import FlowNarrator, RetryPolicy
-
 _log = logging.getLogger("fi_runner.runner")
 
 
 @dataclass
 class _TurnSetup:
-    """Everything both turn entrypoints derive before touching the backend.
-
-    ``run`` and ``run_stream`` used to compute this preamble independently —
-    two copies of validation, request-id minting, MCP resolution, model
-    routing, history folding and context binding that had to stay in sync by
-    hand. One shape, computed once by :meth:`Runner._prepare_turn`.
-    """
+    """Everything both turn entrypoints derive before touching the backend."""
 
     request_id: str
     t0: float
@@ -71,133 +62,79 @@ class _TurnSetup:
     backend_message: str
     backend_session_id: str | None
     context_addendum: str
+    images: list[TurnImage] | None
+    documents: list[TurnDocument] | None
+    events: list[Event]
+    emit: Callable[[str, dict[str, Any]], None]
 
 
-__all__ = [
-    "Runner",
-    "RetryPolicy",
-    "FlowNarrator",
-    # Re-exports kept for backward compatibility — tests and the package
-    # __init__.py import these from ``fi_runner.runner`` directly.
-    "_derive_plan_events",
-    "_PlanStreamObserver",
-]
+__all__ = ["Runner", "RetryPolicy", "FlowNarrator"]
 
 
 @dataclass
 class Runner:
-    """A configured runner: a backend + a persona + fi-core capabilities + guards."""
+    """A configured runner: a backend + a persona + fi-core capabilities + guards.
+
+    Attributes:
+        backend: Where the turn runs. Swappable without touching the runner.
+        persona: The system prompt. Must be non-empty.
+        capabilities: fi-core capability names, resolved to MCP server specs.
+        extra_mcp_servers: Runner-specific MCP servers that are not fi-core.
+        tool_policy: Which tools the backend may call.
+        model: Default model; ``None`` lets the backend choose.
+        guards: Deterministic in-process checks run AFTER every attempt. Unlike
+            capabilities (optional MCP tools) they are guaranteed to run.
+        plan_guard: Reviews a declared task_tracker plan before other tools run.
+            A veto emits ``plan_rejected`` and forces a retry when budget allows.
+        retry_policy: Attempts and fallback model when a guard asks to retry.
+        post_processors: Text mutations run once after guards settle, each with
+            its own invariants (see :mod:`fi_runner.pipeline`).
+        on_event: Telemetry sink. Default: stdlib logging.
+        on_turn_flow: Extra channel ``(request_id, mermaid)`` for the turn's flow
+            diagram. May fire twice per turn (mechanical, then narrated). Both
+            entrypoints publish the mechanical diagram.
+        flow_narrator: Refines the diagram with a SECOND backend call, in the
+            background. ``run()``-only on purpose: enabling it for streaming
+            would double every streaming consumer's per-turn spend.
+        model_router: Optional per-turn model selection; overrides ``model``.
+        conversation_store: Continuity by history replay. With a ``session_id``
+            the transcript is folded into the prompt and the backend stays
+            stateless, so the conversation survives a recycled container.
+        pre_emit_append: Persist the exchange BEFORE post-processors run. Stores
+            the pre-mutation text in exchange for surviving a post-yield crash.
+        client_history_max_messages: Cap on client-supplied ``history`` items.
+        client_history_max_chars: Cap on client-supplied ``history`` size.
+            History is untrusted context, never authorization.
+        context_prompt: ``context -> addendum`` folded into the system prompt.
+            Tells the agent what it SHOULD do; it is open to persuasion.
+        pin_tool_args: ``context -> {server: {arg: value}}`` stamped on the MCP
+            specs. Decides what the agent CAN do; needs a backend that declares
+            ``enforces_pinned_args``, else the turn fails loud.
+    """
 
     backend: AgentBackend
-    persona: str  # the system prompt
-    capabilities: list[str] = field(default_factory=list)  # fi-core, e.g. ["cognitive", "persona"]
-    # Runner-specific MCP servers not in fi-core (e.g. insult's insult_db, playwright).
+    persona: str
+    capabilities: list[str] = field(default_factory=list)
     extra_mcp_servers: list[MCPServerSpec] = field(default_factory=list)
     tool_policy: ToolPolicy = field(default_factory=ToolPolicy)
     model: str | None = None
-    # Deterministic safety nets run in-process AFTER the turn — guaranteed, unlike
-    # capabilities (optional MCP tools). This is how a runner gets fi-core grounding
-    # (triage, anti-drift) without importing fi-core itself. See fi_runner.guards.
     guards: list[Guard] = field(default_factory=list)
-    # Plan-first anti-drift: inspects the declared task_tracker plan BEFORE any
-    # other tool runs. Soft-rejects (emits ``plan_rejected`` event); the consumer
-    # decides whether to abort the turn or retry with the guard's reinforcement.
-    # See :mod:`fi_runner.plan_guard`. None = no pre-execution plan review.
     plan_guard: PlanGuard | None = None
-    # Retry behavior when a guard requests it (default: no retry).
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
-    # Cosmetic/normalizing text mutations run AFTER guards+retry settle, once, each
-    # with invariants (max_shrink_pct, must_preserve). See fi_runner.pipeline.
     post_processors: list[MutationStage] = field(default_factory=list)
-    # Telemetry sink for the post-processor pipeline (default: stdlib logging).
     on_event: EventSink | None = None
-    # EVERY turn self-documents: the runner always collects the turn's telemetry
-    # and, once it settles (or crashes), renders a Mermaid flowchart of the path
-    # it took — MCP wiring, guards + levels (CRITICAL highlighted), retries,
-    # post-processors, latency/cost — emitted as a ``turn_flow`` event (always, so
-    # observability is never opt-in). This OPTIONAL callback is an EXTRA channel
-    # for the raw diagram string ``(request_id, mermaid)`` when you also want to
-    # write a file / push to a dashboard. The runner stays dumb about WHERE it
-    # goes. A raising callback never breaks the turn. It may be called twice per
-    # turn — first the mechanical diagram, then the narrated one (latest wins).
-    # BOTH entrypoints publish the mechanical diagram. It used to be run()-only
-    # while every consumer called run_stream, so the flagship glass-box view had
-    # never once rendered in production — a comment that read "always" three
-    # lines up and was false where it mattered.
     on_turn_flow: Callable[[str, str], None] | None = None
-    # The INSIDE view: after each turn, the runner's own backend refines the flow
-    # diagram into a dev-facing narrative (see :class:`FlowNarrator`). On by
-    # DEFAULT (observability is core to Free Intelligence); set ``None`` to skip
-    # the second backend call. Runs in the background; drained by ``aclose()``.
-    #
-    # NARRATION IS ``run()``-ONLY, deliberately — unlike the mechanical diagram
-    # above. It is a second REAL backend call per turn, so turning it on for
-    # streaming would silently double the per-turn bill of every consumer that
-    # left this field at its default. Widening a consumer's spend is not a
-    # documentation fix; a streaming consumer that wants narration should ask
-    # for it explicitly (and that seam does not exist yet — by design).
     flow_narrator: FlowNarrator | None = field(default_factory=FlowNarrator)
-    # Internal: in-flight background narration tasks, awaited by ``aclose()`` /
-    # the async context manager so a narration is never silently lost.
     _narration_tasks: set[asyncio.Task[None]] = field(default_factory=set, init=False, repr=False)
-    # Optional per-turn model selection (e.g. tier routing). None = use `model`.
-    # A sticky router caches per session internally; the runner stays dumb.
     model_router: ModelRouter | None = None
-    # Container-safe conversation continuity by HISTORY REPLAY: when set AND a
-    # session_id is given, the runner loads the transcript from this store, folds
-    # it into the turn's prompt, and appends the new exchange after. The backend
-    # stays stateless (the runner does NOT pass session_id to it — replay is the
-    # continuity), so the conversation survives a recycled container as long as the
-    # store is durable. Mutually exclusive with a backend's native session. See
-    # fi_runner.conversation. None = no replay.
     conversation_store: ConversationStore | None = None
-    # Write-ahead variant of the conversation_store append. When ``True`` AND
-    # ``conversation_store`` is set, the runner persists the exchange BEFORE
-    # the post-processor pipeline runs (and before any ``turn_completed`` event
-    # is emitted). The stored ``assistant`` text is therefore the post-guards
-    # but pre-cosmetic-mutation version — losing post-processor normalization
-    # in exchange for a durable record that survives a post-yield crash. Off
-    # by default; turn on only when transactional durability matters more than
-    # storing the fully-mutated text. See R14 in the fi-runner robustness
-    # roadmap memory.
     pre_emit_append: bool = False
-    # Client-supplied conversation history (the og118 canary). A turn may carry its
-    # OWN transcript via ``run(history=...)`` instead of relying on a server-side
-    # store — the client owns its history (e.g. IndexedDB) and replays it, so
-    # continuity survives a recycled container with NO durable store. The history is
-    # UNTRUSTED input: it is folded as conversational CONTEXT, never authorization
-    # (it never grants permissions, selects a corpus, runs a tool, or proves
-    # identity). These two caps bound what a (possibly tampered) client can replay
-    # per turn — message count and total chars — keeping per-turn token cost finite.
-    # Sanitization (role allowlist, drop tool payloads, truncate oldest) is in
-    # fi_runner.conversation.sanitize_history.
     client_history_max_messages: int = 20
     client_history_max_chars: int = 16_000
-    # Opt-in per-turn CONTEXT BINDING (proj-corpusbind canary). Given the turn's
-    # ``context`` dict, returns an optional system-prompt addendum folded in
-    # alongside the persona. This is how a consumer binds structured per-turn
-    # state — the active corpus_id, a tenant — into the agent's instructions
-    # WITHOUT stuffing it into the user message (which would pollute the replayed
-    # transcript and be untyped). Default None → no addendum, byte-identical to
-    # before. See fi_runner.context_binding.active_corpus_binding.
     context_prompt: Callable[[Mapping[str, Any]], str | None] | None = None
-    # The BOUNDARY half of ``context_prompt``, and the reason both exist. The
-    # prompt addendum TELLS the agent which corpus is active; this PINS it, by
-    # returning ``{server_name: {arg: value}}`` for the turn's context. The specs
-    # are stamped before the backend sees them and a tool call that disagrees is
-    # denied (:attr:`fi_runner.MCPServerSpec.pinned_args`).
-    #
-    # They are separate because they answer different questions. The addendum
-    # decides what the agent SHOULD do and is subject to persuasion — an injected
-    # instruction inside a retrieved document is exactly a way to persuade it. The
-    # pin decides what it CAN do and is not. A consumer that namespaces tenant
-    # data by a tool argument needs the second one; the first alone was never a
-    # frontier, only a request. Default None → no pins, byte-identical.
     pin_tool_args: Callable[[Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None = None
 
     def __post_init__(self) -> None:
-        # Fail fast on a misconfigured runner instead of shipping an empty system
-        # prompt to the model (which silently degrades the output).
         if not self.persona or not self.persona.strip():
             raise ValueError("Runner.persona must be a non-empty system prompt")
 
@@ -208,162 +145,8 @@ class Runner:
         else:
             _log.info("%s %s", event, fields)
 
-    async def _fold_history(
-        self,
-        user_message: str,
-        session_id: str | None,
-        history: Iterable[Any] | None,
-        emit: Callable[[str, dict[str, Any]], None],
-        request_id: str,
-    ) -> tuple[str, str | None]:
-        """Resolve the message + session the backend should receive, folding prior
-        turns in for continuity. Two sources, client wins (divergence rule):
-
-        - ``history`` given (client-supplied) → sanitize it (untrusted) and fold;
-        - else a ``conversation_store`` + ``session_id`` → load and fold;
-        - else → the raw message, with the backend-native ``session_id`` preserved.
-
-        When history folds, the backend stays stateless (``session_id`` → None):
-        replay IS the continuity, so we never also resume a native session. Guards
-        still see the ORIGINAL ``user_message`` — only the BACKEND gets the fold.
-
-        EXCEPT when the backend declares its own durable memory
-        (``has_durable_memory``): the native transcript holds what replay cannot carry —
-        ``tool_use``/``tool_result`` blocks — and resuming it costs no per-turn
-        re-send, so it OUTRANKS the replay. The store is asked, never the pool:
-
-        - the session exists in the store → resume it, drop the fold entirely;
-        - the session does not exist yet → fold ONCE to SEED it (``session_id``
-          preserved, so the backend births the session with the replayed context
-          as its first exchange); every later turn resumes natively.
-
-        A backend that does not declare durable memory (Codex, fakes) never
-        enters this branch — behavior stays byte-identical.
-
-        The probe asks for the CAPABILITY, not for one backend's plumbing. It
-        used to read ``backend.session_store``, which is the local SDK host's
-        attribute and nothing else — so AIREBackend, whose memory is the whole
-        point of AIRE and lives server-side, could never answer yes. It replayed
-        on every turn AND minted a throwaway session for each one."""
-        native = (
-            session_id is not None
-            and bool(getattr(self.backend, "has_durable_memory", False))
-            and callable(getattr(self.backend, "has_session", None))
-        )
-        if native and await self.backend.has_session(session_id):
-            emit(
-                "native_session_resumed",
-                {"request_id": request_id, "session_id": session_id},
-            )
-            return user_message, session_id
-        folded: list[Message] | None = None
-        source: str | None = None
-        if history is not None:
-            folded = sanitize_history(
-                history,
-                max_messages=self.client_history_max_messages,
-                max_chars=self.client_history_max_chars,
-            )
-            # The frontend's optimistic append may include the CURRENT message as the
-            # last history item — drop it so render_transcript doesn't echo it twice.
-            if folded and folded[-1].role == "user" and folded[-1].content.strip() == user_message.strip():
-                folded = folded[:-1]
-            source = "client"
-        elif self.conversation_store is not None and session_id is not None:
-            folded = await self.conversation_store.load(session_id)
-            source = "store"
-        if folded is None:
-            return user_message, session_id  # no continuity → backend-native session
-        if folded:
-            emit(
-                "history_replayed",
-                {"request_id": request_id, "session_id": session_id, "messages": len(folded), "source": source},
-            )
-        # Seeding a native session keeps the id (the backend births the session
-        # holding this fold); a stateless backend keeps getting None, as always.
-        return render_transcript(folded, user_message), (session_id if native else None)
-
-    def _render_context_prompt(
-        self,
-        context: dict[str, Any] | None,
-        emit: Callable[[str, dict[str, Any]], None],
-        request_id: str,
-    ) -> str:
-        """Render the per-turn context binding into a system-prompt addendum.
-
-        Returns "" when no binding is configured or it yields nothing. A raising
-        binding never breaks the turn — it is surfaced as ``context_prompt_error``
-        and treated as no addendum (the agent then sees no corpus binding, which
-        the consumer's monitoring must catch)."""
-        if self.context_prompt is None:
-            return ""
-        try:
-            rendered = self.context_prompt(context or {})
-        except Exception as exc:  # noqa: BLE001 - a hostile/buggy binding must not kill the turn
-            emit("context_prompt_error", {"request_id": request_id, "error": str(exc)})
-            return ""
-        if rendered and rendered.strip():
-            addendum = rendered.strip()
-            emit("context_bound", {"request_id": request_id, "chars": len(addendum)})
-            return addendum
-        return ""
-
-    def _pin_args(
-        self,
-        mcp_servers: list[MCPServerSpec],
-        context: dict[str, Any] | None,
-        emit: Callable[[str, dict[str, Any]], None],
-        request_id: str,
-    ) -> list[MCPServerSpec]:
-        """Stamp this turn's argument pins onto the resolved MCP specs.
-
-        Returns the list unchanged when no ``pin_tool_args`` is configured or it
-        yields nothing, so a runner without pins is byte-identical.
-
-        A raising or unusable pin callback FAILS CLOSED in the only way it can:
-        the turn continues with NO pins, and the failure is surfaced loudly as
-        ``pin_tool_args_error``. There is no safe alternative — refusing the turn
-        would let a buggy binding take a product down, and inventing a pin would
-        be worse. This is the one place where the framework cannot protect a
-        consumer from its own binding, so the consumer must alert on that event.
-        """
-        if self.pin_tool_args is None:
-            return mcp_servers
-        try:
-            pins = self.pin_tool_args(context or {}) or {}
-        except Exception as exc:  # noqa: BLE001 - a hostile/buggy binding must not kill the turn
-            emit("pin_tool_args_error", {"request_id": request_id, "error": str(exc)})
-            return mcp_servers
-        if not pins:
-            return mcp_servers
-        # A pin only exists if the BACKEND can gate tool input. AIREBackend ships
-        # tool NAMES to a remote door and never sees the arguments, so stamping
-        # a spec for it would
-        # produce a `tool_args_pinned` event, a pin in the config, and zero
-        # enforcement. That is the exact fake-green shape this framework exists
-        # to refuse: fail the turn instead, LOUD, naming the backend.
-        if not getattr(self.backend, "enforces_pinned_args", False):
-            raise BackendError(
-                f"{type(self.backend).__name__} cannot enforce pinned tool arguments "
-                f"({', '.join(sorted(pins))}), so the pin would be silently dropped. "
-                "Since the fleet consolidated on AIRE (2026-08-29) NO backend can: "
-                "the door receives tool NAMES, never their arguments. Scope the data "
-                "server-side on the door that owns it, or teach aire-server to accept "
-                "the pin in the turn body — do not run pinned capabilities unenforced."
-            )
-        stamped: list[MCPServerSpec] = []
-        for spec in mcp_servers:
-            pinned = pins.get(spec.name)
-            if not pinned:
-                stamped.append(spec)
-                continue
-            stamped.append(replace(spec, pinned_args=dict(pinned)))
-            emit("tool_args_pinned", {
-                "request_id": request_id,
-                "server": spec.name,
-                "args": sorted(pinned),  # names only — a value can be tenant data
-            })
-        return stamped
+    def _mcp_servers(self) -> list[MCPServerSpec]:
+        return _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
 
     def _compose_system_prompt(self, context_addendum: str, reinforcement: str) -> str:
         """persona [+ context addendum] [+ guard reinforcement], joined by blank lines."""
@@ -381,29 +164,37 @@ class Runner:
         context: dict[str, Any] | None,
         request_id: str | None,
         history: Iterable[Any] | None,
-        emit: Callable[[str, dict[str, Any]], None],
-        images: list[TurnImage] | None = None,
-        documents: list[TurnDocument] | None = None,
+        images: Iterable[Any] | None,
+        documents: Iterable[Any] | None,
     ) -> _TurnSetup:
-        """The shared turn preamble (see :class:`_TurnSetup`): validate, mint the
-        request id, resolve MCP servers, route the model, fold continuity and
-        render the context binding. Raises ``ValueError`` on an empty message —
-        unless the turn carries ``images`` (an image-only send is a valid turn;
-        the picture IS the message)."""
-        if (not user_message or not user_message.strip()) and not images and not documents:
+        """The preamble both entrypoints share: validate, mint the request id,
+        resolve and pin MCP servers, route the model, fold continuity and render
+        the context binding.
+
+        Raises:
+            ValueError: empty ``user_message`` on a turn with no images or documents.
+        """
+        # Local buffer: safe under concurrent turns, and it feeds the flow diagram.
+        events: list[Event] = []
+
+        def emit(event: str, fields: dict[str, Any]) -> None:
+            events.append((event, fields))
+            self._emit(event, fields)
+
+        turn_images = [TurnImage.from_any(i) for i in images] if images else None
+        turn_documents = [TurnDocument.from_any(d) for d in documents] if documents else None
+        if (not user_message or not user_message.strip()) and not turn_images and not turn_documents:
             raise ValueError("user_message must be non-empty")
         request_id = request_id or uuid.uuid4().hex[:12]
         t0 = time.perf_counter()
-        if images:
-            # Count + media types only — never the bytes (telemetry stays light
-            # and PHI-safe, same discipline as the tool-trace).
+        if turn_images:
+            # Count and media types only, never the bytes.
             emit(
                 "images_attached",
-                {"request_id": request_id, "count": len(images), "media_types": [i.media_type for i in images]},
+                {"request_id": request_id, "count": len(turn_images), "media_types": [i.media_type for i in turn_images]},
             )
-        mcp_servers = self._pin_args(
-            _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers),
-            context, emit, request_id,
+        mcp_servers = stamp_pinned_args(
+            self.pin_tool_args, self.backend, self._mcp_servers(), context, emit=emit, request_id=request_id
         )
         model = self.model
         if self.model_router is not None:
@@ -412,15 +203,18 @@ class Runner:
             )
             if chosen:
                 model = chosen
-        # Container-safe continuity by history replay: fold the transcript (client-
-        # supplied or from the store) into the prompt sent to the backend, keeping
-        # the backend stateless. Guards still see the ORIGINAL user_message.
-        backend_message, backend_session_id = await self._fold_history(
-            user_message, session_id, history, emit, request_id
+        # Only the BACKEND gets the fold; guards still see the original message.
+        backend_message, backend_session_id = await fold_history(
+            backend=self.backend,
+            store=self.conversation_store,
+            user_message=user_message,
+            session_id=session_id,
+            history=history,
+            max_messages=self.client_history_max_messages,
+            max_chars=self.client_history_max_chars,
+            emit=emit,
+            request_id=request_id,
         )
-        # Per-turn context binding (e.g. the active corpus): rendered once, constant
-        # across retries; the guard reinforcement is what varies per attempt.
-        context_addendum = self._render_context_prompt(context, emit, request_id)
         return _TurnSetup(
             request_id=request_id,
             t0=t0,
@@ -428,7 +222,11 @@ class Runner:
             model=model,
             backend_message=backend_message,
             backend_session_id=backend_session_id,
-            context_addendum=context_addendum,
+            context_addendum=render_context_prompt(self.context_prompt, context, emit=emit, request_id=request_id),
+            images=turn_images,
+            documents=turn_documents,
+            events=events,
+            emit=emit,
         )
 
     async def _settle_turn(
@@ -443,22 +241,17 @@ class Runner:
         session_id: str | None,
         user_message: str,
         context: dict[str, Any] | None,
-        emit: Callable[[str, dict[str, Any]], None],
     ) -> TurnResult:
-        """The shared turn settlement, previously duplicated between :meth:`run`
-        and :meth:`run_stream`: tool-call telemetry → optional write-ahead append
-        (R14) → post-processors → ``turn_completed`` → success append.
+        """Settle a turn: tool-call telemetry, optional write-ahead append,
+        post-processors, ``turn_completed``, then the success append.
 
-        ``model`` is passed separately from ``setup.model`` because the retry
-        loop may have escalated to the fallback model — ``turn_completed``
-        reports what actually ran. Tool-trace telemetry is PHI-safe: only
-        name/server/status reach the event stream, never the tool input.
-
-        That same "what actually ran" is stamped onto the result, so the answer
-        carries its own model provenance downstream (the `result` frame → a UI's
-        model chip). Without it the Runner knew the model and nobody else did."""
+        ``model`` is what actually ran (the retry loop may have escalated), and
+        it is stamped onto the result so the answer carries its own provenance.
+        """
+        emit = setup.emit
         result = replace(result, model=model)
         for i, call in enumerate(result.tool_calls):
+            # Name, server and status only: never the tool input.
             emit(
                 "tool_called",
                 {
@@ -469,9 +262,6 @@ class Runner:
                     "is_error": call.is_error,
                 },
             )
-        # R14: optional write-ahead append BEFORE post-processors. Stores the
-        # post-guards but pre-mutation text — useful when the consumer needs
-        # the durable record to predate any cosmetic transform.
         if self.pre_emit_append:
             await self._append_to_store(
                 session_id, user_message, result.text,
@@ -493,14 +283,6 @@ class Runner:
         if streamed:
             completed["streamed"] = True
         emit("turn_completed", completed)
-        # Success → persist the exchange for replay (the ORIGINAL user_message,
-        # not the folded transcript). Only on success: a crash stores no half
-        # turn. Reached only when conversation_store + session_id are set.
-        # Failure is SURFACED as ``conversation_store_error`` but does NOT
-        # raise — the user already saw a valid response; we don't roll back
-        # the turn just because persistence flaked. The next turn will lose
-        # this exchange from history (silent context loss), so monitoring on
-        # this event is required for production durability.
         if not self.pre_emit_append:
             await self._append_to_store(
                 session_id, user_message, result.text,
@@ -512,14 +294,9 @@ class Runner:
     def _enforces_before_delivery(self) -> bool:
         """Whether anything on this runner must decide BEFORE the user sees the answer.
 
-        A guard cannot enforce what has already been delivered. So the streaming
-        path withholds TEXT deltas whenever this is true and flushes the settled
-        text once guards have run. When it is false — no guards, no plan guard,
-        a single attempt — nothing can change the answer, so deltas stream live
-        and the turn is byte-identical to one on a runner that never had guards.
-
-        Tool-call and plan events are NEVER withheld: they are observability,
-        not the answer, and a checklist that arrives after the reply is useless.
+        A guard cannot enforce what was already delivered, so the streaming path
+        withholds TEXT deltas when this is true and flushes the settled text once
+        guards have run. Tool-call and plan events are never withheld.
         """
         return bool(self.guards) or self.plan_guard is not None or self.retry_policy.max_attempts > 1
 
@@ -529,173 +306,89 @@ class Runner:
         *,
         user_message: str,
         session_id: str | None,
-        turn_images: list[TurnImage] | None,
-        emit: Callable[[str, dict[str, Any]], None],
-        turn_documents: list[TurnDocument] | None = None,
         live_text: bool,
     ) -> AsyncIterator[dict[str, Any]]:
-        """THE turn attempt loop — shared by :meth:`run` and :meth:`run_stream`.
+        """THE turn attempt loop, shared by :meth:`run` and :meth:`run_stream`.
 
-        Yields the backend's stream events as they happen and, last, the private
-        sentinel ``{"type": "_settled", "result", "model", "attempts"}``. Both
-        entrypoints drain this one generator: :meth:`run` ignores everything but
-        the sentinel, :meth:`run_stream` re-yields the rest.
+        Yields each attempt's events and, last, the private sentinel
+        ``{"type": "_settled", "result", "model", "attempts"}``. Sharing it is
+        what gives both entrypoints the same retry budget, guard verdict and
+        plan-guard veto.
 
-        That sharing is the point. The retry budget, the guard verdict and the
-        plan-guard veto used to live only in ``run``'s private loop, so every
-        guarantee this framework advertises was structurally absent from
-        ``run_stream`` — the only entrypoint its consumers call.
+        With ``live_text=False`` text deltas are withheld and the settled text
+        is emitted as ONE text event just before the sentinel.
 
-        ``live_text=False`` withholds text deltas so guards decide before the
-        answer is delivered (see :attr:`_enforces_before_delivery`); the settled
-        text is then emitted as ONE text event just before the sentinel.
+        Raises:
+            BackendError: the backend failed, or ended without a result event.
         """
         attempts = max(1, self.retry_policy.max_attempts)
+        backend_name = type(self.backend).__name__
         reinforcement = ""
         model = setup.model
         result: TurnResult | None = None
         attempt = 0
-        images_kwarg: dict[str, Any] = {"images": turn_images} if turn_images else {}
-        if turn_documents:
-            images_kwarg["documents"] = turn_documents
+        # Attachments ride only when present, so a text turn stays byte-identical
+        # and a vision-less backend fails loud instead of ignoring the picture.
+        attachments: dict[str, Any] = {}
+        if setup.images:
+            attachments["images"] = setup.images
+        if setup.documents:
+            attachments["documents"] = setup.documents
 
         for attempt in range(attempts):
             is_last = attempt == attempts - 1
-            system_prompt = self._compose_system_prompt(setup.context_addendum, reinforcement)
-            # Per-ATTEMPT, not per-turn: a retried turn declares a fresh plan and
-            # its step counters must not inherit the abandoned attempt's tallies.
-            plan_observer = _PlanStreamObserver()
-            withheld: list[str] = []
-            plan_reinforcement = ""
-            result = None
+            outcome = AttemptOutcome()
+            turn = {
+                "system_prompt": self._compose_system_prompt(setup.context_addendum, reinforcement),
+                "user_message": setup.backend_message,
+                "mcp_servers": setup.mcp_servers,
+                "tool_policy": self.tool_policy,
+                "model": model,
+                "session_id": setup.backend_session_id,
+                **attachments,
+            }
             try:
-                if hasattr(self.backend, "run_turn_stream"):
-                    async for event in self.backend.run_turn_stream(
-                        system_prompt=system_prompt,
-                        user_message=setup.backend_message,
-                        mcp_servers=setup.mcp_servers,
-                        tool_policy=self.tool_policy,
-                        model=model,
-                        session_id=setup.backend_session_id,
-                        # Only image-carrying turns pass the kwarg: a text-only
-                        # turn stays byte-identical for every backend, and a
-                        # vision-less backend fails LOUD (TypeError → BackendError)
-                        # instead of silently answering without the picture.
-                        **images_kwarg,
-                    ):
-                        kind = event.get("type")
-                        if kind == "result":
-                            result = event["result"]
-                            continue
-                        if kind == "text":
-                            if live_text:
-                                yield event
-                            else:
-                                withheld.append(event.get("text") or "")
-                            continue
-                        yield event  # tool_call and anything else — always live
-                        # Plan-first observability: when the agent calls the task_tracker
-                        # MCP, re-emit the semantic event (plan / step_started / step_done /
-                        # step_noted / plan_amended / plan_completed / plan_failed /
-                        # plan_cancelled) so the UI can paint a checklist without parsing
-                        # tool names itself. The original tool_call event still goes
-                        # through above, so a generic panel keeps working — these are ADDITIVE.
-                        if kind != "tool_call":
-                            continue
-                        for derived in _derive_plan_events(
-                            event["tool"],
-                            session_id=session_id,
-                            request_id=setup.request_id,
-                            observer=plan_observer,
-                        ):
-                            yield derived
-                            if derived.get("type") != "plan" or self.plan_guard is None:
-                                continue
-                            # Plan-first anti-drift. The veto is still SOFT on the
-                            # wire — we cannot interrupt a backend mid-turn — but it
-                            # now has teeth: its reinforcement forces another attempt
-                            # when the retry budget allows, and in enforcing mode the
-                            # rejected attempt's text was never delivered.
-                            steps = (derived.get("data") or {}).get("steps") or []
-                            outcome = self.plan_guard.inspect(steps)
-                            if outcome.allowed:
-                                continue
-                            yield {"type": "plan_rejected", "data": {
-                                "request_id": setup.request_id,
-                                "reason": outcome.reason,
-                                "matched": list(outcome.matched),
-                                "reinforcement": outcome.reinforcement,
-                                "guard": self.plan_guard.name,
-                            }}
-                            plan_reinforcement = outcome.reinforcement or ""
-                else:
-                    # Backend can't stream → one-shot, settled as a single result.
-                    result = await self.backend.run_turn(
-                        system_prompt=system_prompt,
-                        user_message=setup.backend_message,
-                        mcp_servers=setup.mcp_servers,
-                        tool_policy=self.tool_policy,
-                        model=model,
-                        session_id=setup.backend_session_id,
-                        **images_kwarg,
-                    )
+                async for event in stream_attempt(
+                    self.backend, turn, outcome,
+                    live_text=live_text, plan_guard=self.plan_guard,
+                    session_id=session_id, request_id=setup.request_id,
+                ):
+                    yield event
             except BackendError:
-                raise  # already typed — don't double-wrap
+                raise
             except Exception as exc:  # noqa: BLE001 - boundary: any backend failure
-                emit(
+                setup.emit(
                     "backend_error",
-                    {
-                        "backend": type(self.backend).__name__,
-                        "model": model,
-                        "attempt": attempt + 1,
-                        "error": str(exc),
-                    },
+                    {"backend": backend_name, "model": model, "attempt": attempt + 1, "error": str(exc)},
                 )
-                raise BackendError(
-                    f"{type(self.backend).__name__} failed on attempt "
-                    f"{attempt + 1}/{attempts}: {exc}"
-                ) from exc
+                raise BackendError(f"{backend_name} failed on attempt {attempt + 1}/{attempts}: {exc}") from exc
 
-            if result is None:
-                # The backend ended without a result event. This used to be an
-                # `assert`, which `python -O` strips — the runner then handed the
-                # consumer `result=None` where its own contract promises a
-                # TurnResult, and the consumer crashed reading attributes off it.
-                # A contract worth asserting is worth raising.
+            if outcome.result is None:
                 raise BackendError(
-                    f"{type(self.backend).__name__} ended the turn without a result event "
-                    f"(attempt {attempt + 1}/{attempts})"
+                    f"{backend_name} ended the turn without a result event (attempt {attempt + 1}/{attempts})"
                 )
-
-            if not self.guards and not plan_reinforcement:
+            result = outcome.result
+            if not self.guards and not outcome.plan_reinforcement:
                 break
 
             text, outcomes, wants_retry, added = run_guards(
                 self.guards, result.text, user_message,
-                final=is_last, request_id=setup.request_id, emit=emit,
+                final=is_last, request_id=setup.request_id, emit=setup.emit,
             )
             result = replace(result, text=text, guard_outcomes=outcomes)
-            if is_last or not (wants_retry or plan_reinforcement):
+            if is_last or not (wants_retry or outcome.plan_reinforcement):
                 break
-            # A guard (or the plan guard) asked to retry and attempts remain:
-            # reinforce + (maybe) escalate the model.
             reinforcement = "\n\n".join(
-                p for p in (reinforcement, added, plan_reinforcement) if p
+                p for p in (reinforcement, added, outcome.plan_reinforcement) if p
             ).strip()
             model = self.retry_policy.fallback_model or model
 
-        assert result is not None  # every path above either sets it or raises
+        if result is None:
+            raise BackendError(f"{backend_name} produced no result")
         if not live_text:
-            # The withheld deltas are DISCARDED in favour of the settled text: a
-            # transformational guard may have rewritten it, and shipping the raw
-            # deltas would deliver exactly the text the guard rejected.
+            # The settled text, not the raw deltas: a guard may have rewritten it.
             yield {"type": "text", "text": result.text}
-        yield {
-            "type": "_settled",
-            "result": result,
-            "model": model,
-            "attempts": attempt + 1,
-        }
+        yield {"type": "_settled", "result": result, "model": model, "attempts": attempt + 1}
 
     async def run(
         self,
@@ -710,89 +403,44 @@ class Runner:
     ) -> TurnResult:
         """Run the turn pipeline: backend → guards → retry → post-processors.
 
-        Pass ``session_id`` (e.g. a Discord channel id) for conversation
-        continuity on backends that support stateful sessions. Pass ``history`` (a
-        client-supplied transcript of prior ``user``/``assistant`` turns) to fold
-        continuity in WITHOUT a server-side store — it is sanitized as untrusted
-        context and wins over the ``conversation_store`` when both are present.
-        Retries re-run the
-        turn with accumulated reinforcement appended to the persona; the final
-        attempt lets transformational guards sanitize instead of retrying.
-        ``context`` is forwarded to each post-processor stage (per-turn side data).
-        ``request_id`` correlates every event from this turn (a fresh short id is
-        generated when omitted): a ``turn_completed`` event (latency, tokens,
-        model, mcp_count, guard levels) is emitted at the end, and
-        ``guard_critical`` whenever a guard flags a CRITICAL outcome.
+        Args:
+            session_id: Conversation continuity key (store replay or native session).
+            context: Per-turn side data for bindings, routing and post-processors.
+            request_id: Correlates every event of the turn; minted when omitted.
+            history: Client-supplied transcript. Sanitized as untrusted context;
+                wins over ``conversation_store`` when both are present.
+            images: ``TurnImage``s or ``{media_type, data}`` mappings (base64) for
+                THIS turn only. An image-only turn is valid.
+            documents: ``TurnDocument``s or mappings, current turn only.
 
-        Pass ``images`` (``TurnImage``s or raw ``{media_type, data}`` mappings,
-        base64) to attach vision input to THIS turn's user message; an
-        image-only turn (empty text) is valid. Images are current-turn only —
-        history replay is a text fold and does not carry them.
-
-        Raises ``ValueError`` on empty ``user_message`` (unless images ride)
-        and :class:`BackendError` if the backend fails (the original exception
-        is chained as ``__cause__``).
+        Raises:
+            ValueError: empty ``user_message`` with no images or documents.
+            BackendError: the backend failed (original exception chained).
         """
-        # EVERY turn self-documents — observability is not opt-in. Mirror this
-        # turn's events into a local buffer (local → safe under concurrent runs)
-        # so we can render its path (and narrate it) once it settles.
-        turn_events: list[Event] = []
-
-        def emit(event: str, fields: dict[str, Any]) -> None:
-            turn_events.append((event, fields))
-            self._emit(event, fields)
-
-        turn_images = [TurnImage.from_any(i) for i in images] if images else None
-        turn_documents = [TurnDocument.from_any(d) for d in documents] if documents else None
-        setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, emit, images=turn_images,
-            documents=turn_documents,
-        )
-        request_id = setup.request_id
-        model = setup.model
-        result: TurnResult | None = None
-        attempts_used = 1
-
+        setup = await self._prepare_turn(user_message, session_id, context, request_id, history, images, documents)
         try:
-            # run() and run_stream() drain the SAME attempt loop (retry, guards,
-            # plan veto). run() has nobody to stream to, so every live event is
-            # discarded and only the settled outcome is read off the sentinel.
+            settled: dict[str, Any] = {}
             async for event in self._attempt_stream(
-                setup,
-                user_message=user_message,
-                session_id=session_id,
-                turn_images=turn_images,
-                turn_documents=turn_documents,
-                emit=emit,
-                live_text=False,
+                setup, user_message=user_message, session_id=session_id, live_text=False
             ):
                 if event.get("type") == "_settled":
-                    result = event["result"]
-                    model = event["model"]
-                    attempts_used = event["attempts"]
-
-            assert result is not None  # the attempt loop always settles or raises
+                    settled = event
             result = await self._settle_turn(
-                result, setup,
-                model=model, attempts=attempts_used, streamed=False, phase="run",
-                session_id=session_id, user_message=user_message,
-                context=context, emit=emit,
+                settled["result"], setup,
+                model=settled["model"], attempts=settled["attempts"], streamed=False, phase="run",
+                session_id=session_id, user_message=user_message, context=context,
             )
-            # Success → narrate this turn in the BACKGROUND (the INSIDE view).
-            # Snapshot the path events so the task is independent of this frame.
             if self.flow_narrator is not None:
                 schedule_narration(
-                    request_id, list(turn_events), user_message, result.text, model,
+                    setup.request_id, list(setup.events), user_message, result.text, settled["model"],
                     narrator=self.flow_narrator, backend=self.backend,
                     emit=self._emit, on_turn_flow=self.on_turn_flow,
                     task_pool=self._narration_tasks,
                 )
             return result
         finally:
-            # Render the turn's flow even if it crashed — a failed turn's diagram
-            # (error node, no completion) is as useful as a clean one. Guarded so a
-            # raising renderer/callback can never mask the turn's own outcome.
-            deliver_turn_flow(request_id, turn_events, emit=self._emit, on_turn_flow=self.on_turn_flow)
+            # A crashed turn's diagram is as useful as a clean one.
+            deliver_turn_flow(setup.request_id, setup.events, emit=self._emit, on_turn_flow=self.on_turn_flow)
 
     async def run_stream(
         self,
@@ -805,99 +453,50 @@ class Runner:
         images: Iterable[Any] | None = None,
         documents: Iterable[Any] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Live-streaming turn: yields backend events AS THEY HAPPEN —
-        ``{"type":"tool_call","tool":ToolCall}`` per tool call,
-        ``{"type":"text","text":delta}`` per text delta, plus the derived
-        plan/step events — then a final ``{"type":"result","result":TurnResult}``
-        once post-processors settle.
+        """Live-streaming turn; same arguments and guarantees as :meth:`run`.
 
-        It drains the SAME attempt loop as :meth:`run` (see
-        :meth:`_attempt_stream`), so the retry budget, the guard verdict and the
-        plan-guard veto apply here too — they used to be ``run``-only, which made
-        every guarantee this framework advertises absent from the path its
-        consumers actually call.
+        Yields:
+            ``{"type": "tool_call", "tool": ToolCall}`` per tool call, the derived
+            plan/step events, ``{"type": "text", "text": delta}``, and last
+            ``{"type": "result", "result": TurnResult}``.
 
-        **Text delivery depends on whether anything can still change the answer**
-        (:attr:`_enforces_before_delivery`):
+            Text streams token by token only when nothing can still change the
+            answer (:attr:`_enforces_before_delivery` is false). Otherwise it
+            arrives as ONE text event after guards run.
 
-        - No guards, no plan guard, one attempt → deltas stream LIVE, token by
-          token, exactly as before.
-        - Guards / plan guard / a retry budget → text deltas are WITHHELD and the
-          settled text is emitted as one ``text`` event after guards run. A guard
-          cannot enforce what has already been delivered, so a runner that
-          declares one trades live tokens for a verdict that means something.
-
-        Tool-call and plan events are never withheld — they are observability,
-        and a checklist that arrives after the reply is useless.
-
-        Backends without ``run_turn_stream`` fall back to one result event.
-        Telemetry (turn_completed, tool_called, guard_critical) fires via
-        on_event, and the MECHANICAL flow diagram is emitted here too. The
-        background NARRATION stays ``run()``-only on purpose: it is a second
-        real backend call per turn, and silently doubling a streaming consumer's
-        bill is not observability, it is a surprise invoice."""
-        # Mirror this turn's events into a local buffer (local → safe under
-        # concurrent runs) so the flow diagram can be rendered once it settles.
-        turn_events: list[Event] = []
-
-        def emit(event: str, fields: dict[str, Any]) -> None:
-            turn_events.append((event, fields))
-            self._emit(event, fields)
-
-        turn_images = [TurnImage.from_any(i) for i in images] if images else None
-        turn_documents = [TurnDocument.from_any(d) for d in documents] if documents else None
-        setup = await self._prepare_turn(
-            user_message, session_id, context, request_id, history, emit, images=turn_images,
-            documents=turn_documents,
-        )
-        request_id = setup.request_id
-        model = setup.model
-        result: TurnResult | None = None
-        attempts_used = 1
-
+        Raises:
+            ValueError: empty ``user_message`` with no images or documents.
+            BackendError: the backend failed (original exception chained).
+        """
+        setup = await self._prepare_turn(user_message, session_id, context, request_id, history, images, documents)
         try:
+            settled: dict[str, Any] = {}
             async for event in self._attempt_stream(
-                setup,
-                user_message=user_message,
-                session_id=session_id,
-                turn_images=turn_images,
-                turn_documents=turn_documents,
-                emit=emit,
+                setup, user_message=user_message, session_id=session_id,
                 live_text=not self._enforces_before_delivery,
             ):
                 if event.get("type") == "_settled":
-                    result = event["result"]
-                    model = event["model"]
-                    attempts_used = event["attempts"]
+                    settled = event
                     continue
                 yield event
 
-            assert result is not None  # the attempt loop always settles or raises
-            # R10: the post-stream pipeline (tool_call telemetry + post-processors
-            # + turn_completed + conversation_store append) is wrapped so a failure
-            # here can never crash the async generator before the consumer receives
-            # its ``result`` event. The final ``yield`` sits OUTSIDE the guarded
-            # block — even a catastrophic post-processor crash still hands back the
-            # best-available result. Guards already ran inside the attempt loop.
+            result: TurnResult = settled["result"]
+            # R10: a failure settling must never cost the consumer its result event.
             try:
                 result = await self._settle_turn(
                     result, setup,
-                    model=model, attempts=attempts_used, streamed=True, phase="run_stream",
-                    session_id=session_id, user_message=user_message,
-                    context=context, emit=emit,
+                    model=settled["model"], attempts=settled["attempts"], streamed=True, phase="run_stream",
+                    session_id=session_id, user_message=user_message, context=context,
                 )
             except Exception as exc:  # noqa: BLE001 - R10: never lose the result event
-                emit("stream_postprocess_error", {
-                    "request_id": request_id,
+                setup.emit("stream_postprocess_error", {
+                    "request_id": setup.request_id,
                     "error_type": type(exc).__name__,
                     "error": str(exc),
                 })
             yield {"type": "result", "result": result}
         finally:
-            # Render the turn's flow even if it crashed — a failed turn's diagram
-            # (error node, no completion) is as useful as a clean one. Guarded so a
-            # raising renderer/callback can never mask the turn's own outcome.
-            deliver_turn_flow(request_id, turn_events, emit=self._emit, on_turn_flow=self.on_turn_flow)
+            deliver_turn_flow(setup.request_id, setup.events, emit=self._emit, on_turn_flow=self.on_turn_flow)
 
     async def _append_to_store(
         self,
@@ -911,12 +510,11 @@ class Runner:
     ) -> None:
         """Persist one user/assistant exchange to ``conversation_store``.
 
-        No-op when ``conversation_store`` or ``session_id`` is unset. Failures
-        are SURFACED as ``conversation_store_error`` but never raised — the
-        user already saw a valid response and we don't roll back the turn
-        just because persistence flaked. ``phase`` discriminates which call
-        site (``run`` / ``run_pre_emit`` / ``run_stream`` / ``run_stream_pre_emit``)
-        produced the failure, for monitoring."""
+        No-op without a store or a ``session_id``. A failure is surfaced as
+        ``conversation_store_error`` (``phase`` names the call site) and never
+        raised: the user already saw a valid answer. Monitor that event, the
+        next turn replays without this exchange.
+        """
         if self.conversation_store is None or session_id is None:
             return
         try:
@@ -938,10 +536,7 @@ class Runner:
         request_id: str | None = None,
         emit: EventSink,
     ) -> TurnResult:
-        """Run post-processors ONCE on the settled text, with per-stage invariants.
-        No-op when none are declared. Pipeline events go through ``emit`` (the
-        per-turn sink) so ``mutation_applied`` / ``pipeline_violation`` also land
-        in the turn-flow buffer, not just the raw ``on_event``."""
+        """Run post-processors once on the settled text; no-op when none are declared."""
         if not self.post_processors:
             return result
         mutated = await run_pipeline(
@@ -950,31 +545,15 @@ class Runner:
         return replace(result, text=mutated)
 
     async def forget_session(self, session_id: str) -> bool:
-        """Erase a session's native memory — the cascade a consumer's own delete owes.
+        """Erase a session's native memory, the cascade a consumer's delete owes.
 
-        A consumer that deletes a conversation deletes what the USER sees. The
-        native transcript underneath it — tool_use and tool_result blocks included,
-        the part history replay cannot carry — survives that delete and is
-        unreachable forever after, because the id that addressed it is gone. That
-        is a whole conversation outliving its own deletion.
-
-        Duck-typed on the backend exactly like ``has_session`` in
-        :meth:`_fold_history`, so a backend without native memory (Codex, fakes)
-        answers ``False`` and the consumer's delete stays byte-identical.
+        Returns:
+            ``True`` when the backend erased it. ``False`` when the backend has
+            no ``forget_session``; that case emits ``forget_session_unsupported``
+            because the native transcript then survives the user's delete.
         """
         forget = getattr(self.backend, "forget_session", None)
         if not callable(forget):
-            # LOUD, not silent. Since the fleet consolidated on AIRE (2026-08-29)
-            # NO backend implements this: AIRE owns the transcript in its own
-            # Postgres and its door exposes no session-delete route (it has
-            # `store.delete()` internally and DELETE routes for the corpus, but
-            # none for a session). So a consumer that deletes a conversation
-            # deletes what the USER sees while the transcript survives — the
-            # exact failure this method was written to prevent.
-            #
-            # Returning False quietly would let og118's delete path report
-            # success. The event is what makes the gap alertable until
-            # aire-server grows the endpoint.
             self._emit("forget_session_unsupported", {
                 "backend": type(self.backend).__name__,
                 "session_id": session_id,
@@ -984,38 +563,27 @@ class Runner:
         return bool(await forget(session_id))
 
     async def preflight(self, *, timeout: float = 10.0) -> dict[str, Any]:
-        """Probe every MCP server this runner will use, BEFORE the first turn.
+        """Probe every MCP server this runner will use, before the first turn.
 
-        Resolves capabilities + ``extra_mcp_servers`` exactly as :meth:`run` does,
-        then runs :func:`fi_runner.preflight.probe_mcp` for each in parallel.
-        Returns ``{server_name: PreflightResult}`` so the caller can fail boot
-        (or just log) when an expected MCP is dead — instead of finding out
-        mid-turn as a generic ``is_error`` with no context.
-
-        Cheap: each probe is a short JSON-RPC handshake; safe to call on every
-        process start. No-op for runners with zero MCP servers."""
+        Returns:
+            ``{server_name: PreflightResult}``, so the caller can fail boot when
+            an expected MCP is dead instead of finding out mid-turn.
+        """
         from .preflight import probe_all  # local import keeps preflight optional
 
-        mcp_servers = _capabilities.resolve(self.capabilities) + list(self.extra_mcp_servers)
-        return await probe_all(mcp_servers, timeout=timeout)
+        return await probe_all(self._mcp_servers(), timeout=timeout)
 
     def install_signal_handlers(
         self,
         *,
         signals: tuple[_signal.Signals, ...] = (),
     ) -> None:
-        """Register SIGTERM/SIGINT handlers that drain background narrations
-        on shutdown — opt-in for k8s/long-running deploys (R11).
+        """Register handlers (default SIGTERM, SIGINT) that run :meth:`aclose` on shutdown.
 
-        When the registered signal fires, the runner emits
-        ``runner_signal_received`` and schedules :meth:`aclose` on the current
-        event loop. Must be called from inside a running event loop (handlers
-        register via :meth:`asyncio.AbstractEventLoop.add_signal_handler`).
-
-        Unix-only: ``add_signal_handler`` raises ``NotImplementedError`` on
-        Windows; we catch and skip per-signal so a partial install still
-        runs (e.g. SIGINT works on Win, SIGTERM does not). Idempotent —
-        replaces any prior handler for the same signal."""
+        Must be called inside a running event loop. Idempotent. A signal the
+        platform cannot register (Windows) is skipped and reported as
+        ``runner_signal_install_skipped``.
+        """
         if not signals:
             signals = (_signal.SIGTERM, _signal.SIGINT)
         loop = asyncio.get_running_loop()
@@ -1026,18 +594,13 @@ class Runner:
                     lambda s=sig: asyncio.create_task(self._on_signal(s)),
                 )
             except NotImplementedError:
-                # Windows: asyncio signal handlers are unix-only. Skip
-                # silently; the consumer can wire a SetConsoleCtrlHandler
-                # equivalent themselves if needed.
                 self._emit("runner_signal_install_skipped", {
                     "signal": int(sig),
                     "reason": "platform_unsupported",
                 })
 
     async def _on_signal(self, sig: _signal.Signals) -> None:
-        """Drain narrations + release backend resources when a registered
-        signal fires. Surfaces the event before closing so an external
-        observer can correlate the shutdown with telemetry."""
+        """Announce the signal, then drain and close."""
         self._emit("runner_signal_received", {"signal": int(sig)})
         try:
             await self.aclose()
@@ -1049,13 +612,7 @@ class Runner:
             })
 
     async def aclose(self) -> None:
-        """Drain pending background narrations (so none is lost) and release
-        backend resources (pooled sessions, etc.), if any. Idempotent.
-
-        The drain semantics (gather with ``return_exceptions``, surfacing each
-        failure as ``narration_drain_error``) live in
-        :func:`fi_runner._flow_delivery.drain_narrations`, the closing half of
-        ``schedule_narration``."""
+        """Drain pending background narrations and release backend resources. Idempotent."""
         await drain_narrations(self._narration_tasks, emit=self._emit)
         close = getattr(self.backend, "aclose", None)
         if close is not None:

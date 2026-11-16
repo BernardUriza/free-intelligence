@@ -16,7 +16,7 @@ real store can do I/O.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
@@ -213,11 +213,63 @@ def render_transcript(
     return "\n".join(lines)
 
 
+async def fold_history(
+    *,
+    backend: Any,
+    store: ConversationStore | None,
+    user_message: str,
+    session_id: str | None,
+    history: Iterable[Any] | None,
+    max_messages: int,
+    max_chars: int,
+    emit: Callable[[str, dict[str, Any]], None],
+    request_id: str,
+) -> tuple[str, str | None]:
+    """Resolve the message and session the backend receives for this turn.
+
+    Sources, in order: a native session the backend already holds (resumed, no
+    fold); client ``history`` (untrusted, sanitized); the ``store`` transcript;
+    else the raw message with the backend-native ``session_id``.
+
+    Returns ``(backend_message, backend_session_id)``. A fold makes the backend
+    stateless (``None``), except when the backend declares ``has_durable_memory``
+    and the session does not exist yet: the id is kept so the fold seeds it once.
+    """
+    native = (
+        session_id is not None
+        and bool(getattr(backend, "has_durable_memory", False))
+        and callable(getattr(backend, "has_session", None))
+    )
+    if native and await backend.has_session(session_id):
+        emit("native_session_resumed", {"request_id": request_id, "session_id": session_id})
+        return user_message, session_id
+    folded: list[Message] | None = None
+    source: str | None = None
+    if history is not None:
+        folded = sanitize_history(history, max_messages=max_messages, max_chars=max_chars)
+        # An optimistic client may send the CURRENT message as the last history item.
+        if folded and folded[-1].role == "user" and folded[-1].content.strip() == user_message.strip():
+            folded = folded[:-1]
+        source = "client"
+    elif store is not None and session_id is not None:
+        folded = await store.load(session_id)
+        source = "store"
+    if folded is None:
+        return user_message, session_id
+    if folded:
+        emit(
+            "history_replayed",
+            {"request_id": request_id, "session_id": session_id, "messages": len(folded), "source": source},
+        )
+    return render_transcript(folded, user_message), (session_id if native else None)
+
+
 __all__ = [
     "Message",
     "ConversationStore",
     "InMemoryConversationStore",
     "RedisConversationStore",
+    "fold_history",
     "render_transcript",
     "sanitize_history",
 ]

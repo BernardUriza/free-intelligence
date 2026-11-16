@@ -18,12 +18,15 @@ spec already declares — they don't go over stdio, so there is nothing to probe
 
 Typical wiring at API startup::
 
-    @app.on_event("startup")
-    async def warm():
+    @asynccontextmanager
+    async def lifespan(app):
         results = await runner.preflight()
         for name, r in results.items():
             if not r.alive:
                 log.error("MCP %s dead at boot: %s", name, r.error)
+        yield
+
+    app = FastAPI(lifespan=lifespan)
 
 Cheap: each probe spawns the subprocess, exchanges 3 short messages, and tears
 it down. Default timeout 10s per server; specs run in parallel.

@@ -22,9 +22,11 @@ decides that and passes it in ``context``.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from .backend import BackendError, MCPServerSpec
 from .prompts import load_prompt
 
 #: A per-turn context → optional system-prompt addendum. Returning ``None`` (or an
@@ -178,6 +180,82 @@ def compose_bindings(*bindings: ContextPrompt | None) -> ContextPrompt:
     return render
 
 
+Emit = Callable[[str, dict[str, Any]], None]
+
+
+def render_context_prompt(
+    binding: Callable[[Mapping[str, Any]], str | None] | None,
+    context: Mapping[str, Any] | None,
+    *,
+    emit: Emit,
+    request_id: str,
+) -> str:
+    """Render the per-turn binding into a system-prompt addendum ("" when none).
+
+    A raising binding never breaks the turn: it emits ``context_prompt_error``
+    and yields no addendum, so the consumer must alert on that event.
+    """
+    if binding is None:
+        return ""
+    try:
+        rendered = binding(context or {})
+    except Exception as exc:  # noqa: BLE001 - a buggy binding must not kill the turn
+        emit("context_prompt_error", {"request_id": request_id, "error": str(exc)})
+        return ""
+    addendum = (rendered or "").strip()
+    if addendum:
+        emit("context_bound", {"request_id": request_id, "chars": len(addendum)})
+    return addendum
+
+
+def stamp_pinned_args(
+    pin_tool_args: Callable[[Mapping[str, Any]], Mapping[str, Mapping[str, Any]]] | None,
+    backend: Any,
+    mcp_servers: list[MCPServerSpec],
+    context: Mapping[str, Any] | None,
+    *,
+    emit: Emit,
+    request_id: str,
+) -> list[MCPServerSpec]:
+    """Stamp this turn's argument pins onto the resolved MCP specs.
+
+    Unchanged when nothing is pinned. A raising callback emits
+    ``pin_tool_args_error`` and the turn continues with NO pins.
+
+    Raises:
+        BackendError: pins exist but the backend does not declare
+            ``enforces_pinned_args``, so the pin would be silently dropped.
+    """
+    if pin_tool_args is None:
+        return mcp_servers
+    try:
+        pins = pin_tool_args(context or {}) or {}
+    except Exception as exc:  # noqa: BLE001 - a buggy binding must not kill the turn
+        emit("pin_tool_args_error", {"request_id": request_id, "error": str(exc)})
+        return mcp_servers
+    if not pins:
+        return mcp_servers
+    if not getattr(backend, "enforces_pinned_args", False):
+        raise BackendError(
+            f"{type(backend).__name__} cannot enforce pinned tool arguments "
+            f"({', '.join(sorted(pins))}), so the pin would be silently dropped. "
+            "Since the fleet consolidated on AIRE (2026-08-29) NO backend can: "
+            "the door receives tool NAMES, never their arguments. Scope the data "
+            "server-side on the door that owns it, or teach aire-server to accept "
+            "the pin in the turn body — do not run pinned capabilities unenforced."
+        )
+    stamped: list[MCPServerSpec] = []
+    for spec in mcp_servers:
+        pinned = pins.get(spec.name)
+        if not pinned:
+            stamped.append(spec)
+            continue
+        stamped.append(replace(spec, pinned_args=dict(pinned)))
+        # Names only: a pinned value can be tenant data.
+        emit("tool_args_pinned", {"request_id": request_id, "server": spec.name, "args": sorted(pinned)})
+    return stamped
+
+
 __all__ = [
     "MAX_OWNER_INSTRUCTIONS_CHARS",
     "RAG_STORE_SERVER",
@@ -186,4 +264,6 @@ __all__ = [
     "compose_bindings",
     "owner_instructions_binding",
     "pinned_corpus_args",
+    "render_context_prompt",
+    "stamp_pinned_args",
 ]
