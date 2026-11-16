@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (2026-11-15) — paso 1 a 5 de 6 del robustecimiento en curso (tabla abajo). La app NO está instalada: el perfil gratis caducó el 2026-11-07 y la membresía de pago (pedido `W1947292357`) sigue sin activarse. La vuelta completa en el teléfono con el código nuevo está sin verificar.
+Status: **In progress** (2026-11-15) — robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b y 6 pendientes (tabla abajo). La app NO está instalada: el perfil gratis caducó el 2026-11-07 y la membresía de pago (pedido `W1947292357`) sigue sin activarse. La vuelta completa en el teléfono con el código nuevo está sin verificar.
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -82,10 +82,14 @@ confianza; manda un turno, cambia de app, regresa y la respuesta está ahí; y s
 | 1a | El equipo de firma vive sólo en `Config.xcconfig`; `Info.plist` reporta versión y build reales | Hecho, PR #651. `project.yml` fijaba `DEVELOPMENT_TEAM` a nivel de target y le ganaba al xcconfig: cambiar el xcconfig no habría cambiado la firma |
 | 1b | TestFlight por CI + vigilante semanal de caducidad + evento de renovación | **Bloqueado** por la activación de la membresía. Nada escrito todavía |
 | 2 | Un solo camino de red (`Transporte`): 401 → refresco → reintento → login con motivo; arranque en frío en cargar/guardar/borrar; errores callados a la vista; modelos construidos una vez | Hecho, PR #651 |
-| 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | PR #652. Probado con pruebas (servidor, arnés, simulador); **sin probar** contra el servidor desplegado ni en el teléfono |
-| 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Escrito y con pruebas; sin probar en el teléfono |
-| 5 | CI compila la app y corre `OG118UnitTests`; el deploy fija `OG118_AUTH_MODE` y `AUTH0_*`; `/health` da la versión del contrato; el servidor registra `X-OG118-Client` | Escrito. **Falta**: que la app compare la versión del contrato, y el dominio propio de la API (`api.og118.ai` no resuelve; `Config.swift` sigue apuntando al hostname crudo de Azure) |
+| 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | Hecho, PR #652, desplegado: a las 23:10 del 15-nov `POST /chat/cancel` sin credencial pasó de 404 a 401 en producción. Probado con pruebas (servidor, arnés, simulador); **sin probar** una desconexión real contra producción ni en el teléfono |
+| 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Hecho, PR #653; con pruebas, sin probar en el teléfono |
+| 5 | CI compila la app y corre `OG118UnitTests`; el deploy fija `OG118_AUTH_MODE` y `AUTH0_*`; `/health` da la versión del contrato; el servidor registra `X-OG118-Client` | Hecho en parte, PR #653: el gate compiló la app en CI (Xcode 26.3, 13 pruebas) y producción contestó `/health` con `"schema":"1.2.0"` y `OG118_AUTH_MODE=auth0` a las 23:16 del 15-nov. **Falta**: que la app compare la versión del contrato, y el dominio propio de la API (`api.og118.ai` no resuelve; `Config.swift` sigue apuntando al hostname crudo de Azure) |
 | 6 | Prueba en el iPhone real (login, texto, foto, dictado, llamada, cambiar de app >30 s) | **Pendiente**: necesita el teléfono desbloqueado y alcanzable |
+
+Build de dispositivo con este código: compilado el 15-nov a las 23:17 (`BUILD SUCCEEDED`, perfil gratis, vence
+2026-11-23 02:36 UTC), **sin instalar**: `devicectl list devices` daba el iPhone como `unavailable`. Vive en el
+scratchpad de la sesión; si se pierde, se recompila con los comandos de «En el teléfono físico».
 
 Lo que quedó fuera de estos pasos y sigue abierto: un solo dueño del `AVAudioSession` (dictado, llamada y
 reproducción lo configuran cada uno por su lado), las imágenes del borrador (sólo el texto sobrevive al cierre)
