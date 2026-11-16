@@ -1,6 +1,6 @@
 # OG118-IOS-1 — cliente nativo de iPhone (tracer bullet)
 
-Status: **In progress** (2026-11-16) — la cuenta de desarrollador ya está activa (leído 11:08) y og118 está en TestFlight: build `2026111601`, subido 11:53, válido 11:55, caduca el 2027-02-14. Falta: instalarla en el iPhone por TestFlight y automatizar la subida. Robustecimiento: pasos 1a, 2, 3 y 4 hechos, 5 en parte, 1b a medias, 6 pendiente (tabla abajo).
+Status: **In progress** (2026-11-16) — og118 0.1.0 (build `2026111601`) está INSTALADA en el iPhone 15 desde TestFlight, sin cable (12:01), abre con la sesión ya iniciada y mandó un turno real (12:02). Caduca el 2027-02-14: falta automatizar la subida y el vigilante. Sin verificar en el teléfono: que la respuesta aparezca tras volver de segundo plano, foto, dictado y llamada.
 Proposed: 2026-08-12 by Bernard ("me harta el multiplatform no nativo")
 
 ## Qué es
@@ -85,7 +85,7 @@ confianza; manda un turno, cambia de app, regresa y la respuesta está ahí; y s
 | 3 | El turno sobrevive a cambiar de app: `survive_disconnect` + `POST /chat/cancel` en el servidor; el teléfono espera la respuesta del record en vez de revertir y cobrar otra vez; watchdog de 45 s; resincroniza al volver; `UIBackgroundModes: audio` | Hecho, PR #652, desplegado: a las 23:10 del 15-nov `POST /chat/cancel` sin credencial pasó de 404 a 401 en producción. Probado con pruebas (servidor, arnés, simulador); **sin probar** una desconexión real contra producción ni en el teléfono |
 | 4 | Caché en disco de hilos y lista, borrador persistente, guardado con reintento y marca de pendiente, cierre de sesión limpio | Hecho, PR #653; con pruebas, sin probar en el teléfono |
 | 5 | CI compila la app y corre `OG118UnitTests`; el deploy fija `OG118_AUTH_MODE` y `AUTH0_*`; `/health` da la versión del contrato; el servidor registra `X-OG118-Client` | Hecho en parte, PR #653: el gate compiló la app en CI (Xcode 26.3, 13 pruebas) y producción contestó `/health` con `"schema":"1.2.0"` y `OG118_AUTH_MODE=auth0` a las 23:16 del 15-nov. **Falta**: que la app compare la versión del contrato, y el dominio propio de la API (`api.og118.ai` no resuelve; `Config.swift` sigue apuntando al hostname crudo de Azure) |
-| 6 | Prueba en el iPhone real (login, texto, foto, dictado, llamada, cambiar de app >30 s) | **Pendiente**: necesita el teléfono desbloqueado y alcanzable |
+| 6 | Prueba en el iPhone real (login, texto, foto, dictado, llamada, cambiar de app >30 s) | **En parte, 16-nov 12:01–12:03**, manejando el teléfono por Duplicación del iPhone: instalada desde TestFlight (Bernard aceptó los términos de TestFlight), abrió sin pedir login, turno de texto mandado (en pantalla `HTTP 200` y el frame `open`; en logs `POST /chat/stream 200` a las 12:02:14). Sacada a segundo plano 50 s: a las 12:02:32 el teléfono hizo `GET 404` + `PUT 200` del hilo, o sea guardó la pregunta al caerse el stream en vez de revertirla. **Sin verificar:** que la respuesta haya aterrizado y se vea al volver; foto, dictado, llamada |
 
 Build de dispositivo con este código: compilado el 15-nov a las 23:17 (`BUILD SUCCEEDED`, perfil gratis, vence
 2026-11-23 02:36 UTC), **sin instalar**: `devicectl list devices` daba el iPhone como `unavailable`. Vive en el
@@ -100,6 +100,11 @@ Quién vigila: `~/.local/bin/apple-membresia-vigia`, por el Chrome de trabajo, l
 pedido (para cazar una cancelación). Corre con launchd (`com.bernard.apple-membresia-vigia`) a las 9:07, 14:07 y
 20:07, avisa en pantalla solo cuando el estado cambia y se da de baja solo al ver la cuenta activa o el pedido
 cancelado. Bitácora en `~/Library/Application Support/apple-membresia-vigia/`.
+
+**Lo que la prueba del 16-nov destapó:** la línea `chat turn client=…` no salía en los logs de producción. El
+logger `og118` no tenía handler y todo su INFO (también las auditorías de elementos) se perdía; ahora cuelga de
+`uvicorn.error`. Y la Duplicación del iPhone se corta cuando Bernard toma el teléfono o regresa a la Mac: solo
+sirve mientras él no usa ninguno de los dos.
 
 **Cómo se sube una versión mientras no haya CI** (desde `apps/og118-ios`, con la sesión de Xcode de la Mac):
 
