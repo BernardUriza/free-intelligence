@@ -5,9 +5,12 @@ enum Og118Error: LocalizedError {
     case badStatus(Int)
     case notHTTP
     case formato(String)
+    case sinSenal
 
     var errorDescription: String? {
         switch self {
+        case .sinSenal:
+            return Copy.turnTimeout
         case .formato(let detalle):
             return "El servidor mandó algo que no supe leer: \(detalle)"
         case .unauthorized:
@@ -27,12 +30,14 @@ struct ChatRequest: Encodable {
     let corpusID: String?
     let element: String?
     let images: [ImagenDelTurno]?
+    var surviveDisconnect = true
 
     enum CodingKeys: String, CodingKey {
         case message
         case history
         case element
         case images
+        case surviveDisconnect = "survive_disconnect"
         case sessionID = "session_id"
         case corpusID = "corpus_id"
     }
@@ -70,8 +75,21 @@ struct Og118Client {
         return camino.isEmpty ? "la raíz" : camino.joined(separator: ".")
     }
 
+    /// El servidor manda un `ping` cada 15 s mientras piensa: tres seguidos sin
+    /// llegar es una conexión muerta, no un turno lento.
+    static let plazoSinSenal: TimeInterval = 45
+
     var transporte: Transporte
     var diagnostico: TurnDiagnostics?
+
+    /// Parar a mano un turno que, de otro modo, terminaría en el servidor.
+    func cancelTurn(sessionID: String) async {
+        var request = ruta("chat/cancel", metodo: "POST")
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONEncoder().encode(["session_id": sessionID])
+        _ = try? await transporte.enviar(request)
+    }
 
     private func anotar(_ texto: String) async {
         guard let diagnostico else { return }
@@ -108,10 +126,22 @@ struct Og118Client {
                     )
 
                     let bytes = try await abrirStream(request)
+                    let latido = Latido()
+                    let vigia = Task {
+                        while !Task.isCancelled {
+                            try? await Task.sleep(nanoseconds: 5_000_000_000)
+                            if latido.silencio > Self.plazoSinSenal {
+                                continuation.finish(throwing: Og118Error.sinSenal)
+                                return
+                            }
+                        }
+                    }
+                    defer { vigia.cancel() }
                     var parser = SSEParser()
                     var lineasVistas = 0
                     var framesEmitidos = 0
                     for try await line in bytes.lines {
+                        latido.marcar()
                         lineasVistas += 1
                         if lineasVistas <= 2 {
                             await anotar("línea \(lineasVistas): \(line.prefix(60))")
@@ -222,5 +252,22 @@ struct Og118Client {
             _ = try await pedir(ruta("conversations/\(id)", metodo: "DELETE"))
         } catch Og118Error.badStatus(404) {
         }
+    }
+}
+
+final class Latido: @unchecked Sendable {
+    private let candado = NSLock()
+    private var ultimo = Date()
+
+    func marcar() {
+        candado.lock()
+        ultimo = Date()
+        candado.unlock()
+    }
+
+    var silencio: TimeInterval {
+        candado.lock()
+        defer { candado.unlock() }
+        return Date().timeIntervalSince(ultimo)
     }
 }

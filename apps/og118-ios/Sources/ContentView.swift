@@ -16,6 +16,8 @@ struct ContentView: View {
     @GestureState private var arrastre: CGFloat = 0
     @State private var showingContext = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var fase
+    @State private var prorroga: UIBackgroundTaskIdentifier = .invalid
 
     /// Mismo contrato que fi-glass: 0.3s ease-out, y NADA si el usuario pidió
     /// movimiento reducido (`prefers-reduced-motion`).
@@ -68,6 +70,33 @@ struct ContentView: View {
         }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
+        .onChange(of: fase) { _, nueva in
+            switch nueva {
+            case .active:
+                soltarProrroga()
+                if auth.isSignedIn { Task { await chat.resincronizar() } }
+            case .background:
+                if chat.isStreaming { pedirProrroga() }
+            default:
+                break
+            }
+        }
+        .onChange(of: chat.isStreaming) { _, enVuelo in
+            if !enVuelo { soltarProrroga() }
+        }
+    }
+
+    /// iOS suspende la app a los pocos segundos de salir: la prórroga deja
+    /// terminar los turnos cortos. Los largos terminan en el servidor.
+    private func pedirProrroga() {
+        guard prorroga == .invalid else { return }
+        prorroga = UIApplication.shared.beginBackgroundTask(withName: "turno") { soltarProrroga() }
+    }
+
+    private func soltarProrroga() {
+        guard prorroga != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(prorroga)
+        prorroga = .invalid
     }
 
     private var conversation: some View {
