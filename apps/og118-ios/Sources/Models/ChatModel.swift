@@ -49,6 +49,7 @@ final class ChatModel: ObservableObject {
     typealias Persist = (ConversationRecord) async throws -> Void
     typealias Restore = (String) async throws -> ConversationRecord?
     typealias Pausa = () async -> Void
+    typealias Detener = (String) async -> Void
 
     @Published private(set) var conversationID: String
 
@@ -65,6 +66,7 @@ final class ChatModel: ObservableObject {
     private let stream: Stream
     private let persist: Persist?
     private let restore: Restore?
+    private let detener: Detener?
     private let now: () -> String
     private let pausa: Pausa
     private let defaults: UserDefaults
@@ -84,6 +86,7 @@ final class ChatModel: ObservableObject {
         stream: @escaping Stream,
         persist: Persist? = nil,
         restore: Restore? = nil,
+        detener: Detener? = nil,
         now: @escaping () -> String = { ISO8601DateFormatter().string(from: Date()) },
         pausa: @escaping Pausa = { try? await Task.sleep(nanoseconds: 3_000_000_000) },
         defaults: UserDefaults = .standard
@@ -95,6 +98,7 @@ final class ChatModel: ObservableObject {
         self.stream = stream
         self.persist = persist
         self.restore = restore
+        self.detener = detener
         self.now = now
         self.pausa = pausa
         self.createdAt = now()
@@ -105,7 +109,8 @@ final class ChatModel: ObservableObject {
         self.init(
             stream: client.stream,
             persist: client.saveConversation,
-            restore: client.loadConversation
+            restore: client.loadConversation,
+            detener: client.cancelTurn
         )
     }
 
@@ -257,10 +262,24 @@ final class ChatModel: ObservableObject {
                 }
             } catch is CancellationError {
             } catch {
-                errorMessage = error.localizedDescription
+                if sigueEnElServidor { soltarAlServidor() } else { errorMessage = error.localizedDescription }
             }
             fold(texto)
         }
+    }
+
+    /// El servidor ya había abierto el turno cuando se cayó la conexión (cambiar
+    /// de app, perder señal): el turno termina allá y su respuesta aterriza en
+    /// el record. Reintentar aquí lo cobraría dos veces.
+    private var sigueEnElServidor: Bool {
+        restore != nil && framesDelTurno > 0 && errorMessage == nil
+    }
+
+    /// Lo que alcanzó a llegar se descarta: la respuesta completa vendrá del record.
+    private func soltarAlServidor() {
+        liveText = ""
+        liveReactions = []
+        turnoDiferido = true
     }
 
     /// Parar no es fallar: la pregunta se queda en pantalla, y por eso se guarda.
@@ -269,7 +288,24 @@ final class ChatModel: ObservableObject {
         turn?.cancel()
         turn = nil
         discardLiveTurn()
-        if estabaEnVuelo { save() }
+        guard estabaEnVuelo else { return }
+        let id = conversationID
+        if let detener { Task { await detener(id) } }
+        save()
+    }
+
+    /// Al volver a primer plano: lo que el servidor escribió mientras la app
+    /// dormía (un turno que terminó allá, otro dispositivo) entra al hilo.
+    func resincronizar() async {
+        guard let restore, hiloListo, !isStreaming else { return }
+        let id = conversationID
+        guard let record = try? await restore(id),
+              id == conversationID, !isStreaming,
+              record.messages.count > messages.count else { return }
+        espera?.cancel()
+        baseRecord = record
+        messages = record.chatMessages
+        avisoDeEspera = nil
     }
 
     /// Un turno cancelado NO deja respuesta. Persistir el texto a medias lo

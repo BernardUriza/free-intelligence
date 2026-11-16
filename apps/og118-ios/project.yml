@@ -42,6 +42,8 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: og118 usa el micrófono para dictarle tus mensajes.
         NSCameraUsageDescription: og118 usa la cámara para que le mandes una foto en el chat.
+        UIBackgroundModes:
+          - audio
         UILaunchScreen:
           UIColorName: ""
         UISupportedInterfaceOrientations:

@@ -44,7 +44,15 @@ from conversations import ConversationStore, utc_now_iso, valid_conversation_id
 from projects import ProjectRegistry
 from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, build_runner
 from mcp_background import router as mcp_background_router
-from external_engine import PersonaWriteError, delete_persona, get_persona, put_persona, stream_external_turn
+from external_engine import (
+    PersonaWriteError,
+    delete_persona,
+    get_persona,
+    late_message,
+    put_persona,
+    stream_external_turn,
+)
+import detached_turn
 from fi_runner import Runner
 from elements_registry import (
     Element,
@@ -432,6 +440,11 @@ class ChatRequest(BaseModel):
     # An image-only send (empty message) is valid; each image is validated by
     # ChatImage at the boundary, and the count is capped here.
     images: list[ChatImage] | None = Field(default=None, max_length=MAX_IMAGES_PER_MESSAGE)
+    # OG118-TURN-SURVIVES-1: a client that can lose its socket without meaning
+    # to (a phone leaving the foreground) asks the turn to finish anyway; the
+    # answer lands in the record. Opt-in: a client that sets it must call
+    # POST /chat/cancel on an explicit stop.
+    survive_disconnect: bool = False
 
 
 class TTSRequest(BaseModel):
@@ -505,6 +518,26 @@ def _late_delivery(owner: str, conversation_id: str, user_text: str) -> Callable
         get_conversation_store().append_late_turn(owner, conversation_id, user_copy, assistant_message)
 
     return entregar
+
+
+def _abandoned_delivery(owner: str, conversation_id: str, user_text: str) -> detached_turn.LateDelivery:
+    """OG118-TURN-SURVIVES-1: the local runner finished a turn nobody was
+    listening to. It lands in the record exactly like a late external answer."""
+    user_copy = {"role": "user", "content": user_text, "timestamp": utc_now_iso()}
+
+    async def entregar(events: list[dict]) -> None:
+        settled = [{k: _to_jsonable(v) for k, v in e.items()} for e in events]
+        message = late_message(settled)
+        result = next((e["result"] for e in settled if e.get("type") == "result"), None) or {}
+        if result.get("model"):
+            message["model"] = result["model"]
+        get_conversation_store().append_late_turn(owner, conversation_id, user_copy, message)
+
+    return entregar
+
+
+class CancelRequest(BaseModel):
+    session_id: str
 
 
 def _sse(event: dict) -> str:
@@ -869,16 +902,21 @@ async def chat_stream(
             entregar_tarde = (
                 _late_delivery(principal.sub, req.session_id, req.message) if user_id and req.session_id else None
             )
-            async for ev in _with_heartbeat(
-                stream_external_turn(
-                    persona_id=element.engine_binding.persona_id,
-                    user_text=outbound_text,
-                    session_uuid=req.session_id,
-                    user_id=user_id,
-                    history=history,
-                    deliver_late=entregar_tarde,
+            turno_externo = stream_external_turn(
+                persona_id=element.engine_binding.persona_id,
+                user_text=outbound_text,
+                session_uuid=req.session_id,
+                user_id=user_id,
+                history=history,
+                deliver_late=entregar_tarde,
+            )
+            if req.survive_disconnect and user_id and req.session_id:
+                turno_externo = detached_turn.surviving(
+                    turno_externo,
+                    key=(principal.sub, req.session_id),
+                    deliver_late=_abandoned_delivery(principal.sub, req.session_id, req.message),
                 )
-            ):
+            async for ev in _with_heartbeat(turno_externo):
                 yield _sse(ev)
             yield _sse({"type": "done"})
             return
@@ -893,16 +931,21 @@ async def chat_stream(
                 if remotos
                 else runner
             )
-            async for event in _with_heartbeat(
-                runner_turno.run_stream(
-                    req.message,
-                    session_id=req.session_id,
-                    request_id=request_id,
-                    history=history,
-                    context=context,
-                    images=images,
+            eventos = runner_turno.run_stream(
+                req.message,
+                session_id=req.session_id,
+                request_id=request_id,
+                history=history,
+                context=context,
+                images=images,
+            )
+            if req.survive_disconnect and req.session_id and not principal.is_legacy_bearer:
+                eventos = detached_turn.surviving(
+                    eventos,
+                    key=(principal.sub, req.session_id),
+                    deliver_late=_abandoned_delivery(principal.sub, req.session_id, req.message),
                 )
-            ):
+            async for event in _with_heartbeat(eventos):
                 yield _sse(event)
         except Exception as exc:  # surface as a stream event, never a 500 mid-stream
             yield _sse({"type": "error", "message": str(exc)})
@@ -913,6 +956,12 @@ async def chat_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/chat/cancel")
+async def chat_cancel(req: CancelRequest, principal: Principal = Depends(get_principal)) -> dict:
+    """The explicit stop of a turn that would otherwise outlive its connection."""
+    return {"cancelled": detached_turn.cancel((principal.sub, req.session_id))}
 
 
 @router.post("/tts/synthesize")

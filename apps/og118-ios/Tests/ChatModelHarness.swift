@@ -756,6 +756,9 @@ struct Harness {
         await unaReaccionSolaEsRespuesta()
         await unTurnoDiferidoEsperaSinAcusarError()
         await laEsperaDiferidaNoEsEterna()
+        await unaConexionCaidaNoRevierteElTurnoQueElServidorYaAbrio()
+        await sinUnSoloFrameElTurnoSiSeRevierte()
+        await pararAvisaAlServidorYVolverResincroniza()
         await losVectoresDelTurnoSeCumplen()
         await losVectoresDeDerivacionesSeCumplen()
         await losVectoresDelHiloSeCumplen()
@@ -1537,6 +1540,104 @@ private func unTurnoDiferidoEsperaSinAcusarError() async {
     expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
     expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
     expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
+}
+
+private func cortado(_ antes: [StreamEvent]) -> ChatModel.Stream {
+    { _, _, _, _, _, _ in
+        AsyncThrowingStream { continuation in
+            for event in antes { continuation.yield(event) }
+            continuation.finish(throwing: URLError(.networkConnectionLost))
+        }
+    }
+}
+
+@MainActor
+private func unaConexionCaidaNoRevierteElTurnoQueElServidorYaAbrio() async {
+    print("cambiar de app a medio turno: el turno termina en el servidor y la respuesta llega sola")
+    var tardio: ConversationRecord?
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: cortado([.open, .author(id: "53", name: "Yodo"), .text("a medias")]),
+        persist: { _ in },
+        restore: { _ in tardio },
+        now: { "2026-11-15T12:00:00Z" },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    await model.restoreThread()
+    model.send("¿sigues ahí?")
+    await settle()
+
+    expect(model.errorMessage == nil, "una conexión caída con el turno abierto no es un error")
+    expect(model.reintentable == nil, "no ofrece reintentar: reintentar lo cobraría dos veces")
+    expect(model.borradorNoEnviado == nil, "el mensaje no regresa al composer")
+    expect(model.messages.count == 1 && model.messages.first?.role == .user, "la pregunta se queda y el texto a medias no se guarda (hubo \(model.messages.count))")
+    expect(model.avisoDeEspera != nil, "avisa que la respuesta viene en camino")
+
+    tardio = ConversationRecord.from(
+        id: "abc-123",
+        messages: [
+            ChatMessage(role: .user, content: "¿sigues ahí?"),
+            ChatMessage(role: .assistant, content: "aquí sigo, completa")
+        ],
+        createdAt: "2026-11-15T12:00:00Z",
+        now: "2026-11-15T12:00:30Z"
+    )
+    await esperar { model.messages.count == 2 }
+    expect(model.messages.last?.content == "aquí sigo, completa", "entra la respuesta completa que el servidor guardó")
+    expect(model.avisoDeEspera == nil, "y el aviso se apaga")
+}
+
+@MainActor
+private func sinUnSoloFrameElTurnoSiSeRevierte() async {
+    print("si la petición nunca llegó al servidor, el mensaje vuelve al composer como siempre")
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: cortado([]),
+        persist: { _ in },
+        restore: { _ in nil },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    await model.restoreThread()
+    model.send("hola")
+    await settle()
+    expect(model.errorMessage != nil, "hay error visible")
+    expect(model.reintentable == "hola", "y se puede reintentar")
+    expect(model.messages.isEmpty, "la burbuja se revierte")
+}
+
+@MainActor
+private func pararAvisaAlServidorYVolverResincroniza() async {
+    print("parar a mano cancela el turno en el servidor; volver a la app trae lo que se escribió allá")
+    var detenidos: [String] = []
+    var servidor: ConversationRecord?
+    let model = ChatModel(
+        conversationID: "abc-123",
+        stream: { _, _, _, _, _, _ in AsyncThrowingStream { $0.yield(.open) } },
+        persist: { _ in },
+        restore: { _ in servidor },
+        detener: { detenidos.append($0) },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    await model.restoreThread()
+    model.send("uno")
+    await settle()
+    model.cancel()
+    await settle()
+    expect(detenidos == ["abc-123"], "el servidor se entera de que se paró (\(detenidos))")
+    expect(model.avisoDeEspera == nil, "y no se queda esperando una respuesta")
+
+    servidor = ConversationRecord.from(
+        id: "abc-123",
+        messages: [
+            ChatMessage(role: .user, content: "uno"),
+            ChatMessage(role: .assistant, content: "desde otro lado"),
+            ChatMessage(role: .user, content: "dos")
+        ],
+        createdAt: "2026-11-15T12:00:00Z",
+        now: "2026-11-15T12:01:00Z"
+    )
+    await model.resincronizar()
+    expect(model.messages.count == 3, "al volver entra lo que el servidor tiene de más (hubo \(model.messages.count))")
 }
 
 @MainActor
