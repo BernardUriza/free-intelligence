@@ -32,11 +32,12 @@ is **runtime config, not code**.
    the account shell (curl-ing `/conversations`, `/projects`, `/chat/stream`
    under the synthetic principal) — never for judging how the app *looks*.
 4. **The build is identical across environments** (see
-   [[committed-dist-artifacts]]): staging CI runs `pnpm --filter og118-web build`
-   = `next build` only, consuming the **committed** fi-glass `dist/` — it does NOT
-   rebuild fi-glass. So a real staging-vs-local rendering difference is **always**
-   config/auth mode or stale local `.next` cache, never "staging shipped newer
-   code." Check the mode before theorizing a code divergence.
+   [[committed-dist-artifacts]]): since 2026-09-28 the deploy rebuilds core and
+   fi-glass from `src/` before `next build`, while local dev reads the committed
+   `dist/`. With `src` and `dist` in sync (check 2 below) both render the same
+   code, so a staging-vs-local difference is config/auth mode or a stale local
+   `.next` cache. If check 2 shows drift, THAT is a real code divergence: rebuild
+   the `dist/` before theorizing anything else.
 
 ## How to apply — before declaring a staging/local divergence
 

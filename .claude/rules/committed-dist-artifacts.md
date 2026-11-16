@@ -17,10 +17,15 @@ un-ignore lines, with a comment explaining why).
 
 These two packages **ship their built `dist/` as the v1 release surface**. Downstream
 consumers (e.g. `og118-web`) depend on them via `workspace:*` and resolve the package
-`exports` straight to `dist/` — and the consumer build does **not** rebuild the
-package first (og118's CI runs `next build` directly, never `^build` on fi-glass).
-So the committed `dist/` IS what consumers compile and ship. A package whose `dist/`
-is stale or absent breaks the consumer's deploy.
+`exports` straight to `dist/`. Local dev, the PR gate and any consumer without its
+own rebuild step (Fénix's web) compile the committed `dist/` as it sits. A package
+whose `dist/` is stale or absent breaks them.
+
+The og118 web deploy is the one exception since 2026-09-28: `og118-web-staging.yml`
+runs `pnpm --filter @free-intelligence/core build` and `pnpm --filter fi-glass build`
+before `next build`, so the bundle on app.og118.ai derives from `src/` on that
+commit. That protects production from a stale `dist/`; it does not lift the rule
+below, because everything else still reads the committed copy.
 
 ## The rule
 
