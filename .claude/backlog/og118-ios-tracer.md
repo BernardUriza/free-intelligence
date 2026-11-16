@@ -121,8 +121,22 @@ present in the archive» y «development certificates revoked after the run: 1»
 falso con esta llave, o sea que la llave sí autentica. El primer deploy falló en el paso del worker por un 429 de
 Azure y pasó al reintentarlo.
 
-**Sin verificar:** que un aviso de verdad llegue al teléfono. Falta que el build nuevo se instale, que Bernard
-acepte el permiso de notificaciones y un turno real con la app fuera de pantalla.
+**Prueba en el iPhone, 16-nov 13:31–13:36** (Duplicación del iPhone, build `202611161905` actualizado desde
+TestFlight):
+
+- La respuesta del turno de mediodía SÍ estaba en el hilo al reabrir (cuenta hasta 40 y cierre): el turno que
+  sobrevive a la desconexión funciona en el teléfono real.
+- Al mandar el primer mensaje iOS pidió el permiso de notificaciones; aceptado.
+- Logs: `chat turn client=ios/0.1.0(202611161905)` (el arreglo del logger sirve) y `POST /push/devices 200` a las
+  13:32:58 (el teléfono registró su token).
+- **El aviso NO se vio.** Dos turnos terminaron con la app en segundo plano (13:33:18 y 13:35:02, por el `PUT`
+  del guardado) y en la captura continua de pantalla (13:34:51–13:35:35, un cuadro cada ~1.5 s) no apareció
+  ningún banner, ni en el teléfono duplicado ni en la Mac.
+- Causa probable, corregida: el aviso local se disparaba en un `onChange` de la vista, y SwiftUI no actualiza
+  vistas con la escena en segundo plano. Ahora lo dispara el modelo (`ChatModel.alRecibirRespuesta`), también
+  para la respuesta que aterriza tarde. **Sin verificar** que con eso ya aparezca; tampoco está descartado que la
+  Duplicación del iPhone no muestre banners.
+- El camino del push del servidor no se ejercitó: los dos turnos terminaron dentro de la app, no abandonados.
 
 **Lo que la prueba del 16-nov destapó:** la línea `chat turn client=…` no salía en los logs de producción. El
 logger `og118` no tenía handler y todo su INFO (también las auditorías de elementos) se perdía; ahora cuelga de

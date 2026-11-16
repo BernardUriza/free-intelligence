@@ -759,6 +759,7 @@ struct Harness {
         await unaConexionCaidaNoRevierteElTurnoQueElServidorYaAbrio()
         await sinUnSoloFrameElTurnoSiSeRevierte()
         await pararAvisaAlServidorYVolverResincroniza()
+        await elModeloAvisaCadaRespuestaQueEntra()
         await sinRedElHiloSeLeeDeLaCache()
         await unGuardadoQueNoLlegoSeVuelveASubir()
         elBorradorSobreviveYSeLimpia()
@@ -1543,6 +1544,42 @@ private func unTurnoDiferidoEsperaSinAcusarError() async {
     expect(model.messages.count == 2, "la respuesta tardía entra al hilo (hubo \(model.messages.count))")
     expect(model.messages.last?.content == "llegué tarde", "con el texto que el servidor guardó")
     expect(model.avisoDeEspera == nil, "y el aviso se apaga solo")
+}
+
+@MainActor
+private func elModeloAvisaCadaRespuestaQueEntra() async {
+    print("el modelo avisa cuando entra una respuesta, viva o tardía, y calla cuando el turno falla")
+    var avisos: [(String, String)] = []
+    let vivo = ChatModel(conversationID: "abc-123", stream: canned([.open, .text("hola"), .done]))
+    vivo.alRecibirRespuesta = { avisos.append(($0.content, $1)) }
+    vivo.send("uno")
+    await settle()
+    expect(avisos.count == 1 && avisos.first?.0 == "hola" && avisos.first?.1 == "abc-123", "un turno que contesta avisa una vez, con su hilo (\(avisos.count))")
+
+    var fallidos = 0
+    let roto = ChatModel(conversationID: "abc-123", stream: cortado([]))
+    roto.alRecibirRespuesta = { _, _ in fallidos += 1 }
+    roto.send("dos")
+    await settle()
+    expect(fallidos == 0, "un turno que falla no avisa nada")
+
+    var tardios: [String] = []
+    var servidor: ConversationRecord?
+    let diferido = ChatModel(
+        conversationID: "abc-123",
+        stream: cortado([.open]),
+        persist: { _ in },
+        restore: { _ in servidor },
+        pausa: { try? await Task.sleep(nanoseconds: 20_000_000) }
+    )
+    diferido.alRecibirRespuesta = { respuesta, _ in tardios.append(respuesta.content) }
+    await diferido.restoreThread()
+    diferido.send("tres")
+    await settle()
+    expect(tardios.isEmpty, "mientras la respuesta no llega, no hay aviso")
+    servidor = recordDePrueba(["tres", "llegó tarde"])
+    await esperar { !tardios.isEmpty }
+    expect(tardios == ["llegó tarde"], "la respuesta que aterriza tarde también avisa (\(tardios))")
 }
 
 private func cacheTemporal() -> CacheLocal {

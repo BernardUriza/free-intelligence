@@ -68,6 +68,10 @@ final class Raiz: ObservableObject {
         conversations = ConversationsModel(client: client)
         catalog = CatalogModel(client: client)
         llamada = ResonanceCallModel(chat: chat, client: client) { voz.errorMessage = $0 }
+        chat.alRecibirRespuesta = { respuesta, hilo in
+            guard UIApplication.shared.applicationState != .active else { return }
+            Avisos.shared.avisarLocal(titulo: respuesta.author?.nombre ?? "og118", cuerpo: respuesta.content, hilo: hilo)
+        }
         registrarDispositivo = { token in
             try? await client.registrarDispositivo(token: token, ambiente: Avisos.ambiente)
         }
