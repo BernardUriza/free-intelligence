@@ -77,7 +77,7 @@ pnpm version:sync     # Sync all files
 free-intelligence/
 ├── apps/
 │   ├── og118/           # LIVE: the shipping app (web + FastAPI/fi-runner server)
-│   ├── fenix/           # PAUSED: the stationery shop — still deployed, no traffic (see below)
+│   ├── fenix/           # RETIRED 2026-11-17: only the stationery shop's static landing remains (see below)
 │   ├── packages/
 │   │   ├── fi-glass/    # the chat framework (aurity is its SSOT)
 │   │   ├── fi-runner/   # the agent runtime + the stream contract (SSOT)
@@ -96,36 +96,27 @@ free-intelligence/
 ## 🔗 Quick Links
 
 - **Production:** https://app.og118.ai — the app that actually ships today
-- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's own site (paused, still online)
+- **Fénix:** https://www.serviciosfenix.com.mx — the stationery shop's landing page (static; the assistant is retired)
 
-### `apps/fenix` is PAUSED — deployed, reachable, and unused (verified 2026-10-09)
+### `apps/fenix` is RETIRED — only the landing page is left (2026-11-17)
 
-Bernard paused Fénix; the last change under `apps/fenix` is `06cf5c0a` (2026-09-09).
-It used to have real users (the internet café's children on `/app/`, his mother's
-team at the counter), and the rules below were written for that. Today, measured:
+Bernard retired Fénix: the stationery shop never adopted the assistant. What was
+done, measured the same day:
 
-- **Traffic:** 24 requests to `fenix-api` in 30 days (Azure `Requests` metric), the
-  shape of bots and probes, not a shop.
-- **Azure cost:** $0.40 USD in Sep, $0.01 in Oct to the 9th (Cost Management,
-  `og118-rg`). `fenix-api` scales to 0, `fenix-web` is the Free SWA,
-  `fenixdatastore` is ~$0. Deleting them saves cents and loses the domain binding
-  and the data — not worth it while paused.
-- **Still online:** `www.serviciosfenix.com.mx` and `/app/` answer 200. A visitor's
-  turn spends Fénix's own `ANTHROPIC_API_KEY`, which bills per use and does NOT show
-  in the Azure cost above.
-- **The web has no deploy workflow:** `fenix-backend.yml` builds only the server. A
-  fi-glass fix merged to `main` does not reach `fenix-web` until someone redeploys that
-  SWA by hand — so "this protects Fénix's users" is never a reason to prioritise a
-  fi-glass change while it is paused.
+- **Deleted in Azure:** the Container App `fenix-api` and the storage account
+  `fenixdatastore` (it held six log rows from August and an empty index; backed up
+  to `~/Documents/backups/fenix-2026-11-17/`).
+- **Deleted in the repo:** `apps/fenix/server`, `apps/fenix/sync`, the assistant UI
+  under `apps/fenix/web` (`/app/`, its components and hooks), and the workflows
+  `fenix-backend.yml` and `fenix-tests.yml`. All of it is recoverable from the git
+  history before the retirement.
+- **Kept, by his choice:** `www.serviciosfenix.com.mx`, the shop's public page
+  (WhatsApp, address, phone), on the Free SWA `fenix-web`. `apps/fenix/web` is now
+  that one static page: no fi-glass, no API, no `/app/`.
+- **It has no deploy workflow.** Publishing is by hand, see `apps/fenix/DEPLOY.md`.
 
-What still holds while it sits on og118's server (`create_app()` + its own door):
-a change in `apps/og118/server` still ships to `fenix-api` through
-`fenix-backend.yml`, and **`OG118_ACCESS_TOKEN` must never be set there** — it
-silenced the café for days while every page looked fine (`apps/fenix/DEPLOY.md`).
-
-**When Bernard resumes it, this section flips back to REAL USERS the same day**:
-a broken deploy is then a shop that cannot work, and the "delete it, refactor it
-now" freedom below stops covering `apps/fenix`.
+og118's server no longer has a second consumer. A change under `apps/og118/server`
+ships to og118 only.
 
 ### ⚠️ The "staging" that is actually PRODUCTION
 

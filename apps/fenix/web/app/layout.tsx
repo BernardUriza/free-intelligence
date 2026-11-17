@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import 'fi-glass/theme.css';
-import 'fi-glass/glass-chat.css';
 import './globals.css';
 
+const NOMBRE = 'Servicios Papeleros Fénix';
+const RESUMEN = 'Papelería en San Juan Bosco, Guadalajara. Cotizamos tu lista escolar por WhatsApp.';
+
 export const metadata: Metadata = {
-  // Sin esto, Next resuelve las imágenes de Open Graph contra
-  // http://localhost:3000 y el enlace compartido llega SIN portada — WhatsApp
-  // y Facebook no pueden bajar la imagen. El build lo advierte, y la advertencia
-  // es fácil de pasar por alto porque el sitio se ve perfecto igual.
+  // Sin esto Next resuelve las imágenes de Open Graph contra localhost y el enlace llega sin portada.
   metadataBase: new URL('https://www.serviciosfenix.com.mx'),
-  title: 'Fénix',
-  description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+  title: NOMBRE,
+  description: RESUMEN,
   icons: {
     icon: [
       { url: '/branding/favicon.ico', sizes: 'any' },
@@ -21,22 +19,20 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    title: 'Fénix',
-    description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+    title: NOMBRE,
+    description: RESUMEN,
     images: [{ url: '/branding/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Fénix',
-    description: 'El asistente de Servicios Papeleros Fénix — cotizaciones y documentos.',
+    title: NOMBRE,
+    description: RESUMEN,
     images: ['/branding/twitter-card.png'],
   },
 };
 
 export const viewport: Viewport = {
-  // El mismo --glass-chat-body que pinta el fondo de la app, para que la barra
-  // del navegador en móvil no corte con un color distinto al de la página.
-  themeColor: '#020617',
+  themeColor: '#fdfaf4',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -45,11 +41,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-MX">
-      {/* HALLAZGO-5: la clase `glass-chat` NO es decorativa — es el interruptor
-          del tema de fi-glass. Sin ella --fi-bg/--fi-surface/--fi-text quedan
-          VACÍAS y el composer renderiza con fondo blanco sobre página negra.
-          No está documentado: se descubre leyendo apps/og118/web/app/layout.tsx. */}
-      <body className="glass-chat">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

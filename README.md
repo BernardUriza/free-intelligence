@@ -16,7 +16,7 @@ A monorepo for a resident, persistent AI substrate: an agent runtime, a chat fra
 | `apps/server-bot` | Discord personas and the persona runner | Live |
 | `apps/aire-server` | AIRE, the gateway every model call goes through | Live |
 | `apps/fi-monitor` | Windows desktop monitor (Tauri) | Built on demand |
-| `apps/fenix` | A stationery shop's assistant | Paused |
+| `apps/fenix` | A stationery shop's landing page. The assistant it was built for is retired | Static |
 | `apps/aurity` | The original Next.js frontend. It's the reference shape fi-glass extracts from; it isn't deployed | Reference only |
 
 ## Run og118 locally
