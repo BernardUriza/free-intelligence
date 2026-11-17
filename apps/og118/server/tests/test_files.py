@@ -106,3 +106,18 @@ def test_names_lose_paths_and_control_characters(client, as_account):
     assert meta["name"] == "_.._etc_pass_wd.pdf"
     assert clean_name("...") == "file"
     assert len(clean_name("a" * 500)) == 200
+
+
+def test_without_an_account_the_door_does_not_exist(client):
+    """No `as_account`: the caller is the legacy-bearer principal every anonymous caller shares."""
+    assert client.get("/files").status_code == 404
+    assert client.post("/files", params={"name": "x.bin"}, content=b"x").status_code == 404
+    assert client.get("/files/" + "a" * 32).status_code == 404
+    assert client.delete("/files/" + "a" * 32).status_code == 404
+
+
+def test_a_content_type_that_is_not_a_media_type_is_stored_as_opaque_bytes(client, as_account):
+    res = client.post("/files", params={"name": "x.bin"}, content=b"x", headers={"content-type": "no es un tipo"})
+    assert res.json()["contentType"] == "application/octet-stream"
+    assert client.get(f"/files/{res.json()['id']}").status_code == 200
+

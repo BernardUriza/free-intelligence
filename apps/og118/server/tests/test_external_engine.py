@@ -610,3 +610,35 @@ async def test_a_missing_persona_is_a_404_not_a_crash(monkeypatch):
 def test_only_a_probe_principal_tags_its_turn(user_id, origin):
     payload = external_engine._payload(persona_id="radon", user_text="hola", session_uuid="c1", user_id=user_id, history=None)
     assert payload.get("origin") == origin
+
+
+def test_the_file_store_spec_rides_the_payload_as_name_and_url_only() -> None:
+    from fi_runner.backend import MCPServerSpec
+
+    spec = MCPServerSpec(name="files", url="https://api.example.org/mcp/files/capsula.firma")
+    payload = external_engine._payload(
+        persona_id="radon", user_text="hola", session_uuid="c1", user_id="u", history=None, caller_tools=[spec]
+    )
+    assert payload["caller_tools"] == [{"name": "files", "url": "https://api.example.org/mcp/files/capsula.firma"}]
+    bare = external_engine._payload(persona_id="radon", user_text="hola", session_uuid="c1", user_id="u", history=None)
+    assert "caller_tools" not in bare
+
+
+@pytest.mark.asyncio
+async def test_an_engine_that_predates_caller_tools_still_gets_the_turn(monkeypatch):
+    """A 422 on the new field must cost the file tool, never the answer."""
+    monkeypatch.setattr(external_engine, "RUNNER_URL", "https://runner.example")
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        seen.append(body)
+        if "caller_tools" in body:
+            return httpx.Response(422, json={"detail": "extra fields not permitted"})
+        return httpx.Response(202, json={"job_id": "job-1"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        payload = {"user_text": "hola", "caller_tools": [{"name": "files", "url": "https://x.example/mcp/a"}]}
+        assert await external_engine._submit(client, payload, {}) == "job-1"
+    assert ["caller_tools" in body for body in seen] == [True, False]
+

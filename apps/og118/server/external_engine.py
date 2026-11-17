@@ -197,6 +197,11 @@ async def _submit(client: httpx.AsyncClient, payload: dict, headers: dict) -> st
     except httpx.HTTPError as exc:
         log.warning("external engine ticket not opened: %s", type(exc).__name__)
         return _error(f"external engine unreachable: {type(exc).__name__}")
+    if resp.status_code == 422 and "caller_tools" in payload:
+        # An engine that predates the field refuses it. The file tool is an extra;
+        # the answer is not: send the same turn without it.
+        log.warning("external engine refused caller_tools; retrying the turn without the file tool")
+        return await _submit(client, {k: v for k, v in payload.items() if k != "caller_tools"}, headers)
     if resp.status_code != 202:
         log.warning("external engine refused the ticket: %s", resp.status_code)
         return _error(f"external engine returned {resp.status_code}")
@@ -316,7 +321,9 @@ def _deliver_when_done(task: asyncio.Task, deliver_late: LateDelivery, aclose: C
     late.add_done_callback(_LATE_TASKS.discard)
 
 
-def _payload(*, persona_id: str, user_text: str, session_uuid: str | None, user_id: str | None, history) -> dict:
+def _payload(
+    *, persona_id: str, user_text: str, session_uuid: str | None, user_id: str | None, history, caller_tools=None
+) -> dict:
     payload: dict = {
         # The engine's continuity key is channel_id (one long-lived SDK session
         # per channel — persona_runner ignores session_uuid). og118's conversation
@@ -347,6 +354,9 @@ def _payload(*, persona_id: str, user_text: str, session_uuid: str | None, user_
     capped = cap_history(history)
     if capped:
         payload["history"] = capped
+    # og118's own remote MCP servers for this turn (the account's file store).
+    if caller_tools:
+        payload["caller_tools"] = [{"name": spec.name, "url": spec.url} for spec in caller_tools]
     return payload
 
 
@@ -359,6 +369,7 @@ async def stream_external_turn(
     history: list[dict] | None = None,
     deliver_late: LateDelivery | None = None,
     live_wait_s: float = LIVE_WAIT_S,
+    caller_tools: list | None = None,
 ) -> AsyncIterator[dict]:
     """Run one turn on the external engine's ticket and yield og118 stream events.
 
@@ -379,7 +390,10 @@ async def stream_external_turn(
     client = httpx.AsyncClient(timeout=_TIMEOUT)
     submitted = await _submit(
         client,
-        _payload(persona_id=persona_id, user_text=user_text, session_uuid=session_uuid, user_id=user_id, history=history),
+        _payload(
+            persona_id=persona_id, user_text=user_text, session_uuid=session_uuid, user_id=user_id,
+            history=history, caller_tools=caller_tools,
+        ),
         headers,
     )
     if isinstance(submitted, dict):

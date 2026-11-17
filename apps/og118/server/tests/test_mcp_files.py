@@ -174,3 +174,30 @@ def test_the_chat_turn_mounts_the_files_door(monkeypatch):
     (spec,) = visto["extra"]
     assert spec.name == "files"
     assert verify_capsule(SECRET, spec.url.rsplit("/", 1)[1])["cid"] == "conv-7"
+
+
+def test_a_content_type_the_model_made_up_never_breaks_the_download(client, as_account):
+    _call(client, _capsule(), "save_file", name="a.txt", content="x", content_type="text/plain\r\nX-Evil: 1")
+    (meta,) = client.get("/files").json()["files"]
+    assert meta["contentType"] == "application/octet-stream"
+    assert client.get(f"/files/{meta['id']}").status_code == 200
+
+
+def test_the_spec_holds_still_inside_a_window_so_the_warm_client_survives(monkeypatch):
+    """AIRE rebuilds its pooled client when a turn's remote-tool URL changes."""
+    monkeypatch.setenv("OG118_MCP_TOKEN", SECRET)
+    monkeypatch.setenv("OG118_PUBLIC_URL", "https://api.example.org")
+    monkeypatch.setenv("OG118_JOB_RESOURCE_ID", "/subscriptions/x/jobs/w")
+    import background_jobs
+    from runner import background_tool_spec, files_tool_spec
+
+    reloj = {"t": 1_800_000_000.0}
+    monkeypatch.setattr(background_jobs.time, "time", lambda: reloj["t"])
+    first = (files_tool_spec("acct-A", "conv-1")[0].url, background_tool_spec("acct-A", "conv-1", None)[0].url)
+    reloj["t"] += 600
+    assert (files_tool_spec("acct-A", "conv-1")[0].url, background_tool_spec("acct-A", "conv-1", None)[0].url) == first
+    assert verify_capsule(SECRET, first[0].rsplit("/", 1)[1], now=reloj["t"] + 1700) is not None
+    reloj["t"] += 1800
+    assert files_tool_spec("acct-A", "conv-1")[0].url != first[0]
+    assert files_tool_spec("acct-A", "conv-2")[0].url != files_tool_spec("acct-A", "conv-1")[0].url
+

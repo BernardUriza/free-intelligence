@@ -1,6 +1,6 @@
 # 56 — A chat has nowhere to keep a file
 
-Status: **In progress**: the file door shipped in og118's server 2026-11-17; the AIRE droplet half is untouched
+Status: **In progress**: og118 chats save, list and read files on their own since 2026-11-17; the AIRE droplet half is untouched
 Proposed: 2026-11-17 by Bernard (*"no hay entonces storage para mí en el droplet? en caso de que mis
 chats quieran guardar info pdf o h5? files?"*)
 
@@ -54,8 +54,23 @@ Bernard: *"lo que falta es la puerta para subir y bajar archivos; el lugar ya es
 - Receipts: 9 tests (round trip byte-identical, cross-account 404, both caps, traversal); a 3 MB chunked
   upload through a real local uvicorn came back with the same SHA-256.
 
-Still open: no model tool writes here, so a chat cannot save a file on its own yet; no UI in og118-web;
-deleting a conversation does not delete the files labelled with it; a casita on the droplet still has
+## What shipped next, 2026-11-17 — the chat saves on its own
+
+Bernard: *"conecta todo lo que falta conectar para que los chats también guarden solos"*.
+
+- **A tool for the model.** `apps/og118/server/mcp_files.py` serves `save_file`, `list_files` and
+  `read_file` at `POST /mcp/files/<capsule>`, the same remote-MCP shape as og118's background tool
+  (#48). The capsule carries the account and the conversation, signed, valid 30 minutes; it is the
+  door's only credential. No delete tool: removing a file stays a human act.
+- **Both routes mount it.** The local turn and the background worker add it as the remote MCP
+  `files`; an element's turn hands it to the external engine as `caller_tools`
+  (server-bot v4.51.0, `TurnRequest.caller_tools`), which rides beside `persona_memory`.
+- **A place to get the file back.** og118-web's sidebar has an "Archivos" sheet: the account's
+  files, the chat each came from, download and delete.
+
+Still open: a conversation's files outlive its deletion, by decision (a saved file is the user's,
+not the chat's); the model writes bytes only as base64 in a tool argument, so a large binary is out
+of its reach; an element on the Codex backend gets no remote MCP; a casita on the droplet still has
 only its mortal disk.
 
 ## Canonical path to reuse (Art. 6)

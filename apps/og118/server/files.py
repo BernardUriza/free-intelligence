@@ -8,6 +8,7 @@ streamed to a temp file and renamed, so a cut upload never leaves a half file be
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -22,6 +23,8 @@ from conversations import utc_now_iso
 _ID_RE = re.compile(r"^[0-9a-f]{32}$")
 _UNSAFE_NAME = re.compile(r"[\x00-\x1f\x7f/\\]")
 MAX_NAME_CHARS = 200
+_CONTENT_TYPE = re.compile(r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(; ?charset=[A-Za-z0-9_-]+)?$")
+FALLBACK_CONTENT_TYPE = "application/octet-stream"
 
 
 class FileTooLarge(Exception):
@@ -34,6 +37,11 @@ class QuotaExceeded(Exception):
 
 def valid_file_id(file_id: str) -> bool:
     return bool(_ID_RE.match(file_id))
+
+
+def clean_content_type(content_type: str) -> str:
+    """A media type safe to send back as a header; anything else is opaque bytes."""
+    return content_type if _CONTENT_TYPE.match(content_type) else FALLBACK_CONTENT_TYPE
 
 
 def clean_name(name: str) -> str:
@@ -102,7 +110,7 @@ class FileStore:
         meta = {
             "id": file_id,
             "name": clean_name(name),
-            "contentType": content_type,
+            "contentType": clean_content_type(content_type),
             "size": size,
             "sha256": digest,
             "createdAt": utc_now_iso(),
@@ -124,7 +132,7 @@ class FileStore:
                 if size > room:
                     raise QuotaExceeded
                 digest.update(chunk)
-                out.write(chunk)
+                await asyncio.to_thread(out.write, chunk)
         return size, digest.hexdigest()
 
     def delete(self, owner: str, file_id: str) -> bool:

@@ -30,6 +30,50 @@ def test_las_rutas_heredadas_no_responden_sin_token(app_fenix):
         assert r.status_code == 404, f"{ruta} quedó abierta: {r.status_code}"
 
 
+# Cada ruta que la app sirve, clasificada a mano. og118 agrega rutas y Fénix las
+# hereda: el 17-nov-2026 `/files` llegó así y contestó 200 a internet sin credencial.
+ABIERTAS_A_PROPOSITO = {
+    "/health", "/chat/stream", "/chat/cancel",
+    "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json",
+    "/elements", "/elements/slots", "/elements/{slug}", "/elements/{slug}/persona", "/elements/{slug}/test",
+    "/push/devices", "/push/devices/{token}",
+}
+CON_SU_PROPIO_CANDADO = ("/expedientes",)
+DEL_MOSTRADOR = ("/conversations", "/projects", "/tts/synthesize", "/stt/transcribe", "/files", "/mcp")
+
+
+def _rutas(nodos) -> set[str]:
+    """Cada path servido. FastAPI 0.141 anida los routers incluidos en vez de aplanarlos."""
+    vistas: set[str] = set()
+    for nodo in nodos:
+        if isinstance(getattr(nodo, "path", None), str):
+            vistas.add(nodo.path)
+        hijos = getattr(nodo, "routes", None) or getattr(getattr(nodo, "router", None), "routes", None)
+        if hijos:
+            vistas |= _rutas(hijos)
+    return vistas
+
+
+def test_ninguna_ruta_llega_sin_clasificar(app_fenix):
+    servidas = _rutas(app_fenix.routes) | set(app_fenix.openapi()["paths"])
+    assert {"/files", "/chat/stream", "/expedientes"} <= servidas, "el recorrido no ve las rutas: no prueba nada"
+    sin_clasificar = sorted(
+        ruta
+        for ruta in servidas - ABIERTAS_A_PROPOSITO
+        if not ruta.startswith(CON_SU_PROPIO_CANDADO + DEL_MOSTRADOR)
+    )
+    assert sin_clasificar == [], f"rutas heredadas que nadie decidió si son públicas: {sin_clasificar}"
+
+
+def test_los_archivos_heredados_no_existen_para_internet(app_fenix):
+    c = _cliente(app_fenix)
+    assert c.get("/files").status_code == 404
+    assert c.post("/files", params={"name": "x.bin"}, content=b"x").status_code == 404
+    assert c.get("/files/" + "a" * 32).status_code == 404
+    assert c.delete("/files/" + "a" * 32).status_code == 404
+    assert c.post("/mcp/files/basura", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).status_code == 404
+
+
 def test_las_rutas_heredadas_responden_con_el_token(app_fenix):
     c = _cliente(app_fenix)
     # `/projects` no se prueba aquí: con Proyectos apagado la ruta NO EXISTE, así

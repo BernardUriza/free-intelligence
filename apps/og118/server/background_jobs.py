@@ -136,6 +136,17 @@ def sign_capsule(secret: str, *, sub: str, conversation_id: str, corpus_id: str 
     return f"{body}.{mac}"
 
 
+def sign_steady_capsule(secret: str, *, sub: str, conversation_id: str, corpus_id: str | None,
+                         now: float | None = None) -> str:
+    """A capsule whose bytes hold still for a whole TTL window, good for one to two TTLs.
+
+    AIRE keys its warm client on the turn's remote-tool URLs: a capsule minted
+    fresh per turn would make it drop and rebuild that client on every turn."""
+    window = int((now if now is not None else time.time()) // CAPSULE_TTL_SECONDS) * CAPSULE_TTL_SECONDS
+    return sign_capsule(secret, sub=sub, conversation_id=conversation_id, corpus_id=corpus_id,
+                        ttl=2 * CAPSULE_TTL_SECONDS, now=window)
+
+
 def verify_capsule(secret: str, capsule: str, *, now: float | None = None) -> dict | None:
     """El payload si la firma cuadra y no venció; ``None`` en cualquier otro caso."""
     if not secret or "." not in capsule:

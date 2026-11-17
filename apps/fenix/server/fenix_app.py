@@ -480,7 +480,7 @@ async def extraer(
 # sintetizar cuestan dinero por segundo. Ningún cliente de Fénix los llama: el
 # niño escribe y lee. Si mañana el mostrador quiere dictado, ya pasa con su
 # token; lo que no puede es quedar abierto a internet mientras nadie lo usa.
-_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects", "/tts/synthesize", "/stt/transcribe")
+_RUTAS_DEL_MOSTRADOR = ("/conversations", "/projects", "/tts/synthesize", "/stt/transcribe", "/files", "/mcp")
 
 # `/chat/stream` es la única ruta que cuesta dinero, y en la superficie pública
 # no la protege nada más: autenticar no sirve ahí porque el bearer vive en el
