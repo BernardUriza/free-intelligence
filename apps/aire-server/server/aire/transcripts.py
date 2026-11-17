@@ -6,15 +6,17 @@ already searches both for words; this reads them as conversations — which
 sessions a casita has, and what was said in one — so an agent outside the turn
 (Claude Code through the projects MCP) can take a project's chats as context.
 
-The read passes [[write-only-daemon]] on two counts: it feeds an agent, the
-`recall` family, and the caller owns the rows (constant tokens only). What it
-returns is the SPOKEN text, flattened — tool calls, attachments and usage stay
-in the tables, where the front can render them.
+The read feeds an agent, the `recall` family of [[write-only-daemon]]. It is for
+constant tokens only, and any constant token reads any project's chats: no token
+is bound to a project (open item). What it returns is the SPOKEN text of the main
+thread, flattened IN SQL — tool calls, tool results, attachments, subagent
+sidechains (`subpath <> ''`) and usage never leave the database, and only the
+last `limit` turns are fetched: a long session must not be loaded whole into a
+512 MB droplet to hand back its tail.
 """
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from . import db
@@ -28,20 +30,27 @@ _SESSIONS = (
     "SELECT session_id, 'claude' AS provider, count(*) AS entries,"
     " to_timestamp(min(mtime) / CASE WHEN min(mtime) > 1e12 THEN 1000 ELSE 1 END) AS first_at,"
     " to_timestamp(max(mtime) / CASE WHEN max(mtime) > 1e12 THEN 1000 ELSE 1 END) AS last_at"
-    " FROM claude_session_store WHERE project_key = $1 GROUP BY session_id"
+    " FROM claude_session_store WHERE project_key = $1 AND subpath = '' GROUP BY session_id"
     " UNION ALL"
     " SELECT session_id, min(provider), count(*), min(at), max(at)"
     " FROM aire_agent_log WHERE project_key = $1 GROUP BY session_id"
 )
+_SDK_CONTENT = "entry->'message'->'content'"
 _TURNS = (
     "SELECT * FROM ("
-    " SELECT 'claude' AS src, NULL AS kind, entry::text AS body, to_timestamp(mtime /"
-    "  CASE WHEN mtime > 1e12 THEN 1000 ELSE 1 END) AS at, seq FROM claude_session_store"
-    "  WHERE project_key = $1 AND session_id = $2"
+    " SELECT 'claude' AS src, entry->>'type' AS role,"
+    f"  CASE jsonb_typeof({_SDK_CONTENT}) WHEN 'string' THEN entry->'message'->>'content'"
+    "   WHEN 'array' THEN (SELECT string_agg(b->>'text', E'\\n')"
+    f"    FROM jsonb_array_elements({_SDK_CONTENT}) b WHERE b->>'type' = 'text')"
+    "   ELSE entry->>'text' END AS text,"
+    "  to_timestamp(mtime / CASE WHEN mtime > 1e12 THEN 1000 ELSE 1 END) AS at, seq"
+    "  FROM claude_session_store WHERE project_key = $1 AND session_id = $2"
+    "  AND subpath = '' AND entry->>'type' IN ('user', 'assistant')"
     " UNION ALL"
-    " SELECT provider, kind, entry::text, at, seq FROM aire_agent_log"
-    "  WHERE project_key = $1 AND session_id = $2 AND kind IN ('prompt', 'item.completed')"
-    ") t ORDER BY at, seq"
+    " SELECT provider, CASE kind WHEN 'prompt' THEN 'user' ELSE 'assistant' END,"
+    "  entry->>'text', at, seq FROM aire_agent_log WHERE project_key = $1 AND session_id = $2"
+    "  AND (kind = 'prompt' OR (kind = 'item.completed' AND entry->>'type' = 'agent_message'))"
+    ") t WHERE text ~ '\\S' ORDER BY at DESC, seq DESC LIMIT $3"
 )
 
 
@@ -60,11 +69,12 @@ async def sessions(project: str) -> list[dict]:
 
 
 async def turns(project: str, session: str, limit: int = MAX_TURNS) -> list[dict]:
-    """What was said in one session, oldest first, as {at, role, text}."""
+    """The last `limit` spoken turns of one session, oldest first, as {at, role, text}."""
+    bounded = max(1, min(limit, MAX_TURNS))
     async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
-        rows = await _fetch_or_empty(conn, _TURNS, project_key(project), sdk_session_uuid(session))
-    spoken = [t for r in rows if (t := _spoken(r)) is not None]
-    return spoken[-max(1, min(limit, MAX_TURNS)):]
+        rows = await _fetch_or_empty(conn, _TURNS, project_key(project), sdk_session_uuid(session), bounded)
+    return [{"at": r["at"].isoformat(), "role": r["role"], "provider": r["src"], "text": r["text"]}
+            for r in reversed(rows)]
 
 
 async def _fetch_or_empty(conn: Any, sql: str, *args: Any) -> list[Any]:
@@ -76,30 +86,3 @@ async def _fetch_or_empty(conn: Any, sql: str, *args: Any) -> list[Any]:
         return await conn.fetch(sql, *args)
     except asyncpg.UndefinedTableError:
         return []
-
-
-def _spoken(row: Any) -> dict | None:
-    entry = json.loads(row["body"])
-    role, text = (_from_sdk(entry) if row["src"] == "claude" else _from_agent(row["kind"], entry))
-    if not text.strip():
-        return None
-    return {"at": row["at"].isoformat(), "role": role, "provider": row["src"], "text": text}
-
-
-def _from_sdk(entry: dict) -> tuple[str, str]:
-    role = entry.get("type", "")
-    if role not in ("user", "assistant"):
-        return role, ""
-    content = (entry.get("message") or {}).get("content", entry.get("text", ""))
-    if isinstance(content, str):
-        return role, content
-    return role, "\n".join(b.get("text", "") for b in content
-                           if isinstance(b, dict) and b.get("type") == "text")
-
-
-def _from_agent(kind: str, entry: dict) -> tuple[str, str]:
-    if kind == "prompt":
-        return "user", str(entry.get("text", ""))
-    if entry.get("type") == "agent_message":
-        return "assistant", str(entry.get("text", ""))
-    return kind, ""

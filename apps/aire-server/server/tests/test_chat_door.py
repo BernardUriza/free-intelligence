@@ -59,6 +59,39 @@ def test_a_projects_chats_are_listed_and_read_as_turns(client):
     assert [(t["role"], t["text"]) for t in by_uuid] == [("user", f"hola {word}")]
 
 
+async def _long_claude_chat(project: str) -> str:
+    """Six spoken turns on the main thread, plus what must never come back: a tool
+    result, a system entry and a subagent sidechain (`subpath`)."""
+    key, session = transcripts.project_key(project), str(uuid.uuid4())
+    store = await create_postgres_session_store(db.dsn())
+    entries = [{"type": "user" if i % 2 == 0 else "assistant", "uuid": str(uuid.uuid4()),
+                "message": {"role": "x", "content": [{"type": "text", "text": f"turno {i}"}]}} for i in range(6)]
+    entries.insert(3, {"type": "user", "uuid": str(uuid.uuid4()), "message": {"role": "user", "content": [
+        {"type": "tool_result", "tool_use_id": "t1", "content": "x" * 5000}]}})
+    entries.insert(1, {"type": "system", "uuid": str(uuid.uuid4()), "text": "arranque"})
+    for entry in entries:  # one append per entry, so each has its own seq
+        await store.append({"project_key": key, "session_id": session}, [entry])
+    await store.append({"project_key": key, "session_id": session, "subpath": "subagents/agent-1"},
+                       [{"type": "assistant", "uuid": str(uuid.uuid4()),
+                         "message": {"role": "assistant", "content": [{"type": "text", "text": "sidechain"}]}}])
+    await db.close()
+    return session
+
+
+def test_a_transcript_reads_only_the_last_spoken_turns_of_the_main_thread(client):
+    """Review of #55: `limit` is applied in SQL (a long session is never loaded
+    whole), and only spoken user/assistant text of the main thread comes back."""
+    project = f"chats-{uuid.uuid4().hex[:8]}"
+    session = asyncio.run(_long_claude_chat(project))
+    path = f"/projects/{project}/sessions/{session}/transcript"
+    every = client.get(path, headers=AUTH).json()["turns"]
+    assert [t["text"] for t in every] == [f"turno {i}" for i in range(6)]
+    tail = client.get(path, params={"limit": 2}, headers=AUTH).json()["turns"]
+    assert [(t["role"], t["text"]) for t in tail] == [("user", "turno 4"), ("assistant", "turno 5")]
+    listed = client.get(f"/projects/{project}/sessions", headers=AUTH).json()["sessions"]
+    assert [s["entries"] for s in listed] == [8], "the sidechain is not counted as the chat"
+
+
 def test_another_project_never_sees_these_chats(client):
     project, word = f"chats-{uuid.uuid4().hex[:8]}", uuid.uuid4().hex[:6]
     asyncio.run(_write(project, word))

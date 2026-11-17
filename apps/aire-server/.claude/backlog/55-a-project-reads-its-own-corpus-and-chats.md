@@ -32,7 +32,12 @@ to KEEP its files there, and for an agent outside a turn to use them:
 - `aire/transcripts.py` + `aire/chat_door.py` — `GET /projects`, `GET /projects/{p}/sessions`,
   `GET /projects/{p}/sessions/{s}/transcript`: both tables (`claude_session_store`, `aire_agent_log`),
   spoken text only, by name or UUID.
-- `intake.owners_only` — every new read refuses an invited key (403). Constant tokens only.
+- `intake.owners_only` — every new read AND every corpus-door route (put, list, search, delete) refuses
+  an invited key (403). Constant tokens only; no invited-key flow used the corpus door.
+- `aire/corpus_write.py` (review fix) — a version and its index in ONE transaction, under
+  `pg_advisory_xact_lock` per document (shared per corpus; a whole-corpus delete takes it exclusive).
+  Each chunk carries the sha256 it was cut from (`aire_corpus_chunk.sha256`, added at startup), and the
+  index counts as current only when every chunk matches the newest version.
 - `agent_sdk/codex_mcp.py` — `CODEX_TOOLS = {memory, rag_store}`.
 - `apps/aire-server/mcp/` (client side, never rides to the droplet): `projects_mcp.py` (11 tools),
   `persona_mcp.py` (4 tools), `sync.py` (push/pull a tree), stdlib only.
@@ -42,9 +47,10 @@ to KEEP its files there, and for an agent outside a turn to use them:
 
 ## The rule this widens — Bernard ratifies or vetoes
 
-[[write-only-daemon]]: the new reads pass the test that rule states ("does the caller own the rows?" and
-"does the result feed an agent?"): a constant token reads its own project's documents and chats as JSON,
-for the agent working on it. The transcript read is the closest to the front's job; if Bernard vetoes it
+[[write-only-daemon]]: the new reads answer JSON for an agent, nothing rendered. They do NOT pass "does
+the caller own the rows?": no token is bound to a project, so ANY constant token (AUTH, CANARY, RUNNER,
+PULSE, BAIR) reads every project's documents, versions and chats — the rule's #55 section says so
+exactly. The transcript read is the closest to the front's job; if Bernard vetoes it
 in the daemon, `chat_door.py` moves to the front behind `aire_reader` and the MCP points there.
 
 ## Deploying (one decision, Bernard's)
@@ -55,6 +61,8 @@ at startup as role `aire`. No env var changes. Then, from the Mac: register the 
 
 ## Open
 
+- **No token↔project binding.** Any constant token reads and writes every project's corpus and reads
+  every project's chats. Not designed yet; the rule records it as the guarantee the code lacks.
 - Binary receipts (PNG/PDF) have no durable home in AIRE: the corpus holds text, artifacts live on the
   mortal droplet disk.
 - Structured rows (Verified/Fragile/Never lines, insert spans, backlog status) stay markdown; parsers on

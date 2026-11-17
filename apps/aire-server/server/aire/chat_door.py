@@ -3,8 +3,9 @@ said in one (#55). JSON for an agent, never a view: the front still renders
 transcripts for human eyes ([[write-only-daemon]]); this hands a project's own
 chats to the agent working on it, the way `recall` hands them to the model.
 
-Constant tokens only (`intake.owners_only`): an invited key owns no project here,
-and a transcript is the most private thing AIRE keeps.
+Constant tokens only (`intake.owners_only`): an invited key gets 403, and a
+transcript is the most private thing AIRE keeps. No token is bound to a project:
+ANY constant token lists every casita and reads every project's chats (open item).
 """
 
 from __future__ import annotations

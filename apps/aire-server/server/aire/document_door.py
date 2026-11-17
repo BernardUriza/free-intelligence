@@ -7,9 +7,10 @@ its research here — videopipe's expedientes, which a PreToolUse hook and a
 script-writing persona both read as files — needs the exact bytes and the
 versions before them. Those live in `corpus_versions`, and this door reads them.
 
-These reads pass [[write-only-daemon]]'s widened test the same way the corpus
-list does: the caller owns the rows and gets them back as JSON, nothing rendered.
-They are for constant tokens only (`intake.owners_only`), never an invited key.
+These reads are the corpus list's family under [[write-only-daemon]]'s widened
+test: rows handed back as JSON, nothing rendered. They are for constant tokens
+only (`intake.owners_only`), never an invited key — but no token is bound to a
+project, so any constant token reads every project's documents (an open item).
 
 Doc ids may carry slashes (`casos/niebla/sources-niebla.md`), so the id is the
 path's tail; `text/` and `history/` sit before it so neither can be mistaken
