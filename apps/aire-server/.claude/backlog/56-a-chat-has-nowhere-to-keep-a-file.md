@@ -24,7 +24,27 @@ Two facts that size the gap:
   `/opt/aire/workspaces`. A rebuilt box brings every casita back with its transcript and its persona and
   none of its files.
 
+## Correction, 2026-11-17 — the monorepo already has an `.h5` and a durable volume, neither on the droplet
+
+Bernard, the same day: *"pero tiene el h5"*. He is right that it exists; the first draft of this card
+searched only `apps/aire-server` and missed it.
+
+- **The `.h5` is fi-core's chunk store** (`fi_core/stores/hdf5.py`): namespaces, documents and text
+  chunks with an in-memory cosine index. It holds text for retrieval, not a caller's files, and it is not
+  a place to drop an arbitrary binary.
+- **og118 stopped reading it.** `apps/og118/server/deps.py` `get_rag_store` returns `AireCorpusClient`
+  only, since the consolidation of 2026-08-24; its own comment says nobody reads the container's HDF5.
+- **The durable volume is real and already paid.** `og118-api` mounts the Azure Files share `ragstore`
+  (storage account `og118ragstore`, `og118-rg`, 5 GiB quota) at `/opt/fi/data`. Measured 2026-11-17:
+  1,608,192 bytes used. og118 keeps its conversations, project registry and device tokens there as JSON.
+  It belongs to og118's container; the droplet does not mount it.
+
+So point 1 below is cheaper than first written: `og118ragstore` is a StorageV2 account, and a blob
+container in it is no new resource.
+
 ## Canonical path to reuse (Art. 6)
+
+- `og118ragstore` (above) is the store that already exists and survives every box.
 
 - `server/aire/artifacts.py` is already the download half, with the cage's `escapes` as the one
   confinement rule. The missing half is durability and an upload, not a new read surface.
