@@ -139,7 +139,8 @@ def build_tools(owner: str) -> list[Any]:
     return [_bind(owner, spec) for spec in TOOLS]
 
 
-def build_corpus_server(_project_key: str, cwd: str = "") -> Any:
-    """The `rag_store` server for whichever consumer owns this casita."""
+def build_corpus_server(_project_key: str, cwd: str = "", *_session: str) -> Any:
+    """The `rag_store` server for whichever consumer owns this casita. The stdio
+    child (#54) passes the turn's session too; a shelf is not per-session."""
     return create_sdk_mcp_server(name=SERVER_NAME, version="1.0.0",
                                  tools=build_tools(owner_of(cwd)))

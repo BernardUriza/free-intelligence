@@ -6,7 +6,8 @@ does (stderr `no rollout found`, exit 1), runs a "tool" whose outcome follows
 the sandbox, fails a turn on "fail", dies silently on "crash", and records the
 argv and the credential env it was given (`last_argv.json`, `last_env.json`).
 A prompt `recall: <term>` calls the `memory` MCP server for real (#54,
-`fake_codex_mcp.py`) and answers `pong: recalled <what the server said>`.
+`fake_codex_mcp.py`) and answers `pong: recalled <what the server said>`;
+`search: <corpus_id> <query>` does the same with `rag_store` (#55).
 
 A prompt with "limit" is a plan at its ceiling (#53): without `CODEX_API_KEY`
 the turn fails with the CLI's own usage-limit wording (its 0.164.0 string
@@ -57,6 +58,18 @@ def mcp_recall(query: str) -> str:
     return f"recalled {answer}"
 
 
+def mcp_search(spec: str) -> str:
+    """The model calls `rag_store/search_documents` with `<corpus_id> <query>` (#55)."""
+    from fake_codex_mcp import call
+    corpus_id, _, query = spec.partition(" ")
+    answer, failed = call(sys.argv[1:], "rag_store", "search_documents",
+                          {"corpus_id": corpus_id, "query": query, "top_k": 3})
+    item = {"id": "item_s", "type": "mcp_tool_call", "server": "rag_store", "tool": "search_documents",
+            "arguments": {"corpus_id": corpus_id, "query": query}, "status": "failed" if failed else "completed"}
+    emit({"type": "item.completed", "item": item})
+    return f"found {answer}"
+
+
 def main() -> int:
     STORE.mkdir(parents=True, exist_ok=True)
     record()
@@ -86,6 +99,8 @@ def main() -> int:
                                                   "command": "ls", "aggregated_output": "", "status": status}})
     if prompt.startswith("recall: "):
         prompt = mcp_recall(prompt.removeprefix("recall: "))
+    if prompt.startswith("search: "):
+        prompt = mcp_search(prompt.removeprefix("search: "))
     text = f"pong: {prompt}" + (f" after {len(history)}" if history else "") + (f" images: {len(images)}" if images else "")
     emit({"type": "item.completed", "item": {"id": "item_1", "type": "agent_message", "text": text}})
     emit({"type": "turn.completed", "usage": USAGE})

@@ -61,8 +61,8 @@ async def put_document(project: str, corpus_id: str, request: Request) -> JSONRe
         raise HTTPException(status_code=422, detail="an empty document indexes nothing")
     if len(text.encode("utf-8")) > MAX_DOC_BYTES:
         raise HTTPException(status_code=413, detail=f"document over {MAX_DOC_BYTES} bytes")
-    chunks = await corpus.ingest(owner, corpus_id, doc_id, text)
-    return JSONResponse({"doc_id": doc_id, "chunks": chunks, "replaced": True})
+    landed = await corpus.put(owner, corpus_id, doc_id, text)
+    return JSONResponse({"doc_id": doc_id, "replaced": True, **landed})
 
 
 @router.get("/projects/{project}/corpus/{corpus_id}/documents")
@@ -89,7 +89,7 @@ async def search_documents(project: str, corpus_id: str, q: str = "",
     return JSONResponse(await corpus.search(owner, corpus_id, q, top_k))
 
 
-@router.delete("/projects/{project}/corpus/{corpus_id}/documents/{doc_id}")
+@router.delete("/projects/{project}/corpus/{corpus_id}/documents/{doc_id:path}")
 async def delete_document(project: str, corpus_id: str, doc_id: str) -> JSONResponse:
     """Remove one document. Reports the rows removed, so a delete that matched
     nothing is distinguishable from one that worked."""

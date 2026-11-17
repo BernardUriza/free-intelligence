@@ -33,6 +33,14 @@ def safe_names(project: str, session: str) -> tuple[str, str]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+def owners_only(request: Any) -> None:
+    """Reads that hand back a project's whole text or its chats (#55) are for the
+    constant tokens — Bernard's own, a consumer's own — never an invited key,
+    whose holder rides `request.state` and owns no project here."""
+    if getattr(request.state, "holder", None) is not None:
+        raise HTTPException(status_code=403, detail="an invited key cannot read a project's documents or chats")
+
+
 def safe_mode(mode: str | None) -> str:
     return mode if mode in MODES else DEFAULT_MODE
 

@@ -29,8 +29,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from . import (access, arming, artifacts, ceiling, corpus, corpus_door, door, gateway,
-               init_project, messages, openai_gateway, spend, tokens)
+from . import (access, arming, artifacts, ceiling, chat_door, corpus, corpus_door, corpus_versions,
+               document_door, door, gateway, init_project, messages, openai_gateway, spend, tokens)
 from .bearer import accepted, presented_token
 from .deps import drop_engine, get_engine
 from .engine import MODES
@@ -54,6 +54,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         # Same reason as the ledger: the first turn that searches a corpus must
         # not be the one racing its CREATE TABLE.
         await corpus.ensure()
+        await corpus_versions.ensure()
     except Exception as exc:  # noqa: BLE001 — a corpus-less door still answers
         print(f"corpus store unavailable at startup: {exc!r}", flush=True)
     yield
@@ -122,5 +123,7 @@ app.include_router(openai_gateway.router)  # /openai/v1/* — the OpenAI door (#
 app.include_router(artifacts.router)  # GET the casita's files — #22b, the daemon's disk surface
 app.include_router(init_project.router)  # POST init — set a casita's fixed prompt (CLAUDE.md)
 app.include_router(corpus_door.router)   # #47 — a consumer writes and reads its own corpus
+app.include_router(document_door.router)  # #55 — a document back whole, and its versions
+app.include_router(chat_door.router)   # #55 — a project's chats, as turns, for the agent on it
 app.include_router(access.router)     # #32 — a stranger asks to be let in; Bernard's inbox decides
 app.include_router(ceiling.router)    # #51 — the owner moves one key's ceiling without re-minting it
