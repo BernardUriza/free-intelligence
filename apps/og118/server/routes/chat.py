@@ -35,7 +35,7 @@ from deps import (
 )
 from external_engine import late_message, stream_external_turn
 from projects import ProjectRegistry, turn_context
-from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec
+from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, background_tool_spec, files_tool_spec
 
 router = APIRouter()
 
@@ -326,7 +326,10 @@ async def chat_stream(
             images = [i.model_dump() for i in req.images] if req.images else None
             # OG118-BACKGROUND-1: el MCP remoto de ESTE turno lleva en su URL la
             # cápsula firmada con la identidad, así que la tool sabe a quién entregar.
-            remotos = background_tool_spec(principal.sub, req.session_id, corpus_id)
+            remotos = [
+                *background_tool_spec(principal.sub, req.session_id, corpus_id),
+                *files_tool_spec(principal.sub, req.session_id),
+            ]
             runner_turno = (
                 dataclasses.replace(runner, extra_mcp_servers=[*runner.extra_mcp_servers, *remotos])
                 if remotos

@@ -208,6 +208,25 @@ Verify a deploy: `az containerapp job execution list -n og118-worker -g og118-rg
 shows one `Succeeded` execution per queued task, and the conversation's JSON on
 the share ends with a message whose `origin` is `background`.
 
+## File store — the model keeps files for its user (aire-server backlog #56)
+
+`FileStore` (`server/files.py`) keeps an account's binaries on the same `ragstore`
+share, under `/opt/fi/data/files/<owner hash>/`. Two doors reach it:
+
+- **HTTP, for the app:** `POST|GET /files`, `GET|DELETE /files/{id}`, keyed on the
+  Auth0 principal. 32 MB a file, 1 GiB an account (`OG118_MAX_FILE_BYTES`,
+  `OG118_FILE_QUOTA_BYTES`).
+- **MCP, for the model:** `POST /mcp/files/<capsule>` (`server/mcp_files.py`) with
+  `save_file`, `list_files`, `read_file`. No delete tool. The turn mounts it as the
+  remote MCP `files` when `OG118_MCP_TOKEN` and `OG118_PUBLIC_URL` are set
+  (`runner.files_tool_spec`), and the persona learns it from `prompts/file_store.md`
+  under the same switch.
+
+The capsule (account + conversation, signed with `OG118_MCP_TOKEN`, 30 min) is the
+only credential of the MCP door; it sends no `Authorization` header. That is on
+purpose: an element's turn runs on the external engine, which persists the request,
+so the spec must carry nothing that outlives the turn. An unsigned capsule is a 404.
+
 ## Auth0 (Gate 3) — tenant + app config
 
 Real per-user auth via the shared-dev Auth0 tenant `dev-1r4daup7ofj7q6gn` (the

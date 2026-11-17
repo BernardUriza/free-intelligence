@@ -16,6 +16,22 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 PROBE_PRINCIPAL_PREFIX = "probe-"
 
 
+RESERVED_TOOL_NAMES = frozenset({"persona_memory"})
+
+
+class CallerTool(BaseModel):
+    """An HTTP MCP server the CALLER hosts and wants mounted on this turn.
+
+    No headers on purpose: a turn request is persisted in `turn_jobs`, so the
+    url must be its own short-lived credential (og118 signs a 30-minute capsule
+    into the path). AIRE still refuses any origin outside its allowlist."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    url: str = Field(..., max_length=512, pattern=r"^https://")
+
+
 class TurnRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -86,6 +102,16 @@ class TurnRequest(BaseModel):
     # and OpenTelemetry's `user_agent.synthetic.type=test`: the marker rides the
     # data so every consumer can exclude it at write time.
     origin: Literal["user", "probe"] = "user"
+    # Remote MCP servers of the calling surface (og118's per-account file store),
+    # mounted beside persona_memory on a Claude turn. AIRE caps a turn at four.
+    caller_tools: list[CallerTool] | None = Field(default=None, max_length=2)
+
+    @model_validator(mode="after")
+    def _caller_tools_never_shadow_ours(self) -> Self:
+        names = [tool.name for tool in self.caller_tools or []]
+        if RESERVED_TOOL_NAMES & set(names) or len(names) != len(set(names)):
+            raise ValueError("caller_tools names must be unique and must not be persona_memory")
+        return self
 
     @model_validator(mode="after")
     def _a_probe_never_speaks_as_a_real_principal(self) -> Self:

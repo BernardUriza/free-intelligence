@@ -30,6 +30,7 @@ from deps import (
     proyectos_activos,
 )
 from mcp_background import router as mcp_background_router
+from mcp_files import router as mcp_files_router
 from routes import chat, conversations, devices, elements, files, projects, voice
 
 __all__ = [
@@ -129,6 +130,7 @@ def create_app(dependencies: list | None = None) -> FastAPI:
         application.include_router(area.router)
     application.include_router(router)
     application.include_router(mcp_background_router)
+    application.include_router(mcp_files_router)
     if proyectos_activos():
         application.include_router(projects.router)
     return application
