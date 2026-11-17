@@ -36,21 +36,26 @@ def _env(entry: dict) -> dict[str, str]:
     return {n: os.environ[n] for n in names if n in os.environ}
 
 
-async def _call(entry: dict, query: str) -> tuple[str, bool]:
+async def _call(entry: dict, tool: str, arguments: dict) -> tuple[str, bool]:
     params = StdioServerParameters(command=entry["command"], args=entry["args"],
                                    env=_env(entry), cwd=entry.get("cwd"))
     async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
         await session.initialize()
-        result = await session.call_tool("recall", {"query": query, "limit": 5})
+        result = await session.call_tool(tool, arguments)
     failed = getattr(result, "is_error", None) or getattr(result, "isError", None)  # mcp 2.x / 1.x
     return "\n".join(block.text for block in result.content), bool(failed)
 
 
-def recall(argv: list[str], query: str) -> tuple[str, bool]:
-    """The `memory` server's answer to `recall(query)`, or codex's own refusal."""
-    entry = servers(argv).get("memory")
+def call(argv: list[str], server: str, tool: str, arguments: dict) -> tuple[str, bool]:
+    """One server's answer to one tool call, or codex's own refusal."""
+    entry = servers(argv).get(server)
     if entry is None:
-        return "unknown MCP server 'memory'", True
+        return f"unknown MCP server {server!r}", True
     if entry.get("default_tools_approval_mode") != "approve":
         return DENIED, True
-    return anyio.run(_call, entry, query)
+    return anyio.run(_call, entry, tool, arguments)
+
+
+def recall(argv: list[str], query: str) -> tuple[str, bool]:
+    """The `memory` server's answer to `recall(query)`."""
+    return call(argv, "memory", "recall", {"query": query, "limit": 5})

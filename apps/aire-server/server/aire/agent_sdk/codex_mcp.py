@@ -15,7 +15,9 @@ in-process. Verified against codex-cli 0.164.0's source (`config/src/mcp_types.r
 - the child is not sandboxed, so `cwd` is the server root and `-m` finds `aire`.
 
 Only DATABASE-backed tools are offered: the casita-disk tenants would let a
-read-only `complete` turn write through a child the sandbox does not cover."""
+read-only `complete` turn write through a child the sandbox does not cover.
+`rag_store` joined `memory` in #55 — it reads only the casita's `@base` line off
+disk — so a Codex persona can search its project's documents mid-turn."""
 
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ import json
 import sys
 from pathlib import Path
 
-CODEX_TOOLS = frozenset({"memory"})
+CODEX_TOOLS = frozenset({"memory", "rag_store"})
 FORWARDED_ENV = ("AIRE_DATABASE_URL", "AIRE_DB_TIMEOUT", "AIRE_DB_POOL_MAX")
 STARTUP_TIMEOUT_S = 30
 SERVER_ROOT = str(Path(__file__).resolve().parent.parent.parent)

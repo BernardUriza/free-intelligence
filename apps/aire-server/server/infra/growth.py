@@ -36,6 +36,7 @@ import sys
 # nobody is measuring at all.
 TABLES = {
     "aire_corpus_chunk": ("at", False),
+    "aire_corpus_version": ("at", False),
     "aire_gateway_log": ("ts", False),
     "aire_log": ("at", False),
     "claude_session_store": ("mtime", True),

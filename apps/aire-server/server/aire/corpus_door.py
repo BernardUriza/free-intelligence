@@ -18,7 +18,12 @@ duplicated surface Art. 6 calls the smell.
 The `owner` is derived exactly as the tool derives it — from the casita's `@base`,
 read off disk — so a document uploaded through this door and a search run inside a
 turn land on the same shelf by construction rather than by two matching conventions.
-Everything rides the Bearer, like every route but `/health`.
+Everything rides the Bearer, like every route but `/health`, and every route here
+is for the constant tokens only (`intake.owners_only`, #55): an invited key buys
+turns, not a project's shelf, and with the corpus a project's system of record it
+must not write, read or delete one. No invited-key flow used this door (og118 and
+fi-runner carry `AIRE_AUTH_TOKEN`). Not checked: WHICH constant token — any of
+them reaches every project's shelf.
 """
 
 from __future__ import annotations
@@ -31,7 +36,7 @@ from fastapi.responses import JSONResponse
 from . import corpus
 from .engine.core import WORKSPACES
 from .engine.corpus_tool import owner_of
-from .intake import safe_names
+from .intake import owners_only, safe_names
 
 router = APIRouter()
 MAX_DOC_BYTES = int(1e6)
@@ -51,6 +56,7 @@ async def put_document(project: str, corpus_id: str, request: Request) -> JSONRe
 
     Replace rather than append, for the reason the tool gives: a corrected file
     must not leave the old sentences searchable beside the new ones."""
+    owners_only(request)
     owner, corpus_id = _scope(project, corpus_id)
     body: dict[str, Any] = await request.json()
     doc_id = str(body.get("doc_id") or "").strip()
@@ -61,21 +67,22 @@ async def put_document(project: str, corpus_id: str, request: Request) -> JSONRe
         raise HTTPException(status_code=422, detail="an empty document indexes nothing")
     if len(text.encode("utf-8")) > MAX_DOC_BYTES:
         raise HTTPException(status_code=413, detail=f"document over {MAX_DOC_BYTES} bytes")
-    chunks = await corpus.ingest(owner, corpus_id, doc_id, text)
-    return JSONResponse({"doc_id": doc_id, "chunks": chunks, "replaced": True})
+    landed = await corpus.put(owner, corpus_id, doc_id, text)
+    return JSONResponse({"doc_id": doc_id, "replaced": True, **landed})
 
 
 @router.get("/projects/{project}/corpus/{corpus_id}/documents")
-async def list_documents(project: str, corpus_id: str) -> JSONResponse:
+async def list_documents(project: str, corpus_id: str, request: Request) -> JSONResponse:
     """What the corpus holds and how full it is, in one response — see the module
     docstring for why this read lives in the daemon at all."""
+    owners_only(request)
     owner, corpus_id = _scope(project, corpus_id)
     return JSONResponse({"documents": await corpus.documents(owner, corpus_id),
                          "capacity": await corpus.stats(owner, corpus_id)})
 
 
 @router.get("/projects/{project}/corpus/{corpus_id}/documents/search")
-async def search_documents(project: str, corpus_id: str, q: str = "",
+async def search_documents(project: str, corpus_id: str, request: Request, q: str = "",
                            top_k: int = 5) -> JSONResponse:
     """The passages matching `q`, best first — the same retrieval the model's tool
     runs, for a consumer that needs to retrieve from SERVER code (folding context
@@ -83,24 +90,27 @@ async def search_documents(project: str, corpus_id: str, q: str = "",
 
     Declared before the `{doc_id}` route, or `search` would be read as a document
     name and this endpoint would silently never exist."""
+    owners_only(request)
     owner, corpus_id = _scope(project, corpus_id)
     if not q.strip():
         raise HTTPException(status_code=422, detail="q is required")
     return JSONResponse(await corpus.search(owner, corpus_id, q, top_k))
 
 
-@router.delete("/projects/{project}/corpus/{corpus_id}/documents/{doc_id}")
-async def delete_document(project: str, corpus_id: str, doc_id: str) -> JSONResponse:
+@router.delete("/projects/{project}/corpus/{corpus_id}/documents/{doc_id:path}")
+async def delete_document(project: str, corpus_id: str, doc_id: str, request: Request) -> JSONResponse:
     """Remove one document. Reports the rows removed, so a delete that matched
     nothing is distinguishable from one that worked."""
+    owners_only(request)
     owner, corpus_id = _scope(project, corpus_id)
     removed = await corpus.drop(owner, corpus_id, doc_id.strip())
     return JSONResponse({"doc_id": doc_id, "chunks_removed": removed})
 
 
 @router.delete("/projects/{project}/corpus/{corpus_id}")
-async def delete_corpus(project: str, corpus_id: str) -> JSONResponse:
+async def delete_corpus(project: str, corpus_id: str, request: Request) -> JSONResponse:
     """Remove every document in a corpus."""
+    owners_only(request)
     owner, corpus_id = _scope(project, corpus_id)
     return JSONResponse({"corpus_id": corpus_id,
                          "chunks_removed": await corpus.drop(owner, corpus_id)})

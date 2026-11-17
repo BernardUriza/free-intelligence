@@ -38,6 +38,11 @@ MIGRATIONS = (
     f"ALTER TABLE {TABLE} ADD COLUMN fts tsvector"
     " GENERATED ALWAYS AS (to_tsvector('spanish', norm)) STORED",
 )
+# #55: each chunk carries the sha256 of the text it was cut from, so a write can
+# tell an index that is CURRENT from one that merely exists. Old rows read '' and
+# match no sha, so the first write of any pre-#55 document reindexes it.
+# Default '' is a constant: Postgres adds it as catalog metadata, no rewrite.
+INDEXED_SHA = f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS sha256 text NOT NULL DEFAULT ''"
 INDEXES = (
     f"CREATE INDEX IF NOT EXISTS aire_corpus_fts ON {TABLE} USING GIN (fts)",
     f"CREATE INDEX IF NOT EXISTS aire_corpus_doc ON {TABLE} (owner, corpus_id, doc_id)",
@@ -60,18 +65,20 @@ async def ensure() -> None:
             return
         async with db.acquire() as conn:
             await conn.execute(DDL)
-            if not await _folded(conn):
+            if not await _has(conn, "norm"):
                 for statement in MIGRATIONS:
                     await conn.execute(statement)
+            if not await _has(conn, "sha256"):  # asked first: ALTER takes an exclusive lock
+                await conn.execute(INDEXED_SHA)
             for index in INDEXES:
                 await conn.execute(index)
         _ready = True
 
 
-async def _folded(conn: object) -> bool:
-    """Is the table already indexing the folded copy? Asked of the catalog rather
-    than assumed, so the migration runs exactly once and the rebuild of a
-    generated column never happens on a healthy startup."""
+async def _has(conn: object, column: str) -> bool:
+    """Does the table already have `column`? Asked of the catalog rather than
+    assumed, so each migration runs exactly once and the rebuild of a generated
+    column never happens on a healthy startup."""
     return bool(await conn.fetchval(  # type: ignore[attr-defined]
         "SELECT 1 FROM information_schema.columns"
-        " WHERE table_name=$1 AND column_name='norm'", TABLE))
+        " WHERE table_name=$1 AND column_name=$2", TABLE, column))

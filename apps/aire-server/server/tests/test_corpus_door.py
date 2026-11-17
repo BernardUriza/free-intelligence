@@ -64,7 +64,8 @@ def test_the_internet_cannot_read_or_write_a_corpus(client):
 def test_a_document_round_trips_through_the_door(client, clean):
     out = client.post(f"/projects/{BASE}/corpus/{CORPUS}/documents", headers=AUTH,
                       json={"doc_id": "acta.md", "text": "El presupuesto fue de 45 mil pesos."}).json()
-    assert out == {"doc_id": "acta.md", "chunks": 1, "replaced": True}
+    assert {k: out[k] for k in ("doc_id", "chunks", "replaced")} == {"doc_id": "acta.md", "chunks": 1, "replaced": True}
+    assert out["version"] > 0 and len(out["sha256"]) == 64, "#55: the door names the version it landed as"
     body = _docs(client)
     assert [d["doc_id"] for d in body["documents"]] == ["acta.md"]
     assert body["capacity"]["docs"] == 1 and body["capacity"]["bytes"] > 0

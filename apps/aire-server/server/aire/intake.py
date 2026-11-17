@@ -33,6 +33,16 @@ def safe_names(project: str, session: str) -> tuple[str, str]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+def owners_only(request: Any) -> None:
+    """The corpus door and the reads that hand back a project's whole text or its
+    chats (#55) are for the constant tokens, never an invited key, whose holder
+    rides `request.state`. That is ALL this checks: it does not bind a token to a
+    project, so ANY constant token (AUTH, CANARY, RUNNER, PULSE, BAIR) reads and
+    writes EVERY project's documents and chats. A token↔project binding is open."""
+    if getattr(request.state, "holder", None) is not None:
+        raise HTTPException(status_code=403, detail="an invited key cannot reach a project's documents or chats")
+
+
 def safe_mode(mode: str | None) -> str:
     return mode if mode in MODES else DEFAULT_MODE
 

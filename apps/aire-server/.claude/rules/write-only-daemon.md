@@ -147,3 +147,24 @@ as-is — still belongs in the front. The test that survives is narrower than "w
 looks at it" and sharper than before: **does the caller own the rows it is asking
 for?** A consumer reading its own corpus back is retrieving its data. The front
 reading everyone's transcripts to render them is the waiter's job, and stays there.
+
+## Proposed 2026-11-16 (#55) — pending Bernard's ratification
+
+Three reads join the corpus list, all for constant tokens only (`intake.owners_only`; an invited
+key gets 403, and since #55 so does every route of the corpus door).
+
+**What the code guarantees, exactly — read this before ratifying.** "Does the caller own the rows?"
+is NOT enforced. AIRE has no binding between a token and a project: `owners_only` refuses invited
+keys and nothing else, so ANY constant token (`AIRE_AUTH_TOKEN`, `_CANARY_`, `_RUNNER_`, `_PULSE_`,
+`_BAIR_`, the last two living as GitHub Actions secrets) lists every casita and reads every project's
+documents, versions and chat transcripts, and writes or deletes any project's corpus. Before #55 those
+tokens could already reach the same data indirectly (a turn resumed on any project, the artifacts
+door); these reads make it direct. A token↔project binding is an open item, not built.
+
+- `document_door.py` — a corpus document's exact text and its version history (`aire_corpus_version`).
+  The corpus list's family: rows handed back as JSON, nothing rendered.
+- `chat_door.py` — a project's sessions and one session's spoken turns. The result feeds the agent
+  working on the project (the projects MCP, a persona reading its own project), the `recall` family. It is
+  the closest of the three to the front's job: if Bernard vetoes it here, it moves to the front behind
+  `aire_reader` and the MCP points there.
+- `GET /projects` — the casitas on disk. Disk, not the database; listed for completeness.
