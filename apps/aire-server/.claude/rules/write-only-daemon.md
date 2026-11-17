@@ -147,3 +147,16 @@ as-is — still belongs in the front. The test that survives is narrower than "w
 looks at it" and sharper than before: **does the caller own the rows it is asking
 for?** A consumer reading its own corpus back is retrieving its data. The front
 reading everyone's transcripts to render them is the waiter's job, and stays there.
+
+## Proposed 2026-11-16 (#55) — pending Bernard's ratification
+
+Three reads join the corpus list under the same widened test, all for constant tokens only
+(`intake.owners_only`; an invited key gets 403):
+
+- `document_door.py` — a corpus document's exact text and its version history (`aire_corpus_version`).
+  The caller owns the rows; it is the corpus list's family, a consumer retrieving its data.
+- `chat_door.py` — a project's sessions and one session's spoken turns. The result feeds the agent
+  working on the project (the projects MCP, a persona reading its own project), the `recall` family. It is
+  the closest of the three to the front's job: if Bernard vetoes it here, it moves to the front behind
+  `aire_reader` and the MCP points there.
+- `GET /projects` — the casitas on disk. Disk, not the database; listed for completeness.
