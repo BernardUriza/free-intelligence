@@ -610,3 +610,16 @@ async def test_a_missing_persona_is_a_404_not_a_crash(monkeypatch):
 def test_only_a_probe_principal_tags_its_turn(user_id, origin):
     payload = external_engine._payload(persona_id="radon", user_text="hola", session_uuid="c1", user_id=user_id, history=None)
     assert payload.get("origin") == origin
+
+
+def test_the_file_store_spec_rides_the_payload_as_name_and_url_only() -> None:
+    from fi_runner.backend import MCPServerSpec
+
+    spec = MCPServerSpec(name="files", url="https://api.example.org/mcp/files/capsula.firma")
+    payload = external_engine._payload(
+        persona_id="radon", user_text="hola", session_uuid="c1", user_id="u", history=None, caller_tools=[spec]
+    )
+    assert payload["caller_tools"] == [{"name": "files", "url": "https://api.example.org/mcp/files/capsula.firma"}]
+    bare = external_engine._payload(persona_id="radon", user_text="hola", session_uuid="c1", user_id="u", history=None)
+    assert "caller_tools" not in bare
+

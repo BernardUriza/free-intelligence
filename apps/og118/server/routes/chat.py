@@ -310,6 +310,7 @@ async def chat_stream(
                 user_id=user_id,
                 history=history,
                 deliver_late=entregar_tarde,
+                caller_tools=files_tool_spec(principal.sub, req.session_id) if user_id else None,
             )
             if req.survive_disconnect and user_id and req.session_id:
                 turno_externo = detached_turn.surviving(

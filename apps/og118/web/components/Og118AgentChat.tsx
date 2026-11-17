@@ -58,6 +58,7 @@ import { useOg118ConversationSync } from '@/lib/useOg118ConversationSync';
 import { useOg118Projects } from '@/lib/useOg118Projects';
 import { useOg118Elements } from '@/lib/useOg118Elements';
 import { Og118ElementAdmin, type Og118ElementAdminMode } from './Og118ElementAdmin';
+import { Og118FilesPanel } from './Og118FilesPanel';
 import { useOg118ProjectUpload } from '@/lib/useOg118ProjectUpload';
 import { Og118MessageActions } from './Og118MessageActions';
 import { OG118_AUTHOR } from './Og118MessageMeta';
@@ -304,7 +305,15 @@ export function Og118AgentChat() {
           }
           onArchiveMany={lib.archiveConversations}
           disabled={conversation.isStreaming}
-          accountSlot={<SignOutButton />}
+          accountSlot={
+            <>
+              <Og118FilesPanel
+                enabled={tokenReady && Boolean(userId)}
+                conversationTitle={(id) => lib.conversations.find((c) => c.id === id)?.title}
+              />
+              <SignOutButton />
+            </>
+          }
         />
         </>
       )}
