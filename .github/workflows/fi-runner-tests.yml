@@ -8,7 +8,7 @@
 #
 # Sibling of fi-core-tests.yml; the two share their shape on purpose. Own file
 # rather than a job inside pr-gate.yml because the repo already organises one
-# workflow per unit (og118-backend, fenix-backend, publish-fi-runner) — and
+# workflow per unit (og118-backend, publish-fi-runner) — and
 # because pr-gate.yml has another session's uncommitted work in it.
 #
 # It is safe to make REQUIRED, and that took one design decision. A required

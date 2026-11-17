@@ -91,8 +91,8 @@ A review of the three PRs found, and fixed before closing:
 
 Left open by that review: the capsule rides in the URL, so it reaches access logs and is good for 30
 to 60 minutes of read access to the account's files; the quota is read before the write, so
-concurrent uploads can overshoot it by one file each; Fénix still answers `/push/devices`, `/docs`
-and `/openapi.json` to anyone.
+concurrent uploads can overshoot it by one file each. (Fénix's backend was deleted the same day, so
+its open inherited routes went with it.)
 
 ## Canonical path to reuse (Art. 6)
 

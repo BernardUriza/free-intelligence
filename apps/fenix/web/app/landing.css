@@ -1,15 +1,5 @@
-/* La portada de Servicios Papeleros Fénix.
- *
- * Deliberadamente OPUESTA a la app: la herramienta es oscura porque se usa
- * horas seguidas frente a una pantalla; esto se lee una vez, desde el celular,
- * mientras alguien decide si escribe por WhatsApp. Va en papel — que además es
- * lo que la papelería vende.
- *
- * Colores explícitos, sin heredar los tokens de fi-glass: el <body> lleva la
- * clase `glass-chat`, que fija un fondo casi negro. Si esta hoja dependiera de
- * esas variables, la portada saldría oscura por accidente el día que alguien
- * cambie el tema de la app.
- */
+/* La portada de Servicios Papeleros Fénix. Se lee una vez, desde el celular, mientras
+ * alguien decide si escribe por WhatsApp. Va en papel, que además es lo que la papelería vende. */
 
 .lp {
   --papel: #fdfaf4;
@@ -21,10 +11,6 @@
   --fuego: #e05000;
   --fuego-vivo: #f76707;
   --fuego-hondo: #c23a00;
-  /* El verde de la papelería. Marca lo que tranquiliza a la mamá —lo que el
-     asistente SÍ hace, la promesa de que no hace trampa—, nunca un botón: si
-     compite con el naranja, la acción principal deja de leerse como la acción. */
-  --pasto: #37b24d;
   --linea: #e6dcc9;
 
   position: fixed;
@@ -167,46 +153,6 @@
   font-size: 0.9rem;
 }
 
-/* --- El cibercafé: franja de acento para separarla del resto ------------- */
-
-/* El verde entra AQUÍ y no en los botones. Ésta es la franja donde se explica
-   que el asistente no le hace la tarea al niño: es la parte que tranquiliza, no
-   la que vende, y el verde de la papelería es el color de la palomita. En un
-   botón competiría con el naranja y la acción principal dejaría de leerse. */
-.lp-franja {
-  background: var(--papel-hondo);
-  border-top: 3px solid var(--pasto);
-  border-bottom: 1px solid var(--linea);
-}
-
-.lp-franja .lp-seccion { display: grid; gap: 1.5rem; align-items: center; }
-
-@media (min-width: 720px) {
-  .lp-franja .lp-seccion { grid-template-columns: 1.1fr 1fr; gap: 3rem; }
-}
-
-.lp-lista { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
-
-.lp-lista li {
-  display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
-  color: var(--tinta-suave);
-}
-
-.lp-lista li::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 7px; height: 7px;
-  margin-top: 0.6rem;
-  border-radius: 50%;
-  background: var(--fuego);
-}
-
-/* Dentro de la franja, las viñetas enumeran lo que el asistente SÍ hace por el
-   niño: van del verde que confirma, no del naranja que llama. */
-.lp-franja .lp-lista li::before { background: var(--pasto); }
-
 /* --- Visitar ------------------------------------------------------------- */
 
 .lp-datos {
@@ -296,7 +242,3 @@
 
 /* El acento del hero también en los títulos de sección que lo pidan. */
 .lp-seccion h2 em { font-style: normal; color: var(--fuego); }
-
-/* El botón de los niños vive dentro de la franja, no en la fila de acciones
-   del hero: se alinea al inicio y respira de la lista que lo precede. */
-.lp-btn-tarea { align-self: start; margin-top: 1.5rem; }

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import Link from 'next/link';
 import './landing.css';
 
 const WHATSAPP = '5213338582967';
@@ -10,7 +9,6 @@ const RESUMEN =
   'Mándanos la foto de la lista escolar por WhatsApp y te regresamos el ' +
   'presupuesto con el descuento de temporada. Papelería en San Juan Bosco, Guadalajara.';
 
-// La portada se anuncia como NEGOCIO; el layout raíz describe la herramienta.
 // Quien comparte este link por WhatsApp es una mamá, no alguien buscando software.
 export const metadata: Metadata = {
   title: 'Servicios Papeleros Fénix — cotizamos tu lista escolar',
@@ -126,34 +124,6 @@ export default function Landing() {
         </div>
       </section>
 
-      <div className="lp-franja">
-        <section className="lp-seccion lp-ancho">
-          <div>
-            <h2>
-              Una investigación o un reporte, <em>en minutos</em>
-            </h2>
-            <p className="lp-bajada">
-              Afuera tenemos dos computadoras con internet. Traen un asistente que ayuda a
-              sacar el trabajo escolar rápido — <strong>sin hacer trampa</strong>. Arma el
-              índice con el niño, busca los datos y dice de dónde salieron; el niño escribe
-              y el asistente le revisa.
-            </p>
-          </div>
-          <ul className="lp-lista">
-            <li>Busca los datos y dice de qué página salieron: un reporte con fuentes vale más que uno bonito.</li>
-            <li>Explica matemáticas paso a paso, no sólo el resultado.</li>
-            <li>Revisa lo que el niño escribió — no lo escribe por él.</li>
-            <li>No guarda la conversación: al terminar, se borra.</li>
-          </ul>
-          {/* La puerta de los niños, en la franja donde se les habla. Antes la
-              única entrada decía "Entrar al mostrador": el letrero correcto para
-              Ximena y Lidia, y el equivocado para un niño de once años. */}
-          <Link className="lp-btn lp-btn-fuego lp-btn-tarea" href="/app/">
-            Abrir el asistente de tareas
-          </Link>
-        </section>
-      </div>
-
       <section className="lp-seccion lp-ancho" id="visitar">
         <h2>Visítanos</h2>
         <p className="lp-bajada">
@@ -178,8 +148,7 @@ export default function Landing() {
 
       <footer className="lp-pie lp-ancho">
         <p>
-          Servicios Papeleros Fénix · Guadalajara, Jalisco ·{' '}
-          <Link href="/app/">Abrir el asistente</Link>
+          Servicios Papeleros Fénix · Guadalajara, Jalisco
         </p>
       </footer>
     </div>

@@ -1,8 +1,9 @@
 # Los colores de Fénix — lo que eligió la dueña
 
-Fuente única para pintar los promocionales, la app (`apps/fenix/web`) y el
-cuadernillo (`apps/fenix/server/regularizacion.py`). Antes de tocar un color en
-cualquiera de los tres, se lee este archivo.
+Fuente única para pintar los promocionales y la página (`apps/fenix/web`). Antes de
+tocar un color en cualquiera de los dos, se lee este archivo. (El cuadernillo de
+regularización se generaba en `apps/fenix/server/regularizacion.py`, borrado con el
+asistente el 17-nov-2026; vive en el historial de git.)
 
 Salieron de la carta de color (`paleta-fenix.svg`, la genera
 `generar-paleta.py`) que se le mandó a Lidia por WhatsApp el 6-ago-2026. Los
@@ -42,10 +43,8 @@ El fondo oscuro de la app (`#020617`) tampoco: ahí el naranja es lo que resalta
 
 ## Cuando lleguen los verdes
 
-Tres lugares, una sola pasada:
+Dos lugares, una sola pasada:
 
-1. `apps/fenix/web/app/globals.css` y `landing.css` — los tokens `--fx-fuego*`.
+1. `apps/fenix/web/app/landing.css` — los tokens `--fuego*`.
 2. `apps/fenix/branding/generar-promocionales.py` (en `~/Desktop/fenix-promocionales/`)
    — regenerar los 3 carteles.
-3. `apps/fenix/server/regularizacion.py` — `FUEGO` y `FUEGO_ROJO`, que son los
-   del PDF que se imprime.
