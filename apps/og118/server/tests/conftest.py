@@ -76,6 +76,19 @@ def project_registry(tmp_path):
     app_module.app.dependency_overrides.pop(app_module.get_project_registry, None)
 
 
+@pytest.fixture(autouse=True)
+def file_store(tmp_path):
+    """Override get_file_store with a small tmp-backed store for every test:
+    never the real volume, and caps a test can reach (1 KiB a file, 2 KiB an account)."""
+    import app as app_module
+    from files import FileStore
+
+    store = FileStore(tmp_path / "files", max_file_bytes=1024, quota_bytes=2048)
+    app_module.app.dependency_overrides[app_module.get_file_store] = lambda: store
+    yield store
+    app_module.app.dependency_overrides.pop(app_module.get_file_store, None)
+
+
 @pytest.fixture
 def as_account():
     """Override get_principal to authenticate as a chosen account (sub). Returns a
