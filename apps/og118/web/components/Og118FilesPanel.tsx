@@ -40,10 +40,7 @@ export function Og118FilesPanel({ enabled, conversationTitle }: Og118FilesPanelP
       <button
         type="button"
         className={`${FI_TOUCH_TARGET_CLASS} og-files-open`}
-        onClick={() => {
-          setOpen(true);
-          store.refresh();
-        }}
+        onClick={() => setOpen(true)}
       >
         <FolderOpen size={14} aria-hidden="true" />
         Archivos

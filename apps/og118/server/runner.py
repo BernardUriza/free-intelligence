@@ -130,10 +130,10 @@ def background_tool_spec(sub: str, conversation_id: str | None, corpus_id: str |
     a dónde entregar → sin spec."""
     if not conversation_id or not background_disponible():
         return []
-    from background_jobs import sign_capsule
+    from background_jobs import sign_steady_capsule
 
-    capsule = sign_capsule(os.environ["OG118_MCP_TOKEN"].strip(), sub=sub,
-                           conversation_id=conversation_id, corpus_id=corpus_id)
+    capsule = sign_steady_capsule(os.environ["OG118_MCP_TOKEN"].strip(), sub=sub,
+                                  conversation_id=conversation_id, corpus_id=corpus_id)
     base = os.environ["OG118_PUBLIC_URL"].strip().rstrip("/")
     return [
         MCPServerSpec(
@@ -151,13 +151,13 @@ def archivos_disponibles() -> bool:
 def files_tool_spec(sub: str, conversation_id: str | None) -> list[MCPServerSpec]:
     """This turn's `files` remote MCP: the capsule in the URL carries the account
     and the conversation, so a saved file lands in the right account unasked.
-    No headers: the 30-minute capsule is the whole credential (see `mcp_files`)."""
+    No headers: the capsule is the whole credential (see `mcp_files`)."""
     if not conversation_id or not archivos_disponibles():
         return []
-    from background_jobs import sign_capsule
+    from background_jobs import sign_steady_capsule
 
     token = os.environ["OG118_MCP_TOKEN"].strip()
-    capsule = sign_capsule(token, sub=sub, conversation_id=conversation_id, corpus_id=None)
+    capsule = sign_steady_capsule(token, sub=sub, conversation_id=conversation_id, corpus_id=None)
     base = os.environ["OG118_PUBLIC_URL"].strip().rstrip("/")
     return [MCPServerSpec(name=FILES_MCP_NAME, url=f"{base}/mcp/files/{capsule}")]
 

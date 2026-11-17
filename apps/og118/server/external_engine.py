@@ -197,6 +197,11 @@ async def _submit(client: httpx.AsyncClient, payload: dict, headers: dict) -> st
     except httpx.HTTPError as exc:
         log.warning("external engine ticket not opened: %s", type(exc).__name__)
         return _error(f"external engine unreachable: {type(exc).__name__}")
+    if resp.status_code == 422 and "caller_tools" in payload:
+        # An engine that predates the field refuses it. The file tool is an extra;
+        # the answer is not: send the same turn without it.
+        log.warning("external engine refused caller_tools; retrying the turn without the file tool")
+        return await _submit(client, {k: v for k, v in payload.items() if k != "caller_tools"}, headers)
     if resp.status_code != 202:
         log.warning("external engine refused the ticket: %s", resp.status_code)
         return _error(f"external engine returned {resp.status_code}")

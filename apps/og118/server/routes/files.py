@@ -17,6 +17,15 @@ router = APIRouter()
 MAX_CONTENT_TYPE_CHARS = 120
 
 
+def account(principal: Principal = Depends(get_principal)) -> Principal:
+    """The store is per ACCOUNT. A legacy-bearer caller has none: every such caller
+    would share one folder, and a consumer serving these routes with no credential
+    (Fénix) would be a public file host. For them the door does not exist."""
+    if principal.is_legacy_bearer:
+        raise HTTPException(status_code=404, detail="not found")
+    return principal
+
+
 def _error(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
@@ -26,7 +35,7 @@ async def upload_file(
     request: Request,
     name: str,
     conversationId: str | None = None,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(account),
     store: FileStore = Depends(get_file_store),
 ) -> dict:
     """Store the raw request body as one file of the caller's account.
@@ -52,7 +61,7 @@ async def upload_file(
 @router.get("/files")
 async def list_files(
     conversationId: str | None = None,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(account),
     store: FileStore = Depends(get_file_store),
 ) -> dict:
     """The caller's files (metadata only) and how much of the quota they take."""
@@ -65,7 +74,7 @@ async def list_files(
 @router.get("/files/{file_id}")
 async def download_file(
     file_id: str,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(account),
     store: FileStore = Depends(get_file_store),
 ) -> FileResponse:
     """The stored bytes, always as a download: an uploaded HTML must never render on this origin."""
@@ -86,7 +95,7 @@ async def download_file(
 @router.delete("/files/{file_id}")
 async def delete_file(
     file_id: str,
-    principal: Principal = Depends(get_principal),
+    principal: Principal = Depends(account),
     store: FileStore = Depends(get_file_store),
 ) -> dict:
     if not store.delete(principal.sub, file_id):
