@@ -6,6 +6,7 @@
  */
 
 import { useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, FolderOpen, Trash2, X } from 'lucide-react';
 import { AdminAlert, AdminButton, AdminSheet } from 'fi-glass/admin-kit';
 import { FI_TOUCH_TARGET_CLASS } from 'fi-glass/shell';
@@ -45,7 +46,8 @@ export function Og118FilesPanel({ enabled, conversationTitle }: Og118FilesPanelP
         <FolderOpen size={14} aria-hidden="true" />
         Archivos
       </button>
-      {open && (
+      {/* Portaled: the sidebar is a containing block, and a sheet inside it is boxed into the rail. */}
+      {open && createPortal(
         <AdminSheet
           onDismiss={() => setOpen(false)}
           labelledBy={titleId}
@@ -109,7 +111,8 @@ export function Og118FilesPanel({ enabled, conversationTitle }: Og118FilesPanelP
               );
             })}
           </ul>
-        </AdminSheet>
+        </AdminSheet>,
+        document.body,
       )}
     </>
   );
