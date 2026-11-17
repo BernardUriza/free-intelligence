@@ -45,6 +45,8 @@ COMPANION_CONSTRAINTS_PATH = Path(__file__).parent / "prompts" / "companion_cons
 BACKGROUND_TASK_PATH = Path(__file__).parent / "prompts" / "background_task.md"
 NO_BACKGROUND_PATH = Path(__file__).parent / "prompts" / "no_background.md"
 BACKGROUND_MCP_NAME = "background"
+FILE_STORE_PATH = Path(__file__).parent / "prompts" / "file_store.md"
+FILES_MCP_NAME = "files"
 # OG118-LIVING-CLAUDE: el párrafo que le cuenta al agente que su casita tiene un
 # CLAUDE.md vivo por chat y cómo evolucionarlo (persona read/update). Se anexa
 # SÓLO si el turno pide la tool `persona` — prometer una herramienta que su
@@ -140,6 +142,25 @@ def background_tool_spec(sub: str, conversation_id: str | None, corpus_id: str |
             headers={"Authorization": f"Bearer {os.environ['OG118_MCP_TOKEN'].strip()}"},
         )
     ]
+
+def archivos_disponibles() -> bool:
+    """The file tools need only this runner's own MCP bearer and its public URL."""
+    return all(os.getenv(v, "").strip() for v in ("OG118_MCP_TOKEN", "OG118_PUBLIC_URL"))
+
+
+def files_tool_spec(sub: str, conversation_id: str | None) -> list[MCPServerSpec]:
+    """This turn's `files` remote MCP: the capsule in the URL carries the account
+    and the conversation, so a saved file lands in the right account unasked.
+    No headers: the 30-minute capsule is the whole credential (see `mcp_files`)."""
+    if not conversation_id or not archivos_disponibles():
+        return []
+    from background_jobs import sign_capsule
+
+    token = os.environ["OG118_MCP_TOKEN"].strip()
+    capsule = sign_capsule(token, sub=sub, conversation_id=conversation_id, corpus_id=None)
+    base = os.environ["OG118_PUBLIC_URL"].strip().rstrip("/")
+    return [MCPServerSpec(name=FILES_MCP_NAME, url=f"{base}/mcp/files/{capsule}")]
+
 
 # El MODO de la puerta que monta cada turno de la ruta aire. El dial de AIRE
 # tiene exactamente dos muescas (aire-server `server/aire/engine/options.py`,
@@ -241,6 +262,9 @@ def build_runner(
     # None → según el entorno (`background_disponible`). El worker pasa False:
     # un job que encola jobs es la recursión que nadie pidió.
     background: bool | None = None,
+    # None → by environment (`archivos_disponibles`). The paragraph and the
+    # per-turn spec share that switch, so the prompt never promises an unmounted tool.
+    files: bool | None = None,
 ) -> Runner:
     """Compose the og118 Runner — AGENTIC (step 4): the task_tracker MCP lets the
     agent declare a plan + walk steps, so fi-runner emits plan/step_*/tool_call
@@ -280,6 +304,8 @@ def build_runner(
     persona_parts = [base_persona, load_prompt(COMPANION_CONSTRAINTS_PATH)]
     con_background = background_disponible() if background is None else background
     persona_parts.append(load_prompt(BACKGROUND_TASK_PATH if con_background else NO_BACKGROUND_PATH))
+    if archivos_disponibles() if files is None else files:
+        persona_parts.append(load_prompt(FILE_STORE_PATH))
     # El párrafo de identidad viva le enseña al modelo a llamar
     # `mcp__persona__read/update`, así que va SÓLO si el turno pide esa tool.
     # Anexarlo siempre le prometía al tutor del cibercafé —que pide únicamente

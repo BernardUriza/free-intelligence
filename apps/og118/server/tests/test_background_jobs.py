@@ -241,7 +241,7 @@ def test_el_turno_local_monta_el_spec_remoto(monkeypatch, tmp_path):
     finally:
         app_module.app.dependency_overrides.pop(app_module.get_runner_selector, None)
     assert r.status_code == 200
-    (spec,) = visto["extra"]
+    (spec,) = [s for s in visto["extra"] if s.name == "background"]
     assert verify_capsule(SECRET, spec.url.rsplit("/", 1)[1])["cid"] == "conv-7"
 
 

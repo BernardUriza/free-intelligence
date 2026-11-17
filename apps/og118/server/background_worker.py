@@ -15,6 +15,7 @@ el system prompt, y un prompt distinto reescribiría la base de esa casita
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import sys
 import time
@@ -26,7 +27,7 @@ from fi_runner import load_prompt
 from deps import get_conversation_store, get_project_registry
 from mcp_background import get_job_store
 from projects import turn_context
-from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, build_runner
+from runner import AIRE_CHAT_PROJECT, aire_project_for_chat, build_runner, files_tool_spec
 
 log = logging.getLogger("og118.background_worker")
 WORKER_TURN_PATH = Path(__file__).parent / "prompts" / "background_worker_turn.md"
@@ -50,6 +51,9 @@ async def procesar(job: dict, runner: Any, conversations: Any, registry: Any) ->
         raise RuntimeError("la conversación ya no existe")
     AIRE_CHAT_PROJECT.set(aire_project_for_chat(cid))
     prompt = load_prompt(WORKER_TURN_PATH).replace("{goal}", job["goal"])
+    archivos = files_tool_spec(owner, cid)
+    if archivos and dataclasses.is_dataclass(runner):
+        runner = dataclasses.replace(runner, extra_mcp_servers=[*runner.extra_mcp_servers, *archivos])
     result = await runner.run(
         prompt,
         session_id=cid,
