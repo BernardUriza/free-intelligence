@@ -76,3 +76,59 @@ async def test_a_document_written_back_after_a_delete_lives_again(shelf):
     await corpus.drop(shelf, "exp", "a.md")
     back = await corpus.put(shelf, "exp", "a.md", "uno")
     assert back["changed"] and (await corpus_versions.read(shelf, "exp", "a.md"))["text"] == "uno"
+
+
+async def test_a_reindex_that_fails_takes_its_version_with_it(shelf, monkeypatch):
+    """Review of #55: the version once committed before its reindex, so a failed
+    reindex left the index on the old text and the retry — same sha, chunks
+    present — reported success while search answered the old sentences forever."""
+    from aire import corpus_write
+
+    await corpus.put(shelf, "exp", "d.md", "texto viejo sobre zapotillo")
+
+    async def timeout(*_args):
+        raise TimeoutError("statement timeout mid-reindex")
+
+    monkeypatch.setattr(corpus_write, "_reindex", timeout)
+    with pytest.raises(TimeoutError):
+        await corpus.put(shelf, "exp", "d.md", "texto nuevo sobre niebla")
+    monkeypatch.undo()
+    assert (await corpus_versions.read(shelf, "exp", "d.md"))["text"].endswith("zapotillo")
+    retry = await corpus.put(shelf, "exp", "d.md", "texto nuevo sobre niebla")
+    assert retry["changed"]
+    assert await corpus.search(shelf, "exp", "niebla", 5)
+    assert await corpus.search(shelf, "exp", "zapotillo", 5) == []
+
+
+async def test_an_index_cut_from_another_text_is_rebuilt_even_when_the_version_is_unchanged(shelf):
+    """The index is current only when its chunks carry the newest version's sha:
+    an index left on other text (a pre-#55 row reads '') heals on the next push."""
+    await corpus.put(shelf, "exp", "d.md", "el agua de la presa")
+    async with db.acquire() as conn:
+        await conn.execute("UPDATE aire_corpus_chunk SET body='otra cosa', norm='otra cosa', sha256=''"
+                           " WHERE owner=$1 AND corpus_id='exp' AND doc_id='d.md'", shelf)
+    again = await corpus.put(shelf, "exp", "d.md", "el agua de la presa")
+    assert not again["changed"] and again["chunks"] >= 1
+    assert await corpus.search(shelf, "exp", "presa", 5)
+    assert await corpus.search(shelf, "exp", "cosa", 5) == []
+
+
+async def test_concurrent_puts_leave_the_index_on_the_newest_version(shelf):
+    """Puts racing on one document serialize on its lock: whichever lands last is
+    both the newest version and the indexed text, and identical racers append once."""
+    import asyncio
+
+    texts = [f"versión {word} del expediente" for word in ("alfa", "beta", "gamma", "delta")] * 3
+    await asyncio.gather(*(corpus.put(shelf, "exp", "race.md", t) for t in texts))
+    newest = await corpus_versions.read(shelf, "exp", "race.md")
+    async with db.acquire() as conn:
+        shas = {r["sha256"] for r in await conn.fetch(
+            "SELECT sha256 FROM aire_corpus_chunk WHERE owner=$1 AND corpus_id='exp' AND doc_id='race.md'",
+            shelf)}
+    assert shas == {newest["sha256"]}
+    word = newest["text"].split()[1]
+    assert [h["doc_id"] for h in await corpus.search(shelf, "exp", word, 5)] == ["race.md"]
+    for other in {"alfa", "beta", "gamma", "delta"} - {word}:
+        assert await corpus.search(shelf, "exp", other, 5) == [], f"{other} is not the newest text"
+    await asyncio.gather(*(corpus.put(shelf, "exp", "same.md", "igual") for _ in range(6)))
+    assert len(await corpus_versions.history(shelf, "exp", "same.md")) == 1

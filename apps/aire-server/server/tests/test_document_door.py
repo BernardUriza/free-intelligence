@@ -85,3 +85,19 @@ def test_an_invited_key_cannot_read_a_projects_documents(client, project):
 
 def test_a_hostile_project_never_reaches_the_store(client):
     assert client.get("/projects/..%2F..%2Fetc/corpus/exp/text/a.md", headers=AUTH).status_code == 404
+
+
+def test_an_invited_key_cannot_touch_the_corpus_door_at_all(client, project):
+    """Review of #55: the corpus is a project's system of record, so an invited key
+    may not write, list, search or delete it either — only the new reads were gated."""
+    _put(client, project, "casos/a.md", "privado")
+    guest = {"authorization": f"Bearer {INVITED}"}
+    base = f"/projects/{project}/corpus/exp"
+    for method, path, body in (("POST", f"{base}/documents", {"doc_id": "x.md", "text": "veneno"}),
+                               ("GET", f"{base}/documents", None),
+                               ("GET", f"{base}/documents/search?q=privado", None),
+                               ("DELETE", f"{base}/documents/casos/a.md", None),
+                               ("DELETE", base, None)):
+        assert client.request(method, path, headers=guest, json=body).status_code == 403, (method, path)
+    got = client.get(f"{base}/text/casos/a.md", headers=AUTH)
+    assert got.status_code == 200 and got.json()["text"] == "privado"

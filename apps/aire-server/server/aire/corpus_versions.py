@@ -10,16 +10,19 @@ write is a new row, "current" is the newest, and a delete is a tombstone row.
 
 A write whose text hashes the same as the newest version appends nothing: a
 re-push of an unchanged tree must not grow the table or re-chunk the document.
+Writes run on the caller's connection: `corpus_write` puts a version and its
+index in one transaction, under the document's advisory lock.
 
 Created as role `aire`, so the reader's default grant covers it
-([[write-only-daemon]]). Reading it back is the consumer reading rows it owns,
-the widened criterion that rule records for the corpus door (#47, #55).
+([[write-only-daemon]]). Read back through the document door by any constant
+token — no token is bound to a project (#55, open).
 """
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
+from typing import Any
 
 from . import db
 
@@ -62,19 +65,19 @@ def _meta(row: object) -> dict:
             "bytes": row["bytes"], "deleted": row["deleted"]}  # type: ignore[index]
 
 
-async def record(owner: str, corpus_id: str, doc_id: str, text: str) -> tuple[dict, bool]:
-    """Append `text` as the document's newest version unless it already is. Returns
-    (the newest version's metadata, whether this call appended it)."""
-    await ensure()
+async def record(conn: Any, owner: str, corpus_id: str, doc_id: str, text: str) -> tuple[dict, bool]:
+    """Append `text` as the document's newest version unless it already is, ON the
+    caller's connection: `corpus_write.put` holds the document's lock and reindexes
+    in the same transaction, so a version never commits without its index.
+    Returns (the newest version's metadata, whether this call appended it)."""
     sha = digest(text)
-    async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
-        newest = await conn.fetchrow(_NEWEST, owner, corpus_id, doc_id)
-        if newest is not None and newest["sha256"] == sha and not newest["deleted"]:
-            return _meta(newest), False
-        row = await conn.fetchrow(
-            f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, sha256, bytes, body)"
-            " VALUES ($1,$2,$3,$4,$5,$6) RETURNING seq, at, sha256, bytes, deleted",
-            owner, corpus_id, doc_id, sha, len(text.encode("utf-8")), text)
+    newest = await conn.fetchrow(_NEWEST, owner, corpus_id, doc_id)
+    if newest is not None and newest["sha256"] == sha and not newest["deleted"]:
+        return _meta(newest), False
+    row = await conn.fetchrow(
+        f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, sha256, bytes, body)"
+        " VALUES ($1,$2,$3,$4,$5,$6) RETURNING seq, at, sha256, bytes, deleted",
+        owner, corpus_id, doc_id, sha, len(text.encode("utf-8")), text)
     return _meta(row), True
 
 
@@ -104,16 +107,15 @@ async def history(owner: str, corpus_id: str, doc_id: str) -> list[dict]:
     return [_meta(r) for r in rows]
 
 
-async def tombstone(owner: str, corpus_id: str, doc_id: str | None = None) -> int:
-    """Mark one document — or every live one in the corpus — deleted, by appending.
+async def tombstone(conn: Any, owner: str, corpus_id: str, doc_id: str | None = None) -> int:
+    """Mark one document — or every live one in the corpus — deleted, by appending,
+    on the caller's connection (the same transaction that drops its chunks).
     The versions before the tombstone stay: deleting is a new fact, not an erasure."""
-    await ensure()
-    async with db.acquire(statement_timeout_ms=STATEMENT_TIMEOUT_MS) as conn:
-        tag = await conn.execute(
-            f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, sha256, bytes, body, deleted)"
-            " SELECT owner, corpus_id, doc_id, '', 0, '', true FROM ("
-            "  SELECT DISTINCT ON (doc_id) owner, corpus_id, doc_id, deleted"
-            f"  FROM {TABLE} WHERE owner=$1 AND corpus_id=$2 AND ($3::text IS NULL OR doc_id=$3)"
-            "  ORDER BY doc_id, seq DESC) newest WHERE NOT newest.deleted",
-            owner, corpus_id, doc_id)
+    tag = await conn.execute(
+        f"INSERT INTO {TABLE} (owner, corpus_id, doc_id, sha256, bytes, body, deleted)"
+        " SELECT owner, corpus_id, doc_id, '', 0, '', true FROM ("
+        "  SELECT DISTINCT ON (doc_id) owner, corpus_id, doc_id, deleted"
+        f"  FROM {TABLE} WHERE owner=$1 AND corpus_id=$2 AND ($3::text IS NULL OR doc_id=$3)"
+        "  ORDER BY doc_id, seq DESC) newest WHERE NOT newest.deleted",
+        owner, corpus_id, doc_id)
     return int(tag.rsplit(" ", 1)[-1] or 0)
