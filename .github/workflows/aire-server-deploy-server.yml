@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - "apps/aire-server/server/**"
+      - "apps/aire-server/mcp/**"
       - ".github/workflows/aire-server-deploy-server.yml"
   workflow_dispatch:
 
