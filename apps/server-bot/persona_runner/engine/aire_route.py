@@ -152,6 +152,11 @@ def memory_tool_specs(casita: str) -> list[MCPServerSpec]:
     ]
 
 
+def caller_tool_specs(req: TurnRequest) -> list[MCPServerSpec]:
+    """The calling surface's own remote MCP servers, as the door's specs."""
+    return [MCPServerSpec(name=tool.name, url=tool.url) for tool in req.caller_tools or []]
+
+
 # The casita THIS turn addresses — a ContextVar (not a mutable attribute)
 # because turns are concurrent; AIREBackend resolves it at the top of each turn.
 _chat_casita: ContextVar[str | None] = ContextVar("aire_chat_casita", default=None)
@@ -607,6 +612,8 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         )
         if not principal_bound:
             remote_specs = []  # no identity, no memory tools — never a guessed user
+    if provider == "claude":
+        remote_specs = [*remote_specs, *caller_tool_specs(req)]
 
     async def send_turn():
         return await run_turn_tapped(

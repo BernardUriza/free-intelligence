@@ -353,6 +353,55 @@ async def test_turn_via_aire_carries_facts_and_guidance_in_band(monkeypatch):
     assert "<behavioral_guidance>" in sent
 
 
+@pytest.mark.asyncio
+async def test_the_callers_own_tools_ride_the_turn(monkeypatch):
+    """og118 hands its file-store MCP in the request; it reaches AIRE as a spec with no headers."""
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+    monkeypatch.setattr(
+        "persona_runner.routing.router_runtime.route_model",
+        AsyncMock(return_value=("claude-sonnet-4-6", {})),
+    )
+
+    await aire_route.turn_via_aire(
+        _turn_request(caller_tools=[{"name": "files", "url": "https://api.og118.ai/mcp/files/capsula.firma"}])
+    )
+
+    (spec,) = backend.run_turn_stream.call_args.kwargs["mcp_servers"]
+    assert (spec.name, spec.url, spec.is_http) == ("files", "https://api.og118.ai/mcp/files/capsula.firma", True)
+    assert not spec.headers
+
+
+@pytest.mark.asyncio
+async def test_a_non_claude_provider_gets_no_caller_tools(monkeypatch):
+    """Only AIRE's Claude backend mounts remote MCP; another engine must not be handed a spec it drops."""
+    backend = AsyncMock()
+    _streams(backend, _Result())
+    monkeypatch.setattr(aire_route, "backend_for", lambda _base: backend)
+    monkeypatch.setattr(aire_route, "engine_for", lambda _base: ("codex", "gpt-6-astra"))
+    monkeypatch.setattr(aire_route, "fetch_user_facts", AsyncMock(return_value=""))
+
+    await aire_route.turn_via_aire(_turn_request(caller_tools=[{"name": "files", "url": "https://x.example/mcp/a"}]))
+
+    assert backend.run_turn_stream.call_args.kwargs["mcp_servers"] == []
+
+
+@pytest.mark.parametrize(
+    "tools",
+    [
+        [{"name": "persona_memory", "url": "https://x.example/mcp"}],
+        [{"name": "files", "url": "http://x.example/mcp"}],
+        [{"name": "files", "url": "https://x.example/a"}, {"name": "files", "url": "https://x.example/b"}],
+        [{"name": "files", "url": "https://x.example/mcp", "headers": {"Authorization": "Bearer x"}}],
+    ],
+)
+def test_a_caller_tool_that_shadows_ours_or_carries_a_secret_is_refused(tools):
+    with pytest.raises(ValueError):
+        _turn_request(caller_tools=tools)
+
+
 def _bind_recorder(monkeypatch, tmp_path):
     """Wire a turn whose remote memory tools are ON, with a persona dir holding
     insult (the default) and vultur, and record what `aire_principal.bind` gets.
