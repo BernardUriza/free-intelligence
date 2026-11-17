@@ -73,6 +73,27 @@ not the chat's); the model writes bytes only as base64 in a tool argument, so a 
 of its reach; an element on the Codex backend gets no remote MCP; a casita on the droplet still has
 only its mortal disk.
 
+## Receipts and what a review of it found, 2026-11-17
+
+Verified on production the same day, with the owner's account on app.og118.ai: the base companion
+called `mcp__files__save_file` unprompted by anything but the ask, and so did an element (Yodo, through
+server-bot); both files were listed under their conversation and came back byte-identical.
+
+A review of the three PRs found, and fixed before closing:
+
+- **Fénix served `/files` to the internet with no credential.** It inherits og118's routes behind a
+  deny-list. The file routes now refuse a caller with no account, Fénix names `/files` and `/mcp` as
+  the counter's, and a test fails on any inherited route nobody classified.
+- **A capsule minted per turn made AIRE rebuild its warm client on every turn** (the spec is the
+  pool's key, #38). Capsules now hold still for a 30-minute window.
+- **An engine that predates `caller_tools` answered 422 and the chat failed.** og118 resends the turn
+  without the file tool.
+
+Left open by that review: the capsule rides in the URL, so it reaches access logs and is good for 30
+to 60 minutes of read access to the account's files; the quota is read before the write, so
+concurrent uploads can overshoot it by one file each; Fénix still answers `/push/devices`, `/docs`
+and `/openapi.json` to anyone.
+
 ## Canonical path to reuse (Art. 6)
 
 - `og118ragstore` (above) is the store that already exists and survives every box.
