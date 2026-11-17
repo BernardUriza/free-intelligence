@@ -20,6 +20,7 @@ import deps
 from deps import (
     get_conversation_store,
     get_device_store,
+    get_file_store,
     get_principal,
     get_project_registry,
     get_rag_store,
@@ -29,7 +30,7 @@ from deps import (
     proyectos_activos,
 )
 from mcp_background import router as mcp_background_router
-from routes import chat, conversations, devices, elements, projects, voice
+from routes import chat, conversations, devices, elements, files, projects, voice
 
 __all__ = [
     "Principal",
@@ -37,6 +38,7 @@ __all__ = [
     "create_app",
     "get_conversation_store",
     "get_device_store",
+    "get_file_store",
     "get_principal",
     "get_project_registry",
     "get_rag_store",
@@ -123,7 +125,7 @@ def create_app(dependencies: list | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     application.middleware("http")(cap_request_body)
-    for area in (elements, chat, devices, voice, conversations):
+    for area in (elements, chat, devices, voice, conversations, files):
         application.include_router(area.router)
     application.include_router(router)
     application.include_router(mcp_background_router)

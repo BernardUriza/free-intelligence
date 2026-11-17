@@ -24,6 +24,7 @@ from fi_runner.auth import (
 from fi_runner.rag_store import RagStoreClient
 import push
 from conversations import ConversationStore
+from files import FileStore
 from elements_registry import Element, get_registry
 from projects import ProjectRegistry
 from runner import build_runner
@@ -225,6 +226,28 @@ def get_conversation_store() -> ConversationStore:
         )
         _conversation_store = ConversationStore(os.getenv("OG118_CONVERSATIONS_PATH", default))
     return _conversation_store
+
+
+_file_store: FileStore | None = None
+
+MAX_FILE_BYTES = 32 * 1024 * 1024
+FILE_QUOTA_BYTES = 1024 * 1024 * 1024
+
+
+def get_file_store() -> FileStore:
+    """Dependency seam: the per-account binary files, next to the conversations on
+    the Azure Files volume. Root from OG118_FILES_PATH. Overridable in tests."""
+    global _file_store
+    if _file_store is None:
+        default = os.path.join(
+            os.path.dirname(os.getenv("FI_RAG_STORE_PATH", "/opt/fi/data/fi_rag_store.h5")), "files"
+        )
+        _file_store = FileStore(
+            os.getenv("OG118_FILES_PATH", default),
+            max_file_bytes=int(os.getenv("OG118_MAX_FILE_BYTES", MAX_FILE_BYTES)),
+            quota_bytes=int(os.getenv("OG118_FILE_QUOTA_BYTES", FILE_QUOTA_BYTES)),
+        )
+    return _file_store
 
 
 _device_store: push.DeviceStore | None = None

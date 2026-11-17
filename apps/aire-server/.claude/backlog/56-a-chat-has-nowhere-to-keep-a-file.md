@@ -1,6 +1,6 @@
 # 56 — A chat has nowhere to keep a file
 
-Status: **Proposed**
+Status: **In progress**: the file door shipped in og118's server 2026-11-17; the AIRE droplet half is untouched
 Proposed: 2026-11-17 by Bernard (*"no hay entonces storage para mí en el droplet? en caso de que mis
 chats quieran guardar info pdf o h5? files?"*)
 
@@ -24,7 +24,43 @@ Two facts that size the gap:
   `/opt/aire/workspaces`. A rebuilt box brings every casita back with its transcript and its persona and
   none of its files.
 
+## Correction, 2026-11-17 — the monorepo already has an `.h5` and a durable volume, neither on the droplet
+
+Bernard, the same day: *"pero tiene el h5"*. He is right that it exists; the first draft of this card
+searched only `apps/aire-server` and missed it.
+
+- **The `.h5` is fi-core's chunk store** (`fi_core/stores/hdf5.py`): namespaces, documents and text
+  chunks with an in-memory cosine index. It holds text for retrieval, not a caller's files, and it is not
+  a place to drop an arbitrary binary.
+- **og118 stopped reading it.** `apps/og118/server/deps.py` `get_rag_store` returns `AireCorpusClient`
+  only, since the consolidation of 2026-08-24; its own comment says nobody reads the container's HDF5.
+- **The durable volume is real and already paid.** `og118-api` mounts the Azure Files share `ragstore`
+  (storage account `og118ragstore`, `og118-rg`, 5 GiB quota) at `/opt/fi/data`. Measured 2026-11-17:
+  1,608,192 bytes used. og118 keeps its conversations, project registry and device tokens there as JSON.
+  It belongs to og118's container; the droplet does not mount it.
+
+So point 1 below is cheaper than first written: `og118ragstore` is a StorageV2 account, and a blob
+container in it is no new resource.
+
+## What shipped, 2026-11-17 — the file door, on og118's server
+
+Bernard: *"lo que falta es la puerta para subir y bajar archivos; el lugar ya está pagado y casi vacío"*.
+
+- `apps/og118/server/files.py` (`FileStore`) and `routes/files.py`: `POST /files?name=&conversationId=`
+  (the raw body is the file, streamed to disk), `GET /files`, `GET /files/{id}`, `DELETE /files/{id}`.
+  Per account, under `/opt/fi/data/files/<owner hash>/`, beside the conversations.
+- Caps: 32 MB a file (the server's outer body wall), 1 GiB an account; `OG118_MAX_FILE_BYTES` and
+  `OG118_FILE_QUOTA_BYTES` move them. A download is always an attachment with `nosniff`.
+- Receipts: 9 tests (round trip byte-identical, cross-account 404, both caps, traversal); a 3 MB chunked
+  upload through a real local uvicorn came back with the same SHA-256.
+
+Still open: no model tool writes here, so a chat cannot save a file on its own yet; no UI in og118-web;
+deleting a conversation does not delete the files labelled with it; a casita on the droplet still has
+only its mortal disk.
+
 ## Canonical path to reuse (Art. 6)
+
+- `og118ragstore` (above) is the store that already exists and survives every box.
 
 - `server/aire/artifacts.py` is already the download half, with the cage's `escapes` as the one
   confinement rule. The missing half is durability and an upload, not a new read surface.
@@ -46,5 +82,5 @@ Two facts that size the gap:
 
 ## Status / next step
 
-Nothing built. Next: read the live disk figure (costwatch already goes red past 80%, [[do-budget]]) and
+The door is built on og118's side. For the droplet half: read the live disk figure (costwatch already goes red past 80%, [[do-budget]]) and
 the weight of `/opt/aire/workspaces`, then Bernard picks the store in point 1.
