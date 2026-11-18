@@ -7,7 +7,15 @@
       "symbol": "H",
       "slug": "hidrogeno",
       "displayName": "Hidrógeno",
-      "status": "empty"
+      "status": "active",
+      "description": "Unborn Being: contra-apologeta ateo y mentor antinatalista; examina si los dioses existen y si nacer fue un favor.",
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "unborn_being"
+      },
+      "aliases": [
+        "unborn"
+      ]
     },
     {
       "atomicNumber": 2,
@@ -148,7 +156,16 @@
       "symbol": "K",
       "slug": "potasio",
       "displayName": "Potasio",
-      "status": "empty"
+      "status": "active",
+      "description": "Frugívoro: gastrónomo, forrajero y científico de lo vegetal; cocina vegana de alta erudición.",
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "frugivoro"
+      },
+      "aliases": [
+        "frugivoro",
+        "frugi"
+      ]
     },
     {
       "atomicNumber": 20,

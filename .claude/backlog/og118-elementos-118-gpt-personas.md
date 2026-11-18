@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)
 
-Status: **Done en estructura** (verificado contra el código 2026-09-09) — el registry de 118 slots existe con `cap: 118` y las 4 decisiones del ADR se implementaron tal como se recomendaron, así que `OG118-ELEMENTS-ADR-1` pasó a **Aceptado por implementación**. Curados: **4 activos** (O·vultur, Al, I, Pu·Reaper) + 1 reservado (Og), de 118. Lo que falta es curación slot por slot, que es trabajo de Bernard por definición (D1) — NO un gate de arquitectura. Esta línea decía *"ADR open, awaiting ratification"* dos meses y medio mientras el código ya lo cumplía
+Status: **Done en estructura** (verificado contra el código 2026-09-09) — el registry de 118 slots existe con `cap: 118` y las 4 decisiones del ADR se implementaron tal como se recomendaron, así que `OG118-ELEMENTS-ADR-1` pasó a **Aceptado por implementación**. Curados al 2026-11-18: **24 activos** (7 en el catálogo de la imagen + 17 GPTs dados de alta por la app, ver la última sección) + 1 reservado (Og), de 118. Lo que falta es curación slot por slot, que es trabajo de Bernard por definición (D1) — NO un gate de arquitectura. Esta línea decía *"ADR open, awaiting ratification"* dos meses y medio mientras el código ya lo cumplía
 Proposed: 2026-06-24 by Bernard
 
 > 2026-06-27: the security gate that blocked this CLEARED (#277 root-fixed + raised
@@ -153,3 +153,55 @@ servidor nunca copiaba `fi-personas` — corregido en el mismo PR. El slot 94
 (Plutón, señor de los muertos) es propuesta de Claude bajo D1: se mueve con un
 campo. La base de conocimiento del GPT (15 PDFs + `modulo_brevedad_afilada.txt`)
 NO se portó — en og118 eso es un Project con documentos, no parte de la persona.
+
+## 2026-11-18 — de 5 a 24 activos: los GPTs de ChatGPT entran por la puerta sin deploy
+
+Bernard: *"quiero en og118 tener todos mis gpt, plugins personas y cosas que he hecho"*.
+Inventario medido ese día: 22 GPTs en `chatgpt.com/gpts/mine` (los mismos 22 ya
+aparecen como plugins en `chatgpt.com/plugins` → Personal → Created by you; ChatGPT
+retira los GPTs el 11-dic-2026) y 8 personas en server-bot.
+
+**17 GPTs dados de alta por `POST /elements`** (OG118-ELEMENTOS-ALTA: persona en el
+Postgres del runner, slot en el overlay; editables desde "Editar mis elementos").
+El ADN es el campo `instructions` de cada GPT, literal, tomado de
+`~/Documents/backups/chatgpt-gpts-backup-2026-09-25.json`. Slots propuestos por
+Claude bajo D1; se mueven borrando y recreando el elemento.
+
+| Z | Elemento | personaId | GPT |
+|---|----------|-----------|-----|
+| 2 | He Helio | serenityops_prompt_engineer | SerenityOps Prompt Engineer |
+| 6 | C Carbono | ayotzinapa | Archivo Ayotzinapa Vivo |
+| 9 | F Flúor | deshilachando | Deshilachando Estructuras |
+| 14 | Si Silicio | debian_dell | Experto Debian Dell |
+| 15 | P Fósforo | lucifer | Lucifer-GPT |
+| 16 | S Azufre | testigo_del_humo | 11S: El Testigo del Humo |
+| 22 | Ti Titanio | portfolio_prompt_engineer | Portfolio Prompt Engineer |
+| 23 | V Vanadio | vhouse_tech_lead | VHouse Tech Lead |
+| 26 | Fe Hierro | codefucker | CodeFucker: Multitrabajo, Pobreza, y Orgullo |
+| 27 | Co Cobalto | telares | La Secta de Telares (Parodia) |
+| 33 | As Arsénico | toxicity_mastermind | Toxicity Mastermind |
+| 36 | Kr Kriptón | archivo_de_sombra | Archivo de Sombra |
+| 47 | Ag Plata | mirror_emoji | Mirror Emoji |
+| 75 | Re Renio | reduxllm_architect | ReduxLLM Architect |
+| 79 | Au Oro | aurity_prompt_engineer | AURITY Prompt Engineer |
+| 82 | Pb Plomo | cioran | Cioran GPT – Filosofía del Derrumbe |
+| 90 | Th Torio | teologia_del_poder | Teología del Poder |
+
+Verificado en producción: `GET /elements` devolvió 22 activos; un turno de prueba
+real a Plomo contestó en voz de Cioran (31 s) y uno a Plata repitió la frase con
+16 emojis (22 s).
+
+**2 personas de la imagen prendidas en el catálogo** (no pasan por `POST /elements`:
+el runner rechaza con 422 un id que la imagen ya tiene): 1 H Hidrógeno →
+`unborn_being`, 19 K Potasio → `frugivoro`. FrugivoreGPT no se portó aparte: el
+Frugívoro de server-bot es el canónico.
+
+**Fuera, a propósito:**
+- VisaLaw.ai Internal Engineering - VIE 3 y Paylocity Assistant: instrucciones
+  internas de un empleador; no entran a su app personal sin que Bernard lo diga.
+- Valentis: vive sólo en Khimeras por la decisión documentada en
+  `apps/server-bot/shared/personas/registry.py`.
+
+**Lo que NO se portó:** los archivos de conocimiento (135 entre los 22 GPTs). El
+respaldo sólo trae sus nombres y tamaños, no el contenido. En og118 eso es un
+Project con documentos, no parte de la persona.

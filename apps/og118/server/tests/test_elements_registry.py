@@ -51,7 +51,11 @@ def test_every_active_element_rides_the_external_engine() -> None:
     # provider is the persona's, in server-bot's registry — og118 only names it).
     reg = get_registry()
     by = {e.slug: e for e in reg.elements if e.is_active}
-    assert set(by) == {"oxigeno", "aluminio", "yodo", "plutonio", "astato"}
+    assert set(by) == {"oxigeno", "aluminio", "yodo", "plutonio", "astato", "hidrogeno", "potasio"}
+    assert by["hidrogeno"].engine_binding.persona_id == "unborn_being"
+    assert by["hidrogeno"].engine_label == "Unborn Being"
+    assert by["potasio"].engine_binding.persona_id == "frugivoro"
+    assert reg.resolve("frugi") is by["potasio"]
     assert by["oxigeno"].engine_binding.persona_id == "vultur"
     assert by["aluminio"].engine_binding.persona_id == "alice"
     assert by["yodo"].engine_binding.persona_id is None  # omitted → engine default (Insult)
