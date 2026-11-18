@@ -65,6 +65,7 @@ _ENGINE_LABELS = {
     "astra": "Astra",
     "frugivoro": "Frugívoro",
     "unborn_being": "Unborn Being",
+    "vie3": "VIE 3",
 }
 
 

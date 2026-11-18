@@ -1,6 +1,6 @@
 # OG118-ELEMENTOS — 118 named GPT personas (periodic table, hard cap)
 
-Status: **Done en estructura** (verificado contra el código 2026-09-09) — el registry de 118 slots existe con `cap: 118` y las 4 decisiones del ADR se implementaron tal como se recomendaron, así que `OG118-ELEMENTS-ADR-1` pasó a **Aceptado por implementación**. Curados al 2026-11-18: **24 activos** (7 en el catálogo de la imagen + 17 GPTs dados de alta por la app, ver la última sección) + 1 reservado (Og), de 118. Lo que falta es curación slot por slot, que es trabajo de Bernard por definición (D1) — NO un gate de arquitectura. Esta línea decía *"ADR open, awaiting ratification"* dos meses y medio mientras el código ya lo cumplía
+Status: **Done en estructura** (verificado contra el código 2026-09-09) — el registry de 118 slots existe con `cap: 118` y las 4 decisiones del ADR se implementaron tal como se recomendaron, así que `OG118-ELEMENTS-ADR-1` pasó a **Aceptado por implementación**. Curados al 2026-11-18: **26 activos** (8 en el catálogo de la imagen + 18 GPTs dados de alta por la app, ver la última sección) + 1 reservado (Og), de 118. Lo que falta es curación slot por slot, que es trabajo de Bernard por definición (D1) — NO un gate de arquitectura. Esta línea decía *"ADR open, awaiting ratification"* dos meses y medio mientras el código ya lo cumplía
 Proposed: 2026-06-24 by Bernard
 
 > 2026-06-27: the security gate that blocked this CLEARED (#277 root-fixed + raised
@@ -196,11 +196,18 @@ el runner rechaza con 422 un id que la imagen ya tiene): 1 H Hidrógeno →
 `unborn_being`, 19 K Potasio → `frugivoro`. FrugivoreGPT no se portó aparte: el
 Frugívoro de server-bot es el canónico.
 
-**Fuera, a propósito:**
-- VisaLaw.ai Internal Engineering - VIE 3 y Paylocity Assistant: instrucciones
-  internas de un empleador; no entran a su app personal sin que Bernard lo diga.
-- Valentis: vive sólo en Khimeras por la decisión documentada en
-  `apps/server-bot/shared/personas/registry.py`.
+**Fuera, a propósito:** Paylocity Assistant (instrucciones internas de un empleador;
+Bernard no lo pidió).
+
+**Mismo día, por orden de Bernard (*"mete VIE3 y valentis"*):**
+- 3 Li Litio → `vie3`, el GPT VisaLaw.ai Internal Engineering - VIE 3, por
+  `POST /elements`. Turno de prueba real: se presentó como VIE 3.0 (20 s).
+- 20 Ca Calcio → `valentis`, en el catálogo de la imagen. Hasta hoy vivía sólo en
+  Khimeras (ver el comentario de su entrada en
+  `apps/server-bot/shared/personas/registry.py`, que sigue diciendo eso); en og118
+  se invoca eligiendo el elemento, no hay ruteo por tema.
+
+Total: **26 activos** (8 en el catálogo de la imagen + 18 dados de alta por la app).
 
 **Lo que NO se portó:** los archivos de conocimiento (135 entre los 22 GPTs). El
 respaldo sólo trae sus nombres y tamaños, no el contenido. En og118 eso es un
