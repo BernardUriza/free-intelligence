@@ -209,6 +209,23 @@ Bernard no lo pidió).
 
 Total: **26 activos** (8 en el catálogo de la imagen + 18 dados de alta por la app).
 
-**Lo que NO se portó:** los archivos de conocimiento (135 entre los 22 GPTs). El
-respaldo sólo trae sus nombres y tamaños, no el contenido. En og118 eso es un
-Project con documentos, no parte de la persona.
+**Los archivos de conocimiento (135 entre los 22 GPTs, ~506 MB) no están en og118.**
+Sí se bajan con la sesión de ChatGPT (`GET /backend-api/gizmos/<g-id>` lista
+`files[]`; `GET /backend-api/files/download/<file_id>?gizmo_id=<g-id>` da el
+`download_url` firmado). Respaldo en
+`~/Documents/backups/chatgpt-gpt-knowledge-2026-11-18/<personaId>/`: 26 archivos de
+11 GPTs verificados byte por byte el 18-nov; 4 ya dan 404 en ChatGPT
+(`claude-code-excellence.md` en Portfolio, ReduxLLM y SerenityOps, y el PDF de MCP en
+ReduxLLM). Los 9 GPTs grandes bajan por tandas con `_descarga.py` de esa carpeta
+(bitácora en `_descarga.log`), a un archivo cada 100 s por la regla de cadencia.
+
+No entran a og118 porque ahí el conocimiento es un Project con documentos y
+Proyectos está apagado (`OG118_PROYECTOS`, `deps.py::proyectos_activos`) y los
+embeddings sin deployment, las dos por decisión de Bernard. Prenderlo es suyo.
+
+**Hallazgo, no arreglado:** un turno externo SIN `session_id` (o de bearer legacy) no
+pide `pipeline="runner"` (`external_engine.py`), el runner lo corre directo
+(`serve_turn` → `turn_via_aire`) y el `result.text` llega con las marcas de la
+persona (`[REACT:🧡]` medido con Frugívoro el 18-nov). Con `session_id`, que es lo
+que manda la app, el pipeline las recorta (`persona_core/turn/pipeline.py`); eso
+está leído en el código y en los logs del runner, no probado con un turno real.

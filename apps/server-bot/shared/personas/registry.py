@@ -166,9 +166,9 @@ PERSONAS: dict[str, Persona] = {
     # propuesta de Aníbal, que sobre su propia app dijo que sacar una beta pública
     # era peligroso "porque si hay algún sesgo, la persona no va a saber cómo
     # manejarlo, no voy a poder estar en primera mano para corregir esos errores".
-    # Aquí eso no es una frase: es esta entrada. Vive SOLO en Khimeras — donde quien
-    # la usa tiene nombre y hay humanos que pueden ver lo que pasó y corregirlo — y
-    # arranca aliases=[] para que nadie se la tope sin querer.
+    # Aquí eso no es una frase: es esta entrada. En Discord vive SOLO en Khimeras, donde
+    # quien la usa tiene nombre y hay humanos que pueden ver lo que pasó y corregirlo;
+    # desde 2026-11-18 es además el elemento 20 de og118 (orden de Bernard). aliases=[].
     #
     # ADN y guidance los escribió Alex (issues #41 y #42): acompaña, no trata; no
     # diagnostica, no opina de medicación, no interpreta; y derivar NUNCA cierra la
