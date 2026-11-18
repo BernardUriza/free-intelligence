@@ -172,7 +172,15 @@
       "symbol": "Ca",
       "slug": "calcio",
       "displayName": "Calcio",
-      "status": "empty"
+      "status": "active",
+      "description": "Valentis: la amistad con columna; escucha de verdad, opina con honestidad y acompaña sin soltar la mano.",
+      "engineBinding": {
+        "kind": "external_http_engine",
+        "personaId": "valentis"
+      },
+      "aliases": [
+        "valentis"
+      ]
     },
     {
       "atomicNumber": 21,
