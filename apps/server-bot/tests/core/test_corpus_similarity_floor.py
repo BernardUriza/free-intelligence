@@ -1,14 +1,13 @@
-"""Similarity floors — que filtren de verdad contra ada-002.
+"""The relevance gate: the cross-encoder decides what reaches the turn, not the cosine.
 
-El 0.30 histórico era un no-op garantizado: ada-002 es anisotrópico y sus
-cosenos viven ~[0.65, 0.95] hasta entre textos SIN relación, así que ningún
-hit caía jamás bajo el floor y todo top-k entraba al turno (el failure mode de
-RAG para role-play: chunks irrelevantes distraen al personaje).
+e5 cosines are compressed. Measured 2026-11-19 on 21 real queries, on-topic hits
+scored 0.784-0.888 and off-topic ones 0.780-0.834: the old ada-era floor of 0.78
+would have let every off-topic shortlist into the turn ("qué opinas del clima"
+fetched a pozole recipe at 0.834). The gate is now the cross-encoder relevance.
 
-Mutator rule: positivo (hits bajo el floor se CAEN) + resistencia (hits
-legítimos pasan; todo-bajo-el-floor → None, no bloque vacío) + arnés (los
-floors no pueden regresar al rango decorativo mientras el embedder sea
-ada-002).
+Mutator rule: positive (a high-cosine, low-relevance hit is dropped) + resistance
+(relevant hits pass in relevance order; all-below-floor gives None, never an empty
+header) + harness (the floor stays inside the measured gap).
 """
 
 from __future__ import annotations
@@ -16,100 +15,95 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 from persona_core.corpus import references
-from persona_core.deep_memory import _USER_MEMORY_MIN_SIMILARITY
 
 
-def _hit(similarity: float, text: str) -> dict:
-    return {"source_type": "corpus", "source_ref": "x.pdf", "chunk_text": text, "similarity": similarity}
+def _hit(similarity: float, text: str, ref: str = "x:y") -> dict:
+    return {"source_type": "manual", "source_ref": ref, "chunk_text": text, "similarity": similarity}
 
 
-async def test_floor_drops_ada002_background_noise():
-    """Un hit en 0.72 (ruido de fondo típico de ada-002 entre textos ajenos)
-    se cae; el hit legítimo en 0.86 entra al bloque."""
-    hits = [_hit(0.86, "Schopenhauer: estratagema 12"), _hit(0.72, "receta de aquafaba")]
-    with patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)):
-        block = await references.build_references_block(
-            "cómo desarmo una falacia de autoridad", namespace="__corpus_insult__", header="# Refs"
-        )
-    assert block is not None
-    assert "estratagema 12" in block
-    assert "aquafaba" not in block
+async def _block(hits: list[dict], relevance: dict[str, float], query: str = "cómo hago pozole rojo sin carne"):
+    async def _score(q, passages):
+        return [relevance[p] for p in passages]
 
-
-async def test_all_noise_returns_none_not_empty_block():
-    """RESISTENCIA: si nada clarea el floor, el turno va SIN bloque (None) —
-    nunca un header colgado sin contenido."""
-    hits = [_hit(0.71, "ruido a"), _hit(0.69, "ruido b"), _hit(0.66, "ruido c")]
-    with patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)):
-        block = await references.build_references_block(
-            "qué opinas del clima de hoy", namespace="__corpus_insult__", header="# Refs"
-        )
-    assert block is None
-
-
-async def test_no_hits_emits_positive_telemetry():
-    """POSITIVO (gap del probe de Frugívoro, 2026-09-23): cuando SE consulta el
-    corpus y nada clarea el floor, se emite `deep_memory_corpus_no_hits` con el
-    top_similarity REAL — para distinguir en KQL 'floor demasiado alto' de 'no se
-    consultó'. Antes la rama retornaba None muda y el retrieval era inauditable
-    (Frugívoro respondió pero cero evento de corpus en KQL, imposible saber por qué)."""
-    hits = [_hit(0.72, "ruido a"), _hit(0.69, "ruido b")]
     with (
         patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)),
-        patch.object(references.log, "info") as log_info,
+        patch.object(references, "score_relevance", new=_score),
+    ):
+        return await references.build_references_block(query, namespace="__corpus_vegan__", header="# Refs")
+
+
+async def test_high_cosine_but_irrelevant_hit_is_dropped():
+    """POSITIVE, the measured case: the off-topic chunk wins on cosine, loses on relevance."""
+    hits = [_hit(0.834, "receta de birria"), _hit(0.80, "pozole rojo vegano")]
+    block = await _block(hits, {"receta de birria": -5.3, "pozole rojo vegano": 0.38})
+    assert block is not None
+    assert "pozole rojo vegano" in block
+    assert "birria" not in block
+
+
+async def test_passages_are_ordered_by_relevance_not_cosine():
+    hits = [_hit(0.88, "intro del recetario"), _hit(0.86, "receta de pozole")]
+    block = await _block(hits, {"intro del recetario": -1.0, "receta de pozole": 2.0})
+    assert block is not None
+    assert block.index("receta de pozole") < block.index("intro del recetario")
+
+
+async def test_only_top_k_relevant_passages_enter():
+    texts = [f"pasaje {i}" for i in range(6)]
+    block = await _block([_hit(0.85, t) for t in texts], {t: 1.0 - i for i, t in enumerate(texts)})
+    assert block is not None
+    assert block.count("\n- ") + block.startswith("- ") == references._REF_TOP_K
+
+
+async def test_all_irrelevant_returns_none_and_logs_no_hits():
+    """RESISTANCE: nothing clears the floor → no block, and KQL says why."""
+    hits = [_hit(0.83, "ruido a"), _hit(0.82, "ruido b")]
+    with patch.object(references.log, "info") as info:
+        block = await _block(hits, {"ruido a": -5.3, "ruido b": -6.0}, query="qué opinas del clima de hoy")
+    assert block is None
+    call = next(c for c in info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_no_hits")
+    assert call.kwargs["top_relevance"] == -5.3
+    assert call.kwargs["queried"] == 2
+    assert call.kwargs["floor"] == references._REF_MIN_RELEVANCE
+
+
+async def test_reranker_failure_is_unavailable_not_no_hits():
+    async def _broken(q, passages):
+        return None
+
+    with (
+        patch.object(references, "query_corpus", new=AsyncMock(return_value=[_hit(0.9, "x")])),
+        patch.object(references, "score_relevance", new=_broken),
+        patch.object(references.log, "warning") as warning,
+        patch.object(references.log, "info") as info,
     ):
         block = await references.build_references_block(
-            "qué opinas del clima", namespace="__corpus_vegan__", header="# Refs"
+            "cómo hago pozole rojo", namespace="__corpus_vegan__", header="# R"
         )
     assert block is None
-    call = next(c for c in log_info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_no_hits")
-    assert call.kwargs["top_similarity"] == 0.72  # el mejor hit real, aunque no clareó el floor
-    assert call.kwargs["queried"] == 2
-    assert call.kwargs["floor"] == references._REF_MIN_SIMILARITY
+    assert warning.call_args.args[0] == "deep_memory_corpus_unavailable"
+    assert "deep_memory_corpus_no_hits" not in [c.args[0] for c in info.call_args_list]
 
 
 async def test_empty_query_stays_silent_no_false_signal():
-    """RESISTENCIA: una query trivial (nada que consultar) NO emite el evento —
-    el retrieval-sin-hits sólo se loguea cuando de verdad se consultó y hubo
-    resultados que no clarearon; un query vacío no debe ensuciar la señal."""
+    """RESISTANCE: a trivial query is never even retrieved."""
     with (
         patch.object(references, "query_corpus", new=AsyncMock(return_value=[])) as qc,
-        patch.object(references.log, "info") as log_info,
+        patch.object(references.log, "info") as info,
     ):
         block = await references.build_references_block("  ", namespace="__corpus_vegan__", header="# Refs")
     assert block is None
-    qc.assert_not_awaited()  # query trivial: ni siquiera se consulta
-    events = [c.args[0] for c in log_info.call_args_list if c.args]
-    assert "deep_memory_corpus_no_hits" not in events
+    qc.assert_not_awaited()
+    assert "deep_memory_corpus_no_hits" not in [c.args[0] for c in info.call_args_list if c.args]
 
 
-async def test_legit_hits_all_pass():
-    """RESISTENCIA: contenido genuinamente relacionado (0.8+) no se pierde."""
-    hits = [_hit(0.91, "chunk uno"), _hit(0.84, "chunk dos"), _hit(0.80, "chunk tres")]
-    with patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)):
-        block = await references.build_references_block(
-            "análisis del tercer acto de Mulholland Drive", namespace="__corpus_film__", header="# Refs"
-        )
-    assert block is not None
-    for text in ("chunk uno", "chunk dos", "chunk tres"):
-        assert text in block
-
-
-def test_floors_never_regress_to_decorative_range():
-    """ARNÉS: mientras el embedder de estos paths sea ada-002 (pg_rag), un
-    floor por debajo de ~0.65 no filtra NADA — es fake protection. Si esto
-    truena, o alguien bajó el floor sin leer la anisotropía de ada-002, o se
-    cambió el embedder (entonces recalibrar floor Y este test juntos)."""
-    assert references._REF_MIN_SIMILARITY >= 0.7
-    assert _USER_MEMORY_MIN_SIMILARITY >= 0.7
-
-
-# --- provenance in the injected block ---------------------------------------
+def test_floor_stays_above_every_measured_off_topic_query():
+    """HARNESS: the worst off-topic query scored -2.61 over 8 candidates (2026-11-20).
+    Lowering the floor past it, or swapping RERANK_MODEL, means re-measuring."""
+    assert references._REF_MIN_RELEVANCE > -2.608
 
 
 def test_cite_label_strips_persona_prefix():
-    """`<persona_id>:<slug>` → slug. The persona prefix is noise: the model
-    already knows whose corpus it is reading."""
     assert (
         references.cite_label("unborn_being:contraelamor-2023-deseo-vs-rutina") == "contraelamor-2023-deseo-vs-rutina"
     )
@@ -117,58 +111,24 @@ def test_cite_label_strips_persona_prefix():
 
 
 def test_cite_label_degrades_to_generic_never_raises():
-    """RESISTANCE: a missing/empty ref must never crash the turn or emit an
-    empty bracket — provenance is a nicety, the reply is not."""
     assert references.cite_label(None) == "corpus"
     assert references.cite_label("   ") == "corpus"
     assert references.cite_label("no-colon-here") == "no-colon-here"
 
 
 async def test_block_carries_provenance_per_passage():
-    """POSITIVE: each retrieved passage arrives labeled with where it came from.
-
-    Retrieval always returned source_ref; the block used to render `- <text>`
-    alone, so a corpus passage was indistinguishable from the persona's own
-    invention and could not be cited the way a web result is.
-    """
     hits = [
-        {
-            "source_type": "manual",
-            "source_ref": "unborn_being:contraelamor-2019-el-peon-parental",
-            "chunk_text": "tesis del peón",
-            "similarity": 0.9,
-        },
-        {
-            "source_type": "manual",
-            "source_ref": "unborn_being:hume-dialogues-natural-religion",
-            "chunk_text": "el argumento del diseño",
-            "similarity": 0.83,
-        },
+        _hit(0.9, "tesis del peón", "unborn_being:contraelamor-2019-el-peon-parental"),
+        _hit(0.83, "el argumento del diseño", "unborn_being:hume-dialogues-natural-religion"),
     ]
-    with patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)):
-        block = await references.build_references_block(
-            "por qué la familia reproduce la coacción", namespace="__corpus_unborn__", header="# Refs"
-        )
+    block = await _block(hits, {"tesis del peón": 2.0, "el argumento del diseño": 1.0})
     assert block is not None
     assert "- [contraelamor-2019-el-peon-parental] tesis del peón" in block
     assert "- [hume-dialogues-natural-religion] el argumento del diseño" in block
 
 
 async def test_provenance_never_leaks_the_namespace_or_user_id():
-    """RESISTANCE: the label is the source slug ONLY — never the synthetic
-    namespace, which is internal plumbing the persona must not narrate."""
-    hits = [
-        {
-            "source_type": "manual",
-            "source_ref": "vultur:braudy-cohen-2009",
-            "chunk_text": "montaje soviético",
-            "similarity": 0.88,
-        }
-    ]
-    with patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)):
-        block = await references.build_references_block(
-            "cómo funciona el montaje de atracciones", namespace="__corpus_film__", header="# Refs"
-        )
+    block = await _block([_hit(0.88, "montaje soviético", "vultur:braudy-cohen-2009")], {"montaje soviético": 4.8})
     assert block is not None
-    assert "__corpus_film__" not in block
+    assert "__corpus_" not in block
     assert "vultur:" not in block

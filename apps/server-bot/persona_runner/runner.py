@@ -105,6 +105,7 @@ async def _lifespan(app: FastAPI):
     boot_warm.cancel()
     await turn_jobs.drain_for_shutdown(config.RUNNER_SHUTDOWN_DRAIN_S)
     await turn_jobs.JOBS.stop_heartbeat()
+    await turn_pipeline.drain_background(config.RUNNER_BACKGROUND_DRAIN_S)
     await turn_pipeline.close_memory()
     # Every AIREBackend holds a pooled httpx.AsyncClient — turn backends and
     # judge backends alike get their connections and TLS sessions closed.

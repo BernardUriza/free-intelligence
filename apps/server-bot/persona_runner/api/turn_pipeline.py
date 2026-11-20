@@ -35,6 +35,7 @@ from typing import Any
 
 import structlog
 
+from persona_core.corpus.pg_rag import warm_corpus_embedder
 from persona_core.memory import MemoryStore
 from persona_core.runner.judge_client import flatten_utility_messages
 from persona_core.turn.pipeline import BrainReply, BrainTurn, InboundTurn, run_turn
@@ -110,14 +111,33 @@ async def warm_at_boot() -> None:
             log.info("turn_pipeline_warm_skipped", reason="no_postgres")
             return
         prewarmed = await store.wait_embeddings_prewarmed()
+        corpus = await warm_corpus_embedder()
     except Exception:
         log.exception("turn_pipeline_warm_failed")
         return
     log.info(
         "turn_pipeline_warm_ready",
         embeddings=prewarmed,
+        corpus=corpus,
         elapsed_ms=int((time.monotonic() - started) * 1000),
     )
+
+
+async def drain_background(timeout_s: float) -> None:
+    """Wait for in-flight fact extractions before the pool closes.
+
+    The runner scales to zero, so every scale-in used to close the pool under a
+    running extraction: `pool is closing`, and the facts of that turn were lost
+    (three of them on 2026-11-07). Past the timeout the stragglers are cancelled
+    and logged, never awaited forever.
+    """
+    pending = [t for t in _bg_tasks if not t.done()]
+    if not pending:
+        return
+    done, still = await asyncio.wait(pending, timeout=timeout_s)
+    for task in still:
+        task.cancel()
+    log.info("turn_pipeline_background_drained", finished=len(done), cancelled=len(still))
 
 
 async def close_memory() -> None:

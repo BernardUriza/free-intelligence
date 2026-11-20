@@ -15,6 +15,8 @@
 > son compartidos (rancho, aire, portfolio, vhouse, og118, susurro). La alerta
 > `insult-turn-failure-rate` se borró (apuntaba al `prod-trust-ag` ya borrado; no podía sonar).
 
+> **2026-11-19, `az containerapp list`:** `insult-rg` no longer exists and the only app left is `persona-runner`, in `og118-rg`. The table below is the 2026-07-19 state.
+
 Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 
 | Container App | State | Role |
@@ -154,10 +156,9 @@ commits no longer redeploy it. If it is ever superseded, freeze it the same day
   (`TurnContextBuilder`, `MarkerRouter`, `FactExtractor`) with its own Discord
   delivery tail; moving it onto `run_turn` itself is the step for when Discord
   comes back. **Hosting the pipeline gave the runner the gateway's needs**:
-  `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_KEY` (secret `azure-openai-key`, set
-  by hand 2026-09-28 — CD does not manage env) for the corpus embeddings,
-  whose absence logs `deep_memory_embed_failed` and silently drops the corpus
-  block; and the MiniLM model for semantic fact recall (~450 MiB of RAM,
+  the corpus embedder (local `multilingual-e5-small` plus a cross-encoder
+  reranker since v4.52; until then Azure ada-002, whose dead key dropped every
+  corpus block for a month) and the MiniLM model for semantic fact recall (~450 MiB of RAM,
   measured 540 MiB peak of 4 GiB). **The runner warms both at boot**
   (`turn_pipeline.warm_at_boot`, v4.45.3): before that, the first turn of a
   cold replica paid ~25 s of model load inside its own budget; now the boot

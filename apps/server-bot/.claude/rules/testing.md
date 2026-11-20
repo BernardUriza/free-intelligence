@@ -22,9 +22,9 @@ command and quote the actual output.
 
 | Question                              | Verify with                                                                                          |
 |---------------------------------------|------------------------------------------------------------------------------------------------------|
-| What Container Apps are live / scaled? | `az containerapp list -g insult-rg --query "[].{name:name, running:properties.runningStatus, replicas:properties.template.scale.minReplicas}" -o table` |
-| What env vars / secrets does prod have? | `az containerapp show --name persona-gateway -g insult-rg --query "properties.template.containers[0].env"` |
-| What is the current deployed revision? | `az containerapp show --name persona-runner -g insult-rg --query properties.latestRevisionName`      |
+| What Container Apps are live / scaled? | `az containerapp list --query "[].{name:name, running:properties.runningStatus, replicas:properties.template.scale.minReplicas}" -o table` |
+| What env vars / secrets does prod have? | `az containerapp show --name persona-runner -g og118-rg --query "properties.template.containers[0].env"` |
+| What is the current deployed revision? | `az containerapp show --name persona-runner -g og118-rg --query properties.latestRevisionName`      |
 | What is the local file actually doing? | `Read` it. Do not paraphrase from memory.                                                            |
 | Is CI green / a PR merged?            | `gh run list`, `gh pr view`                                                                          |
 
@@ -620,5 +620,5 @@ E2E testing means pushing code, triggering the full CI/CD pipeline, and monitori
 
 ### Key Resources
 - **Registry**: `ghcr.io/bernarduriza/free-intelligence/server-bot` since the monorepo absorption (2026-10-08; before that `ghcr.io/bernarduriza/discord-bot`, whose packages stay linked to the archived repo) (`persona-gateway:<sha>`, `persona-runner:<sha>`, `khimeras-host:<sha>`, plus the content-addressed `khimeras-base` / `khimeras-runner-base`). No ACR since 2026-08-12 — see `architecture.md` § Registry.
-- **Container Apps**: persona-gateway, persona-runner, khimeras-host (resource group: insult-rg); `discord-bot` retired at scale 0
+- **Container Apps** (verified 2026-11-19, `az containerapp list`): only `persona-runner` exists, in `og118-rg`. `insult-rg` is gone, and `persona-gateway`, `khimeras-host` and `discord-bot` no longer exist as apps
 - **CD workflow**: the monorepo's `.github/workflows/server-bot-cd.yml` — triggers on `server-bot CI` success on main
