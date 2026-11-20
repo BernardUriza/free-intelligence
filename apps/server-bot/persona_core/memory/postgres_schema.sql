@@ -338,10 +338,10 @@ DROP INDEX IF EXISTS idx_deep_memory_embedding;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deep_memory_dedupe ON deep_memory_chunks(user_id, source_ref, md5(chunk_text));
 -- User filter + recency ordering for "what does X look like lately".
 CREATE INDEX IF NOT EXISTS idx_deep_memory_user_created ON deep_memory_chunks(user_id, created_at DESC);
--- HNSW, not ivfflat: ivfflat trains its lists on the rows present at CREATE
--- time, and this column starts empty until the re-embed runs.
-CREATE INDEX IF NOT EXISTS idx_deep_memory_embedding_e5 ON deep_memory_chunks
-    USING hnsw (embedding vector_cosine_ops);
+-- No ANN index: every search is scoped to one user_id and an approximate index
+-- filters AFTER its walk. HNSW came back empty on 12 of 21 queries (2026-11-19)
+-- and a stray ivfflat on 3 of 21 (2026-11-20). Exact search: ~10 ms per namespace.
+DROP INDEX IF EXISTS idx_deep_memory_embedding_e5;
 
 -- ─── html_artifacts ────────────────────────────────────────────────────
 -- HTML artifacts the agent publishes via `publish_html_artifact`. Served

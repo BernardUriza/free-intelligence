@@ -127,6 +127,15 @@ async def test_block_carries_provenance_per_passage():
     assert "- [hume-dialogues-natural-religion] el argumento del diseño" in block
 
 
+async def test_refs_built_log_names_the_sources_it_injected():
+    """KQL must say which document fed the turn, not just how many hits."""
+    hits = [_hit(0.9, "salsa ahogada", "frugivoro:loveveg-sabores-tapatios-2026"), _hit(0.8, "ruido", "frugivoro:x")]
+    with patch.object(references.log, "info") as info:
+        await _block(hits, {"salsa ahogada": 3.2, "ruido": -6.0})
+    call = next(c for c in info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_refs_built")
+    assert call.kwargs["sources"] == ["loveveg-sabores-tapatios-2026"]
+
+
 async def test_provenance_never_leaks_the_namespace_or_user_id():
     block = await _block([_hit(0.88, "montaje soviético", "vultur:braudy-cohen-2009")], {"montaje soviético": 4.8})
     assert block is not None

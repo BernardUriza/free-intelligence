@@ -140,8 +140,8 @@ class CorpusReranker:
     The relevance gate. e5 cosines are compressed: measured 2026-11-19 on 21
     real queries, on-topic hits scored 0.784-0.888 and off-topic ones
     0.780-0.834, so no cosine floor separates them. The cross-encoder reads the
-    question and the passage together: over 8 candidates, 8 of 11 on-topic
-    queries clear -2.0 and 0 of 10 off-topic ones do (2026-11-20).
+    question and the passage together: over 8 exact-search candidates, 9 of 11
+    on-topic queries clear -2.0 and 0 of 10 off-topic ones do (2026-11-20).
     """
 
     def __init__(self, model_name: str = RERANK_MODEL) -> None:
@@ -188,9 +188,10 @@ async def score_relevance(query: str, passages: list[str]) -> list[float] | None
 async def connect() -> asyncpg.Connection | None:
     """One-shot asyncpg connection with the pgvector codec registered.
 
-    Iterative HNSW scan is on: the index returns its 40 nearest rows across the
-    whole table before `WHERE user_id` filters, so a small namespace came back
-    EMPTY on 12 of 21 measured queries (2026-11-19) without it.
+    Searches are exact (no ANN index on `embedding`): an approximate index
+    filters by `user_id` after its walk, so a namespace came back EMPTY on 12
+    of 21 measured queries under HNSW (2026-11-19) and on 3 of 21 under a stray
+    ivfflat (2026-11-20). The biggest namespace is ~2.4k rows; exact is ~10 ms.
 
     Reads POSTGRES_URL from the environment; returns None when it isn't set
     or the connection fails, so every caller can treat absence-of-PG as a
@@ -207,7 +208,6 @@ async def connect() -> asyncpg.Connection | None:
             await register_vector(conn)
         except Exception:
             log.warning("deep_memory_pgvector_codec_register_failed")
-        await conn.execute("SET hnsw.iterative_scan = strict_order")
         return conn
     except Exception:
         log.exception("deep_memory_pg_connect_failed")

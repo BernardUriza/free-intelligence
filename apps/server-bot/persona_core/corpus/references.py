@@ -202,6 +202,7 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         "deep_memory_corpus_refs_built",
         namespace=namespace,
         hits=len(kept),
+        sources=[cite_label(relevant[i].get("source_ref")) for i, _ in kept],
         top_relevance=round(relevant[0]["relevance"], 3),
         low_relevance=round(relevant[kept[-1][0]]["relevance"], 3),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
