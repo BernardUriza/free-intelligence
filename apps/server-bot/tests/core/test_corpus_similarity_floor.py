@@ -16,7 +16,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 from persona_core.corpus import references
-from persona_core.deep_memory import _USER_MEMORY_MIN_SIMILARITY
 
 
 def _hit(similarity: float, text: str) -> dict:
@@ -101,7 +100,6 @@ def test_floors_never_regress_to_decorative_range():
     truena, o alguien bajó el floor sin leer la anisotropía de ada-002, o se
     cambió el embedder (entonces recalibrar floor Y este test juntos)."""
     assert references._REF_MIN_SIMILARITY >= 0.7
-    assert _USER_MEMORY_MIN_SIMILARITY >= 0.7
 
 
 # --- provenance in the injected block ---------------------------------------

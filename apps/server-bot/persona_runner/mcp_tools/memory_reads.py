@@ -190,6 +190,11 @@ async def deep_memory(args: dict) -> dict:
         return shared._error("query is required")
     top_k = max(1, min(int(args.get("top_k") or 5), 20))
     results = await query_user_memory(user_id=user_id, query=query, top_k=top_k)
+    if results is None:
+        return shared._error(
+            "deep memory is unavailable right now (the search could not run). "
+            "This says nothing about what the user told you: do not claim you have no record of it."
+        )
     if not results:
         return shared._text(
             f"No deep memory chunks found for user {user_id} matching '{query}'. "

@@ -47,6 +47,7 @@ TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 # clientes y pool; al vencer, las filas se sueltan para la réplica sucesora.
 RUNNER_JOB_DEADLINE_S = float(os.environ.get("RUNNER_JOB_DEADLINE_S", "600"))
 RUNNER_SHUTDOWN_DRAIN_S = float(os.environ.get("RUNNER_SHUTDOWN_DRAIN_S", "570"))
+RUNNER_BACKGROUND_DRAIN_S = float(os.environ.get("RUNNER_BACKGROUND_DRAIN_S", "20"))
 
 # The AIRE door mode persona turns ride. Only "agent" carries WebSearch/WebFetch
 # (server-side dial); verify_aire_route crashes the boot on anything else.

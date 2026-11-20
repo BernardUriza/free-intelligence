@@ -15,6 +15,8 @@
 > son compartidos (rancho, aire, portfolio, vhouse, og118, susurro). La alerta
 > `insult-turn-failure-rate` se borró (apuntaba al `prod-trust-ag` ya borrado; no podía sonar).
 
+> **2026-11-19, `az containerapp list`:** `insult-rg` no longer exists and the only app left is `persona-runner`, in `og118-rg`. The table below is the 2026-07-19 state.
+
 Verified live (`az containerapp list -g insult-rg`, 2026-07-19):
 
 | Container App | State | Role |

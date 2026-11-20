@@ -6,10 +6,10 @@ found under `data/corpus/<persona_id>/` into the namespace declared by that
 persona's registry entry (`Persona.corpus_namespace`). The corpus is retrieved
 on ANY user's turn when the topic matches, via `deep_memory.query_corpus`.
 
-Pipeline per source (verbatim from the original film script):
+Pipeline per source:
   .pdf → pypdf; .xml → JATS/PMC flatten (ElementTree); .txt/.md → direct UTF-8
   → fi_core.rag PARAGRAPH_AWARE chunking (same chunker as AURITY / deep_memory)
-  → Azure OpenAI ada-002 embeddings
+  → local multilingual e5 embeddings (`persona_core.corpus.pg_rag.embed_passage`)
   → INSERT into deep_memory_chunks with source_type="manual".
 Idempotent via the schema's unique index on (user_id, source_ref, md5(chunk_text)).
 
@@ -22,19 +22,10 @@ CLI:
     python scripts/ingest_corpus.py --persona <persona_id> --dry-run  # extract + chunk only
     python scripts/ingest_corpus.py --persona <persona_id>            # real ingest
 
-Env required (same as the original film script):
-    POSTGRES_URL                       — PG connection string
-    AZURE_OPENAI_ENDPOINT              — Azure cognitive endpoint
-    AZURE_OPENAI_KEY                   — key for the account
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT  — defaults to text-embedding-ada-002
-
-Run helper from this Mac (env injected from Azure secrets):
-    POSTGRES_URL=$(az containerapp secret show -n persona-gateway -g insult-rg \\
-        --secret-name postgres-url --query value -o tsv) \\
-    AZURE_OPENAI_ENDPOINT=https://northcentralus.api.cognitive.microsoft.com/ \\
-    AZURE_OPENAI_KEY=$(az cognitiveservices account keys list \\
-        -n insult-openai -g insult-rg --query key1 -o tsv) \\
-    python scripts/ingest_corpus.py --persona <persona_id>
+Env required: POSTGRES_URL (`~/.secrets/discord-bot-postgres-url.txt`; the Mac's
+IP must be in the server firewall). No embedding credentials: the model runs here.
+A chunk that fails to embed aborts the run with exit 1, so a run is never green
+with chunks missing.
 """
 
 from __future__ import annotations
@@ -234,26 +225,19 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-_EMBED_CONCURRENCY = 6  # Azure embeddings quota is 10/350 — 6 in flight is safe
-_EMBED_RETRIES = 3  # per-chunk retries on transient APIConnectionError blips
+class EmbedFailedError(RuntimeError):
+    """A chunk could not be embedded; the run stops instead of skipping it."""
 
 
-async def _embed_with_retry(chunk: str, sem: asyncio.Semaphore) -> list[float] | None:
-    """Embed one chunk under a concurrency gate, retrying transient failures.
+async def _embed_chunk(chunk: str) -> list[float]:
+    """Embed one chunk as an e5 passage. The model is local, so a failure is
+    not a network blip worth retrying: it is a broken install, and it aborts."""
+    from persona_core.corpus.pg_rag import embed_passage
 
-    Uses deep_memory.embed_text (which already swallows + logs and returns None
-    on failure). A single network blip in a ~2400-chunk run must NOT kill the
-    job, so we retry a few times with a short backoff before giving up on this
-    chunk. Returns the vector or None (the chunk is then skipped, not fatal)."""
-    from persona_core.deep_memory import embed_text
-
-    async with sem:
-        for attempt in range(_EMBED_RETRIES):
-            vec = await embed_text(chunk)
-            if vec is not None:
-                return vec
-            await asyncio.sleep(1.5 * (attempt + 1))
-    return None
+    vec = await embed_passage(chunk)
+    if vec is None:
+        raise EmbedFailedError(f"embedding failed for a {len(chunk)}-char chunk; see deep_memory_embed_failed above")
+    return vec
 
 
 _PG_CONNECT_ATTEMPTS = 6  # residential→Azure Postgres SSL is flaky; reconnect hard
@@ -334,25 +318,16 @@ async def _ingest_source(pg_url: str, *, namespace: str, source_ref: str, chunks
     if not pending:
         return 0
 
-    sem = asyncio.Semaphore(_EMBED_CONCURRENCY)
     inserted = 0
     batch = 120
     for start in range(0, len(pending), batch):
         slice_ = pending[start : start + batch]
-        vecs = await asyncio.gather(*(_embed_with_retry(c, sem) for c in slice_))
-        rows = [
-            (namespace, "manual", source_ref, c, v)
-            for c, v in zip(slice_, vecs, strict=False)
-            if v is not None
-        ]
-        got = await _insert_batch(pg_url, rows) if rows else 0
+        rows = [(namespace, "manual", source_ref, c, await _embed_chunk(c)) for c in slice_]
+        got = await _insert_batch(pg_url, rows)
+        if got != len(rows):
+            raise EmbedFailedError(f"{len(rows) - got} rows of {source_ref} were not inserted")
         inserted += got
-        failed = len(slice_) - len(rows)
-        print(
-            f"    {min(start + batch, len(pending))}/{len(pending)} embedded "
-            f"(+{got} inserted{f', {failed} embed-failed' if failed else ''})",
-            flush=True,
-        )
+        print(f"    {min(start + batch, len(pending))}/{len(pending)} embedded (+{got} inserted)", flush=True)
     return inserted
 
 
@@ -389,9 +364,6 @@ async def main() -> int:
     pg_url = os.environ.get("POSTGRES_URL")
     if not args.dry_run and not pg_url:
         print("FATAL: POSTGRES_URL not set", file=sys.stderr)
-        return 2
-    if not args.dry_run and (not os.environ.get("AZURE_OPENAI_ENDPOINT") or not os.environ.get("AZURE_OPENAI_KEY")):
-        print("FATAL: AZURE_OPENAI_ENDPOINT / KEY not set", file=sys.stderr)
         return 2
 
     namespace = _resolve_namespace(args.persona, dry_run=args.dry_run)
@@ -448,9 +420,13 @@ async def main() -> int:
     total_inserted = 0
     started = time.monotonic()
 
-    for source_ref, chunks in prepared:
-        print(f"\n--- embedding {source_ref} ---")
-        total_inserted += await _ingest_source(pg_url, namespace=namespace, source_ref=source_ref, chunks=chunks)
+    try:
+        for source_ref, chunks in prepared:
+            print(f"\n--- embedding {source_ref} ---")
+            total_inserted += await _ingest_source(pg_url, namespace=namespace, source_ref=source_ref, chunks=chunks)
+    except EmbedFailedError as e:
+        print(f"FATAL: {e}", file=sys.stderr)
+        return 1
 
     conn = await _connect_retry(pg_url)
     try:

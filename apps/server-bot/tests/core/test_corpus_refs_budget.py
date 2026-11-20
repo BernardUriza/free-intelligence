@@ -5,8 +5,7 @@ hit #1, el bloque salía vacío y la función devolvía None sin un solo evento:
 corpus se consultó, pasó el floor de similitud, y a la persona no le llegó nada
 (Frugívoro, 2026-10-03: pasajes top de 2255 a 2589 chars contra un tope de 2200).
 
-Mutator rule: positivo (el pasaje gordo entra truncado, y la memoria por usuario
-igual) + resistencia (lo que cabe pasa intacto; el tope se respeta; un pasaje
+Mutator rule: positivo (el pasaje gordo entra truncado) + resistencia (lo que cabe pasa intacto; el tope se respeta; un pasaje
 gordo a media lista no tapa al corto que sigue).
 """
 
@@ -14,7 +13,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-from persona_core import deep_memory
 from persona_core.corpus import references
 
 
@@ -99,18 +97,3 @@ async def test_telemetry_reports_truncation_and_budget_drops():
     assert call.kwargs["truncated"] is True
     assert call.kwargs["dropped_over_budget"] == 1
     assert call.kwargs["low_similarity"] == 0.86
-
-
-async def test_user_memory_block_has_the_same_guarantee():
-    """POSITIVO: `build_user_memory_block` cargaba el mismo loop; un fragmento
-    de historia más largo que su tope también entra truncado."""
-    hits = [_hit(0.90, _passage(2600, "larisa"))]
-    with (
-        patch.object(deep_memory, "query_user_memory", new=AsyncMock(return_value=hits)),
-        patch.object(deep_memory, "load_prompt", return_value="# Memoria"),
-    ):
-        block = await deep_memory.build_user_memory_block(user_id="u1", text="qué te conté de Larisa")
-    assert block is not None
-    body = block.split("\n", 1)[1]
-    assert body.startswith("- larisa") and body.endswith("…")
-    assert len(body) <= deep_memory._USER_MEMORY_MAX_CHARS

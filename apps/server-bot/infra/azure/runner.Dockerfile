@@ -47,6 +47,10 @@ RUN useradd --create-home --shell /bin/bash --uid 10001 runner \
 USER runner
 ENV HOME=/home/runner
 
+# Both embedding models baked in: the runner scales to zero, and a cold replica
+# downloading ~560 MB from Hugging Face before its first retrieval is a slow boot.
+RUN python3 -c "from sentence_transformers import SentenceTransformer as S; S('intfloat/multilingual-e5-small'); S('all-MiniLM-L6-v2')"
+
 # See ../../Dockerfile: ConsoleRenderer's ANSI escapes break every KQL field predicate.
 ENV LOG_FORMAT=json
 

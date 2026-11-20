@@ -20,7 +20,7 @@ from typing import Any
 
 import structlog
 
-from persona_core.corpus.pg_rag import connect, embed_text
+from persona_core.corpus.pg_rag import connect, embed_query
 
 log = structlog.get_logger()
 
@@ -44,30 +44,32 @@ async def query_corpus(
     *,
     namespace: str,
     top_k: int = _REF_TOP_K,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """Embed `query` and return the top-k closest chunks in a shared `namespace`.
 
     Same cosine retrieval as `deep_memory.query_user_memory`, but the partition
     key is a synthetic corpus namespace rather than a real user_id, so the result
-    is topic knowledge shared across all users. Returns [] on any failure path
-    (no PG, no embedding service, empty corpus) — absence of corpus is a valid
-    answer, never an error.
+    is topic knowledge shared across all users.
+
+    Returns None when retrieval could not RUN (embedder or Postgres down) and []
+    when it ran and found nothing. The two used to be the same `[]`, so a month
+    of dead embeddings read in KQL as a month of off-topic questions.
     """
     if not query or top_k <= 0:
         return []
-    vec = await embed_text(query)
+    vec = await embed_query(query)
     if vec is None:
-        return []
+        return None
     conn = await connect()
     if conn is None:
-        return []
+        return None
     try:
         rows = await conn.fetch(
             """
             SELECT source_type, source_ref, chunk_text, created_at,
                    1 - (embedding <=> $1) AS similarity
             FROM deep_memory_chunks
-            WHERE user_id = $2
+            WHERE user_id = $2 AND embedding IS NOT NULL
             ORDER BY embedding <=> $1
             LIMIT $3
             """,
@@ -87,7 +89,7 @@ async def query_corpus(
         ]
     except Exception:
         log.exception("deep_memory_corpus_query_failed", namespace=namespace, query_len=len(query))
-        return []
+        return None
     finally:
         await conn.close()
 
@@ -165,6 +167,9 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
     if len(q) < _REF_MIN_QUERY_LEN or not namespace or not header.strip():
         return None
     hits = await query_corpus(q, namespace=namespace, top_k=_REF_TOP_K)
+    if hits is None:
+        log.warning("deep_memory_corpus_unavailable", namespace=namespace)
+        return None
     relevant = [h for h in hits if h.get("similarity", 0.0) >= _REF_MIN_SIMILARITY]
     if not relevant:
         # Telemetría positiva del retrieval-sin-hits: sin esto, un corpus que SE

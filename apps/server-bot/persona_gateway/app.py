@@ -268,37 +268,17 @@ async def _wait_until_bound(server, timeout: float = BIND_TIMEOUT_SECONDS) -> bo
 
 
 async def _check_corpus_embed(personas: dict[str, PersonaClient]) -> None:
-    """Boot-time liveness probe for the per-persona RAG corpus (finding #2).
+    """Boot-time liveness probe for the per-persona RAG corpus, shared with the runner.
 
-    A corpus retrieval embeds the query at runtime via Azure OpenAI. When those
-    creds are absent / rotated / point at a dead deployment, `embed_text` swallows
-    the failure and returns None — indistinguishable from "no relevant hit", so a
-    corpus-wide outage looks exactly like an off-topic turn and NOBODY notices the
-    persona lost its library (the 2026-07-16 incident: the gateway shipped with no
-    AZURE_OPENAI_* creds and every corpus turn silently degraded to bare model
-    knowledge). This probe makes the outage LOUD at boot instead of invisible.
-
-    Off the port-bind critical path (mirrors `_connect_memory`): a probe failure
-    logs ERROR but never kills the process — the personas still serve, just
-    without their corpus. Skipped entirely when no live persona has a corpus.
+    Skipped when no live persona has a corpus. Off the port-bind critical path:
+    a dead embedder logs `corpus_embedder_unavailable` and the personas still serve.
     """
     has_corpus = any(getattr(getattr(p, "persona", None), "corpus_namespace", None) for p in personas.values())
     if not has_corpus:
         return
-    try:
-        from persona_core.corpus.pg_rag import embed_text
+    from persona_core.corpus.pg_rag import warm_corpus_embedder
 
-        vec = await embed_text("corpus embed boot healthcheck")
-    except Exception:
-        log.exception("persona_gateway_corpus_embed_check_crashed")
-        return
-    if vec is None:
-        log.error(
-            "persona_gateway_corpus_embed_unavailable",
-            note="RAG corpus retrieval is DEAD — embed_text returned None; check AZURE_OPENAI_ENDPOINT/KEY + deployment",
-        )
-    else:
-        log.info("persona_gateway_corpus_embed_ok", dim=len(vec))
+    await warm_corpus_embedder()
 
 
 async def _connect_memory(memory, boot: GatewayBootState) -> None:

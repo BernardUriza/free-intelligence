@@ -299,39 +299,49 @@ CREATE TABLE IF NOT EXISTS siesta_state (
 );
 
 -- ─── deep_memory_chunks ────────────────────────────────────────────────
--- Vector-searchable per-user memory chunks (v3.9.60, RAG sibling).
--- Replaces the on-prem Free Intelligence / AURITY RAG dependency for
--- Insult's "deep memory" needs — Insult's audience is conversational, not
--- clinical PHI, so HIPAA on-prem isolation doesn't apply.
+-- Vector-searchable chunks, two partitions in one table: a real user_id holds
+-- that user's deep memory (read by the runner's `deep_memory` MCP tool), and a
+-- synthetic `__corpus_*__` namespace holds a persona's shared corpus
+-- (`scripts/ingest_corpus.py` writes, `corpus.references.query_corpus` reads).
 --
--- Population: an ingest pipeline (siesta consolidator hook + manual
--- backfill script) chunks messages and disclosure_log rows into
--- ~500-token windows, embeds via Azure OpenAI ada-002 (1536 dims), and
--- inserts here. The MCP tool `mcp__insult_db__deep_memory(user_id, query,
--- top_k)` embeds the query and runs `embedding <=> $1` cosine search
--- filtered by user_id.
---
--- `source_type` + `source_ref` lets the agent cite where a recalled chunk
--- came from ("from your message on 2026-04-12" beats a context-free quote).
+-- Embeddings: local `intfloat/multilingual-e5-small`, 384 dims, normalized
+-- (`persona_core.corpus.pg_rag`). Until 2026-11-20 they were Azure ada-002 at
+-- 1536 dims; that key died with a 401 and Azure refused new deployments, so the
+-- block below renames the old column to `embedding_ada002` (kept, nullable)
+-- and adds the new one. `scripts/reembed_deep_memory.py` fills it from
+-- `chunk_text`; rows still NULL are skipped by every query.
 CREATE TABLE IF NOT EXISTS deep_memory_chunks (
     id              BIGSERIAL PRIMARY KEY,
     user_id         TEXT NOT NULL,
     source_type     TEXT NOT NULL CHECK (source_type IN ('message', 'disclosure', 'fact', 'manual')),
     source_ref      TEXT NOT NULL,
     chunk_text      TEXT NOT NULL,
-    embedding       vector(1536) NOT NULL,
+    embedding       vector(384),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_attribute
+        WHERE attrelid = 'deep_memory_chunks'::regclass
+          AND attname = 'embedding' AND atttypmod = 1536 AND NOT attisdropped
+    ) THEN
+        ALTER TABLE deep_memory_chunks RENAME COLUMN embedding TO embedding_ada002;
+        ALTER TABLE deep_memory_chunks ALTER COLUMN embedding_ada002 DROP NOT NULL;
+    END IF;
+END $$;
+ALTER TABLE deep_memory_chunks ADD COLUMN IF NOT EXISTS embedding vector(384);
+-- The ada-era ivfflat index; a pre-migration runner booting against the new
+-- column would recreate it on vector(384), so it is dropped on every boot.
+DROP INDEX IF EXISTS idx_deep_memory_embedding;
 -- Idempotent ingest guard: same source_ref + chunk_text combo never inserts twice.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deep_memory_dedupe ON deep_memory_chunks(user_id, source_ref, md5(chunk_text));
 -- User filter + recency ordering for "what does X look like lately".
 CREATE INDEX IF NOT EXISTS idx_deep_memory_user_created ON deep_memory_chunks(user_id, created_at DESC);
--- Vector search index. ivfflat with lists=100 is the standard pgvector
--- starting point for tables <1M rows; revisit if we cross that. The
--- ANALYZE that follows the first big insert determines the planner's
--- statistics for the cosine operator.
-CREATE INDEX IF NOT EXISTS idx_deep_memory_embedding ON deep_memory_chunks
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- HNSW, not ivfflat: ivfflat trains its lists on the rows present at CREATE
+-- time, and this column starts empty until the re-embed runs.
+CREATE INDEX IF NOT EXISTS idx_deep_memory_embedding_e5 ON deep_memory_chunks
+    USING hnsw (embedding vector_cosine_ops);
 
 -- ─── html_artifacts ────────────────────────────────────────────────────
 -- HTML artifacts the agent publishes via `publish_html_artifact`. Served
