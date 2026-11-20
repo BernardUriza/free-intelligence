@@ -36,6 +36,8 @@ EMBEDDING_DIM = 384
 CORPUS_MODEL = "intfloat/multilingual-e5-small"
 _QUERY_PREFIX = "query: "
 _PASSAGE_PREFIX = "passage: "
+RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+_RERANK_MAX_PASSAGE_CHARS = 1500
 
 
 class EmbeddingDimensionError(RuntimeError):
@@ -124,11 +126,60 @@ async def warm_corpus_embedder() -> bool:
     Every host that retrieves calls this at boot. Never raises.
     """
     vec = await embed_query("corpus embed boot healthcheck")
-    if vec is None:
+    scores = await score_relevance("corpus boot healthcheck", ["boot healthcheck passage"]) if vec else None
+    if vec is None or scores is None:
         log.error("corpus_embedder_unavailable", model=CORPUS_MODEL, note="corpus retrieval is DEAD on this replica")
         return False
     log.info("corpus_embedder_ready", model=CORPUS_MODEL, dim=len(vec))
     return True
+
+
+class CorpusReranker:
+    """Lazy, thread-safe singleton over a multilingual cross-encoder.
+
+    The relevance gate. e5 cosines are compressed: measured 2026-11-19 on 21
+    real queries, on-topic hits scored 0.784-0.888 and off-topic ones
+    0.780-0.834, so no cosine floor separates them. The cross-encoder reads the
+    question and the passage together: over 8 candidates, 8 of 11 on-topic
+    queries clear -2.0 and 0 of 10 off-topic ones do (2026-11-20).
+    """
+
+    def __init__(self, model_name: str = RERANK_MODEL) -> None:
+        self.model_name = model_name
+        self._model = None
+        self._lock = threading.Lock()
+
+    def _ensure_model(self):
+        if self._model is not None:
+            return self._model
+        with self._lock:
+            if self._model is None:
+                from sentence_transformers import CrossEncoder
+
+                self._model = CrossEncoder(self.model_name)
+                log.info("corpus_reranker_loaded", model=self.model_name)
+        return self._model
+
+    def _score(self, query: str, passages: list[str]) -> list[float]:
+        pairs = [(query, p[:_RERANK_MAX_PASSAGE_CHARS]) for p in passages]
+        return [float(x) for x in self._ensure_model().predict(pairs)]
+
+    async def score(self, query: str, passages: list[str]) -> list[float]:
+        if not passages:
+            return []
+        return await asyncio.to_thread(self._score, query, passages)
+
+
+_default_reranker = CorpusReranker()
+
+
+async def score_relevance(query: str, passages: list[str]) -> list[float] | None:
+    """Cross-encoder relevance per passage; None on failure (logged)."""
+    try:
+        return await _default_reranker.score(query, passages)
+    except Exception:
+        log.exception("corpus_rerank_failed", passages=len(passages))
+        return None
 
 
 # ─── Storage ───────────────────────────────────────────────────────────

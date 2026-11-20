@@ -301,7 +301,7 @@ def build_capabilities_block(previous: str = "") -> str:
             "- **Deep vector memory**: Beyond the structured fact digest, you can vector-recall "
             "the actual chunks of past conversation that semantically match a query. "
             "Powered by `mcp__persona_memory__deep_memory(user_id, query, top_k)`. "
-            "Backed by Azure OpenAI ada-002 embeddings + Postgres pgvector."
+            "Backed by local multilingual e5 embeddings + Postgres pgvector."
         )
 
     if modules["html_artifacts"]:
@@ -367,8 +367,8 @@ def build_capabilities_block(previous: str = "") -> str:
             "extracted into a shared package."
         )
         lines.append(
-            "- **Azure OpenAI `text-embedding-ada-002`** — 1536-dim embeddings for "
-            "`deep_memory`. Same `insult-openai` cognitive account ALICE uses for chat."
+            "- **`multilingual-e5-small`** — 384-dim embeddings for `deep_memory` and the "
+            "corpus, run in-process; a cross-encoder reranker decides which passages are relevant."
         )
         lines.append(
             "- **Azure Database for PostgreSQL + pgvector** — your data plane. Cero blob, cero on-prem dependency."

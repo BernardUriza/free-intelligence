@@ -2,7 +2,7 @@
 
 Live modules:
 
-- ``pg_rag``: Postgres + Azure ada-002 embeddings over ``deep_memory_chunks``.
+- ``pg_rag``: Postgres + local multilingual e5 embeddings over ``deep_memory_chunks``.
 - ``references``: ``build_references_block`` — the 3 nearest chunks of a
   persona's namespace (``shared/personas/registry.py::corpus_namespace``),
   similarity floor 0.78, header from ``shared/corpus/headers/<id>.md``.

@@ -20,20 +20,18 @@ from typing import Any
 
 import structlog
 
-from persona_core.corpus.pg_rag import connect, embed_query
+from persona_core.corpus.pg_rag import connect, embed_query, score_relevance
 
 log = structlog.get_logger()
 
-# Tuning for the references injection — mirrors the per-user memory knobs in
-# deep_memory.py so the two retrieval paths behave consistently.
+# Retrieval pulls a wide cosine shortlist and the cross-encoder decides what is
+# relevant (`pg_rag.CorpusReranker`): e5 cosines cannot gate on their own.
+# Floor measured 2026-11-20 over 21 real queries with 8 candidates: off-topic
+# topped at -2.61, and the on-topic queries under -2 had pulled wrong chunks
+# anyway. A wrong passage misleads the persona; none just leaves it unaided.
+_REF_CANDIDATES = 8
 _REF_TOP_K = 3
-# ada-002 es anisotrópico: sus cosenos viven ~[0.65, 0.95] aun entre textos SIN
-# relación (media ~0.85 para relacionados; <0.4 prácticamente no existe). Un
-# floor de 0.30 era un NO-OP: jamás filtró nada y todo top-k entraba al turno —
-# el failure mode exacto de RAG para role-play (chunks irrelevantes distraen al
-# personaje). 0.78 corta lo claramente-ajeno; calibrar con la telemetría
-# top/low_similarity de `deep_memory_corpus_refs_built` (2026-07-16).
-_REF_MIN_SIMILARITY = 0.78
+_REF_MIN_RELEVANCE = -2.0
 _REF_MIN_QUERY_LEN = 12  # skip "ok"/"jaja" — not worth an embed call
 _REF_MAX_CHARS = 2200  # cap injected context so the turn stays bounded
 _TRUNCATE_BACKOFF_CHARS = 80  # how far back a truncation looks for a word boundary
@@ -166,25 +164,32 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
     q = (query or "").strip()
     if len(q) < _REF_MIN_QUERY_LEN or not namespace or not header.strip():
         return None
-    hits = await query_corpus(q, namespace=namespace, top_k=_REF_TOP_K)
+    hits = await query_corpus(q, namespace=namespace, top_k=_REF_CANDIDATES)
     if hits is None:
         log.warning("deep_memory_corpus_unavailable", namespace=namespace)
         return None
-    relevant = [h for h in hits if h.get("similarity", 0.0) >= _REF_MIN_SIMILARITY]
+    if not hits:
+        log.info(
+            "deep_memory_corpus_no_hits", namespace=namespace, queried=0, top_relevance=None, floor=_REF_MIN_RELEVANCE
+        )
+        return None
+    scores = await score_relevance(q, [h["chunk_text"] for h in hits])
+    if scores is None:
+        log.warning("deep_memory_corpus_unavailable", namespace=namespace, stage="rerank")
+        return None
+    ranked = sorted(
+        ({**h, "relevance": s} for h, s in zip(hits, scores, strict=True)),
+        key=lambda h: h["relevance"],
+        reverse=True,
+    )
+    relevant = [h for h in ranked if h["relevance"] >= _REF_MIN_RELEVANCE][:_REF_TOP_K]
     if not relevant:
-        # Telemetría positiva del retrieval-sin-hits: sin esto, un corpus que SE
-        # consulta pero nunca clarea el floor es indistinguible en KQL de uno que
-        # JAMÁS se consultó — el gap que el probe de Frugívoro destapó (2026-09-23:
-        # respondió pero cero `deep_memory_corpus_refs_built`, sin forma de saber
-        # si el floor 0.78 comió todo o el read-path no corrió). Mismo principio
-        # que load_relevant ("positive telemetry, not just failure"). El
-        # top_similarity real dice si el floor está demasiado alto.
         log.info(
             "deep_memory_corpus_no_hits",
             namespace=namespace,
             queried=len(hits),
-            top_similarity=round(hits[0].get("similarity", 0.0), 3) if hits else 0.0,
-            floor=_REF_MIN_SIMILARITY,
+            top_relevance=round(ranked[0]["relevance"], 3),
+            floor=_REF_MIN_RELEVANCE,
         )
         return None
 
@@ -197,9 +202,10 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         "deep_memory_corpus_refs_built",
         namespace=namespace,
         hits=len(kept),
+        top_relevance=round(relevant[0]["relevance"], 3),
+        low_relevance=round(relevant[kept[-1][0]]["relevance"], 3),
         top_similarity=round(relevant[0].get("similarity", 0.0), 3),
-        low_similarity=round(relevant[kept[-1][0]].get("similarity", 0.0), 3),
-        dropped_below_floor=len(hits) - len(relevant),
+        dropped_below_floor=sum(1 for h in ranked if h["relevance"] < _REF_MIN_RELEVANCE),
         dropped_over_budget=len(relevant) - len(kept),
         truncated=truncated,
     )

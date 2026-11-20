@@ -13,7 +13,20 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from persona_core.corpus import references
+
+
+@pytest.fixture(autouse=True)
+def _rerank_keeps_retrieval_order():
+    """Every hit clears the relevance floor, best first in retrieval order."""
+
+    async def _score(query, passages):
+        return [10.0 - i for i in range(len(passages))]
+
+    with patch.object(references, "score_relevance", new=_score):
+        yield
 
 
 def _hit(similarity: float, text: str, ref: str = "frugivoro:pmc-embarazo") -> dict:
@@ -96,4 +109,4 @@ async def test_telemetry_reports_truncation_and_budget_drops():
     assert call.kwargs["hits"] == 1
     assert call.kwargs["truncated"] is True
     assert call.kwargs["dropped_over_budget"] == 1
-    assert call.kwargs["low_similarity"] == 0.86
+    assert call.kwargs["low_relevance"] == 10.0

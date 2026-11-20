@@ -47,9 +47,9 @@ RUN useradd --create-home --shell /bin/bash --uid 10001 runner \
 USER runner
 ENV HOME=/home/runner
 
-# Both embedding models baked in: the runner scales to zero, and a cold replica
-# downloading ~560 MB from Hugging Face before its first retrieval is a slow boot.
-RUN python3 -c "from sentence_transformers import SentenceTransformer as S; S('intfloat/multilingual-e5-small'); S('all-MiniLM-L6-v2')"
+# The two embedding models and the corpus reranker baked in: the runner scales to zero, and a cold replica
+# downloading ~1 GB from Hugging Face before its first retrieval is a slow boot.
+RUN python3 -c "from sentence_transformers import SentenceTransformer as S; S('intfloat/multilingual-e5-small'); S('all-MiniLM-L6-v2'); from sentence_transformers import CrossEncoder; CrossEncoder('cross-encoder/mmarco-mMiniLMv2-L12-H384-v1')"
 
 # See ../../Dockerfile: ConsoleRenderer's ANSI escapes break every KQL field predicate.
 ENV LOG_FORMAT=json
