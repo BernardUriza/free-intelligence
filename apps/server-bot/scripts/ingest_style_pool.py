@@ -62,7 +62,7 @@ async def main() -> int:
         if vec is None:
             print(f"FATAL: embedding failed for a line of {ref}", file=sys.stderr)
             return 1
-        rows.append((namespace, "style", ref, line, vec))
+        rows.append((namespace, "manual", ref, line, vec))
 
     conn = await connect()
     if conn is None:
