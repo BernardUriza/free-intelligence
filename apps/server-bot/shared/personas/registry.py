@@ -61,6 +61,9 @@ class Persona:
     # injected through guidance_for_turn with the header content at
     # shared/corpus/headers/<persona_id>.md.
     corpus_namespace: str | None = None
+    # Voice pool namespace (persona_core.corpus.style): real human lines read
+    # for register only, drawn at random and never reranked. None = no lane.
+    style_namespace: str | None = None
     # Which AIRE backend speaks for this persona (aire-server #49/#52): "claude"
     # rides the runner's per-turn router; any other provider pins `model`.
     provider: str = "claude"
@@ -91,6 +94,7 @@ PERSONAS: dict[str, Persona] = {
         tts_voice="onyx",
         gateway_enabled=True,
         corpus_namespace="__corpus_insult__",  # retórica erística (Schopenhauer, maximistas)
+        style_namespace="__style_insult__",  # data/style/insult/MANIFEST.md
     ),
     "vultur": Persona(
         persona_id="vultur",

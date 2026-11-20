@@ -22,12 +22,14 @@ classification fault must NEVER cost the turn or mute the bot.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
 
 from persona_core.audit import log_crisis_band_absent, log_crisis_band_classified
 from persona_core.behavior import (
+    PresetMode,
     build_preset_prompt,
     build_vulnerable_overlay_prompt,
     classify_preset,
@@ -191,6 +193,19 @@ def build_turn_guidance(
         return None
 
 
+def voice_examples_allowed(
+    *, current_message: str, recent_messages: list[dict] | None, user_facts: list[dict] | None
+) -> bool:
+    """False on a serious or vulnerable turn: a raw vulgar example pulls the
+    model away from the safety overlay exactly when it matters. Any fault → False."""
+    try:
+        selection = classify_preset(current_message, recent_messages, user_facts)
+    except Exception:
+        log.exception("voice_examples_gate_failed")
+        return False
+    return selection.mode is not PresetMode.RESPECTFUL_SERIOUS and not is_vulnerable_overlay_selection(selection)
+
+
 async def guidance_for_turn(
     *,
     memory: Any,
@@ -198,13 +213,36 @@ async def guidance_for_turn(
     current_message: str,
     recent_messages: list[dict] | None,
     persona_id: str,
+    voice_examples: Callable[[], Awaitable[str | None]] | None = None,
 ) -> str | None:
-    """Load facts + classify + render, in one fail-safe call for the turn path."""
+    """Load facts + classify + render, in one fail-safe call for the turn path.
+
+    `voice_examples` fetches the persona's voice block; it runs only when the
+    turn is neither serious nor vulnerable, and goes BEFORE the guidance so the
+    preset prose stays last. It is dropped whole when it would break the cap.
+    """
     facts = await load_user_facts(memory, user_id)
-    return build_turn_guidance(
+    guidance = build_turn_guidance(
         current_message=current_message,
         recent_messages=recent_messages,
         user_facts=facts,
         persona_id=persona_id,
         user_id=user_id,
     )
+    if voice_examples is None or not voice_examples_allowed(
+        current_message=current_message, recent_messages=recent_messages, user_facts=facts
+    ):
+        return guidance
+    try:
+        block = await voice_examples()
+    except Exception:
+        log.exception("voice_examples_failed", persona_id=persona_id)
+        return guidance
+    if not block:
+        return guidance
+    if not guidance:
+        return block[:MAX_GUIDANCE_CHARS]
+    if len(block) + 2 + len(guidance) > MAX_GUIDANCE_CHARS:
+        log.warning("voice_examples_dropped_guidance_full", persona_id=persona_id, guidance_chars=len(guidance))
+        return guidance
+    return f"{block}\n\n{guidance}"

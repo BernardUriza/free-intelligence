@@ -20,6 +20,7 @@ from pathlib import Path
 import structlog
 
 from persona_core.corpus.references import build_references_block
+from persona_core.corpus.style import build_style_block
 from persona_core.prompts import PromptCache, load_prompt
 from shared.personas.registry import get_persona
 
@@ -27,6 +28,8 @@ log = structlog.get_logger()
 
 _HEADERS_DIR = Path(__file__).resolve().parent / "headers"
 _HEADER_CACHE: PromptCache = {}
+_STYLE_HEADERS_DIR = Path(__file__).resolve().parent / "style_headers"
+_STYLE_HEADER_CACHE: PromptCache = {}
 
 
 async def build_persona_corpus_block(*, persona_id: str, query: str | None) -> str | None:
@@ -45,3 +48,17 @@ async def build_persona_corpus_block(*, persona_id: str, query: str | None) -> s
         log.warning("corpus_header_missing", persona_id=persona_id, namespace=namespace)
         return None
     return await build_references_block(query, namespace=namespace, header=header)
+
+
+async def build_persona_style_block(*, persona_id: str, query: str | None) -> str | None:
+    """This persona's voice examples for the turn, or None when it has no pool."""
+    persona = get_persona(persona_id)
+    namespace = getattr(persona, "style_namespace", None) if persona else None
+    if not namespace:
+        return None
+    try:
+        header = load_prompt(_STYLE_HEADERS_DIR, persona_id, _STYLE_HEADER_CACHE)
+    except FileNotFoundError:
+        log.warning("style_header_missing", persona_id=persona_id, namespace=namespace)
+        return None
+    return await build_style_block(query, namespace=namespace, header=header)

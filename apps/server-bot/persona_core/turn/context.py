@@ -23,7 +23,7 @@ import structlog
 from persona_core.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from persona_core.memory import MemoryStore, format_relevant_block
 from persona_core.other_people import other_people_block_for_turn
-from shared.corpus.persona_corpus import build_persona_corpus_block
+from shared.corpus.persona_corpus import build_persona_corpus_block, build_persona_style_block
 from shared.personas import Persona
 
 log = structlog.get_logger()
@@ -121,6 +121,9 @@ class TurnContextBuilder:
                 current_message=guidance_message,
                 recent_messages=context,
                 persona_id=self.persona.persona_id,
+                voice_examples=lambda: build_persona_style_block(
+                    persona_id=self.persona.persona_id, query=guidance_message
+                ),
             )
             # Pending reminders BEFORE the corpus merge, so the final order is
             # corpus → reminders → guardian guidance (safety stays freshest/last).
