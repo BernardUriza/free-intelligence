@@ -23,6 +23,11 @@ data/film_corpus_sources/
 data/corpus/**
 !data/corpus/**/
 !data/corpus/**/MANIFEST.md
+# Voice pools: real people's own words, curated and pseudonymized, never in a
+# public repo. Only the MANIFEST (criteria, provenance) is versioned.
+data/style/**
+!data/style/**/
+!data/style/**/MANIFEST.md
 # Excepción: los documentos que escribió esta casa (registros de hilos propios de
 # Khimeras) SÍ se versionan — son texto nuestro, no una fuente de terceros.
 !data/corpus/unborn_being/khimeras_*.md
