@@ -141,6 +141,36 @@ def prepare_chunks(
     return [], "dropped"
 
 
+def prepare_markdown_chunks(
+    doc: str,
+    *,
+    chunker: Callable[..., list[str]],
+    chunk_size: int,
+    overlap: int,
+) -> tuple[list[str], str]:
+    """Markdown → chunks that never lose the heading they belong to.
+
+    Chunked whole, a section's title lands in one chunk and its body in the
+    next: the Love Veg torta ahogada recipe body carried no "torta ahogada", so
+    the reranker ranked a different recipe first (2026-11-20). Each `## `
+    section is chunked on its own and every chunk opens with
+    `<# title> — <## heading>`, which is what the embedder and reranker read.
+    """
+    title = next((ln[2:].strip() for ln in doc.splitlines() if ln.startswith("# ")), "")
+    sections: list[tuple[str, list[str]]] = [("", [])]
+    for line in doc.splitlines():
+        if line.startswith("## "):
+            sections.append((line[3:].strip(), []))
+        elif not line.startswith("# "):
+            sections[-1][1].append(line)
+    out: list[str] = []
+    for heading, lines in sections:
+        context = " — ".join(x for x in (title, heading) if x)
+        body, _ = prepare_chunks("\n".join(lines), chunker=chunker, chunk_size=chunk_size, overlap=overlap)
+        out.extend(f"{context}\n\n{c}" if context else c for c in body)
+    return (out, "chunked") if out else prepare_chunks(doc, chunker=chunker, chunk_size=chunk_size, overlap=overlap)
+
+
 def extract_pdf_text(path: Path) -> str:
     """Extract all text from a PDF, page by page, joined with blank lines.
 
@@ -390,7 +420,8 @@ async def main() -> int:
         print(f"\n=== {source_ref} ({path.name}) ===")
         doc = extract_source_text(path)
         print(f"  extracted {len(doc):,} chars (~{len(doc.split()):,} words)")
-        chunks, status = prepare_chunks(doc, chunker=chunk_text_for_embedding, chunk_size=args.chunk_size, overlap=args.overlap)
+        prepare = prepare_markdown_chunks if path.suffix.lower() == ".md" else prepare_chunks
+        chunks, status = prepare(doc, chunker=chunk_text_for_embedding, chunk_size=args.chunk_size, overlap=args.overlap)
         if status == "no_text":
             print("  no extractable text, skipping")
             empty.append(source_ref)

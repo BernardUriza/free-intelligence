@@ -75,3 +75,38 @@ def test_salvage_floor_is_low_enough_for_a_real_short_post():
     """ARNÉS: el piso de rescate no puede subir al rango donde un post corto
     legítimo del blog (≈200-370 chars) volvería a perderse."""
     assert ingest_corpus._MIN_SALVAGE_CHARS <= 200
+
+
+def _split_chunker(doc: str, *, chunk_size: int, overlap: int) -> list[str]:
+    return [p.strip() for p in doc.split("\n\n") if p.strip()]
+
+
+_RECETARIO = (
+    "# Sabores Tapatíos\n\nIntro.\n\n"
+    "## Torta ahogada (vegana)\n\nIngredientes: birote.\n\nSalsa: jitomate.\n\n"
+    "## Tejuino\n\nMasa y piloncillo.\n"
+)
+
+
+def test_markdown_chunk_carries_its_section_heading():
+    """POSITIVE, the 2026-11-20 case: the torta recipe's salsa paragraph never
+    said "torta ahogada", so the reranker ranked another recipe first."""
+    chunks, status = ingest_corpus.prepare_markdown_chunks(
+        _RECETARIO, chunker=_split_chunker, chunk_size=400, overlap=50
+    )
+    assert status == "chunked"
+    assert "Sabores Tapatíos — Torta ahogada (vegana)\n\nSalsa: jitomate." in chunks
+    assert "Sabores Tapatíos — Tejuino\n\nMasa y piloncillo." in chunks
+
+
+def test_markdown_section_never_bleeds_into_the_next():
+    chunks, _ = ingest_corpus.prepare_markdown_chunks(_RECETARIO, chunker=_split_chunker, chunk_size=400, overlap=50)
+    assert not any("Tejuino" in c and "jitomate" in c for c in chunks)
+
+
+def test_markdown_without_sections_falls_back_to_plain_chunking():
+    """RESISTANCE: a heading-less .md is chunked exactly as before."""
+    doc = "Primer párrafo.\n\nSegundo párrafo."
+    md, _ = ingest_corpus.prepare_markdown_chunks(doc, chunker=_split_chunker, chunk_size=400, overlap=50)
+    plain, _ = ingest_corpus.prepare_chunks(doc, chunker=_split_chunker, chunk_size=400, overlap=50)
+    assert md == plain
