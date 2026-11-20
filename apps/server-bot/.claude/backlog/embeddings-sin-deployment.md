@@ -1,6 +1,14 @@
 # Embeddings sin deployment: la memoria profunda y el corpus no recuperan nada
 
-Status: Dropped (decisión de Bernard, 2026-11-04: se queda apagada)
+Status: Done (2026-11-20, PR #686, v4.52.1). Bernard la reabrió el 2026-11-19 al pedir el recetario de Love Veg «ya embebido» en el corpus de Frugívoro.
+
+## Cómo se cerró
+
+- Embeddings locales `intfloat/multilingual-e5-small` (384d) en el proceso, sin Azure. El 715-123420 seguía vivo el 2026-11-20 al reintentar el deployment en `aire-openai`.
+- Migración idempotente: los vectores ada quedan en `embedding_ada002`; 6,889 filas re-embebidas con `scripts/reembed_deep_memory.py` (el `__chatgpt_archive__`, sin lector, se saltó).
+- Iterative HNSW scan: sin él, 12 de 21 búsquedas filtradas por persona salían vacías.
+- Gate de relevancia con cross-encoder (`mmarco-mMiniLMv2`, piso −2.0): el coseno de e5 no separa lo relevante de lo ajeno.
+- Recibo en prod: `turn_pipeline_warm_ready corpus=true` (revisión 0018) y `deep_memory_corpus_refs_built` en `__corpus_vegan__` a las 14:10 UTC del 2026-11-20, el primero desde octubre.
 Proposed: 2026-11-04 by Claude, buscando bugs por orden de Bernard
 
 ## What it is
