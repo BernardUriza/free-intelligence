@@ -21,7 +21,12 @@ def _hit(similarity: float, text: str, ref: str = "x:y") -> dict:
     return {"source_type": "manual", "source_ref": ref, "chunk_text": text, "similarity": similarity}
 
 
-async def _block(hits: list[dict], relevance: dict[str, float], query: str = "cómo hago pozole rojo sin carne"):
+async def _block(
+    hits: list[dict],
+    relevance: dict[str, float],
+    query: str = "cómo hago pozole rojo sin carne",
+    min_passages: int = 0,
+):
     async def _score(q, passages):
         return [relevance[p] for p in passages]
 
@@ -29,7 +34,36 @@ async def _block(hits: list[dict], relevance: dict[str, float], query: str = "c�
         patch.object(references, "query_corpus", new=AsyncMock(return_value=hits)),
         patch.object(references, "score_relevance", new=_score),
     ):
-        return await references.build_references_block(query, namespace="__corpus_vegan__", header="# Refs")
+        return await references.build_references_block(
+            query, namespace="__corpus_vegan__", header="# Refs", min_passages=min_passages
+        )
+
+
+async def test_ammunition_corpus_keeps_its_best_passage_below_the_floor():
+    """POSITIVE: Insult's maxims reach the turn even when nothing is on topic."""
+    hits = [_hit(0.83, "máxima b"), _hit(0.82, "máxima a")]
+    with patch.object(references.log, "info") as info:
+        block = await _block(hits, {"máxima a": -3.7, "máxima b": -5.0}, query="qué opinas del deploy", min_passages=1)
+    assert block is not None
+    assert "máxima a" in block
+    assert "máxima b" not in block
+    call = next(c for c in info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_refs_built")
+    assert call.kwargs["forced"] is True
+
+
+async def test_forced_minimum_does_not_cap_relevant_passages():
+    texts = [f"pasaje {i}" for i in range(4)]
+    block = await _block([_hit(0.85, t) for t in texts], dict.fromkeys(texts, 1.0), min_passages=1)
+    assert block is not None
+    assert block.count("pasaje") == references._REF_TOP_K
+
+
+def test_only_insult_forces_its_corpus():
+    """RESISTANCE: a corpus of facts (Frugi's recipes) keeps the floor."""
+    from shared.personas.registry import PERSONAS
+
+    forced = {pid for pid, p in PERSONAS.items() if p.corpus_min_passages}
+    assert forced == {"insult"}
 
 
 async def test_high_cosine_but_irrelevant_hit_is_dropped():

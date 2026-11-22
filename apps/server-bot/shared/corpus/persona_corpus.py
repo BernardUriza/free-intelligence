@@ -47,7 +47,12 @@ async def build_persona_corpus_block(*, persona_id: str, query: str | None) -> s
     except FileNotFoundError:
         log.warning("corpus_header_missing", persona_id=persona_id, namespace=namespace)
         return None
-    return await build_references_block(query, namespace=namespace, header=header)
+    return await build_references_block(
+        query,
+        namespace=namespace,
+        header=header,
+        min_passages=getattr(persona, "corpus_min_passages", 0),
+    )
 
 
 async def build_persona_style_block(*, persona_id: str, query: str | None) -> str | None:
