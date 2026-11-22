@@ -22,6 +22,7 @@ import time
 import discord
 import structlog
 from discord.ext import tasks
+from fi_core.text import truncate
 
 from demux_ai.fallback import deliver_or_fallback
 from demux_ai.host_loop import HostDispatchLoop
@@ -202,8 +203,7 @@ class HostClient(discord.Client):
         sidecar, so it truncates rather than spilling into a second message.
         """
         echo = f">>> 🔊 **{message.author.display_name} dijo:**\n{text}\n🎙️"
-        if len(echo) > ECHO_LIMIT:
-            echo = echo[: ECHO_LIMIT - 3] + "…"
+        echo = truncate(echo, ECHO_LIMIT)
         try:
             await message.channel.send(echo)
         except Exception:

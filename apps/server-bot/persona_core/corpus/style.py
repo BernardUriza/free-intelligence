@@ -1,14 +1,7 @@
 """Voice lane: real human lines a persona reads for register, never for facts.
 
-The topical corpus (`references`) cannot carry style. Its cross-encoder gate
-keeps only passages that answer the question, so a vulgar exchange about
-anything else never clears the floor. This lane skips the reranker on purpose.
-
-Selection follows the evidence gathered 2026-11-20. Random demos beat or tie
-similarity-retrieved ones for persona dialogue, and demos too close to the
-query get copied verbatim (Pu et al. 2024, arXiv 2402.09954). So the lane draws
-a random handful and drops the ones most similar to the ask before keeping
-`_STYLE_TOP_K`.
+It skips the reranker on purpose (a vulgar line about anything else never clears
+a topical floor); draw sizes and the anti-copy drop live in `rules.yml`.
 """
 
 from __future__ import annotations
@@ -16,21 +9,14 @@ from __future__ import annotations
 import structlog
 
 from persona_core.corpus.pg_rag import connect, embed_query
+from persona_core.corpus.rules import load_rules
 
 log = structlog.get_logger()
 
-_STYLE_DRAW = 12
-_STYLE_DROP_MOST_SIMILAR = 3
-_STYLE_TOP_K = 4
-_STYLE_MIN_QUERY_LEN = 2
-
 
 async def draw_style_lines(query: str, *, namespace: str) -> list[dict] | None:
-    """A random draw from the pool minus the lines closest to `query`.
-
-    None when the lane could not run (embedder or Postgres down); [] when the
-    pool is empty.
-    """
+    """A random draw from the pool minus the lines closest to `query`: None if it could not run."""
+    rules = load_rules().voice
     vec = await embed_query(query)
     if vec is None:
         return None
@@ -48,7 +34,7 @@ async def draw_style_lines(query: str, *, namespace: str) -> list[dict] | None:
             """,
             vec,
             namespace,
-            _STYLE_DRAW,
+            rules.draw,
         )
     except Exception:
         log.exception("style_pool_query_failed", namespace=namespace)
@@ -57,13 +43,13 @@ async def draw_style_lines(query: str, *, namespace: str) -> list[dict] | None:
         await conn.close()
     drawn = [{"id": r["id"], "text": r["chunk_text"], "similarity": float(r["similarity"])} for r in rows]
     by_similarity = sorted(drawn, key=lambda d: d["similarity"], reverse=True)
-    too_close = {d["id"] for d in by_similarity[:_STYLE_DROP_MOST_SIMILAR]} if len(drawn) > _STYLE_TOP_K else set()
-    return [d for d in drawn if d["id"] not in too_close][:_STYLE_TOP_K]
+    too_close = {d["id"] for d in by_similarity[: rules.drop_most_similar]} if len(drawn) > rules.top_k else set()
+    return [d for d in drawn if d["id"] not in too_close][: rules.top_k]
 
 
 async def build_style_block(query: str | None, *, namespace: str, header: str) -> str | None:
     """The `<voice_examples>` block for this turn, or None."""
-    if not query or len(query.strip()) < _STYLE_MIN_QUERY_LEN:
+    if not query or len(query.strip()) < load_rules().voice.min_query_chars:
         return None
     lines = await draw_style_lines(query, namespace=namespace)
     if lines is None:
