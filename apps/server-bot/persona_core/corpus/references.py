@@ -152,7 +152,9 @@ def fit_to_budget(lines: list[str], max_chars: int) -> tuple[list[tuple[int, str
     return kept, truncated
 
 
-async def build_references_block(query: str | None, *, namespace: str, header: str) -> str | None:
+async def build_references_block(
+    query: str | None, *, namespace: str, header: str, min_passages: int = 0
+) -> str | None:
     """Retrieve relevant corpus chunks and format them for prompt injection.
 
     One implementation for every persona corpus so the similarity/length gating
@@ -160,6 +162,10 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
     query is trivial, retrieval fails, or nothing clears the similarity floor.
     Best-effort: callers wrap this in try/except and a failure here NEVER breaks
     the turn.
+
+    `min_passages` > 0 keeps that many of the best-ranked passages even when
+    none clears the floor, for a persona whose corpus is ammunition rather than
+    facts (Insult's maxims). The log then says `forced=True`.
     """
     q = (query or "").strip()
     if len(q) < _REF_MIN_QUERY_LEN or not namespace or not header.strip():
@@ -183,6 +189,9 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         reverse=True,
     )
     relevant = [h for h in ranked if h["relevance"] >= _REF_MIN_RELEVANCE][:_REF_TOP_K]
+    forced = not relevant and min_passages > 0
+    if forced:
+        relevant = ranked[:min_passages]
     if not relevant:
         log.info(
             "deep_memory_corpus_no_hits",
@@ -202,6 +211,7 @@ async def build_references_block(query: str | None, *, namespace: str, header: s
         "deep_memory_corpus_refs_built",
         namespace=namespace,
         hits=len(kept),
+        forced=forced,
         sources=[cite_label(relevant[i].get("source_ref")) for i, _ in kept],
         top_relevance=round(relevant[0]["relevance"], 3),
         low_relevance=round(relevant[kept[-1][0]]["relevance"], 3),

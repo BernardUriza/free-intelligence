@@ -61,6 +61,9 @@ class Persona:
     # injected through guidance_for_turn with the header content at
     # shared/corpus/headers/<persona_id>.md.
     corpus_namespace: str | None = None
+    # Passages injected even when none clears the relevance floor. 0 for a
+    # corpus of facts (a wrong recipe misleads); >0 for one of ammunition.
+    corpus_min_passages: int = 0
     # Voice pool namespace (persona_core.corpus.style): real human lines read
     # for register only, drawn at random and never reranked. None = no lane.
     style_namespace: str | None = None
@@ -94,6 +97,7 @@ PERSONAS: dict[str, Persona] = {
         tts_voice="onyx",
         gateway_enabled=True,
         corpus_namespace="__corpus_insult__",  # retórica erística (Schopenhauer, maximistas)
+        corpus_min_passages=1,  # Bernard 2026-11-22: "quiero que a huevo inyecte algo"
         style_namespace="__style_insult__",  # data/style/insult/MANIFEST.md
     ),
     "vultur": Persona(
