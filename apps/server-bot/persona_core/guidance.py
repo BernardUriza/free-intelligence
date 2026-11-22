@@ -229,9 +229,10 @@ async def guidance_for_turn(
         persona_id=persona_id,
         user_id=user_id,
     )
-    if voice_examples is None or not voice_examples_allowed(
-        current_message=current_message, recent_messages=recent_messages, user_facts=facts
-    ):
+    if voice_examples is None:
+        return guidance
+    if not voice_examples_allowed(current_message=current_message, recent_messages=recent_messages, user_facts=facts):
+        log.info("voice_examples_skipped", persona_id=persona_id, reason="serious_or_vulnerable_turn")
         return guidance
     try:
         block = await voice_examples()

@@ -97,9 +97,11 @@ async def test_normal_turn_gets_the_block_before_the_preset(monkeypatch):
 async def test_crisis_turn_never_fetches_the_block(monkeypatch):
     """RESISTANCE: the safety overlay must not compete with vulgar examples."""
     provider = AsyncMock(return_value="VOZ")
-    out = await _guidance("me quiero morir, ya no aguanto nada", provider, monkeypatch)
+    with patch.object(guidance_mod.log, "info") as info:
+        out = await _guidance("me quiero morir, ya no aguanto nada", provider, monkeypatch)
     provider.assert_not_awaited()
     assert out == "PRESET"
+    assert any(c.args[0] == "voice_examples_skipped" for c in info.call_args_list)
 
 
 async def test_block_is_dropped_whole_when_guidance_is_full(monkeypatch):
