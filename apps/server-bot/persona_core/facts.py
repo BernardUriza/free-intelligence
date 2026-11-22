@@ -39,6 +39,7 @@ from typing import Any, Protocol
 
 import httpx
 import structlog
+from fi_core.text import fit_prefix
 
 from persona_core.prompts import PromptCache, load_prompt
 
@@ -66,19 +67,6 @@ __all__ = [
 # and the background cost sane.
 EXISTING_FACTS_CHAR_BUDGET = 24_000
 CONVERSATION_CHAR_BUDGET = 30_000
-
-
-def _fit_lines(lines: list[str], budget: int, *, keep_tail: bool = False) -> list[str]:
-    """Accumulate lines until `budget` chars. keep_tail=True keeps the LAST lines
-    (for conversation, where the newest messages matter most)."""
-    picked: list[str] = []
-    total = 0
-    for line in reversed(lines) if keep_tail else lines:
-        total += len(line) + 1
-        if total > budget:
-            break
-        picked.append(line)
-    return picked[::-1] if keep_tail else picked
 
 
 class UtilityClient(Protocol):
@@ -113,7 +101,7 @@ async def extract_facts(
     is never safe to hand to `save_facts` directly.
     """
     existing_lines = [f"- [{f['category']}] {f['fact']}" for f in existing_facts]
-    kept = _fit_lines(existing_lines, EXISTING_FACTS_CHAR_BUDGET)
+    kept = fit_prefix(existing_lines, EXISTING_FACTS_CHAR_BUDGET, separator_chars=1)
     if len(kept) < len(existing_lines):
         log.info(
             "facts_prompt_existing_capped",
@@ -129,7 +117,7 @@ async def extract_facts(
         for m in recent_messages[-10:]
         if (m.get("content") or "").strip()
     ]
-    conversation_str = "\n".join(_fit_lines(conv_lines, CONVERSATION_CHAR_BUDGET, keep_tail=True))
+    conversation_str = "\n".join(fit_prefix(conv_lines, CONVERSATION_CHAR_BUDGET, separator_chars=1, from_end=True))
     user_prompt = (
         f"User display name: {user_name}\n\nExisting facts:\n{existing_str}\n\nRecent conversation:\n{conversation_str}"
     )

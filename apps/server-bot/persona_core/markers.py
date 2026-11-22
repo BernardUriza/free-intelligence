@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import re
 
+from fi_core.text import truncate
+
 from persona_core.agenda_marker import strip_agenda
 from persona_core.invite_marker import strip_invites
 from persona_core.reactions import strip_reactions
@@ -63,8 +65,7 @@ def parse_remind_cancels(response: str) -> list[str]:
         criterion = (match.group(1) or "").strip()
         if not criterion:
             continue
-        if len(criterion) > MAX_CANCEL_CRITERION_LEN:
-            criterion = criterion[:MAX_CANCEL_CRITERION_LEN].rstrip()
+        criterion = truncate(criterion, MAX_CANCEL_CRITERION_LEN, ellipsis="")
         key = criterion.lower()
         if key in seen:
             continue

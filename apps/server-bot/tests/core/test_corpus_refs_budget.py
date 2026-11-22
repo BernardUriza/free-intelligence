@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from persona_core.corpus import references
+from persona_core.corpus.rules import load_rules
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +53,7 @@ async def test_oversized_top_passage_is_truncated_not_dropped():
     body = block.split("\n", 1)[1]
     assert body.startswith("- [pmc-embarazo] folato")
     assert body.endswith("…")
-    assert len(body) <= references._REF_MAX_CHARS
+    assert len(body) <= load_rules().references.max_block_chars
 
 
 async def test_all_passages_oversized_still_delivers_the_best_one():

@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import structlog
+from fi_core.text import truncate
 
 log = structlog.get_logger()
 
@@ -126,8 +127,7 @@ def parse_remind(response: str) -> RemindRequest | None:
         when_raw, description = segments[0], segments[1] if len(segments) > 1 else ""
         if not when_raw or not description:
             continue
-        if len(description) > MAX_DESCRIPTION_LEN:
-            description = description[:MAX_DESCRIPTION_LEN].rstrip() + "…"
+        description = truncate(description, MAX_DESCRIPTION_LEN)
         recurring = "none"
         if len(segments) > 2 and segments[2]:
             recurring = _RECURRING_ALIASES.get(segments[2].lower(), "")

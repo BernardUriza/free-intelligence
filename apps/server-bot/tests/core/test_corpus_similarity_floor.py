@@ -15,6 +15,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 from persona_core.corpus import references
+from persona_core.corpus.rules import load_rules
 
 
 def _hit(similarity: float, text: str, ref: str = "x:y") -> dict:
@@ -55,7 +56,7 @@ async def test_forced_minimum_does_not_cap_relevant_passages():
     texts = [f"pasaje {i}" for i in range(4)]
     block = await _block([_hit(0.85, t) for t in texts], dict.fromkeys(texts, 1.0), min_passages=1)
     assert block is not None
-    assert block.count("pasaje") == references._REF_TOP_K
+    assert block.count("pasaje") == load_rules().references.top_k
 
 
 def test_only_insult_forces_its_corpus():
@@ -86,7 +87,7 @@ async def test_only_top_k_relevant_passages_enter():
     texts = [f"pasaje {i}" for i in range(6)]
     block = await _block([_hit(0.85, t) for t in texts], {t: 1.0 - i for i, t in enumerate(texts)})
     assert block is not None
-    assert block.count("\n- ") + block.startswith("- ") == references._REF_TOP_K
+    assert block.count("\n- ") + block.startswith("- ") == load_rules().references.top_k
 
 
 async def test_all_irrelevant_returns_none_and_logs_no_hits():
@@ -98,7 +99,7 @@ async def test_all_irrelevant_returns_none_and_logs_no_hits():
     call = next(c for c in info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_no_hits")
     assert call.kwargs["top_relevance"] == -5.3
     assert call.kwargs["queried"] == 2
-    assert call.kwargs["floor"] == references._REF_MIN_RELEVANCE
+    assert call.kwargs["floor"] == load_rules().references.min_relevance
 
 
 async def test_reranker_failure_is_unavailable_not_no_hits():
@@ -134,7 +135,7 @@ async def test_empty_query_stays_silent_no_false_signal():
 def test_floor_stays_above_every_measured_off_topic_query():
     """HARNESS: the worst off-topic query scored -2.61 over 8 candidates (2026-11-20).
     Lowering the floor past it, or swapping RERANK_MODEL, means re-measuring."""
-    assert references._REF_MIN_RELEVANCE > -2.608
+    assert load_rules().references.min_relevance > -2.608
 
 
 def test_cite_label_strips_persona_prefix():

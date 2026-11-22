@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 
 import structlog
+from fi_core.text import truncate
 
 log = structlog.get_logger()
 
@@ -54,8 +55,7 @@ def parse_remembers(response: str) -> list[str]:
         clause = (match.group(1) or "").strip()
         if not clause:
             continue
-        if len(clause) > MAX_FACT_LEN:
-            clause = clause[:MAX_FACT_LEN].rstrip() + "…"
+        clause = truncate(clause, MAX_FACT_LEN)
         facts.append(clause)
         if len(facts) >= MAX_FACTS_PER_TURN:
             break

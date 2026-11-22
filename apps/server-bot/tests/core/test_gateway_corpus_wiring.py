@@ -166,7 +166,7 @@ async def test_merge_never_exceeds_runner_cap():
     from persona_core.guidance import MAX_GUIDANCE_CHARS
 
     client = _client()
-    big_corpus = "C" * 3000  # supera el _REF_MAX_CHARS real, fuerza el recorte
+    big_corpus = "C" * 3000  # supera max_block_chars de rules.yml, fuerza el recorte
     near_cap_guidance = "G" * (MAX_GUIDANCE_CHARS - 500)  # deja hueco < corpus
     with patch(
         "persona_core.turn.context.build_persona_corpus_block",

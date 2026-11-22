@@ -1,0 +1,31 @@
+# Corpus policy. The runtime reads this file directly (persona_core/corpus/rules.py);
+# the modules that use it hold no numbers of their own. Change behavior here.
+
+references:
+  # Cosine shortlist the cross-encoder reranks. e5 cosines are compressed
+  # (on-topic 0.784-0.888 vs off-topic 0.780-0.834, 21 real queries,
+  # 2026-11-19), so the cosine only shortlists and never gates.
+  candidates: 8
+  # Passages that may enter one turn.
+  top_k: 3
+  # Cross-encoder floor. Measured 2026-11-20 over the same 21 queries: off-topic
+  # topped at -2.61 and the on-topic ones under -2 had pulled wrong chunks
+  # anyway. 9 of 11 on-topic pass, 0 of 10 off-topic.
+  min_relevance: -2.0
+  # "ok", "jaja": not worth an embed call.
+  min_query_chars: 12
+  # Ceiling on the injected block. The best passage always enters, cut at a
+  # word if needed: 82 of 893 vegan chunks are over it, and an empty block for
+  # the top hit muted Frugi's pregnancy turns on 2026-10-03.
+  max_block_chars: 2200
+  # How far back a cut looks for a space before giving up on the word boundary.
+  truncate_backoff_chars: 80
+
+voice:
+  # Random draw from the voice pool. Random demos tie or beat similar ones for
+  # persona dialogue, and near-duplicates of the ask get copied verbatim
+  # (Pu et al. 2024, arXiv 2402.09954), so the closest ones are dropped.
+  draw: 12
+  drop_most_similar: 3
+  top_k: 4
+  min_query_chars: 2
