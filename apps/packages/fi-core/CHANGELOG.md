@@ -12,6 +12,21 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.34.0] — 2026-11-22
+
+### Added — `fi_core.text`: cut a string and fit lines to a char budget
+
+The same few lines lived in server-bot (five places) and og118,
+each with its own ellipsis arithmetic. They now share one module:
+
+- `truncate(text, max_chars, *, ellipsis="…", word_backoff=0)`: the result,
+  ellipsis included, never exceeds `max_chars`; `word_backoff` moves the cut
+  back to a space within reach.
+- `fit_ranked(lines, max_chars, *, word_backoff=0)`: ranked lines that fit
+  together, skipping the ones that do not; the first always enters, cut if needed.
+- `fit_prefix(lines, max_chars, *, separator_chars=0, from_end=False)`: the
+  longest run of whole lines that fits, from the start or from the end.
+
 ## [0.33.0] — 2026-09-22
 
 Las dos decisiones clínicas de Alex que quedaron en discord-bot #55 sin issue en

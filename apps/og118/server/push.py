@@ -18,6 +18,7 @@ from pathlib import Path
 
 import httpx
 import jwt
+from fi_core.text import truncate
 
 log = logging.getLogger("uvicorn.error").getChild("og118.push")
 
@@ -100,8 +101,7 @@ async def _send(token: str, environment: str, payload: dict) -> tuple[int, str]:
 
 def payload_for(title: str, body: str, conversation_id: str) -> dict:
     text = " ".join((body or "").split())
-    if len(text) > BODY_CHARS:
-        text = text[: BODY_CHARS - 1].rstrip() + "…"
+    text = truncate(text, BODY_CHARS)
     return {
         "aps": {"alert": {"title": title, "body": text}, "sound": "default", "thread-id": conversation_id},
         "conversation_id": conversation_id,
