@@ -50,7 +50,8 @@ dependencies = [
     # unchanged, and WeightedSignals.score now materializes its input.
     # Cap 0.34: fi-core 0.33 widens two PSYCHIATRY corpora (Alex H3/H4, #490/#491):
     # more phrases score/silence, no axis, weight or threshold changes.
-    "fi-core>=0.25,<0.34",
+    # Cap 0.35: fi-core 0.34 adds fi_core.text (truncate, fit_ranked, fit_prefix): additive.
+    "fi-core>=0.25,<0.35",
 ]
 
 [project.optional-dependencies]
