@@ -55,10 +55,11 @@ from dataclasses import dataclass, field
 
 import structlog
 from fastapi import HTTPException
+from fi_core.prompts import load_prompt
 from fi_runner import AIREBackend
 from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage
 
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 from persona_runner.core import config
 from persona_runner.core.schemas import JudgeRequest, JudgeResponse, TurnRequest, TurnResponse
 from persona_runner.engine import aire_principal, aire_topic, auth_failure, runtime_personas, turn_events
@@ -516,11 +517,8 @@ def log_topic_decision(casita: str, claim: aire_topic.TopicClaim) -> None:
         )
 
 
-_RESUME_PROMPT_CACHE: PromptCache = {}
-
-
 def resume_note() -> str:
-    return load_prompt(SHARED_PROMPTS_DIR, "turn_resume_note", _RESUME_PROMPT_CACHE)
+    return load_prompt(SHARED_PROMPTS_DIR / "turn_resume_note.md")
 
 
 async def turn_ledger_mark_sent(job_id: str) -> None:

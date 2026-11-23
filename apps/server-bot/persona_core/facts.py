@@ -39,14 +39,12 @@ from typing import Any, Protocol
 
 import httpx
 import structlog
+from fi_core.prompts import load_prompt
 from fi_core.text import fit_prefix
-
-from persona_core.prompts import PromptCache, load_prompt
 
 log = structlog.get_logger()
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts_md"
-_CACHE: PromptCache = {}
 
 __all__ = [
     "PROMPTS_DIR",
@@ -124,7 +122,7 @@ async def extract_facts(
 
     try:
         response = await llm.utility_call(
-            load_prompt(PROMPTS_DIR, "facts_extraction", _CACHE),
+            load_prompt(PROMPTS_DIR / "facts_extraction.md"),
             [{"role": "user", "content": user_prompt}],
             model=model,
         )

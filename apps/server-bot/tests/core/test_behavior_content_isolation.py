@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 
 from persona_core.behavior import content
-from persona_core.behavior.content import clear_guidance_cache, load_guidance
+from persona_core.behavior.content import load_guidance
 from persona_core.behavior.vulnerability import (
     VULNERABLE_THRESHOLD,
     compute_vulnerability_score,
@@ -37,7 +37,6 @@ def test_same_named_guidance_with_equal_mtimes_stays_per_persona(tmp_path, monke
             ns=(stamp, stamp),
         )
     monkeypatch.setattr(content, "_GUIDANCE_ROOT", tmp_path)
-    clear_guidance_cache()
 
     assert load_guidance("insult", "presets", "preset_guidance_default_abrasive") == "filo y navaja"
     assert load_guidance("vultur", "presets", "preset_guidance_default_abrasive") == "carroña y cine"
@@ -47,7 +46,6 @@ def test_same_named_guidance_with_equal_mtimes_stays_per_persona(tmp_path, monke
 
 def test_persona_without_content_gets_empty_string_not_crash(tmp_path, monkeypatch):
     monkeypatch.setattr(content, "_GUIDANCE_ROOT", tmp_path)
-    clear_guidance_cache()
     assert load_guidance("frugivoro", "presets", "preset_guidance_default_abrasive") == ""
 
 

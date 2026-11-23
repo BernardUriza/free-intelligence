@@ -35,8 +35,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-
-from persona_core.prompts import PromptCache, load_prompt
+from fi_core.prompts import load_prompt
 
 log = structlog.get_logger()
 
@@ -47,8 +46,6 @@ PROMPTS_DIR = Path(__file__).resolve().parent / "prompts_md"
 # somehow accumulates hundreds must not eat the whole guidance budget. Crossing
 # it is logged as the data problem it is, never silently trimmed.
 MAX_CONSTRAINTS = 40
-
-_CACHE: PromptCache = {}
 
 
 def _dedupe_key(text: str) -> str:
@@ -111,7 +108,7 @@ def build_constraints_block(user_facts: list[dict] | None) -> str | None:
         constraints = select_constraints(user_facts)
         if not constraints:
             return None
-        header = load_prompt(PROMPTS_DIR, "user_constraints", _CACHE)
+        header = load_prompt(PROMPTS_DIR / "user_constraints.md")
         body = "\n".join(f"- {c}" for c in constraints)
         return f"{header}\n\n{body}"
     except Exception:

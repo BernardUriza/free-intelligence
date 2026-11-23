@@ -30,9 +30,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import structlog
+from fi_core.prompts import load_prompt
 
 from demux_ai.router_budget import RouterBudget
-from persona_core.prompts import PromptCache, load_prompt
 
 log = structlog.get_logger()
 
@@ -57,11 +57,10 @@ DEFAULT_TARGET = _DEFAULT_TARGET
 _VALID_TARGETS = ("insult", "vultur", "alice", "frugivoro", "unborn_being", "valentis")
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
-_PROMPT_CACHE: PromptCache = {}
 
 
 def _routing_instruction() -> str:
-    return load_prompt(_PROMPTS_DIR, "host_routing", _PROMPT_CACHE)
+    return load_prompt(_PROMPTS_DIR / "host_routing.md")
 
 
 def _compose_route_input(text: str, context: str | None) -> str:

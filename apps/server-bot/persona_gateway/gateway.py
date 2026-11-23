@@ -41,7 +41,6 @@ import structlog
 from discord.ext import tasks
 
 from persona_core.memory import MemoryStore
-from persona_core.prompts import PromptCache
 from persona_core.runner.agent_client import AgentRunnerClient
 from persona_core.runner.judge_client import RunnerJudgeClient
 from persona_core.tickets import LedgerRow
@@ -76,7 +75,6 @@ SPEAK_EMOJI = "🔊"
 log = structlog.get_logger()
 
 # Engine-side prompt cache (mtime hot-reload) shared by this process's personas.
-_PROMPT_CACHE: PromptCache = {}
 
 
 class PersonaClient(discord.Client):
@@ -138,7 +136,7 @@ class PersonaClient(discord.Client):
         self._vision = ImageTranscriber(memory, self._bg_tasks)
         self._research = ResearchWorker(persona, memory, agent_client)
         self._agenda = AgendaWorker(persona, memory, agent_client)
-        self._reminders = ReminderWorker(persona, memory, agent_client, _PROMPT_CACHE)
+        self._reminders = ReminderWorker(persona, memory, agent_client)
         self._reflection = ReflectionWorker(persona, memory)
 
     # --- lifecycle -----------------------------------------------------------

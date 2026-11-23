@@ -388,6 +388,19 @@ def _resolve_namespace(persona_id: str, *, dry_run: bool) -> str | None:
     return namespace
 
 
+def chunk_for_embedding(text: str, chunk_size: int = 400, overlap: int = 50) -> list[str]:
+    """fi-core PARAGRAPH_AWARE chunks: 400 tokens, 50 of overlap, 50 minimum."""
+    if not text or not text.strip():
+        return []
+    from fi_core.rag import ChunkConfig, ChunkingStrategy, chunk_document
+
+    return chunk_document(
+        text,
+        strategy=ChunkingStrategy.PARAGRAPH_AWARE,
+        config=ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=50),
+    )
+
+
 async def main() -> int:
     args = parse_args()
 
@@ -411,8 +424,6 @@ async def main() -> int:
     print(f"persona={args.persona} namespace={namespace or '<unset>'} sources={len(sources)}")
 
     # Extract + chunk every source first (cheap, local, no network).
-    from persona_core.deep_memory import chunk_text_for_embedding
-
     prepared: list[tuple[str, list[str]]] = []
     empty: list[str] = []
     salvaged: list[str] = []
@@ -421,7 +432,7 @@ async def main() -> int:
         doc = extract_source_text(path)
         print(f"  extracted {len(doc):,} chars (~{len(doc.split()):,} words)")
         prepare = prepare_markdown_chunks if path.suffix.lower() == ".md" else prepare_chunks
-        chunks, status = prepare(doc, chunker=chunk_text_for_embedding, chunk_size=args.chunk_size, overlap=args.overlap)
+        chunks, status = prepare(doc, chunker=chunk_for_embedding, chunk_size=args.chunk_size, overlap=args.overlap)
         if status == "no_text":
             print("  no extractable text, skipping")
             empty.append(source_ref)

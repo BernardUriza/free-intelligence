@@ -17,12 +17,12 @@ import json
 from typing import Any
 
 import structlog
+from fi_core.prompts import load_prompt
 
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 
 log = structlog.get_logger()
 
-_CACHE: PromptCache = {}
 
 MAX_TURN_CHARS = 500
 
@@ -83,7 +83,7 @@ async def reflect_self_facts(
     advance the cadence gate (a failed pass retries; an empty pass does not).
     """
     system_prompt = (
-        load_prompt(SHARED_PROMPTS_DIR, "self_reflection", _CACHE)
+        load_prompt(SHARED_PROMPTS_DIR / "self_reflection.md")
         .replace("{persona_name}", persona_name)
         .replace("{max_facts}", str(max_facts))
     )

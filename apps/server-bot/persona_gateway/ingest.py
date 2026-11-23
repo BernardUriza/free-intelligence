@@ -21,6 +21,7 @@ import contextlib
 
 import discord
 import structlog
+from fi_core.prompts import load_prompt
 
 from persona_core.attachments import (
     MAX_DOCUMENTS_PER_MESSAGE,
@@ -29,7 +30,7 @@ from persona_core.attachments import (
     cap_images,
     process_attachments,
 )
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 from persona_core.stt import (
     DEFAULT_AUDIO_CONTENT_TYPE,
     SusurroSttClient,
@@ -39,8 +40,6 @@ from persona_core.stt import (
 from shared.personas import Persona
 
 log = structlog.get_logger()
-
-_PROMPT_CACHE: PromptCache = {}
 
 
 class MessageIngest:
@@ -125,7 +124,7 @@ class MessageIngest:
                 max_images=MAX_IMAGES_PER_MESSAGE,
                 dropped=over_cap,
             )
-            note = load_prompt(SHARED_PROMPTS_DIR, "images_over_cap_note", _PROMPT_CACHE).format(
+            note = load_prompt(SHARED_PROMPTS_DIR / "images_over_cap_note.md").format(
                 total=MAX_IMAGES_PER_MESSAGE + over_cap, max=MAX_IMAGES_PER_MESSAGE, dropped=over_cap
             )
             blocks = [*blocks, {"type": "text", "text": note}]

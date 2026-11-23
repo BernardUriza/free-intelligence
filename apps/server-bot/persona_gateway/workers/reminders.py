@@ -5,10 +5,11 @@ from __future__ import annotations
 import time
 
 import structlog
+from fi_core.prompts import load_prompt
 
 from persona_core.markers import strip_delivery_markers
 from persona_core.memory import MemoryStore
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 from persona_core.remind_marker import compute_next_occurrence
 from persona_core.runner.agent_client import AgentRunnerClient
 from persona_gateway.config import CONFIG
@@ -27,12 +28,10 @@ class ReminderWorker:
         persona: Persona,
         memory: MemoryStore,
         agent_client: AgentRunnerClient,
-        prompt_cache: PromptCache,
     ) -> None:
         self.persona = persona
         self.memory = memory
         self.agent_client = agent_client
-        self._prompt_cache = prompt_cache
 
     async def drain(self, host: GatewayHost) -> None:
         """Rows are owned by the persona that scheduled them, so a sibling never
@@ -144,9 +143,7 @@ class ReminderWorker:
         description = reminder["description"]
         fallback = f"⏰ Recordatorio: {description}"
         try:
-            prompt = load_prompt(SHARED_PROMPTS_DIR, "reminder_delivery", self._prompt_cache).format(
-                description=description
-            )
+            prompt = load_prompt(SHARED_PROMPTS_DIR / "reminder_delivery.md").format(description=description)
             resp = await self.agent_client.chat(
                 "",
                 [{"role": "user", "content": prompt}],
