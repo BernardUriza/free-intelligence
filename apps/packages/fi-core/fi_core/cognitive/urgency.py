@@ -29,11 +29,12 @@ In the consultation state machine this is what the ``TRIAGE`` state runs
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
 from typing import Literal, Protocol
+
+from fi_core.text import fold_accents
 
 
 def _fold(text: str) -> str:
@@ -42,9 +43,7 @@ def _fold(text: str) -> str:
     Vocabularies are written with accents; a chat user, an ASR transcript or a
     hurried clinician often are not. Both sides of every match go through this,
     so the vocab entry 'autolesión activa' still fires on 'autolesion activa'."""
-    return "".join(
-        ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch)
-    )
+    return fold_accents(text)
 
 
 @lru_cache(maxsize=64)

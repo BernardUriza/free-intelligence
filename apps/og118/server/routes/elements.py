@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import time
 import uuid
@@ -30,6 +29,7 @@ from external_engine import (
     put_persona,
     stream_external_turn,
 )
+from fi_core.text import digest
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ def _element_author(principal: Principal) -> bool:
     allowed = {a.strip() for a in os.getenv("OG118_ELEMENT_AUTHORS", "").split(",") if a.strip()}
     if principal.is_legacy_bearer or not allowed:
         return False
-    return hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32] in allowed
+    return digest(principal.sub) in allowed
 
 
 class ElementCreateRequest(BaseModel):
@@ -132,7 +132,7 @@ async def create_element(req: ElementCreateRequest, principal: Principal = Depen
                 "provider": req.provider,
                 "model": req.model,
                 "dna": req.dna,
-                "created_by": hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32],
+                "created_by": digest(principal.sub),
             },
         )
     except PersonaWriteError as e:
@@ -225,7 +225,7 @@ async def update_element(
                 "provider": req.provider,
                 "model": req.model,
                 "dna": req.dna,
-                "created_by": hashlib.sha256(principal.sub.encode("utf-8")).hexdigest()[:32],
+                "created_by": digest(principal.sub),
             },
         )
     except PersonaWriteError as e:

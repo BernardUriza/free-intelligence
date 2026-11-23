@@ -32,6 +32,7 @@ from stt import STTProvider
 from stt import build_provider as build_stt_provider
 from tts import TTSProvider
 from tts import build_provider as build_tts_provider
+from fi_core.env import env_flag
 
 # A child of uvicorn's logger: a bare "og118" logger has no handler and every INFO line
 # (which client build is alive, element audits) vanished in production.
@@ -52,7 +53,7 @@ def proyectos_activos() -> bool:
     suites que corren después — se probó, y contaminó siete tests ajenos. Leer
     el entorno cuesta nanosegundos y `create_app()` ya es la costura por-consumer
     documentada, así que la rama se prueba llamando, no recargando."""
-    return os.getenv("OG118_PROYECTOS", "0").strip().lower() in ("1", "true", "yes", "on")
+    return env_flag("OG118_PROYECTOS")
 
 
 _AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")

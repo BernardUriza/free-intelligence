@@ -29,8 +29,9 @@ from __future__ import annotations
 import logging
 import math
 import re
-import unicodedata
 from dataclasses import dataclass
+
+from fi_core.text import fold_accents
 
 #: Common ES + EN glue words stripped before lexical overlap, so they can't
 #: manufacture a false match against a chunk that shares nothing topical.
@@ -53,16 +54,6 @@ DEFAULT_SEMANTIC_MIN = 0.25
 
 
 _log = logging.getLogger(__name__)
-
-
-def fold_accents(text: str) -> str:
-    """Lowercase and strip diacritics (áéíóúñ → aeioun) for matching.
-
-    NFKD-decompose then drop combining marks. ñ→n is fine for keyword overlap.
-    """
-    return "".join(
-        ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch)
-    )
 
 
 def tokenize(text: str) -> set[str]:

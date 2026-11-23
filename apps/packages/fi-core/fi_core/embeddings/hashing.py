@@ -14,15 +14,13 @@ from __future__ import annotations
 
 import hashlib
 import re
-import unicodedata
+
+from fi_core.text import fold_accents
 
 
 def _tokens(text: str) -> list[str]:
     """Accent-folded, lowercased word tokens (Spanish-friendly)."""
-    folded = "".join(
-        c for c in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(c)
-    )
-    return re.findall(r"\w+", folded)
+    return re.findall(r"\w+", fold_accents(text))
 
 
 class HashingEmbedder:

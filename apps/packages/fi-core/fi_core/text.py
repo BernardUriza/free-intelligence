@@ -1,8 +1,13 @@
-"""Text-budget operations shared by every consumer: cut a string, fit lines to a char budget."""
+"""Text operations shared by every consumer: budgets, normalization, fences, digests."""
 
 from __future__ import annotations
 
+import hashlib
+import re
+import unicodedata
 from collections.abc import Sequence
+
+_FENCE = re.compile(r"^```(?:[\w-]+(?=\s)|json(?=[\[{]))?\s*(.*?)\s*(?:```)?\s*$", re.DOTALL)
 
 
 def truncate(text: str, max_chars: int, *, ellipsis: str = "…", word_backoff: int = 0) -> str:
@@ -58,3 +63,27 @@ def fit_prefix(lines: Sequence[str], max_chars: int, *, separator_chars: int = 0
             break
         picked.append(line)
     return picked[::-1] if from_end else picked
+
+
+def fold_accents(text: str) -> str:
+    """`text` lowercased with diacritics dropped, so 'Religión' and 'religion' match."""
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text.lower()) if not unicodedata.combining(ch))
+
+
+def collapse_whitespace(text: str) -> str:
+    """Every run of whitespace as one space, ends trimmed."""
+    return " ".join(text.split())
+
+
+def strip_code_fence(text: str) -> str:
+    """The body of a ```lang ... ``` block, one line or many; unfenced text comes back stripped."""
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    match = _FENCE.match(stripped)
+    return match.group(1) if match else stripped
+
+
+def digest(text: str, length: int = 32) -> str:
+    """The first `length` hex chars of the SHA-256 of `text` (UTF-8): a stable, opaque id."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:length]

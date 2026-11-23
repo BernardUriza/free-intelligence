@@ -24,6 +24,8 @@ Optional dependency: ``asyncpg`` + ``pgvector``. Install via
 
 from __future__ import annotations
 
+import logging
+
 try:
     import asyncpg
     from pgvector.asyncpg import register_vector
@@ -32,6 +34,8 @@ except ImportError as e:
         "fi_core.stores._pg requires asyncpg and pgvector. "
         "Install via: pip install 'fi-core[stores-pgvector]'"
     ) from e
+
+_log = logging.getLogger(__name__)
 
 
 async def ensure_vector_extension(dsn: str) -> None:
@@ -58,8 +62,8 @@ async def init_vector_connection(conn: "asyncpg.Connection") -> None:
     """
     try:
         await register_vector(conn)
-    except Exception:
-        pass
+    except Exception as exc:
+        _log.warning("pgvector codec not registered: %s", exc)
 
 
 async def create_vector_pool(

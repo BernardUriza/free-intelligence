@@ -177,3 +177,18 @@ def _np_array(values):
     import numpy as np
 
     return np.array(values, dtype=float)
+
+
+@pytest.mark.asyncio
+async def test_query_and_passage_prefixes_reach_the_model():
+    fake_model = MagicMock()
+    fake_model.encode.return_value = _np_array([1.0])
+    with patch("fi_core.embeddings.sentence_transformers.SentenceTransformer", return_value=fake_model):
+        emb = SentenceTransformersEmbedder(
+            model_name="e5", device="cpu", query_prefix="query: ", passage_prefix="passage: ", normalize=True
+        )
+        await emb.embed_query("hola")
+        await emb.embed_passage("mundo")
+    sent = [c.args[0] for c in fake_model.encode.call_args_list]
+    assert sent == ["query: hola", "passage: mundo"]
+    assert all(c.kwargs["normalize_embeddings"] is True for c in fake_model.encode.call_args_list)

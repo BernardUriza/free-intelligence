@@ -60,6 +60,7 @@ from fi_core.stores._pg import create_vector_pool, ensure_vector_extension
 
 from fi_core.memory.types import ConsolidationOp, Fact, FactSource
 from fi_core.rag.hybrid import reciprocal_rank_fusion  # single RRF impl (dep-free)
+from fi_core.sql import affected_rows
 
 if TYPE_CHECKING:
     from fi_core.rag.protocols import Embedder
@@ -416,7 +417,7 @@ class PgMemoryStore:
         )
         # asyncpg returns "UPDATE n" — split last token as int
         try:
-            return int(tag.rsplit(" ", 1)[-1]) > 0
+            return affected_rows(tag) > 0
         except (ValueError, AttributeError):
             return False
 
@@ -426,7 +427,7 @@ class PgMemoryStore:
             cutoff,
         )
         try:
-            return int(tag.rsplit(" ", 1)[-1])
+            return affected_rows(tag)
         except (ValueError, AttributeError):
             return 0
 

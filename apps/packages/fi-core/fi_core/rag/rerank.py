@@ -18,6 +18,7 @@ fi-core ships the Protocol + a reference impl; the model dep is an extra:
 from __future__ import annotations
 
 import asyncio
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -66,9 +67,15 @@ class BgeReranker:
 
     model_name: str = "BAAI/bge-reranker-v2-m3"
     device: str | None = None
+    max_chars: int | None = None
     _model: Any = field(default=None, init=False, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def _get_model(self) -> Any:
+        with self._lock:
+            return self._load_locked()
+
+    def _load_locked(self) -> Any:
         if self._model is None:
             try:
                 from sentence_transformers import CrossEncoder
@@ -82,11 +89,15 @@ class BgeReranker:
     async def rerank(self, query: str, documents: list[str]) -> list[RerankResult]:
         if not documents:
             return []
-        model = self._get_model()
-        pairs = [(query, d) for d in documents]
-        scores = await asyncio.to_thread(model.predict, pairs)  # blocking → off-loop
+        scores = await asyncio.to_thread(self.score, query, documents)
         ranked = sorted(enumerate(scores), key=lambda x: float(x[1]), reverse=True)
         return [RerankResult(index=i, score=float(s)) for i, s in ranked]
+
+    def score(self, query: str, documents: list[str]) -> list[float]:
+        """Blocking: each document's joint score in input order (loads the model on first use)."""
+        cap = self.max_chars
+        pairs = [(query, d[:cap] if cap else d) for d in documents]
+        return [float(s) for s in self._get_model().predict(pairs)]
 
 
 @dataclass

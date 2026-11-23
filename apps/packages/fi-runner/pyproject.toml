@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.25.0"
+version = "0.26.0"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -51,7 +51,8 @@ dependencies = [
     # Cap 0.34: fi-core 0.33 widens two PSYCHIATRY corpora (Alex H3/H4, #490/#491):
     # more phrases score/silence, no axis, weight or threshold changes.
     # Cap 0.35: fi-core 0.34 adds fi_core.text (truncate, fit_ranked, fit_prefix): additive.
-    "fi-core>=0.25,<0.35",
+    # Floor 0.35: narrate imports fi_core.text.strip_code_fence, new in 0.35.
+    "fi-core>=0.35,<0.36",
 ]
 
 [project.optional-dependencies]
