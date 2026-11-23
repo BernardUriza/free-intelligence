@@ -40,7 +40,7 @@ from typing import Any, Protocol
 import httpx
 import structlog
 from fi_core.prompts import load_prompt
-from fi_core.text import fit_prefix
+from fi_core.text import collapse_whitespace, fit_prefix, strip_code_fence
 
 log = structlog.get_logger()
 
@@ -128,8 +128,7 @@ async def extract_facts(
         )
         raw = response.text.strip()
 
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        raw = strip_code_fence(raw)
 
         facts = json.loads(raw)
         if not isinstance(facts, list):
@@ -154,7 +153,7 @@ async def extract_facts(
 
 def norm_fact(s: str) -> str:
     """Normalize a fact's text for dedup: lowercase, whitespace-collapsed."""
-    return " ".join(s.lower().split())
+    return collapse_whitespace(s.lower())
 
 
 def merge_facts_additive(existing: list[dict], incoming: list[dict]) -> tuple[list[dict], list[dict]]:

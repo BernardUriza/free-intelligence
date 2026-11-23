@@ -14,6 +14,7 @@ import time
 
 import asyncpg
 import structlog
+from fi_core.sql import affected_rows
 
 from persona_core.memory.base import BaseRepository
 
@@ -29,10 +30,7 @@ def _affected_rows(command_tag: str) -> int:
     asyncpg's pool.execute returns a string of the form `<VERB> [<oid>] <count>`.
     For our INSERT/UPDATE/DELETE statements the count is the trailing token
     — same value SQLite's `cursor.rowcount` returned."""
-    try:
-        return int(command_tag.rsplit(" ", 1)[-1])
-    except ValueError, AttributeError:
-        return 0
+    return affected_rows(command_tag)
 
 
 class RemindersRepository(BaseRepository):

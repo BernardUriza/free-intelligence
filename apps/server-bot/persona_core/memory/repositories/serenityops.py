@@ -23,6 +23,7 @@ import time
 
 import asyncpg
 import structlog
+from fi_core.sql import affected_rows
 
 from persona_core.memory.base import BaseRepository
 
@@ -136,10 +137,7 @@ class SerenityOpsRepository(BaseRepository):
             now,
             user_id,
         )
-        try:
-            return int(tag.rsplit(" ", 1)[-1])
-        except ValueError, AttributeError:
-            return 0
+        return affected_rows(tag)
 
     async def resolve_token(self, plaintext_token: str) -> str | None:
         """Map a presented bearer token to its owner's user_id (or None).

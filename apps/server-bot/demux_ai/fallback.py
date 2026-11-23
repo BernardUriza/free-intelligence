@@ -29,12 +29,12 @@ Every step is a KQL event that can go red — the whole point of owning it.
 
 from __future__ import annotations
 
-import hashlib
 import uuid
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
+from fi_core.text import digest
 
 from demux_ai.summon import TURN_TAKEN, TURN_UNCERTAIN, summon_and_wait
 from shared.personas.registry import get_persona
@@ -75,7 +75,7 @@ def _first_turn_id(trigger_message_id: str | None, persona_id: str | None, chann
     if not trigger_message_id:
         return uuid.uuid4().hex
     seed = f"{trigger_message_id}:{persona_id or ''}:{channel_id}"
-    return hashlib.sha256(seed.encode()).hexdigest()[:32]
+    return digest(seed)
 
 
 async def deliver_or_fallback(

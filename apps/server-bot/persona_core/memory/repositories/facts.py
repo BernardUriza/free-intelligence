@@ -49,9 +49,10 @@ import asyncpg
 import structlog
 
 from persona_core.memory.base import BaseRepository
-from persona_core.memory.minilm_embedder import MiniLMEmbedder
+from persona_core.vectors import get_embedding_model
 
 if TYPE_CHECKING:
+    from fi_core.embeddings.sentence_transformers import SentenceTransformersEmbedder
     from fi_core.memory.types import Fact
 
     from persona_core.memory.connection import ConnectionManager
@@ -69,7 +70,7 @@ def _fact_to_dict(f: Fact) -> dict:
     return {"id": f.id, "fact": f.fact, "category": f.category, "updated_at": f.updated_at}
 
 
-def _build_shared_pool_store(manager: ConnectionManager, embedder: MiniLMEmbedder | None):
+def _build_shared_pool_store(manager: ConnectionManager, embedder: SentenceTransformersEmbedder | None):
     """Construct a ``PgMemoryStore`` bound to the bot's shared pool.
 
     Subclassing and overriding ``_p`` lets every inherited method
@@ -116,7 +117,7 @@ class FactsRepository(BaseRepository):
         unranked `get_facts`. With no embedder, `PgMemoryStore` writes a
         NULL embedding and `semantic_search` returns `get_facts`."""
         if self._store is None:
-            embedder = MiniLMEmbedder() if self.vectors_available else None
+            embedder = get_embedding_model() if self.vectors_available else None
             self._store = _build_shared_pool_store(self._manager, embedder)
         return self._store
 
@@ -294,7 +295,7 @@ class FactsRepository(BaseRepository):
         pgvector is available, so consolidation output stays searchable —
         matching `PgMemoryStore`'s write path. Embed failure degrades to a
         NULL embedding, never aborts the transaction."""
-        embedder = MiniLMEmbedder() if self.vectors_available else None
+        embedder = get_embedding_model() if self.vectors_available else None
         applied: list = []
         async with self._tx() as conn:
             for op in plan:

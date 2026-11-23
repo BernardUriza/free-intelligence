@@ -71,9 +71,8 @@ async def main() -> int:
         if args.dry_run or not pending:
             return 0
 
-        from persona_core.corpus.pg_rag import get_corpus_embedder
+        from persona_core.corpus.pg_rag import encode
 
-        embedder = get_corpus_embedder()
         done = 0
         started = time.monotonic()
         while True:
@@ -83,7 +82,7 @@ async def main() -> int:
             )
             if not rows:
                 break
-            vecs = await asyncio.gather(*(embedder.embed(r["chunk_text"], role="passage") for r in rows))
+            vecs = await asyncio.gather(*(encode(r["chunk_text"], role="passage") for r in rows))
             await conn.executemany(
                 "UPDATE deep_memory_chunks SET embedding = $2 WHERE id = $1",
                 [(r["id"], v) for r, v in zip(rows, vecs, strict=True)],

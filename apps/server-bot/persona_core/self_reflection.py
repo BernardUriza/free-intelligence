@@ -18,6 +18,7 @@ from typing import Any
 
 import structlog
 from fi_core.prompts import load_prompt
+from fi_core.text import strip_code_fence
 
 from persona_core.prompts import SHARED_PROMPTS_DIR
 
@@ -44,10 +45,7 @@ def build_reflection_material(existing: list[dict], turns: list[dict]) -> str:
 
 def parse_reflection(raw: str, max_facts: int) -> list[dict]:
     """Strict-ish parse of the judge's JSON. Anything malformed → []."""
-    text = (raw or "").strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        text = text.split("\n", 1)[1] if "\n" in text else text
+    text = strip_code_fence(raw or "")
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
