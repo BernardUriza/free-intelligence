@@ -22,14 +22,14 @@ from __future__ import annotations
 import asyncio
 
 import structlog
+from fi_core.prompts import load_prompt
 
 from persona_core.memory import MemoryStore
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 from persona_core.runner.judge_client import RunnerJudgeClient
 
 log = structlog.get_logger()
 
-_CACHE: PromptCache = {}
 
 MAX_TRANSCRIPT_CHARS = 600
 
@@ -67,7 +67,7 @@ class ImageTranscriber:
         already delivered before this ran.
         """
         try:
-            system_prompt = load_prompt(SHARED_PROMPTS_DIR, "image_transcript", _CACHE)
+            system_prompt = load_prompt(SHARED_PROMPTS_DIR / "image_transcript.md")
             for index, image in enumerate(images):
                 resp = await judge.utility_call(
                     system_prompt,

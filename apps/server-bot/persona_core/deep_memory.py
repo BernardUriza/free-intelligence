@@ -15,7 +15,6 @@ Public API:
 - `query_user_memory(user_id, query, top_k)` → list of
   {source_type, source_ref, chunk_text, similarity, created_at}, or None when
   retrieval could not run
-- `chunk_text_for_embedding(text)` → fi_core PARAGRAPH_AWARE chunks
 """
 
 from __future__ import annotations
@@ -75,20 +74,3 @@ async def query_user_memory(*, user_id: str, query: str, top_k: int = 5) -> list
         return None
     finally:
         await conn.close()
-
-
-def chunk_text_for_embedding(text: str, chunk_size: int = 400, overlap: int = 50) -> list[str]:
-    """Thin wrapper over ``fi_core.rag.chunk_document`` (PARAGRAPH_AWARE).
-
-    Same chunker AURITY uses: 400-token chunks, 50-token overlap, 50-token
-    minimum. `scripts/ingest_corpus.py` is the caller.
-    """
-    if not text or not text.strip():
-        return []
-    from fi_core.rag import ChunkConfig, ChunkingStrategy, chunk_document
-
-    return chunk_document(
-        text,
-        strategy=ChunkingStrategy.PARAGRAPH_AWARE,
-        config=ChunkConfig(chunk_size=chunk_size, overlap=overlap, min_chunk_size=50),
-    )

@@ -9,7 +9,7 @@ Any robot opts in by adding files there; a persona with no guidance content gets
 an empty string back (mode still selected, no voice-specific prose) — the engine
 never crashes because a persona hasn't written its voice yet.
 
-Mtime-aware via ``persona_core.prompts``: editing a .md is picked up on the
+Mtime-aware via ``fi_core.prompts``: editing a .md is picked up on the
 next request, no redeploy.
 """
 
@@ -19,9 +19,7 @@ import os
 from pathlib import Path
 
 import structlog
-
-from persona_core.prompts import PromptCache
-from persona_core.prompts import load_prompt as _load_prompt
+from fi_core.prompts import load_prompt
 
 log = structlog.get_logger()
 
@@ -36,8 +34,6 @@ _GUIDANCE_ROOT = Path(
     )
 )
 
-_CACHE: PromptCache = {}
-
 
 def guidance_dir(persona_id: str, kind: str) -> Path:
     """Directory holding a persona's guidance content for one engine (presets/flows)."""
@@ -51,12 +47,7 @@ def load_guidance(persona_id: str, kind: str, name: str) -> str:
     hasn't written its voice for a mode simply adds nothing to the prompt.
     """
     try:
-        return _load_prompt(guidance_dir(persona_id, kind), name, _CACHE)
+        return load_prompt(guidance_dir(persona_id, kind) / f"{name}.md")
     except FileNotFoundError:
         log.debug("guidance_content_absent", persona_id=persona_id, kind=kind, name=name)
         return ""
-
-
-def clear_guidance_cache() -> None:
-    """Empty the cache — tests call this when mtime granularity is coarse."""
-    _CACHE.clear()

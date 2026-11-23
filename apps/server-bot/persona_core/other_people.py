@@ -20,12 +20,12 @@ persona-agnostic shared capability. The header prose lives in
 from typing import Protocol
 
 import structlog
+from fi_core.prompts import load_prompt
 
-from persona_core.prompts import SHARED_PROMPTS_DIR, PromptCache, load_prompt
+from persona_core.prompts import SHARED_PROMPTS_DIR
 
 log = structlog.get_logger()
 
-_CACHE: PromptCache = {}
 
 MAX_OTHER_PARTICIPANTS = 9
 
@@ -46,7 +46,7 @@ def format_other_people_block(facts: dict[str, list[dict]]) -> str:
     """
     if not facts:
         return ""
-    header = load_prompt(SHARED_PROMPTS_DIR, "other_people_header", _CACHE)
+    header = load_prompt(SHARED_PROMPTS_DIR / "other_people_header.md")
     lines = [
         f"- {name}: {'; '.join(f['fact'] for f in person_facts)}"
         for name, person_facts in facts.items()

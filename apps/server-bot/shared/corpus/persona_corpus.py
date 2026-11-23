@@ -18,18 +18,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import structlog
+from fi_core.prompts import load_prompt
 
 from persona_core.corpus.references import build_references_block
 from persona_core.corpus.style import build_style_block
-from persona_core.prompts import PromptCache, load_prompt
 from shared.personas.registry import get_persona
 
 log = structlog.get_logger()
 
 _HEADERS_DIR = Path(__file__).resolve().parent / "headers"
-_HEADER_CACHE: PromptCache = {}
 _STYLE_HEADERS_DIR = Path(__file__).resolve().parent / "style_headers"
-_STYLE_HEADER_CACHE: PromptCache = {}
 
 
 async def build_persona_corpus_block(*, persona_id: str, query: str | None) -> str | None:
@@ -43,7 +41,7 @@ async def build_persona_corpus_block(*, persona_id: str, query: str | None) -> s
     if not namespace:
         return None
     try:
-        header = load_prompt(_HEADERS_DIR, persona_id, _HEADER_CACHE)
+        header = load_prompt(_HEADERS_DIR / f"{persona_id}.md")
     except FileNotFoundError:
         log.warning("corpus_header_missing", persona_id=persona_id, namespace=namespace)
         return None
@@ -62,7 +60,7 @@ async def build_persona_style_block(*, persona_id: str, query: str | None) -> st
     if not namespace:
         return None
     try:
-        header = load_prompt(_STYLE_HEADERS_DIR, persona_id, _STYLE_HEADER_CACHE)
+        header = load_prompt(_STYLE_HEADERS_DIR / f"{persona_id}.md")
     except FileNotFoundError:
         log.warning("style_header_missing", persona_id=persona_id, namespace=namespace)
         return None
