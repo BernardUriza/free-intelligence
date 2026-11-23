@@ -39,6 +39,7 @@ from pathlib import Path
 
 import asyncpg
 import structlog
+from fi_core.stores._pg import init_vector_connection
 
 log = structlog.get_logger()
 
@@ -160,7 +161,7 @@ class ConnectionManager:
         warmup_start = time.monotonic()
         log.info("embedding_prewarm_start")
         try:
-            await asyncio.to_thread(lambda: get_embedding_model().embed("boot warmup"))
+            await get_embedding_model().embed("boot warmup")
             log.info("embedding_model_prewarmed", elapsed_ms=int((time.monotonic() - warmup_start) * 1000))
         except Exception as e:
             log.warning("embedding_prewarm_failed", error=str(e))
@@ -170,14 +171,7 @@ class ConnectionManager:
         pool. Registers the pgvector codec if available so VECTOR(N)
         columns are usable as Python sequences without manual encoding.
         """
-        try:
-            from pgvector.asyncpg import register_vector
-
-            await register_vector(conn)
-        except Exception as e:
-            # pgvector codec not available — semantic-search code paths
-            # will degrade to "vectors_available=False" and skip.
-            log.debug("pgvector_codec_skipped", reason=str(e))
+        await init_vector_connection(conn)
 
     async def get_connection(self):
         """Compatibility shim for old callers that did

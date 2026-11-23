@@ -58,7 +58,7 @@ def fake_pool(monkeypatch):
     monkeypatch.setattr(conn_mod.asyncpg, "create_pool", _fake_create_pool)
 
     class _FakeModel:
-        def embed(self, _text):
+        async def embed(self, _text):
             return [0.0]
 
     import persona_core.vectors as vectors_mod

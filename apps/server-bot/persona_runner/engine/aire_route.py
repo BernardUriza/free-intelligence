@@ -45,7 +45,6 @@ decided by Bernard 2026-08-22:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import os
 import re
 import time
@@ -56,6 +55,7 @@ from dataclasses import dataclass, field
 import structlog
 from fastapi import HTTPException
 from fi_core.prompts import load_prompt
+from fi_core.text import digest
 from fi_runner import AIREBackend
 from fi_runner.backend import BackendError, MCPServerSpec, ToolPolicy, TurnDocument, TurnImage
 
@@ -819,8 +819,7 @@ def judge_casita_for(persona_id: str | None, system_prompt: str) -> str:
     458 MB box, so unbounded creation would be its own defect (an AIRE-side gap
     named in the stage-2 backlog).
     """
-    digest = hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()[:32]
-    return f"{base_persona_id(persona_id)}-judge-{digest}"[:_NAME_MAX]
+    return f"{base_persona_id(persona_id)}-judge-{digest(system_prompt)}"[:_NAME_MAX]
 
 
 def judge_backend_for(casita: str) -> AIREBackend:

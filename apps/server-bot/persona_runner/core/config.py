@@ -12,6 +12,8 @@ import os
 import re
 from pathlib import Path
 
+from fi_core.env import env_flag
+
 WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", "/data/insult-workspace"))
 PERSONA_PATH = Path(os.environ.get("PERSONA_PATH", "/app/personas/insult.md"))
 
@@ -36,7 +38,7 @@ RUNNER_AUTH_TOKEN = os.environ.get("PERSONA_RUNNER_TOKEN") or os.environ.get("IN
 # schemas. Every endpoint does authenticate (core/auth.py is fail-closed and
 # timing-safe), so this is reconnaissance, not a breach — and reconnaissance the
 # service gains nothing by giving away. Off by default, opt-in for local work.
-DOCS_ENABLED = os.environ.get("RUNNER_DOCS_ENABLED", "").strip().lower() in ("1", "true", "yes")
+DOCS_ENABLED = env_flag("RUNNER_DOCS_ENABLED")
 DEFAULT_MODEL = os.environ.get("AGENT_RUNNER_MODEL", "claude-sonnet-4-6")
 TURN_TIMEOUT_S = float(os.environ.get("AGENT_RUNNER_TIMEOUT_S", "90"))
 

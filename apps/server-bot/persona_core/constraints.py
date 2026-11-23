@@ -36,6 +36,7 @@ from typing import Any
 
 import structlog
 from fi_core.prompts import load_prompt
+from fi_core.text import collapse_whitespace
 
 log = structlog.get_logger()
 
@@ -52,7 +53,7 @@ def _dedupe_key(text: str) -> str:
     """Normalized key for near-identical restatements of the same invariant."""
     lowered = text.casefold()
     stripped = "".join(ch for ch in lowered if ch.isalnum() or ch.isspace())
-    return " ".join(stripped.split())
+    return collapse_whitespace(stripped)
 
 
 def select_constraints(user_facts: list[dict] | None) -> list[str]:

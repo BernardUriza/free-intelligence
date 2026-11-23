@@ -18,8 +18,9 @@ Adding a bot:
 
 from __future__ import annotations
 
-import unicodedata
 from dataclasses import dataclass, field
+
+from fi_core.text import fold_accents
 
 # The sibling a bare `[INVITE:]` marker summons. It lives here because the
 # registry is the source of truth for who the personas ARE — `persona_gateway`
@@ -255,9 +256,7 @@ def persona_id_by_bot_user_id() -> dict[str, str]:
 
 def _normalize_role_name(value: str) -> str:
     """Return a lowercase, accent-insensitive role/persona lookup key."""
-    decomposed = unicodedata.normalize("NFKD", value)
-    without_marks = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
-    return without_marks.strip().lower()
+    return fold_accents(value).strip()
 
 
 def persona_id_by_role_name(role_name: str) -> str | None:

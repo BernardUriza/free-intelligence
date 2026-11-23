@@ -112,7 +112,9 @@ dependencies:
   # silencian, nada más.
   # 0.34.0 (2026-11-22): fi_core.text, the truncate and budget fitters the
   # corpus lane, the fact extractor, the markers and the host echo share.
-  - fi-core=0.34.0
+  # 0.35.0 (2026-11-23): fold_accents, strip_code_fence, digest, env_flag,
+  # affected_rows, and the e5 embedder + cross-encoder pg_rag used to carry itself.
+  - fi-core=0.35.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
   # the aire-engine migration, and demux_ai.host_llm since 2026-08-29, when
@@ -156,7 +158,8 @@ dependencies:
   # y attachments_lost — las imágenes viajan por referencia a AIRE (#50).
   # SUBIDO a 0.23.0 (2026-09-25, free-intelligence PR #496): TurnDocument —
   # PDFs y texto viajan por referencia a AIRE (#50 item 6).
-  - fi-runner=0.25.0
+  # SUBIDO a 0.26.0 (2026-11-23): cap de fi-core <0.36, el que admite la 0.35.0.
+  - fi-runner=0.26.0
 
   # Runtime — Discord, LLMs, Postgres, FastAPI
   - discord.py>=2.3.0

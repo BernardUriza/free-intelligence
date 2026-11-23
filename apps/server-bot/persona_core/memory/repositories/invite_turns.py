@@ -17,6 +17,7 @@ import json
 from typing import Any
 
 import structlog
+from fi_core.sql import affected_rows
 
 from persona_core.memory.base import BaseRepository
 from persona_core.tickets import LedgerRow
@@ -116,10 +117,7 @@ def _jsonb(value: Any) -> Any:
 
 
 def _rows(tag: str) -> int:
-    try:
-        return int(tag.rsplit(" ", 1)[-1])
-    except ValueError, AttributeError:
-        return 0
+    return affected_rows(tag)
 
 
 def row_from_record(record, *, me: str | None) -> LedgerRow:

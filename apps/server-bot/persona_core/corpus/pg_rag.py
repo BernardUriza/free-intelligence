@@ -4,7 +4,8 @@ Both the per-user memory (`deep_memory`) and the shared per-persona corpus
 retrieval (`references`, one namespace per persona in the registry) sit on top
 of these:
 
-- `CorpusEmbedder` — local `intfloat/multilingual-e5-small` (384d, normalized)
+- `get_corpus_embedder()` / `get_corpus_reranker()` — fi-core's local e5
+  embedder and cross-encoder, configured for the corpus
 - `embed_query(text)` / `embed_passage(text)` — embed with the e5 role prefix,
   None on failure
 - `connect()` — one-shot asyncpg connection with the pgvector codec registered
@@ -25,10 +26,11 @@ from __future__ import annotations
 
 import asyncio
 import os
-import threading
+from functools import lru_cache
 
 import asyncpg
 import structlog
+from fi_core.stores._pg import init_vector_connection
 
 log = structlog.get_logger()
 
@@ -48,60 +50,41 @@ class EmbeddingDimensionError(RuntimeError):
     """
 
 
-class CorpusEmbedder:
-    """Lazy, thread-safe singleton over the multilingual e5 model.
+@lru_cache(maxsize=1)
+def get_corpus_embedder():
+    """The process-wide e5 embedder: `query: ` / `passage: ` prefixes, normalized vectors."""
+    from fi_core.embeddings.sentence_transformers import SentenceTransformersEmbedder
 
-    e5 is trained with role prefixes: a search text is embedded as
-    `query: ...` and a stored chunk as `passage: ...`. Mixing them up still
-    returns vectors, just worse rankings, so the two entry points are separate
-    methods instead of a flag a caller can forget.
-    """
-
-    def __init__(self, model_name: str = CORPUS_MODEL) -> None:
-        self.model_name = model_name
-        self._model = None
-        self._lock = threading.Lock()
-
-    def _ensure_model(self):
-        if self._model is not None:
-            return self._model
-        with self._lock:
-            if self._model is None:
-                from sentence_transformers import SentenceTransformer
-
-                self._model = SentenceTransformer(self.model_name)
-                log.info("corpus_embedder_loaded", model=self.model_name, dim=EMBEDDING_DIM)
-        return self._model
-
-    def _encode(self, text: str) -> list[float]:
-        vec = self._ensure_model().encode(text, normalize_embeddings=True)
-        out = [float(x) for x in vec]
-        if len(out) != EMBEDDING_DIM:
-            raise EmbeddingDimensionError(
-                f"Expected {EMBEDDING_DIM}-dim vector, got {len(out)} from '{self.model_name}'"
-            )
-        return out
-
-    async def embed(self, text: str, *, role: str) -> list[float]:
-        """Embed `text` as a `query` or a `passage`; raises on failure."""
-        if not text or not text.strip():
-            raise ValueError("CorpusEmbedder.embed: text must be non-empty")
-        prefix = {"query": _QUERY_PREFIX, "passage": _PASSAGE_PREFIX}[role]
-        return await asyncio.to_thread(self._encode, prefix + text.strip())
+    return SentenceTransformersEmbedder(
+        CORPUS_MODEL, query_prefix=_QUERY_PREFIX, passage_prefix=_PASSAGE_PREFIX, normalize=True
+    )
 
 
-_default_embedder = CorpusEmbedder()
+@lru_cache(maxsize=1)
+def get_corpus_reranker():
+    """The process-wide cross-encoder; passages are cut to `_RERANK_MAX_PASSAGE_CHARS`."""
+    from fi_core.rag.rerank import BgeReranker
+
+    return BgeReranker(RERANK_MODEL, max_chars=_RERANK_MAX_PASSAGE_CHARS)
 
 
-def get_corpus_embedder() -> CorpusEmbedder:
-    return _default_embedder
+async def encode(text: str, *, role: str) -> list[float]:
+    """Embed `text` as a `query` or a `passage`; raises on failure or a wrong-size vector."""
+    if not text or not text.strip():
+        raise ValueError("encode: text must be non-empty")
+    embedder = get_corpus_embedder()
+    embed = {"query": embedder.embed_query, "passage": embedder.embed_passage}[role]
+    vec = await embed(text.strip())
+    if len(vec) != EMBEDDING_DIM:
+        raise EmbeddingDimensionError(f"Expected {EMBEDDING_DIM}-dim vector, got {len(vec)} from '{CORPUS_MODEL}'")
+    return vec
 
 
 async def _embed_or_none(text: str, role: str) -> list[float] | None:
     if not text or not text.strip():
         return None
     try:
-        return await _default_embedder.embed(text, role=role)
+        return await encode(text, role=role)
     except Exception:
         log.exception("deep_memory_embed_failed", role=role, text_len=len(text))
         return None
@@ -134,49 +117,12 @@ async def warm_corpus_embedder() -> bool:
     return True
 
 
-class CorpusReranker:
-    """Lazy, thread-safe singleton over a multilingual cross-encoder.
-
-    The relevance gate. e5 cosines are compressed: measured 2026-11-19 on 21
-    real queries, on-topic hits scored 0.784-0.888 and off-topic ones
-    0.780-0.834, so no cosine floor separates them. The cross-encoder reads the
-    question and the passage together: over 8 exact-search candidates, 9 of 11
-    on-topic queries clear -2.0 and 0 of 10 off-topic ones do (2026-11-20).
-    """
-
-    def __init__(self, model_name: str = RERANK_MODEL) -> None:
-        self.model_name = model_name
-        self._model = None
-        self._lock = threading.Lock()
-
-    def _ensure_model(self):
-        if self._model is not None:
-            return self._model
-        with self._lock:
-            if self._model is None:
-                from sentence_transformers import CrossEncoder
-
-                self._model = CrossEncoder(self.model_name)
-                log.info("corpus_reranker_loaded", model=self.model_name)
-        return self._model
-
-    def _score(self, query: str, passages: list[str]) -> list[float]:
-        pairs = [(query, p[:_RERANK_MAX_PASSAGE_CHARS]) for p in passages]
-        return [float(x) for x in self._ensure_model().predict(pairs)]
-
-    async def score(self, query: str, passages: list[str]) -> list[float]:
-        if not passages:
-            return []
-        return await asyncio.to_thread(self._score, query, passages)
-
-
-_default_reranker = CorpusReranker()
-
-
 async def score_relevance(query: str, passages: list[str]) -> list[float] | None:
     """Cross-encoder relevance per passage; None on failure (logged)."""
+    if not passages:
+        return []
     try:
-        return await _default_reranker.score(query, passages)
+        return await asyncio.to_thread(get_corpus_reranker().score, query, passages)
     except Exception:
         log.exception("corpus_rerank_failed", passages=len(passages))
         return None
@@ -202,12 +148,7 @@ async def connect() -> asyncpg.Connection | None:
         return None
     try:
         conn = await asyncpg.connect(url)
-        try:
-            from pgvector.asyncpg import register_vector
-
-            await register_vector(conn)
-        except Exception:
-            log.warning("deep_memory_pgvector_codec_register_failed")
+        await init_vector_connection(conn)
         return conn
     except Exception:
         log.exception("deep_memory_pg_connect_failed")

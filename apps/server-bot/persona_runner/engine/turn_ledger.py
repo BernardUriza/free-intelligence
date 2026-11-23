@@ -21,6 +21,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import structlog
+from fi_core.sql import affected_rows
 
 from persona_core.tickets import LedgerRow
 
@@ -269,7 +270,7 @@ class PgTurnLedger:
     async def release(self, *, claimed_by: str) -> int | None:
         async def _op(conn):
             tag = await conn.execute(_RELEASE_SQL, claimed_by)
-            return int(tag.rsplit(" ", 1)[-1])
+            return affected_rows(tag)
 
         return await self._run("release", _op)
 

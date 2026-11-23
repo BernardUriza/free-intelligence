@@ -97,23 +97,21 @@ async def test_tool_still_reports_an_honest_empty_search():
 
 async def test_embedder_applies_the_e5_role_prefix():
     seen: list[str] = []
-    embedder = pg_rag.CorpusEmbedder()
+    embedder = pg_rag.get_corpus_embedder()
     with patch.object(embedder, "_encode", side_effect=lambda t: seen.append(t) or [0.0] * 384):
-        await embedder.embed("pozole rojo", role="query")
-        await embedder.embed("Pozole rojo vegano: maíz pozolero", role="passage")
+        await pg_rag.encode("pozole rojo", role="query")
+        await pg_rag.encode("Pozole rojo vegano: maíz pozolero", role="passage")
     assert seen == ["query: pozole rojo", "passage: Pozole rojo vegano: maíz pozolero"]
+    assert embedder.normalize is True
 
 
-def test_embedder_refuses_a_vector_of_the_wrong_size():
-    embedder = pg_rag.CorpusEmbedder()
-
-    class _Model:
-        def encode(self, text, normalize_embeddings):
-            return [0.0] * 1536
-
-    embedder._model = _Model()  # type: ignore[assignment]
-    with pytest.raises(pg_rag.EmbeddingDimensionError):
-        embedder._encode("passage: x")
+async def test_embedder_refuses_a_vector_of_the_wrong_size():
+    embedder = pg_rag.get_corpus_embedder()
+    with (
+        patch.object(embedder, "_encode", return_value=[0.0] * 1536),
+        pytest.raises(pg_rag.EmbeddingDimensionError),
+    ):
+        await pg_rag.encode("x", role="passage")
 
 
 async def test_warm_reports_dead_embedder_loudly():
