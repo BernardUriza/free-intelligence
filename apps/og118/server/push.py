@@ -7,7 +7,6 @@ it does nothing; a failed push never fails the delivery it rides on."""
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -18,7 +17,7 @@ from pathlib import Path
 
 import httpx
 import jwt
-from fi_core.text import truncate
+from fi_core.text import collapse_whitespace, digest, truncate
 
 log = logging.getLogger("uvicorn.error").getChild("og118.push")
 
@@ -35,7 +34,7 @@ class DeviceStore:
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, owner: str) -> Path:
-        return self._root / (hashlib.sha256(owner.encode("utf-8")).hexdigest()[:32] + ".json")
+        return self._root / (digest(owner) + ".json")
 
     def _read(self, owner: str) -> dict:
         try:
@@ -100,7 +99,7 @@ async def _send(token: str, environment: str, payload: dict) -> tuple[int, str]:
 
 
 def payload_for(title: str, body: str, conversation_id: str) -> dict:
-    text = " ".join((body or "").split())
+    text = collapse_whitespace(body or "")
     text = truncate(text, BODY_CHARS)
     return {
         "aps": {"alert": {"title": title, "body": text}, "sound": "default", "thread-id": conversation_id},

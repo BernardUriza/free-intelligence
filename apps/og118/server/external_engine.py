@@ -30,7 +30,6 @@ answer lands in the conversation record through `deliver_late`
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import os
@@ -40,6 +39,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 import httpx
 
 from conversations import utc_now_iso
+from fi_core.text import digest
 
 log = logging.getLogger("og118.external_engine")
 
@@ -84,7 +84,7 @@ def turn_job_id(session_uuid: str | None, user_text: str, history: list[dict] | 
     if not session_uuid:
         return uuid.uuid4().hex
     seed = f"{session_uuid}\n{len(history or [])}\n{user_text}"
-    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:32]
+    return digest(seed)
 
 
 def cap_history(history: list[dict] | None) -> list[dict]:

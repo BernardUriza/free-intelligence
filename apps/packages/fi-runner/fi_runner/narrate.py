@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fi_core.text import strip_code_fence
+
 from .backend import AgentBackend, ToolPolicy
 from .prompts import load_prompt
 
@@ -31,14 +33,7 @@ class FlowNarrationError(RuntimeError):
 def _extract_mermaid(text: str) -> str:
     """Pull the Mermaid body out of a model reply: strip ``` fences and any prose
     before the first ``flowchart``/``graph`` line."""
-    body = text.strip()
-    if body.startswith("```"):
-        # drop the opening fence (``` or ```mermaid) and the trailing fence
-        lines = body.splitlines()
-        lines = lines[1:]
-        if lines and lines[-1].strip().startswith("```"):
-            lines = lines[:-1]
-        body = "\n".join(lines).strip()
+    body = strip_code_fence(text)
     lowered = body.splitlines()
     for i, line in enumerate(lowered):
         if line.lstrip().startswith(("flowchart", "graph")):

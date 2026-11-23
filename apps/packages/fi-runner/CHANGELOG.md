@@ -20,6 +20,11 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 (Add entries here as work lands on `dev`.)
 
+### Changed — 0.26.0: fi-core floor 0.35
+
+- `narrate._extract_mermaid` strips the fence with `fi_core.text.strip_code_fence`,
+  so the requirement is now `fi-core>=0.35,<0.36`.
+
 ### Changed — `runner.py` is the orchestrator again (no public-API change)
 
 - One backend attempt (stream normalization, plan events, plan veto) moved to

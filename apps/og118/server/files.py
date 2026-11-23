@@ -19,6 +19,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from conversations import utc_now_iso
+from fi_core.text import digest
 
 _ID_RE = re.compile(r"^[0-9a-f]{32}$")
 _UNSAFE_NAME = re.compile(r"[\x00-\x1f\x7f/\\]")
@@ -59,7 +60,7 @@ class FileStore:
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _owner_dir(self, owner: str) -> Path:
-        return self._root / hashlib.sha256(owner.encode("utf-8")).hexdigest()[:32]
+        return self._root / digest(owner)
 
     def list_for(self, owner: str) -> list[dict]:
         """The owner's files as metadata, newest first."""

@@ -31,6 +31,7 @@ from fi_runner import (
     load_prompt,
 )
 from fi_runner.backend import MCPServerSpec
+from fi_core.env import env_flag
 
 # La persona base es CONFIGURABLE por entorno para que un segundo consumer
 # (apps/fenix) corra este mismo runtime con su propia voz, sin duplicar el
@@ -105,7 +106,7 @@ def aire_project_for_chat(session_id: str | None) -> str | None:
 # viva para una feature que nadie usa.
 def proyectos_activos() -> bool:
     """El mismo interruptor que `app.proyectos_activos`, leído al llamar."""
-    return os.getenv("OG118_PROYECTOS", "0").strip().lower() in ("1", "true", "yes", "on")
+    return env_flag("OG118_PROYECTOS")
 
 
 def capacidades_por_defecto() -> list[str]:

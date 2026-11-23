@@ -12,6 +12,31 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.35.0] — 2026-11-23
+
+### Added — the rest of the helpers every consumer was copying
+
+- `fi_core.text.fold_accents` (lowercase + diacritics dropped) is now the one
+  fold: `fi_core.rag.retrieval`, `cognitive.urgency` and `embeddings.hashing`
+  import it instead of carrying three copies. `fi_core.rag.fold_accents` still
+  resolves to it.
+- `fi_core.text.collapse_whitespace`, `strip_code_fence` (one-line or multi-line
+  ```lang fences, closing fence optional) and `digest(text, length=32)` (SHA-256
+  hex prefix, the stable owner id og118 and server-bot hashed by hand).
+- `fi_core.env.env_flag(name, default=False)`: `1/true/yes/on`, any case.
+- `fi_core.sql.affected_rows(command_tag)`: the count in an asyncpg command tag,
+  0 when it has none. `PgMemoryStore` uses it.
+- `SentenceTransformersEmbedder`: `query_prefix`, `passage_prefix`, `normalize`,
+  plus `embed_query` / `embed_passage` (e5 is trained with `query: ` /
+  `passage: `); the model loads under a lock.
+- `BgeReranker`: `max_chars` caps each passage, the model loads off the event
+  loop, and the blocking `score(query, documents)` is public.
+
+### Fixed
+
+- `stores._pg.init_vector_connection` logs a failed pgvector codec registration
+  instead of swallowing it with `pass`.
+
 ## [0.34.0] — 2026-11-22
 
 ### Added — `fi_core.text`: cut a string and fit lines to a char budget

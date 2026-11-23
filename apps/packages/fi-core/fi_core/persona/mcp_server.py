@@ -70,6 +70,7 @@ from fi_core.persona import (
 )
 from fi_core.persona import packs as _persona_packs
 from fi_core.prompts import load_prompt
+from fi_core.text import strip_code_fence
 
 # ---------------------------------------------------------------------------
 # Pack registry — single source of truth for the MCP-exposed packs.
@@ -603,16 +604,8 @@ async def parse_consolidation_result(
     if not text:
         return {"ok": False, "ops": [], "error": "empty_response", "raw_len": 0}
 
-    # Strip markdown fence. Not `split("\n", 1)[1]`: a judge that answers
-    # ```[{"op":"NOOP","id":1}]``` on ONE line has no newline to split on, and
-    # that raised IndexError out of a function whose whole contract is to return
-    # {"ok": False, ...}. `consolidate_principal` calls it with no try, so a
-    # nightly batch over 10k principals died on the first one-line fence.
-    if text.startswith("```"):
-        body = text[3:]
-        if body.startswith("json"):
-            body = body[4:]
-        text = body.rsplit("```", 1)[0].strip()
+    # One-line ```[...]``` fences have no newline to split on (killed a nightly batch once).
+    text = strip_code_fence(text)
 
     try:
         plan = _json.loads(text)

@@ -26,6 +26,7 @@ Author: Bernard Uriza Orozco
 from __future__ import annotations
 
 import asyncio
+import threading
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -78,15 +79,25 @@ class SentenceTransformersEmbedder:
         self,
         model_name: str = DEFAULT_MODEL_NAME,
         device: str | None = None,
+        *,
+        query_prefix: str = "",
+        passage_prefix: str = "",
+        normalize: bool = False,
     ) -> None:
         self._model_name = model_name
         self._device = device if device is not None else _auto_device()
         self._model: SentenceTransformer | None = None
+        self._lock = threading.Lock()
+        self.query_prefix = query_prefix
+        self.passage_prefix = passage_prefix
+        self.normalize = normalize
 
     def _ensure_loaded(self) -> SentenceTransformer:
         """Load the model on first use. Idempotent."""
         if self._model is None:
-            self._model = SentenceTransformer(self._model_name, device=self._device)
+            with self._lock:
+                if self._model is None:
+                    self._model = SentenceTransformer(self._model_name, device=self._device)
         return self._model
 
     @property
@@ -136,11 +147,21 @@ class SentenceTransformersEmbedder:
         Raises whatever the underlying ``model.encode`` raises (e.g.,
         ``RuntimeError`` for CUDA OOM, ``ValueError`` for malformed input).
         """
-        model = self._ensure_loaded()
-        vector = await asyncio.to_thread(
-            model.encode,
+        return await asyncio.to_thread(self._encode, text)
+
+    async def embed_query(self, text: str) -> list[float]:
+        """Embed a search text with `query_prefix` (e5 needs `query: `)."""
+        return await asyncio.to_thread(self._encode, self.query_prefix + text)
+
+    async def embed_passage(self, text: str) -> list[float]:
+        """Embed a stored chunk with `passage_prefix` (e5 needs `passage: `)."""
+        return await asyncio.to_thread(self._encode, self.passage_prefix + text)
+
+    def _encode(self, text: str) -> list[float]:
+        vector = self._ensure_loaded().encode(
             text,
             convert_to_numpy=True,
             show_progress_bar=False,
+            normalize_embeddings=self.normalize,
         )
         return vector.tolist()

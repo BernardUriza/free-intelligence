@@ -16,13 +16,13 @@ under an in-process lock; single replica = single writer.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 import threading
 import time
 from pathlib import Path
+from fi_core.text import digest
 
 _ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -60,7 +60,7 @@ class ConversationStore:
         self._root.mkdir(parents=True, exist_ok=True)
 
     def _owner_dir(self, owner: str) -> Path:
-        return self._root / hashlib.sha256(owner.encode("utf-8")).hexdigest()[:32]
+        return self._root / digest(owner)
 
     def _record_path(self, owner: str, conversation_id: str) -> Path:
         if not valid_conversation_id(conversation_id):
