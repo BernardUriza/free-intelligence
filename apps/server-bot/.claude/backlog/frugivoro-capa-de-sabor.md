@@ -1,6 +1,6 @@
 # Frugívoro: capa de datos de sabor y cocina
 
-Status: Proposed
+Status: In progress
 Proposed: 2026-11-24 by Bernard ("¿cómo puede reducir los vegetales a sus ingredientes químicos básicos para combinar…?"), investigado con /histerical-search
 
 ## What it is
@@ -56,5 +56,14 @@ sólo en cocinas occidentales). FlavorDB sirve para responder "qué aroma tiene 
 
 ## Status / next step
 
-Proposed. Siguiente paso cuando Bernard decida lo de arriba: una fuente, una ingesta, un probe
-con `persona_mcp` pidiendo algo que hoy contesta de memoria.
+In progress (24-nov-2026). Bernard decidió: no comercial (entra FlavorDB2) y sin libros por ahora.
+Ingeridos como corpus, una ficha por ingrediente con nombre en español: USDA Foundation Foods
+(233 vegetales) y FlavorDB2 (581 vegetales). `candidates` del reranker subió de 8 a 32.
+Total `__corpus_vegan__`: 2,139 chunks, 860 fuentes, 0 sin embedding.
+
+Abierto:
+- **Comparaciones nutrimentales fallan.** «¿Cuánto hierro tienen las lentejas comparadas con el
+  frijol negro?» trae frijol de ojo negro; la ficha USDA de lenteja queda en el lugar 184 por
+  coseno. Una pregunta por dos alimentos con cifras pide una HERRAMIENTA (consulta a USDA por
+  nombre), no un chunk. Ése es el siguiente paso.
+- Guayaba no está en Foundation Foods (sí en SR Legacy, también CC0).
