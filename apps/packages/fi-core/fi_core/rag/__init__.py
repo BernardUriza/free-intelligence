@@ -5,6 +5,7 @@ The Embedder + ChunkStore protocols are interfaces the consumer
 implements with its own deployment-specific stack.
 """
 
+from fi_core.rag.bm25 import Bm25Index, lexical_terms
 from fi_core.rag.chunking import (
     ChunkConfig,
     ChunkingStrategy,
@@ -18,6 +19,15 @@ from fi_core.rag.contextual import (
     CallableContextualizer,
     Contextualizer,
     build_contextual_prompt,
+)
+from fi_core.rag.evaluation import (
+    CaseResult,
+    EvalCase,
+    Retrieved,
+    gate,
+    run_cases,
+    score_case,
+    summarize,
 )
 from fi_core.rag.hybrid import (
     DEFAULT_RRF_K,
@@ -56,6 +66,15 @@ from fi_core.rag.types import (
 )
 
 __all__ = [
+    "Bm25Index",
+    "lexical_terms",
+    "CaseResult",
+    "EvalCase",
+    "Retrieved",
+    "gate",
+    "run_cases",
+    "score_case",
+    "summarize",
     "DEFAULT_LEXICAL_MIN",
     "DEFAULT_SEMANTIC_MIN",
     "MCP_SERVER_NAME",

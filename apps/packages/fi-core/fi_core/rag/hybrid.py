@@ -12,8 +12,9 @@ so the incomparable scales of cosine and term-overlap never need normalizing.
 with the Spanish-tuned :class:`~fi_core.rag.retrieval.LexicalRetriever`: a chunk
 the dense ranker under-weighted but that exactly matches a query keyword floats
 up. (It fuses over the dense candidate pool, so a chunk the dense arm misses
-entirely is not recovered — a separate sparse index over the store would be the
-next step; for fi-core's small/medium corpora the over-fetch pool covers it.)
+entirely is not recovered; when that matters, rank the whole namespace with
+:class:`~fi_core.rag.bm25.Bm25Index` and fuse both lists with
+:func:`reciprocal_rank_fusion`.)
 """
 
 from __future__ import annotations
