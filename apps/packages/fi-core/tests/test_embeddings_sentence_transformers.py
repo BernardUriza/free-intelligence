@@ -192,3 +192,11 @@ async def test_query_and_passage_prefixes_reach_the_model():
     sent = [c.args[0] for c in fake_model.encode.call_args_list]
     assert sent == ["query: hola", "passage: mundo"]
     assert all(c.kwargs["normalize_embeddings"] is True for c in fake_model.encode.call_args_list)
+
+
+@pytest.mark.slow
+def test_real_model_counts_past_its_window_and_names_its_revision():
+    """What a chunker needs to keep text inside the window, and a stored vector to say where it came from."""
+    emb = SentenceTransformersEmbedder(device="cpu")
+    assert emb.count_tokens("hola") < emb.max_tokens < emb.count_tokens("hola " * 600)
+    assert emb.revision and len(emb.revision) == 40

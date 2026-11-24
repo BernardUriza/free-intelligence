@@ -23,6 +23,8 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
   which filters by namespace after its walk and can return nothing for a small one.
 - `ChunkConfig.count_tokens` (the embedder's tokenizer instead of words * 1.3) and
   `ChunkConfig.max_chunk_size` (a ceiling no chunk passes, in every strategy).
+- `SentenceTransformersEmbedder.count_tokens`, `max_tokens` and `revision`: what
+  those two need, and what a stored vector has to be labelled with.
 
 ### Fixed
 

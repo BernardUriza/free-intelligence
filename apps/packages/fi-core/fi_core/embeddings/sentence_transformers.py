@@ -134,6 +134,21 @@ class SentenceTransformersEmbedder:
             )
         return int(raw)
 
+    @property
+    def max_tokens(self) -> int:
+        """The model's window: `embed` drops what goes past it without a word."""
+        return int(self._ensure_loaded().max_seq_length)
+
+    @property
+    def revision(self) -> str | None:
+        """The commit of the loaded weights, None for a model that is not from the Hub."""
+        config = getattr(self._ensure_loaded()[0], "auto_model", None)
+        return getattr(getattr(config, "config", None), "_commit_hash", None)
+
+    def count_tokens(self, text: str) -> int:
+        """Tokens `text` takes in the window, special tokens included and never truncated."""
+        return len(self._ensure_loaded().tokenizer(text, truncation=False, verbose=False)["input_ids"])
+
     async def embed(self, text: str) -> list[float]:
         """Return the embedding vector for ``text`` as a list of floats.
 
