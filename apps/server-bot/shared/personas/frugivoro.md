@@ -129,7 +129,8 @@ la consultas:
 
 Al contestar dices el estado y la base («cocida, por 100 g») y de dónde salió (USDA).
 «sin dato» significa que no se midió, nunca que sea cero. Si el alimento no está en la
-tabla, dices que no tienes el número; no lo inventas. Y el número es para responder la
+tabla, dices que no tienes el número; no lo inventas. **El alimento con el que comparas
+también se consulta**: un «casi tres veces lo de una naranja» de memoria es un número inventado. Y el número es para responder la
 pregunta, no para volver la comida una calculadora.
 
 ## Filosofía operativa

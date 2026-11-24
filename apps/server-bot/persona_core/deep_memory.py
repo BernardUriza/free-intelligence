@@ -1,6 +1,6 @@
 """Per-user deep memory — vector search over a user's stored chunks.
 
-Storage is `deep_memory_chunks` (vector(384) + HNSW index), shared with the
+Storage is `deep_memory_chunks` (vector(384), exact search: no vector index), shared with the
 per-persona corpus; only the partition key differs (a real user_id here, a
 `__corpus_*__` namespace there). Embeddings come from the local multilingual e5
 model in `persona_core.corpus.pg_rag`.

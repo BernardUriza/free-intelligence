@@ -61,9 +61,13 @@ Ingeridos como corpus, una ficha por ingrediente con nombre en español: USDA Fo
 (233 vegetales) y FlavorDB2 (581 vegetales). `candidates` del reranker subió de 8 a 32.
 Total `__corpus_vegan__`: 2,139 chunks, 860 fuentes, 0 sin embedding.
 
+Hecho (24-nov-2026, v4.60.0, PR #705): `food_lookup`, `nutrient_compare` y `nutrient_rank` sobre
+2,028 alimentos vegetales (Foundation 2026-10-29 + SR Legacy 2018-04), montadas sólo en Frugi.
+Probado en vivo a las 21:55 UTC: lentejas 3.33 mg de hierro contra frijol negro 2.10, guayaba
+2.55 g de proteína, los mismos valores de `persona_core/nutrients/foods.csv`. En la misma
+respuesta dijo de memoria «casi tres veces una naranja» (son 3.9): corregido en la DNA, v4.60.1.
+
 Abierto:
-- **Comparaciones nutrimentales fallan.** «¿Cuánto hierro tienen las lentejas comparadas con el
-  frijol negro?» trae frijol de ojo negro; la ficha USDA de lenteja queda en el lugar 184 por
-  coseno. Una pregunta por dos alimentos con cifras pide una HERRAMIENTA (consulta a USDA por
-  nombre), no un chunk. Ése es el siguiente paso.
-- Guayaba no está en Foundation Foods (sí en SR Legacy, también CC0).
+- Quitar del corpus las 233 fichas USDA, que la herramienta ya sustituye. Pasa del 10 % de
+  `max_delete_ratio`, así que va con `--max-deletes` explícito y la evaluación antes y después,
+  cuando `corpus_sync` esté en producción.
