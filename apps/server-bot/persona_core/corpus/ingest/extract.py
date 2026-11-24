@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import unicodedata
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 _UNSAFE_CATEGORIES = {"Cf", "Co", "Cs"}
@@ -42,9 +41,11 @@ def _pdf_text(path: Path) -> str:
 
 
 def _xml_text(path: Path) -> str:
+    from defusedxml import DefusedXmlException, ElementTree
+
     try:
-        root = ET.parse(str(path)).getroot()  # noqa: S314  # nosec B314 — curated local files pinned by sha256
-    except ET.ParseError as e:
+        root = ElementTree.parse(str(path)).getroot()
+    except (ElementTree.ParseError, DefusedXmlException) as e:
         raise ExtractError(f"{path.name}: XML does not parse ({e})") from e
     text = " ".join(t.strip() for t in root.itertext() if t and t.strip())
     return re.sub(r"[ \t]{2,}", " ", text).strip()

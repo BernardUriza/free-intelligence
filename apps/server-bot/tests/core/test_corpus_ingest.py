@@ -372,3 +372,10 @@ async def test_documents_embedded_by_another_model_are_named_at_boot(corpus_db, 
 async def test_the_boot_check_never_raises(monkeypatch):
     monkeypatch.delenv("POSTGRES_URL", raising=False)
     assert await pg_rag.stored_with_another_model() is None
+
+
+def test_an_xml_that_declares_entities_is_refused(tmp_path):
+    bomb = tmp_path / "bomb.xml"
+    bomb.write_text('<!DOCTYPE a [<!ENTITY x "ha"><!ENTITY y "&x;&x;">]><a>&y;</a>', encoding="utf-8")
+    with pytest.raises(ExtractError, match=r"bomb\.xml"):
+        extract_text(bomb)

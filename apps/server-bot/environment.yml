@@ -186,6 +186,7 @@ dependencies:
   - pgvector-python>=0.4.0
   - structlog>=24.1.0
   - pyyaml>=6.0  # persona_core/corpus/rules.yml is read at runtime
+  - defusedxml>=0.7  # corpus sources in XML come from outside
   - typer>=0.9.0
   # pillow floor 12.3.0: PYSEC-2026-2253..2257 (5 CVEs) live in <=12.2.0,
   # all fixed in 12.3.0 (verified against OSV 2026-07-14).
