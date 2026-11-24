@@ -582,6 +582,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         user_id=req.user_id,
         user_text=req.user_text,
         behavioral_guidance=guidance,
+        references=req.references,
         history_block=fold_history(req.history) if is_first_turn else "",
         memory_block=memory_block,
     )

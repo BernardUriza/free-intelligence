@@ -80,6 +80,7 @@ class BrainTurn:
 
     user_text: str
     behavioral_guidance: str | None
+    references: str | None
     attachments: list[dict]
 
 
@@ -149,7 +150,7 @@ async def run_turn(
         turn.ask, messages, relevant_memory=context.relevant_memory, other_people=context.other_people
     )
 
-    reply = await brain(BrainTurn(user_text, context.guidance, list(turn.attachments)))
+    reply = await brain(BrainTurn(user_text, context.guidance, context.references, list(turn.attachments)))
 
     text = (reply.text or "").strip()
     raw_had_text = bool(text)

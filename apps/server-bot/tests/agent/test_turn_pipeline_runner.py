@@ -341,7 +341,7 @@ async def test_the_runner_hands_the_origin_to_the_pipeline(monkeypatch):
         from persona_core.turn.pipeline import BrainTurn, OutboundTurn
 
         seen.append(turn)
-        await kwargs["brain"](BrainTurn(turn.ask, None, []))
+        await kwargs["brain"](BrainTurn(turn.ask, None, None, []))
         return OutboundTurn("ok", [], [], "m")
 
     monkeypatch.setattr(turn_pipeline, "run_turn", fake_run_turn)

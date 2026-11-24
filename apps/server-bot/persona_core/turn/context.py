@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
+from persona_core.corpus.rules import MAX_REFERENCES_CHARS
 from persona_core.guidance import MAX_GUIDANCE_CHARS, guidance_for_turn
 from persona_core.memory import MemoryStore, format_relevant_block
 from persona_core.other_people import other_people_block_for_turn
@@ -62,6 +63,7 @@ class TurnContext:
 
     context: list[dict]
     guidance: str | None
+    references: str | None
     other_people: str | None
     relevant_memory: str | None
 
@@ -125,10 +127,9 @@ class TurnContextBuilder:
                     persona_id=self.persona.persona_id, query=guidance_message
                 ),
             )
-            # Pending reminders BEFORE the corpus merge, so the final order is
-            # corpus → reminders → guardian guidance (safety stays freshest/last).
+            # Pending reminders go BEFORE the guardian guidance: safety stays last.
             guidance = await self.append_pending_reminders(guidance, guidance_user_id)
-        guidance = await self.append_corpus_block(guidance, corpus_query)
+        references = await self.load_references(corpus_query)
 
         # Facts about the OTHER participants. The runner rebuilds the AUTHOR's
         # facts from the user_id, but is blind to the people being talked ABOUT
@@ -138,6 +139,7 @@ class TurnContextBuilder:
         return TurnContext(
             context=context,
             guidance=guidance,
+            references=references,
             other_people=other_people,
             relevant_memory=relevant_memory,
         )
@@ -197,7 +199,7 @@ class TurnContextBuilder:
         """Merge this user's pending reminders (owned by THIS persona) into the
         turn guidance so the persona can list them and cancel by text.
 
-        Same contract as `append_corpus_block`: the block goes BEFORE the
+        The block goes BEFORE the
         guidance (the safety overlay stays last), the merge never grows past
         MAX_GUIDANCE_CHARS (the block is dropped whole rather than trimmed —
         a half reminder row is worse than none), and any fault returns the
@@ -224,51 +226,16 @@ class TurnContextBuilder:
             return guidance
         return f"{block}{sep}{guidance}"
 
-    async def append_corpus_block(self, guidance: str | None, ask: str) -> str | None:
-        """Merge this persona's corpus references into the turn guidance.
+    async def load_references(self, ask: str) -> str | None:
+        """This persona's corpus references for the ask, or None.
 
-        ORDER IS SAFETY: corpus FIRST, guardian guidance LAST — the vulnerable-user
-        overlay must be the freshest thing in the block, never buried under 2,200
-        chars of erudition (cruel-critic 2026-07-16, finding #2).
-
-        CAP IS SAFETY TOO: the runner rejects `behavioral_guidance` > 16000 with a
-        422 (a mute bot). `guidance_for_turn` already truncates to that cap; this
-        merge would re-inflate it past the cap by prepending the corpus, so we
-        RE-CAP here — trimming the CORPUS end, never the guidance. The safety
-        overlay always survives intact; erudition yields. If guidance alone
-        already fills the cap, the corpus is dropped entirely (cruel-critic
-        2026-07-16, finding #1: a near-cap vulnerable-user overlay + a corpus hit
-        used to 422 and mute the bot for the most fragile person).
-
-        Fail-safe: any fault returns the guidance untouched. A persona with no
-        `corpus_namespace` (or no relevant hit) simply gets its guidance back.
+        They travel in their own field, never inside the guidance: a library
+        passage is data, and the guardian's overlay must stay the freshest
+        block and keep its whole character budget.
         """
         try:
             block = await build_persona_corpus_block(persona_id=self.persona.persona_id, query=ask)
         except Exception:
             log.exception("gateway_corpus_block_failed", persona_id=self.persona.persona_id)
-            return guidance
-        if not block:
-            return guidance
-        if not guidance:
-            return block[:MAX_GUIDANCE_CHARS]
-        # Reserve the full guidance (safety-critical); the corpus gets whatever
-        # budget is left. sep is "\n\n". A non-positive budget → drop the corpus.
-        sep = "\n\n"
-        corpus_budget = MAX_GUIDANCE_CHARS - len(guidance) - len(sep)
-        if corpus_budget <= 0:
-            log.warning(
-                "gateway_corpus_dropped_guidance_full",
-                persona_id=self.persona.persona_id,
-                guidance_chars=len(guidance),
-            )
-            return guidance
-        if len(block) > corpus_budget:
-            log.info(
-                "gateway_corpus_trimmed_to_cap",
-                persona_id=self.persona.persona_id,
-                block_chars=len(block),
-                corpus_budget=corpus_budget,
-            )
-            block = block[:corpus_budget]
-        return f"{block}{sep}{guidance}"
+            return None
+        return block[:MAX_REFERENCES_CHARS] if block else None

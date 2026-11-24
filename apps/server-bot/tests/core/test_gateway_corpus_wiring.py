@@ -2,12 +2,9 @@
 
 #1: el invite path (EL path principal post-purga: el host rutea los turnos sin
 mención) debe llevar el corpus de la persona, keyed por el reason del ruteo.
-#2: orden es seguridad — corpus PRIMERO, guidance del guardián AL FINAL; el
-overlay de usuario vulnerable jamás queda sepultado bajo erudición.
-
-Mutator rule: positivos (invite lleva corpus; el orden corpus→guardián) +
-resistencia (fault del corpus → turno vive sin bloque; sin corpus → guidance
-intacta).
+#2: el corpus viaja en su propio campo (`references`), nunca dentro de la
+guidance del guardián: es dato, no instrucción. El orden en el prompt lo fija
+`frame_turn_text` (ver tests/agent/test_reference_material.py).
 """
 
 from __future__ import annotations
@@ -18,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
+from persona_core.corpus.rules import MAX_REFERENCES_CHARS
 from persona_gateway.gateway import PersonaClient
 from shared.personas import Persona
 
@@ -86,7 +84,7 @@ async def _invite(client: PersonaClient, channel, reason: str) -> None:
 
 
 async def test_invite_turn_carries_the_persona_corpus():
-    """#1 positivo: el invite lleva el corpus al runner como behavioral_guidance,
+    """#1 positivo: el invite lleva el corpus al runner como references,
     recuperado con LO QUE EL HUMANO DIJO.
 
     Corregido el 2026-09-09. Este test fijaba `query == reason` —el resumen del
@@ -104,8 +102,9 @@ async def test_invite_turn_carries_the_persona_corpus():
     ) as mock_corpus:
         await _invite(client, channel, reason="bernard2389 pregunta por una peli")
     assert mock_corpus.await_args.kwargs["query"] == "que opinas de Mulholland Drive"
-    guidance = client.agent_client.chat.await_args.kwargs["behavioral_guidance"]
-    assert guidance.startswith(_CORPUS_BLOCK), "el corpus dejó de encabezar la guidance del turno"
+    sent = client.agent_client.chat.await_args.kwargs
+    assert sent["references"] == _CORPUS_BLOCK
+    assert _CORPUS_BLOCK not in (sent["behavioral_guidance"] or "")
 
 
 async def test_invite_falls_back_to_the_reason_when_there_is_no_human_text():
@@ -123,7 +122,7 @@ async def test_invite_falls_back_to_the_reason_when_there_is_no_human_text():
 
 
 async def test_invite_corpus_fault_ships_turn_without_block():
-    """#1 resistencia: el corpus truena → el invite vive, guidance=None."""
+    """#1 resistencia: el corpus truena → el invite vive, references=None."""
     client = _client()
     channel = _invite_channel()
     with patch(
@@ -132,78 +131,14 @@ async def test_invite_corpus_fault_ships_turn_without_block():
     ):
         await _invite(client, channel, reason="ven a opinar")
     client.agent_client.chat.assert_awaited_once()
-    assert client.agent_client.chat.await_args.kwargs["behavioral_guidance"] is None
+    assert client.agent_client.chat.await_args.kwargs["references"] is None
 
 
-async def test_corpus_rides_before_guardian_guidance():
-    """#2 positivo: corpus PRIMERO, overlay del guardián AL FINAL del bloque."""
+async def test_a_long_corpus_never_exceeds_the_wire_cap():
+    """El runner responde 422 sobre el cap y el bot queda MUDO."""
     client = _client()
     with patch(
         "persona_core.turn.context.build_persona_corpus_block",
-        new=AsyncMock(return_value=_CORPUS_BLOCK),
+        new=AsyncMock(return_value="C" * (MAX_REFERENCES_CHARS + 5000)),
     ):
-        merged = await client._context.append_corpus_block("OVERLAY VULNERABLE: calidez y líneas de crisis", "ask")
-    assert merged is not None
-    assert merged.index(_CORPUS_BLOCK) < merged.index("OVERLAY VULNERABLE")
-    assert merged.endswith("OVERLAY VULNERABLE: calidez y líneas de crisis")
-
-
-async def test_no_corpus_leaves_guidance_untouched():
-    """#2 resistencia: sin hit de corpus la guidance del guardián pasa intacta."""
-    client = _client()
-    with patch(
-        "persona_core.turn.context.build_persona_corpus_block",
-        new=AsyncMock(return_value=None),
-    ):
-        merged = await client._context.append_corpus_block("OVERLAY", "ask")
-    assert merged == "OVERLAY"
-
-
-async def test_merge_never_exceeds_runner_cap():
-    """#1 (cruel-critic round 2): el merge corpus+guidance JAMÁS rebasa el cap
-    del runner (max_length=16000) — si lo hiciera el runner responde 422 y el
-    bot queda MUDO. El corpus se recorta; la guidance sobrevive completa."""
-    from persona_core.guidance import MAX_GUIDANCE_CHARS
-
-    client = _client()
-    big_corpus = "C" * 3000  # supera max_block_chars de rules.yml, fuerza el recorte
-    near_cap_guidance = "G" * (MAX_GUIDANCE_CHARS - 500)  # deja hueco < corpus
-    with patch(
-        "persona_core.turn.context.build_persona_corpus_block",
-        new=AsyncMock(return_value=big_corpus),
-    ):
-        merged = await client._context.append_corpus_block(near_cap_guidance, "ask")
-    assert merged is not None
-    assert len(merged) <= MAX_GUIDANCE_CHARS
-    # la guidance (seguridad) sobrevive intacta; lo que cede es el corpus
-    assert merged.endswith(near_cap_guidance)
-
-
-async def test_corpus_dropped_when_guidance_fills_cap():
-    """#1 resistencia: cuando la guidance sola llena el cap, el corpus se
-    DESCARTA (no se recorta la guidance de seguridad) — turno vive, no 422."""
-    from persona_core.guidance import MAX_GUIDANCE_CHARS
-
-    client = _client()
-    full_guidance = "G" * MAX_GUIDANCE_CHARS
-    with patch(
-        "persona_core.turn.context.build_persona_corpus_block",
-        new=AsyncMock(return_value="C" * 2000),
-    ):
-        merged = await client._context.append_corpus_block(full_guidance, "ask")
-    assert merged == full_guidance
-    assert len(merged) <= MAX_GUIDANCE_CHARS
-
-
-async def test_corpus_only_turn_capped():
-    """#1: el invite path (guidance=None) tampoco puede rebasar el cap."""
-    from persona_core.guidance import MAX_GUIDANCE_CHARS
-
-    client = _client()
-    with patch(
-        "persona_core.turn.context.build_persona_corpus_block",
-        new=AsyncMock(return_value="C" * (MAX_GUIDANCE_CHARS + 5000)),
-    ):
-        merged = await client._context.append_corpus_block(None, "ask")
-    assert merged is not None
-    assert len(merged) <= MAX_GUIDANCE_CHARS
+        assert len(await client._context.load_references("ask")) == MAX_REFERENCES_CHARS

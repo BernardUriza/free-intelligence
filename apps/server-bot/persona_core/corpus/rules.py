@@ -7,6 +7,9 @@ from pathlib import Path
 
 import yaml
 
+# Wire cap of a turn's references block; `max_block_chars` plus a header sits well under it.
+MAX_REFERENCES_CHARS = 8000
+
 RULES_PATH = Path(__file__).with_name("rules.yml")
 
 
