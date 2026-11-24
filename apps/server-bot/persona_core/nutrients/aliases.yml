@@ -1,0 +1,164 @@
+# Spanish name -> the words USDA uses. Accents and case do not matter. The build
+# gives every Foundation food its Spanish name too (scripts/corpus_frugivoro/es_map.py).
+acelga: chard swiss
+aceite: oil
+aceituna: olives
+aguacate: avocados
+ajo: garlic
+ajonjoli: sesame seeds
+albahaca: basil
+alcachofa: artichokes
+alfalfa: alfalfa sprouted
+almendra: nuts almonds
+alubia: beans white
+amaranto: amaranth grain
+anacardo: cashew
+apio: celery
+arandano: cranberries
+arroz integral: rice brown
+arroz: rice white
+arugula: arugula
+avellana: hazelnuts
+avena: oats
+azafran: saffron
+berenjena: eggplant
+berro: watercress
+betabel: beets
+brocoli: broccoli
+cacahuate: peanuts
+calabacita: squash zucchini
+calabaza: pumpkin
+camote: sweet potato
+canela: cinnamon
+cebada: barley
+cebolla: onions
+cebollin: onions spring scallions
+centeno: rye
+cereza: cherries
+chabacano: apricots
+champinon: mushrooms white
+chayote: chayote
+chia: chia seeds
+chicharo: peas green
+chile jalapeno: peppers jalapeno
+chile serrano: peppers serrano
+chile poblano: peppers ancho
+chile: peppers hot chili
+chirimoya: cherimoya
+cilantro: coriander leaves
+ciruela: plums
+ciruela pasa: plums dried prunes
+clavo: cloves
+coco: coconut meat
+col de bruselas: brussels sprouts
+col: cabbage
+coliflor: cauliflower
+comino: cumin
+crema de almendra: almond butter
+crema de cacahuate: peanut butter
+curcuma: turmeric
+datil: dates
+durazno: peaches
+edamame: edamame
+ejote: beans snap green
+elote: corn sweet
+epazote: epazote
+esparrago: asparagus
+espinaca: spinach
+flor de calabaza: pumpkin flowers
+frambuesa: raspberries
+fresa: strawberries
+frijol: beans
+frijol bayo: beans pinto
+frijol negro: beans black
+frijol peruano: beans yellow
+frijol pinto: beans pinto
+frijol rojo: beans kidney red
+garbanzo: chickpeas
+germinado: sprouted
+girasol: sunflower seed
+granada: pomegranates
+guanabana: soursop
+guayaba: guavas
+haba: broadbeans
+harina de maiz: corn flour masa
+higo: figs
+hinojo: fennel
+hongo: mushrooms
+hongo ostra: mushrooms oyster
+jamaica: roselle
+jengibre: ginger
+jicama: yambean jicama
+jitomate: tomatoes red ripe
+kale: kale
+leche de coco: coconut milk
+leche de soya: soymilk
+lechuga: lettuce
+lenteja: lentils
+limon: limes
+linaza: flaxseed
+maiz: corn
+mamey: sapote mamey
+mandarina: tangerines
+mango: mangos
+manzana: apples
+maracuya: passion-fruit granadilla
+melon: melons cantaloupe
+menta: peppermint
+mijo: millet
+moringa: drumstick leaves
+mostaza: mustard
+nabo: turnips
+naranja: oranges
+oliva: olive
+nixtamal: hominy
+nopal: nopales
+nueces: nuts
+nuez: walnuts
+nuez de castilla: walnuts english
+nuez de la india: cashew
+nuez pecana: pecans
+oregano: oregano
+papa: potatoes
+papaya: papayas
+pasa: raisins
+pepino: cucumber
+pepita: pumpkin squash seed kernels
+pera: pears
+perejil: parsley
+pimienta: pepper black
+pimiento: peppers sweet
+pina: pineapple
+pinon: pine nuts
+pistache: pistachio
+platano: bananas
+platano macho: plantains
+poro: leeks
+quelite: lambsquarters
+quinoa: quinoa
+rabano: radishes
+romero: rosemary
+sandia: watermelon
+semilla de girasol: sunflower seed kernels
+semilla de calabaza: pumpkin squash seed kernels
+setas: mushrooms oyster
+shiitake: mushrooms shiitake
+soya: soybeans
+tahini: sesame butter tahini
+tamarindo: tamarinds
+tempeh: tempeh
+tofu: tofu
+tomate verde: tomatillos
+tomatillo: tomatillos
+tomillo: thyme
+toronja: grapefruit
+trigo sarraceno: buckwheat
+trigo: wheat
+tuna: prickly pears
+uva: grapes
+vainilla: vanilla
+verdolaga: purslane
+yuca: cassava
+zanahoria: carrots
+chicozapote: sapodilla
+zarzamora: blackberries

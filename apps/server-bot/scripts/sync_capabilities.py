@@ -115,7 +115,7 @@ def extract_mcp_tool_names() -> list[dict]:
 
     Each @tool decorator's first positional arg is the tool name; the
     second is its description. Ordered per PERSONA_MEMORY_TOOLS in the package
-    __init__ so the rendered list matches what the server registers.
+    __init__, and only those: the same package holds tool packs other personas mount.
     Returns names prefixed with `mcp__persona_memory__` (the wire name).
     """
     pkg = ROOT / "persona_runner" / "mcp_tools"
@@ -147,9 +147,7 @@ def extract_mcp_tool_names() -> list[dict]:
 
     order = _registered_tool_order(pkg / "__init__.py")
     if order:
-        ordered = [by_func[f] for f in order if f in by_func]
-        ordered.extend(v for k, v in by_func.items() if k not in order)
-        return ordered
+        return [by_func[f] for f in order if f in by_func]
     return list(by_func.values())
 
 

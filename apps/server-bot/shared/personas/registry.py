@@ -68,6 +68,8 @@ class Persona:
     # Voice pool namespace (persona_core.corpus.style): real human lines read
     # for register only, drawn at random and never reranked. None = no lane.
     style_namespace: str | None = None
+    # MCP servers of public data this persona may call (persona_runner.mcp_tools.TOOL_PACKS).
+    tool_packs: tuple[str, ...] = ()
     # Which AIRE backend speaks for this persona (aire-server #49/#52): "claude"
     # rides the runner's per-turn router; any other provider pins `model`.
     provider: str = "claude"
@@ -154,6 +156,7 @@ PERSONAS: dict[str, Persona] = {
         tts_voice="fable",
         gateway_enabled=True,
         corpus_namespace="__corpus_vegan__",  # el "later hardening step" por fin (2026-07-16)
+        tool_packs=("food_data",),
     ),
     # Unborn Being — counter-apologetics + antinatalist-mentor sibling (2026-07-16).
     # Born native to the gateway, Claude persona on the persona-runner. DNA is three

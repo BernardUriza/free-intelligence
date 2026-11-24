@@ -44,6 +44,7 @@ from persona_runner.mcp_tools.memory_reads import (
     get_user_facts,
     search_messages,
 )
+from persona_runner.mcp_tools.nutrients import FOOD_DATA_SERVER_NAME, FOOD_DATA_TOOLS
 from persona_runner.mcp_tools.shared import _connect, _error, _text
 
 PERSONA_MEMORY_TOOLS = [
@@ -62,9 +63,13 @@ PERSONA_MEMORY_TOOLS = [
 # Tool name on the wire: `mcp__persona_memory__<tool_name>`
 PERSONA_MEMORY_SERVER_NAME = "persona_memory"
 
+# Tool packs a persona opts into (`Persona.tool_packs`): public data, no identity.
+TOOL_PACKS = {FOOD_DATA_SERVER_NAME: FOOD_DATA_TOOLS}
+
 __all__ = [
     "PERSONA_MEMORY_SERVER_NAME",
     "PERSONA_MEMORY_TOOLS",
+    "TOOL_PACKS",
     "_connect",
     "_error",
     "_text",

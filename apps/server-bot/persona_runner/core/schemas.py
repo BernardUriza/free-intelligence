@@ -18,7 +18,7 @@ from persona_core.corpus.rules import MAX_REFERENCES_CHARS
 PROBE_PRINCIPAL_PREFIX = "probe-"
 
 
-RESERVED_TOOL_NAMES = frozenset({"persona_memory"})
+RESERVED_TOOL_NAMES = frozenset({"persona_memory", "food_data"})
 
 
 class CallerTool(BaseModel):
@@ -122,7 +122,7 @@ class TurnRequest(BaseModel):
     def _caller_tools_never_shadow_ours(self) -> Self:
         names = [tool.name for tool in self.caller_tools or []]
         if RESERVED_TOOL_NAMES & set(names) or len(names) != len(set(names)):
-            raise ValueError("caller_tools names must be unique and must not be persona_memory")
+            raise ValueError("caller_tools names must be unique and must not be one of ours")
         return self
 
     @model_validator(mode="after")

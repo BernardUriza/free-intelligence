@@ -140,17 +140,22 @@ def memory_tool_specs(casita: str) -> list[MCPServerSpec]:
     https origin, which must also sit in AIRE's AIRE_REMOTE_TOOL_ORIGINS) and
     RUNNER_MCP_TOKEN (the bearer the endpoint demands back). Either absent →
     no spec, and the turn runs exactly as before this feature existed."""
+    return _runner_spec("persona_memory", casita)
+
+
+def pack_tool_specs(persona_id: str) -> list[MCPServerSpec]:
+    """The tool packs this persona declares in the registry, served by this runner."""
+    persona = runtime_personas.persona_for(persona_id)
+    packs = persona.tool_packs if persona else ()
+    return [spec for pack in packs for spec in _runner_spec(pack, f"packs/{pack}")]
+
+
+def _runner_spec(name: str, path: str) -> list[MCPServerSpec]:
     base = os.environ.get("RUNNER_MCP_BASE", "").strip().rstrip("/")
     token = os.environ.get("RUNNER_MCP_TOKEN", "").strip()
     if not base or not token:
         return []
-    return [
-        MCPServerSpec(
-            name="persona_memory",
-            url=f"{base}/mcp/{casita}",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-    ]
+    return [MCPServerSpec(name=name, url=f"{base}/mcp/{path}", headers={"Authorization": f"Bearer {token}"})]
 
 
 def caller_tool_specs(req: TurnRequest) -> list[MCPServerSpec]:
@@ -612,7 +617,7 @@ async def _run_turn(req: TurnRequest, base_id: str, casita: str, state: CasitaSt
         if not principal_bound:
             remote_specs = []  # no identity, no memory tools — never a guessed user
     if provider == "claude":
-        remote_specs = [*remote_specs, *caller_tool_specs(req)]
+        remote_specs = [*remote_specs, *pack_tool_specs(base_id), *caller_tool_specs(req)]
 
     async def send_turn():
         return await run_turn_tapped(
