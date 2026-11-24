@@ -20,6 +20,7 @@ Imported: 2026-05-19 (into discord-bot/shared/rag for Insult deep_memory)
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from enum import Enum
 
@@ -45,13 +46,20 @@ class ChunkConfig:
 
     Refusing the config is the fix rather than clamping the step: a caller who
     asked for an impossible window gets told, instead of silently receiving
-    chunks with a different overlap than the one they set."""
+    chunks with a different overlap than the one they set.
+
+    `count_tokens` replaces the words * 1.3 estimate with the embedder's own
+    tokenizer. `max_chunk_size` is a hard ceiling no chunk may pass: an embedder
+    drops whatever exceeds its window without a word. With it set, a text that
+    fits under it stays in one piece."""
 
     def __init__(
         self,
         chunk_size: int = 400,  # Target tokens per chunk
         overlap: int = 50,  # Token overlap between chunks
         min_chunk_size: int = 100,  # Minimum chunk size (discard smaller)
+        max_chunk_size: int | None = None,
+        count_tokens: Callable[[str], int] | None = None,
     ):
         if chunk_size < 2:
             raise ValueError(f"chunk_size must be at least 2 tokens, got {chunk_size!r}")
@@ -64,9 +72,16 @@ class ChunkConfig:
             )
         if min_chunk_size < 0:
             raise ValueError(f"min_chunk_size cannot be negative, got {min_chunk_size!r}")
+        if max_chunk_size is not None and max_chunk_size < chunk_size:
+            raise ValueError(f"max_chunk_size ({max_chunk_size}) cannot be under chunk_size ({chunk_size})")
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.min_chunk_size = min_chunk_size
+        self.max_chunk_size = max_chunk_size
+        self.count_tokens = count_tokens or estimate_tokens
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
 def estimate_tokens(text: str) -> int:
@@ -95,7 +110,7 @@ def chunk_by_fixed_size(text: str, config: ChunkConfig) -> list[str]:
         chunk_words = words[i : i + words_per_chunk]
         chunk_text = " ".join(chunk_words)
 
-        if estimate_tokens(chunk_text) >= config.min_chunk_size:
+        if config.count_tokens(chunk_text) >= config.min_chunk_size:
             chunks.append(chunk_text)
         elif chunks:
             # The TAIL, too short to stand alone. Dropping it deleted the end of
@@ -110,7 +125,7 @@ def chunk_by_fixed_size(text: str, config: ChunkConfig) -> list[str]:
             # document is simply too short — that stays a drop, and `RagStore`
             # turns the resulting zero into `NothingToIndex` rather than a silent
             # success.
-            tail = [w for w in chunk_words if w not in chunks[-1].split()]
+            tail = chunk_words[words_overlap:]
             if tail:
                 chunks[-1] = chunks[-1] + " " + " ".join(tail)
 
@@ -126,26 +141,25 @@ def chunk_by_sentences(text: str, config: ChunkConfig) -> list[str]:
     Better than fixed-size: keeps sentences intact.
     Good for general documents.
     """
-    # Simple sentence splitting (Spanish-aware)
-    import re
-
-    sentences = re.split(r"(?<=[.!?])\s+", text)
+    sentences = _SENTENCE_END.split(text)
 
     chunks = []
     current_chunk = []
     current_tokens = 0
+    carried = 0
 
     for sentence in sentences:
-        sentence_tokens = estimate_tokens(sentence)
+        sentence_tokens = config.count_tokens(sentence)
 
         # If adding this sentence exceeds chunk_size, start new chunk
-        if current_tokens + sentence_tokens > config.chunk_size and current_chunk:
+        overflows = current_tokens + sentence_tokens > config.chunk_size
+        if overflows and current_chunk and current_tokens >= config.min_chunk_size:
             chunks.append(" ".join(current_chunk))
             # Keep overlap (last few sentences)
             overlap_sentences = []
             overlap_tokens = 0
             for s in reversed(current_chunk):
-                s_tokens = estimate_tokens(s)
+                s_tokens = config.count_tokens(s)
                 if overlap_tokens + s_tokens <= config.overlap:
                     overlap_sentences.insert(0, s)
                     overlap_tokens += s_tokens
@@ -153,15 +167,14 @@ def chunk_by_sentences(text: str, config: ChunkConfig) -> list[str]:
                     break
             current_chunk = overlap_sentences
             current_tokens = overlap_tokens
+            carried = len(current_chunk)
 
         current_chunk.append(sentence)
         current_tokens += sentence_tokens
 
     # Add final chunk
     if current_chunk:
-        final_text = " ".join(current_chunk)
-        if estimate_tokens(final_text) >= config.min_chunk_size:
-            chunks.append(final_text)
+        _close_tail(chunks, current_chunk, carried, separator=" ", config=config)
 
     return chunks
 
@@ -178,17 +191,21 @@ def chunk_by_paragraphs(text: str, config: ChunkConfig) -> list[str]:
     chunks = []
     current_chunk = []
     current_tokens = 0
+    carried = 0
 
     for paragraph in paragraphs:
-        para_tokens = estimate_tokens(paragraph)
+        para_tokens = config.count_tokens(paragraph)
 
         # If paragraph alone exceeds chunk_size, split it by sentences
         if para_tokens > config.chunk_size * 1.5:
-            # Flush current chunk first
-            if current_chunk:
+            # Flush current chunk first; a lone heading opens the paragraph it introduces
+            if current_chunk and current_tokens < config.min_chunk_size:
+                paragraph = "\n\n".join([*current_chunk[carried:], paragraph])
+            elif current_chunk:
                 chunks.append("\n\n".join(current_chunk))
-                current_chunk = []
-                current_tokens = 0
+            current_chunk = []
+            current_tokens = 0
+            carried = 0
 
             # Split large paragraph by sentences
             para_chunks = chunk_by_sentences(paragraph, config)
@@ -196,26 +213,50 @@ def chunk_by_paragraphs(text: str, config: ChunkConfig) -> list[str]:
             continue
 
         # If adding this paragraph exceeds chunk_size, start new chunk
-        if current_tokens + para_tokens > config.chunk_size and current_chunk:
+        overflows = current_tokens + para_tokens > config.chunk_size
+        if overflows and current_chunk and current_tokens >= config.min_chunk_size:
             chunks.append("\n\n".join(current_chunk))
             # Keep overlap (last paragraph if small enough)
-            if current_chunk and estimate_tokens(current_chunk[-1]) <= config.overlap:
+            if current_chunk and config.count_tokens(current_chunk[-1]) <= config.overlap:
                 current_chunk = [current_chunk[-1]]
-                current_tokens = estimate_tokens(current_chunk[-1])
+                current_tokens = config.count_tokens(current_chunk[-1])
             else:
                 current_chunk = []
                 current_tokens = 0
+            carried = len(current_chunk)
 
         current_chunk.append(paragraph)
         current_tokens += para_tokens
 
     # Add final chunk
     if current_chunk:
-        final_text = "\n\n".join(current_chunk)
-        if estimate_tokens(final_text) >= config.min_chunk_size:
-            chunks.append(final_text)
+        _close_tail(chunks, current_chunk, carried, separator="\n\n", config=config)
 
     return chunks
+
+
+def _close_tail(chunks: list[str], tail: list[str], carried: int, *, separator: str, config: ChunkConfig) -> None:
+    """Close the document's last piece: its own chunk, or joined to the previous when under the minimum.
+
+    The first `carried` parts are overlap the previous chunk already holds. A
+    whole document under the minimum still yields nothing.
+    """
+    text = separator.join(tail)
+    if config.count_tokens(text) >= config.min_chunk_size:
+        chunks.append(text)
+    elif chunks and tail[carried:]:
+        chunks[-1] = separator.join([chunks[-1], *tail[carried:]])
+
+
+def _split_to_fit(text: str, config: ChunkConfig) -> list[str]:
+    """Halve `text` at the sentence (else word, else character) nearest its middle until every piece fits."""
+    if config.max_chunk_size is None or config.count_tokens(text) <= config.max_chunk_size or len(text) < 2:
+        return [text]
+    middle = len(text) // 2
+    cuts = [m.end() for m in _SENTENCE_END.finditer(text)] or [m.end() for m in re.finditer(r"\s+", text)]
+    cut = min((c for c in cuts if 0 < c < len(text)), key=lambda c: abs(c - middle), default=middle)
+    halves = (text[:cut].strip(), text[cut:].strip())
+    return [piece for half in halves if half for piece in _split_to_fit(half, config)]
 
 
 def chunk_document(
@@ -240,6 +281,10 @@ def chunk_document(
     if config is None:
         config = ChunkConfig()
 
+    tokens = config.count_tokens(text)
+    if config.max_chunk_size is not None and config.min_chunk_size <= tokens <= config.max_chunk_size:
+        return [text.strip()]
+
     # Route to appropriate strategy
     chunkers: dict[ChunkingStrategy, Callable[[str, ChunkConfig], list[str]]] = {
         ChunkingStrategy.FIXED_SIZE: chunk_by_fixed_size,
@@ -248,7 +293,7 @@ def chunk_document(
     }
 
     chunker = chunkers.get(strategy, chunk_by_paragraphs)
-    return chunker(text, config)
+    return [piece for chunk in chunker(text, config) for piece in _split_to_fit(chunk, config)]
 
 
 __all__ = [

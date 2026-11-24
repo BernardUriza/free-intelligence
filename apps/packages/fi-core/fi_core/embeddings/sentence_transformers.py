@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from pathlib import Path
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -133,6 +134,24 @@ class SentenceTransformersEmbedder:
                 "models qualify) or override the dim explicitly."
             )
         return int(raw)
+
+    @property
+    def max_tokens(self) -> int:
+        """The model's window: `embed` drops what goes past it without a word."""
+        return int(self._ensure_loaded().max_seq_length)
+
+    @property
+    def revision(self) -> str | None:
+        """The Hub commit the weights were loaded from, None for a model that is not from the Hub."""
+        from huggingface_hub import try_to_load_from_cache
+
+        self._ensure_loaded()
+        cached = try_to_load_from_cache(self._model_name, "modules.json")
+        return Path(cached).parent.name if isinstance(cached, str) else None
+
+    def count_tokens(self, text: str) -> int:
+        """Tokens `text` takes in the window, special tokens included and never truncated."""
+        return len(self._ensure_loaded().tokenizer(text, truncation=False, verbose=False)["input_ids"])
 
     async def embed(self, text: str) -> list[float]:
         """Return the embedding vector for ``text`` as a list of floats.

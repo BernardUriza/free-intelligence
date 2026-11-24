@@ -11,11 +11,16 @@ multiple stores can coexist in one database without colliding.
   - ``{prefix}_chunks`` (chunk_id PK, document_id FK, namespace, text,
     source_type, source_ref, embedding vector(N), created_at)
 
-Index choice: IVFFlat with ``vector_cosine_ops`` and ``lists=100`` —
+Index choice (``ann_index=True``): IVFFlat with ``vector_cosine_ops`` and ``lists=100`` —
 matches what the discord-bot deep-memory schema uses and is the
 standard pgvector starting point for tables under ~1M rows. For larger
 catalogs migrate to HNSW (``CREATE INDEX ... USING hnsw``) which is
 more memory-hungry but offers better recall at scale.
+
+``ann_index=False`` searches exactly and drops the index if it is there. An
+approximate index filters by namespace AFTER its walk, so a small namespace in
+a shared table can come back empty (measured by server-bot on 3 of 21 queries
+under IVFFlat and 12 of 21 under HNSW).
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ def schema_statements(
     docs_table: str,
     chunks_table: str,
     embedding_dim: int,
+    ann_index: bool = True,
 ) -> list[str]:
     """The idempotent DDL batch ``init_schema()`` runs, in order.
 
@@ -79,5 +85,7 @@ def schema_statements(
             ON {chunks_table}
             USING ivfflat (embedding vector_cosine_ops)
             WITH (lists = {_IVFFLAT_LISTS})
-        """,
+        """
+        if ann_index
+        else f"DROP INDEX IF EXISTS idx_{table_prefix}_chunks_embedding",
     ]

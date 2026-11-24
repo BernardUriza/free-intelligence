@@ -12,6 +12,28 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.37.0] — 2026-11-24
+
+### Added — a namespace reconciled in one transaction, exact search, real token counts
+
+- `PgVectorChunkStore.sync_documents`: replaces and deletes whole documents under
+  an advisory lock, all or nothing, and refuses a plan computed from another set
+  of documents (`expected_ids`). New types `DocumentUpsert` and `SyncResult`.
+- `PgVectorChunkStore(ann_index=False)`: exact search; drops the IVFFlat index,
+  which filters by namespace after its walk and can return nothing for a small one.
+- `ChunkConfig.count_tokens` (the embedder's tokenizer instead of words * 1.3) and
+  `ChunkConfig.max_chunk_size` (a ceiling no chunk passes, in every strategy).
+- `SentenceTransformersEmbedder.count_tokens`, `max_tokens` and `revision`: what
+  those two need, and what a stored vector has to be labelled with.
+
+### Fixed
+
+- The last piece of a document under `min_chunk_size` was dropped by the sentence
+  and paragraph strategies; it now joins the previous chunk. A whole document under
+  the minimum still yields nothing.
+- The fixed-size strategy dropped from its last piece every word the previous chunk
+  also had.
+
 ## [0.36.0] — 2026-11-24
 
 ### Added — a lexical arm over the whole corpus, and retrieval evaluation
