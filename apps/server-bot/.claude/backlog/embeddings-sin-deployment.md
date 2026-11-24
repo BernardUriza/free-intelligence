@@ -40,7 +40,7 @@ falló, y ahí no hubo búsqueda. Se corrige junto con esto.
 
 - `persona_core/vectors.py` y `persona_core/memory/minilm_embedder.py`: MiniLM local de 384
   dimensiones, ya cargado en el runner para los facts. Sin red y sin costo por llamada.
-- `scripts/ingest_corpus.py`: el camino de escritura. Lectura y escritura se mueven juntas
+- `scripts/corpus_sync.py` (sustituyó a `ingest_corpus.py` en v4.62.0): el camino de escritura. Lectura y escritura se mueven juntas
   ([[both-ends-of-the-data-path]]).
 
 ## The decision that's the owner's
