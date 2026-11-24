@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from persona_core.corpus.rules import MAX_REFERENCES_CHARS
 
 # The only ids a probe may speak as. A probe under a real principal is exactly
 # the 2026-09-28 mistake: a wire check landed in Bernard's own memory.
@@ -77,6 +79,8 @@ class TurnRequest(BaseModel):
     # abrasive. Injected into the USER message (not the system prompt) so the
     # persona stays cache-stable while the guidance varies per turn.
     behavioral_guidance: str | None = Field(default=None, max_length=16000)
+    # Corpus passages, framed as data and placed before the guidance.
+    references: str | None = Field(default=None, max_length=MAX_REFERENCES_CHARS)
     # Khimeras multi-persona: which sibling persona answers this turn. None ⇒
     # the default persona, fully backward-compatible. A valid id loads
     # PERSONAS_DIR/<id>.md; an unknown/invalid id falls back + logs.
@@ -105,6 +109,14 @@ class TurnRequest(BaseModel):
     # Remote MCP servers of the calling surface (og118's per-account file store),
     # mounted beside persona_memory on a Claude turn. AIRE caps a turn at four.
     caller_tools: list[CallerTool] | None = Field(default=None, max_length=2)
+
+    @field_validator("user_id")
+    @classmethod
+    def _a_person_not_a_namespace(cls, value: str) -> str:
+        """`__x__` ids are storage namespaces (corpora, the private archive)."""
+        if value.startswith("__"):
+            raise ValueError("reserved user_id")
+        return value
 
     @model_validator(mode="after")
     def _caller_tools_never_shadow_ours(self) -> Self:

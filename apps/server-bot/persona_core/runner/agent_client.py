@@ -200,6 +200,7 @@ class AgentRunnerClient:
         session_uuid: str | None = None,
         fallback_model: str | None = None,
         behavioral_guidance: str | None = None,
+        references: str | None = None,
         relevant_memory: str | None = None,
         other_people: str | None = None,
         persona_id: str | None = None,
@@ -254,6 +255,8 @@ class AgentRunnerClient:
                 job_id=job_id,
                 guidance_chars=len(behavioral_guidance),
             )
+        if references:
+            payload["references"] = references
         if relevant_memory:
             log.info(
                 "agent_runner_client_memory_forwarded",

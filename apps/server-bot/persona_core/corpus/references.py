@@ -6,6 +6,7 @@ every threshold comes from `rules.yml`.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import structlog
@@ -15,6 +16,8 @@ from persona_core.corpus.pg_rag import connect, embed_query, score_relevance
 from persona_core.corpus.rules import load_rules
 
 log = structlog.get_logger()
+
+_TAG_OPENER = re.compile(r"<(?=[/!?]?[A-Za-z_])")
 
 
 async def query_corpus(query: str, *, namespace: str, top_k: int) -> list[dict[str, Any]] | None:
@@ -47,6 +50,11 @@ async def query_corpus(query: str, *, namespace: str, top_k: int) -> list[dict[s
         return None
     finally:
         await conn.close()
+
+
+def as_data(passage: str) -> str:
+    """The passage with every markup opener defused, so it cannot close or open a prompt block."""
+    return _TAG_OPENER.sub("\u2039", passage.strip())
 
 
 def cite_label(source_ref: str | None) -> str:
@@ -101,7 +109,7 @@ async def build_references_block(
         return None
 
     kept, truncated = fit_ranked(
-        [f"- [{cite_label(h.get('source_ref'))}] {h['chunk_text'].strip()}" for h in relevant],
+        [f"- [{cite_label(h.get('source_ref'))}] {as_data(h['chunk_text'])}" for h in relevant],
         rules.max_block_chars,
         word_backoff=rules.truncate_backoff_chars,
     )

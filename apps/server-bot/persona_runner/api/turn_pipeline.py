@@ -223,6 +223,7 @@ async def serve_turn(req: TurnRequest) -> TurnResponse:
                 update={
                     "user_text": turn.user_text,
                     "behavioral_guidance": turn.behavioral_guidance,
+                    "references": turn.references,
                     "attachments": turn.attachments or None,
                 }
             )

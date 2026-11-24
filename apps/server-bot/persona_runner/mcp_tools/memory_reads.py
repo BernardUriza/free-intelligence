@@ -177,14 +177,10 @@ async def get_disclosure_log(args: dict) -> dict:
 async def deep_memory(args: dict) -> dict:
     from persona_core.deep_memory import query_user_memory
 
-    # El guard de namespaces reservados (`__chatgpt_archive__`, con el historial
-    # íntimo de Bernard sacado a propósito del auto-recall en 2026-06-03) vivía
-    # aquí como un `startswith("__")` sobre el parámetro. Ya no hace falta:
-    # el id lo pone el servidor y es siempre un snowflake de Discord, así que no
-    # hay parámetro que envenenar. Fue, además, la única defensa de este tipo en
-    # las seis tools — pensada contra archivos sintéticos y nunca contra OTRA
-    # PERSONA, que resultó ser el agujero real.
+    # `__x__` namespaces hold corpora and a private archive: never a person's memory.
     user_id = current_principal().user_id
+    if user_id.startswith("__"):
+        return shared._error("reserved namespace")
     query = (args.get("query") or "").strip()
     if not query:
         return shared._error("query is required")
