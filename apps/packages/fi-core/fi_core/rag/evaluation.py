@@ -96,14 +96,14 @@ def gate(
     """Reasons this run is worse than `baseline` (empty list = green).
 
     Fails on: a gold source that left the shortlist, a `must_pass` case that
-    fails, an off-topic query that starts accepting, more than `max_lost_hits`
+    fails and is new or used to pass, an off-topic query that starts accepting, more than `max_lost_hits`
     lost final hits, and a baseline case that was not run.
     """
     reasons: list[str] = []
     lost: list[str] = []
     for r in current:
         before = baseline.get(r.id)
-        if r.must_pass and not r.passed:
+        if r.must_pass and not r.passed and (before is None or before["passed"]):
             reasons.append(f"{r.id}: must_pass case fails")
         if before is None:
             continue

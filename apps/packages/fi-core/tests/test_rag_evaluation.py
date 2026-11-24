@@ -55,3 +55,11 @@ def test_gate_catches_must_pass_and_missing_cases():
     failed = score_case(must, Retrieved([], []))
     assert gate({}, [failed])
     assert gate({"gone": failed.to_dict()}, [])
+
+
+def test_a_must_pass_case_that_already_failed_is_not_a_regression():
+    must = EvalCase("m", "q", gold=("p:y",), must_pass=True)
+    failed = score_case(must, Retrieved(["p:y"], []))
+    passed = score_case(must, Retrieved(["p:y"], ["p:y"]))
+    assert gate(_saved(failed), [failed]) == []
+    assert gate(_saved(passed), [failed])

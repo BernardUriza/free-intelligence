@@ -268,3 +268,35 @@ def test_a_fixed_size_ending_keeps_words_the_previous_chunk_also_has():
 def test_a_ceiling_under_the_target_is_refused():
     with pytest.raises(ValueError, match="max_chunk_size"):
         ChunkConfig(chunk_size=400, max_chunk_size=300)
+
+
+@pytest.mark.parametrize("body_words", [8, 30])
+def test_a_heading_opens_the_paragraph_it_introduces(body_words):
+    """A lone "XI. CORNARO. 1465-1566." was a chunk of its own and answered off-topic questions."""
+    body = " ".join(f"w{i}" for i in range(body_words))
+    text = "\n\n".join(["a b c d e f g h", "XI. CORNARO.", body])
+    config = ChunkConfig(chunk_size=8, overlap=0, min_chunk_size=4, count_tokens=_words)
+    chunks = chunk_document(text, config=config)
+    assert "XI. CORNARO." not in chunks
+    assert sum(c.startswith("XI. CORNARO.") for c in chunks) == 1
+    assert " ".join(chunks).split() == text.split()
+
+
+def test_a_flush_never_emits_an_overlap_alone():
+    text = "\n\n".join(["a b c d e f", "puente", "g h i j k l m n o"])
+    config = ChunkConfig(chunk_size=8, overlap=2, min_chunk_size=4, count_tokens=_words)
+    assert "puente" not in chunk_document(text, config=config)
+
+
+def test_no_minimum_never_emits_an_empty_chunk():
+    text = "\n\n".join(["a b c d e f g h i", "j"])
+    config = ChunkConfig(chunk_size=8, overlap=0, min_chunk_size=0, count_tokens=_words)
+    assert all(chunk_document(text, config=config))
+
+
+def test_a_text_that_fits_the_ceiling_stays_whole():
+    text = "\n\n".join(["a b c d e", "f g h i j"])
+    sized = {"chunk_size": 6, "overlap": 0, "min_chunk_size": 2, "count_tokens": _words}
+    assert len(chunk_document(text, config=ChunkConfig(**sized))) == 2
+    assert chunk_document(text, config=ChunkConfig(**sized, max_chunk_size=10)) == [text]
+    assert len(chunk_document(text, config=ChunkConfig(**sized, max_chunk_size=9))) == 2

@@ -50,7 +50,8 @@ class ChunkConfig:
 
     `count_tokens` replaces the words * 1.3 estimate with the embedder's own
     tokenizer. `max_chunk_size` is a hard ceiling no chunk may pass: an embedder
-    drops whatever exceeds its window without a word."""
+    drops whatever exceeds its window without a word. With it set, a text that
+    fits under it stays in one piece."""
 
     def __init__(
         self,
@@ -151,7 +152,8 @@ def chunk_by_sentences(text: str, config: ChunkConfig) -> list[str]:
         sentence_tokens = config.count_tokens(sentence)
 
         # If adding this sentence exceeds chunk_size, start new chunk
-        if current_tokens + sentence_tokens > config.chunk_size and current_chunk:
+        overflows = current_tokens + sentence_tokens > config.chunk_size
+        if overflows and current_chunk and current_tokens >= config.min_chunk_size:
             chunks.append(" ".join(current_chunk))
             # Keep overlap (last few sentences)
             overlap_sentences = []
@@ -196,12 +198,14 @@ def chunk_by_paragraphs(text: str, config: ChunkConfig) -> list[str]:
 
         # If paragraph alone exceeds chunk_size, split it by sentences
         if para_tokens > config.chunk_size * 1.5:
-            # Flush current chunk first
-            if current_chunk:
+            # Flush current chunk first; a lone heading opens the paragraph it introduces
+            if current_chunk and current_tokens < config.min_chunk_size:
+                paragraph = "\n\n".join([*current_chunk[carried:], paragraph])
+            elif current_chunk:
                 chunks.append("\n\n".join(current_chunk))
-                current_chunk = []
-                current_tokens = 0
-                carried = 0
+            current_chunk = []
+            current_tokens = 0
+            carried = 0
 
             # Split large paragraph by sentences
             para_chunks = chunk_by_sentences(paragraph, config)
@@ -209,7 +213,8 @@ def chunk_by_paragraphs(text: str, config: ChunkConfig) -> list[str]:
             continue
 
         # If adding this paragraph exceeds chunk_size, start new chunk
-        if current_tokens + para_tokens > config.chunk_size and current_chunk:
+        overflows = current_tokens + para_tokens > config.chunk_size
+        if overflows and current_chunk and current_tokens >= config.min_chunk_size:
             chunks.append("\n\n".join(current_chunk))
             # Keep overlap (last paragraph if small enough)
             if current_chunk and config.count_tokens(current_chunk[-1]) <= config.overlap:
@@ -275,6 +280,10 @@ def chunk_document(
     """
     if config is None:
         config = ChunkConfig()
+
+    tokens = config.count_tokens(text)
+    if config.max_chunk_size is not None and config.min_chunk_size <= tokens <= config.max_chunk_size:
+        return [text.strip()]
 
     # Route to appropriate strategy
     chunkers: dict[ChunkingStrategy, Callable[[str, ChunkConfig], list[str]]] = {
