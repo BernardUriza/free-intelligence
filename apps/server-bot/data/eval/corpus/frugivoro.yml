@@ -1,0 +1,125 @@
+# Labelled retrieval cases for Frugi. `gold` are source_ref globs without the "frugivoro:" prefix.
+# dev/holdout comes from a hash of the id: tune on dev, read holdout once, at the end.
+# Never relabel a case because a run failed it: relabel only if the source really answers it.
+answerable:
+  - {id: cilantro-aroma, q: "¿a qué huele el cilantro?", gold: ["flavordb2-cilantro*"], must_pass: true}
+  - {id: lenteja-hierro, q: "¿cuánto hierro tienen las lentejas?", gold: ["usda-lenteja-seca*"], must_pass: true}
+  - {id: frijol-negro-proteina, q: "proteína del frijol negro", gold: ["usda-frijol-negro*", "usda-frijol-*black-0-moisture*"]}
+  - {id: kale-calcio, q: "calcio del kale", gold: ["usda-kale*"]}
+  - {id: albahaca-aroma, q: "¿qué aromas tiene la albahaca?", gold: ["flavordb2-albahaca*"]}
+  - {id: jengibre-perfil, q: "perfil aromático del jengibre", gold: ["flavordb2-jengibre*"]}
+  - {id: romero-aroma, q: "aroma del romero", gold: ["flavordb2-romero*"]}
+  - {id: limon-moleculas, q: "qué moléculas tiene el limón", gold: ["flavordb2-limon*"]}
+  - {id: comino-sabor, q: "a qué sabe el comino", gold: ["flavordb2-comino*"]}
+  - {id: cacao-aroma, q: "qué notas de sabor tiene el cacao", gold: ["flavordb2-cacao*"]}
+  - {id: vainilla-aroma, q: "de dónde sale el olor de la vainilla, qué moléculas", gold: ["flavordb2-vainilla*"]}
+  - {id: trufa-olor, q: "la trufa a qué huele", gold: ["flavordb2-trufa*"]}
+  - {id: mango-sabor, q: "descriptores de sabor del mango", gold: ["flavordb2-mango-mango"]}
+  - {id: cardamomo, q: "cómo sabe el cardamomo", gold: ["flavordb2-cardamomo*"]}
+  - {id: aguacate-grasa, q: "grasa del aguacate", gold: ["usda-aguacate*"]}
+  - {id: platano-potasio, q: "cuánto potasio trae un plátano", gold: ["usda-platano*"]}
+  - {id: avena-fibra, q: "fibra de la avena", gold: ["usda-avena*", "usda-harina-de-avena*"]}
+  - {id: pimiento-vitc, q: "vitamina C del pimiento morrón", gold: ["usda-pimiento*"]}
+  - {id: pepita-zinc, q: "zinc de las pepitas de calabaza", gold: ["usda-pepita*"], must_pass: true}
+  - {id: chia-calcio, q: "cuánto calcio hay en la chía", gold: ["usda-semilla-de-chia*"]}
+  - {id: almendra-vite, q: "las almendras tienen vitamina E?", gold: ["usda-almendra*"]}
+  - {id: garbanzo-proteina, q: "proteína del garbanzo seco", gold: ["usda-garbanzo*"]}
+  - {id: fresa-vitc, q: "vitamina c en las fresas", gold: ["usda-fresa*"]}
+  - {id: nuez-brasil-selenio, q: "selenio de la nuez de brasil", gold: ["usda-nuez-de-brasil*"]}
+  - {id: brocoli-folato, q: "el brócoli crudo cuánta vitamina K y folato tiene", gold: ["usda-brocoli*"]}
+  - {id: birria, q: "cómo hago birria vegana", gold: ["loveveg*"], must_pass: true}
+  - {id: torta-ahogada, q: "receta de torta ahogada sin carne", gold: ["loveveg*"], must_pass: true}
+  - {id: pozole, q: "quiero hacer pozole rojo vegano el domingo", gold: ["loveveg*"]}
+  - {id: tejuino, q: "cómo se prepara el tejuino", gold: ["loveveg*"]}
+  - {id: menudo, q: "menudo pero de hongos, cómo va", gold: ["loveveg*"]}
+  - {id: lonche-banado, q: "lonche bañado vegano ingredientes", gold: ["loveveg*"]}
+  - {id: setas-jugo, q: "carne en su jugo pero con setas", gold: ["loveveg*"]}
+  - {id: merengue, q: "cómo monto merengue con agua de garbanzo", gold: ["*aquafaba*", "manual-impro*"], must_pass: true}
+  - {id: aquafaba-que-es, q: "qué es la aquafaba", gold: ["*aquafaba*"]}
+  - {id: aquafaba-espuma, q: "qué hace que el aquafaba espume mejor", gold: ["*aquafaba*"]}
+  - {id: aquafaba-lata, q: "es mejor el aquafaba de lata o el de casa", gold: ["*aquafaba*"]}
+  - {id: huevo-ligar, q: "con qué sustituyo el huevo para ligar", gold: ["manual-impro*", "*aquafaba*"], must_pass: true}
+  - {id: inventar-platillo, q: "cómo invento un platillo que no conozco", gold: ["manual-impro*"]}
+  - {id: sustituir-queso, q: "qué función cumple el queso y con qué planta la reemplazo", gold: ["manual-impro*", "plant-based-cheese*"]}
+  - {id: umami-plantas, q: "de dónde saco umami sin carne", gold: ["manual-impro*", "*umami*", "wiki-es-kombu", "wiki-es-lentinula*", "wiki-es-levadura*"]}
+  - {id: sinergia-umami, q: "por qué el kombu y el shiitake juntos saben más fuerte", gold: ["manual-impro*", "*umami*", "wiki-es-kombu", "wiki-es-lentinula*", "wiki-es-guanilato*"]}
+  - {id: maridaje-mito, q: "es cierto que los ingredientes que comparten moléculas combinan", gold: ["manual-impro*", "jain*", "park*"]}
+  - {id: india-maridaje, q: "food pairing en la cocina de la India", gold: ["jain*"]}
+  - {id: flavorgraph, q: "qué es FlavorGraph", gold: ["park*"]}
+  - {id: queso-nuez, q: "queso vegano fermentado de nuez de la india", gold: ["plant-based-cheese*"]}
+  - {id: maillard, q: "para qué sirve la reacción de Maillard", gold: ["wiki-es-reacción*", "manual-impro*"]}
+  - {id: caramelizar, q: "a qué temperatura se carameliza el azúcar", gold: ["wiki-es-caramelización", "manual-impro*"]}
+  - {id: nixtamal, q: "qué es la nixtamalización", gold: ["wiki-es-nixtamal*"], must_pass: true}
+  - {id: tempeh, q: "cómo se hace el tempeh", gold: ["wiki-es-tempe*"]}
+  - {id: seitan, q: "de qué está hecho el seitán", gold: ["wiki-es-seit*"]}
+  - {id: epazote, q: "qué es el epazote", gold: ["wiki-es-dysphania*", "flavordb2-epazote*"]}
+  - {id: hoja-santa, q: "para qué se usa la hoja santa en la cocina", gold: ["wiki-es-piper*", "manual-impro*"]}
+  - {id: guajillo, q: "qué onda con el chile guajillo", gold: ["wiki-es-chile-guajillo"]}
+  - {id: chipotle, q: "el chipotle es jalapeño ahumado?", gold: ["wiki-es-chile-chipotle"]}
+  - {id: koji, q: "qué es el koji", gold: ["wiki-es-aspergillus*", "wiki-es-miso"]}
+  - {id: agar, q: "cómo uso el agar agar", gold: ["wiki-es-agar*", "manual-impro*"]}
+  - {id: b12-embarazo, q: "B12 en el embarazo vegano", gold: ["plant-based-diet-pregnancy*"], must_pass: true}
+  - {id: corazon-vegana, q: "la dieta vegetal baja el colesterol?", gold: ["plant-based-diets-cardio*"]}
+  - {id: especismo-lenguaje, q: "el especismo en cómo hablamos de los animales", gold: ["leach*"]}
+  - {id: pitagoras, q: "qué decía Pitágoras sobre comer carne", gold: ["williams*"]}
+off_topic:
+  - {id: off-pelicula, q: "qué película me recomiendas para hoy"}
+  - {id: off-mama, q: "mi mamá no me habla desde ayer"}
+  - {id: off-australia, q: "cuál es la capital de Australia"}
+  - {id: off-python, q: "arregla este bug de python"}
+  - {id: off-bolsa, q: "cómo va la bolsa de valores"}
+  - {id: off-chiste, q: "cuéntame un chiste de perros"}
+  - {id: off-america, q: "a qué hora juega el América"}
+  - {id: off-hermano, q: "me peleé con mi hermano"}
+  - {id: off-dormir, q: "no he podido dormir en tres días"}
+  - {id: off-jefe, q: "mi jefe me quiere correr del trabajo"}
+  - {id: off-deploy, q: "el deploy se cayó otra vez y nadie contesta"}
+  - {id: off-novio, q: "creo que me está engañando mi pareja"}
+  - {id: off-renta, q: "cuánto me conviene pagar de renta"}
+  - {id: off-sat, q: "cómo declaro mis impuestos en el SAT"}
+  - {id: off-visa, q: "qué papeles piden para la visa gringa"}
+  - {id: off-celular, q: "se me rompió la pantalla del celular"}
+  - {id: off-musica, q: "ponme una canción triste de José José"}
+  - {id: off-gato, q: "mi gato se subió al techo y no baja"}
+  - {id: off-cumple, q: "qué le regalo a mi sobrina de ocho años"}
+  - {id: off-examen, q: "mañana tengo examen de cálculo y no sé nada"}
+  - {id: off-lluvia, q: "va a llover en Guadalajara mañana?"}
+  - {id: off-uber, q: "el uber me cobró doble el viaje"}
+  - {id: off-ansiedad, q: "me siento muy ansioso y no sé por qué"}
+  - {id: off-saludo, q: "hola qué tal cómo amaneciste hoy"}
+  - {id: off-react, q: "explícame los hooks de react"}
+  - {id: off-sql, q: "cómo hago un join en postgres"}
+  - {id: off-crypto, q: "conviene comprar bitcoin ahorita"}
+  - {id: off-gym, q: "cuántas series hago para pecho"}
+  - {id: off-correr, q: "quiero entrenar para un medio maratón"}
+  - {id: off-viaje, q: "qué hago tres días en Oaxaca de turista"}
+  - {id: off-libro, q: "recomiéndame una novela de terror"}
+  - {id: off-historia, q: "quién ganó la segunda guerra mundial"}
+  - {id: off-astronomia, q: "a qué distancia está la luna"}
+  - {id: off-traduccion, q: "traduce esto al inglés por favor"}
+  - {id: off-carta, q: "ayúdame a escribir una carta de renuncia"}
+  - {id: off-carro, q: "mi carro hace un ruido raro al frenar"}
+  - {id: off-plomero, q: "se tapó el lavabo del baño"}
+  - {id: off-wifi, q: "no me agarra el wifi en el cuarto"}
+  - {id: off-nombre, q: "ponle nombre a mi perrita nueva"}
+  - {id: off-duelo, q: "extraño mucho a mi abuelo que falleció"}
+  - {id: off-terapia, q: "hoy salí muy cansado de terapia"}
+  - {id: off-amigos, q: "mis amigos no me invitaron a la fiesta"}
+  - {id: off-ingles, q: "cómo se conjuga el verbo to be en pasado"}
+  - {id: off-fotos, q: "qué cámara compro para empezar en fotografía"}
+  - {id: off-guitarra, q: "enséñame los acordes de una canción fácil"}
+  - {id: off-politica, q: "qué opinas de las elecciones"}
+  - {id: off-metro, q: "qué línea del metro llega al centro"}
+  - {id: off-banco, q: "el banco me bloqueó la tarjeta"}
+  - {id: off-dentista, q: "me duele una muela desde el lunes"}
+  - {id: off-silencio, q: "no tengo ganas de hablar con nadie"}
+  - {id: off-videojuego, q: "cómo le gano al último jefe de este juego"}
+  - {id: off-ropa, q: "qué me pongo para una boda de día"}
+  - {id: off-plantas, q: "se me está secando el cactus de la sala"}
+  - {id: off-vecino, q: "el vecino pone música hasta las cuatro"}
+  - {id: off-version, q: "qué versión del bot eres"}
+  - {id: off-recuerdo, q: "te acuerdas de lo que te conté ayer"}
+  - {id: off-gracias, q: "muchas gracias por todo de verdad"}
+  - {id: off-reunion, q: "recuérdame la junta de las cinco"}
+  - {id: off-cv, q: "revisa mi currículum para una vacante de QA"}
+  - {id: off-ajedrez, q: "cuál es la mejor apertura de ajedrez"}

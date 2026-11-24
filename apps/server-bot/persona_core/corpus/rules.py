@@ -16,6 +16,7 @@ RULES_PATH = Path(__file__).with_name("rules.yml")
 @dataclass(frozen=True)
 class ReferenceRules:
     candidates: int
+    fusion_pool: int
     top_k: int
     min_relevance: float
     min_query_chars: int
