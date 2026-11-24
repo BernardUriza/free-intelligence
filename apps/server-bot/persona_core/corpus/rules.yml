@@ -5,7 +5,10 @@ references:
   # Cosine shortlist the cross-encoder reranks. e5 cosines are compressed
   # (on-topic 0.784-0.888 vs off-topic 0.780-0.834, 21 real queries,
   # 2026-11-19), so the cosine only shortlists and never gates.
-  candidates: 8
+  # Was 8 at 893 vegan chunks. At 2,139 (24-nov, one USDA/FlavorDB2 card per
+  # ingredient) the cilantro card ranked 9th by cosine and never reached the
+  # reranker; at 32 it is picked, 4 off-topic asks stay empty, +0.8 s per turn.
+  candidates: 32
   # Passages that may enter one turn.
   top_k: 3
   # Cross-encoder floor. Measured 2026-11-20 over the same 21 queries: off-topic
