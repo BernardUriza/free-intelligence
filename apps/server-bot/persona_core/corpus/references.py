@@ -40,10 +40,10 @@ async def query_corpus(query: str, *, namespace: str, top_k: int, fusion_pool: i
     try:
         rows = await conn.fetch(
             """
-            SELECT id, source_type, source_ref, chunk_text, created_at,
+            SELECT chunk_id AS id, source_type, source_ref, text AS chunk_text, created_at,
                    1 - (embedding <=> $1) AS similarity
-            FROM deep_memory_chunks
-            WHERE user_id = $2 AND embedding IS NOT NULL
+            FROM corpus_chunks
+            WHERE namespace = $2
             ORDER BY embedding <=> $1
             LIMIT $3
             """,

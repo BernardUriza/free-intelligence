@@ -36,6 +36,7 @@ log = structlog.get_logger()
 
 EMBEDDING_DIM = 384
 CORPUS_MODEL = "intfloat/multilingual-e5-small"
+CORPUS_TABLE_PREFIX = "corpus"
 _QUERY_PREFIX = "query: "
 _PASSAGE_PREFIX = "passage: "
 RERANK_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
@@ -115,6 +116,41 @@ async def warm_corpus_embedder() -> bool:
         return False
     log.info("corpus_embedder_ready", model=CORPUS_MODEL, dim=len(vec))
     return True
+
+
+async def embedding_model() -> str:
+    """`model@commit` of the loaded embedder: a different 384d model must never pass for this one."""
+    revision = await asyncio.to_thread(lambda: get_corpus_embedder().revision)
+    if not revision:
+        raise RuntimeError(f"{CORPUS_MODEL}: the loaded weights do not say which commit they are")
+    return f"{CORPUS_MODEL}@{revision}"
+
+
+async def stored_with_another_model() -> dict[str, int] | None:
+    """Documents per stored `embed_model` that is not the loaded one; None when it could not be checked.
+
+    Cosines between two models mean nothing and raise nothing, so a swap of the
+    weights would degrade every answer in silence. Never raises.
+    """
+    conn = await connect()
+    if conn is None:
+        return None
+    try:
+        current = await embedding_model()
+        rows = await conn.fetch(
+            "SELECT attributes->>'embed_model' AS model, count(*) AS documents FROM corpus_documents "
+            "WHERE attributes->>'embed_model' <> $1 GROUP BY 1",
+            current,
+        )
+    except Exception:
+        log.exception("corpus_embed_model_check_failed")
+        return None
+    finally:
+        await conn.close()
+    others = {row["model"]: row["documents"] for row in rows}
+    if others:
+        log.error("corpus_embed_model_mismatch", loaded=current, stored=others)
+    return others
 
 
 async def score_relevance(query: str, passages: list[str]) -> list[float] | None:

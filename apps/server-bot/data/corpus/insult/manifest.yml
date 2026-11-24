@@ -1,0 +1,48 @@
+title: Corpus — insult (retórica / confrontación)
+sources:
+- title: The Art of Controversy (en *The Essays of Arthur Schopenhauer*)
+  author: Arthur Schopenhauer
+  year: 1896 (trad.)
+  url: https://www.gutenberg.org/ebooks/10731
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - schopenhauer_art_of_controversy.txt
+  license_note: Dominio público
+- title: Reflections; or Sentences and Moral Maxims
+  author: François de La Rochefoucauld
+  year: 1665 / 1871 (trad.)
+  url: https://www.gutenberg.org/ebooks/9105
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - larochefoucauld_maxims.txt
+  license_note: Dominio público
+- title: Beyond Good and Evil
+  author: Friedrich Nietzsche
+  year: 1886 / 1907 (trad.)
+  url: https://www.gutenberg.org/ebooks/4363
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - nietzsche_beyond_good_and_evil.txt
+  license_note: Dominio público
+- title: On Liberty
+  author: John Stuart Mill
+  year: '1859'
+  url: https://www.gutenberg.org/ebooks/34901 (Plain Text UTF-8)
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-09-17
+  files:
+  - mill_on_liberty.txt
+  why: su corpus le enseña a ganar discusiones; éste le exige escuchar la que podría perder
+  license_note: Dominio público (Project Gutenberg)
+notes: |
+  Fuentes de dominio público (Project Gutenberg, Plain Text UTF-8). Los .txt están
+  gitignored; este MANIFEST sí se versiona.
+
+  ## Notas
+  - Gutenberg #10731 = "The Essays of Arthur Schopenhauer; the Art of Controversy" — verificado por título.
+
+  ## Pendientes de copyright
+  - (ninguno solicitado)

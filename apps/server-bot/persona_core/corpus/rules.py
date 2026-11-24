@@ -25,6 +25,17 @@ class ReferenceRules:
 
 
 @dataclass(frozen=True)
+class IngestRules:
+    chunk_tokens: int
+    overlap_tokens: int
+    min_chunk_tokens: int
+    max_chunk_tokens: int
+    min_document_chars: int
+    max_delete_ratio: float
+    pipeline: int
+
+
+@dataclass(frozen=True)
 class VoiceRules:
     draw: int
     drop_most_similar: int
@@ -35,6 +46,7 @@ class VoiceRules:
 @dataclass(frozen=True)
 class CorpusRules:
     references: ReferenceRules
+    ingest: IngestRules
     voice: VoiceRules
 
 
@@ -50,6 +62,7 @@ def load_rules(path: Path = RULES_PATH) -> CorpusRules:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     rules = CorpusRules(
         references=ReferenceRules(**raw["references"]),
+        ingest=IngestRules(**raw["ingest"]),
         voice=VoiceRules(**raw["voice"]),
     )
     _cache[path] = (mtime, rules)

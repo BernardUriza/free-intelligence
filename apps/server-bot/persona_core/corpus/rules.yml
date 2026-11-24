@@ -28,6 +28,23 @@ references:
   # How far back a cut looks for a space before giving up on the word boundary.
   truncate_backoff_chars: 80
 
+ingest:
+  # Real e5 tokens, not words * 1.3: that estimate let 220 of 2,139 Frugi chunks
+  # past the 512-token window (2026-11-24), and e5 drops the overflow in silence.
+  chunk_tokens: 400
+  overlap_tokens: 50
+  min_chunk_tokens: 50
+  # e5's window is 512 with the "passage: " prefix and the special tokens inside.
+  max_chunk_tokens: 500
+  # A whole document under the chunk minimum still enters if it has this many
+  # characters: the floor rejects fragments, not short sources (14 contraelamor
+  # posts vanished to it on 2026-07-27).
+  min_document_chars: 120
+  # A sync that would delete more than this share of a namespace is refused.
+  max_delete_ratio: 0.10
+  # Bump when the extraction or chunking CODE changes: every document re-embeds.
+  pipeline: 1
+
 voice:
   # Random draw from the voice pool. Random demos tie or beat similar ones for
   # persona dialogue, and near-duplicates of the ask get copied verbatim

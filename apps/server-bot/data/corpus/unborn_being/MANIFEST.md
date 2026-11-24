@@ -1,20 +1,23 @@
 # Corpus — unborn_being (NDE/DMT + contra-apologética + crítica al amor)
 
+Generado desde `manifest.yml` con `python scripts/corpus_sync.py lock --persona unborn_being`.
+Los archivos no se versionan; su sha256 sí, en el lock.
+
+| Título | Autor | Año | Origen | Licencia | Obtenido | Archivos |
+|---|---|---|---|---|---|---|
+| contraelamor.com — blog completo (379 entradas, 2011–2023) | Agamia / contraelamor.com | 2011–2023 | https://www.contraelamor.com/ (feed JSON de Blogger) | LicenseRef-Copyright-PrivateRAG (**Copyright del autor** — extraído de la web pública SOLO para el RAG privado de esta persona; no se versiona ni se redistribuye) | 2026-07-27 | contraelamor/*.md |
+| DMT Models the Near-Death Experience | Timmermann, Roseman, Williams, Erritzoe, Martial, Cassol, Laureys, Nutt, Carhart-Harris | 2018 | https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2018.01424/pdf | LicenseRef-CC-BY-unversioned (Open access — Frontiers, CC BY · el archivo no dice la versión) | 2026-07-16 | timmermann_2018_dmt_models_nde.pdf |
+| The gamma-band activity model of the near-death experience: a critique and a reinterpretation (v2) | Nigel A. Shaw | 2024 | https://f1000research.com/articles/13-674 (v2, PMC PMC11375408) | LicenseRef-CC-BY-unversioned (Open access — F1000Research, CC BY · el archivo no dice la versión) | 2026-07-16 | shaw_2024_gamma_band_nde_critique_v2.pdf |
+| Dialogues Concerning Natural Religion | David Hume | 1779 | https://www.gutenberg.org/ebooks/4583 (Plain Text UTF-8) | LicenseRef-PublicDomain (Dominio público (Project Gutenberg)) | 2026-07-16 | hume_dialogues_natural_religion.txt |
+| Mistakes of Moses | Robert G. Ingersoll | 1879 | https://www.gutenberg.org/ebooks/38099 (Plain Text UTF-8) | LicenseRef-PublicDomain (Dominio público (Project Gutenberg)) | 2026-07-16 | ingersoll_mistakes_of_moses.txt |
+| On the Sufferings of the World (de *Studies in Pessimism*) — **por qué:** el piso del antinatalismo; el sufrimiento no es un accidente del mundo, es su forma de funcionar | Arthur Schopenhauer (trad. T. Bailey Saunders) | 1851 | https://www.gutenberg.org/ebooks/10732 (Plain Text UTF-8) | LicenseRef-PublicDomain (Dominio público (Project Gutenberg)) | 2026-09-15 | schopenhauer_on_the_sufferings_of_the_world.txt |
+| On the Vanity of Existence (de *Studies in Pessimism*) — **por qué:** para que Unborn Being pueda discutir qué hace valiosa una vida, no sólo cuánto duele | Arthur Schopenhauer (trad. T. Bailey Saunders) | 1851 | https://www.gutenberg.org/ebooks/10732 (Plain Text UTF-8) | LicenseRef-PublicDomain (Dominio público (Project Gutenberg)) | 2026-09-15 | schopenhauer_on_the_vanity_of_existence.txt |
+| Khimeras — `secure_remaining_hazards()`: el hilo del 2026-09-02 | Álex (síntesis con citas), a partir de mensajes de Bernard, Álex e Insult | 2026 | `#general` de Discord (hilo del 2026-09-02 y 2026-09-03), registrado por Álex el 2026-09-15 | LicenseRef-OwnWork (Texto propio de esta casa — se versiona en el repo (excepción `!data/corpus/unborn_being/khimeras_*.md` en `.gitignore`)) | 2026-09-15 | khimeras_2026-09-02_secure_remaining_hazards.md |
+
 Fuentes legalmente descargables (dominio público / open access) más un corpus
 web extraído para uso privado en el RAG. Los archivos de contenido están
 gitignored; este MANIFEST sí se versiona, así que la procedencia viaja con el
 repo aunque el texto no.
-
-| Título | Autor | Año | Origen | Licencia / estatus | Filename local |
-|---|---|---|---|---|---|
-| contraelamor.com — blog completo (379 entradas, 2011–2023) | Agamia / contraelamor.com | 2011–2023 | https://www.contraelamor.com/ (feed JSON de Blogger) | **Copyright del autor** — extraído de la web pública SOLO para el RAG privado de esta persona; no se versiona ni se redistribuye | contraelamor/*.md (379 archivos) |
-| DMT Models the Near-Death Experience | Timmermann, Roseman, Williams, Erritzoe, Martial, Cassol, Laureys, Nutt, Carhart-Harris | 2018 | https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2018.01424/pdf | Open access — Frontiers, CC BY | timmermann_2018_dmt_models_nde.pdf |
-| The gamma-band activity model of the near-death experience: a critique and a reinterpretation (v2) | Nigel A. Shaw | 2024 | https://f1000research.com/articles/13-674 (v2, PMC PMC11375408) | Open access — F1000Research, CC BY | shaw_2024_gamma_band_nde_critique_v2.pdf |
-| Dialogues Concerning Natural Religion | David Hume | 1779 | https://www.gutenberg.org/ebooks/4583 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | hume_dialogues_natural_religion.txt |
-| Mistakes of Moses | Robert G. Ingersoll | 1879 | https://www.gutenberg.org/ebooks/38099 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | ingersoll_mistakes_of_moses.txt |
-| On the Sufferings of the World (de *Studies in Pessimism*) — **por qué:** el piso del antinatalismo; el sufrimiento no es un accidente del mundo, es su forma de funcionar | Arthur Schopenhauer (trad. T. Bailey Saunders) | 1851 | https://www.gutenberg.org/ebooks/10732 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | schopenhauer_on_the_sufferings_of_the_world.txt |
-| On the Vanity of Existence (de *Studies in Pessimism*) — **por qué:** para que Unborn Being pueda discutir qué hace valiosa una vida, no sólo cuánto duele | Arthur Schopenhauer (trad. T. Bailey Saunders) | 1851 | https://www.gutenberg.org/ebooks/10732 (Plain Text UTF-8) | Dominio público (Project Gutenberg) | schopenhauer_on_the_vanity_of_existence.txt |
-| Khimeras — `secure_remaining_hazards()`: el hilo del 2026-09-02 | Álex (síntesis con citas), a partir de mensajes de Bernard, Álex e Insult | 2026 | `#general` de Discord (hilo del 2026-09-02 y 2026-09-03), registrado por Álex el 2026-09-15 | Texto propio de esta casa — se versiona en el repo (excepción `!data/corpus/unborn_being/khimeras_*.md` en `.gitignore`) | khimeras_2026-09-02_secure_remaining_hazards.md |
 
 ## contraelamor.com — cómo se extrajo y qué falta (2026-07-27)
 

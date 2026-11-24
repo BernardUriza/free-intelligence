@@ -114,6 +114,7 @@ dependencies:
   # corpus lane, the fact extractor, the markers and the host echo share.
   # 0.35.0 (2026-11-23): fold_accents, strip_code_fence, digest, env_flag,
   # affected_rows, and the e5 embedder + cross-encoder pg_rag used to carry itself.
+  # 0.37.0 (2026-11-24): sync_documents, exact search, real-token chunks with a ceiling.
   - fi-core=0.37.0
   # fi-runner — the runner framework. Every LLM path in this repo now crosses
   # AIRE's door (fi_runner.AIREBackend): persona_runner's turns and judges since
@@ -159,6 +160,7 @@ dependencies:
   # SUBIDO a 0.23.0 (2026-09-25, free-intelligence PR #496): TurnDocument —
   # PDFs y texto viajan por referencia a AIRE (#50 item 6).
   # SUBIDO a 0.26.0 (2026-11-23): cap de fi-core <0.36, el que admite la 0.35.0.
+  # 0.26.2 (2026-11-24): its fi-core cap is <0.38.
   - fi-runner=0.26.2
 
   # Runtime — Discord, LLMs, Postgres, FastAPI

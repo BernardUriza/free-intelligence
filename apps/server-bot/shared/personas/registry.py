@@ -55,12 +55,8 @@ class Persona:
     # token in the gateway env) at the single-owner cutover, never before, so
     # there is never a minute with two live bots sharing one Discord token.
     gateway_enabled: bool = True
-    # Synthetic pgvector namespace of this persona's shared topic corpus in
-    # deep_memory_chunks (RAG). None = no corpus. Sources live under
-    # data/corpus/<persona_id>/ (gitignored; MANIFEST.md documents them) and are
-    # ingested via scripts/ingest_corpus.py; the per-turn references block is
-    # injected through guidance_for_turn with the header content at
-    # shared/corpus/headers/<persona_id>.md.
+    # Namespace of this persona's topic corpus in corpus_chunks. None = no corpus.
+    # data/corpus/<persona_id>/manifest.yml declares it, scripts/corpus_sync.py applies it.
     corpus_namespace: str | None = None
     # Passages injected even when none clears the relevance floor. 0 for a
     # corpus of facts (a wrong recipe misleads); >0 for one of ammunition.

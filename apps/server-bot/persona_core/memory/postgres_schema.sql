@@ -299,10 +299,10 @@ CREATE TABLE IF NOT EXISTS siesta_state (
 );
 
 -- ─── deep_memory_chunks ────────────────────────────────────────────────
--- Vector-searchable chunks, two partitions in one table: a real user_id holds
--- that user's deep memory (read by the runner's `deep_memory` MCP tool), and a
--- synthetic `__corpus_*__` namespace holds a persona's shared corpus
--- (`scripts/ingest_corpus.py` writes, `corpus.references.query_corpus` reads).
+-- Vector-searchable chunks: a real user_id holds that user's deep memory (read by
+-- the runner's `deep_memory` MCP tool) and `__style_*__` a persona's voice pool.
+-- The shared corpora live in `corpus_documents` / `corpus_chunks`, created by
+-- fi-core's PgVectorChunkStore and written by `scripts/corpus_sync.py`.
 --
 -- Embeddings: local `intfloat/multilingual-e5-small`, 384 dims, normalized
 -- (`persona_core.corpus.pg_rag`). Until 2026-11-20 they were Azure ada-002 at

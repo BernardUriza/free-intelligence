@@ -1,0 +1,173 @@
+title: Corpus — frugivoro (gastronomía vegana / nutrición)
+sources:
+- title: 'The Ethics of Diet: A Catena of Authorities Deprecatory of the Practice of Flesh Eating'
+  author: Howard Williams
+  year: '1883'
+  url: https://www.gutenberg.org/ebooks/55785
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - williams_ethics_of_diet.txt
+  license_note: Dominio público (Project Gutenberg)
+- title: Plant-based diets for human health with implications for cardiometabolic health
+  author: (Frontiers in Nutrition)
+  year: '2025'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC13163209/ (Europe PMC fullTextXML)
+  license: CC-BY-4.0
+  retrieved_at: 2026-07-16
+  files:
+  - plant_based_diets_cardiometabolic_review_PMC13163209.xml
+  license_note: Open access — CC BY · una figura dentro es CC BY-NC 4.0
+- title: 'Plant-Based Diet and Pregnancy-Related Disorders: A Narrative Review'
+  author: (narrative review)
+  year: '2025'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC13086723/ (Europe PMC fullTextXML)
+  license: CC-BY-4.0
+  retrieved_at: 2026-07-16
+  files:
+  - plant_based_diet_pregnancy_review_PMC13086723.xml
+  license_note: Open access — CC BY
+- title: Speciesism in everyday language
+  author: Stefan Leach, Andrew P. Kitchin, Robbie M. Sutton, Kristof Dhont
+  year: '2023'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC10086848/ (Europe PMC fullTextXML) · DOI 10.1111/bjso.12561
+  license: CC-BY-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - leach_2023_speciesism_in_everyday_language.xml
+  why: 'no debate si el especismo está mal: lo mide en el lenguaje cotidiano'
+  license_note: Open access — **CC BY 4.0**, verificada dentro del XML · archivo re-descargado el 24-nov-2026
+- title: 'Sabores Tapatíos: platillos tradicionales para salvar a los animales'
+  author: Love Veg / Igualdad Animal México
+  year: '2026'
+  url: https://loveveg.mx/app/uploads/2026/09/sabores-tapatios-para-salvar-animales.pdf
+  license: LicenseRef-NoLicense-PrivateRAG
+  retrieved_at: 2026-11-19
+  files:
+  - loveveg_sabores_tapatios_2026.md
+  why: 12 recetas jaliscienses veganas (torta ahogada, birria, pozole, tejuino…), la cocina local que Frugi no tenía
+  license_note: Recetario gratuito publicado por la ONG; sin licencia explícita (uso interno de RAG, no se redistribuye)
+- title: 'Umami the Fifth Basic Taste: History of Studies on Receptor Mechanisms'
+  author: Kenzo Kurihara
+  year: '2015'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC4515277/ (Europe PMC fullTextXML)
+  license: LicenseRef-CC-BY-unversioned
+  retrieved_at: 2026-11-24
+  files:
+  - kurihara_2015_umami_synergy_PMC4515277.xml
+  why: la sinergia glutamato × nucleótidos con su cifra y su límite (el ~8× es con IMP, animal)
+  license_note: CC BY, verificada en Europe PMC · el archivo no dice la versión
+- title: Study of the Technological Properties of Pedrosillano Chickpea Aquafaba
+  author: (Foods)
+  year: '2023'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC9957096/
+  license: CC-BY-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - aquafaba_review_2023_PMC9957096.xml
+  why: aquafaba como espumante, con datos
+  license_note: CC BY
+- title: 'Chickpea aquafaba: a systematic review of the different processes'
+  author: (revisión sistemática)
+  year: '2024'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC11219635/
+  license: CC-BY-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - aquafaba_canned_vs_homemade_2024_PMC11219635.xml
+  license_note: CC BY
+- title: Analysis of Food Pairing in Regional Cuisines of India
+  author: Jain, Rakhi, Bagler
+  year: '2015'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC4592201/
+  license: LicenseRef-CC-BY-unversioned
+  retrieved_at: 2026-11-24
+  files:
+  - jain_2015_indian_cuisine_negative_pairing_PMC4592201.xml
+  why: prueba de que el maridaje por compuestos compartidos no es ley
+  license_note: CC BY · el archivo no dice la versión
+- title: 'FlavorGraph: a large-scale food-chemical graph'
+  author: Park et al. (Sony AI / Korea Univ.)
+  year: '2021'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC7806805/
+  license: CC-BY-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - park_2021_flavorgraph_PMC7806805.xml
+  license_note: CC BY
+- title: Nutritional, Microbial, and Allergenic Changes during the Fermentation of Cashew 'Cheese' Product
+  author: (Foods)
+  year: '2020'
+  url: https://pmc.ncbi.nlm.nih.gov/articles/PMC7146175/
+  license: CC-BY-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - plant_based_cheese_fermentation_PMC7146175.xml
+  why: queso vegetal fermentado de verdad
+  license_note: CC BY
+- title: 'Wikipedia en español: Umami, Reacción de Maillard, Caramelización, Nixtamalización, Aspergillus oryzae,
+    Miso, Aquafaba, Quelite, Seitán, Tofu, Tempe, Fermentación láctica, Agar-agar, Salsa de soya, Chile chipotle,
+    Chile guajillo, Chile pasilla, Chile poblano, Gastronomía molecular, Emulsión, Sabor, Gusto, Ácido glutámico,
+    Guanilato disódico, Levadura nutricional, Kombu, Lentinula edodes (shiitake), Mole, Mole poblano, Pipián, Tamal,
+    Opuntia ficus-indica (nopal), Dysphania ambrosioides (epazote), Piper auritum (hoja santa)'
+  author: colaboradores de Wikipedia
+  year: extraído 2026-11-24
+  url: API `es.wikipedia.org/w/api.php` (`prop=extracts`), URL de cada artículo en la cabecera del archivo
+  license: CC-BY-SA-4.0
+  retrieved_at: 2026-11-24
+  files:
+  - wiki_es_*.txt
+  why: química culinaria y despensa mexicana en español
+  license_note: CC BY-SA 4.0
+- title: Manual de improvisación en cocina vegetal
+  author: Claude, compilado de la investigación del 24-nov-2026
+  year: '2026'
+  url: este repo
+  license: LicenseRef-OwnWork
+  retrieved_at: 2026-11-24
+  files:
+  - manual_improvisacion_cocina_vegetal_2026.md
+  why: el método (recombinar platos reales, funciones, balance), sustituciones por función, despensa mexicana, tendencias
+    2025–2026 y seguridad, con la fuente de cada sección
+  license_note: síntesis propia; cita sus fuentes por sección
+- title: USDA FoodData Central, Foundation Foods
+  author: USDA ARS
+  year: publicación 2025-12-18
+  url: https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2025-12-18.zip
+  license: CC0-1.0
+  retrieved_at: 2026-11-24
+  files:
+  - usda_*.md
+  why: nutrientes analíticos por 100 g (proteína, hierro, calcio, zinc, fibra, vitaminas, ácido glutámico total)
+    de 233 alimentos vegetales
+  license_note: CC0 1.0 (dominio público)
+- title: FlavorDB2
+  author: Complex Systems Lab, IIIT-Delhi
+  year: extraído 2026-11-24
+  url: '`https://cosylab.iiitd.edu.in/flavordb2/entities_json?id=N`, N=1..1000, 920 entidades'
+  license: CC-BY-NC-SA-3.0
+  retrieved_at: 2026-11-24
+  files:
+  - flavordb2_*.md
+  why: qué moléculas de sabor y qué descriptores de aroma tiene cada ingrediente, para razonar el aroma de lo que
+    no conoce
+  license_note: CC BY-NC-SA 3.0, uso no comercial (Bernard confirmó el 24-nov que Frugi es no comercial)
+notes: |
+  Un clásico vegetariano de dominio público + reviews open access (CC BY) de PMC.
+  Los binarios están gitignored; este MANIFEST sí se versiona.
+
+  ## Notas
+
+  - Cocina, 24-nov-2026: el corpus tenía 912 chunks y sólo 19 eran recetas. Se agregaron seis artículos CC BY y 34 artículos de Wikipedia en español. **Se descartaron por licencia**: Ahn 2011 (PMC3240947, CC BY-NC-SA), el de Maillard de proteína vegetal (PMC11152652, CC BY-NC-ND) y el de mayonesa de soya (PMC4571207, no es open access). También quedó fuera el artículo «Veganismo» de Wikipedia, que es ética y no cocina. Huitlacoche y Kokumi no tienen artículo útil en es.wikipedia.
+  - Datos estructurados, 24-nov-2026: USDA y FlavorDB2 van **una ficha por ingrediente, con el nombre en español primero y el inglés entre paréntesis**. La primera versión los metía empacados por categoría y en inglés, y la recuperación no encontraba nada: el cross-encoder de producción le daba 0.72 a las lentejas empacadas y 2.95 a la ficha sola; al cilantro, 0.28 en inglés y 2.99 con el nombre en español. Los nombres los tradujo Claude; si hay alguno mal, el inglés sigue en la ficha. Se excluyó todo lo animal: carne, pescado, lácteos y huevo por categoría, más platillos compuestos, caseína, abulón, merengue, malteada, mousse, pan francés y malvavisco.
+  - Los conversores que arman las fichas viven en `scripts/corpus_frugivoro/` (ver su README).
+  - Williams "The Ethics of Diet" hallado en Gutenberg #55785 (verificado por título/autor).
+  - Las 2 reviews de PMC se bajaron como **full-text XML** vía Europe PMC REST
+    (`/webservices/rest/<PMCID>/fullTextXML`) porque el endpoint PDF de NCBI bloquea
+    clientes no-navegador. El XML es texto real (JATS), ingesta-friendly para RAG.
+    Ambas confirmadas `isOpenAccess:Y`, `license: cc by`.
+
+  - Sabores Tapatíos (19-nov-2026): el PDF trae las letras como trazos vectoriales (pdftotext da 29 caracteres para 29 páginas), así que la fuente ingerida es una transcripción `.md` hecha leyendo cada página (OCR tesseract + revisión visual de las páginas de ingredientes sobre foto).
+
+  ## Pendientes de copyright
+  - (ninguno solicitado — los recetarios veganos comerciales quedarían como átomo de Bernard si se desean)

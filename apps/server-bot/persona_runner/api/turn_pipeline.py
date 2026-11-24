@@ -35,7 +35,7 @@ from typing import Any
 
 import structlog
 
-from persona_core.corpus.pg_rag import warm_corpus_embedder
+from persona_core.corpus.pg_rag import stored_with_another_model, warm_corpus_embedder
 from persona_core.memory import MemoryStore
 from persona_core.runner.judge_client import flatten_utility_messages
 from persona_core.turn.pipeline import BrainReply, BrainTurn, InboundTurn, run_turn
@@ -112,6 +112,8 @@ async def warm_at_boot() -> None:
             return
         prewarmed = await store.wait_embeddings_prewarmed()
         corpus = await warm_corpus_embedder()
+        if corpus:
+            await stored_with_another_model()
     except Exception:
         log.exception("turn_pipeline_warm_failed")
         return
