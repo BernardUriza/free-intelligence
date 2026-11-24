@@ -1,0 +1,290 @@
+{
+ "control": {
+  "id": "control",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 0.051
+ },
+ "muerte": {
+  "id": "muerte",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 0.166
+ },
+ "fortuna": {
+  "id": "fortuna",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 0.613
+ },
+ "ofensa": {
+  "id": "ofensa",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": -0.912
+ },
+ "manana": {
+  "id": "manana",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": -0.071
+ },
+ "juicio": {
+  "id": "juicio",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 2.969
+ },
+ "fama": {
+  "id": "fama",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": -0.821
+ },
+ "enojo": {
+  "id": "enojo",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": -0.753
+ },
+ "felicidad": {
+  "id": "felicidad",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 2.657
+ },
+ "malos": {
+  "id": "malos",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 0.16
+ },
+ "duelo": {
+  "id": "duelo",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": -1.377
+ },
+ "papel": {
+  "id": "papel",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": false,
+  "gold_rank": 7,
+  "top_score": -1.668
+ },
+ "presente": {
+  "id": "presente",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": true,
+  "gold_rank": 1,
+  "top_score": 2.125
+ },
+ "dinero": {
+  "id": "dinero",
+  "answerable": true,
+  "must_pass": false,
+  "in_shortlist": true,
+  "passed": false,
+  "gold_rank": 1,
+  "top_score": -2.666
+ },
+ "off-birria": {
+  "id": "off-birria",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -2.172
+ },
+ "off-lluvia": {
+  "id": "off-lluvia",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -3.729
+ },
+ "off-uber": {
+  "id": "off-uber",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -3.369
+ },
+ "off-react": {
+  "id": "off-react",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -4.009
+ },
+ "off-sql": {
+  "id": "off-sql",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": false,
+  "gold_rank": null,
+  "top_score": -1.295
+ },
+ "off-gym": {
+  "id": "off-gym",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -5.183
+ },
+ "off-traduccion": {
+  "id": "off-traduccion",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -3.075
+ },
+ "off-carro": {
+  "id": "off-carro",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -2.906
+ },
+ "off-wifi": {
+  "id": "off-wifi",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -3.454
+ },
+ "off-fotos": {
+  "id": "off-fotos",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -5.696
+ },
+ "off-metro": {
+  "id": "off-metro",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -4.228
+ },
+ "off-banco": {
+  "id": "off-banco",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -6.493
+ },
+ "off-ropa": {
+  "id": "off-ropa",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -2.511
+ },
+ "off-plantas": {
+  "id": "off-plantas",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -2.509
+ },
+ "off-version": {
+  "id": "off-version",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -4.7
+ },
+ "off-reunion": {
+  "id": "off-reunion",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -4.328
+ },
+ "off-cv": {
+  "id": "off-cv",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -5.451
+ },
+ "off-gracias": {
+  "id": "off-gracias",
+  "answerable": false,
+  "must_pass": false,
+  "in_shortlist": false,
+  "passed": true,
+  "gold_rank": null,
+  "top_score": -2.628
+ }
+}

@@ -1,0 +1,36 @@
+title: Corpus — alice (compañía / consuelo práctico)
+sources:
+- title: Meditations
+  author: Marcus Aurelius
+  year: 180 d.C. / 1862 (trad. Long)
+  url: https://www.gutenberg.org/ebooks/2680
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - marcus_aurelius_meditations.txt
+  license_note: Dominio público
+- title: The Enchiridion
+  author: Epictetus
+  year: ~125 d.C. / trad. Elizabeth Carter
+  url: https://www.gutenberg.org/ebooks/45109
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-07-16
+  files:
+  - epictetus_enchiridion.txt
+  license_note: Dominio público
+- title: The Consolation of Philosophy
+  author: Boecio (trad. H. R. James)
+  year: 524 / 1897 (trad.)
+  url: https://www.gutenberg.org/ebooks/14328 (Plain Text UTF-8)
+  license: LicenseRef-PublicDomain
+  retrieved_at: 2026-09-17
+  files:
+  - boecio_consolation_of_philosophy.txt
+  why: 'ya tiene estoicos; éste es el consuelo como oficio: alguien acompañado por la filosofía en su peor hora'
+  license_note: Dominio público (Project Gutenberg)
+notes: |
+  Fuentes de dominio público (Project Gutenberg, Plain Text UTF-8). Los .txt están
+  gitignored; este MANIFEST sí se versiona.
+
+  ## Pendientes de copyright
+  - (ninguno solicitado)

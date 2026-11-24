@@ -13,9 +13,6 @@ resistencia (el camino normal sigue igual).
 from __future__ import annotations
 
 import asyncio
-import importlib.util
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -25,13 +22,6 @@ from persona_core.corpus import pg_rag, references
 from persona_runner.api import turn_pipeline
 from persona_runner.mcp_tools.memory_reads import deep_memory as deep_memory_tool
 from persona_runner.mcp_tools.turn_context import bind_turn_principal, reset_turn_principal
-
-_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "ingest_corpus.py"
-_spec = importlib.util.spec_from_file_location("ingest_corpus_embed", _SCRIPT)
-assert _spec and _spec.loader
-ingest_corpus = importlib.util.module_from_spec(_spec)
-sys.modules["ingest_corpus_embed"] = ingest_corpus
-_spec.loader.exec_module(ingest_corpus)
 
 
 async def test_query_corpus_is_none_when_the_embedder_is_down():
@@ -127,14 +117,6 @@ async def test_warm_reports_dead_embedder_loudly():
     ):
         assert await pg_rag.warm_corpus_embedder() is False
     assert error.call_args.args[0] == "corpus_embedder_unavailable"
-
-
-async def test_ingest_aborts_instead_of_skipping_a_chunk():
-    with (
-        patch.object(pg_rag, "embed_passage", new=AsyncMock(return_value=None)),
-        pytest.raises(ingest_corpus.EmbedFailedError),
-    ):
-        await ingest_corpus._embed_chunk("Tejuino: masa de maíz, piloncillo y limón.")
 
 
 async def test_shutdown_waits_for_fact_extraction_then_cancels_stragglers():

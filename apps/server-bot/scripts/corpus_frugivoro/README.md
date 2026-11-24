@@ -6,4 +6,4 @@ Estos scripts arman las fichas de ingredientes de `data/corpus/frugivoro/` (una 
 2. `python3 -I flavordb2_to_corpus.py <dir_json> <dir_cat>`: arma un párrafo por ingrediente, filtra lo animal y agrupa por categoría.
 3. Bajar `FoodData_Central_foundation_food_json_<fecha>.zip` de `https://fdc.nal.usda.gov/fdc-datasets/` y descomprimirlo. Luego `python3 -I usda_to_corpus.py <json> <dir_cat>`.
 4. `python3 -I split_entries.py <dir_cat> <dir_fichas> <esta_carpeta>`: parte en fichas y les pone el nombre en español de `es_map.py`. Un `MISS` es un nombre que falta en el mapa.
-5. Copiar las fichas a `data/corpus/frugivoro/` y correr `scripts/ingest_corpus.py --persona frugivoro`.
+5. Copiar las fichas a `data/corpus/frugivoro/`. Luego `scripts/corpus_sync.py lock --persona frugivoro`, `plan` y `apply`, y `scripts/corpus_eval.py --persona frugivoro --check`.

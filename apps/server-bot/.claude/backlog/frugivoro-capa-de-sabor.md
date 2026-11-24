@@ -25,8 +25,8 @@ balance, chequeo de muletilla y humor. Esto es la parte de DATOS que la DNA no p
 
 ## Canonical path to reuse
 
-- La ingesta ya existe: `scripts/ingest_corpus.py` + `data/corpus/frugivoro/MANIFEST.md` +
-  embedder e5 local (PR #686). Una fuente nueva es una fila en el MANIFEST y una corrida.
+- La ingesta ya existe: `data/corpus/frugivoro/manifest.yml` + `scripts/corpus_sync.py` + embedder
+  e5 local (PR #686). Una fuente nueva es una entrada del manifiesto, `lock`, `plan` y `apply`.
 - Como herramienta en vez de corpus: el patrón de capabilities del runner
   (`scripts/sync_capabilities.py`).
 

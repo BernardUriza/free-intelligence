@@ -1,0 +1,33 @@
+# Labelled retrieval cases. `gold` are source_ref globs; without a prefix they get `vultur:`.
+answerable:
+  - {id: auteur, q: "qué es la teoría de autor en el cine", gold: ["film:*"]}
+  - {id: montaje, q: "el montaje de Eisenstein", gold: ["film:*"]}
+  - {id: neorrealismo, q: "qué tiene de especial el neorrealismo italiano", gold: ["film:*"]}
+  - {id: mirada, q: "la mirada masculina en el cine", gold: ["film:*"]}
+  - {id: genero, q: "qué es el género en el cine, el western por ejemplo", gold: ["film:*"]}
+  - {id: aura, q: "el cine y la pérdida del aura", gold: ["film:*"]}
+  - {id: semiotica, q: "el cine es un lenguaje?", gold: ["film:*"]}
+  - {id: ford, q: "John Ford como autor", gold: ["film:*"]}
+  - {id: hitchcock, q: "Hitchcock y el suspenso", gold: ["film:*"]}
+  - {id: bazin, q: "la ontología de la imagen fotográfica", gold: ["film:*"]}
+  - {id: injusticia, q: "qué es la injusticia estética", gold: ["vultur:*"]}
+  - {id: estrella, q: "qué es una estrella de cine", gold: ["film:*"]}
+off_topic:
+  - {id: off-birria, q: "cómo se cocina una birria vegana"}
+  - {id: off-lluvia, q: "va a llover en Guadalajara mañana?"}
+  - {id: off-uber, q: "el uber me cobró doble el viaje"}
+  - {id: off-react, q: "explícame los hooks de react"}
+  - {id: off-sql, q: "cómo hago un join en postgres"}
+  - {id: off-gym, q: "cuántas series hago para pecho"}
+  - {id: off-traduccion, q: "traduce esto al inglés por favor"}
+  - {id: off-carro, q: "mi carro hace un ruido raro al frenar"}
+  - {id: off-wifi, q: "no me agarra el wifi en el cuarto"}
+  - {id: off-fotos, q: "qué cámara compro para empezar en fotografía"}
+  - {id: off-metro, q: "qué línea del metro llega al centro"}
+  - {id: off-banco, q: "el banco me bloqueó la tarjeta"}
+  - {id: off-ropa, q: "qué me pongo para una boda de día"}
+  - {id: off-plantas, q: "se me está secando el cactus de la sala"}
+  - {id: off-version, q: "qué versión del bot eres"}
+  - {id: off-reunion, q: "recuérdame la junta de las cinco"}
+  - {id: off-cv, q: "revisa mi currículum para una vacante de QA"}
+  - {id: off-gracias, q: "muchas gracias por todo de verdad"}

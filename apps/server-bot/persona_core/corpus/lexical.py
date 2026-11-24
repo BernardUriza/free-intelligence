@@ -1,14 +1,15 @@
 """The lexical arm of the corpus: one in-memory BM25 index per namespace.
 
-Rebuilt when the namespace changes: the `(count, max id)` stamp is read on every
-query, so an ingest is visible on the next turn without a restart. That holds
-because chunks are only ever inserted or deleted, never updated in place.
+Rebuilt when the namespace changes: the `(documents, last indexed_at)` stamp is
+read on every query, so a sync is visible on the next turn without a restart. A
+replaced document moves `indexed_at`; a deleted one moves the count.
 """
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import asyncpg
@@ -17,7 +18,7 @@ from fi_core.rag import Bm25Index
 
 @dataclass(frozen=True)
 class _Entry:
-    stamp: tuple[int, int | None]
+    stamp: tuple[int, datetime | None]
     rows: list[dict[str, Any]]
     index: Bm25Index
 
@@ -29,7 +30,7 @@ _building = asyncio.Lock()
 async def _entry(conn: asyncpg.Connection, namespace: str) -> _Entry:
     async with _building:
         row = await conn.fetchrow(
-            "SELECT count(*) AS n, max(id) AS last FROM deep_memory_chunks WHERE user_id = $1 AND embedding IS NOT NULL",
+            "SELECT count(*) AS n, max(indexed_at) AS last FROM corpus_documents WHERE namespace = $1",
             namespace,
         )
         stamp = (row["n"], row["last"])
@@ -38,8 +39,8 @@ async def _entry(conn: asyncpg.Connection, namespace: str) -> _Entry:
             return cached
         records = await conn.fetch(
             """
-            SELECT id, source_type, source_ref, chunk_text, created_at
-            FROM deep_memory_chunks WHERE user_id = $1 AND embedding IS NOT NULL
+            SELECT chunk_id AS id, source_type, source_ref, text AS chunk_text, created_at
+            FROM corpus_chunks WHERE namespace = $1
             """,
             namespace,
         )
