@@ -95,3 +95,25 @@ def test_every_category_and_nutrient_in_the_rules_has_rows():
 
 def test_every_alias_finds_something():
     assert [a for a in store.aliases() if not store.search(a)] == []
+
+
+@pytest.mark.parametrize(
+    ("asked", "first"),
+    [
+        ("tortilla", "Tortilla, corn, shelf stable"),
+        ("pimiento rojo", "Peppers, bell, red, raw"),
+        ("chile morrón", "Peppers, sweet, green, raw"),
+        ("manzana", "Apples, raw, without skin"),
+    ],
+)
+def test_the_mexican_name_finds_the_plain_food_first(asked, first):
+    assert store.search(asked)[0].name == first
+
+
+@pytest.mark.parametrize("asked", ["camote", "uva", "naranja"])
+def test_leaves_and_peel_never_answer_for_the_food(asked):
+    assert not {w for w in ("leaves", "peel,") if w in store.search(asked)[0].name.lower()}
+
+
+def test_a_wheat_mix_is_never_what_tortilla_means():
+    assert all("wheat" not in f.name.lower() for f in store.search("tortilla"))

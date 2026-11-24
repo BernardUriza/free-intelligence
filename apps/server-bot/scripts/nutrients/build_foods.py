@@ -31,6 +31,10 @@ def spanish_name(description: str) -> str:
     return next((SPANISH[k] for n in range(len(parts), 1, -1) if (k := ",".join(parts[:n])) in SPANISH), "")
 
 
+def extra_label(description: str, extra: dict) -> str | None:
+    return next((label for pattern, label in extra.items() if re.search(pattern, description)), None)
+
+
 def is_plant(description: str, category: str, build: dict) -> bool:
     if category == "Fats and Oils" and not re.search(build["oils_only"], description):
         return False
@@ -44,7 +48,8 @@ def rows(path: Path, source: str, rules: dict):
     for food in data[next(iter(data))]:
         category = (food.get("foodCategory") or {}).get("description")
         description = " ".join(food["description"].split())
-        if category not in rules["categories"] or not is_plant(description, category, rules["build"]):
+        label = rules["categories"].get(category) or extra_label(description, rules["extra"])
+        if not label or not is_plant(description, category, rules["build"]):
             continue
         amounts: dict[int, float] = {}
         for item in food["foodNutrients"]:
@@ -56,7 +61,7 @@ def rows(path: Path, source: str, rules: dict):
         }
         if sum(v is not None for v in values.values()) < rules["build"]["min_nutrients"]:
             continue
-        row = (food["fdcId"], source, description, spanish_name(description), rules["categories"][category])
+        row = (food["fdcId"], source, description, spanish_name(description), label)
         yield dict(zip(COLUMNS, row, strict=True)) | {
             k: "" if v is None else f"{v:.4g}" for k, v in values.items()
         }

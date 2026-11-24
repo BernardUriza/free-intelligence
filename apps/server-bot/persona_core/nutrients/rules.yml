@@ -52,6 +52,10 @@ categories:
   "Spices and Herbs": especias
   "Fats and Oils": aceites
 
+# Single foods whose USDA category stays out: the rest of "Baked Products" carries egg, milk or lard.
+extra:
+  '^Tortilla(s, ready-to-bake or -fry)?, corn\b': cereales
+
 build:
   # Only plain plant oils: the rest of the category is dressings, shortening, animal fat and frying blends.
   oils_only: '^Oil,(?!.*\b(fish|butter|PAM|industrial)\b)'
@@ -71,4 +75,4 @@ search:
   # Water under this (g/100 g) in a "raw" legume, grain or nut is the dry seed.
   dry_water_g: 20
   # Still listed, after the plain food of the same name.
-  altered: ["with salt", "added", "0% moisture", "sweetened", "dried-frozen", "butter", "stuffed", "glazed", "salted", "frosted"]
+  altered: ["with salt", "added", "0% moisture", "sweetened", "dried", "leaves", "peel", "dried-frozen", "butter", "stuffed", "glazed", "salted", "frosted"]

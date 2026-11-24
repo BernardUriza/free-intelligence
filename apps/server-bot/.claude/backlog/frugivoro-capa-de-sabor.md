@@ -62,12 +62,14 @@ Ingeridos como corpus, una ficha por ingrediente con nombre en español: USDA Fo
 Total `__corpus_vegan__`: 2,139 chunks, 860 fuentes, 0 sin embedding.
 
 Hecho (24-nov-2026, v4.60.0, PR #705): `food_lookup`, `nutrient_compare` y `nutrient_rank` sobre
-2,028 alimentos vegetales (Foundation 2026-10-29 + SR Legacy 2018-04), montadas sólo en Frugi.
+2,031 alimentos vegetales (Foundation 2026-10-29 + SR Legacy 2018-04), montadas sólo en Frugi.
 Probado en vivo a las 21:55 UTC: lentejas 3.33 mg de hierro contra frijol negro 2.10, guayaba
 2.55 g de proteína, los mismos valores de `persona_core/nutrients/foods.csv`. En la misma
 respuesta dijo de memoria «casi tres veces una naranja» (son 3.9): corregido en la DNA, v4.60.1.
 
 Abierto:
-- Quitar del corpus las 233 fichas USDA, que la herramienta ya sustituye. Pasa del 10 % de
+- Quitar del corpus las 233 fichas USDA, que la herramienta ya sustituye. También estorban:
+  a las 22:16 UTC «vitamina C de la guayaba» cerró hablando de jugo de uva, que sólo está en esas
+  fichas (la herramienta no lo devolvió). Pasa del 10 % de
   `max_delete_ratio`, así que va con `--max-deletes` explícito y la evaluación antes y después,
   cuando `corpus_sync` esté en producción.
