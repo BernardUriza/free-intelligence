@@ -20,6 +20,10 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 (Add entries here as work lands on `dev`.)
 
+### Changed — 0.26.1: fi-core cap 0.37
+
+- `fi-core>=0.35,<0.37`: 0.36 adds `rag.Bm25Index` and `rag.evaluation`, additive.
+
 ### Changed — 0.26.0: fi-core floor 0.35
 
 - `narrate._extract_mermaid` strips the fence with `fi_core.text.strip_code_fence`,

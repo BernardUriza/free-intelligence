@@ -1,6 +1,6 @@
 [project]
 name = "fi-runner"
-version = "0.26.0"
+version = "0.26.1"
 description = "Free Intelligence runner framework — a backend-agnostic agent runtime (Claude Code / Codex) over fi-core capabilities."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -52,7 +52,8 @@ dependencies = [
     # more phrases score/silence, no axis, weight or threshold changes.
     # Cap 0.35: fi-core 0.34 adds fi_core.text (truncate, fit_ranked, fit_prefix): additive.
     # Floor 0.35: narrate imports fi_core.text.strip_code_fence, new in 0.35.
-    "fi-core>=0.35,<0.36",
+    # Cap 0.37: fi-core 0.36 adds Bm25Index and rag.evaluation: additive.
+    "fi-core>=0.35,<0.37",
 ]
 
 [project.optional-dependencies]

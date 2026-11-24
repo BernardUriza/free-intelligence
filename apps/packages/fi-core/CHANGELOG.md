@@ -12,6 +12,20 @@ Policy:
 
 Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies at 1.0.0.
 
+## [0.36.0] — 2026-11-24
+
+### Added — a lexical arm over the whole corpus, and retrieval evaluation
+
+- `fi_core.rag.Bm25Index` + `lexical_terms`: pure-Python BM25 over a namespace
+  (accent folding, Spanish/English plurals). `HybridRetriever` re-ranks the dense
+  pool and cannot bring back what the dense arm missed; fusing `Bm25Index.rank`
+  with the dense ranking through `reciprocal_rank_fusion` can. Measured on 573
+  FlavorDB2 ingredient questions (templated, they carry the literal name): dense
+  top 32 held the right card in 97.7 %, fused top 16 in 99.5 %.
+- `fi_core.rag.evaluation`: `EvalCase`, `run_cases`, `summarize` and `gate`.
+  Shortlist and final set are scored apart, off-topic cases pass only when
+  nothing is accepted, and the gate fails on flips against a saved run.
+
 ## [0.35.0] — 2026-11-23
 
 ### Added — the rest of the helpers every consumer was copying
