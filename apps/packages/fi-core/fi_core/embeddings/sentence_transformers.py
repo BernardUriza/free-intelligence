@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from pathlib import Path
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -141,9 +142,12 @@ class SentenceTransformersEmbedder:
 
     @property
     def revision(self) -> str | None:
-        """The commit of the loaded weights, None for a model that is not from the Hub."""
-        config = getattr(self._ensure_loaded()[0], "auto_model", None)
-        return getattr(getattr(config, "config", None), "_commit_hash", None)
+        """The Hub commit the weights were loaded from, None for a model that is not from the Hub."""
+        from huggingface_hub import try_to_load_from_cache
+
+        self._ensure_loaded()
+        cached = try_to_load_from_cache(self._model_name, "modules.json")
+        return Path(cached).parent.name if isinstance(cached, str) else None
 
     def count_tokens(self, text: str) -> int:
         """Tokens `text` takes in the window, special tokens included and never truncated."""
