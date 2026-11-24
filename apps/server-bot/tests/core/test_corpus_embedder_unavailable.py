@@ -36,7 +36,10 @@ _spec.loader.exec_module(ingest_corpus)
 
 async def test_query_corpus_is_none_when_the_embedder_is_down():
     with patch.object(references, "embed_query", new=AsyncMock(return_value=None)):
-        assert await references.query_corpus("torta ahogada vegana", namespace="__corpus_vegan__", top_k=3) is None
+        assert (
+            await references.query_corpus("torta ahogada vegana", namespace="__corpus_vegan__", top_k=3, fusion_pool=0)
+            is None
+        )
 
 
 async def test_query_corpus_is_none_when_postgres_is_down():
@@ -44,7 +47,10 @@ async def test_query_corpus_is_none_when_postgres_is_down():
         patch.object(references, "embed_query", new=AsyncMock(return_value=[0.1] * 384)),
         patch.object(references, "connect", new=AsyncMock(return_value=None)),
     ):
-        assert await references.query_corpus("torta ahogada vegana", namespace="__corpus_vegan__", top_k=3) is None
+        assert (
+            await references.query_corpus("torta ahogada vegana", namespace="__corpus_vegan__", top_k=3, fusion_pool=0)
+            is None
+        )
 
 
 async def test_unavailable_corpus_logs_unavailable_not_no_hits():
