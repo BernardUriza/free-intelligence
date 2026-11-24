@@ -99,7 +99,7 @@ async def test_all_irrelevant_returns_none_and_logs_no_hits():
     call = next(c for c in info.call_args_list if c.args and c.args[0] == "deep_memory_corpus_no_hits")
     assert call.kwargs["top_relevance"] == -5.3
     assert call.kwargs["queried"] == 2
-    assert call.kwargs["floor"] == load_rules().references.min_relevance
+    assert call.kwargs["floor"] == load_rules().references.floor("__corpus_vegan__")
 
 
 async def test_reranker_failure_is_unavailable_not_no_hits():
@@ -136,6 +136,18 @@ def test_floor_stays_above_every_measured_off_topic_query():
     """HARNESS: the worst off-topic query scored -2.61 over 8 candidates (2026-11-20).
     Lowering the floor past it, or swapping RERANK_MODEL, means re-measuring."""
     assert load_rules().references.min_relevance > -2.608
+
+
+def test_a_persona_floor_overrides_the_general_one_only_for_its_corpus():
+    hits = [{"relevance": -1.5}]
+    assert references.above_floor(hits, namespace="__corpus_vegan__") == []
+    assert references.above_floor(hits, namespace="__corpus_insult__") == hits
+
+
+def test_every_floor_override_names_a_live_corpus():
+    from shared.personas.registry import PERSONAS
+
+    assert set(load_rules().references.min_relevance_for) <= {p.corpus_namespace for p in PERSONAS.values()}
 
 
 def test_cite_label_strips_persona_prefix():

@@ -15,10 +15,20 @@ references:
   fusion_pool: 100
   # Passages that may enter one turn.
   top_k: 3
-  # Cross-encoder floor. Measured 2026-11-20 over the same 21 queries: off-topic
-  # topped at -2.61 and the on-topic ones under -2 had pulled wrong chunks
-  # anyway. 9 of 11 on-topic pass, 0 of 10 off-topic.
+  # Cross-encoder floor. Re-measured 2026-11-24 with scripts/corpus_eval.py:
+  #                 right at -2.0  right at -1.2   off-topic accepted (18) at -2.0 / -1.2
+  #   alice             12/14          11/14              1 / 0
+  #   insult            12/14           9/14              1 / 0
+  #   unborn_being      10/14          10/14              1 / 0
+  #   vultur            12/12          12/12              3 / 2
+  #   valentis           8/8            7/8               0 / 0
+  # A higher floor mutes them on the conversational questions they are for.
   min_relevance: -2.0
+  # Frugi, tuned on dev (60 + 60): -2.0 is 56/60 right with 9 off-topic, -1.2 is
+  # 55/60 with 1. hs-rerank-1 on the same shortlists: 56/60 with 2, not a reason
+  # to swap models.
+  min_relevance_for:
+    __corpus_vegan__: -1.2
   # "ok", "jaja": not worth an embed call.
   min_query_chars: 12
   # Ceiling on the injected block. The best passage always enters, cut at a

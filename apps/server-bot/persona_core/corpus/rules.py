@@ -19,9 +19,14 @@ class ReferenceRules:
     fusion_pool: int
     top_k: int
     min_relevance: float
+    min_relevance_for: dict[str, float]
     min_query_chars: int
     max_block_chars: int
     truncate_backoff_chars: int
+
+    def floor(self, namespace: str) -> float:
+        """The cross-encoder score a passage of `namespace` needs to enter a turn."""
+        return self.min_relevance_for.get(namespace, self.min_relevance)
 
 
 @dataclass(frozen=True)

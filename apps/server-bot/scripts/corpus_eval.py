@@ -38,7 +38,7 @@ def load_cases(persona: str) -> list[EvalCase]:
     raw = yaml.safe_load((EVAL_DIR / f"{persona}.yml").read_text(encoding="utf-8"))
     cases = []
     for case in raw["answerable"] + raw["off_topic"]:
-        gold = tuple(f"{persona}:{pattern}" for pattern in case.get("gold", ()))
+        gold = tuple(g if ":" in g else f"{persona}:{g}" for g in case.get("gold", ()))
         split = "holdout" if zlib.crc32(case["id"].encode()) % 2 else "dev"
         cases.append(EvalCase(case["id"], case["q"], gold, split, case.get("must_pass", False)))
     return cases
@@ -54,7 +54,7 @@ async def evaluate(persona: str, cases: list[EvalCase]):
         seconds.append(time.perf_counter() - started)
         if ranked is None:
             raise SystemExit("retrieval could not run: check POSTGRES_URL and the models")
-        kept = references.above_floor(ranked)
+        kept = references.above_floor(ranked, namespace=namespace)
         return Retrieved(
             shortlist=[h["source_ref"] for h in ranked],
             accepted=[h["source_ref"] for h in kept],
