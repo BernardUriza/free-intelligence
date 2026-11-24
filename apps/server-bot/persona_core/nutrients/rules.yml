@@ -1,0 +1,74 @@
+# What the food tables hold and how a query is read. scripts/nutrients/build_foods.py
+# and persona_core/nutrients/store.py both read this file.
+
+sources:
+  # Order is the tie-break of a search: analytical data first.
+  F: "USDA FoodData Central, Foundation Foods 2026-10-29 (CC0)"
+  S: "USDA FoodData Central, SR Legacy 2018-04 (CC0)"
+
+# key: label, unit, FDC nutrient ids (the first with a value wins), decimals.
+# A nutrient USDA did not measure is absent, never 0.
+nutrients:
+  agua: {label: "agua", unit: "g", ids: [1051]}
+  energia: {label: "energía", unit: "kcal", ids: [1008, 2048, 2047]}
+  proteina: {label: "proteína", unit: "g", ids: [1003]}
+  grasa: {label: "grasa", unit: "g", ids: [1004]}
+  carbohidratos: {label: "carbohidratos", unit: "g", ids: [1005]}
+  fibra: {label: "fibra", unit: "g", ids: [1079, 2033]}
+  azucares: {label: "azúcares", unit: "g", ids: [2000, 1063]}
+  calcio: {label: "calcio", unit: "mg", ids: [1087]}
+  hierro: {label: "hierro", unit: "mg", ids: [1089]}
+  magnesio: {label: "magnesio", unit: "mg", ids: [1090]}
+  potasio: {label: "potasio", unit: "mg", ids: [1092]}
+  sodio: {label: "sodio", unit: "mg", ids: [1093]}
+  zinc: {label: "zinc", unit: "mg", ids: [1095]}
+  cobre: {label: "cobre", unit: "mg", ids: [1098]}
+  manganeso: {label: "manganeso", unit: "mg", ids: [1101]}
+  selenio: {label: "selenio", unit: "µg", ids: [1103]}
+  yodo: {label: "yodo", unit: "µg", ids: [1100]}
+  vitamina_c: {label: "vitamina C", unit: "mg", ids: [1162]}
+  tiamina: {label: "tiamina (B1)", unit: "mg", ids: [1165]}
+  riboflavina: {label: "riboflavina (B2)", unit: "mg", ids: [1166]}
+  niacina: {label: "niacina (B3)", unit: "mg", ids: [1167]}
+  b6: {label: "vitamina B6", unit: "mg", ids: [1175]}
+  folato: {label: "folato", unit: "µg", ids: [1177]}
+  b12: {label: "vitamina B12", unit: "µg", ids: [1178]}
+  vitamina_a: {label: "vitamina A (RAE)", unit: "µg", ids: [1106]}
+  vitamina_e: {label: "vitamina E", unit: "mg", ids: [1109]}
+  vitamina_k: {label: "vitamina K", unit: "µg", ids: [1185]}
+  colina: {label: "colina", unit: "mg", ids: [1180]}
+  omega3_ala: {label: "omega-3 ALA", unit: "g", ids: [1404, 1270]}
+  lisina: {label: "lisina", unit: "g", ids: [1214]}
+  # Total amino acid, free plus bound: only the free fraction is umami, and USDA does not split it.
+  acido_glutamico: {label: "ácido glutámico total", unit: "g", ids: [1224]}
+
+# Categories that enter; the label is what food_nutrient_rank takes.
+categories:
+  "Vegetables and Vegetable Products": verduras
+  "Fruits and Fruit Juices": frutas
+  "Cereal Grains and Pasta": cereales
+  "Legumes and Legume Products": leguminosas
+  "Nut and Seed Products": nueces-y-semillas
+  "Spices and Herbs": especias
+  "Fats and Oils": aceites
+
+build:
+  # Only plain plant oils: the rest of the category is dressings, shortening, animal fat and frying blends.
+  oils_only: '^Oil,(?!.*\b(fish|butter|PAM|industrial)\b)'
+  # A nut or seed "butter" and coconut "meat" or "milk" are plants; a bare one is not.
+  plant_words: '\bgrated meat\b|\bcoconut (meat|milk|cream)\b|\b(almond|peanut|cashew|sesame|sunflower seed|sunflower|seed|nut|macadamia|pistachio|hazelnut|cocoa) butter\b|\bbutter(nut|head)\b|\bbutterbur\b|\bcocoa butter\b'
+  animal: '\b(butter|lard|tallow|eggs?|milk|cheese|chicken|beef|pork|ham|bacon|turkey|meat|fish|honey|ghee|cream|creamed|whey|yogurt|gelatin|mayonnaise|caseinate?|fresh-refrigerated)\b'
+  # Dishes whose recipe carries egg, dairy or fish without naming it.
+  composite: '\b(souffle|au gratin|scalloped|pancakes?|pudding|coleslaw|potato salad|candied|breaded|batter(ed)?|onion rings|gravy|marshmallows?|chow mein|croissant|waffles?|kimchi)\b'
+  # Branded and institutional rows: composites whose recipe nobody lists.
+  branded: '\b(?!USDA\b)[A-Z]{4,}\b'
+  min_nutrients: 6
+
+search:
+  max_candidates: 8
+  max_compare: 6
+  max_rank: 15
+  # Water under this (g/100 g) in a "raw" legume, grain or nut is the dry seed.
+  dry_water_g: 20
+  # Still listed, after the plain food of the same name.
+  altered: ["with salt", "added", "0% moisture", "sweetened", "dried-frozen", "butter", "stuffed", "glazed", "salted", "frosted"]
