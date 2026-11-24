@@ -89,6 +89,25 @@ class DocumentMetadata:
 
 
 @dataclass(frozen=True)
+class DocumentUpsert:
+    """One document as it must end up: its text, attributes and full chunk set."""
+
+    document_id: str
+    content: str
+    chunks: list[ChunkWithEmbedding]
+    attributes: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SyncResult:
+    """What a ``sync_documents`` call changed."""
+
+    upserted: int
+    deleted: int
+    chunks: int
+
+
+@dataclass(frozen=True)
 class DocumentRecord:
     """A document record returned by ``get_document`` / ``list_documents``.
 

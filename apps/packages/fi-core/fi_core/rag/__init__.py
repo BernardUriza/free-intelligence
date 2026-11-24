@@ -62,7 +62,9 @@ from fi_core.rag.types import (
     ChunkWithEmbedding,
     DocumentMetadata,
     DocumentRecord,
+    DocumentUpsert,
     RetrievedChunk,
+    SyncResult,
 )
 
 __all__ = [
@@ -93,6 +95,8 @@ __all__ = [
     "DocumentChunkStore",
     "DocumentMetadata",
     "DocumentRecord",
+    "DocumentUpsert",
+    "SyncResult",
     "Embedder",
     "LexicalRetriever",
     "RetrievedChunk",

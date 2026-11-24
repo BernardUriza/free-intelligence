@@ -20,6 +20,11 @@ Pre-1.0 (`0.x.y`): no backwards-compat shims required. Stability promise applies
 
 (Add entries here as work lands on `dev`.)
 
+### Changed — 0.26.2: fi-core cap 0.38
+
+- `fi-core>=0.35,<0.38`: 0.37 adds `sync_documents`, exact search and the chunker
+  ceiling. Document endings the chunker used to drop are now kept.
+
 ### Changed — 0.26.1: fi-core cap 0.37
 
 - `fi-core>=0.35,<0.37`: 0.36 adds `rag.Bm25Index` and `rag.evaluation`, additive.

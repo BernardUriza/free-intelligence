@@ -9,6 +9,7 @@ derivation in ``fi_core.stores._common``.
 from __future__ import annotations
 
 import json
+from collections.abc import Collection, Sequence
 from typing import Any
 
 try:
@@ -24,7 +25,9 @@ from fi_core.rag.types import (
     ChunkWithEmbedding,
     DocumentMetadata,
     DocumentRecord,
+    DocumentUpsert,
     RetrievedChunk,
+    SyncResult,
 )
 from fi_core.stores._common import chunk_id_from, now
 from fi_core.stores._pg import (
@@ -46,7 +49,7 @@ class PgVectorChunkStore:
     Persists documents + chunks + embeddings into two relational tables
     keyed by ``(namespace, document_id)`` and ``(namespace, chunk_id)``
     respectively. Cosine similarity queries hit a pgvector IVFFlat index
-    on the chunks table.
+    on the chunks table, or scan it exactly with ``ann_index=False``.
 
     Construction takes either a DSN (string) or a pre-built
     ``asyncpg.Pool``. Passing a pool is preferred in long-running
@@ -69,6 +72,7 @@ class PgVectorChunkStore:
         pool: "asyncpg.Pool | None" = None,
         embedding_dim: int,
         table_prefix: str = _DEFAULT_PREFIX,
+        ann_index: bool = True,
     ) -> None:
         if (dsn is None) == (pool is None):
             raise ValueError(
@@ -90,6 +94,7 @@ class PgVectorChunkStore:
         self._pool: asyncpg.Pool | None = pool
         self.embedding_dim = embedding_dim
         self.table_prefix = table_prefix
+        self.ann_index = ann_index
         self._docs_table = f"{table_prefix}_documents"
         self._chunks_table = f"{table_prefix}_chunks"
         self._schema_ready = False
@@ -154,6 +159,7 @@ class PgVectorChunkStore:
                     docs_table=self._docs_table,
                     chunks_table=self._chunks_table,
                     embedding_dim=self.embedding_dim,
+                    ann_index=self.ann_index,
                 ):
                     await conn.execute(statement)
         self._schema_ready = True
@@ -465,6 +471,101 @@ class PgVectorChunkStore:
                     document_id=document_id,
                     chunks=chunks,
                 )
+
+    async def sync_documents(
+        self,
+        *,
+        namespace: str,
+        upserts: Sequence[DocumentUpsert],
+        deletes: Collection[str] = (),
+        expected_ids: Collection[str] | None = None,
+    ) -> SyncResult:
+        """Reconcile a namespace in ONE transaction: every document replaced and deleted, or none.
+
+        Each upsert's chunks become the document's only chunks. ``expected_ids``
+        is the set of document ids the plan was computed from; if the namespace
+        holds another set by the time the lock is taken, nothing is written and
+        ``RuntimeError`` is raised. An upsert without chunks, a delete of a
+        missing document and an id on both lists raise ``ValueError``.
+        """
+        await self._ensure_schema()
+        ids = [u.document_id for u in upserts]
+        if len(set(ids)) != len(ids):
+            raise ValueError("sync_documents: the same document_id appears twice in upserts")
+        if overlap := set(ids) & set(deletes):
+            raise ValueError(f"sync_documents: {sorted(overlap)} both upserted and deleted")
+        for u in upserts:
+            if not u.chunks:
+                raise ValueError(f"sync_documents: document {u.document_id!r} has no chunks")
+            if any(len(ce.embedding) != self.embedding_dim for ce in u.chunks):
+                raise ValueError(f"sync_documents: {u.document_id!r} carries a vector that is not {self.embedding_dim}d")
+        pool = await self._get_pool()
+        async with pool.acquire() as conn, conn.transaction():
+            await conn.execute(
+                "SELECT pg_advisory_xact_lock(hashtext($1))", f"{self.table_prefix}\x1f{namespace}"
+            )
+            rows = await conn.fetch(f"SELECT document_id FROM {self._docs_table} WHERE namespace = $1", namespace)
+            present = {r["document_id"] for r in rows}
+            if expected_ids is not None and present != set(expected_ids):
+                raise RuntimeError(f"sync_documents: namespace {namespace!r} changed since the plan was computed")
+            if missing := set(deletes) - present:
+                raise ValueError(f"sync_documents: cannot delete missing documents {sorted(missing)}")
+            await conn.execute(
+                f"DELETE FROM {self._docs_table} WHERE namespace = $1 AND document_id = ANY($2)",
+                namespace,
+                list(deletes),
+            )
+            saved = 0
+            for u in upserts:
+                saved += await self._replace_in_conn(conn, namespace=namespace, upsert=u)
+        return SyncResult(upserted=len(upserts), deleted=len(deletes), chunks=saved)
+
+    async def _replace_in_conn(self, conn: asyncpg.Connection, *, namespace: str, upsert: DocumentUpsert) -> int:
+        await conn.execute(
+            f"""
+            INSERT INTO {self._docs_table}
+                (document_id, namespace, content, status, created_at, indexed_at, attributes)
+            VALUES ($1, $2, $3, 'indexed', NOW(), NOW(), $4::jsonb)
+            ON CONFLICT (namespace, document_id) DO UPDATE
+                SET content = EXCLUDED.content, status = EXCLUDED.status,
+                    indexed_at = EXCLUDED.indexed_at, attributes = EXCLUDED.attributes
+            """,
+            upsert.document_id,
+            namespace,
+            upsert.content,
+            json.dumps(upsert.attributes),
+        )
+        await conn.execute(
+            f"DELETE FROM {self._chunks_table} WHERE namespace = $1 AND document_id = $2",
+            namespace,
+            upsert.document_id,
+        )
+        by_id: dict[str, ChunkWithEmbedding] = {}
+        for ce in upsert.chunks:
+            chunk_id = chunk_id_from(ce.chunk, document_id=upsert.document_id)
+            if by_id.setdefault(chunk_id, ce).chunk.text != ce.chunk.text:
+                raise ValueError(f"sync_documents: two chunks of {upsert.document_id!r} share the id {chunk_id!r}")
+        await conn.executemany(
+            f"""
+            INSERT INTO {self._chunks_table}
+                (chunk_id, document_id, namespace, text, source_type, source_ref, embedding, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            """,
+            [
+                (
+                    chunk_id,
+                    upsert.document_id,
+                    namespace,
+                    ce.chunk.text,
+                    ce.chunk.source_type,
+                    ce.chunk.source_ref,
+                    ce.embedding,
+                    ce.chunk.created_at or now(),
+                )
+                for chunk_id, ce in by_id.items()
+            ],
+        )
+        return len(by_id)
 
     async def _save_chunks_in_conn(
         self,

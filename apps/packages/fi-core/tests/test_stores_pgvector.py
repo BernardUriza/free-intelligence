@@ -37,6 +37,7 @@ from fi_core.rag import (  # noqa: E402
     Chunk,
     ChunkWithEmbedding,
     DocumentMetadata,
+    DocumentUpsert,
 )
 from fi_core.rag.protocols import DocumentChunkStore  # noqa: E402
 from fi_core.stores.pgvector import PgVectorChunkStore  # noqa: E402
@@ -314,3 +315,93 @@ async def test_pgvector_status_auto_promotion(store):
 async def test_pgvector_satisfies_documentchunkstore_protocol(store):
     """Runtime structural check: instance satisfies the Protocol."""
     assert isinstance(store, DocumentChunkStore)
+
+
+# =====================================================================
+# sync_documents: a namespace reconciled in one transaction
+# =====================================================================
+
+
+def _doc(document_id: str, *texts: str, **attributes) -> DocumentUpsert:
+    return DocumentUpsert(
+        document_id, "\n\n".join(texts), [_ce(t, document_id, [1.0, 0.0, 0.0]) for t in texts], attributes
+    )
+
+
+async def _texts(store, document_id: str, namespace: str = "ns") -> set[str]:
+    chunks = await store.get_chunks_by_document(namespace=namespace, document_id=document_id)
+    return {c.text for c in chunks}
+
+
+@pytest.mark.asyncio
+async def test_sync_adds_replaces_and_deletes(store):
+    await store.sync_documents(namespace="ns", upserts=[_doc("a", "viejo"), _doc("b", "se va")])
+    result = await store.sync_documents(
+        namespace="ns", upserts=[_doc("a", "nuevo", sha256="1"), _doc("c", "entra")], deletes=["b"]
+    )
+    assert (result.upserted, result.deleted, result.chunks) == (2, 1, 2)
+    docs = {d.document_id: d for d in await store.list_documents(namespace="ns")}
+    assert set(docs) == {"a", "c"}
+    assert docs["a"].metadata.attributes == {"sha256": "1"}
+    assert await _texts(store, "a") == {"nuevo"}
+    assert await _texts(store, "b") == set()
+
+
+@pytest.mark.asyncio
+async def test_sync_writes_nothing_when_one_document_fails(store):
+    """The delete and the first upsert roll back with the bad one."""
+    await store.sync_documents(namespace="ns", upserts=[_doc("a", "viejo"), _doc("b", "queda")])
+    chunk = _chunk("x", "c")
+    bad = DocumentUpsert("c", "x", [ChunkWithEmbedding(chunk, [float("nan"), 0.0, 0.0])])
+    with pytest.raises(asyncpg.PostgresError):
+        await store.sync_documents(namespace="ns", upserts=[_doc("a", "nuevo"), bad], deletes=["b"])
+    assert await _texts(store, "a") == {"viejo"}
+    assert await _texts(store, "b") == {"queda"}
+
+
+@pytest.mark.asyncio
+async def test_sync_leaves_other_namespaces_alone(store):
+    await store.sync_documents(namespace="otro", upserts=[_doc("a", "ajeno")])
+    await store.sync_documents(namespace="ns", upserts=[_doc("a", "mio")])
+    await store.sync_documents(namespace="ns", upserts=[], deletes=["a"])
+    assert await _texts(store, "a", "otro") == {"ajeno"}
+
+
+@pytest.mark.asyncio
+async def test_sync_refuses_a_stale_plan(store):
+    await store.sync_documents(namespace="ns", upserts=[_doc("a", "uno")])
+    with pytest.raises(RuntimeError, match="changed since the plan"):
+        await store.sync_documents(namespace="ns", upserts=[_doc("b", "dos")], expected_ids=[])
+    await store.sync_documents(namespace="ns", upserts=[_doc("b", "dos")], expected_ids=["a"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("upserts", "deletes", "match"),
+    [
+        ([DocumentUpsert("a", "x", [])], [], "no chunks"),
+        ([_doc("a", "x"), _doc("a", "y")], [], "twice"),
+        ([_doc("a", "x")], ["a"], "both"),
+        ([], ["fantasma"], "missing"),
+        ([DocumentUpsert("a", "x", [ChunkWithEmbedding(_chunk("x", "a"), [1.0])])], [], "not 3d"),
+    ],
+)
+async def test_sync_refuses_an_impossible_plan(store, upserts, deletes, match):
+    with pytest.raises(ValueError, match=match):
+        await store.sync_documents(namespace="ns", upserts=upserts, deletes=deletes)
+    assert await store.list_documents(namespace="ns") == []
+
+
+@pytest.mark.asyncio
+async def test_exact_mode_has_no_ann_index_and_drops_an_old_one(store, pg_dsn):
+    async def indexes() -> set[str]:
+        pool = await store._get_pool()
+        rows = await pool.fetch("SELECT indexname FROM pg_indexes WHERE tablename = $1", store._chunks_table)
+        return {r["indexname"] for r in rows}
+
+    ann = f"idx_{store.table_prefix}_chunks_embedding"
+    assert ann in await indexes()
+    exact = PgVectorChunkStore(dsn=pg_dsn, embedding_dim=3, table_prefix=store.table_prefix, ann_index=False)
+    await exact.init_schema()
+    await exact.close()
+    assert ann not in await indexes()

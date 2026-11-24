@@ -6,6 +6,8 @@ contract that AURITY and Insult both rely on.
 
 from __future__ import annotations
 
+import pytest
+
 from fi_core.rag import (
     ChunkConfig,
     ChunkingStrategy,
@@ -196,3 +198,73 @@ def test_min_chunk_size_still_prevents_a_tiny_STANDALONE_chunk():
     words = [f"w{i}" for i in range(330)]
     pieces = chunk_document(" ".join(words), ChunkingStrategy.FIXED_SIZE, ChunkConfig())
     assert all(estimate_tokens(p) >= ChunkConfig().min_chunk_size for p in pieces)
+
+
+# ---------------------------------------------------------------------
+# The embedder's window is a hard ceiling, and the document's end survives
+# ---------------------------------------------------------------------
+
+
+def _words(text: str) -> int:
+    return len(text.split())
+
+
+@pytest.mark.parametrize("strategy", list(ChunkingStrategy))
+def test_no_chunk_passes_the_hard_ceiling_and_no_word_is_lost(strategy):
+    """A paragraph of one endless sentence used to come back whole."""
+    text = " ".join(f"w{i}" for i in range(500))
+    config = ChunkConfig(chunk_size=40, overlap=0, min_chunk_size=5, max_chunk_size=50, count_tokens=_words)
+    chunks = chunk_document(text, strategy=strategy, config=config)
+    assert max(map(_words, chunks)) <= 50
+    assert {w for c in chunks for w in c.split()} == set(text.split())
+
+
+def test_the_ceiling_cuts_at_a_sentence_when_there_is_one():
+    text = "Una frase corta de cinco. Otra frase corta de cinco."
+    config = ChunkConfig(chunk_size=8, overlap=0, min_chunk_size=1, max_chunk_size=8, count_tokens=_words)
+    assert chunk_document(text, config=config) == ["Una frase corta de cinco.", "Otra frase corta de cinco."]
+
+
+def test_a_word_over_the_ceiling_is_cut_by_characters():
+    config = ChunkConfig(chunk_size=10, overlap=0, min_chunk_size=1, max_chunk_size=10, count_tokens=len)
+    assert "".join(chunk_document("x" * 64, config=config)) == "x" * 64
+
+
+def test_the_token_counter_replaces_the_word_estimate():
+    text = "\n\n".join(["antidesestabilizador " * 4] * 4)
+    config = ChunkConfig(chunk_size=100, overlap=0, min_chunk_size=1, count_tokens=len)
+    assert len(chunk_document(text, config=config)) == 4
+    assert len(chunk_document(text, config=ChunkConfig(chunk_size=100, overlap=0, min_chunk_size=1))) == 1
+
+
+@pytest.mark.parametrize(
+    ("strategy", "separator"),
+    [(ChunkingStrategy.PARAGRAPH_AWARE, "\n\n"), (ChunkingStrategy.SENTENCE_AWARE, " ")],
+)
+def test_a_short_ending_joins_the_previous_chunk(strategy, separator):
+    """The last piece under `min_chunk_size` was dropped in silence."""
+    text = separator.join(["uno dos tres cuatro cinco seis siete ocho nueve diez.", "El final corto."])
+    config = ChunkConfig(chunk_size=10, overlap=0, min_chunk_size=5, count_tokens=_words)
+    chunks = chunk_document(text, strategy=strategy, config=config)
+    assert len(chunks) == 1
+    assert chunks[0].endswith("El final corto.")
+
+
+def test_the_joined_ending_does_not_repeat_the_overlap():
+    text = "\n\n".join(["a b c d e f g h", "puente", "i j k l m n", "fin"])
+    config = ChunkConfig(chunk_size=9, overlap=2, min_chunk_size=8, count_tokens=_words)
+    chunks = chunk_document(text, config=config)
+    assert chunks[-1].count("puente") == 1
+    assert chunks[-1].endswith("fin")
+
+
+def test_a_fixed_size_ending_keeps_words_the_previous_chunk_also_has():
+    words = ["sal"] * 30 + ["sal", "pimienta"]
+    config = ChunkConfig(chunk_size=39, overlap=0, min_chunk_size=20)
+    chunks = chunk_document(" ".join(words), strategy=ChunkingStrategy.FIXED_SIZE, config=config)
+    assert " ".join(chunks).split() == words
+
+
+def test_a_ceiling_under_the_target_is_refused():
+    with pytest.raises(ValueError, match="max_chunk_size"):
+        ChunkConfig(chunk_size=400, max_chunk_size=300)
