@@ -1,13 +1,21 @@
-# Frugívoro: capa de datos de sabor y cocina (su corpus hoy no tiene una sola receta)
+# Frugívoro: capa de datos de sabor y cocina
 
 Status: Proposed
 Proposed: 2026-11-24 by Bernard ("¿cómo puede reducir los vegetales a sus ingredientes químicos básicos para combinar…?"), investigado con /histerical-search
 
 ## What it is
 
-El corpus `__corpus_vegan__` tiene 858 chunks de tres fuentes: Williams 1883 (ética) y dos
-revisiones PMC de nutrición (ver [[frugivoro-persona]]). Cero cocina, cero química del sabor.
-Todo lo gastronómico sale de la memoria del modelo, que es justo donde los LLMs convergen en
+Medido en Postgres el 24-nov-2026: `__corpus_vegan__` tenía 912 chunks y sólo 19 eran de
+cocina (Sabores Tapatíos, 20-nov). El resto era ética (Williams 1883, Leach 2023) y nutrición
+(dos revisiones PMC). Ver [[frugivoro-persona]]. (Una primera versión de este item decía «858,
+cero cocina», copiado del backlog de septiembre sin medir.)
+
+**Hecho el mismo día por orden de Bernard («eso debe cambiar hoy»):** seis artículos CC BY de
+química culinaria, 34 artículos de Wikipedia en español y un manual de improvisación propio,
+ingeridos a `__corpus_vegan__`. Ver `data/corpus/frugivoro/MANIFEST.md`. Lo que sigue abierto
+es la capa de DATOS estructurados (abajo).
+
+Sin corpus, lo gastronómico salía de la memoria del modelo, que es justo donde los LLMs convergen en
 muletillas (paprika ahumada en más de la mitad de las recetas "originales" de GPT-4o,
 Mizrahi et al. 2025, https://arxiv.org/html/2504.20643v1).
 
