@@ -60,6 +60,17 @@ async def test_compare_states_basis_source_and_warns_when_states_differ():
     assert "OJO" in mixed
 
 
+async def test_compare_does_the_division_so_the_model_never_does():
+    ids = [_id("Lentils, mature seeds, cooked, boiled, without salt")]
+    ids.append(_id("Beans, black, mature seeds, cooked, boiled, without salt"))
+    both = _text(await nutrient_compare.handler({"fdc_ids": ids, "nutrients": ["hierro"]}))
+    assert "3.33 | 2.1 -> el mayor es 1.59 veces el menor" in both
+    alone = _text(await nutrient_compare.handler({"fdc_ids": ids[:1], "nutrients": ["hierro"]}))
+    assert "veces" not in alone
+    zero = _text(await nutrient_compare.handler({"fdc_ids": ids, "nutrients": ["b12"]}))
+    assert "veces" not in zero
+
+
 async def test_compare_names_what_was_not_measured():
     out = _text(await nutrient_compare.handler({"fdc_ids": [_id("Lentils, raw")], "nutrients": ["hierro", "yodo"]}))
     assert "Sin dato en todos: yodo" in out
