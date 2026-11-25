@@ -9,13 +9,12 @@ name: Publish fi TS packages (@free-intelligence/core + fi-glass)
 # zero-consumer-friction posture as the public Anaconda channel.
 #
 # @free-intelligence/core and fi-glass are version-locked (fi-glass depends on
-# core via workspace:*). pnpm publish rewrites workspace:* -> the real version
-# at publish time, so the published fi-glass pins core at this tag's version.
-# core is published FIRST so fi-glass's rewritten dependency already resolves.
+# core via workspace:*). pnpm pack rewrites workspace:* -> the real version, so
+# the published fi-glass pins core at this tag's version. core goes FIRST so
+# fi-glass's rewritten dependency already resolves.
 #
-# Required once: repo secret NPM_TOKEN (an npm automation token with publish
-# scope for @free-intelligence and fi-glass). Claim the @free-intelligence npm
-# scope under Bernard's account before the first run.
+# No token: both packages trust this workflow file on npmjs.com (OIDC trusted
+# publishing). The granular NPM_TOKEN it replaced expired on 2026-09-11.
 
 on:
   push:
@@ -28,7 +27,8 @@ on:
         required: true
 
 permissions:
-  contents: write  # create the GitHub Release
+  contents: write
+  id-token: write
 
 jobs:
   publish:
@@ -62,7 +62,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           registry-url: "https://registry.npmjs.org"
 
@@ -81,15 +81,15 @@ jobs:
           fi
           echo "'use client' preserved ✓"
 
-      - name: Publish to npm (core first, then fi-glass)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm through trusted publishing (core first, then fi-glass)
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set — add it in repo Settings → Secrets, then re-run."; exit 1
-          fi
-          pnpm --filter @free-intelligence/core publish --no-git-checks --access public
-          pnpm --filter fi-glass publish --no-git-checks --access public
+          npm install -g npm@11.6.2
+          mkdir -p "$RUNNER_TEMP/tarballs"
+          for pkg in @free-intelligence/core fi-glass; do
+            pnpm --filter "$pkg" pack --pack-destination "$RUNNER_TEMP/tarballs"
+          done
+          npm publish "$RUNNER_TEMP"/tarballs/free-intelligence-core-*.tgz --access public
+          npm publish "$RUNNER_TEMP"/tarballs/fi-glass-*.tgz --access public
 
       - name: Create / update GitHub Release
         env:
