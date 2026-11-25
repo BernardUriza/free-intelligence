@@ -42,7 +42,7 @@ volcado nuevo, si lo hay, es el corpus RAG por namespace, no ese archivo.
 ### Re-chequeo 2026-09-07 (auditoría del backlog)
 
 - Los 3 pasos verificables en repo siguen ahí: `shared/personas/registry.py:139`
-  `corpus_namespace="__corpus_vegan__"`; `scripts/ingest_corpus.py` existe;
+  `corpus_namespace="__corpus_vegan__"`; `scripts/corpus_sync.py` existe;
   `data/corpus/frugivoro/` con `MANIFEST.md` + Williams 1883 + los dos PMC.
 - El 4º paso (chunks de `__corpus_vegan__` en el Postgres de prod) **sigue sin
   verificar**: esta auditoría no tenía acceso a Postgres. Misma deuda que el
@@ -254,7 +254,7 @@ abajo quedó fósil y se conserva sólo como historia:
 - **Namespace vivo**: `shared/personas/registry.py` → la entrada `frugivoro`
   lleva `corpus_namespace="__corpus_vegan__"` (comentario propio: *"el 'later
   hardening step' por fin (2026-07-16)"*).
-- **Ingesta**: el script per-persona genérico existe (`scripts/ingest_corpus.py`,
+- **Ingesta**: el script per-persona genérico existe (`scripts/corpus_sync.py`,
   generalización del `ingest_film_corpus.py` borrado) y v4.24.0 (`d6b1297`,
   *"cada persona con su corpus — RAG generalizado"*) cableó la consulta del
   corpus en el turno de CUALQUIER persona.

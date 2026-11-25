@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from persona_core.corpus import lexical, references
+from persona_core.corpus.rules import load_rules
 
 
 def _row(row_id: int, text: str) -> dict:
@@ -67,6 +68,17 @@ async def test_words_recover_a_chunk_the_cosine_left_out():
 
 async def test_a_query_sharing_no_word_keeps_the_cosine_order():
     assert [h["id"] for h in await _search(_Conn(ROWS), "capital de Australia")] == [1, 2]
+
+
+async def test_the_best_cosine_survives_a_crowd_both_arms_agree_on():
+    rules = load_rules().references
+    assert rules.fusion_pool <= rules.candidates
+    best = _row(1, "an English paper no Spanish word reaches")
+    crowd = [_row(i, "dieta vegetal y colesterol " * (i % 3 + 1)) for i in range(2, 62)]
+    hits = await _search(
+        _Conn([best, *crowd]), "dieta vegetal colesterol", top_k=rules.candidates, fusion_pool=rules.fusion_pool
+    )
+    assert best["id"] in {h["id"] for h in hits}
 
 
 async def test_the_index_is_reused_until_the_namespace_changes():

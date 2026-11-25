@@ -6,7 +6,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 0.051
+  "top_score": 1.523
  },
  "muerte": {
   "id": "muerte",
@@ -15,7 +15,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 0.166
+  "top_score": 0.601
  },
  "fortuna": {
   "id": "fortuna",
@@ -24,7 +24,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 0.613
+  "top_score": 0.619
  },
  "ofensa": {
   "id": "ofensa",
@@ -33,7 +33,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": -0.912
+  "top_score": -0.361
  },
  "manana": {
   "id": "manana",
@@ -42,7 +42,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": -0.071
+  "top_score": -0.225
  },
  "juicio": {
   "id": "juicio",
@@ -60,7 +60,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": -0.821
+  "top_score": -0.319
  },
  "enojo": {
   "id": "enojo",
@@ -69,7 +69,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": -0.753
+  "top_score": -0.764
  },
  "felicidad": {
   "id": "felicidad",
@@ -87,7 +87,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 0.16
+  "top_score": 2.444
  },
  "duelo": {
   "id": "duelo",
@@ -104,8 +104,8 @@
   "must_pass": false,
   "in_shortlist": true,
   "passed": false,
-  "gold_rank": 7,
-  "top_score": -1.668
+  "gold_rank": 6,
+  "top_score": -1.714
  },
  "presente": {
   "id": "presente",
@@ -121,9 +121,9 @@
   "answerable": true,
   "must_pass": false,
   "in_shortlist": true,
-  "passed": false,
+  "passed": true,
   "gold_rank": 1,
-  "top_score": -2.666
+  "top_score": -1.312
  },
  "off-birria": {
   "id": "off-birria",
@@ -141,7 +141,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.729
+  "top_score": -3.143
  },
  "off-uber": {
   "id": "off-uber",
@@ -150,7 +150,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.369
+  "top_score": -2.75
  },
  "off-react": {
   "id": "off-react",
@@ -159,16 +159,16 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.009
+  "top_score": -4.275
  },
  "off-sql": {
   "id": "off-sql",
   "answerable": false,
   "must_pass": false,
   "in_shortlist": false,
-  "passed": false,
+  "passed": true,
   "gold_rank": null,
-  "top_score": -1.295
+  "top_score": -2.127
  },
  "off-gym": {
   "id": "off-gym",
@@ -177,7 +177,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.183
+  "top_score": -3.814
  },
  "off-traduccion": {
   "id": "off-traduccion",
@@ -186,7 +186,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.075
+  "top_score": -2.22
  },
  "off-carro": {
   "id": "off-carro",
@@ -204,7 +204,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.454
+  "top_score": -3.615
  },
  "off-fotos": {
   "id": "off-fotos",
@@ -213,16 +213,16 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.696
+  "top_score": -4.533
  },
  "off-metro": {
   "id": "off-metro",
   "answerable": false,
   "must_pass": false,
   "in_shortlist": false,
-  "passed": true,
+  "passed": false,
   "gold_rank": null,
-  "top_score": -4.228
+  "top_score": -1.004
  },
  "off-banco": {
   "id": "off-banco",
@@ -231,7 +231,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -6.493
+  "top_score": -5.644
  },
  "off-ropa": {
   "id": "off-ropa",
@@ -240,7 +240,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -2.511
+  "top_score": -2.617
  },
  "off-plantas": {
   "id": "off-plantas",
@@ -249,7 +249,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -2.509
+  "top_score": -1.963
  },
  "off-version": {
   "id": "off-version",
@@ -258,7 +258,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.7
+  "top_score": -4.678
  },
  "off-reunion": {
   "id": "off-reunion",
@@ -267,7 +267,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.328
+  "top_score": -3.622
  },
  "off-cv": {
   "id": "off-cv",
@@ -285,6 +285,6 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -2.628
+  "top_score": -1.721
  }
 }
