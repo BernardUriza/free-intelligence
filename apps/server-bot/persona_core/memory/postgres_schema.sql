@@ -305,11 +305,7 @@ CREATE TABLE IF NOT EXISTS siesta_state (
 -- fi-core's PgVectorChunkStore and written by `scripts/corpus_sync.py`.
 --
 -- Embeddings: local `intfloat/multilingual-e5-small`, 384 dims, normalized
--- (`persona_core.corpus.pg_rag`). Until 2026-11-20 they were Azure ada-002 at
--- 1536 dims; that key died with a 401 and Azure refused new deployments, so the
--- block below renames the old column to `embedding_ada002` (kept, nullable)
--- and adds the new one. `scripts/reembed_deep_memory.py` fills it from
--- `chunk_text`; rows still NULL are skipped by every query.
+-- (`persona_core.corpus.pg_rag`).
 CREATE TABLE IF NOT EXISTS deep_memory_chunks (
     id              BIGSERIAL PRIMARY KEY,
     user_id         TEXT NOT NULL,
@@ -319,21 +315,6 @@ CREATE TABLE IF NOT EXISTS deep_memory_chunks (
     embedding       vector(384),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pg_attribute
-        WHERE attrelid = 'deep_memory_chunks'::regclass
-          AND attname = 'embedding' AND atttypmod = 1536 AND NOT attisdropped
-    ) THEN
-        ALTER TABLE deep_memory_chunks RENAME COLUMN embedding TO embedding_ada002;
-        ALTER TABLE deep_memory_chunks ALTER COLUMN embedding_ada002 DROP NOT NULL;
-    END IF;
-END $$;
-ALTER TABLE deep_memory_chunks ADD COLUMN IF NOT EXISTS embedding vector(384);
--- The ada-era ivfflat index; a pre-migration runner booting against the new
--- column would recreate it on vector(384), so it is dropped on every boot.
-DROP INDEX IF EXISTS idx_deep_memory_embedding;
 -- Idempotent ingest guard: same source_ref + chunk_text combo never inserts twice.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_deep_memory_dedupe ON deep_memory_chunks(user_id, source_ref, md5(chunk_text));
 -- User filter + recency ordering for "what does X look like lately".
