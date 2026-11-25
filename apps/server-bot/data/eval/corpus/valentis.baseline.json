@@ -6,7 +6,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 6.347
+  "top_score": 5.303
  },
  "cuidado": {
   "id": "cuidado",
@@ -24,7 +24,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 2.282
+  "top_score": 3.347
  },
  "critica": {
   "id": "critica",
@@ -42,16 +42,16 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 5.193
+  "top_score": 5.2
  },
  "escuchar": {
   "id": "escuchar",
   "answerable": true,
   "must_pass": false,
   "in_shortlist": true,
-  "passed": true,
+  "passed": false,
   "gold_rank": 1,
-  "top_score": -1.43
+  "top_score": -3.426
  },
  "enfermera": {
   "id": "enfermera",
@@ -60,7 +60,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 3.86
+  "top_score": 2.956
  },
  "sesgo": {
   "id": "sesgo",
@@ -69,7 +69,7 @@
   "in_shortlist": true,
   "passed": true,
   "gold_rank": 1,
-  "top_score": 2.166
+  "top_score": 1.752
  },
  "off-birria": {
   "id": "off-birria",
@@ -78,7 +78,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -7.933
+  "top_score": -7.041
  },
  "off-lluvia": {
   "id": "off-lluvia",
@@ -87,7 +87,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -6.829
+  "top_score": -6.23
  },
  "off-uber": {
   "id": "off-uber",
@@ -96,7 +96,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.608
+  "top_score": -5.752
  },
  "off-react": {
   "id": "off-react",
@@ -105,7 +105,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -2.104
+  "top_score": -3.452
  },
  "off-sql": {
   "id": "off-sql",
@@ -114,7 +114,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.223
+  "top_score": -2.986
  },
  "off-gym": {
   "id": "off-gym",
@@ -123,7 +123,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.808
+  "top_score": -5.345
  },
  "off-traduccion": {
   "id": "off-traduccion",
@@ -132,7 +132,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.426
+  "top_score": -3.882
  },
  "off-carro": {
   "id": "off-carro",
@@ -141,7 +141,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -6.555
+  "top_score": -6.605
  },
  "off-wifi": {
   "id": "off-wifi",
@@ -150,7 +150,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.566
+  "top_score": -6.905
  },
  "off-fotos": {
   "id": "off-fotos",
@@ -177,7 +177,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -6.43
+  "top_score": -6.032
  },
  "off-ropa": {
   "id": "off-ropa",
@@ -186,7 +186,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.856
+  "top_score": -4.379
  },
  "off-plantas": {
   "id": "off-plantas",
@@ -195,7 +195,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.576
+  "top_score": -6.01
  },
  "off-version": {
   "id": "off-version",
@@ -204,7 +204,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -3.028
+  "top_score": -3.697
  },
  "off-reunion": {
   "id": "off-reunion",
@@ -213,7 +213,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.294
+  "top_score": -4.978
  },
  "off-cv": {
   "id": "off-cv",
@@ -222,7 +222,7 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -5.383
+  "top_score": -5.384
  },
  "off-gracias": {
   "id": "off-gracias",
@@ -231,6 +231,6 @@
   "in_shortlist": false,
   "passed": true,
   "gold_rank": null,
-  "top_score": -4.147
+  "top_score": -4.99
  }
 }

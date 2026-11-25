@@ -3,9 +3,6 @@
 # Never relabel a case because a run failed it: relabel only if the source really answers it.
 answerable:
   - {id: cilantro-aroma, q: "¿a qué huele el cilantro?", gold: ["flavordb2-cilantro*"], must_pass: true}
-  - {id: lenteja-hierro, q: "¿cuánto hierro tienen las lentejas?", gold: ["usda-lenteja-seca*"], must_pass: true}
-  - {id: frijol-negro-proteina, q: "proteína del frijol negro", gold: ["usda-frijol-negro*", "usda-frijol-*black-0-moisture*"]}
-  - {id: kale-calcio, q: "calcio del kale", gold: ["usda-kale*"]}
   - {id: albahaca-aroma, q: "¿qué aromas tiene la albahaca?", gold: ["flavordb2-albahaca*"]}
   - {id: jengibre-perfil, q: "perfil aromático del jengibre", gold: ["flavordb2-jengibre*"]}
   - {id: romero-aroma, q: "aroma del romero", gold: ["flavordb2-romero*"]}
@@ -16,17 +13,6 @@ answerable:
   - {id: trufa-olor, q: "la trufa a qué huele", gold: ["flavordb2-trufa*"]}
   - {id: mango-sabor, q: "descriptores de sabor del mango", gold: ["flavordb2-mango-mango"]}
   - {id: cardamomo, q: "cómo sabe el cardamomo", gold: ["flavordb2-cardamomo*"]}
-  - {id: aguacate-grasa, q: "grasa del aguacate", gold: ["usda-aguacate*"]}
-  - {id: platano-potasio, q: "cuánto potasio trae un plátano", gold: ["usda-platano*"]}
-  - {id: avena-fibra, q: "fibra de la avena", gold: ["usda-avena*", "usda-harina-de-avena*"]}
-  - {id: pimiento-vitc, q: "vitamina C del pimiento morrón", gold: ["usda-pimiento*"]}
-  - {id: pepita-zinc, q: "zinc de las pepitas de calabaza", gold: ["usda-pepita*"], must_pass: true}
-  - {id: chia-calcio, q: "cuánto calcio hay en la chía", gold: ["usda-semilla-de-chia*"]}
-  - {id: almendra-vite, q: "las almendras tienen vitamina E?", gold: ["usda-almendra*"]}
-  - {id: garbanzo-proteina, q: "proteína del garbanzo seco", gold: ["usda-garbanzo*"]}
-  - {id: fresa-vitc, q: "vitamina c en las fresas", gold: ["usda-fresa*"]}
-  - {id: nuez-brasil-selenio, q: "selenio de la nuez de brasil", gold: ["usda-nuez-de-brasil*"]}
-  - {id: brocoli-folato, q: "el brócoli crudo cuánta vitamina K y folato tiene", gold: ["usda-brocoli*"]}
   - {id: birria, q: "cómo hago birria vegana", gold: ["loveveg*"], must_pass: true}
   - {id: torta-ahogada, q: "receta de torta ahogada sin carne", gold: ["loveveg*"], must_pass: true}
   - {id: pozole, q: "quiero hacer pozole rojo vegano el domingo", gold: ["loveveg*"]}

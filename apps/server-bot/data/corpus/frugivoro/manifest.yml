@@ -130,17 +130,6 @@ sources:
   why: el método (recombinar platos reales, funciones, balance), sustituciones por función, despensa mexicana, tendencias
     2025–2026 y seguridad, con la fuente de cada sección
   license_note: síntesis propia; cita sus fuentes por sección
-- title: USDA FoodData Central, Foundation Foods
-  author: USDA ARS
-  year: publicación 2025-12-18
-  url: https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2025-12-18.zip
-  license: CC0-1.0
-  retrieved_at: 2026-11-24
-  files:
-  - usda_*.md
-  why: nutrientes analíticos por 100 g (proteína, hierro, calcio, zinc, fibra, vitaminas, ácido glutámico total)
-    de 233 alimentos vegetales
-  license_note: CC0 1.0 (dominio público)
 - title: FlavorDB2
   author: Complex Systems Lab, IIIT-Delhi
   year: extraído 2026-11-24
@@ -159,6 +148,7 @@ notes: |
   ## Notas
 
   - Cocina, 24-nov-2026: el corpus tenía 912 chunks y sólo 19 eran recetas. Se agregaron seis artículos CC BY y 34 artículos de Wikipedia en español. **Se descartaron por licencia**: Ahn 2011 (PMC3240947, CC BY-NC-SA), el de Maillard de proteína vegetal (PMC11152652, CC BY-NC-ND) y el de mayonesa de soya (PMC4571207, no es open access). También quedó fuera el artículo «Veganismo» de Wikipedia, que es ética y no cocina. Huitlacoche y Kokumi no tienen artículo útil en es.wikipedia.
+  - USDA, 24-nov-2026: las 233 fichas salieron del corpus; los nutrientes los da la herramienta (`persona_core/nutrients/`).
   - Datos estructurados, 24-nov-2026: USDA y FlavorDB2 van **una ficha por ingrediente, con el nombre en español primero y el inglés entre paréntesis**. La primera versión los metía empacados por categoría y en inglés, y la recuperación no encontraba nada: el cross-encoder de producción le daba 0.72 a las lentejas empacadas y 2.95 a la ficha sola; al cilantro, 0.28 en inglés y 2.99 con el nombre en español. Los nombres los tradujo Claude; si hay alguno mal, el inglés sigue en la ficha. Se excluyó todo lo animal: carne, pescado, lácteos y huevo por categoría, más platillos compuestos, caseína, abulón, merengue, malteada, mousse, pan francés y malvavisco.
   - Los conversores que arman las fichas viven en `scripts/corpus_frugivoro/` (ver su README).
   - Williams "The Ethics of Diet" hallado en Gutenberg #55785 (verificado por título/autor).

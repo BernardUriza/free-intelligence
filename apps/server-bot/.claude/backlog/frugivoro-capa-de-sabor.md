@@ -67,9 +67,11 @@ Probado en vivo a las 21:55 UTC: lentejas 3.33 mg de hierro contra frijol negro 
 2.55 g de proteína, los mismos valores de `persona_core/nutrients/foods.csv`. En la misma
 respuesta dijo de memoria «casi tres veces una naranja» (son 3.9): corregido en la DNA, v4.60.1.
 
+Hecho (24-nov-2026, v4.62.4): las 233 fichas USDA salieron del corpus; los 14 casos que las
+evaluaban son ahora `test_what_the_usda_cards_answered_the_table_answers`. Los archivos quedaron en
+`~/Documents/archive/server-bot-frugivoro-usda-2026-11-24/`.
+
 Abierto:
-- Quitar del corpus las 233 fichas USDA, que la herramienta ya sustituye. También estorban:
-  a las 22:16 UTC «vitamina C de la guayaba» cerró hablando de jugo de uva, que sólo está en esas
-  fichas (la herramienta no lo devolvió). Pasa del 10 % de
-  `max_delete_ratio`, así que va con `--max-deletes` explícito y la evaluación antes y después,
-  cuando `corpus_sync` esté en producción.
+- «queso vegano fermentado de nuez de la india» sigue sin traer el artículo de queso (está en
+  inglés): `queso-nuez` en `data/eval/corpus/frugivoro.yml`.
+- Frugi infiere sin respaldo que nixtamalizar sube la fibra: los números son reales, la causa no.

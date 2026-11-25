@@ -29,6 +29,29 @@ def test_a_mexican_name_finds_its_food(query, first):
 
 
 @pytest.mark.parametrize(
+    ("query", "nutrient"),
+    [
+        ("lentejas", "hierro"),
+        ("frijol negro", "proteina"),
+        ("kale", "calcio"),
+        ("aguacate", "grasa"),
+        ("plátano", "potasio"),
+        ("avena", "fibra"),
+        ("pimiento morrón", "vitamina_c"),
+        ("pepitas de calabaza", "zinc"),
+        ("chía", "calcio"),
+        ("almendras", "vitamina_e"),
+        ("garbanzo seco", "proteina"),
+        ("fresas", "vitamina_c"),
+        ("nuez de brasil", "selenio"),
+        ("brócoli crudo", "folato"),
+    ],
+)
+def test_what_the_usda_cards_answered_the_table_answers(query, nutrient):
+    assert any(nutrient in f.values for f in store.search(query))
+
+
+@pytest.mark.parametrize(
     ("query", "state"),
     [("frijol negro cocido", "cocido"), ("frijoles negros secos", "seco"), ("garbanzos de lata", "lata")],
 )

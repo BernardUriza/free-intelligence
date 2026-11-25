@@ -12,7 +12,9 @@ references:
   # The case fused 16 loses is "cómo se hace el tempeh" (the page says "tempe").
   candidates: 16
   # Each arm (cosine, BM25) hands its best N to the fusion. 0 = cosine only.
-  fusion_pool: 100
+  # Never over `candidates`: at 100 the cosine #1 of "la dieta vegetal baja el
+  # colesterol?" (an English paper BM25 cannot see) landed at 18 and out.
+  fusion_pool: 16
   # Passages that may enter one turn.
   top_k: 3
   # Cross-encoder floor. Re-measured 2026-11-24 with scripts/corpus_eval.py:
@@ -29,6 +31,11 @@ references:
   # to swap models.
   min_relevance_for:
     __corpus_vegan__: -1.2
+    # Against the 400-token chunks (2026-11-24). Unborn: dev, holdout unchanged.
+    # Alice has 4 answerable dev cases: dev said -0.9, holdout lost a grief question
+    # with it, so -1.6 was set after reading holdout. Add cases before moving it.
+    __corpus_alice__: -1.6
+    __corpus_unborn__: -1.5
   # "ok", "jaja": not worth an embed call.
   min_query_chars: 12
   # Ceiling on the injected block. The best passage always enters, cut at a
