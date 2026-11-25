@@ -1,6 +1,11 @@
 {
   "name": "@free-intelligence/core",
   "version": "1.12.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BernardUriza/free-intelligence",
+    "directory": "apps/packages/free-intelligence-core"
+  },
   "sideEffects": false,
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
