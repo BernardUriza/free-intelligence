@@ -12,20 +12,11 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { X, Stethoscope, Clock, Calendar, CalendarOff, Settings, Zap, Eye, AlertCircle } from 'lucide-react';
+import { X, Stethoscope, Clock, AlertCircle } from 'lucide-react';
+import { DAYS_OF_WEEK, weeklyHours, workingDays, type DoctorAvailability } from '@free-intelligence/core/availability';
+import { AvailabilityEditor, useAvailabilityForm } from 'fi-glass/calendar';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-
-// Availability Designer imports
-import { useAvailabilityForm } from './availability-designer/hooks/useAvailabilityForm';
-import { WeeklyScheduleTab } from './availability-designer/tabs/WeeklyScheduleTab';
-import { ExceptionsTab } from './availability-designer/tabs/ExceptionsTab';
-import { RulesTab } from './availability-designer/tabs/RulesTab';
-import { TemplatesTab } from './availability-designer/tabs/TemplatesTab';
-import { PreviewTab } from './availability-designer/tabs/PreviewTab';
-import { toWorkingHours, toLegacy, calculateWeeklyHours, getWorkingDays } from './availability-designer/utils/transform';
-import { DAYS_OF_WEEK } from './availability-designer/constants';
-import type { DoctorAvailability } from './availability-designer/types';
+import { availabilityFromWorkTimes, commonWorkTimes } from './workingHours';
 
 // =============================================================================
 // TYPES
@@ -69,7 +60,6 @@ export function DoctorDetailModal({
   onSave,
   mode = 'view'
 }: DoctorDetailModalProps) {
-  const [activeTab, setActiveTab] = useState('weekly');
   const [isSaving, setIsSaving] = useState(false);
 
   const displayName = doctor.display_name || doctor.name || 'Doctor';
@@ -77,25 +67,22 @@ export function DoctorDetailModal({
   const isEditMode = mode === 'edit' && onSave;
 
   // Initialize form with existing data
-  const form = useAvailabilityForm({
-    initialAvailability: doctor.working_hours ?? undefined,
-    legacyStartTime: doctor.work_start_time ?? undefined,
-    legacyEndTime: doctor.work_end_time ?? undefined,
-  });
+  const form = useAvailabilityForm(
+    doctor.working_hours ?? availabilityFromWorkTimes(doctor.work_start_time, doctor.work_end_time),
+  );
 
   // Handle save
   const handleSave = useCallback(async () => {
-    if (!onSave || !form.validate()) return;
+    if (!onSave || !form.isValid) return;
 
     setIsSaving(true);
     try {
-      const availability = form.getAvailability();
-      const legacy = toLegacy(availability);
+      const common = commonWorkTimes(form.availability);
 
       await onSave({
-        work_start_time: legacy.work_start_time || '09:00',
-        work_end_time: legacy.work_end_time || '18:00',
-        working_hours: availability,
+        work_start_time: common.start,
+        work_end_time: common.end,
+        working_hours: form.availability,
       });
     } finally {
       setIsSaving(false);
@@ -112,11 +99,6 @@ export function DoctorDetailModal({
     }
     onClose();
   }, [form.isDirty, onClose]);
-
-  // Get current availability for preview
-  const currentAvailability = form.getAvailability();
-  const workingDays = getWorkingDays(currentAvailability);
-  const weeklyHours = calculateWeeklyHours(currentAvailability);
 
   return (
     <div
@@ -167,101 +149,10 @@ export function DoctorDetailModal({
         {/* Content */}
         <div className="doc-content">
           {isEditMode ? (
-            // Edit mode: Full availability designer with tabs
             <div className="doc-edit-wrapper">
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="doc-tabs-container"
-              >
-                {/* Tab navigation */}
-                <div className="doc-tabs-nav">
-                  <TabsList className="doc-tabs-list">
-                    <TabsTrigger
-                      value="weekly"
-                      className="doc-tab-trigger-weekly"
-                    >
-                      <Calendar className="doc-tab-icon" />
-                      Semanal
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="exceptions"
-                      className="doc-tab-trigger-exceptions"
-                    >
-                      <CalendarOff className="doc-tab-icon" />
-                      Excepciones
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="rules"
-                      className="doc-tab-trigger-rules"
-                    >
-                      <Settings className="doc-tab-icon" />
-                      Reglas
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="templates"
-                      className="doc-tab-trigger-templates"
-                    >
-                      <Zap className="doc-tab-icon" />
-                      Plantillas
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="preview"
-                      className="doc-tab-trigger-preview"
-                    >
-                      <Eye className="doc-tab-icon" />
-                      Preview
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-
-                {/* Tab content */}
-                <div className="doc-tab-scroll-area">
-                  <TabsContent value="weekly" className="doc-tab-content">
-                    <WeeklyScheduleTab
-                      weeklySchedule={form.weeklySchedule}
-                      errors={form.errors}
-                      onSetDayWorking={form.setDayWorking}
-                      onAddSlot={form.addSlot}
-                      onRemoveSlot={form.removeSlot}
-                      onUpdateSlot={form.updateSlot}
-                      disabled={isSaving}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="exceptions" className="doc-tab-content">
-                    <ExceptionsTab
-                      overrides={form.overrides}
-                      errors={form.errors}
-                      onAddOverride={form.addOverride}
-                      onRemoveOverride={form.removeOverride}
-                      onUpdateOverride={form.updateOverride}
-                      disabled={isSaving}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="rules" className="doc-tab-content">
-                    <RulesTab
-                      rules={form.rules}
-                      errors={form.errors}
-                      onUpdateRules={form.updateRules}
-                      disabled={isSaving}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="templates" className="doc-tab-content">
-                    <TemplatesTab
-                      currentAvailability={currentAvailability}
-                      onApplyTemplate={form.applyTemplate}
-                      disabled={isSaving}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="preview" className="doc-tab-content">
-                    <PreviewTab availability={currentAvailability} />
-                  </TabsContent>
-                </div>
-              </Tabs>
+              <div className="doc-tab-scroll-area">
+                <AvailabilityEditor form={form} disabled={isSaving} />
+              </div>
             </div>
           ) : (
             // View mode: Simple info display
@@ -305,13 +196,13 @@ export function DoctorDetailModal({
                   <Clock className="doc-schedule-icon" />
                   <span>Disponibilidad</span>
                 </div>
-                {currentAvailability.weeklySchedule.length > 0 ? (
+                {form.availability.weeklySchedule.length > 0 ? (
                   <div className="doc-schedule-days-list">
                     <p className="doc-schedule-days-text">
-                      {workingDays.map((d) => DAYS_OF_WEEK[d]?.short).join(', ')}
+                      {workingDays(form.availability).map((d) => DAYS_OF_WEEK[d]?.short).join(', ')}
                     </p>
                     <p className="doc-schedule-meta">
-                      {weeklyHours}h/semana · {form.overrides.length} excepciones
+                      {weeklyHours(form.availability)}h/semana · {form.overrides.length} excepciones
                     </p>
                   </div>
                 ) : (
@@ -328,13 +219,13 @@ export function DoctorDetailModal({
         <div className="doc-footer">
           {/* Status */}
           <div className="doc-footer-status">
-            {form.hasValidationErrors && (
+            {!form.isValid && (
               <div className="doc-footer-error">
                 <AlertCircle className="doc-footer-error-icon" />
                 <span>Hay errores en el formulario</span>
               </div>
             )}
-            {form.isDirty && !form.hasValidationErrors && (
+            {form.isDirty && form.isValid && (
               <div className="doc-footer-dirty">Cambios sin guardar</div>
             )}
           </div>
@@ -348,7 +239,7 @@ export function DoctorDetailModal({
               <Button
                 onClick={handleSave}
                 variant="indigo"
-                disabled={isSaving || form.hasValidationErrors}
+                disabled={isSaving || !form.isValid}
               >
                 {isSaving ? 'Guardando...' : 'Guardar'}
               </Button>

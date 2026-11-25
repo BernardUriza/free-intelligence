@@ -664,17 +664,4 @@
     @apply flex items-center gap-2 p-3 bg-red-900/30
            border border-red-700 rounded-lg text-red-300;
   }
-
-  /* ========================================
-   * AVAILABILITY DESIGNER (DayRow, SlotEditor)
-   * ======================================== */
-  .admin-slot-number {
-    @apply w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center
-           text-xs text-slate-400 flex-shrink-0;
-  }
-
-  .admin-add-slot-btn {
-    @apply w-full border border-dashed border-slate-700 text-slate-500
-           hover:text-slate-300 hover:border-slate-600 hover:bg-slate-800/30;
-  }
 }

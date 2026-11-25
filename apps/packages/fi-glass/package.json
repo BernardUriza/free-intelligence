@@ -1,6 +1,6 @@
 {
   "name": "fi-glass",
-  "version": "1.9.0",
+  "version": "1.12.0",
   "sideEffects": [
     "**/*.css"
   ],
@@ -71,11 +71,17 @@
     "./model-catalog": {
       "types": "./dist/model-catalog/index.d.ts",
       "import": "./dist/model-catalog/index.js"
-    }
+    },
+    "./calendar": {
+      "types": "./dist/calendar/index.d.ts",
+      "import": "./dist/calendar/index.js"
+    },
+    "./calendar.css": "./src/calendar/calendar.css"
   },
   "files": [
     "dist",
     "src/theme",
+    "src/calendar/calendar.css",
     "tailwind.cjs"
   ],
   "dependencies": {
@@ -85,6 +91,11 @@
     "zod": "^4.1.13"
   },
   "peerDependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
     "framer-motion": ">=11.0.0",
     "lucide-react": ">=0.400.0",
     "react": ">=18",
@@ -94,6 +105,21 @@
     "remark-gfm": ">=4.0.0"
   },
   "peerDependenciesMeta": {
+    "@fullcalendar/core": {
+      "optional": true
+    },
+    "@fullcalendar/daygrid": {
+      "optional": true
+    },
+    "@fullcalendar/interaction": {
+      "optional": true
+    },
+    "@fullcalendar/react": {
+      "optional": true
+    },
+    "@fullcalendar/timegrid": {
+      "optional": true
+    },
     "recordrtc": {
       "optional": true
     }
@@ -104,6 +130,11 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@fullcalendar/core": "6.1.20",
+    "@fullcalendar/daygrid": "6.1.20",
+    "@fullcalendar/interaction": "6.1.20",
+    "@fullcalendar/react": "6.1.20",
+    "@fullcalendar/timegrid": "6.1.20",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",

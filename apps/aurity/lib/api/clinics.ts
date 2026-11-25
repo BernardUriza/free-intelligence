@@ -8,7 +8,7 @@
  * Created: 2025-11-22
  */
 
-import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import type { DoctorAvailability } from '@free-intelligence/core/availability';
 import { api } from './client';
 import { ROUTES } from './routes';
 

@@ -6,7 +6,8 @@ glass-box agentic UI rendered as frosted surfaces. Depends only on
 
 Subpath exports: `fi-glass` (root), `fi-glass/theme`, `fi-glass/theme.css`,
 `fi-glass/messages`, `fi-glass/composer`, `fi-glass/voice`, `fi-glass/shell`,
-`fi-glass/persona-selector`, `fi-glass/agent`.
+`fi-glass/persona-selector`, `fi-glass/agent`, `fi-glass/calendar`,
+`fi-glass/calendar.css`.
 
 ---
 
@@ -158,3 +159,31 @@ tool-call steps, and sources. Each sub-panel self-hides when empty.
 per-step `done` / `failed` / `cancelled` (struck) statuses, `note` annotations,
 a `revised` / `re-planned` badge when the plan is amended mid-turn, and a
 terminal `completed` / `failed` / `cancelled` outcome badge.
+
+---
+
+## Calendar: `<FiCalendar>` and `<AvailabilityEditor>`
+
+A week/day/month calendar over FullCalendar 6, plus the editor for a
+professional's weekly hours, date exceptions and booking rules. No Tailwind
+needed. Works on React 18 and 19. FullCalendar is an optional peer, so you only
+install it if you import this subpath:
+
+```bash
+pnpm add @fullcalendar/{core,daygrid,interaction,react,timegrid}@6.1.20
+```
+
+```tsx
+import 'fi-glass/calendar.css';
+import { AvailabilityEditor, FiCalendar, useAvailabilityForm } from 'fi-glass/calendar';
+
+const form = useAvailabilityForm(doctor.availability);
+
+<AvailabilityEditor form={form} theme="light" />;
+<button disabled={!form.isDirty || !form.isValid} onClick={() => save(form.availability)}>Save</button>;
+```
+
+`FiCalendar` takes every FullCalendar option and yours win over the defaults.
+Re-tint either one by setting `--fi-calendar-*` on `.fi-calendar` /
+`.fi-availability`. The data types, validation and week math live in
+`@free-intelligence/core/availability`, with no React.

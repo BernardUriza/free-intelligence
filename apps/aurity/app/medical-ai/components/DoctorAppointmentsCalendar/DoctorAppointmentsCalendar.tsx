@@ -8,25 +8,14 @@
 'use client';
 
 import { useRef } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import {
-  TIME_SLOT_PRESETS,
-  THEME_PRESETS,
-  TIME_FORMAT,
-  DAY_HEADER_FORMAT,
-  SLOT_LABEL_FORMAT,
-} from '@/components/fullcalendar/config/calendar-presets.config';
+import { FiCalendar, businessHours, type FiCalendarHandle } from 'fi-glass/calendar';
 
 import type { DoctorAppointmentsCalendarProps } from './types';
-import { useBusinessHours } from './hooks/useBusinessHours';
 import { useCalendarEvents } from './hooks/useCalendarEvents';
 import { useCalendarNavigation } from './hooks/useCalendarNavigation';
 import { CalendarHeader } from './components/CalendarHeader';
 import { CalendarLegend } from './components/CalendarLegend';
-import { CalendarStyles } from './components/CalendarStyles';
+import { DEFAULT_BUSINESS_HOURS } from './constants';
 
 // ============================================================================
 // Component
@@ -41,10 +30,12 @@ export function DoctorAppointmentsCalendar({
   loading = false,
   availability,
 }: DoctorAppointmentsCalendarProps) {
-  const calendarRef = useRef<FullCalendar>(null);
+  const calendarRef = useRef<FiCalendarHandle>(null);
 
   // Derived data
-  const businessHours = useBusinessHours(availability);
+  const weeklyHours = availability?.weeklySchedule.length
+    ? businessHours(availability.weeklySchedule)
+    : DEFAULT_BUSINESS_HOURS;
   const events = useCalendarEvents(appointments, availability);
 
   // Navigation & interaction handlers
@@ -55,9 +46,6 @@ export function DoctorAppointmentsCalendar({
       onSelectAppointment,
       onCreateAppointment,
     });
-
-  const timeConfig = TIME_SLOT_PRESETS.clinic;
-  const themeConfig = THEME_PRESETS.dark;
 
   return (
     <div className="flex flex-col h-full">
@@ -77,37 +65,17 @@ export function DoctorAppointmentsCalendar({
       )}
 
       {/* Calendar grid */}
-      <div className="flex-1 relative fc-dark-theme">
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-          initialView="timeGridWeek"
-          initialDate={currentDate}
-          locale="es"
-          headerToolbar={false}
-          height="100%"
-          slotMinTime={timeConfig.minTime}
-          slotMaxTime={timeConfig.maxTime}
-          slotDuration={timeConfig.slotDuration}
-          slotLabelInterval={timeConfig.slotLabelInterval}
-          slotLabelFormat={SLOT_LABEL_FORMAT.simple}
-          dayHeaderFormat={DAY_HEADER_FORMAT.medium}
-          allDaySlot={false}
-          nowIndicator={true}
-          events={events}
-          eventDisplay="block"
-          displayEventTime={true}
-          displayEventEnd={false}
-          eventTimeFormat={TIME_FORMAT.h24}
-          selectable={false}
-          editable={false}
-          eventClick={handleEventClick}
-          dateClick={handleDateClick}
-          businessHours={businessHours}
-        />
-
-        <CalendarStyles theme={themeConfig} />
-      </div>
+      <FiCalendar
+        ref={calendarRef}
+        className="flex-1 relative"
+        hours="clinic"
+        height="100%"
+        initialDate={currentDate}
+        events={events}
+        eventClick={handleEventClick}
+        dateClick={handleDateClick}
+        businessHours={weeklyHours}
+      />
 
       <CalendarLegend />
     </div>

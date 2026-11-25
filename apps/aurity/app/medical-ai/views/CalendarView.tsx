@@ -18,7 +18,7 @@ import { AlertCircle, Calendar, Trash2 } from 'lucide-react';
 import { DoctorDetailModal, type DoctorSaveData } from '@/components/admin/clinics/DoctorDetailModal';
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 import type { Doctor, Clinic } from '@/lib/api/clinics';
-import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import type { DoctorAvailability } from '@free-intelligence/core/availability';
 
 import { DoctorAppointmentsCalendar } from '../components/DoctorAppointmentsCalendar';
 import { AppointmentModal } from '@/components/appointments';

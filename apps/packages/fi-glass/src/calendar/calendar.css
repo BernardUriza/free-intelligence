@@ -1,0 +1,345 @@
+/* Tokens for fi-glass/calendar. A consumer re-tints by setting --fi-calendar-* on an ancestor
+   and passing theme="inherit", or by overriding them on .fi-calendar / .fi-availability. */
+
+:where(.fi-calendar, .fi-availability):where([data-theme="dark"]) {
+  color-scheme: dark;
+  --fi-calendar-surface: rgb(15 23 42 / 0.5);
+  --fi-calendar-raised: rgb(30 41 59 / 0.5);
+  --fi-calendar-line: rgb(51 65 85);
+  --fi-calendar-text: rgb(241 245 249);
+  --fi-calendar-muted: rgb(148 163 184);
+  --fi-calendar-accent: rgb(129 140 248);
+  --fi-calendar-on-accent: rgb(15 23 42);
+  --fi-calendar-available: rgb(129 140 248);
+  --fi-calendar-override: rgb(251 146 60);
+  --fi-calendar-closed: rgb(248 113 113);
+  --fi-calendar-day-off: rgb(148 163 184);
+  --fi-calendar-danger: rgb(248 113 113);
+  --fi-calendar-warning: rgb(250 204 21);
+}
+
+:where(.fi-calendar, .fi-availability):where([data-theme="light"]) {
+  color-scheme: light;
+  --fi-calendar-surface: rgb(255 255 255);
+  --fi-calendar-raised: rgb(248 250 252);
+  --fi-calendar-line: rgb(203 213 225);
+  --fi-calendar-text: rgb(15 23 42);
+  --fi-calendar-muted: rgb(71 85 105);
+  --fi-calendar-accent: rgb(79 70 229);
+  --fi-calendar-on-accent: rgb(255 255 255);
+  --fi-calendar-available: rgb(79 70 229);
+  --fi-calendar-override: rgb(194 65 12);
+  --fi-calendar-closed: rgb(185 28 28);
+  --fi-calendar-day-off: rgb(100 116 139);
+  --fi-calendar-danger: rgb(185 28 28);
+  --fi-calendar-warning: rgb(161 98 7);
+}
+
+/* ---- Calendar ---- */
+
+.fi-calendar {
+  --fc-border-color: var(--fi-calendar-line);
+  --fc-page-bg-color: var(--fi-calendar-surface);
+  --fc-neutral-bg-color: var(--fi-calendar-raised);
+  --fc-today-bg-color: color-mix(in srgb, var(--fi-calendar-accent) 10%, transparent);
+  --fc-now-indicator-color: var(--fi-calendar-accent);
+  --fc-event-bg-color: color-mix(in srgb, var(--fi-calendar-accent) 30%, transparent);
+  --fc-event-border-color: color-mix(in srgb, var(--fi-calendar-accent) 60%, transparent);
+  --fc-event-text-color: var(--fi-calendar-text);
+  --fc-non-business-color: color-mix(in srgb, var(--fi-calendar-muted) 10%, transparent);
+  --fc-bg-event-opacity: 1;
+  color: var(--fi-calendar-text);
+}
+
+.fi-calendar .fc-col-header-cell {
+  background: var(--fi-calendar-raised);
+  padding: 8px 4px;
+}
+
+.fi-calendar .fc-col-header-cell-cushion {
+  color: var(--fi-calendar-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.fi-calendar .fc-toolbar.fc-header-toolbar { margin: 0; padding: 0.75rem; }
+.fi-calendar .fc-toolbar-title { font-size: 1rem; font-weight: 600; }
+
+.fi-calendar .fc-day-today .fc-col-header-cell-cushion { color: var(--fi-calendar-accent); }
+
+.fi-calendar .fc-timegrid-slot { height: 24px; }
+
+.fi-calendar .fc-timegrid-slot-label-cushion,
+.fi-calendar .fc-timegrid-axis-cushion {
+  color: var(--fi-calendar-muted);
+  font-size: 0.7rem;
+}
+
+.fi-calendar .fc-timegrid-now-indicator-line { border-width: 2px; }
+
+.fi-calendar .fc-event {
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+}
+
+.fi-calendar .fc-bg-event { padding: 0; border-radius: 0; }
+.fi-calendar .fc-event-title { font-weight: 500; }
+.fi-calendar .fc-timegrid-event-harness { margin: 0 2px; }
+.fi-calendar[data-clickable] .fc-timegrid-slot-lane { cursor: pointer; }
+
+.fi-calendar .fi-calendar-event--available { --fi-calendar-event: var(--fi-calendar-available); }
+.fi-calendar .fi-calendar-event--override { --fi-calendar-event: var(--fi-calendar-override); }
+.fi-calendar .fi-calendar-event--closed { --fi-calendar-event: var(--fi-calendar-closed); }
+.fi-calendar .fi-calendar-event--day-off { --fi-calendar-event: var(--fi-calendar-day-off); }
+
+.fi-calendar [class*="fi-calendar-event--"] {
+  background-color: color-mix(in srgb, var(--fi-calendar-event) 24%, transparent);
+  border-color: color-mix(in srgb, var(--fi-calendar-event) 60%, transparent);
+}
+
+/* ---- Availability editor ---- */
+
+.fi-availability {
+  color: var(--fi-calendar-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.fi-availability p,
+.fi-availability h3,
+.fi-availability ul { margin: 0; padding: 0; }
+.fi-availability ul { list-style: none; }
+
+.fi-availability-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--fi-calendar-line);
+}
+
+.fi-availability-tab {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--fi-calendar-muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fi-availability-tab[aria-selected="true"] {
+  border-bottom-color: var(--fi-calendar-accent);
+  color: var(--fi-calendar-text);
+  font-weight: 600;
+}
+
+.fi-availability-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.fi-availability-heading { border-left: 3px solid var(--fi-calendar-accent); padding-left: 0.75rem; }
+.fi-availability-title { font-size: 1rem; font-weight: 600; }
+.fi-availability-hint { color: var(--fi-calendar-muted); font-size: 0.8125rem; }
+.fi-availability-day-name { font-weight: 600; }
+
+.fi-availability-list,
+.fi-availability-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fi-availability-slots { margin-top: 0.75rem; }
+
+.fi-availability-day,
+.fi-availability-card {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--fi-calendar-line);
+  border-radius: 10px;
+  background: var(--fi-calendar-raised);
+}
+
+.fi-availability-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fi-availability-day[data-working="false"],
+.fi-availability-card[data-past] { opacity: 0.7; }
+
+.fi-availability-day[data-invalid],
+.fi-availability-card[data-invalid] { border-color: var(--fi-calendar-danger); }
+
+.fi-availability-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fi-availability-row > :first-child { flex: 1 1 auto; }
+
+.fi-availability-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fi-availability-range .fi-availability-field {
+  flex: 1 1 8.25rem;
+  min-width: 0;
+  padding: 0 0.5rem;
+}
+
+.fi-availability-range-dash { color: var(--fi-calendar-muted); }
+
+.fi-availability-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.75rem;
+}
+
+.fi-availability-labeled {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--fi-calendar-muted);
+  font-size: 0.8125rem;
+}
+
+.fi-availability-field {
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--fi-calendar-line);
+  border-radius: 8px;
+  background: var(--fi-calendar-surface);
+  color: var(--fi-calendar-text);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.fi-availability-field[aria-invalid="true"] { border-color: var(--fi-calendar-danger); }
+
+.fi-availability-action,
+.fi-availability-chip {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border: 1px solid var(--fi-calendar-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fi-calendar-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fi-availability-action[data-tone="primary"],
+.fi-availability-chip[aria-pressed="true"] {
+  border-color: var(--fi-calendar-accent);
+  background: var(--fi-calendar-accent);
+  color: var(--fi-calendar-on-accent);
+}
+
+.fi-availability-action[data-tone="dashed"] { border-style: dashed; color: var(--fi-calendar-muted); }
+.fi-availability-action[data-tone="danger"] { color: var(--fi-calendar-danger); }
+
+.fi-availability-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fi-availability-switch {
+  position: relative;
+  width: 52px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.fi-availability-switch::before,
+.fi-availability-switch::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  transition: background-color 0.15s, transform 0.15s;
+}
+
+.fi-availability-switch::before { inset: 8px 2px; background: var(--fi-calendar-line); }
+.fi-availability-switch::after { top: 11px; left: 5px; width: 22px; height: 22px; background: rgb(255 255 255); }
+.fi-availability-switch[aria-checked="true"]::before { background: var(--fi-calendar-accent); }
+.fi-availability-switch[aria-checked="true"]::after { transform: translateX(20px); }
+
+.fi-availability :is(button, input):focus-visible {
+  outline: 2px solid var(--fi-calendar-accent);
+  outline-offset: 2px;
+}
+
+.fi-availability :is(button, input):disabled { opacity: 0.55; cursor: not-allowed; }
+
+.fi-availability-error {
+  flex-basis: 100%;
+  color: var(--fi-calendar-danger);
+  font-size: 0.8125rem;
+}
+
+.fi-availability-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--fi-calendar-warning) 40%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fi-calendar-warning) 10%, transparent);
+}
+
+.fi-availability .fi-availability-note-list { padding-left: 1.25rem; list-style: disc; }
+
+.fi-availability-empty {
+  padding: 1.5rem;
+  border: 1px dashed var(--fi-calendar-line);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.fi-availability-preview {
+  overflow: hidden;
+  border: 1px solid var(--fi-calendar-line);
+  border-radius: 10px;
+}
+
+.fi-availability-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: var(--fi-calendar-muted);
+}
+
+.fi-availability-legend li { display: flex; align-items: center; gap: 0.5rem; }
+
+.fi-availability-legend li::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--fi-calendar-event);
+}
+
+.fi-availability-legend [data-kind="available"] { --fi-calendar-event: var(--fi-calendar-available); }
+.fi-availability-legend [data-kind="override"] { --fi-calendar-event: var(--fi-calendar-override); }
+.fi-availability-legend [data-kind="closed"] { --fi-calendar-event: var(--fi-calendar-closed); }
+.fi-availability-legend [data-kind="day-off"] { --fi-calendar-event: var(--fi-calendar-day-off); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fi-availability-switch::before,
+  .fi-availability-switch::after { transition: none; }
+}
