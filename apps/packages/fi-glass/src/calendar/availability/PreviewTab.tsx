@@ -35,7 +35,7 @@ export function PreviewTab({ form }: AvailabilityTabProps) {
       <TabHeading title="Vista previa">
         {`${weeklyHours(availability)} h por semana en ${dayCount} ${dayCount === 1 ? 'día' : 'días'}.`}
       </TabHeading>
-      <div className="fi-availability-row">
+      <div className="fi-availability-row fi-availability-nav">
         <Action onClick={navigation.goToPrev}>Anterior</Action>
         <Action onClick={navigation.goToToday}>Hoy</Action>
         <Action onClick={navigation.goToNext}>Siguiente</Action>
