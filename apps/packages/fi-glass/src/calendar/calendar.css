@@ -185,6 +185,10 @@
 
 .fi-availability-row > :first-child { flex: 1 1 auto; }
 
+.fi-availability-nav { justify-content: flex-end; }
+
+.fi-availability-nav > :first-child { flex: 0 1 auto; }
+
 .fi-availability-range {
   display: flex;
   flex-wrap: wrap;

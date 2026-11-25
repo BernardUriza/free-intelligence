@@ -82,6 +82,9 @@ describe('AvailabilityEditor', () => {
     expect(screen.getByRole('tab', { name: 'Vista previa' }).getAttribute('aria-selected')).toBe('true');
     expect(container.querySelectorAll('.fi-calendar-event--available')).toHaveLength(1);
     expect(screen.getByText('4 h por semana en 1 día.')).toBeTruthy();
+    const nav = screen.getByRole('button', { name: 'Anterior' }).parentElement;
+    expect(nav?.classList.contains('fi-availability-nav')).toBe(true);
+    expect([...(nav?.children ?? [])].map((b) => b.textContent)).toEqual(['Anterior', 'Hoy', 'Siguiente']);
   });
 
   it('reset returns to what was loaded', () => {

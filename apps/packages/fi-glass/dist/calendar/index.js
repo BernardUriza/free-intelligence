@@ -303,7 +303,7 @@ function PreviewTab({ form }) {
   const showWeek = ({ start }) => setFrom(start);
   return /* @__PURE__ */ jsxs3(Fragment2, { children: [
     /* @__PURE__ */ jsx4(TabHeading, { title: "Vista previa", children: `${weeklyHours(availability)} h por semana en ${dayCount} ${dayCount === 1 ? "d\xEDa" : "d\xEDas"}.` }),
-    /* @__PURE__ */ jsxs3("div", { className: "fi-availability-row", children: [
+    /* @__PURE__ */ jsxs3("div", { className: "fi-availability-row fi-availability-nav", children: [
       /* @__PURE__ */ jsx4(Action, { onClick: navigation.goToPrev, children: "Anterior" }),
       /* @__PURE__ */ jsx4(Action, { onClick: navigation.goToToday, children: "Hoy" }),
       /* @__PURE__ */ jsx4(Action, { onClick: navigation.goToNext, children: "Siguiente" })
