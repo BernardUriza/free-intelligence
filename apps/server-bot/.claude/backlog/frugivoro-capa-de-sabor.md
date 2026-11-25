@@ -58,8 +58,8 @@ sólo en cocinas occidentales). FlavorDB sirve para responder "qué aroma tiene 
 
 In progress (24-nov-2026). Bernard decidió: no comercial (entra FlavorDB2) y sin libros por ahora.
 Ingeridos como corpus, una ficha por ingrediente con nombre en español: USDA Foundation Foods
-(233 vegetales) y FlavorDB2 (581 vegetales). `candidates` del reranker subió de 8 a 32.
-Total `__corpus_vegan__`: 2,139 chunks, 860 fuentes, 0 sin embedding.
+(233 vegetales, retirado el mismo día) y FlavorDB2 (581 vegetales). Las cifras vigentes salen de
+`python scripts/corpus_sync.py plan --persona frugivoro` y `scripts/corpus_eval.py`.
 
 Hecho (24-nov-2026, v4.60.0, PR #705): `food_lookup`, `nutrient_compare` y `nutrient_rank` sobre
 2,031 alimentos vegetales (Foundation 2026-10-29 + SR Legacy 2018-04), montadas sólo en Frugi.
@@ -70,6 +70,16 @@ respuesta dijo de memoria «casi tres veces una naranja» (son 3.9): corregido e
 Hecho (24-nov-2026, v4.62.4): las 233 fichas USDA salieron del corpus; los 14 casos que las
 evaluaban son ahora `test_what_the_usda_cards_answered_the_table_answers`. Los archivos quedaron en
 `~/Documents/archive/server-bot-frugivoro-usda-2026-11-24/`.
+
+Hecho (24-nov-2026, v4.62.5): a las 01:08 UTC del 25 Frugi dijo «casi el doble y medio» de 3.33
+contra 2.1 (son 1.59). `nutrient_compare` ya entrega la división en cada renglón.
+
+Medido y descartado (24-nov-2026): reranker en otro motor. Xeon 8573C, 2 hilos, 32 preguntas de
+Alice × 16 pasajes (mmarco, sentence-transformers 5.7, torch 2.15): torch 2.55 s; ONNX O3 1.78 s con
+los mismos resultados (32/32 primeros lugares, 0/512 cruces del piso); OpenVINO 2.45 s; int8 VNNI
+1.48 s e int8 OpenVINO 1.17 s, que cambian el primer lugar en 4 y 7 de 32. Los int8 quedan fuera por
+calidad. ONNX O3 ahorra ~0.8 s de un turno de ~35 s y agrega onnxruntime + optimum a la imagen: no
+entra mientras el turno lo domine el modelo. Si la etapa del corpus vuelve a pesar, es el candidato.
 
 Abierto:
 - «queso vegano fermentado de nuez de la india» sigue sin traer el artículo de queso (está en

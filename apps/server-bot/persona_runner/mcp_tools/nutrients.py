@@ -25,6 +25,13 @@ def _number(value: float | None) -> str:
     return "sin dato" if value is None else f"{value:.3g}"
 
 
+def _ratio(values: list[float | None], basis: str) -> str:
+    measured = [v for v in values if v is not None]
+    if len(measured) < 2 or min(measured) <= 0:
+        return ""
+    return f" -> el mayor es {max(measured) / min(measured):.3g} veces el menor ({basis.replace('_', ' de ')})"
+
+
 def _sources(foods: list[store.Food]) -> str:
     used = sorted({f.source for f in foods})
     return "Fuente: " + "; ".join(f"{s} = {store.rules()['sources'][s]}" for s in used)
@@ -65,7 +72,8 @@ async def food_lookup(args: dict) -> dict:
     (
         "The measured nutrients of one or several foods side by side, by fdc_id (from food_lookup). Use it for any "
         "number you are going to state or compare. `nutrients` are keys such as proteina, hierro, calcio, zinc, "
-        "fibra, folato, vitamina_c, omega3_ala, lisina, b12; omit for all. 'sin dato' means USDA did not measure it, "
+        "fibra, folato, vitamina_c, omega3_ala, lisina, b12; omit for all. Each line already carries how many times the "
+        "largest is the smallest: state that figure, never your own arithmetic. 'sin dato' means USDA did not measure it, "
         "never zero."
     ),
     {
@@ -98,7 +106,11 @@ async def nutrient_compare(args: dict) -> dict:
     spec = store.rules()["nutrients"]
     for key, values in table.items():
         if any(v is not None for v in values):
-            lines.append(f"{spec[key]['label']} ({spec[key]['unit']}): " + " | ".join(_number(v) for v in values))
+            lines.append(
+                f"{spec[key]['label']} ({spec[key]['unit']}): "
+                + " | ".join(_number(v) for v in values)
+                + _ratio(values, basis)
+            )
     if unmeasured := [spec[k]["label"] for k, v in table.items() if all(x is None for x in v)]:
         lines.append("Sin dato en todos: " + ", ".join(unmeasured))
     return shared._text("\n".join([*lines, _sources(picked)]))
