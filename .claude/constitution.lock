@@ -6,14 +6,14 @@ override = []
 [core]
 id = "agent-constitution"
 repo = "https://github.com/BernardUriza/agent-constitution.git"
-rev = "0574e3a0b45c45aacd23b125fd5e3b390c93b10a"
-tree = "sha256:6198556919c50baabc2dcab97ddbc9baef801cb64323d30d7c678af92b141874"
+rev = "3af83c5c83a0293865e3aacca235e1287958b858"
+tree = "sha256:eec7495a87927bab4168b8e3be0159ada4e44814aa51f3406d2f47d234290582"
 
 [repo]
 id = "free-intelligence"
 surfaces = ["CLAUDE.md", ".claude/CLAUDE.md", ".claude/rules/**", ".claude/overrides/**"]
 imports = []
-surfaces_tree = "sha256:cc06abae5d0fb2f22fb17bc9a97211c5a4ee9f778ec831d565bb80dcc21941bc"
+surfaces_tree = "sha256:fa86aa44193dec107373561b3c62b3e3971166265f53cc2f18c8b7895b987c58"
 
 [hooks]
 entries = [
@@ -25,8 +25,9 @@ entries = [
   { id = "instruments-smoke", from = "core", event = "SessionStart", matcher = "" },
   { id = "new-rule-requires-owner-search", from = "core", event = "PreToolUse", matcher = "Write|Edit|Bash" },
   { id = "new-rule-requires-owner-search-post", from = "core", event = "PostToolUse", matcher = "Bash" },
+  { id = "principal-text-is-kept", from = "core", event = "PreToolUse", matcher = "Write|Edit|MultiEdit" },
 ]
-tree = "sha256:8fb5df5896b84204d4768490d4fd5cc013afa101cd0affa75e943a62d096d5ad"
+tree = "sha256:c2114e5e5f9d0c21b48f74bbde93fb520f3f686604561cdd6556bd7f077f183b"
 
 [resolution]
 gates = ["core", "bernard"]
@@ -42,12 +43,12 @@ tree = "sha256:4f664058e07a86f8fbf3c0ca3b870e6ed1eb1bafd899a9b529a629cd6bc84ccd"
 rules = true
 
 [lock]
-canonical_sha256 = "31b4e8a68c05a49e9ef3519654f2b67cfd63cee41d6d93921f21a5c4c64d56e4"
+canonical_sha256 = "7b6751a588b2df79a8a2da7a67b8918fe7e273d2865fc975abb8e5985ef33b36"
 
 [[overlay]]
 id = "bernard"
 layer = "personal"
 scope = "machine-only"
 repo = "https://github.com/BernardUriza/constitution-bernard.git"
-rev = "a6508560bbbcea150dfab82139d9dede1f46d54d"
-tree = "sha256:cbb0c130d5e802079afc27fa0f1f0dbc97754f4c973b6b7eacb9862d649a6887"
+rev = "e7d094525e1ad5a86679b213ca29ed5fd3176d61"
+tree = "sha256:925879396f63caf42ac1e7f1cca3afc242387a4f96a7a83de3eb7418bd646e2d"
