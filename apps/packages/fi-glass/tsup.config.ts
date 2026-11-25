@@ -22,6 +22,7 @@ export default defineConfig({
     'src/admin-kit/index.ts',
     'src/persona-admin/index.ts',
     'src/model-catalog/index.ts',
+    'src/calendar/index.ts',
   ],
   format: ['esm'],
   dts: { compilerOptions: { skipLibCheck: true } },
@@ -38,6 +39,11 @@ export default defineConfig({
     'remark-gfm',
     'recordrtc',
     '@free-intelligence/core',
+    '@fullcalendar/core',
+    '@fullcalendar/daygrid',
+    '@fullcalendar/interaction',
+    '@fullcalendar/react',
+    '@fullcalendar/timegrid',
   ],
   esbuildPlugins: [
     preserveDirectivesPlugin({

@@ -18,6 +18,7 @@ is the glassmorphism skin built on top of it.
 | `AgentHook` | The transport interface a consumer implements: `{ turn, isStreaming, send, reset, abort }`. |
 | `ChatMessage`, `ConversationSummary` | Plain message / conversation shapes shared across the surface. |
 | conversation helpers | Pure helpers for building and merging conversation transcripts. |
+| `@free-intelligence/core/availability` | Weekly hours, date exceptions and booking rules: types, validation and week math. |
 
 ## Install
 

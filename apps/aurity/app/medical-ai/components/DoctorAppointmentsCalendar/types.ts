@@ -5,7 +5,7 @@
  */
 
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
-import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import type { DoctorAvailability } from '@free-intelligence/core/availability';
 
 // ============================================================================
 // Props

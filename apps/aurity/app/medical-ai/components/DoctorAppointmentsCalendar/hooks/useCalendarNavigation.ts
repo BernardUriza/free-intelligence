@@ -6,13 +6,13 @@
  */
 
 import { useCallback, type RefObject } from 'react';
-import type FullCalendar from '@fullcalendar/react';
 import type { EventClickArg } from '@fullcalendar/core';
 import type { DateClickArg } from '@fullcalendar/interaction';
+import type { FiCalendarHandle } from 'fi-glass/calendar';
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
 
 interface UseCalendarNavigationArgs {
-  calendarRef: RefObject<FullCalendar | null>;
+  calendarRef: RefObject<FiCalendarHandle | null>;
   onDateChange: (date: Date) => void;
   onSelectAppointment: (appointment: Appointment) => void;
   onCreateAppointment: (date: Date) => void;

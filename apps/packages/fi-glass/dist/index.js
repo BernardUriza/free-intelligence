@@ -2,8 +2,8 @@ import {
   PersonaSelector
 } from "./chunk-XA44CHD2.js";
 import {
-  ChatFilePreview
-} from "./chunk-JK3NSWFZ.js";
+  glassTheme
+} from "./chunk-EBUEQEPO.js";
 import {
   CapacityMeter,
   DocCard,
@@ -60,8 +60,8 @@ import {
   useResourceStyle
 } from "./chunk-ERH7OSR3.js";
 import {
-  glassTheme
-} from "./chunk-EBUEQEPO.js";
+  ChatFilePreview
+} from "./chunk-JK3NSWFZ.js";
 import {
   AgentConversationSurface,
   AgentPanel,
@@ -102,7 +102,7 @@ import {
   useInlineRename,
   useSidebarItemStyle,
   useSidebarSectionStyle
-} from "./chunk-DWJLRJE6.js";
+} from "./chunk-5S3D5UZQ.js";
 import {
   clearMediaQueryCache,
   useBreakpoints,
@@ -187,6 +187,7 @@ import {
   useImagePicker,
   withComposerAction
 } from "./chunk-VR5XNHGN.js";
+import "./chunk-LO4SF24V.js";
 import "./chunk-SYOBLV7C.js";
 import {
   CollapsibleText,
@@ -210,7 +211,6 @@ import {
   useMessageActionsStyle
 } from "./chunk-6Z6QRICA.js";
 import "./chunk-Q3QMY3NK.js";
-import "./chunk-LO4SF24V.js";
 import {
   FI_TOUCH_TARGET_CLASS,
   ensureTouchTargetStyle,

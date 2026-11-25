@@ -62,13 +62,31 @@ describe('every JS subpath export is built and shipped', () => {
     .filter(([, target]) => typeof target === 'object' && target.import?.startsWith('./dist/'))
     .map(([key, target]) => ({ key, src: target.import!.replace('./dist/', 'src/').replace(/\.js$/, '.ts') }));
 
-  it('includes the admin-kit, persona-admin and model-catalog subpaths', () => {
-    expect(subpaths.map((s) => s.key)).toEqual(expect.arrayContaining(['./admin-kit', './persona-admin', './model-catalog']));
+  it('includes the admin-kit, persona-admin, model-catalog and calendar subpaths', () => {
+    expect(subpaths.map((s) => s.key)).toEqual(expect.arrayContaining(['./admin-kit', './persona-admin', './model-catalog', './calendar']));
   });
 
   it.each(subpaths)('$key has a tsup entry and a built dist', ({ key, src }) => {
     expect(tsup).toContain(`'${src}'`);
     expect(readdirSync(join(ROOT, 'dist', key === '.' ? '' : key.slice(2)))).toContain('index.js');
+  });
+});
+
+describe('the calendar subpath', () => {
+  it('ships its stylesheet and keeps FullCalendar out of every other subpath', () => {
+    expect(pkg.files).toContain(pkg.exports['./calendar.css'].replace('./', ''));
+    const importers = jsFiles(join(ROOT, 'dist'))
+      .filter((file) => readFileSync(file, 'utf8').includes('@fullcalendar/'))
+      .map((file) => file.replace(join(ROOT, 'dist/'), ''));
+    expect(importers).toEqual(['calendar/index.js']);
+  });
+
+  it('has a rule for every class it emits', () => {
+    const css = readFileSync(join(ROOT, 'src/calendar/calendar.css'), 'utf8');
+    const emitted = sourceFiles(join(ROOT, 'src/calendar'))
+      .filter((file) => !file.includes('.test.'))
+      .flatMap((file) => [...readFileSync(file, 'utf8').matchAll(/className="([^"]+)"/g)].flatMap(([, names]) => names.split(' ')));
+    expect([...new Set(emitted)].filter((name) => !css.includes(`.${name}`))).toEqual([]);
   });
 });
 

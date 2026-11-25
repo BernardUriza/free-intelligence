@@ -507,6 +507,21 @@ importers:
         specifier: ^4.1.13
         version: 4.1.13
     devDependencies:
+      '@fullcalendar/core':
+        specifier: 6.1.20
+        version: 6.1.20
+      '@fullcalendar/daygrid':
+        specifier: 6.1.20
+        version: 6.1.20(@fullcalendar/core@6.1.20)
+      '@fullcalendar/interaction':
+        specifier: 6.1.20
+        version: 6.1.20(@fullcalendar/core@6.1.20)
+      '@fullcalendar/react':
+        specifier: 6.1.20
+        version: 6.1.20(@fullcalendar/core@6.1.20)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@fullcalendar/timegrid':
+        specifier: 6.1.20
+        version: 6.1.20(@fullcalendar/core@6.1.20)
       '@testing-library/dom':
         specifier: ^10.4.1
         version: 10.4.1

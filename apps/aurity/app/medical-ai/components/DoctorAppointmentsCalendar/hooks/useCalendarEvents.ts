@@ -7,7 +7,8 @@
 
 import { useMemo } from 'react';
 import type { Appointment } from '@/components/bryntum/utils/appointment-transform.utils';
-import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
+import type { DoctorAvailability } from '@free-intelligence/core/availability';
+import { closedDayEvent } from 'fi-glass/calendar';
 import { STATUS_COLORS } from '../constants';
 
 // ============================================================================
@@ -31,21 +32,6 @@ function toAppointmentEvent(apt: Appointment) {
   };
 }
 
-function toClosedDayEvent(override: { date: string; reason?: string }) {
-  return {
-    id: `closed-${override.date}`,
-    start: override.date,
-    allDay: true as const,
-    display: 'background' as const,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: 'transparent',
-    extendedProps: {
-      type: 'closed',
-      reason: override.reason || 'No disponible',
-    },
-  };
-}
-
 // ============================================================================
 // Hook
 // ============================================================================
@@ -63,7 +49,7 @@ export function useCalendarEvents(
     if (!availability?.overrides?.length) return [];
     return availability.overrides
       .filter((o) => o.fullDayClosed)
-      .map(toClosedDayEvent);
+      .map(closedDayEvent);
   }, [availability?.overrides]);
 
   return useMemo(

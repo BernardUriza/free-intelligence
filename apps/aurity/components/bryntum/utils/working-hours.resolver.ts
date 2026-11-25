@@ -1,7 +1,7 @@
 import type { Doctor, WorkingHour } from '@/components/bryntum/utils/appointment-transform.utils';
 import { TemporalAPI, getClinicTimeZone } from '@/lib/temporal';
-import type { DoctorAvailability } from '@/components/admin/clinics/availability-designer/types';
-import { toWorkingHours } from '@/components/admin/clinics/availability-designer/utils/transform';
+import type { DoctorAvailability } from '@free-intelligence/core/availability';
+import { toWorkingHours } from '@/components/admin/clinics/workingHours';
 
 const Temporal = TemporalAPI;
 

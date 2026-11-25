@@ -62,3 +62,9 @@ export const STATUS_COLORS: Record<string, StatusColor> = {
     text: '#fca5a5',
   },
 } as const;
+
+export const DEFAULT_BUSINESS_HOURS = {
+  daysOfWeek: [1, 2, 3, 4, 5],
+  startTime: '09:00',
+  endTime: '18:00',
+};
