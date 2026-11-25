@@ -1,8 +1,8 @@
 """Per-user deep memory — vector search over a user's stored chunks.
 
 Storage is `deep_memory_chunks` (vector(384), exact search: no vector index), shared with the
-per-persona corpus; only the partition key differs (a real user_id here, a
-`__corpus_*__` namespace there). Embeddings come from the local multilingual e5
+personas' voice pools; only the partition key differs (a real user_id here, `__style_*__`
+there). The corpora live in `corpus_chunks`. Embeddings come from the local multilingual e5
 model in `persona_core.corpus.pg_rag`.
 
 Read-only today. The writer (the siesta consolidator's incremental ingest) was

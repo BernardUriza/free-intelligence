@@ -6,6 +6,7 @@ Status: Done (2026-11-20, PR #686, v4.52.1). Bernard la reabrió el 2026-11-19 a
 
 - Embeddings locales `intfloat/multilingual-e5-small` (384d) en el proceso, sin Azure. El 715-123420 seguía vivo el 2026-11-20 al reintentar el deployment en `aire-openai`.
 - Migración idempotente: los vectores ada quedan en `embedding_ada002`; 6,889 filas re-embebidas con `scripts/reembed_deep_memory.py` (el `__chatgpt_archive__`, sin lector, se saltó).
+- Cierre (2026-11-25, v4.62.6, aprobado por Bernard): `embedding_ada002` ya no existe, las 7,866 filas `__corpus_*` viejas se borraron (el corpus vive en `corpus_chunks`) y las 30,746 de `__chatgpt_archive__` pasaron a la tabla `chatgpt_archive_chunks`, sin vectores ni lector. La base bajó de 517 a 167 MB. Respaldos cifrados y restaurados: `~/Documents/backups/server-bot-corpus-2026-11-24.tar.gz.gpg` y `server-bot-chatgpt-archive-2026-11-25.tar.gz.gpg`. El script de re-embebido y `adopt` se borraron.
 - Búsqueda exacta, sin índice aproximado: HNSW dejó vacías 12 de 21 búsquedas filtradas por persona, y un ivfflat viejo que revivió en el deploy, 3 de 21 (v4.52.2).
 - Gate de relevancia con cross-encoder (`mmarco-mMiniLMv2`, piso −2.0): el coseno de e5 no separa lo relevante de lo ajeno.
 - Recibo en prod: `turn_pipeline_warm_ready corpus=true` (revisión 0018) y `deep_memory_corpus_refs_built` en `__corpus_vegan__` a las 14:10 UTC del 2026-11-20, el primero desde octubre.

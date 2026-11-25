@@ -3,7 +3,6 @@
     python scripts/corpus_sync.py lock  --persona frugivoro   # pin the files' sha256, write MANIFEST.md
     python scripts/corpus_sync.py plan  --persona frugivoro   # what would change; exit 1 if refused
     python scripts/corpus_sync.py apply --persona frugivoro   # change it, in one transaction
-    python scripts/corpus_sync.py adopt --persona frugivoro   # once: copy the pre-manifest chunks in
 
 `--max-deletes N` accepts N deletions over the limit in rules.yml; `--namespace X`
 aims at a shadow namespace. Needs POSTGRES_URL except for `lock`. Run
@@ -22,7 +21,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from persona_core.corpus.ingest import apply as ingest_apply  # noqa: E402
-from persona_core.corpus.ingest.adopt import adopt_legacy_chunks  # noqa: E402
 from persona_core.corpus.ingest.documents import build_document  # noqa: E402
 from persona_core.corpus.ingest.manifest import (  # noqa: E402
     ManifestError,
@@ -72,10 +70,8 @@ async def build_plan(persona_id: str, namespace: str, store, max_deletes: int | 
 async def sync(args: argparse.Namespace, namespace: str, dsn: str) -> int:
     store = ingest_apply.corpus_store(dsn)
     try:
-        if args.command == "adopt":
+        if args.command == "apply":
             await store.init_schema()
-            print(f"adopted {await adopt_legacy_chunks(dsn, namespace)} chunks into {namespace}")
-            return 0
         plan = await build_plan(args.persona, namespace, store, args.max_deletes)
         print(f"{args.persona} → {namespace}\n{describe(plan)}")
         if plan.refusals:
@@ -97,7 +93,7 @@ async def sync(args: argparse.Namespace, namespace: str, dsn: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=("lock", "plan", "apply", "adopt"))
+    parser.add_argument("command", choices=("lock", "plan", "apply"))
     parser.add_argument("--persona", required=True, choices=sorted(p for p, d in PERSONAS.items() if d.corpus_namespace))
     parser.add_argument("--namespace", help="a shadow namespace instead of the persona's")
     parser.add_argument("--max-deletes", type=int)

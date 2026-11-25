@@ -9,7 +9,6 @@ import asyncpg
 import pytest
 
 from persona_core.corpus import pg_rag
-from persona_core.corpus.ingest import adopt
 from persona_core.corpus.ingest import apply as ingest_apply
 from persona_core.corpus.ingest.documents import CorpusDocument, build_document, chunk_text
 from persona_core.corpus.ingest.extract import ExtractError, extract_text, strip_invisible
@@ -321,30 +320,6 @@ async def test_a_refused_plan_is_not_applied(corpus_db):
     with pytest.raises(ingest_apply.PlanRefusedError):
         await _sync(store, [_doc("a", chunks=())])
     assert await ingest_apply.stored_documents(store, "ns") == []
-
-
-@REQUIRES_PG
-async def test_adoption_copies_vectors_once_and_leaves_the_old_table_alone(corpus_db):
-    dsn, _ = corpus_db
-    conn = await asyncpg.connect(dsn)
-    await conn.execute(
-        "CREATE TABLE deep_memory_chunks (id bigserial, user_id text, source_type text, source_ref text,"
-        " chunk_text text, embedding vector(384), created_at timestamptz DEFAULT now())"
-    )
-    vector = "[" + ",".join(["1"] + ["0"] * 383) + "]"
-    await conn.executemany(
-        "INSERT INTO deep_memory_chunks (user_id, source_type, source_ref, chunk_text, embedding)"
-        " VALUES ($1, 'manual', $2, $3, $4::text::vector)",
-        [("ns", "libro", "uno", vector), ("ns", "libro", "dos", vector), ("otra", "ajeno", "x", vector)],
-    )
-    assert await adopt.adopt_legacy_chunks(dsn, "ns") == 2
-    with pytest.raises(RuntimeError, match="runs once"):
-        await adopt.adopt_legacy_chunks(dsn, "ns")
-    assert await conn.fetchval("SELECT count(*) FROM deep_memory_chunks") == 3
-    assert [tuple(r) for r in await conn.fetch("SELECT namespace, document_id FROM corpus_documents")] == [
-        ("ns", "libro")
-    ]
-    await conn.close()
 
 
 def test_a_built_document_carries_the_fingerprint_the_plan_compares(tmp_path):
