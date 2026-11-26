@@ -25,6 +25,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from typing import Any
 
 PROTOCOL_VERSION = "2025-06-18"
@@ -33,6 +34,9 @@ DEFAULT_CREDENTIAL_FILE = "~/.secrets/discord-bot-agent-runner-token.txt"
 BERNARD_PRINCIPAL = "907264175246569543"
 POLL_SECONDS = 5.0
 MAX_WAIT_SECONDS = 600.0
+SUBMIT_READ_TIMEOUT_S = 200.0
+POLL_WAIT_S = 25
+POLL_READ_TIMEOUT_S = 60.0
 
 
 def personas() -> list[str]:
@@ -52,7 +56,7 @@ def runner_token() -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def turn_body(persona: str, text: str, thread: str | None) -> dict[str, Any]:
+def turn_body(persona: str, text: str, thread: str | None, job_id: str | None = None) -> dict[str, Any]:
     prefix = os.environ.get("PERSONA_MCP_CHANNEL_PREFIX", "claude-code")
     channel = f"{prefix}-{persona}" + (f"-{thread}" if thread else "")
     return {
@@ -63,30 +67,52 @@ def turn_body(persona: str, text: str, thread: str | None) -> dict[str, Any]:
         "surface": "claude-code",
         "pipeline": "runner",
         "user_text": text,
+        "job_id": job_id or uuid.uuid4().hex,
     }
 
 
-def _http(method: str, path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
+def _http(
+    method: str, path: str, body: dict[str, Any] | None = None, timeout: float = POLL_READ_TIMEOUT_S
+) -> dict[str, Any]:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(runner_url() + path, data=data, method=method)  # noqa: S310
     req.add_header("Authorization", f"Bearer {runner_token()}")
     req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         return json.loads(resp.read().decode("utf-8"), strict=False)
 
 
-def ask(persona: str, text: str, thread: str | None = None, http=_http, sleep=time.sleep) -> dict[str, Any]:
+def ask(
+    persona: str, text: str, thread: str | None = None, http=_http, sleep=time.sleep, clock=time.monotonic
+) -> dict[str, Any]:
     if persona not in personas():
         raise ValueError(f"persona {persona!r} is not exposed; this server offers {personas()}")
-    job_id = http("POST", "/v1/turn/jobs", turn_body(persona, text, thread))["job_id"]
-    waited = 0.0
-    while waited < MAX_WAIT_SECONDS:
-        status = http("GET", f"/v1/turn/jobs/{job_id}")
+    body = turn_body(persona, text, thread)
+    deadline = clock() + MAX_WAIT_SECONDS
+    job_id = _submit(body, deadline, http, sleep, clock)
+    while clock() < deadline:
+        try:
+            status = http("GET", f"/v1/turn/jobs/{job_id}?wait_s={POLL_WAIT_S}", timeout=POLL_READ_TIMEOUT_S)
+        except TimeoutError:
+            continue
         if status.get("status") == "done":
             return status.get("response") or {}
         sleep(POLL_SECONDS)
-        waited += POLL_SECONDS
     raise TimeoutError(f"job {job_id} still running after {MAX_WAIT_SECONDS:.0f}s")
+
+
+def _submit(body: dict[str, Any], deadline: float, http, sleep, clock) -> str:
+    """The runner scales to zero and the ingress holds the submit through the cold boot.
+
+    The job_id is ours, so a timed-out submit is retried as the SAME turn, never a second one.
+    """
+    while True:
+        try:
+            return http("POST", "/v1/turn/jobs", body, timeout=SUBMIT_READ_TIMEOUT_S)["job_id"]
+        except TimeoutError:
+            if clock() >= deadline:
+                raise
+            sleep(POLL_SECONDS)
 
 
 def tools_list() -> dict[str, Any]:
